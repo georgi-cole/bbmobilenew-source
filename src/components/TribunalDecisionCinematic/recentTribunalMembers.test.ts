@@ -9,6 +9,15 @@ const exits = (...ids: string[]): GameHistoryEvent[] =>
 const human = juror('user')
 
 describe('sequester welcoming members', () => {
+  it('welcomes a pending bronze exit with the latest jurors even if the finalist returned earlier', () => {
+    const player = juror('returnee', { status: 'active' })
+    const roster = [juror('a'), juror('b'), juror('c')]
+    expect(
+      recentTribunalMembers(player, roster, exits('returnee', 'a', 'b', 'c'), true).map(
+        (member) => member.id
+      )
+    ).toEqual(['c', 'b'])
+  })
   it('does not choose a roster-order subset when a legacy week-only group is ambiguous', () => {
     const player = juror('user', { evictedAtWeek: 9 })
     const tied = ['a', 'b', 'c'].map((id) => juror(id, { evictedAtWeek: 8 }))

@@ -16,7 +16,9 @@ Both films fill a portrait phone screen. Names have no visual tags; actual cast 
 
 A browser-reported data-saving preference or 2G/slow-2G connection selects a complete charcoal-and-gold title card without requesting scene images or a new cinematic cue. Elsewhere, the same card takes over if artwork misses its 1.8-second preparation deadline or critical scene art fails. It stays in place if late images arrive. To review this manually, use a data-saving browser where available or throttle uncached artwork past that deadline. The automated browser cases emulate both paths. Uploaded portraits and failed body derivatives retain the normal portrait presentation when scene art is available.
 
-Only the chosen scene and cast load. A native tall phone city is revealed through masked window openings, so the final image is not an enlarged crop of a small room backplate. Cast images are bounded at 400 × 600; architectural backplates are 800 × 1000. Browser checks enforce a conservative 14 MiB decoded-image budget and sufficient native pixels for the phone close-up. Four small window lights animate gently after the camera stops; reduced motion disables them. There is no gameplay video, canvas or continuous camera loop. Real-device performance has not been measured.
+Only the chosen scene and cast load. A native tall phone city is revealed through masked window openings, so the final image is not an enlarged crop of a small room backplate. Cast images are bounded at 400 × 600. The sequester opening uses a native 600 × 1300 portrait room with visible side walls, sconces and window jambs. Bronze pane holders and subtle reflections sit behind the cast. The departure backplate is 800 × 1000. Browser checks enforce a conservative 14 MiB decoded-image budget and sufficient native pixels for the phone close-up. Four small window lights animate gently after the camera stops; reduced motion disables them. There is no gameplay video, canvas or continuous camera loop. Real-device performance has not been measured.
+
+To review the reused finale scenes, choose **Prepare Classic Final 4 Test** in the same QA controls, skip to the public decision, cast the sole vote, and finish the announcement. The fourth-place departure offers **Continue season**, commits the pending result and resumes the Final Three. **Prepare Classic Final 3 Test** starts the existing three-part competition; finish the deciding ceremony to see the bronze sequester film, then Continue season to the Final Two reveal. The reveal's Play action still commits bronze. With Vox enabled, **Prepare Vox Final 3 Test** exercises the audience-result variant. These films preserve the run and use finale-specific copy; only declining the ordinary Tribunal invitation offers Home.
 
 The placement, camera and audio contract is in [tribunal-stage.md](tribunal-stage.md). Prepare compact cast derivatives with:
 
@@ -24,14 +26,15 @@ The placement, camera and audio contract is in [tribunal-stage.md](tribunal-stag
 node scripts/prepare-tribunal-artwork.mjs
 ```
 
-Generated architecture prompts and source filenames are in [tribunal-artwork-v4.json](tribunal-artwork-v4.json) and [tribunal-artwork-v8.json](tribunal-artwork-v8.json). Keep the approved PNG masters together and encode the current departure/window and phone-city derivatives with:
+Generated architecture prompts and source filenames are in [tribunal-artwork-v4.json](tribunal-artwork-v4.json) and [tribunal-cinematic-artwork.json](tribunal-cinematic-artwork.json). Keep the approved PNG masters together and encode the current room, departure/window and phone-city derivatives with:
 
 ```bash
 node scripts/prepare-tribunal-environment.mjs <source-directory> farewell-window
 node scripts/prepare-tribunal-environment.mjs <source-directory> phone-city
+node scripts/prepare-tribunal-environment.mjs <source-directory> sequester-room
 ```
 
-The native phone-city master is named `phone-city.png`; the departure master is `farewell-window.png`. Originals remain unchanged. Omitting the optional asset name also prepares the existing v4 masters found in that source directory.
+The masters are named `phone-city.png`, `farewell-window.png` and `sequester-room.png`. Originals remain unchanged. Omitting the optional asset name also prepares the existing v4 masters found in that source directory.
 
 Repeat the browser review with saved screenshots:
 

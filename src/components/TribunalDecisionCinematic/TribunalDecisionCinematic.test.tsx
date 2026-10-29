@@ -235,4 +235,36 @@ describe('Tribunal cinematic music handoff', () => {
     expect(document.querySelector('.tdc-dialog')).toHaveAttribute('data-presentation', 'slate')
     expect(createCinematicAudio).not.toHaveBeenCalled()
   })
+
+  it.each([
+    ['fourth_place', 'exit', 'Fourth place', 'fourth place'],
+    ['bronze', 'sequester', 'Bronze medalist', 'The Tribunal will choose'],
+    ['bronze_public', 'sequester', 'Bronze medalist', 'The audience will choose'],
+  ] as const)(
+    'adapts the %s result and continues through its supplied milestone handoff',
+    async (milestone, destination, title, copy) => {
+      Object.defineProperty(navigator, 'connection', {
+        configurable: true,
+        value: { saveData: true },
+      })
+      const onComplete = vi.fn().mockResolvedValue(true)
+      render(
+        <TribunalDecisionCinematic
+          destination={destination}
+          milestone={milestone}
+          player={player}
+          members={[]}
+          history={[]}
+          onComplete={onComplete}
+        />
+      )
+      const dialog = screen.getByRole('dialog', { name: title })
+      expect(dialog).toHaveTextContent(copy)
+      expect(screen.queryByRole('button', { name: 'Home' })).not.toBeInTheDocument()
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Continue season' }))
+      })
+      expect(onComplete).toHaveBeenCalledTimes(1)
+    }
+  )
 })

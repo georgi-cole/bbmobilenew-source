@@ -4,6 +4,31 @@ import { Provider } from 'react-redux'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Final3Ceremony from '../Final3Ceremony'
 import gameReducer, { createInitialGameState } from '../../../store/gameSlice'
+import type { Player } from '../../../types'
+
+vi.mock('../../TribunalDecisionCinematic/TribunalDecisionCinematic', () => ({
+  default: ({
+    milestone,
+    destination,
+    player,
+    onComplete,
+  }: {
+    milestone?: string
+    destination: string
+    player: Player
+    onComplete: () => Promise<boolean>
+  }) => (
+    <button
+      data-testid="bronze-film"
+      data-milestone={milestone}
+      data-destination={destination}
+      data-player-id={player.id}
+      onClick={() => void onComplete()}
+    >
+      Continue bronze film
+    </button>
+  ),
+}))
 
 function renderPleaCeremony(onPlayAvailabilityChange = vi.fn()) {
   const initial = createInitialGameState({ seed: 111 })
@@ -82,7 +107,7 @@ function renderPleaCeremony(onPlayAvailabilityChange = vi.fn()) {
       <Final3Ceremony onPlayAvailabilityChange={onPlayAvailabilityChange} />
     </Provider>
   )
-  return { loh, nominees, onPlayAvailabilityChange }
+  return { store, loh, nominees, onPlayAvailabilityChange }
 }
 
 afterEach(() => {
@@ -90,6 +115,42 @@ afterEach(() => {
 })
 
 describe('Final3Ceremony plea dialogue', () => {
+  it('reuses the sequester film for bronze and retains the deferred Final Two commit', async () => {
+    await import('../../TribunalDecisionCinematic/TribunalDecisionCinematic')
+    vi.useFakeTimers()
+    const { store, nominees } = renderPleaCeremony()
+    act(() => vi.advanceTimersByTime(12000))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue →' }))
+    act(() => vi.advanceTimersByTime(400))
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(nominees[0].name, 'i') }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(`Eliminate ${nominees[0].name} · Keep ${nominees[1].name}`, 'i'),
+      })
+    )
+    act(() => vi.advanceTimersByTime(900))
+    act(() => vi.advanceTimersByTime(12000))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue →' }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400)
+    })
+    const film = screen.getByTestId('bronze-film')
+    expect(film).toHaveAttribute('data-milestone', 'bronze')
+    expect(film).toHaveAttribute('data-destination', 'sequester')
+    expect(film).toHaveAttribute('data-player-id', nominees[0].id)
+    expect(
+      store.getState().game.players.find((player) => player.id === nominees[0].id)?.status
+    ).toBe('active')
+    await act(async () => {
+      fireEvent.click(film)
+    })
+    expect(screen.getByRole('dialog', { name: 'The Final Two' })).toBeInTheDocument()
+    act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
+    expect(
+      store.getState().game.players.find((player) => player.id === nominees[0].id)?.seasonPlacement
+    ).toBe(3)
+    expect(store.getState().game.finalThree?.evicteeId).toBe(nominees[0].id)
+  })
   it('always gives the holder and both nominees a dialogue with Final 4-style chat controls', () => {
     vi.useFakeTimers()
     const onPlayAvailabilityChange = vi.fn()

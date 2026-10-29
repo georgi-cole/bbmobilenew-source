@@ -11,14 +11,14 @@
  *      - Human LOH: TvDecisionModal to choose evictee.
  *      - AI LOH: deterministic auto-pick (seeded RNG, same as advance() AI path).
  *   4. Eviction announcement ChatOverlay.
- *   5. Eviction cinematic — SpotlightEvictionOverlay plays for the evictee.
+ *   5. Bronze cinematic — the finalist joins the sequester scene.
  *   6. `finalizeFinal3Decision` is dispatched with { hohWinnerId, evicteeId }.
  *   7. `advance()` is dispatched so the game proceeds to the jury phase.
  *
  * Dev log tag: [Final3Ceremony]
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -30,7 +30,8 @@ import {
 import ChatOverlay from '../ChatOverlay/ChatOverlay'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import TvDecisionModal from '../TvDecisionModal/TvDecisionModal'
-import SpotlightEvictionOverlay from '../Eviction/SpotlightEvictionOverlay'
+import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
+import TribunalCinematicLoading from '../TribunalDecisionCinematic/TribunalCinematicLoading'
 import FinalPowerHolderReveal from '../FinalPowerBattle/FinalPowerHolderReveal'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import type { ChatLine } from '../ChatOverlay/ChatOverlay'
@@ -56,7 +57,9 @@ type CeremonyStage =
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const DEV_SKIP = import.meta.env.DEV || import.meta.env.CI === 'true'
+const TribunalDecisionCinematic = lazyWithChunkRecovery(
+  () => import('../TribunalDecisionCinematic/TribunalDecisionCinematic')
+)
 
 function buildPlea(nominee: Player, read: FinalThreeDecisionRead): string {
   const wins = (nominee.stats?.lohWins ?? 0) + (nominee.stats?.posWins ?? 0)
@@ -466,14 +469,22 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       {/* Eviction cinematic */}
       <AnimatePresence>
         {stage === 'eviction_splash' && evicteePlayer && (
-          <SpotlightEvictionOverlay
+          <Suspense
             key={evicteePlayer.id}
-            evictee={evicteePlayer}
-            contextLabel="FINAL THREE · BRONZE EXIT"
-            layoutId={`avatar-tile-${evicteePlayer.id}`}
-            onDone={handleEvictionSplashDone}
-            devSkip={DEV_SKIP}
-          />
+            fallback={<TribunalCinematicLoading label="The Finale" />}
+          >
+            <TribunalDecisionCinematic
+              destination="sequester"
+              milestone="bronze"
+              player={evicteePlayer}
+              members={game.players.filter((player) => player.status === 'jury')}
+              history={game.history ?? []}
+              onComplete={async () => {
+                handleEvictionSplashDone()
+                return true
+              }}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
 

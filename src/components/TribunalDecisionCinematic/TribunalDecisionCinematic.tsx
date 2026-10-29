@@ -38,11 +38,14 @@ function CityLights() {
   )
 }
 
+export type TribunalCinematicMilestone = 'fourth_place' | 'bronze' | 'bronze_public'
+
 interface Props {
   destination: 'sequester' | 'exit'
   player: Player
   members: Player[]
   history: readonly GameHistoryEvent[]
+  milestone?: TribunalCinematicMilestone
   onComplete: () => Promise<boolean>
 }
 
@@ -52,6 +55,7 @@ export default function TribunalDecisionCinematic({
   player,
   members,
   history,
+  milestone,
   onComplete,
 }: Props) {
   const settings = useAppSelector((state) => state.settings)
@@ -60,7 +64,9 @@ export default function TribunalDecisionCinematic({
     !settings.gameUX.animations ||
     (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
   const arrival = destination === 'sequester'
-  const waiting = recentTribunalMembers(player, members, history)
+  const bronze = milestone === 'bronze' || milestone === 'bronze_public'
+  const fourthPlace = milestone === 'fourth_place'
+  const waiting = recentTribunalMembers(player, members, history, bronze)
   const waitingCount = waiting.length
   const cast = arrival ? [player, ...waiting] : [player]
   const [presentation, setPresentation] = useState<'film' | 'slate'>(() =>
@@ -106,16 +112,16 @@ export default function TribunalDecisionCinematic({
     const fit = (width: number, height: number) => {
       plane.style.width = `${width}px`
       plane.style.height = `${height}px`
-      const setWidth = Math.max(width, height * 0.8)
-      const setHeight = setWidth * 1.25
+      const setWidth = arrival ? width : Math.max(width, height * 0.8)
+      const setHeight = arrival ? height : setWidth * 1.25
       plane.style.setProperty('--tdc-set-width', `${setWidth}px`)
       plane.style.setProperty('--tdc-set-height', `${setHeight}px`)
       const exitStart = setWidth > 0 ? Math.min(0.678, 1 - width / setWidth / 2) : 0.678
       plane.style.setProperty('--tdc-exit-start-x', `${exitStart * -100}%`)
       const exitZoom =
         setWidth > 0 && setHeight > 0
-          ? Math.max(2.5, width / (setWidth * 0.24), height / (setHeight * 0.5))
-          : 2.5
+          ? Math.max(1.9, (width * 0.9) / (setWidth * 0.249), height / (setHeight * 0.525))
+          : 2.08
       plane.style.setProperty('--tdc-exit-zoom', String(exitZoom))
     }
     const measure = () => fit(scene.clientWidth, scene.clientHeight)
@@ -129,7 +135,7 @@ export default function TribunalDecisionCinematic({
     )
     observer.observe(scene)
     return () => observer.disconnect()
-  }, [presentation])
+  }, [arrival, presentation])
 
   const playFilmCue = presentation === 'film' && phase !== 'preparing'
   useEffect(() => {
@@ -207,23 +213,41 @@ export default function TribunalDecisionCinematic({
     setFailed(true)
   }
 
-  const title = arrival ? 'Welcome to sequester' : 'One last goodbye'
-  const description = arrival
-    ? waitingCount === 0
-      ? members.some((member) => member.id !== player.id)
-        ? 'Your seat is ready. Settle in.'
-        : "You're the first to arrive. Your seat is ready."
-      : waitingCount === 1
-        ? 'A fellow Tribunal member is waiting. Settle in.'
-        : 'Settle in. Your fellow Tribunal members are waiting.'
-    : 'Your season ends here. Thank you for being part of the Hub.'
-  const sceneLabel = arrival
-    ? waitingCount === 0
-      ? members.some((member) => member.id !== player.id)
-        ? 'Your arrival at sequester'
-        : 'Your arrival at sequester as its first Tribunal member'
-      : `Your arrival at sequester with ${waitingCount} waiting Tribunal member${waitingCount === 1 ? '' : 's'}`
-    : 'Your last look back from outside the Hub as its doors close'
+  const [headline, accent] = fourthPlace
+    ? ['Fourth', 'place']
+    : bronze
+      ? ['Bronze', 'medalist']
+      : arrival
+        ? ['Welcome to', 'sequester']
+        : ['One last', 'goodbye']
+  const title = `${headline} ${accent}`
+  const subject = player.isUser ? 'You' : player.name
+  const description = fourthPlace
+    ? `${subject} finish${player.isUser ? '' : 'es'} in fourth place. Three housemates remain in the race for the title.`
+    : milestone === 'bronze_public'
+      ? `${subject} take${player.isUser ? '' : 's'} bronze. The audience will choose the winner from the Final Two.`
+      : bronze
+        ? `${subject} take${player.isUser ? '' : 's'} third place and join${player.isUser ? '' : 's'} sequester. The Tribunal will choose the winner.`
+        : arrival
+          ? waitingCount === 0
+            ? members.some((member) => member.id !== player.id)
+              ? 'Your seat is ready. Settle in.'
+              : "You're the first to arrive. Your seat is ready."
+            : waitingCount === 1
+              ? 'A fellow Tribunal member is waiting. Settle in.'
+              : 'Settle in. Your fellow Tribunal members are waiting.'
+          : 'Your season ends here. Thank you for being part of the Hub.'
+  const sceneLabel = fourthPlace
+    ? `Fourth-place departure for ${player.name}`
+    : bronze
+      ? `Bronze medalist ${player.name} arrives at sequester`
+      : arrival
+        ? waitingCount === 0
+          ? members.some((member) => member.id !== player.id)
+            ? 'Your arrival at sequester'
+            : 'Your arrival at sequester as its first Tribunal member'
+          : `Your arrival at sequester with ${waitingCount} waiting Tribunal member${waitingCount === 1 ? '' : 's'}`
+        : 'Your last look back from outside the Hub as its doors close'
 
   return createPortal(
     <div className="tdc-backdrop">
@@ -238,6 +262,7 @@ export default function TribunalDecisionCinematic({
         data-phase={phase}
         data-reduced-motion={reduced}
         data-presentation={presentation}
+        data-milestone={milestone}
         onKeyDown={(event) => {
           if (event.key === 'Escape' && phase !== 'ready') {
             event.preventDefault()
@@ -292,7 +317,7 @@ export default function TribunalDecisionCinematic({
                     <img
                       className="tdc-backplate"
                       src={joinPublicAssetPath(
-                        `assets/tribunal/${arrival ? 'sequester-window-v4' : 'farewell-window-v7'}.webp`
+                        `assets/tribunal/${arrival ? 'sequester-room-v9' : 'farewell-window-v7'}.webp`
                       )}
                       alt=""
                       onLoad={() => settle('backplate')}
@@ -302,6 +327,11 @@ export default function TribunalDecisionCinematic({
                         showSlate()
                       }}
                     />
+                  </div>
+                  <div className="tdc-window-glazing" aria-hidden="true">
+                    <div className="tdc-glass" />
+                    <span className="tdc-mullion tdc-mullion--left" />
+                    <span className="tdc-mullion tdc-mullion--right" />
                   </div>
                   <div className="tdc-cast">
                     {cast.map((member, index) => (
@@ -355,11 +385,11 @@ export default function TribunalDecisionCinematic({
         )}
         {phase === 'preparing' && (
           <p className="tdc-loading-title" role="status">
-            {arrival ? 'Your next chapter' : 'One last goodbye'}
+            {milestone ? title : arrival ? 'Your next chapter' : 'One last goodbye'}
           </p>
         )}
         <header className="tdc-header">
-          <span>{arrival ? 'The Tribunal' : 'Leaving the Hub'}</span>
+          <span>{milestone ? 'The Finale' : arrival ? 'The Tribunal' : 'Leaving the Hub'}</span>
           <button
             type="button"
             aria-label="Skip animation"
@@ -371,20 +401,26 @@ export default function TribunalDecisionCinematic({
           </button>
         </header>
         <footer className="tdc-copy">
-          <p className="tdc-eyebrow">{arrival ? 'Your next chapter' : 'Season complete'}</p>
+          <p className="tdc-eyebrow">
+            {fourthPlace
+              ? 'One step from the finale'
+              : bronze
+                ? 'A place on the podium'
+                : arrival
+                  ? 'Your next chapter'
+                  : 'Season complete'}
+          </p>
           <h2 id={titleId} aria-label={title}>
-            {arrival ? (
-              <>
-                Welcome to <span>sequester</span>
-              </>
-            ) : (
-              <>
-                One last <span>goodbye</span>
-              </>
-            )}
+            {headline} <span>{accent}</span>
           </h2>
           <p id={`${titleId}-description`}>{description}</p>
-          {failed && <p role="alert">Your season could not be closed. Please try again.</p>}
+          {failed && (
+            <p role="alert">
+              {milestone || arrival
+                ? 'Your season could not continue. Please try again.'
+                : 'Your season could not be closed. Please try again.'}
+            </p>
+          )}
           <button
             ref={primary}
             className="tdc-action game-button"
@@ -393,7 +429,15 @@ export default function TribunalDecisionCinematic({
             onClick={() => void finish()}
           >
             <span>
-              {busy ? 'Finishing…' : arrival ? 'Continue season' : failed ? 'Retry exit' : 'Home'}
+              {busy
+                ? 'Finishing…'
+                : failed
+                  ? milestone || arrival
+                    ? 'Try again'
+                    : 'Retry exit'
+                  : arrival || milestone
+                    ? 'Continue season'
+                    : 'Home'}
             </span>
           </button>
         </footer>

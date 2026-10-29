@@ -4,7 +4,7 @@ The production handoff combines generated empty reality-TV architecture, the act
 
 ## Camera and staging
 
-The architectural sets retain a 4:5 coordinate system. A resize observer fits an overscanned set around the phone viewport; window masks reveal an unscaled city image behind it. The city keeps its generated native resolution instead of enlarging a small area of the room photograph. Standard and WebKit mask properties cover the iOS 15 support target; a window-resize fallback handles environments without ResizeObserver.
+The arrival room is composed natively at 600 × 1300 for a portrait phone, with both walnut side walls, sconces, bronze jambs and stone sill visible in the opening shot. The departure set retains a 4:5 coordinate system. A resize observer fits each set around the phone viewport; window masks reveal an unscaled city image behind it. Slim bronze pane holders and restrained reflections remain behind the cast and follow the room camera. The city keeps its generated native resolution instead of enlarging a small area of the room photograph. Standard and WebKit mask properties cover the iOS 15 support target; a window-resize fallback handles environments without ResizeObserver.
 
 Arrival reveals the room over 1.8 seconds. After a short hold, the camera and cast move together: figures enlarge around their foot anchors and pass the frame at different depths, while a continuous camera approach keeps floor beneath them until they clear. There is no empty-room pause or character dissolve. The window fills the view at 5.3 seconds; the city holds for 1.1 seconds before the welcome text and Continue season appear at 6.4 seconds.
 
@@ -17,6 +17,8 @@ The waiting members are the two eligible jurors whose latest exits preceded the 
 ## Controls and sound
 
 Both actions use the native game button style with gold treatment, a maximum width of 180 pixels, a minimum height of 44 pixels and no arrow. Continue season resumes the phase. Home uses the existing durable saved-run cleanup and retry path.
+
+The same production component presents fourth place with the departure film and bronze with the sequester film. Classic Final 4 and Vox four-player results commit their existing pending eviction only after Continue season. Classic bronze returns to the Final Two reveal, whose existing Play action commits the decision. Vox bronze returns to its public finale; its copy credits the audience rather than the Tribunal. These milestone variants always offer Continue season and never retire the saved run. A pending bronze arrival uses the latest two eligible jurors even if that finalist previously returned to the game.
 
 The existing Twin Shock presentation cue loops at the same base volume until the main action is clicked. Its 220 ms fade starts immediately; cleanup releases audio ownership. Skip and Escape finish only the visual sequence, leaving the cue until the main action. Existing music preferences apply. Reduced-motion and animations-off settings show the final city with static lights once artwork is ready.
 
@@ -32,6 +34,6 @@ Uploaded photos, legacy appearances and failed body derivatives retain the exist
 
 ## Asset preparation and review
 
-`scripts/prepare-tribunal-artwork.mjs` prepares bounded cast derivatives without changing original catalogue art. `scripts/prepare-tribunal-environment.mjs` encodes approved generated masters offline. Backplates are 800 × 1000; door and luggage bounds are at most 240 × 720 and 200 × 320. The tall phone city keeps its native dimensions and uses higher WebP quality. Full prompts and source filenames are in `tribunal-artwork-v4.json` and `tribunal-artwork-v8.json`.
+`scripts/prepare-tribunal-artwork.mjs` prepares bounded cast derivatives without changing original catalogue art. `scripts/prepare-tribunal-environment.mjs` encodes approved generated masters offline. The arrival room is 600 × 1300 and the departure backplate is 800 × 1000; door and luggage bounds are at most 240 × 720 and 200 × 320. The tall phone city keeps its native dimensions and uses higher WebP quality. Full prompts and source filenames are in `tribunal-artwork-v4.json` and `tribunal-cinematic-artwork.json`.
 
 Review at 320 × 568 and 402 × 874 before desktop. Browser checks cover exact cast identities, grounded foot anchors during the pass, continuous approach, doorway containment, delayed final copy, native city pixel density, compact controls, a conservative 14 MiB decoded-image budget, and no continuing transforms. Data-saving and delayed-art cases verify the title card and absence of a new cue request. Music lifecycle, Skip, mute, retry and unmount cleanup have focused tests. Real-device performance has not been measured.

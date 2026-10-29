@@ -29,6 +29,7 @@ try {
     ['farewell-luggage', 200, 320, true],
     ['farewell-window', 800, 1000, false, 'v7'],
     ['phone-city', 0, 0, false, 'v8'],
+    ['sequester-room', 600, 1300, false, 'v9'],
   ]) {
     if (selectedAsset && name !== selectedAsset) continue
     if (version !== 'v4' && !existsSync(path.join(source, name + '.png'))) continue

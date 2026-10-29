@@ -70,10 +70,7 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     await page.getByRole('button', { name: 'Agree', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Welcome to sequester' })
     await expect(dialog).toBeVisible()
-    await expect(dialog.locator('.tdc-backplate')).toHaveAttribute(
-      'src',
-      /sequester-window-v4.webp$/
-    )
+    await expect(dialog.locator('.tdc-backplate')).toHaveAttribute('src', /sequester-room-v9.webp$/)
     await expect(dialog.locator('.tdc-room__portal')).toHaveCount(0)
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'playing')
     const cameraMotion = await dialog.locator('.tdc-scene').evaluate((scene) =>
@@ -136,7 +133,7 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
                     (figure, index) =>
                       Math.abs(figure.getBoundingClientRect().bottom - initialFeet[index]) < 1
                   ),
-                  onFloor: initialFeet.every((feet) => feet >= room.top + room.height * 0.66),
+                  onFloor: initialFeet.every((feet) => feet >= room.top + room.height * 0.58),
                 })
               },
               { once: true }
@@ -146,6 +143,13 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     )
     await expect(dialog.locator('.tdc-action')).toHaveClass(/game-button/)
     await expect(dialog.locator('figcaption')).toHaveCount(0)
+    const glazing = await dialog.locator('.tdc-window-glazing').evaluate((glass) => ({
+      holders: glass.querySelectorAll('.tdc-mullion').length,
+      behindCast:
+        Number(getComputedStyle(glass).zIndex) <
+        Number(getComputedStyle(glass.parentElement!.querySelector('.tdc-cast')!).zIndex),
+    }))
+    expect(glazing).toEqual({ holders: 2, behindCast: true })
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-waiting-members', '2')
     const state = await readAppState(page)
     const human = state.game.players.find((player) => player.isUser)!
@@ -170,7 +174,7 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     expect(pass.grounded).toBe(true)
     expect(pass.onFloor).toBe(true)
     expect(pass.scale).toBeGreaterThan(1.1)
-    expect(pass.scale).toBeLessThanOrEqual(1.28)
+    expect(pass.scale).toBeLessThanOrEqual(1.32)
     expect(await cityHold).toEqual({ phase: 'playing', copy: 'hidden' })
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready', {
       timeout: 12000,
@@ -232,7 +236,7 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     const cityTransform = await dialog
       .locator('.tdc-room')
       .evaluate((room) => new DOMMatrixReadOnly(getComputedStyle(room).transform).a)
-    expect(cityTransform).toBeCloseTo(2.05)
+    expect(cityTransform).toBeCloseTo(2.2)
     expect(
       await dialog.locator('.tdc-scene').evaluate((scene) =>
         scene
@@ -488,5 +492,53 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     await expect(dialog.locator('img')).toHaveCount(0)
     expect(cues).toEqual([])
     await dialog.getByRole('button', { name: 'Continue season' }).click()
+  })
+
+  test('uses the departure film for Classic fourth place without ending the season', async ({
+    page,
+  }, testInfo) => {
+    await launch(page)
+    const panel = page.getByRole('complementary', { name: 'Debug Panel' })
+    if (!(await panel.isVisible())) {
+      await page
+        .getByRole('button', { name: 'Toggle Debug Panel' })
+        .evaluate((button) => (button as HTMLButtonElement).click())
+    }
+    await panel
+      .getByRole('button', { name: 'Prepare Classic Final 4 Test', exact: true })
+      .evaluate((button) => (button as HTMLButtonElement).click())
+    await page
+      .getByRole('button', { name: 'Toggle Debug Panel' })
+      .evaluate((button) => (button as HTMLButtonElement).click())
+    const pleas = page.getByRole('dialog', { name: 'Final 4 plea chat' })
+    await pleas.getByRole('button', { name: 'Skip to decision', exact: true }).click()
+    const vote = pleas.getByRole('button', { name: /^Vote to eliminate / }).first()
+    await expect(vote).toBeVisible()
+    await vote.click()
+    const announcement = page.getByRole('dialog', { name: 'Final 4 elimination announcement' })
+    await announcement.getByRole('button', { name: 'Skip to end', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Fourth place' })
+    await expect(dialog).toHaveAttribute('data-milestone', 'fourth_place')
+    await expect(dialog).toHaveClass(/tdc-dialog--exit/)
+    const pending = await readAppState(page)
+    const evicteeId = pending.game.pendingEviction?.evicteeId
+    expect(evicteeId).toBeTruthy()
+    expect(pending.game.players.find((player) => player.id === evicteeId)?.status).not.toBe('jury')
+    await expect(dialog.getByRole('button', { name: 'Home', exact: true })).toHaveCount(0)
+    await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready', {
+      timeout: 12000,
+    })
+    await page.screenshot({ path: testInfo.outputPath('fourth-place-departure.png') })
+    await dialog.getByRole('button', { name: 'Continue season', exact: true }).click()
+    await expect(dialog).toBeHidden()
+    const completed = await readAppState(page)
+    expect(completed.game.pendingEviction).toBeNull()
+    expect(completed.game.players.find((player) => player.id === evicteeId)?.seasonPlacement).toBe(
+      4
+    )
+    expect(completed.game.gameId).toBe(pending.game.gameId)
+    expect(
+      completed.game.players.filter((player) => !['jury', 'evicted'].includes(player.status))
+    ).toHaveLength(3)
   })
 })
