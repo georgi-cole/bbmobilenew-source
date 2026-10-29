@@ -12,6 +12,8 @@ Use the development build to review the actual invitation and cinematic handoffs
 
 The fixtures replace the current local season and stay behind the development/debug controls. A legacy QA profile receives sample Look 1; a selected catalogue look or uploaded portrait is preserved.
 
+For direct film review, use **Preview fourth-place departure** or **Preview bronze arrival** in the same QA section. These development-only controls render the production cinematic with the selected player, the actual eligible jurors and the milestone copy. **Continue season** closes the preview and returns to the QA panel without changing the season result. Use the full finale fixtures below to review result commits and subsequent gameplay.
+
 Both films fill a portrait phone screen. Names have no visual tags; actual cast identity remains available through image alternatives. The gold actions are at most 180 pixels wide, at least 44 pixels tall, and have no arrow. Reduced-motion and animations-off settings show the final city with static lights. The chosen handoff survives a saved-run reload; failed durable cleanup keeps Exit available for retry.
 
 A browser-reported data-saving preference or 2G/slow-2G connection selects a complete charcoal-and-gold title card without requesting scene images or a new cinematic cue. Elsewhere, the same card takes over if artwork misses its 1.8-second preparation deadline or critical scene art fails. It stays in place if late images arrive. To review this manually, use a data-saving browser where available or throttle uncached artwork past that deadline. The automated browser cases emulate both paths. Uploaded portraits and failed body derivatives retain the normal portrait presentation when scene art is available.

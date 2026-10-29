@@ -13,7 +13,8 @@ on:
       - '.github/workflows/release-performance.yml'
 jobs:
   release-performance:
-    runs-on: ubuntu-latest
+    # Keep browser dependencies on the OS supported by the locked Playwright.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read

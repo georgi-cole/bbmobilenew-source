@@ -25,6 +25,49 @@ async function launch(page: Page, arrival: 'normal' | 'first' | 'second' = 'norm
 }
 
 test.describe('Tribunal invitation preview @visual @mobile', () => {
+  for (const [control, title, milestone] of [
+    ['Preview fourth-place departure', 'Fourth place', 'fourth_place'],
+    ['Preview bronze arrival', 'Bronze medalist', 'bronze'],
+  ] as const) {
+    test(`reviews the ${milestone} film without committing a season result`, async ({
+      page,
+    }, testInfo) => {
+      await launch(page)
+      await page
+        .getByRole('button', { name: 'Toggle Debug Panel' })
+        .evaluate((button) => (button as HTMLButtonElement).click())
+      const before = await readAppState(page)
+      await page
+        .getByRole('complementary', { name: 'Debug Panel' })
+        .getByRole('button', { name: control, exact: true })
+        .evaluate((button) => (button as HTMLButtonElement).click())
+      const dialog = page.getByRole('dialog', { name: title, exact: true })
+      await expect(dialog).toHaveAttribute('data-milestone', milestone)
+      await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'playing')
+      await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready', {
+        timeout: 12000,
+      })
+      await expect(
+        dialog.getByText(
+          milestone === 'fourth_place'
+            ? 'You finish in fourth place. Three housemates remain in the race for the title.'
+            : 'You take third place and join sequester. The Tribunal will choose the winner.',
+          { exact: true }
+        )
+      ).toBeVisible()
+      await page.screenshot({ path: testInfo.outputPath(`${milestone}-review.png`) })
+      await dialog.getByRole('button', { name: 'Continue season', exact: true }).click()
+      await expect(dialog).toBeHidden()
+      await expect(page.getByRole('complementary', { name: 'Debug Panel' })).toBeVisible()
+      const after = await readAppState(page)
+      expect(after.game.gameId).toBe(before.game.gameId)
+      expect(after.game.phase).toBe(before.game.phase)
+      expect(after.game.pendingEviction).toEqual(before.game.pendingEviction)
+      expect(after.game.history).toEqual(before.game.history)
+      expect(after.game.players).toEqual(before.game.players)
+    })
+  }
+
   test('keeps both choices inside the Faux TV and requires an explicit decision', async ({
     page,
   }, testInfo) => {

@@ -40,7 +40,8 @@ jobs:
     name: Core journeys (mobile-chromium)
     needs: changes
     if: needs.changes.outputs.browser == 'true'
-    runs-on: ubuntu-latest
+    # Playwright 1.58 supports Ubuntu 24.04; ubuntu-latest can move ahead of it.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
       contents: read
