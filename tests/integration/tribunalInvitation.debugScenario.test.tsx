@@ -58,22 +58,27 @@ vi.mock('../../src/components/ui/TvZone', () => ({
 vi.mock('../../src/components/TribunalDecisionCinematic/TribunalDecisionCinematic', () => ({
   default: ({
     onComplete,
-    milestone,
     destination,
     player,
   }: {
     onComplete: () => Promise<boolean>
-    milestone?: string
     destination: string
     player: Player
   }) => (
     <button
-      data-milestone={milestone}
       data-destination={destination}
       data-player-id={player.id}
       onClick={() => void onComplete()}
     >
       Finish Tribunal scene
+    </button>
+  ),
+}))
+
+vi.mock('../../src/components/Eviction/SpotlightEvictionOverlay', () => ({
+  default: ({ evictee, onDone }: { evictee: Player; onDone: () => void }) => (
+    <button data-player-id={evictee.id} onClick={onDone}>
+      Finish standard eviction
     </button>
   ),
 }))
@@ -172,7 +177,7 @@ describe('Tribunal invitation QA scenario', () => {
   })
 })
 
-describe('Vox milestone cinematic handoffs', () => {
+describe('Vox finale eviction handoffs', () => {
   it.each([3, 4] as const)(
     'continues the public %s-player result without retiring the run',
     async (count) => {
@@ -214,9 +219,8 @@ describe('Vox milestone cinematic handoffs', () => {
           </MemoryRouter>
         </Provider>
       )
-      const film = await screen.findByRole('button', { name: 'Finish Tribunal scene' })
-      expect(film).toHaveAttribute('data-milestone', count === 3 ? 'bronze_public' : 'fourth_place')
-      expect(film).toHaveAttribute('data-destination', count === 3 ? 'sequester' : 'exit')
+      const film = await screen.findByRole('button', { name: 'Finish standard eviction' })
+      expect(screen.queryByRole('button', { name: 'Finish Tribunal scene' })).toBeNull()
       expect(film).toHaveAttribute('data-player-id', evictee.id)
       expect(store.getState().game.pendingEviction?.evicteeId).toBe(evictee.id)
       await userEvent.setup().click(film)

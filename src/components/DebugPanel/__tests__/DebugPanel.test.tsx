@@ -10,7 +10,6 @@ import socialReducer from '../../../social/socialSlice'
 import settingsReducer from '../../../store/settingsSlice'
 import profilesReducer from '../../../store/profilesSlice'
 import vipReducer from '../../../store/vipSlice'
-import { DEBUG_ACCESS_STORAGE_KEY } from '../../../utils/debugMode'
 
 vi.mock('../FinaleControls.debug', () => ({
   default: () => null,
@@ -41,43 +40,6 @@ function makeStore() {
 }
 
 describe('DebugPanel forced shock controls', () => {
-  it.each([
-    ['Preview fourth-place departure', 'Fourth place'],
-    ['Preview bronze arrival', 'Bronze medalist'],
-  ])('reviews %s without changing the season result', async (label, title) => {
-    const connection = Object.getOwnPropertyDescriptor(navigator, 'connection')
-    const previousDebugAccess = localStorage.getItem(DEBUG_ACCESS_STORAGE_KEY)
-    Object.defineProperty(navigator, 'connection', {
-      configurable: true,
-      value: { saveData: true },
-    })
-    try {
-      const user = userEvent.setup()
-      const store = makeStore()
-      const before = store.getState().game
-      render(
-        <Provider store={store}>
-          <MemoryRouter initialEntries={['/game?debug=1&qa=1']}>
-            <DebugPanel />
-          </MemoryRouter>
-        </Provider>
-      )
-      await user.click(screen.getByRole('button', { name: label }))
-      const dialog = await screen.findByRole('dialog', { name: title })
-      expect(dialog).toHaveAttribute('data-presentation', 'slate')
-      expect(screen.queryByRole('complementary', { name: 'Debug Panel' })).toBeNull()
-      await user.click(screen.getByRole('button', { name: 'Continue season' }))
-      expect(screen.queryByRole('dialog', { name: title })).toBeNull()
-      expect(screen.getByRole('complementary', { name: 'Debug Panel' })).toBeInTheDocument()
-      expect(store.getState().game).toBe(before)
-    } finally {
-      if (connection) Object.defineProperty(navigator, 'connection', connection)
-      else Reflect.deleteProperty(navigator, 'connection')
-      if (previousDebugAccess == null) localStorage.removeItem(DEBUG_ACCESS_STORAGE_KEY)
-      else localStorage.setItem(DEBUG_ACCESS_STORAGE_KEY, previousDebugAccess)
-    }
-  })
-
   it('stays hidden inside phone comparison frames', () => {
     const store = makeStore()
 

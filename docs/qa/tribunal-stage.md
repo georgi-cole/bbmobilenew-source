@@ -16,9 +16,9 @@ The waiting members are the two eligible jurors whose latest exits preceded the 
 
 ## Controls and sound
 
-Both actions use the native game button style with gold treatment, a maximum width of 180 pixels, a minimum height of 44 pixels and no arrow. Continue season resumes the phase. Home uses the existing durable saved-run cleanup and retry path.
+These films follow the human's Agree or Exit choice in the Tribunal invitation. Fourth-place and bronze eliminations use their standard elimination presentation.
 
-The same production component presents fourth place with the departure film and bronze with the sequester film. Classic Final 4 and Vox four-player results commit their existing pending eviction only after Continue season. Classic bronze returns to the Final Two reveal, whose existing Play action commits the decision. Vox bronze returns to its public finale; its copy credits the audience rather than the Tribunal. These milestone variants always offer Continue season and never retire the saved run. A pending bronze arrival uses the latest two eligible jurors even if that finalist previously returned to the game.
+Both actions use the native game button style with gold treatment, a maximum width of 180 pixels, a minimum height of 44 pixels and no arrow. Continue season resumes the phase. Home uses the existing durable saved-run cleanup and retry path.
 
 The existing Twin Shock presentation cue loops at the same base volume until the main action is clicked. Its 220 ms fade starts immediately; cleanup releases audio ownership. Skip and Escape finish only the visual sequence, leaving the cue until the main action. Existing music preferences apply. Reduced-motion and animations-off settings show the final city with static lights once artwork is ready.
 

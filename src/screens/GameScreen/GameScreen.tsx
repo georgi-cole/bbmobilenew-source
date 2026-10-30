@@ -89,7 +89,6 @@ import Capitalization from '../../components/Capitalization/Capitalization'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import Final3Ceremony from '../../components/Final3Ceremony/Final3Ceremony'
 import TribunalCinematicLoading from '../../components/TribunalDecisionCinematic/TribunalCinematicLoading'
-import type { TribunalCinematicMilestone } from '../../components/TribunalDecisionCinematic/TribunalDecisionCinematic'
 import FinalThreeBlockReveal from '../../components/FinalPowerBattle/FinalThreeBlockReveal'
 import FinalPowerBattleIntro from '../../components/FinalPowerBattle/FinalPowerBattleIntro'
 import VoxFinalThreeAppeal from '../../components/VoxFinalThreeAppeal/VoxFinalThreeAppeal'
@@ -1318,14 +1317,6 @@ export default function GameScreen() {
     (game.awaitingFinal3Plea === true || game.awaitingFinal3Eviction === true) &&
     game.phase === 'final3_decision' &&
     !!game.lohId
-  const pendingEvictionMilestone: TribunalCinematicMilestone | undefined =
-    game.phase === 'final4_eviction' || (isVoxPopuli && alivePlayers.length === 4)
-      ? 'fourth_place'
-      : isVoxPopuli &&
-          game.phase === 'final3_decision' &&
-          game.voxPopuli?.publicVoteContext === 'final3'
-        ? 'bronze_public'
-        : undefined
   const finaleOverlayActive =
     finalPowerBattleIntroActive ||
     finalThreeBlockRevealActive ||
@@ -2448,23 +2439,6 @@ export default function GameScreen() {
                 evicteeId={pendingEvictionPlayer.id}
                 onDone={handleEvictionSplashDone}
               />
-            ) : pendingEvictionMilestone ? (
-              <Suspense
-                key={pendingEvictionPlayer.id}
-                fallback={<TribunalCinematicLoading label="The Finale" />}
-              >
-                <TribunalDecisionCinematic
-                  destination={pendingEvictionMilestone === 'fourth_place' ? 'exit' : 'sequester'}
-                  milestone={pendingEvictionMilestone}
-                  player={pendingEvictionPlayer}
-                  members={pendingEvictionMilestone === 'bronze_public' ? [] : tribunalPlayers}
-                  history={game.history ?? []}
-                  onComplete={async () => {
-                    handleEvictionSplashDone()
-                    return true
-                  }}
-                />
-              </Suspense>
             ) : (
               <SpotlightEvictionOverlay
                 key={pendingEvictionPlayer.id}

@@ -6,26 +6,23 @@ import Final3Ceremony from '../Final3Ceremony'
 import gameReducer, { createInitialGameState } from '../../../store/gameSlice'
 import type { Player } from '../../../types'
 
-vi.mock('../../TribunalDecisionCinematic/TribunalDecisionCinematic', () => ({
+vi.mock('../../Eviction/SpotlightEvictionOverlay', () => ({
   default: ({
-    milestone,
-    destination,
-    player,
-    onComplete,
+    evictee,
+    contextLabel,
+    onDone,
   }: {
-    milestone?: string
-    destination: string
-    player: Player
-    onComplete: () => Promise<boolean>
+    evictee: Player
+    contextLabel: string
+    onDone: () => void
   }) => (
     <button
-      data-testid="bronze-film"
-      data-milestone={milestone}
-      data-destination={destination}
-      data-player-id={player.id}
-      onClick={() => void onComplete()}
+      data-testid="bronze-eviction"
+      data-context={contextLabel}
+      data-player-id={evictee.id}
+      onClick={onDone}
     >
-      Continue bronze film
+      Finish bronze eviction
     </button>
   ),
 }))
@@ -115,8 +112,7 @@ afterEach(() => {
 })
 
 describe('Final3Ceremony plea dialogue', () => {
-  it('reuses the sequester film for bronze and retains the deferred Final Two commit', async () => {
-    await import('../../TribunalDecisionCinematic/TribunalDecisionCinematic')
+  it('uses the original bronze eviction presentation and retains the deferred Final Two commit', async () => {
     vi.useFakeTimers()
     const { store, nominees } = renderPleaCeremony()
     act(() => vi.advanceTimersByTime(12000))
@@ -134,9 +130,8 @@ describe('Final3Ceremony plea dialogue', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400)
     })
-    const film = screen.getByTestId('bronze-film')
-    expect(film).toHaveAttribute('data-milestone', 'bronze')
-    expect(film).toHaveAttribute('data-destination', 'sequester')
+    const film = screen.getByTestId('bronze-eviction')
+    expect(film).toHaveAttribute('data-context', 'FINAL THREE · BRONZE EXIT')
     expect(film).toHaveAttribute('data-player-id', nominees[0].id)
     expect(
       store.getState().game.players.find((player) => player.id === nominees[0].id)?.status

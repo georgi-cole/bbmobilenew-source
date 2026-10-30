@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -42,8 +42,6 @@ import {
   forceWildcardEntryForQa,
 } from '../../store/gameSlice'
 import { getById } from '../../data/houseguests'
-import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
-import TribunalCinematicLoading from '../TribunalDecisionCinematic/TribunalCinematicLoading'
 import { RESERVE_WILDCARD_IDS } from '../../data/reserveHouseguests'
 import { getWildcardQaQueueEligibility } from '../../features/reserveEntrants/wildcardReplacement'
 import {
@@ -221,10 +219,6 @@ export default function DebugPanel() {
   return <DebugPanelContent searchParams={searchParams} />
 }
 
-const TribunalDecisionCinematic = lazyWithChunkRecovery(
-  () => import('../TribunalDecisionCinematic/TribunalDecisionCinematic')
-)
-
 function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
@@ -236,7 +230,6 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
   const isVipActive = useAppSelector(selectIsVipActive)
 
   const [isOpen, setIsOpen] = useState(true)
-  const [milestonePreview, setMilestonePreview] = useState<'fourth_place' | 'bronze' | null>(null)
   const [selectedPhase, setSelectedPhase] = useState<Phase>(game.phase)
   const [selectedHoH, setSelectedHoH] = useState('')
   const [nominee1, setNominee1] = useState('')
@@ -432,23 +425,6 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
         🐛
       </button>
 
-      {import.meta.env.DEV && milestonePreview && humanPlayer && (
-        <Suspense fallback={<TribunalCinematicLoading label="The Finale" />}>
-          <TribunalDecisionCinematic
-            destination={milestonePreview === 'fourth_place' ? 'exit' : 'sequester'}
-            milestone={milestonePreview}
-            player={humanPlayer}
-            members={game.players.filter((player) => player.status === 'jury')}
-            history={game.history ?? []}
-            onComplete={async () => {
-              setMilestonePreview(null)
-              setIsOpen(true)
-              return true
-            }}
-          />
-        </Suspense>
-      )}
-
       {isOpen && (
         <aside className="dbg-panel" aria-label="Debug Panel">
           <header className="dbg-panel__header">
@@ -578,33 +554,6 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                 >
                   Load Back 2 the Game suppression preview
                 </button>
-                {import.meta.env.DEV && (
-                  <>
-                    <p className="dbg-help">
-                      Review the production milestone films with your selected player. Continue
-                      returns here without changing the season result.
-                    </p>
-                    {(
-                      [
-                        ['fourth_place', 'Preview fourth-place departure'],
-                        ['bronze', 'Preview bronze arrival'],
-                      ] as const
-                    ).map(([milestone, label]) => (
-                      <button
-                        key={milestone}
-                        className="dbg-btn dbg-btn--wide"
-                        type="button"
-                        disabled={!humanPlayer}
-                        onClick={() => {
-                          setMilestonePreview(milestone)
-                          setIsOpen(false)
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </>
-                )}
               </div>
 
               <details className="dbg-players">

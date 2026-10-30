@@ -4,8 +4,7 @@ import type { GameHistoryEvent, Player } from '../../types'
 export function recentTribunalMembers(
   player: Player,
   members: readonly Player[],
-  history: readonly GameHistoryEvent[],
-  pendingArrival = false
+  history: readonly GameHistoryEvent[]
 ): Player[] {
   const latestExit = new Map<string, number>()
   history.forEach((event, index) => {
@@ -13,7 +12,7 @@ export function recentTribunalMembers(
       latestExit.set(event.data.playerId, index)
     }
   })
-  const arrivalIndex = pendingArrival ? history.length : latestExit.get(player.id)
+  const arrivalIndex = latestExit.get(player.id)
   const compare = (left: Player, right: Player) => {
     const leftExit = latestExit.get(left.id)
     const rightExit = latestExit.get(right.id)
