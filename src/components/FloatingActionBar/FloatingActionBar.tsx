@@ -89,6 +89,7 @@ const SURVIVOR_DISABLED_MESSAGE_MS = 5000
 const FINALE_REUNION_DEPARTURE_WAVE_MS = 1700
 
 type FloatingActionBarProps = {
+  tribunalDecisionPending?: boolean
   /** Called when the player activates Public Meter while public mode is disabled. */
   onPublicMeterBlocked?: () => void
   /** Called when the player activates a blocked social module. */
@@ -118,6 +119,7 @@ type FloatingActionBarProps = {
  * - Right side: Public Meter hook + Diary Room shortcut.
  */
 export default function FloatingActionBar({
+  tribunalDecisionPending = false,
   onPublicMeterBlocked,
   onSocialModuleBlocked,
   finaleOverlayActive = false,
@@ -1001,61 +1003,63 @@ export default function FloatingActionBar({
         guestSaveInviteActive={guestSaveInviteActive}
         disabled={survivorTerminalActive || finaleOverlayActive || reunionDepartureInProgress}
         navigationDisabled={weekendReunionAnnouncementActive}
-        primaryDisabled={primaryDisabled}
+        primaryDisabled={primaryDisabled || tribunalDecisionPending}
         elevatedDuringOverlay={finaleDockOnTop || weekendReunionAnnouncementActive}
         primaryLabel={
-          finaleOverlayActive
-            ? 'Play finale scene'
-            : game.democracia?.resultDisplay
-              ? 'Continue'
-              : democraciaVoteRecorded
-                ? 'Reveal results'
-                : weekend?.active
-                  ? weekend.stage === 'intro'
-                    ? 'Continue'
-                    : weekend.stage === 'instructions'
-                      ? 'Let’s go'
-                      : weekend.stage === 'day_two_intro'
-                        ? 'Continue'
-                        : weekend.stage === 'hub_says'
-                          ? hubSaysBeat === 'result'
-                            ? 'Next question'
-                            : weekend.hubSays?.selectedPlayerId
-                              ? 'Reveal the answers'
-                              : 'Choose a Hubmate'
-                          : weekend.stage === 'party'
-                            ? 'Continue'
-                            : weekend.stage === 'season_so_far'
-                              ? 'Next story'
-                              : weekend.stage === 'day_transition'
-                                ? 'Start Day 2'
-                                : weekend.stage === 'finale_reunion'
-                                  ? reunionDepartureInProgress
-                                    ? 'The eliminated players are leaving…'
-                                    : 'End visit'
-                                  : weekend.stage === 'finale_reunion_social'
-                                    ? 'Announce the Sequester Footage'
-                                    : weekend.stage === 'finale_sequester_announcement'
-                                      ? 'Continue'
-                                      : isWeekendTribunalInvitation ||
-                                          weekend.stage === 'finale_battle_ready'
-                                        ? weekend.debug
-                                          ? 'Finish preview'
-                                          : reunionDepartureInProgress
-                                            ? 'The eliminated players are leaving…'
-                                            : weekend.stage === 'finale_battle_ready'
-                                              ? weekend.reunionDeparted
-                                                ? 'Begin the Final Power Battle'
-                                                : 'Send the guests home'
-                                              : 'Let them in'
-                                        : weekend.weekendDay === 1
-                                          ? 'Finish the day'
-                                          : weekend.finaleWeekend
-                                            ? 'Meet the Tribunal'
-                                            : weekend.debug
-                                              ? 'Finish preview'
-                                              : `Start Day ${weekend.afterDay + 1}`
-                  : 'Advance to next phase'
+          tribunalDecisionPending
+            ? 'Choose Agree or Exit in the Faux TV'
+            : finaleOverlayActive
+              ? 'Play finale scene'
+              : game.democracia?.resultDisplay
+                ? 'Continue'
+                : democraciaVoteRecorded
+                  ? 'Reveal results'
+                  : weekend?.active
+                    ? weekend.stage === 'intro'
+                      ? 'Continue'
+                      : weekend.stage === 'instructions'
+                        ? 'Let’s go'
+                        : weekend.stage === 'day_two_intro'
+                          ? 'Continue'
+                          : weekend.stage === 'hub_says'
+                            ? hubSaysBeat === 'result'
+                              ? 'Next question'
+                              : weekend.hubSays?.selectedPlayerId
+                                ? 'Reveal the answers'
+                                : 'Choose a Hubmate'
+                            : weekend.stage === 'party'
+                              ? 'Continue'
+                              : weekend.stage === 'season_so_far'
+                                ? 'Next story'
+                                : weekend.stage === 'day_transition'
+                                  ? 'Start Day 2'
+                                  : weekend.stage === 'finale_reunion'
+                                    ? reunionDepartureInProgress
+                                      ? 'The eliminated players are leaving…'
+                                      : 'End visit'
+                                    : weekend.stage === 'finale_reunion_social'
+                                      ? 'Announce the Sequester Footage'
+                                      : weekend.stage === 'finale_sequester_announcement'
+                                        ? 'Continue'
+                                        : isWeekendTribunalInvitation ||
+                                            weekend.stage === 'finale_battle_ready'
+                                          ? weekend.debug
+                                            ? 'Finish preview'
+                                            : reunionDepartureInProgress
+                                              ? 'The eliminated players are leaving…'
+                                              : weekend.stage === 'finale_battle_ready'
+                                                ? weekend.reunionDeparted
+                                                  ? 'Begin the Final Power Battle'
+                                                  : 'Send the guests home'
+                                                : 'Let them in'
+                                          : weekend.weekendDay === 1
+                                            ? 'Finish the day'
+                                            : weekend.finaleWeekend
+                                              ? 'Meet the Tribunal'
+                                              : weekend.debug
+                                                ? 'Finish preview'
+                                                : `Start Day ${weekend.afterDay + 1}`
+                    : 'Advance to next phase'
         }
         socialDisabled={socialModulesUnavailable}
         incomingRequestsDisabled={incomingSocialModuleUnavailable}
@@ -1089,7 +1093,7 @@ export default function FloatingActionBar({
         publicMeterBadgeCount={
           game.publicModeEnabled === true && publicRequestCount > 0 ? publicRequestCount : undefined
         }
-        primaryPulse={primaryPulse}
+        primaryPulse={primaryPulse && !tribunalDecisionPending}
         confessionalBadgeCount={
           !isSurvivorMode && confessionalAlertCount > 0 ? confessionalAlertCount : undefined
         }

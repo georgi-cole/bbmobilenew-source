@@ -1,0 +1,312 @@
+{
+  "assets/Informal_attires/Aria_informal.png": {
+    "file": "assets/tribunal/cast/74628c7b2e5d.webp",
+    "width": 185,
+    "height": 600
+  },
+  "assets/Informal_attires/Ash_informal.png": {
+    "file": "assets/tribunal/cast/c5cfc3058ecd.webp",
+    "width": 174,
+    "height": 600
+  },
+  "assets/Informal_attires/Bea_informal.png": {
+    "file": "assets/tribunal/cast/b97ee2be3843.webp",
+    "width": 169,
+    "height": 600
+  },
+  "assets/Informal_attires/Bella_informal.webp": {
+    "file": "assets/tribunal/cast/473908469513.webp",
+    "width": 208,
+    "height": 600
+  },
+  "assets/Informal_attires/Blue_informal.png": {
+    "file": "assets/tribunal/cast/b8bc659c432f.webp",
+    "width": 201,
+    "height": 600
+  },
+  "assets/Informal_attires/Dex_informal_v2.webp": {
+    "file": "assets/tribunal/cast/87b39a02d044.webp",
+    "width": 196,
+    "height": 600
+  },
+  "assets/Informal_attires/Echo_informal.png": {
+    "file": "assets/tribunal/cast/18fe20ce9d2a.webp",
+    "width": 288,
+    "height": 600
+  },
+  "assets/Informal_attires/Finn_informal.png": {
+    "file": "assets/tribunal/cast/6af0614b419d.webp",
+    "width": 201,
+    "height": 600
+  },
+  "assets/Informal_attires/Ivy_informal.png": {
+    "file": "assets/tribunal/cast/7eee2b8f8075.webp",
+    "width": 236,
+    "height": 600
+  },
+  "assets/Informal_attires/Jax_informal.png": {
+    "file": "assets/tribunal/cast/7d18305a2d1d.webp",
+    "width": 199,
+    "height": 600
+  },
+  "assets/Informal_attires/Kai_informal.png": {
+    "file": "assets/tribunal/cast/2d6c39528078.webp",
+    "width": 188,
+    "height": 600
+  },
+  "assets/Informal_attires/Kian_informal2.png": {
+    "file": "assets/tribunal/cast/e667e4c3176a.webp",
+    "width": 186,
+    "height": 600
+  },
+  "assets/Informal_attires/Lia_informal.png": {
+    "file": "assets/tribunal/cast/ed9509be4052.webp",
+    "width": 175,
+    "height": 600
+  },
+  "assets/Informal_attires/Lux_informal.png": {
+    "file": "assets/tribunal/cast/3d0369e10a14.webp",
+    "width": 177,
+    "height": 600
+  },
+  "assets/Informal_attires/Mimi_informal.png": {
+    "file": "assets/tribunal/cast/f8a49b88a032.webp",
+    "width": 195,
+    "height": 600
+  },
+  "assets/Informal_attires/Nico_informal.png": {
+    "file": "assets/tribunal/cast/0302bce6cd3c.webp",
+    "width": 291,
+    "height": 600
+  },
+  "assets/Informal_attires/Noa_informal.png": {
+    "file": "assets/tribunal/cast/3f4cd12f6510.webp",
+    "width": 207,
+    "height": 600
+  },
+  "assets/Informal_attires/Nova_informal.png": {
+    "file": "assets/tribunal/cast/6f01e0e1b4e9.webp",
+    "width": 174,
+    "height": 600
+  },
+  "assets/Informal_attires/Pax_informal.png": {
+    "file": "assets/tribunal/cast/fa80258626dc.webp",
+    "width": 183,
+    "height": 600
+  },
+  "assets/Informal_attires/Quinn_informal.png": {
+    "file": "assets/tribunal/cast/dd96cba0280c.webp",
+    "width": 164,
+    "height": 600
+  },
+  "assets/Informal_attires/Rae_informal.png": {
+    "file": "assets/tribunal/cast/ede2506df58d.webp",
+    "width": 191,
+    "height": 600
+  },
+  "assets/Informal_attires/Remy_informal.png": {
+    "file": "assets/tribunal/cast/5f72623c6ca6.webp",
+    "width": 192,
+    "height": 600
+  },
+  "assets/Informal_attires/Rey_informal.png": {
+    "file": "assets/tribunal/cast/e73ad1e5b79a.webp",
+    "width": 184,
+    "height": 600
+  },
+  "assets/Informal_attires/Rune_informal.png": {
+    "file": "assets/tribunal/cast/afd2a96d014b.webp",
+    "width": 201,
+    "height": 600
+  },
+  "assets/Informal_attires/Sol_informal.png": {
+    "file": "assets/tribunal/cast/fde7a885e591.webp",
+    "width": 193,
+    "height": 600
+  },
+  "assets/Informal_attires/Vee_informal.png": {
+    "file": "assets/tribunal/cast/f67efc3a2c6b.webp",
+    "width": 179,
+    "height": 600
+  },
+  "assets/Informal_attires/Zed_informal.png": {
+    "file": "assets/tribunal/cast/d55307ef3617.webp",
+    "width": 199,
+    "height": 600
+  },
+  "assets/player_characters/character 1/casual.webp": {
+    "file": "assets/tribunal/cast/05857730030e.webp",
+    "width": 229,
+    "height": 600
+  },
+  "assets/player_characters/character 10/casual.webp": {
+    "file": "assets/tribunal/cast/e1cd43532e83.webp",
+    "width": 193,
+    "height": 600
+  },
+  "assets/player_characters/character 11/casual.webp": {
+    "file": "assets/tribunal/cast/aec9b553ac32.webp",
+    "width": 225,
+    "height": 600
+  },
+  "assets/player_characters/character 12/casual.webp": {
+    "file": "assets/tribunal/cast/52dadf25b30f.webp",
+    "width": 227,
+    "height": 600
+  },
+  "assets/player_characters/character 13/casual.webp": {
+    "file": "assets/tribunal/cast/0f21c0d373cf.webp",
+    "width": 230,
+    "height": 600
+  },
+  "assets/player_characters/character 14/casual.webp": {
+    "file": "assets/tribunal/cast/e1932a4d5b3c.webp",
+    "width": 225,
+    "height": 600
+  },
+  "assets/player_characters/character 15/casual.webp": {
+    "file": "assets/tribunal/cast/4d84d82ba244.webp",
+    "width": 225,
+    "height": 600
+  },
+  "assets/player_characters/character 16/casual.webp": {
+    "file": "assets/tribunal/cast/cf50ac475507.webp",
+    "width": 238,
+    "height": 600
+  },
+  "assets/player_characters/character 17/casual.webp": {
+    "file": "assets/tribunal/cast/80fecda48f19.webp",
+    "width": 231,
+    "height": 600
+  },
+  "assets/player_characters/character 18/casual.webp": {
+    "file": "assets/tribunal/cast/15ce67c03152.webp",
+    "width": 222,
+    "height": 600
+  },
+  "assets/player_characters/character 19/casual.webp": {
+    "file": "assets/tribunal/cast/fd0faa941824.webp",
+    "width": 227,
+    "height": 600
+  },
+  "assets/player_characters/character 2/casual.webp": {
+    "file": "assets/tribunal/cast/bc17e4f29964.webp",
+    "width": 194,
+    "height": 600
+  },
+  "assets/player_characters/character 20/casual.webp": {
+    "file": "assets/tribunal/cast/cfbfc4b66c88.webp",
+    "width": 220,
+    "height": 600
+  },
+  "assets/player_characters/character 21/casual.webp": {
+    "file": "assets/tribunal/cast/ce6d455b0eda.webp",
+    "width": 205,
+    "height": 600
+  },
+  "assets/player_characters/character 22/casual.webp": {
+    "file": "assets/tribunal/cast/c33783d2a8e4.webp",
+    "width": 196,
+    "height": 600
+  },
+  "assets/player_characters/character 23/casual.webp": {
+    "file": "assets/tribunal/cast/a241e26951d3.webp",
+    "width": 234,
+    "height": 600
+  },
+  "assets/player_characters/character 24/casual.webp": {
+    "file": "assets/tribunal/cast/84579d7549b0.webp",
+    "width": 195,
+    "height": 600
+  },
+  "assets/player_characters/character 25/casual.webp": {
+    "file": "assets/tribunal/cast/e8b089a951f9.webp",
+    "width": 229,
+    "height": 600
+  },
+  "assets/player_characters/character 26/casual.webp": {
+    "file": "assets/tribunal/cast/f45710d0425a.webp",
+    "width": 191,
+    "height": 600
+  },
+  "assets/player_characters/character 27/casual.webp": {
+    "file": "assets/tribunal/cast/f26bbf563ca2.webp",
+    "width": 233,
+    "height": 600
+  },
+  "assets/player_characters/character 28/casual.webp": {
+    "file": "assets/tribunal/cast/89f08e435239.webp",
+    "width": 207,
+    "height": 600
+  },
+  "assets/player_characters/character 29/casual.webp": {
+    "file": "assets/tribunal/cast/58c5434e6143.webp",
+    "width": 225,
+    "height": 600
+  },
+  "assets/player_characters/character 3/casual.webp": {
+    "file": "assets/tribunal/cast/fab60d1e803c.webp",
+    "width": 238,
+    "height": 600
+  },
+  "assets/player_characters/character 30/casual.webp": {
+    "file": "assets/tribunal/cast/21483e9be188.webp",
+    "width": 199,
+    "height": 600
+  },
+  "assets/player_characters/character 31/casual.webp": {
+    "file": "assets/tribunal/cast/213ed2ac0c2c.webp",
+    "width": 227,
+    "height": 600
+  },
+  "assets/player_characters/character 32/casual.webp": {
+    "file": "assets/tribunal/cast/c5880e5dcf17.webp",
+    "width": 183,
+    "height": 600
+  },
+  "assets/player_characters/character 33/casual.webp": {
+    "file": "assets/tribunal/cast/51bad243d8a9.webp",
+    "width": 193,
+    "height": 600
+  },
+  "assets/player_characters/character 34/casual.webp": {
+    "file": "assets/tribunal/cast/2bc624d8019e.webp",
+    "width": 195,
+    "height": 600
+  },
+  "assets/player_characters/character 35/casual.webp": {
+    "file": "assets/tribunal/cast/32f75a4cf049.webp",
+    "width": 189,
+    "height": 600
+  },
+  "assets/player_characters/character 4/casual.webp": {
+    "file": "assets/tribunal/cast/4153450a53ef.webp",
+    "width": 233,
+    "height": 600
+  },
+  "assets/player_characters/character 5/casual.webp": {
+    "file": "assets/tribunal/cast/6593dca039df.webp",
+    "width": 202,
+    "height": 600
+  },
+  "assets/player_characters/character 6/casual.webp": {
+    "file": "assets/tribunal/cast/36506048534c.webp",
+    "width": 224,
+    "height": 600
+  },
+  "assets/player_characters/character 7/casual.webp": {
+    "file": "assets/tribunal/cast/342f02798105.webp",
+    "width": 227,
+    "height": 600
+  },
+  "assets/player_characters/character 8/casual.webp": {
+    "file": "assets/tribunal/cast/28cff8b8f132.webp",
+    "width": 218,
+    "height": 600
+  },
+  "assets/player_characters/character 9/casual.webp": {
+    "file": "assets/tribunal/cast/4cbe7babc931.webp",
+    "width": 223,
+    "height": 600
+  }
+}

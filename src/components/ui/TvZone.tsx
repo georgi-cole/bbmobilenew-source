@@ -356,6 +356,7 @@ type TvZoneProps = {
   rosterLogLauncher?: boolean
   priorityAnnouncement?: Announcement | null
   onPriorityAnnouncementDismiss?: () => void
+  onTribunalInvitationChoice?: (choice: 'agree' | 'exit') => void
   externalAnnouncement?: Announcement | null
   onExternalAnnouncementDismiss?: () => void
   /** Compact board occupancy chip shown when the roster header yields space to the board. */
@@ -510,6 +511,7 @@ export default function TvZone(props: TvZoneProps) {
   const [phaseAnnouncement, setPhaseAnnouncement] = useState<Announcement | null>(null)
   // Short-lived TV spotlight effect for Double Eviction special announcements.
   const [deSpotlightActive, setDeSpotlightActive] = useState(false)
+  const [tribunalBackdropHost, setTribunalBackdropHost] = useState<Element | null>(null)
   const [cupidOutlinePulseActive, setCupidOutlinePulseActive] = useState(false)
   const [saveStatus, setSaveStatus] = useState<null | 'saved' | 'error'>(null)
   // Save feedback dialog — shows a mobile-friendly confirmation after save.
@@ -1100,6 +1102,8 @@ export default function TvZone(props: TvZoneProps) {
 
   const handleDismiss = useCallback(() => {
     const currentAnnouncement = activeAnnouncement
+    // This is a season decision; only its Agree/Exit controls can resolve it.
+    if (currentAnnouncement?.key === 'tribunal_invitation') return
     // Cupid's opening proclamation can only progress through its own OK
     // button. A central Play press must never consume it before the faux-TV
     // handoff has been shown.
@@ -1190,7 +1194,8 @@ export default function TvZone(props: TvZoneProps) {
       activeAnnouncement?.key === 'vip_veto' ||
       activeAnnouncement?.key === 'diamond_pov' ||
       activeAnnouncement?.key === 'coup_detat' ||
-      activeAnnouncement?.key === 'spotlight_veto'
+      activeAnnouncement?.key === 'spotlight_veto' ||
+      activeAnnouncement?.key === 'tribunal_invitation'
 
     if (!isSpecialAnnouncement || !showInlineAnnouncement) {
       startTransition(() => {
@@ -1203,7 +1208,9 @@ export default function TvZone(props: TvZoneProps) {
       return
     }
 
+    const spotlightHost = tvZoneRef.current?.closest('.game-screen-shell') ?? document.body
     startTransition(() => {
+      setTribunalBackdropHost(spotlightHost)
       setDeSpotlightActive(true)
     })
     if (deSpotlightTimerRef.current !== null) clearTimeout(deSpotlightTimerRef.current)
@@ -1399,6 +1406,10 @@ export default function TvZone(props: TvZoneProps) {
         return
       }
       if (activeAnnouncement) {
+        if (activeAnnouncement.key === 'tribunal_invitation') {
+          event.preventDefault()
+          return
+        }
         if (activeAnnouncement.key === 'cupid_arrow' && !cupidFollowUpVisible) {
           event.preventDefault()
           return
@@ -1610,6 +1621,10 @@ export default function TvZone(props: TvZoneProps) {
 
   // Distinguish the double-eviction spotlight from the live-vote focus state.
   const isDeSpotlight = deSpotlightActive
+  const isTribunalSpotlight = isDeSpotlight && activeAnnouncement?.key === 'tribunal_invitation'
+  const spotlightBackdropClass = isTribunalSpotlight
+    ? 'tv-zone-de-backdrop tv-zone-de-backdrop--tribunal'
+    : 'tv-zone-de-backdrop'
   const isCupidOutlinePulse = cupidOutlinePulseActive
   // Mounting the Day 1 → Day 2 weather handoff starts this one-shot CSS pulse.
   const isWeekendElectricPulse = weekendDayTransitionActive
@@ -1645,7 +1660,9 @@ export default function TvZone(props: TvZoneProps) {
         gameState.weekendInterlude.stage === 'finale_battle_ready'
           ? 'tv-zone--finale-power-ready'
           : '',
-        isDeSpotlight ? 'tv-zone--de-spotlight' : '',
+        isDeSpotlight && !isTribunalSpotlight ? 'tv-zone--de-spotlight' : '',
+        isTribunalSpotlight ? 'tv-zone--tribunal-spotlight' : '',
+        activeAnnouncement?.key === 'tribunal_invitation' ? 'tv-zone--tribunal-choice' : '',
         isCupidOutlinePulse ? 'tv-zone--cupid-outline-pulse' : '',
         isWeekendElectricPulse ? 'tv-zone--weekend-electric-pulse' : '',
         isLiveVoteFocus ? 'tv-zone--live-vote-focus' : '',
@@ -1665,7 +1682,12 @@ export default function TvZone(props: TvZoneProps) {
     >
       {/* ── Double Eviction spotlight backdrop (portal to body) ──────────── */}
       {isDeSpotlight &&
-        createPortal(<div className="tv-zone-de-backdrop" aria-hidden="true" />, document.body)}
+        createPortal(
+          <div className={spotlightBackdropClass} aria-hidden="true" />,
+          // The game shell is isolated: a body-level backdrop would also dim
+          // the TV, regardless of the TV's own elevated z-index.
+          isTribunalSpotlight ? (tribunalBackdropHost ?? document.body) : document.body
+        )}
       {isLiveVoteFocus &&
         liveVoteBackdropMetrics &&
         createPortal(
@@ -1993,10 +2015,14 @@ export default function TvZone(props: TvZoneProps) {
                 }
                 onInfo={handleInfo}
                 onDismiss={handleDismiss}
+                onTribunalChoice={props.onTribunalInvitationChoice}
                 paused={modalOpen}
                 infoButtonRef={announcementInfoButtonRef}
                 hideTitle={cupidFollowUpVisible}
-                showInfoButton={cupidFollowUpVisible || activeAnnouncement.key !== 'cupid_arrow'}
+                showInfoButton={
+                  activeAnnouncement.key !== 'tribunal_invitation' &&
+                  (cupidFollowUpVisible || activeAnnouncement.key !== 'cupid_arrow')
+                }
                 // The pair reveal belongs to the avatar storm. Keeping the
                 // follow-up copy short prevents the TV body from colliding
                 // with the roster below it.

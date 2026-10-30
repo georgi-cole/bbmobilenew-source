@@ -260,6 +260,11 @@
   isolation: isolate;
 }
 
+/* Reserve room for the explicit season decision at narrow phone sizes. */
+.tv-zone--tribunal-choice .tv-zone__viewport {
+  min-height: max(var(--tv-zone-viewport-min-height, 192px), 180px);
+}
+
 .tv-zone__audience-preview-chip {
   display: inline-flex;
   align-items: center;
@@ -2169,6 +2174,37 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
     animation: none;
   }
   .tv-zone--finale-power-ready {
+    animation: none;
+  }
+}
+
+/* The same TV-only attention cue as Double Elimination, recolored for the
+   player's quieter transition to the Tribunal. No scale or cutout can spill
+   beyond the TV's responsive bezel. */
+.tv-zone-de-backdrop--tribunal {
+  background:
+    radial-gradient(circle at 50% 32%, rgba(249, 220, 146, 0.1), transparent 32%),
+    linear-gradient(180deg, rgba(9, 9, 29, 0.84), rgba(5, 6, 19, 0.78));
+}
+.tv-zone--tribunal-spotlight {
+  position: relative;
+  z-index: 9999;
+  animation: tribunalTvSpotlight var(--de-spotlight-ms, 1700ms) ease-out forwards;
+}
+@keyframes tribunalTvSpotlight {
+  0%,
+  100% {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+  24% {
+    box-shadow:
+      0 0 0 2px rgba(242, 213, 146, 0.9),
+      0 0 40px rgba(160, 117, 255, 0.48),
+      0 0 78px rgba(106, 75, 182, 0.36);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tv-zone--tribunal-spotlight {
     animation: none;
   }
 }

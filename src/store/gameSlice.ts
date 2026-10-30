@@ -1061,6 +1061,7 @@ export function createInitialGameState(options?: {
     dayStartShock: null,
     dayStartShockUsedThisSeason: false,
     tribunalPhaseAnnounced: false,
+    tribunalInvitationAcknowledged: false,
     twinShock: createInitialTwinShockState(),
     twinShockConsumed,
     twinShockActivatedSeason: null,
@@ -7714,6 +7715,24 @@ const gameSlice = createSlice({
      * (on eviction_splash enter/exit) so AvatarTile can hide itself (isEvicting)
      * during the match-cut, preventing the duplicated fullscreen avatar start.
      */
+    chooseTribunalInvitation(state, action: PayloadAction<'agree' | 'exit'>) {
+      if (
+        state.tribunalInvitationAcknowledged ||
+        state.battleBack?.active ||
+        state.battleBack?.returnAnimationPending ||
+        !state.players.some((player) => player.isUser && player.status === 'jury')
+      )
+        return
+      state.tribunalInvitationAcknowledged = true
+      state.tribunalInvitationTransition = action.payload === 'agree' ? 'sequester' : 'exit'
+    },
+
+    completeTribunalArrival(state) {
+      if (state.tribunalInvitationTransition === 'sequester') {
+        state.tribunalInvitationTransition = null
+      }
+    },
+
     setEvictionOverlay(state, action: PayloadAction<string | null>) {
       state.evictionOverlayPlayerId = action.payload
     },
@@ -8931,6 +8950,175 @@ const gameSlice = createSlice({
         syncCupidRoleStatuses(state)
         pushEvent(state, `[DEBUG] ${player.name} forced as POS winner. 🎭`, 'game')
       }
+    },
+    /**
+     * Prepare a deterministic post-elimination QA scene for the production
+     * Tribunal invitation. The optional Back 2 the Game variant leaves a real
+     * competition active so the invitation's normal suppression can be checked.
+     */
+    prepareTribunalInvitationTest(
+      state,
+      action: PayloadAction<{
+        gameId: string
+        mode: 'invitation' | 'first_arrival' | 'second_arrival' | 'battle_back'
+      }>
+    ) {
+      if (!import.meta.env.DEV) return
+
+      const human = state.players.find((player) => player.isUser)
+      const otherPlayers = state.players.filter((player) => !player.isUser)
+      if (!human || otherPlayers.length < (action.payload.mode === 'battle_back' ? 3 : 1)) return
+
+      // Give legacy QA profiles a visible sample body; preserve selected looks
+      // and uploaded portraits so the same fixture can review both presentations.
+      if (human.appearance?.kind !== 'catalog' && !human.avatar?.startsWith('profile-photo:')) {
+        human.appearance = { kind: 'catalog', lookId: 'pc-001', revision: 1 }
+      }
+
+      // Keep enough Tribunal members available for a playable return challenge
+      // on small test casts while showing three remaining contestants normally.
+      const activeCount = Math.min(3, Math.max(1, otherPlayers.length - 2))
+      const activeIds = new Set(otherPlayers.slice(0, activeCount).map((player) => player.id))
+      const juryIds = otherPlayers
+        .filter((player) => !activeIds.has(player.id))
+        .slice(-Math.max(2, (state.cfg?.tribunalSize ?? 9) - 1))
+      const juryMemberIds = new Set(juryIds.map((player) => player.id))
+      const candidateIds =
+        action.payload.mode === 'battle_back'
+          ? [human.id, ...juryIds.slice(0, 2).map((player) => player.id)]
+          : []
+
+      state.gameId = action.payload.gameId
+      state.mode = 'classic'
+      state.expansionMode = null
+      state.status = 'active'
+      state.week = 9
+      state.seed = 1617
+      state.phase = 'week_end'
+      state.isLive = false
+      state.lohId = null
+      state.prevHohId = null
+      state.nomineeIds = []
+      state.posWinnerId = null
+      state.replacementNeeded = false
+      state.povSavedId = null
+      state.replacementNomineeIds = []
+      state.povProtectedIds = []
+      state.awaitingNominations = false
+      state.pendingNominee1Id = null
+      state.awaitingPovDecision = false
+      state.awaitingPovSaveTarget = false
+      state.lastHohCompFinisherId = null
+      state.lastHohCompFinisherType = null
+      state.publicSavedNomineeId = null
+      state.nominationContext = null
+      state.awaitingPublicSave = false
+      state.votes = {}
+      state.batteryLowVoteEffects = {}
+      state.awaitingHumanVote = false
+      state.awaitingTieBreak = false
+      state.tiedNomineeIds = null
+      state.awaitingMissionImmunityOffer = false
+      state.awaitingFinal3Eviction = false
+      state.awaitingFinal3Plea = false
+      state.aiReplacementStep = 0
+      state.aiReplacementWaiting = false
+      state.f3Part1WinnerId = null
+      state.f3Part2WinnerId = null
+      state.finalThree = null
+      state.pendingMinigame = null
+      state.minigameResult = null
+      state.minigameContext = null
+      state.voteResults = null
+      state.evictionSplashId = null
+      state.pendingEviction = null
+      state.pendingExitContext = null
+      state.evictionOverlayPlayerId = null
+      state.seasonFinale = null
+      state.weekendInterlude = null
+      state.dayStartShock = null
+      state.pendingForcedShock = null
+      state.spectatorActive = null
+      state.publicModeEnabled = false
+      state.pendingPublicModeEnabled = null
+      state.twistActive = action.payload.mode === 'battle_back'
+      state.tribunalInvitationAcknowledged = false
+      state.tribunalInvitationTransition = null
+      state.tribunalPhaseAnnounced = false
+      state.seasonDirectorHumanReturnUsed = false
+      state.doubleEviction = {
+        usedCount: state.doubleEviction?.usedCount ?? 0,
+        weekActive: false,
+        pendingSecondEviction: null,
+      }
+      state.battleBack = {
+        used: false,
+        active: action.payload.mode === 'battle_back',
+        competitionActive: action.payload.mode === 'battle_back',
+        weekDecided: 8,
+        candidates: candidateIds,
+        activationSource: 'forced-debug',
+        attemptIndex: 0,
+        retryCount: 0,
+        retryLimit: 3,
+        pendingRetryWinnerId: null,
+        winnerId: null,
+      }
+      state.tvFeed = []
+      state.broadcastQueue = []
+      state.lastPlainBroadcastEventId = null
+      state.democracia = undefined
+      state.depressionShock = undefined
+      state.cupidArrow = undefined
+      state.voxPopuli = undefined
+      state.coLohIds = []
+      state.coLohNomineeByCoLohId = {}
+      state.favoritePlayer = {
+        active: false,
+        votingStarted: false,
+        candidates: [],
+        eliminated: [],
+        votes: {},
+        winnerId: null,
+        awardAmount: 0,
+      }
+
+      state.players.forEach((player) => {
+        const isActiveContestant = activeIds.has(player.id)
+        player.status =
+          player.isUser || juryMemberIds.has(player.id)
+            ? 'jury'
+            : isActiveContestant
+              ? 'active'
+              : 'evicted'
+        if (action.payload.mode === 'first_arrival' && !player.isUser && !isActiveContestant) {
+          player.status = 'evicted'
+        }
+        if (
+          action.payload.mode === 'second_arrival' &&
+          !player.isUser &&
+          !isActiveContestant &&
+          player.id !== juryIds.at(-1)?.id
+        ) {
+          player.status = 'evicted'
+        }
+        player.finalRank = undefined
+        player.seasonPlacement = undefined
+        player.isWinner = false
+        player.evictedAtWeek = player.status === 'jury' ? 8 : undefined
+      })
+      // A real chronological exit log makes the production arrival's latest
+      // two jurors reviewable independently of roster order.
+      const departures = [
+        ...state.players.filter((player) => !player.isUser && !activeIds.has(player.id)),
+        human,
+      ]
+      state.history = departures.map((player, index) => {
+        const week = Math.max(1, state.week - (departures.length - index - 1))
+        player.evictedAtWeek = week
+        player.seasonPlacement = activeCount + departures.length - index
+        return { type: 'seasonExit', week, data: { playerId: player.id }, timestamp: 1617 + index }
+      })
     },
     /**
      * Load a deterministic, debug-only LOH backdoor scenario.
@@ -10411,6 +10599,7 @@ const gameSlice = createSlice({
       // This protects against programmatic dispatches (debug tools, fastForward)
       // bypassing mandatory decision steps and leaving state inconsistent.
       if (
+        state.tribunalInvitationTransition ||
         state.weekendInterlude?.active ||
         state.missionPowers?.decision ||
         state.missionPowers?.safetyIntent ||
@@ -13635,6 +13824,8 @@ export const {
   revealSurvivorReplacement,
   setEvictionOverlay,
   clearEvictionOverlay,
+  chooseTribunalInvitation,
+  completeTribunalArrival,
   finalizePendingEviction,
   selfEvict,
   aiReplacementRendered,
@@ -13699,6 +13890,7 @@ export const {
   forceHoH,
   forceNominees,
   forcePovWinner,
+  prepareTribunalInvitationTest,
   prepareLohBackdoorTest,
   forcePlayerStatus,
   prepareVoxFinalThreeTest,

@@ -1369,6 +1369,10 @@ export interface GameState {
   dayStartShockUsedThisSeason?: boolean
   /** True after the one-time Tribunal phase announcement has played. */
   tribunalPhaseAnnounced?: boolean
+  /** Set once a Tribunal member accepts the post-elimination invitation. Persisted per season. */
+  tribunalInvitationAcknowledged?: boolean
+  /** Persist the chosen cinematic until its handoff completes (including after reload). */
+  tribunalInvitationTransition?: 'sequester' | 'exit' | null
   /**
    * When set, the VoteResultsPopup is shown with the vote tally before
    * advancing. Maps nominee ID → number of votes received.

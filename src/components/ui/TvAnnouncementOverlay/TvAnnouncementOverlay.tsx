@@ -27,6 +27,7 @@ export interface TvAnnouncementOverlayProps {
   announcement: Announcement
   onInfo?: () => void
   onDismiss?: () => void
+  onTribunalChoice?: (choice: 'agree' | 'exit') => void
   /** When true, the auto-dismiss countdown is paused (e.g. while info modal is open). */
   paused?: boolean
   /** Optional ref forwarded to the ℹ️ info button for external spotlight targeting. */
@@ -119,6 +120,7 @@ export default function TvAnnouncementOverlay({
   announcement,
   onInfo,
   onDismiss,
+  onTribunalChoice,
   paused = false,
   infoButtonRef,
   showInfoButton = true,
@@ -138,6 +140,7 @@ export default function TvAnnouncementOverlay({
   const isBattleBack =
     announcement.key === 'battle_back' || announcement.key.startsWith('battle_back_')
   const isDoubleEviction = announcement.key === 'double_eviction'
+  const isTribunalInvitation = announcement.key === 'tribunal_invitation'
   const isVipVeto = announcement.key === 'vip_veto'
   const isDiamondPov = announcement.key === 'diamond_pov'
   const isCoupDetat = announcement.key === 'coup_detat'
@@ -291,6 +294,7 @@ export default function TvAnnouncementOverlay({
           themeClass,
           isBattleBack ? 'tv-announcement--battle-back' : '',
           isDoubleEviction ? 'tv-announcement--double-eviction' : '',
+          isTribunalInvitation ? 'tv-announcement--tribunal-invitation' : '',
           isVipVeto ? 'tv-announcement--vip-veto' : '',
           isDiamondPov ? 'tv-announcement--diamond-pov' : '',
           isCoupDetat ? 'tv-announcement--coup-detat' : '',
@@ -325,6 +329,24 @@ export default function TvAnnouncementOverlay({
             </div>
           )}
           {subtitle && <p className="tv-announcement__subtitle">{subtitle}</p>}
+          {isTribunalInvitation && (
+            <div className="tv-announcement__tribunal-actions" aria-label="Your Tribunal decision">
+              <button
+                type="button"
+                className="tv-announcement__tribunal-action"
+                onClick={() => onTribunalChoice?.('agree')}
+              >
+                Agree
+              </button>
+              <button
+                type="button"
+                className="tv-announcement__tribunal-action tv-announcement__tribunal-action--exit"
+                onClick={() => onTribunalChoice?.('exit')}
+              >
+                Exit
+              </button>
+            </div>
+          )}
           {announcement.key === 'cupid_arrow' && cupidPairs.length > 0 && (
             <div className="tv-announcement__cupid-pairs" aria-label="Cupid matches">
               {cupidPairs.map((pair, index) => (

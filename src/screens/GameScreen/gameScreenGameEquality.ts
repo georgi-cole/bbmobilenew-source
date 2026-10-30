@@ -31,6 +31,8 @@ export const gameScreenGameEquality = createGameFieldEquality([
   'publicModeEnabled',
   'season',
   'seasonFinale',
+  'tribunalInvitationAcknowledged',
+  'tribunalInvitationTransition',
   'seed',
   'specialVeto',
   'status',

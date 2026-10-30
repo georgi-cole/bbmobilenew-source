@@ -178,6 +178,14 @@ function renderHomeHub(initialEntry: string | { pathname: string; state?: unknow
   )
 }
 
+async function waitForMenuReady() {
+  // Startup has asynchronous image, font and runtime gates. Query cheaply while
+  // pending instead of repeatedly constructing getByRole's full DOM error.
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Play' })).not.toBeNull(), {
+    timeout: 5000,
+  })
+}
+
 describe('HomeHub', () => {
   beforeEach(() => {
     sessionStorage.clear()
@@ -204,6 +212,7 @@ describe('HomeHub', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     delete (window as Window & { game?: Record<string, unknown> }).game
   })
 
@@ -215,49 +224,40 @@ describe('HomeHub', () => {
 
     fireEvent.click(screen.getByTestId('kolequant-splash'))
 
-    await waitFor(
-      () => {
-        expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-      },
-      { timeout: 5000 }
-    )
+    await waitForMenuReady()
 
     firstRender.unmount()
 
     renderHomeHub()
 
     expect(screen.queryByTestId('kolequant-splash')).toBeNull()
-    await waitFor(
-      () => {
-        expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-      },
-      { timeout: 5000 }
-    )
+    await waitForMenuReady()
   })
 
   it('explains local weather before the first location prompt and requests it once', async () => {
+    vi.useFakeTimers()
     localStorage.removeItem('bb:locationPermissionRequested')
     expect(shouldShowWeatherPermissionRationale()).toBe(true)
     const view = renderHomeHub()
 
     fireEvent.click(screen.getByTestId('kolequant-splash'))
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
     })
-
-    await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent(
-        'Allow approximate location to match the Home Hub to your local weather. Coordinates go to Open-Meteo only to fetch weather for the background.'
-      )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
     })
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Allow approximate location to match the Home Hub to your local weather. Coordinates go to Open-Meteo only to fetch weather for the background.'
+    )
     expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
 
-    await waitFor(() => {
-      expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(650)
     })
-    await waitFor(() => {
-      expect(screen.queryByRole('status')).toBeNull()
-    })
+    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('status')).toBeNull()
 
     view.rerender(
       <MemoryRouter>
@@ -272,9 +272,7 @@ describe('HomeHub', () => {
 
     fireEvent.click(screen.getByTestId('kolequant-splash'))
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    })
+    await waitForMenuReady()
 
     firstRender.unmount()
     mockState.game.gameId = 'game-B'
@@ -282,9 +280,7 @@ describe('HomeHub', () => {
     renderHomeHub()
 
     expect(screen.queryByTestId('kolequant-splash')).toBeNull()
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    })
+    await waitForMenuReady()
   })
 
   it('opens the return menu without repeating launch artwork after quitting', async () => {
@@ -293,9 +289,7 @@ describe('HomeHub', () => {
     renderHomeHub()
 
     expect(screen.queryByTestId('kolequant-splash')).toBeNull()
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    })
+    await waitForMenuReady()
   })
 
   it('still shows the five-second launch splash when the current game was seen previously', () => {
@@ -345,9 +339,7 @@ describe('HomeHub', () => {
       await act(async () => {
         resolveInitialBg()
       })
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-      })
+      await waitForMenuReady()
       const playButton = screen.getByRole('button', { name: 'Play' })
 
       mockState.remoteConfig.config = {
@@ -412,12 +404,7 @@ describe('HomeHub', () => {
 
       fireEvent.click(screen.getByTestId('kolequant-splash'))
 
-      await waitFor(
-        () => {
-          expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-        },
-        { timeout: 5000 }
-      )
+      await waitForMenuReady()
 
       const bgLayer = document.querySelector<HTMLElement>('.homehub-intro-bg')
       expect(bgLayer?.style.backgroundImage).toContain('/assets/background.jpg')
@@ -432,9 +419,7 @@ describe('HomeHub', () => {
     const view = renderHomeHub()
     fireEvent.click(screen.getByTestId('kolequant-splash'))
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    })
+    await waitForMenuReady()
     const playButton = screen.getByRole('button', { name: 'Play' })
 
     mockBackgroundUrl = '/assets/next-background.jpg'
@@ -528,9 +513,7 @@ describe('HomeHub', () => {
     renderHomeHub()
     fireEvent.click(screen.getByTestId('kolequant-splash'))
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    })
+    await waitForMenuReady()
 
     expect(requestedUrls).toContain('/assets/buttons/primary_large_normal.svg')
     expect(requestedUrls).toContain('/assets/intro_hub_icons/play.svg')
@@ -561,7 +544,7 @@ describe('HomeHub', () => {
   it('starts Classic directly from Play without a separate contestant setup page', async () => {
     renderHomeHub()
     fireEvent.click(screen.getByTestId('kolequant-splash'))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument())
+    await waitForMenuReady()
     fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     fireEvent.click(screen.getByRole('button', { name: 'Classic' }))
     expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'game/resetGame' }))
@@ -574,9 +557,7 @@ describe('HomeHub', () => {
     renderHomeHub()
     fireEvent.click(screen.getByTestId('kolequant-splash'))
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    })
+    await waitForMenuReady()
 
     fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     expect(screen.queryByRole('button', { name: 'Debug Menu: Off' })).toBeNull()
@@ -588,9 +569,7 @@ describe('HomeHub', () => {
 
     fireEvent.click(screen.getByTestId('kolequant-splash'))
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    })
+    await waitForMenuReady()
 
     fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     fireEvent.click(screen.getByRole('button', { name: 'Surveyeval' }))
@@ -605,9 +584,7 @@ describe('HomeHub', () => {
     renderHomeHub()
     fireEvent.click(screen.getByTestId('kolequant-splash'))
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    })
+    await waitForMenuReady()
     const profile = screen.getByRole('button', { name: 'Profile' })
     const hubmates = screen.getByRole('button', { name: 'Hubmates' })
     expect(
