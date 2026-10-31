@@ -200,12 +200,10 @@ function buildAnnouncement(
           registryTemplate?.title ??
           meta.title),
     subtitle:
-      typeof eventSubtitle === 'string' && eventSubtitle.trim()
+      migratedFinalFourSubtitle ??
+      (typeof eventSubtitle === 'string' && eventSubtitle.trim()
         ? eventSubtitle
-        : (registryOverride?.text ??
-          migratedFinalFourSubtitle ??
-          registryTemplate?.text ??
-          meta.subtitle),
+        : (registryOverride?.text ?? registryTemplate?.text ?? meta.subtitle)),
   }
 }
 
