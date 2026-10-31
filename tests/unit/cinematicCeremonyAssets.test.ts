@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import catalog from './cast.json'
-import shared from './shared-manifest.json'
-import vfx from './vfx.json'
-import optical from './optical.json'
+import catalog from '../../src/cinematic/ceremonies/cast.json'
+import shared from '../../src/cinematic/ceremonies/shared-manifest.json'
+import vfx from '../../src/cinematic/ceremonies/vfx.json'
+import optical from '../../src/cinematic/ceremonies/optical.json'
 
 describe('released ceremony artwork', () => {
   it('contains the six approved transparent poses for every supported character', () => {
