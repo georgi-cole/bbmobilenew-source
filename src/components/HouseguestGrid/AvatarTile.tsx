@@ -33,6 +33,8 @@ type RoboStatsSummary = {
 }
 
 type Props = {
+  /** Reveal the actual coloured roster tile immediately after a premium exit. */
+  rosterExitVisible?: boolean
   name: string
   avatarUrl?: string
   isEvicted?: boolean
@@ -211,6 +213,7 @@ function AvatarTileView({
   showName = true,
   animateNameReveal = false,
   evictionMarkKey,
+  rosterExitVisible = false,
 }: Props) {
   // Cosmetic badges and social updates don't move the portrait. Snapshot the
   // shared layout only for roster geometry and the actual cinematic handoffs.
@@ -609,7 +612,11 @@ function AvatarTileView({
           transition={
             layoutId
               ? {
-                  opacity: isEvicting ? { duration: 0.1 } : { duration: 0.2, delay: 0.3 },
+                  opacity: rosterExitVisible
+                    ? { duration: 0 }
+                    : isEvicting
+                      ? { duration: 0.1 }
+                      : { duration: 0.2, delay: 0.3 },
                 }
               : undefined
           }

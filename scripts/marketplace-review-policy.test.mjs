@@ -3,6 +3,8 @@ import { test } from 'node:test'
 import { getMarketplaceReviewIssue } from './marketplace-review-policy.mjs'
 
 for (const feature of [
+  'src/cinematic/ceremonies/renderer.js',
+  'public/assets/ceremonies/vfx/natural-mist-v2.webp',
   'src/components/HouseOfCardsComp/HouseOfCardsComp.tsx',
   'src/minigames/newPremiumGame/rules.ts',
   'src/social/socialRules.ts',

@@ -1,3 +1,4 @@
+import { useVipPresentation } from '../../cinematic/ceremonies/presentation'
 import { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
 import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
@@ -74,11 +75,11 @@ import FloatingActionBar from '../../components/FloatingActionBar/FloatingAction
 import { shouldRenderGameControlDock } from './gameScreenUiGuards'
 import WeekendPartyAtmosphere from '../../components/WeekendPartyAtmosphere/WeekendPartyAtmosphere'
 import { resolveWeekendVisualTheme } from '../../utils/weekendVisualTheme'
-import SpotlightEvictionOverlay from '../../components/Eviction/SpotlightEvictionOverlay'
+import SpotlightEvictionOverlay from '../../cinematic/ceremonies/exit.jsx'
 import SurveyevalTileEvictionEffect from '../../components/Eviction/SurveyevalTileEvictionEffect'
-import DayStartShockPopup from '../../components/DayStartShockPopup/DayStartShockPopup'
-import CeremonyOverlay from '../../components/CeremonyOverlay/CeremonyOverlay'
-import WinnerTileLiftAnimation from '../../components/WinnerTileLiftAnimation/WinnerTileLiftAnimation'
+import DayStartShockPopup from '../../cinematic/ceremonies/day-shock.jsx'
+import CeremonyOverlay from '../../cinematic/ceremonies/ceremony.jsx'
+import WinnerTileLiftAnimation from '../../cinematic/ceremonies/winner.jsx'
 import ChatOverlay from '../../components/ChatOverlay/ChatOverlay'
 import Final4PublicVotePanel from './Final4PublicVotePanel'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
@@ -235,6 +236,7 @@ function buildAiOnlyChallengeRawResults(challenge: PendingChallenge) {
  * or add action buttons by dispatching events via useAppDispatch().
  */
 export default function GameScreen() {
+  const vipPresentationActive = useVipPresentation()
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -1354,6 +1356,7 @@ export default function GameScreen() {
   // Present the one-time Tribunal invitation only after all eviction and return
   // presentations settle. Never steal the screen from a playable Battle Back.
   const showTribunalInvitation =
+    !vipPresentationActive &&
     game.mode !== 'survival' &&
     humanPlayer?.status === 'jury' &&
     game.tribunalInvitationAcknowledged !== true &&
@@ -1386,6 +1389,7 @@ export default function GameScreen() {
   // the game state. Keeping their state pending lets them appear immediately
   // after that presentation completes, rather than losing the prompt.
   const deferConditionPromptsForPresentation =
+    vipPresentationActive ||
     shouldShowNominationCeremony ||
     showWinnerCeremony ||
     showAdvanceHohCeremony ||
@@ -1493,6 +1497,7 @@ export default function GameScreen() {
       },
       presentation: {
         blocksControls: [
+          vipPresentationActive,
           Boolean(game.tribunalInvitationTransition),
           showEnergyRechargePrompt,
           showAudienceInsightPrompt,
@@ -1845,6 +1850,7 @@ export default function GameScreen() {
         {/* Shown for BOTH human LOH (deferred commit) and AI LOH (already committed). */}
         {shouldShowNominationCeremony && (
           <CeremonyOverlay
+            actorIds={nomAnimPlayers.map((p) => p.id)}
             tiles={[]}
             layoutSignal={responsiveGameLayout.revision}
             resolveTiles={() => {
@@ -2403,6 +2409,7 @@ export default function GameScreen() {
         {/* ── CeremonyOverlay — POS save ceremony (human POS holder) ────── */}
         {showSaveCeremony && pendingSaveCeremony && (
           <CeremonyOverlay
+            actorIds={expandCupidIds(game, [pendingSaveCeremony.savedId])}
             tiles={[]}
             layoutSignal={responsiveGameLayout.revision}
             resolveTiles={pendingSaveCeremony.resolveTiles}

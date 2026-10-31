@@ -1,0 +1,559 @@
+/* Revision 4: shared decisions / physical exit / portrait handoff. */
+.decision-film {
+  background: #0a080e;
+  perspective: none;
+}
+.decision-shot,
+.decision-camera,
+.exit-shot,
+.exit-camera,
+.avatar-sequence,
+.avatar-stage {
+  position: absolute;
+  inset: 0;
+}
+.decision-camera {
+  transform-origin: 54% 45%;
+}
+.decision-bg,
+.exit-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.decision-room-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #06050be8;
+  opacity: 0;
+}
+.decision-person {
+  position: absolute;
+  aspect-ratio: 2/3;
+  transform-origin: 50% 95%;
+  z-index: 3;
+}
+.decision-body {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: relative;
+}
+.decision-dark-body {
+  position: absolute;
+  inset: 0;
+  filter: brightness(0.2) saturate(0.6);
+  opacity: 0;
+}
+.decision-holder .decision-insignia.crown {
+  left: 37%;
+  top: 1.6%;
+  width: 17%;
+  height: auto;
+}
+.decision-holder .decision-insignia.shield {
+  left: 22%;
+  top: 48%;
+  width: 24%;
+  height: 28%;
+}
+.decision-holder.is-layer-hidden .decision-insignia:not(.is-layer-hidden) {
+  visibility: visible;
+}
+.decision-contact {
+  position: absolute;
+  left: 25%;
+  width: 50%;
+  height: 2%;
+  bottom: 4.5%;
+  background: #000b;
+  border-radius: 50%;
+  filter: blur(2px);
+}
+.decision-holder {
+  left: 0%;
+  width: 63%;
+  bottom: 10%;
+  z-index: 5;
+}
+.decision-survivor {
+  left: 25%;
+  width: 43%;
+  bottom: 35%;
+}
+.decision-evictee {
+  left: 61%;
+  width: 43%;
+  bottom: 35%;
+  z-index: 4;
+}
+.decision-badge {
+  position: absolute;
+  left: -5%;
+  right: -5%;
+  bottom: -3%;
+  text-align: center;
+  white-space: nowrap;
+  color: #e6d2ae;
+  font-size: 5.5px;
+  letter-spacing: 0.12em;
+  text-shadow: 0 2px 7px #000;
+}
+.decision-holder .decision-badge {
+  left: -2%;
+  font-size: 6px;
+  bottom: 1%;
+  color: #edcd8e;
+}
+.decision-insignia {
+  position: absolute;
+  z-index: 6;
+  object-fit: contain;
+}
+.decision-insignia.crown {
+  width: 12%;
+  height: auto;
+  left: 21%;
+  top: 27%;
+}
+.decision-insignia.shield {
+  width: 15%;
+  height: 18%;
+  left: 12%;
+  top: 57%;
+  filter: drop-shadow(0 1px 8px #040108);
+}
+.decision-holder-shade,
+.decision-survivor-shade {
+  display: none;
+}
+.decision-spotlight {
+  position: absolute;
+  z-index: 2;
+  left: 61%;
+  top: 7%;
+  width: 43%;
+  height: 62%;
+  background: linear-gradient(180deg, #f2c88508, #f0c28a2b);
+  clip-path: polygon(43% 0, 57% 0, 100% 100%, 0 100%);
+  transform-origin: 50% 0;
+  opacity: 0;
+}
+.decision-selection {
+  position: absolute;
+  z-index: 7;
+  left: 67%;
+  top: 22%;
+  width: 30%;
+  height: 40%;
+  opacity: 0;
+  transform-origin: 50% 100%;
+}
+.decision-selection i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 17%;
+  border-top: 1px solid #e0b986;
+  border-bottom: 1px solid #e0b986;
+}
+.decision-selection i:first-child {
+  left: 0;
+  border-left: 1px solid #e0b986;
+  border-radius: 20px 0 0 3px;
+}
+.decision-selection i:last-child {
+  right: 0;
+  border-right: 1px solid #e0b986;
+  border-radius: 0 20px 3px 0;
+}
+.decision-intro {
+  position: absolute;
+  z-index: 9;
+  left: 6%;
+  right: 6%;
+  top: 8%;
+  font-size: 6.5px;
+  letter-spacing: 0.14em;
+  text-align: center;
+  color: #ecd5a8;
+  text-shadow: 0 2px 8px #000;
+  opacity: 0;
+}
+.decision-verdict {
+  position: absolute;
+  z-index: 9;
+  left: 6%;
+  right: 6%;
+  bottom: 8%;
+  text-align: center;
+  text-shadow: 0 2px 12px #000;
+  opacity: 0;
+}
+.decision-verdict span {
+  font-size: 5.7px;
+  letter-spacing: 0.15em;
+  color: #c7b394;
+}
+.decision-verdict h3 {
+  font:
+    normal 33px Georgia,
+    serif;
+  margin: 7px 0;
+  color: #f1e2cc;
+}
+.decision-verdict p {
+  font-size: 7px;
+  letter-spacing: 0.18em;
+  color: #dfb793;
+  margin: 0;
+}
+.decision-cut {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  background: linear-gradient(120deg, #1b102a, #8c728e 48%, #ae8f68 52%, #211328);
+  opacity: 0;
+}
+.exit-shot {
+  opacity: 0;
+}
+.exit-camera {
+  transform-origin: 50% 21.25%;
+}
+.decision-film .cine-departure {
+  position: absolute;
+  aspect-ratio: 2/3;
+  width: 34%;
+  left: 33%;
+  bottom: 37%;
+  transform-origin: 50% 100%;
+  z-index: 3;
+}
+.decision-film .cine-rear {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.decision-film .doorway-volume {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  clip-path: inset(0 39% 57.5% 39%);
+  overflow: hidden;
+}
+.decision-film .cine-gates {
+  top: 0;
+  height: 42.5%;
+  left: 39%;
+  width: 22%;
+  z-index: 6;
+}
+.decision-film .cine-gate {
+  width: 50.5%;
+  height: 100%;
+  background: #261a17;
+}
+.exit-light {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at 50% 40%, #d2b57a18, transparent 45%),
+    linear-gradient(0deg, #09060ebf, transparent 70%);
+  pointer-events: none;
+}
+.exit-caption {
+  position: absolute;
+  z-index: 8;
+  bottom: 10%;
+  left: 5%;
+  right: 5%;
+  text-align: center;
+  opacity: 0;
+  text-shadow: 0 2px 9px #000;
+}
+.exit-caption span,
+.exit-caption p {
+  color: #d4ba8c;
+  font-size: 7px;
+  letter-spacing: 0.18em;
+}
+.exit-caption h3 {
+  font:
+    normal 30px Georgia,
+    serif;
+  color: #efe2c9;
+  margin: 9px 0;
+}
+.handoff-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 23%, #bba284, #8e7494 35%, #35233e 80%);
+  opacity: 0;
+}
+.avatar-sequence {
+  z-index: 18;
+  opacity: 0;
+  background: #0e0b14;
+}
+.avatar-stage {
+  overflow: hidden;
+}
+.avatar-dim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 78%, #30213f, #08070c 70%);
+}
+.avatar-hero {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  overflow: hidden;
+  background: #24272d;
+}
+.avatar-photo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 0;
+}
+.avatar-grade {
+  filter: saturate(0.15) contrast(1.1) brightness(0.82);
+  opacity: 0;
+}
+.avatar-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 55%, transparent 28%, #000b 100%);
+  opacity: 0;
+}
+.avatar-scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    #0000000e 3px,
+    #0000000e 4px
+  );
+}
+.avatar-live {
+  position: absolute;
+  top: 7%;
+  left: 6%;
+  padding: 4px 6px;
+  border-radius: 2px;
+  font:
+    bold 7px Arial,
+    sans-serif;
+  letter-spacing: 0.12em;
+  color: #fff;
+  background: #dc2626e6;
+  opacity: 0;
+}
+.avatar-lower-third {
+  position: absolute;
+  bottom: 12%;
+  left: 7%;
+  right: 7%;
+  padding: 15px 0;
+  border-top: 1px solid #ffffff40;
+  opacity: 0;
+  color: white;
+  text-shadow: 0 2px 9px #000;
+}
+.avatar-lower-third span {
+  font:
+    600 7px Arial,
+    sans-serif;
+  letter-spacing: 0.16em;
+  color: #d1c9c6;
+}
+.avatar-lower-third h3 {
+  font:
+    800 32px Arial,
+    sans-serif;
+  margin: 6px 0 0;
+  letter-spacing: -0.025em;
+}
+.avatar-stamp {
+  position: absolute;
+  z-index: 4;
+  top: 49%;
+  left: 50%;
+  width: 77%;
+  height: auto;
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-12deg);
+}
+.avatar-roster-label {
+  position: absolute;
+  top: 92%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font:
+    6px Arial,
+    sans-serif;
+  letter-spacing: 0.17em;
+  color: #c5b7a5;
+  opacity: 0;
+}
+.decision-film.c-static .decision-shot {
+  opacity: 1;
+}
+.decision-film.c-static .exit-shot,
+.decision-film.c-static .avatar-sequence {
+  opacity: 0;
+}
+.decision-film.c-static.film-exit .exit-shot {
+  opacity: 1;
+}
+.decision-film.c-static .exit-caption {
+  opacity: 1;
+}
+.decision-film.c-static .gate-left {
+  transform: translateX(-105%);
+}
+.decision-film.c-static .gate-right {
+  transform: translateX(105%) scaleX(-1);
+}
+.decision-film.c-static .decision-intro {
+  opacity: 1;
+}
+.ceremony-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  opacity: 0.58;
+}
+.ceremony-backdrop-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 50% 38%, transparent 25%, #0b07104d 85%),
+    linear-gradient(0deg, #0a0714b5, transparent 38%);
+  pointer-events: none;
+}
+.shock-quake {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 32%;
+}
+.shock-impact {
+  position: absolute;
+  inset: 0;
+  z-index: 14;
+  pointer-events: none;
+}
+.shock-pressure {
+  position: absolute;
+  left: 2%;
+  top: 0%;
+  width: 96%;
+  height: 64%;
+  border-radius: 50%;
+  border: 2px solid #ead0a2;
+  box-shadow:
+    inset 0 0 25px #c79be84d,
+    0 0 25px #d5b57e50;
+  opacity: 0;
+}
+.shock-fracture {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 35%,
+    #b397c36e 45%,
+    #e1c395c4 50%,
+    #9c78b747 55%,
+    transparent 65%
+  );
+  opacity: 0;
+}
+.shock-interruption {
+  position: absolute;
+  top: 47%;
+  left: 0;
+  right: 0;
+  color: #f0dbb1;
+  font:
+    bold 7px Arial,
+    sans-serif;
+  letter-spacing: 0.4em;
+  text-align: center;
+  opacity: 0;
+  text-shadow: 0 0 12px #a783ce;
+}
+.shock-v4 .cine-cut {
+  background: radial-gradient(ellipse at 50% 27%, #bb9c97, #654b7b 50%, #140e22);
+}
+/* Two bounded compositor planes give the announcement cards a gentle forward drift. */
+.announcement-space {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  perspective: 600px;
+}
+.space-plane {
+  position: absolute;
+  inset: -6%;
+  opacity: 0.35;
+  transform-origin: 50% 42%;
+  background:
+    radial-gradient(ellipse at 25% 30%, #9061b530, transparent 42%),
+    radial-gradient(ellipse at 75% 65%, #5a387e2b, transparent 40%),
+    radial-gradient(1px 1px at 22% 24%, #cfbddc99, transparent),
+    radial-gradient(1px 1px at 73% 17%, #dec8a480, transparent),
+    radial-gradient(1px 1px at 83% 51%, #cebad88c, transparent),
+    radial-gradient(1px 1px at 33% 78%, #d5bd9966, transparent),
+    radial-gradient(1px 1px at 59% 58%, #c8a2d46e, transparent);
+}
+.space-plane-b {
+  inset: -9%;
+  background:
+    radial-gradient(ellipse at 65% 34%, #9d74b01f, transparent 47%),
+    radial-gradient(1px 1px at 31% 40%, #f4d7a26e, transparent),
+    radial-gradient(1px 1px at 68% 72%, #e5cadd88, transparent),
+    radial-gradient(1px 1px at 13% 65%, #b7a1cc88, transparent);
+}
+.announcement-line {
+  position: absolute;
+  top: 28%;
+  left: 33%;
+  width: 34%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #c5a97099, transparent);
+  transform-origin: left;
+  opacity: 0;
+}
+.gallery-stage .stage-idle {
+  z-index: 1;
+  perspective: 800px;
+}
+.gallery-stage .stage-idle h1 {
+  transform-origin: 50% 60%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .announcement-space {
+    display: none;
+  }
+}

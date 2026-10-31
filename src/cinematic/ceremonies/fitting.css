@@ -1,0 +1,353 @@
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 30%, #24152e, #050309 80%);
+}
+.stage {
+  position: relative !important;
+  width: min(100vw, 66.6667dvh) !important;
+  height: auto !important;
+  max-width: none !important;
+  aspect-ratio: 2/3 !important;
+  max-height: 100dvh !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  background: #0a0710 !important;
+  transform: none !important;
+}
+.c-scene,
+.loh-scene {
+  position: absolute;
+  inset: 0;
+}
+.loh-figure {
+  width: 76%;
+  height: auto;
+  aspect-ratio: 2/3;
+  left: 12%;
+  margin: 0;
+  bottom: 18%;
+}
+.loh-pose {
+  position: absolute;
+  inset: 0;
+}
+.loh-pose .loh-person {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+.loh-seated {
+  left: 12%;
+  width: 76%;
+  height: auto;
+  aspect-ratio: 2/3;
+  bottom: 18%;
+}
+.loh-seat-throne,
+.loh-seated-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+.loh-backdrop {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 40%;
+}
+.loh-backdrop-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.55);
+}
+.loh-flash {
+  z-index: 3;
+}
+.loh-seat-flash {
+  z-index: 4;
+}
+.loh-titles {
+  z-index: 5;
+}
+.cine-royal {
+  aspect-ratio: 2/3;
+}
+.cine-seated {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.cine-person > .cine-body {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.fitted-knight-shield {
+  position: absolute;
+  left: 53%;
+  top: 39%;
+  width: 22%;
+  height: 25%;
+  object-fit: contain;
+  z-index: 4;
+  opacity: 0;
+}
+/* Occlusion is a binary depth transfer at the real doorway, not a dissolve. */
+.decision-film .departure-near,
+.decision-film .departure-far {
+  transform-origin: 50% 100%;
+}
+.decision-film .cine-rear {
+  object-fit: fill;
+}
+
+/* Keep the drapery anchored above the ceiling while retaining its floor line. */
+.fitted-loh .loh-curtain {
+  top: -2%;
+  height: 80%;
+}
+.fitted-loh .loh-curtain img {
+  object-fit: fill;
+}
+
+.c-nominations.nom-three .nom-pod {
+  width: 31%;
+  height: 57%;
+  top: 20%;
+}
+.c-nominations.nom-three .nom-first {
+  left: 1%;
+}
+.c-nominations.nom-three .nom-second {
+  left: 34%;
+  right: auto;
+}
+.c-nominations.nom-three .nom-third {
+  left: 67%;
+}
+
+/* Optical announcement layers share the title's lifetime and stay behind the lettering. */
+.shock-film[data-shock-kind] .cine-titles {
+  --shock-accent: var(--shock-theme-accent);
+  isolation: isolate;
+}
+.shock-title-fx {
+  position: absolute;
+  inset: -55% -16% -42%;
+  z-index: -1;
+  pointer-events: none;
+  contain: layout style;
+}
+.shock-title-fx > div {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+.shock-title-fx svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.shock-fx-veil {
+  background:
+    radial-gradient(
+      ellipse at 28% 55%,
+      color-mix(in srgb, var(--shock-theme-color) 27%, transparent),
+      transparent 51%
+    ),
+    radial-gradient(
+      ellipse at 74% 47%,
+      color-mix(in srgb, var(--shock-theme-accent) 12%, transparent),
+      transparent 47%
+    ),
+    radial-gradient(ellipse at 50% 70%, #07050b9c, transparent 65%);
+}
+.shock-title-fx > .shock-fx-horizon {
+  top: 71%;
+  bottom: auto;
+  height: 15%;
+  left: 4%;
+  right: 4%;
+  background:
+    radial-gradient(ellipse at 50% 50%, #fff1d470, transparent 9%),
+    radial-gradient(ellipse at 50% 50%, var(--shock-theme-color), transparent 66%);
+  mask-image: linear-gradient(transparent, #000 45%, #000 55%, transparent);
+}
+.shock-title-fx > .shock-fx-horizon::after {
+  content: '';
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--shock-theme-color),
+    #e8d9b9,
+    var(--shock-theme-color),
+    transparent
+  );
+}
+.shock-title-fx > .shock-fx-glint {
+  inset: 13% -4% 22%;
+  background:
+    radial-gradient(ellipse at 50% 50%, #fff4de94, transparent 3%),
+    radial-gradient(
+      ellipse at 50% 50%,
+      color-mix(in srgb, var(--shock-theme-accent) 44%, transparent),
+      transparent 14%
+    ),
+    radial-gradient(
+      ellipse at 50% 50%,
+      color-mix(in srgb, var(--shock-theme-color) 33%, transparent),
+      transparent 43%
+    );
+}
+.shock-film[data-shock-flow='fall'] .shock-fx-veil {
+  background:
+    radial-gradient(ellipse at 30% 30%, #46628e33, transparent 54%),
+    radial-gradient(ellipse at 70% 65%, #03050db0, transparent 65%);
+}
+
+/* Full, overlapping mist fields; no hard clipping or separate cloud fragments. */
+.shock-fx-mist img,
+.shock-fx-optical img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+}
+.shock-fx-mist,
+.shock-fx-optical {
+  filter: sepia(0.55) saturate(0.8) hue-rotate(280deg);
+}
+.shock-film[data-shock-flow='rise'] .shock-fx-mist,
+.shock-film[data-shock-flow='rise'] .shock-fx-optical,
+.shock-film[data-shock-flow='converge'] .shock-fx-mist,
+.shock-film[data-shock-flow='converge'] .shock-fx-optical {
+  filter: sepia(0.6) saturate(0.85) hue-rotate(83deg);
+}
+.shock-film[data-shock-flow='fall'] .shock-fx-mist {
+  filter: sepia(0.8) saturate(0.65) hue-rotate(165deg);
+}
+.shock-film[data-shock-flow='rupture'] .shock-fx-optical {
+  filter: sepia(0.8) saturate(1.4) hue-rotate(309deg);
+}
+.shock-film[data-shock-flow='prism'] .shock-fx-mist {
+  filter: sepia(0.65) saturate(0.8) hue-rotate(115deg);
+}
+.shock-fx-mist,
+.shock-fx-optical {
+  mask-image: radial-gradient(ellipse 47% 47% at 50% 58%, #0006 35%, #000 90%);
+}
+.shock-film .shock-copy {
+  text-shadow:
+    0 1px 5px #07050b,
+    0 1px 13px #07050b;
+}
+.shock-fx-motifs {
+  perspective: 500px;
+}
+.shock-motif {
+  position: absolute;
+  height: auto;
+  opacity: 0;
+  transform-origin: 50% 50%;
+}
+.shock-motif img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.shock-motif-heart-left img {
+  clip-path: polygon(0 0, 52% 0, 47% 31%, 54% 44%, 46% 56%, 53% 69%, 48% 100%, 0 100%);
+}
+.shock-motif-heart-right img {
+  clip-path: polygon(52% 0, 100% 0, 100% 100%, 48% 100%, 53% 69%, 46% 56%, 54% 44%, 47% 31%);
+}
+.shock-motif-beam {
+  height: 150%;
+  background: linear-gradient(180deg, #fce7b96b, #fce7b90a);
+  clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
+  mask-image: radial-gradient(ellipse, #000 15%, transparent 70%);
+}
+
+/* The room slowly loses colour only after the Depression announcement begins. */
+.shock-depression-grade,
+.shock-depression-weight {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  opacity: 0;
+}
+.shock-depression-grade {
+  background: #777;
+  mix-blend-mode: color;
+}
+.shock-depression-weight {
+  background: linear-gradient(180deg, #07091122, #02040db3);
+}
+.shock-film[data-shock-kind='depressionShock'] .shock-title {
+  color: #ced2d9;
+}
+.shock-film[data-shock-kind='depressionShock'] .shock-copy {
+  color: #aab0bc;
+}
+
+.shock-motif-ballot img {
+  position: relative;
+  z-index: 1;
+}
+.shock-election-ballot {
+  position: absolute;
+  z-index: 0;
+  left: 52%;
+  top: 10%;
+  width: 27%;
+  height: 34%;
+  opacity: 0;
+  background: linear-gradient(110deg, #c1b397, #f3ebd8 36%, #e2d9c2 84%);
+  border: 1px solid #d7c39b;
+  box-shadow: 0 2px 5px #0005;
+}
+.shock-election-ballot svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.shock-film[data-shock-flow='cleanse'] .shock-fx-mist,
+.shock-film[data-shock-flow='cleanse'] .shock-fx-optical {
+  filter: sepia(0.6) saturate(0.9) hue-rotate(80deg);
+}
+.shock-detox-aura,
+.shock-force-release {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  z-index: -1;
+}
+.shock-detox-aura {
+  inset: -35% -80%;
+  background: radial-gradient(
+    ellipse at 50% 62%,
+    #d3efba70,
+    #80cda944 21%,
+    #67a6901c 42%,
+    transparent 65%
+  );
+}
+.shock-force-release {
+  inset: -60% -100%;
+  background: radial-gradient(ellipse, #f2dfb693, #c9a56335 18%, #9c6bb623 38%, transparent 62%);
+}

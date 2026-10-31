@@ -30,7 +30,7 @@ import {
 import ChatOverlay from '../ChatOverlay/ChatOverlay'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import TvDecisionModal from '../TvDecisionModal/TvDecisionModal'
-import SpotlightEvictionOverlay from '../Eviction/SpotlightEvictionOverlay'
+import SpotlightEvictionOverlay from '../../cinematic/ceremonies/exit.jsx'
 import FinalPowerHolderReveal from '../FinalPowerBattle/FinalPowerHolderReveal'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import type { ChatLine } from '../ChatOverlay/ChatOverlay'

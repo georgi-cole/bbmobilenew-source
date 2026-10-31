@@ -1,0 +1,361 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useStore, useSelector } from 'react-redux'
+import { selectIsVipActive } from '../../store/vipSlice'
+import {
+  usePresentationOwner,
+  usePresentationForeground,
+  PRESENTATION_PRIORITY,
+} from '../../services/presentation/presentationOwnership'
+import { MotionConfig } from 'framer-motion'
+import { modeDetails, baseScene } from './mode-routing.mjs'
+import {
+  shouldPlayCinematic,
+  ceremonyCast,
+  ceremonyQueue,
+  battleBackIntroGuard,
+  isCinematicSceneAllowed,
+} from './runtime.mjs'
+export function PremiumBridge({
+  scene,
+  standard: Standard,
+  original,
+  shockType = 'generic',
+  finishDirect = false,
+  rosterExit = false,
+}) {
+  const store = useStore(),
+    target = useRef(null),
+    clip = useRef(null),
+    completed = useRef(false),
+    handed = useRef(false),
+    lease = useRef(null),
+    run = useRef(null),
+    props = useRef(original),
+    skipButton = useRef(null),
+    mountedMovie = useRef(false)
+  props.current = original
+  const vip = useSelector(selectIsVipActive),
+    settings = useSelector((s) => s.settings),
+    mode = useSelector((s) => s.game.mode)
+  const managed = Boolean(scene || original.onDone || finishDirect)
+  const wantsClip = Boolean(
+    scene &&
+    shouldPlayCinematic({ settings, game: { mode } }, vip) &&
+    !matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+  const [owned, setOwned] = useState(!managed),
+    [handover, setHandover] = useState(!wantsClip),
+    [finished, setFinished] = useState(false)
+  const globalPriority =
+    scene === 'shock'
+      ? PRESENTATION_PRIORITY.broadcastShock
+      : ['exit', 'final3', 'final4', 'tiebreak'].includes(baseScene(scene)) ||
+          scene === 'voxResults'
+        ? PRESENTATION_PRIORITY.evictionSpotlight
+        : ['loh', 'safety', 'allPower'].includes(baseScene(scene)) || scene === 'voxFinal4'
+          ? PRESENTATION_PRIORITY.winnerAward
+          : PRESENTATION_PRIORITY.ceremony
+  const globalOwner = usePresentationOwner(
+    'vip-cinematic',
+    globalPriority,
+    managed && owned && !handover && !finished
+  )
+  const foreground = usePresentationForeground()
+  const canPresent = useRef(false)
+  canPresent.current = globalOwner.isOwner
+  const emit = useCallback(
+    (phase, extra = {}) =>
+      window.dispatchEvent(
+        new CustomEvent('vip:ceremony', { detail: { phase, scene, shockType, ...extra } })
+      ),
+    [scene, shockType]
+  )
+  const finish = useCallback(
+    (method) => {
+      if (completed.current) return
+      completed.current = true
+      clip.current?.stop()
+      clearTimeout(run.current?.watchdog)
+      if (
+        scene === 'shock' &&
+        shouldPlayCinematic(store.getState(), selectIsVipActive(store.getState()))
+      ) {
+        battleBackIntroGuard(store).mark(store.getState(), props.current.shockKey)
+      }
+      emit('complete')
+      lease.current?.()
+      lease.current = null
+      setFinished(true)
+      props.current[method]?.()
+    },
+    [emit, scene, store]
+  )
+  const handoff = useCallback(
+    (reason = 'natural') => {
+      if (completed.current || handed.current || run.current?.cancelled) return
+      handed.current = true
+      clearTimeout(run.current?.watchdog)
+      if (scene === 'shock' && run.current?.started)
+        battleBackIntroGuard(store).mark(store.getState(), props.current.shockKey)
+      emit('handoff', { reason })
+      setHandover(true)
+    },
+    [emit, scene, store]
+  )
+  const skip = useCallback(() => {
+    if (completed.current || !owned) return
+    clip.current?.stop()
+    finishDirect ? finish('onComplete') : handoff('skip')
+  }, [owned, finishDirect, finish, handoff])
+  useEffect(() => {
+    if (!managed) return
+    const current = { cancelled: false, started: false, watchdog: null }
+    run.current = current
+    const begin = () => {
+      if (current.cancelled || current.started || document.hidden) return
+      const state = store.getState()
+      if (!state.settings.gameUX.animations && (props.current.onDone || finishDirect)) {
+        finish(finishDirect ? 'onComplete' : 'onDone')
+        return
+      }
+      if (
+        !scene ||
+        !shouldPlayCinematic(state, selectIsVipActive(state)) ||
+        !isCinematicSceneAllowed(state.game, scene, props.current.shockKey) ||
+        matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        handoff('standard')
+        return
+      }
+      if (!canPresent.current) return
+      if (
+        scene === 'shock' &&
+        battleBackIntroGuard(store).shouldSkip(state, props.current.shockKey)
+      ) {
+        emit('suppressed', { reason: 'battle-back follow-up or acknowledged reveal' })
+        finish('onComplete')
+        return
+      }
+      current.started = true
+      setHandover(false)
+      current.watchdog = setTimeout(() => {
+        if (!current.cancelled && !handed.current) {
+          clip.current?.stop()
+          emit('fallback', { reason: 'artwork timeout' })
+          handoff('timeout')
+        }
+      }, 10000)
+      Promise.all([import('./renderer.js'), import('./cast.json')])
+        .then(async ([clipModule, catalogModule]) => {
+          if (current.cancelled || completed.current || handed.current) return
+          const cast = ceremonyCast(
+            scene,
+            props.current,
+            state.game,
+            catalogModule.default.characters
+          )
+          if (!cast) {
+            emit('fallback', { reason: 'unsupported character or cast' })
+            handoff('missing-art')
+            return
+          }
+          const controller = clipModule.createClip()
+          clip.current = controller
+          const details = modeDetails(scene, props.current, state.game)
+          const ok = await controller.prepare(scene, cast, shockType, details)
+          if (current.cancelled || completed.current || handed.current || !ok) return
+          clearTimeout(current.watchdog)
+          if (scene === 'shock') battleBackIntroGuard(store).mark(state, props.current.shockKey)
+          emit('start', {
+            characters: Object.fromEntries(Object.entries(cast).map(([k, p]) => [k, p.id])),
+          })
+          controller.mount(
+            target.current,
+            () => handoff(),
+            () => {
+              if (!current.cancelled) finishDirect ? finish('onComplete') : handoff()
+            },
+            shockType,
+            {
+              matchHandoff: true,
+              origin: (() => {
+                const id = state.game.nomineeIds?.[0]
+                return id
+                  ? document
+                      .querySelector(`[data-player-id="${CSS.escape(id)}"] [data-ceremony-tile]`)
+                      ?.getBoundingClientRect()
+                  : null
+              })(),
+            }
+          )
+          mountedMovie.current = true
+          const visible = !document.hidden && canPresent.current
+          controller.setVisible(visible)
+          if (!visible) controller.pause()
+        })
+        .catch(() => {
+          if (!current.cancelled && !completed.current && !handed.current) {
+            clip.current?.stop()
+            emit('fallback', { reason: 'artwork failed' })
+            handoff('error')
+          }
+        })
+    }
+    const visibility = () => {
+      if (current.cancelled) return
+      if (document.hidden) {
+        clip.current?.pause()
+        clip.current?.setVisible(false)
+      } else {
+        if (lease.current && ceremonyQueue.counts.active) begin()
+        if (handed.current || canPresent.current) {
+          clip.current?.setVisible(true)
+          clip.current?.resume()
+        }
+      }
+    }
+    current.begin = begin
+    let granted = false
+    lease.current = ceremonyQueue.acquire(
+      () => {
+        granted = true
+        setOwned(true)
+        begin()
+      },
+      scene === 'shock' ? 2 : 1,
+      () => {
+        setOwned(true)
+        emit('fallback', { reason: 'presentation startup failed' })
+        handoff('error')
+      }
+    )
+    const visible = () => {
+      if (granted) visibility()
+    }
+    document.addEventListener('visibilitychange', visible)
+    return () => {
+      current.cancelled = true
+      clearTimeout(current.watchdog)
+      document.removeEventListener('visibilitychange', visible)
+      clip.current?.stop()
+      clip.current = null
+      lease.current?.()
+      lease.current = null
+    }
+  }, [])
+  useEffect(() => {
+    if (!owned || handover || finished) return
+    if (globalOwner.isOwner && foreground) {
+      run.current?.begin?.()
+      clip.current?.setVisible(true)
+      clip.current?.resume()
+    } else {
+      clip.current?.pause()
+      clip.current?.setVisible(false)
+    }
+  }, [owned, handover, finished, globalOwner.isOwner, foreground])
+  useEffect(() => {
+    if (!owned || !managed || completed.current) return
+    if (!settings.gameUX.animations && (original.onDone || finishDirect)) {
+      clip.current?.stop()
+      finish(finishDirect ? 'onComplete' : 'onDone')
+      return
+    }
+    if (!wantsClip && !handover) {
+      clip.current?.stop()
+      finishDirect ? finish('onComplete') : handoff('preference-change')
+    }
+  }, [
+    owned,
+    mode,
+    settings.gameUX.animations,
+    settings.gameUX.animationMode,
+    settings.display.reduceMotion,
+    vip,
+  ])
+  useEffect(() => {
+    if (!owned || !handover || !clip.current) return
+    let cancelled = false,
+      decodeTimer
+    const frame = requestAnimationFrame(async () => {
+      const portrait = document.querySelector('.seo__hero-photo')
+      if (portrait)
+        await Promise.race([
+          portrait.decode().catch(() => undefined),
+          new Promise((resolve) => {
+            decodeTimer = setTimeout(resolve, 400)
+          }),
+        ])
+      clearTimeout(decodeTimer)
+      if (!cancelled) clip.current?.nativeReady(rosterExit && mountedMovie.current)
+    })
+    return () => {
+      cancelled = true
+      clearTimeout(decodeTimer)
+      cancelAnimationFrame(frame)
+    }
+  }, [owned, handover])
+  useEffect(() => {
+    if (!owned || handover || finished || !globalOwner.isOwner || !foreground) return
+    const previous = document.activeElement,
+      overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    skipButton.current?.focus({ preventScroll: true })
+    const keyboard = (event) => {
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        event.stopPropagation()
+        skipButton.current?.focus()
+      } else if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        skip()
+      }
+    }
+    document.addEventListener('keydown', keyboard, true)
+    return () => {
+      document.body.style.overflow = overflow
+      document.removeEventListener('keydown', keyboard, true)
+      if (previous?.isConnected && document.activeElement === skipButton.current)
+        previous.focus?.({ preventScroll: true })
+    }
+  }, [owned, handover, finished, skip, globalOwner.isOwner, foreground])
+  if (!managed) return <Standard {...original} />
+  if (finished) return null
+  let standardProps = { ...original }
+  if (rosterExit) standardProps.premiumRosterExit = mountedMovie.current
+  for (const method of ['onDone', 'onComplete', 'onDismiss', 'onConfirm'])
+    if (typeof original[method] === 'function') standardProps[method] = () => finish(method)
+  return (
+    <>
+      {createPortal(<div ref={target} />, document.body)}
+      {owned &&
+        (handover ? (
+          <MotionConfig skipAnimations={!settings.gameUX.animations}>
+            <Standard {...standardProps} />
+          </MotionConfig>
+        ) : globalOwner.isOwner && foreground ? (
+          createPortal(
+            <div
+              data-cinematic-active="true"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${scene} cinematic`}
+              style={{ position: 'fixed', inset: 0, zIndex: 10001 }}
+            >
+              <button
+                ref={skipButton}
+                className="seo__skip-btn"
+                aria-label="Skip cinematic"
+                onClick={skip}
+              >
+                ⏭ Skip
+              </button>
+            </div>,
+            document.body
+          )
+        ) : null)}
+    </>
+  )
+}

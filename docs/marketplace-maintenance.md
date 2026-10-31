@@ -44,6 +44,57 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-31: Reviewed the VIP Cinematic Vox public-vote reveal and Cupid paired
+  exit refinements. The Vox tally is presented inside its existing premium film
+  and proceeds directly to its exit film and a brief confirmation using the original
+  coloured roster tiles and eviction marks. Cupid confirms both partners together;
+  full native portraits remain on Standard and preparation fallback paths. Standard
+  results, public-vote rules, VIP access, products, prices, benefits, and Store copy
+  are unchanged.
+
+- 2026-10-31: Reviewed Cupid paired-exit figure fitting. Wider, proportionally
+  framed characters improve the VIP departure film; paired rules, entitlements,
+  benefits, prices and Store copy are unchanged.
+
+- 2026-10-31: Reviewed mode-aware VIP cinematic coverage. Classic keeps the
+  approved films; Cupid uses linked-pair awards, nominations, saves and departures;
+  Vox uses immunity, secret-ballot nominations and an official public-verdict
+  broadcast. Survival retains its standard presentation. Updated canonical VIP
+  benefit copy to state this scope. Prices, purchases, mode access, premium
+  minigames and native outcome callbacks are unchanged.
+
+- 2026-10-31: Reviewed ceremony-flow compatibility and integration regressions.
+  An omitted morning-shock field now counts as inactive, allowing queued
+  post-competition and post-elimination prompts to appear. Existing rewarded-ad
+  requirements, retry limits, rewards, purchases, premium access and offer copy
+  are unchanged. Current marketplace listings remain accurate.
+
+- 2026-10-31: Reviewed releasing the approved cinematic ceremonies as a VIP benefit.
+  Added the benefit to the canonical VIP catalog and product description;
+  Standard keeps native animations, and the animation master switch and reduced
+  motion retain priority. Non-VIP Cinematic selection routes to Store. Artwork
+  loads by scene and character; Back 2 the Game follow-up cards cannot replay
+  its main reveal. Prices and premium-minigame entitlements are unchanged.
+
+- 2026-10-31: Reviewed the local shock-effect refinement: shared natural mist and
+  selectively prepared Cupid, Halo Exchange, Twin Shock and election cutouts. The authoring preview
+  retains the existing VIP/Standard gates and native announcement handoff.
+  No released offer, product copy, entitlement, price or benefit changes.
+
+- 2026-10-31: Reviewed the local full-game VIP ceremony preview and its animation
+  style preference. The authoring server alone supplies the cinematic bridge;
+  release routes do not expose the preview selector or import authoring artwork.
+  Standard access keeps the original presentations. Cinematic requires effective
+  VIP access, respects explicit Standard and the master switch, and remains a
+  local test experience. Early-exit winner presentation and interruption cleanup
+  preserve accepted outcomes, scoring, retry limits and rewards. No released
+  products, entitlements, benefits, prices or Store listings change.
+
+- 2026-10-31: Reviewed winner ceremonies after an early competition exit.
+  Early exits retain their losing placement and existing retry eligibility;
+  the winner ceremony now precedes the existing result commit. No rewards,
+  retry limits, paid access, offers or Store copy change.
+
 - 2026-10-30: Reviewed premium presentation lifecycle maintenance and the shared
   minigame host guard that suspends decorative cinematics before countdown.
   Shared TV/Cupid stingers and ceremony timelines pause with their owner and

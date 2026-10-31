@@ -1,0 +1,301 @@
+/* Revision 5: one organic Eye interruption; no architectural wipes or HUD effects. */
+.shock-film {
+  --shock-accent: #c9ad86;
+  background: #07050b;
+  perspective: none;
+}
+.shock-film[data-shock='danger'] {
+  --shock-accent: #b88f88;
+}
+.shock-film[data-shock='rose'] {
+  --shock-accent: #c4a0b4;
+}
+.shock-film[data-shock='storm'] {
+  --shock-accent: #a5a0ba;
+}
+.shock-film[data-shock='dawn'] {
+  --shock-accent: #c8a68b;
+}
+.shock-chamber,
+.shock-lens,
+.shock-room-plane,
+.shock-city-window {
+  position: absolute;
+  inset: 0;
+}
+.shock-chamber {
+  transform-origin: 50% 25.6667%;
+}
+.shock-lens {
+  transform-origin: 50% 25.6667%;
+}
+.shock-film .eye-window-room {
+  --eye-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1500'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H1000V1500H0Z M569 385A69 69 0 1 0 431 385A69 69 0 1 0 569 385Z'/%3E%3C/svg%3E");
+}
+.shock-wall {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+.shock-city-window {
+  z-index: 0;
+  overflow: hidden;
+}
+.shock-city {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 64%;
+  opacity: 0.9;
+}
+.shock-interrupted-feed {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #100b1b;
+}
+.shock-feed-city {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 64%;
+  filter: brightness(0.7) saturate(0.75);
+}
+.shock-clash-light {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 27%, #d0b788aa, #8e6fa252 43%, #11091d40 80%);
+  opacity: 0;
+}
+.shock-film.c-static .shock-interrupted-feed,
+.shock-film.c-static .shock-clash-light {
+  opacity: 0;
+}
+.shock-room-plane {
+  z-index: 1;
+}
+.shock-iris {
+  position: absolute;
+  z-index: 2;
+  left: 33.3%;
+  top: 14.5333%;
+  width: 33.4%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 50%;
+  mask-image: radial-gradient(
+    circle closest-side,
+    transparent 0 40%,
+    #000 42% 94%,
+    transparent 100%
+  );
+  transform-origin: 50% 50%;
+}
+.shock-iris-texture {
+  position: absolute;
+  left: -99.7006%;
+  top: -65.2693%;
+  width: 299.4012%;
+  height: 449.1018%;
+  max-width: none;
+  object-fit: fill;
+}
+.shock-chamber-shadow {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 52% 28% at 50% 26.6667%, transparent 35%, #050309d9 100%);
+}
+.shock-eye-light {
+  position: absolute;
+  z-index: 4;
+  left: 9%;
+  top: 12%;
+  width: 82%;
+  height: 31%;
+  opacity: 0;
+  background: radial-gradient(ellipse, #b7894a05 23%, #c7a36b2b 49%, transparent 70%);
+  pointer-events: none;
+}
+.shock-breath {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 28% 45%, #856d9b24, transparent 58%),
+    linear-gradient(112deg, transparent 35%, #c0a17f0b 49%, transparent 60%);
+}
+.shock-blackout {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  background: #040208;
+  opacity: 0;
+  pointer-events: none;
+}
+.shock-hush,
+.shock-presence {
+  position: absolute;
+  z-index: 9;
+  left: 7%;
+  right: 7%;
+  text-align: center;
+  color: #c8b8a0;
+  font:
+    5.7px Arial,
+    sans-serif;
+  letter-spacing: 0.24em;
+  opacity: 0;
+}
+.shock-hush {
+  top: 58%;
+}
+.shock-presence {
+  top: 60%;
+  color: #d0bfa6;
+}
+.shock-film .cine-titles {
+  z-index: 10;
+  bottom: 13%;
+  left: 9%;
+  right: 9%;
+}
+.shock-film .cine-titles > span {
+  font-size: 5.8px;
+  letter-spacing: 0.21em;
+  color: #a99c8d;
+}
+.shock-film .cine-titles h3 {
+  color: #e4d5c2;
+  font:
+    normal 29px/1.12 Georgia,
+    serif;
+  letter-spacing: 0.02em;
+  margin: 15px 0 0;
+  text-wrap: balance;
+}
+.shock-film .cine-titles p {
+  font:
+    9px/1.6 Arial,
+    sans-serif;
+  color: #b7a9a2;
+  letter-spacing: 0.03em;
+  margin: 16px auto 0;
+  max-width: 95%;
+}
+.shock-film .cine-titles > .shock-rule {
+  height: 1px;
+  width: 40px;
+  margin: 17px auto 0;
+  background: linear-gradient(90deg, transparent, var(--shock-accent), transparent);
+  transform-origin: center;
+  opacity: 0;
+}
+.shock-film[data-motif='slashes'] .shock-rule {
+  height: 3px;
+  border-top: 1px solid var(--shock-accent);
+  border-bottom: 1px solid var(--shock-accent);
+  background: none;
+}
+.shock-edge-shade {
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(0deg, #07050bf2, transparent 62%),
+    radial-gradient(ellipse at 50% 35%, transparent 40%, #08050c7a);
+}
+.shock-film.c-static .shock-chamber {
+  opacity: 1;
+  transform: scale(1.04);
+}
+.shock-film.c-static .cine-titles {
+  opacity: 1;
+}
+.shock-film.c-static .shock-chamber-shadow {
+  opacity: 0.73;
+}
+.shock-film.c-static .shock-city {
+  opacity: 0.025;
+}
+.shock-film.c-static .shock-copy {
+  opacity: 1;
+}
+.shock-film.c-static .shock-blackout,
+.shock-film.c-static .shock-hush,
+.shock-film.c-static .shock-presence {
+  opacity: 0;
+}
+@media (max-width: 360px) {
+  .shock-film .cine-titles h3 {
+    font-size: 25px;
+  }
+  .shock-film .cine-titles p {
+    font-size: 8px;
+  }
+}
+/* Finals: move closer to the holder, then carry the gaze to the nominee. */
+.suspense-decision .decision-verdict {
+  left: 7%;
+  right: 48%;
+  bottom: 13%;
+  text-align: left;
+}
+.suspense-decision .decision-verdict h3 {
+  font-size: 31px;
+}
+.suspense-decision .decision-verdict span {
+  line-height: 1.8;
+  display: block;
+  font-size: 5.6px;
+  letter-spacing: 0.12em;
+}
+.suspense-decision .decision-verdict p {
+  font-size: 6px;
+  line-height: 1.7;
+  letter-spacing: 0.14em;
+}
+.decision-spotlight {
+  left: 59%;
+  top: 8%;
+  width: 47%;
+  height: 60%;
+  clip-path: none;
+  background: radial-gradient(ellipse at 50% 44%, #ebc49020, transparent 68%);
+  transform-origin: 50% 70%;
+}
+.decision-spotlight:after {
+  content: '';
+  position: absolute;
+  bottom: 2%;
+  left: 12%;
+  width: 76%;
+  height: 6%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #ebc49049, transparent 72%);
+}
+.decision-suspense {
+  position: absolute;
+  z-index: 9;
+  left: 7%;
+  right: 7%;
+  top: 10%;
+  color: #dac7a8;
+  font:
+    6px Arial,
+    sans-serif;
+  letter-spacing: 0.2em;
+  text-align: center;
+  opacity: 0;
+  text-shadow: 0 2px 8px #000;
+}

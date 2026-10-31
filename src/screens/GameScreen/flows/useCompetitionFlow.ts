@@ -28,6 +28,12 @@ const LOH_BADGE_SRC = statusBadgeImageSrc('loh')
 const POS_BADGE_SRC = statusBadgeImageSrc('pos')
 const EXITED_PLAYER_SORT_VALUE = Number.NEGATIVE_INFINITY
 
+function competitionScope(state: RootState): string {
+  const profile = state.profiles?.activeProfileId ?? (state.profiles?.isGuest ? 'guest' : 'none')
+  const game = state.game
+  return `${profile}:${game.gameId || `${game.seed}:${game.season}`}:${game.week}`
+}
+
 interface UseCompetitionFlowOptions {
   game: RootState['game']
   humanPlayer: Player | undefined
@@ -55,6 +61,7 @@ export function useCompetitionFlow({
 }: UseCompetitionFlowOptions) {
   const store = useStore<RootState>()
   const pendingChallenge = useAppSelector(selectPendingChallenge)
+  const scope = useAppSelector(competitionScope)
   // ── Lifted-tile reveal — deferred LOH / POS winner commit ────────────────
   // When MinigameHost reports a winner, the live roster tile is cloned into a
   // fixed animation layer, awarded its badge, and returned to its newly measured
@@ -63,7 +70,9 @@ export function useCompetitionFlow({
   //
   // pendingWinnerDispatchRef stores the deferred thunk so handleCeremonyDone
   // can call it without stale-closure issues.
-  const [pendingWinnerCeremony, setPendingWinnerCeremony] = useState<{
+  const [pendingWinnerState, setPendingWinnerCeremony] = useState<{
+    scope: string
+    runId: string
     winnerId: string
     targetIds: string[]
     tiles: CeremonyTile[]
@@ -71,13 +80,38 @@ export function useCompetitionFlow({
     subtitle?: string
     ariaLabel: string
   } | null>(null)
-  const pendingWinnerDispatchRef = useRef<(() => void) | null>(null)
+  const pendingWinnerCeremony = pendingWinnerState?.scope === scope ? pendingWinnerState : null
+  const previousScope = useRef(scope)
+  const pendingWinnerDispatchRef = useRef<{ id: string; commit: () => void } | null>(null)
+
+  useEffect(() => {
+    if (previousScope.current === scope) return
+    previousScope.current = scope
+    pendingWinnerDispatchRef.current = null
+  }, [scope])
+
+  const commitPendingWinner = useCallback((expectedId?: string) => {
+    const pending = pendingWinnerDispatchRef.current
+    if (!pending || (expectedId !== undefined && pending.id !== expectedId)) return false
+    // Clear before dispatch so navigation or re-entrant updates cannot award twice.
+    pendingWinnerDispatchRef.current = null
+    pending.commit()
+    return true
+  }, [])
 
   const handleWinnerCeremonyDone = useCallback(() => {
-    pendingWinnerDispatchRef.current?.()
-    pendingWinnerDispatchRef.current = null
-    setPendingWinnerCeremony(null)
-  }, [])
+    const id = pendingWinnerCeremony?.runId
+    if (id && commitPendingWinner(id)) setPendingWinnerCeremony(null)
+  }, [commitPendingWinner, pendingWinnerCeremony?.runId])
+
+  // Continue has accepted this result. Leaving during its visual reveal must
+  // keep that accepted outcome rather than schedule a fresh competition.
+  useEffect(
+    () => () => {
+      commitPendingWinner()
+    },
+    [commitPendingWinner]
+  )
 
   // Democracia substitutes the entire LOH competition. Persist only the skipped
   // day and its would-be LOH roster size so next day's eligible signature
@@ -482,18 +516,6 @@ export function useCompetitionFlow({
         return lastNonWinner?.playerId ?? null
       })()
 
-      if (partial) {
-        dispatch(
-          applyMinigameWinner({
-            winnerId: finalWinnerId,
-            lastPlaceId: compLastPlaceId,
-            skipSeasonUpdate: true,
-            ...missionReceipt,
-          })
-        )
-        return
-      }
-
       const winnerIds = expandCupidIds(
         game,
         scheduledWinnerId
@@ -550,17 +572,26 @@ export function useCompetitionFlow({
         badgeLabel: `${winnerPlayer.name} wins ${winLabel}`,
       }))
       const winnerNames = winnerPlayers.map((player) => player.name).join(' & ')
-      pendingWinnerDispatchRef.current = () =>
-        dispatch(
-          applyMinigameWinner({
-            winnerId: finalWinnerId,
-            ...(reportedWinnerIds.length > 1 ? { coWinnerIds: reportedWinnerIds } : {}),
-            lastPlaceId: compLastPlaceId,
-            skipSeasonUpdate: true,
-            ...missionReceipt,
-          })
-        )
+      const acceptedScope = competitionScope(liveState)
+      const acceptedRunId = pendingChallenge.id
+      pendingWinnerDispatchRef.current = {
+        id: acceptedRunId,
+        commit: () => {
+          if (competitionScope(store.getState()) !== acceptedScope) return
+          dispatch(
+            applyMinigameWinner({
+              winnerId: finalWinnerId,
+              ...(reportedWinnerIds.length > 1 ? { coWinnerIds: reportedWinnerIds } : {}),
+              lastPlaceId: compLastPlaceId,
+              skipSeasonUpdate: true,
+              ...missionReceipt,
+            })
+          )
+        },
+      }
       setPendingWinnerCeremony({
+        scope: acceptedScope,
+        runId: acceptedRunId,
         winnerId: finalWinnerId,
         targetIds: winnerIds,
         // Geometry is deliberately absent: the lift animation resolves and

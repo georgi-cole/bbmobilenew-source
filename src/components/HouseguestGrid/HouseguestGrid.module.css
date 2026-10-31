@@ -1301,10 +1301,7 @@
 
 .evicted {
   opacity: 0.6;
-  transform: scale(0.96);
-  transition:
-    opacity 0.5s ease,
-    transform 0.5s ease;
+  transition: opacity 0.5s ease;
 }
 
 /* ── Interactive hover / active states ───────────────────────────────────── */

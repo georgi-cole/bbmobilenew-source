@@ -307,6 +307,11 @@ export const VIP_BENEFIT_DETAILS = [
     detail: product.shortTagline,
   })),
   { title: 'VIP themes', detail: 'Give every season a premium finish.' },
+  {
+    title: 'Cinematic ceremonies',
+    detail:
+      'Exclusive ceremony films and themed shock reveals in Classic, Cupid’s Arrow and Vox Populi. Choose Standard or Cinematic in Animation settings. Survival keeps its fast standard presentation.',
+  },
 ]
 
 export const VIP_BENEFITS = VIP_BENEFIT_DETAILS.map((benefit) => benefit.title)
@@ -320,7 +325,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     entitlement: null,
     shortTagline: 'Every premium advantage. One permanent unlock.',
     fullDescription:
-      'Own the complete premium collection in one purchase, including every current Store feature and VIP theme.',
+      'Own the complete premium collection in one purchase, including every current Store feature, VIP theme and cinematic ceremony.',
     benefits: VIP_BENEFITS,
     icon: 'vip',
     visualTheme: 'spotlight',

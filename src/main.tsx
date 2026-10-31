@@ -1,3 +1,4 @@
+import { exitTracker } from './cinematic/ceremonies/runtime.mjs'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
@@ -160,6 +161,9 @@ window.toggleIntroHubMusic = function () {
   console.debug('[introHub] toggleIntroHubMusic ->', nextMusicOn)
   store.dispatch(setAudio({ musicOn: nextMusicOn }))
 }
+
+exitTracker.update(store.getState().game)
+store.subscribe(() => exitTracker.update(store.getState().game))
 
 const rootElement = document.getElementById('root')!
 rootElement.dataset.buildId = BUILD_ID

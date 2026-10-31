@@ -16,6 +16,10 @@ import {
 } from '../../../store/gameSlice'
 import { getClassicEvictionTieBreakerId } from '../../../store/criticalGameRules'
 import type { AppDispatch, RootState } from '../../../store/store'
+import { useAppSelector } from '../../../store/hooks'
+import { selectIsVipActive } from '../../../store/vipSlice'
+import { shouldPlayCinematic } from '../../../cinematic/ceremonies/runtime.mjs'
+import { usePresentationReducedMotion } from '../../../services/presentation/usePresentationReducedMotion'
 import type { Announcement } from '../../../components/ui/TvAnnouncementOverlay/TvAnnouncementOverlay'
 import type { Phase, Player } from '../../../types'
 import type { PlayerPublicProfile } from '../../../publicOpinion/types'
@@ -168,6 +172,10 @@ export function useEvictionFlow({
   setAdPending,
   dispatch,
 }: UseEvictionFlowOptions) {
+  const reducedMotion = usePresentationReducedMotion()
+  const premiumCinematicEnabled = useAppSelector((state) =>
+    shouldPlayCinematic(state, selectIsVipActive(state))
+  )
   const [showVoteBreakdownPrompt, setShowVoteBreakdownPrompt] = useState(false)
   const [voteBreakdownPromptIsPostEviction, setVoteBreakdownPromptIsPostEviction] = useState(false)
   const [postEvictionVoteBreakdown, setPostEvictionVoteBreakdown] =
@@ -341,6 +349,19 @@ export function useEvictionFlow({
       // same arming helper is also used by the AI tie-break path below.
       armPostEvictionVoteBreakdown(evictee)
 
+      // In VIP Cinematic Vox, the broadcast film itself carries the final tally
+      // and verdict. Skip the separate announcement card so the exit film can
+      // follow it directly; standard and non-VIP result pacing is unchanged.
+      if (
+        premiumCinematicEnabled &&
+        !reducedMotion &&
+        game.voteResultsMode === 'public' &&
+        game.voxPopuli?.status === 'active'
+      ) {
+        proceedAfterVoteResults()
+        return
+      }
+
       const secondPendingEvictionId = game.doubleEviction?.pendingSecondEviction?.evicteeId ?? null
       const lohName = game.players.find((player) => player.id === game.lohId)?.name ?? 'The LOH'
       const defaultAnnouncement = (() => {
@@ -420,7 +441,14 @@ export function useEvictionFlow({
     // No clear evictee (tie or edge case): fall back to the original inline flow.
     if (queueVoteBreakdownPrompt()) return
     proceedAfterVoteResults()
-  }, [armPostEvictionVoteBreakdown, game, proceedAfterVoteResults, queueVoteBreakdownPrompt])
+  }, [
+    armPostEvictionVoteBreakdown,
+    game,
+    premiumCinematicEnabled,
+    reducedMotion,
+    proceedAfterVoteResults,
+    queueVoteBreakdownPrompt,
+  ])
 
   const handlePostVoteAnnouncementDismiss = useCallback(() => {
     setPostVoteAnnouncement(null)

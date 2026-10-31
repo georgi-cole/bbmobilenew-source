@@ -65,7 +65,8 @@ import TvAnnouncementOverlay, {
 } from './TvAnnouncementOverlay/TvAnnouncementOverlay'
 import TvAnnouncementModal from './TvAnnouncementModal/TvAnnouncementModal'
 import ConfirmExitModal from '../ConfirmExitModal/ConfirmExitModal'
-import AnimatedVoteResultsModal, {
+import AnimatedVoteResultsModal from '../../cinematic/ceremonies/vote-results.jsx'
+import {
   type PublicEvictionTiebreakDisplay,
   type VoteTally,
 } from '../AnimatedVoteResultsModal/AnimatedVoteResultsModal'
@@ -97,7 +98,7 @@ import {
   formatSurveyevalCycleLabel,
   formatPhaseLabel,
 } from '../../utils/gameStatusLanguage'
-import ShockIntroOverlay from './ShockIntroOverlay/ShockIntroOverlay'
+import ShockIntroOverlay from '../../cinematic/ceremonies/shock'
 import ConfessionalSpotlightOverlay from '../FloatingActionBar/ConfessionalSpotlightOverlay'
 import DemocraciaResultsReveal from './DemocraciaResultsReveal/DemocraciaResultsReveal'
 import VoxAudiencePulseReveal, {

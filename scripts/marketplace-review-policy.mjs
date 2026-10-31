@@ -1,4 +1,6 @@
 const paidFeaturePaths = [
+  /^src\/cinematic\/ceremonies\//,
+  /^public\/assets\/ceremonies\//,
   /^src\/(vip|economy|modes|social|publicOpinion|appearance)\//,
   /^src\/minigames\//,
   /^src\/components\/(MinigameHost|StoreProductModal|GlassBridgeComp|CrystalPathShatteredGame|RiskWheelComp|HouseOfCardsComp|HouseOfDarknessComp|ChainOfGreed|QuickTapRace|Vox[^/]*|Tribunal[^/]*)\//,
