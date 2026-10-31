@@ -276,11 +276,22 @@ export function animateVoxFilm(scene, root, a, duration, later) {
           [6700, 1, 'scale(1.025) translateY(0)', settle],
           [duration, 1, 'scale(1.075) translateY(-.8%)'],
         ]
-      : [
-          [0, 1, 'scale(1.12) translateY(1%)'],
-          [1400, 1, 'scale(1.03) translateY(0)'],
-          [duration, 1, 'scale(1.065) translateY(-1%)'],
-        ]
+      : immunity
+        ? [
+            [0, 1, 'scale(1.12) translateY(1%)'],
+            [1400, 1, 'scale(1.06) translateX(0)'],
+            [2300, 1, 'scale(1.14) translateX(4%)', glide],
+            [3900, 1, 'scale(1.14) translateX(4%)'],
+            [4520, 1, 'scale(1.14) translateX(-4%)', glide],
+            [5850, 1, 'scale(1.14) translateX(-4%)'],
+            [6900, 1, 'scale(1.035) translateX(0)', settle],
+            [duration, 1, 'scale(1.035) translateX(0)'],
+          ]
+        : [
+            [0, 1, 'scale(1.12) translateY(1%)'],
+            [1400, 1, 'scale(1.03) translateY(0)'],
+            [duration, 1, 'scale(1.065) translateY(-1%)'],
+          ]
   )
   a('.vox-haze', [
     [0, 0.22, 'translateX(-8%) scale(1.1)'],
@@ -425,11 +436,22 @@ export function animateVoxFilm(scene, root, a, duration, later) {
         [duration, 1],
       ])
   } else {
-    a('.vox-heading', [
-      [0, 0, 'translateY(-12px) scale(.985)'],
-      [immunity ? 650 : 450, 1, 'translateY(0) scale(1)'],
-      [duration, 1],
-    ])
+    a(
+      '.vox-heading',
+      immunity
+        ? [
+            [0, 0, 'translateY(-12px) scale(.985)'],
+            [450, 1, 'translateY(0) scale(1)'],
+            [1450, 1, 'translateY(0) scale(1)'],
+            [2100, 0, 'translateY(-14px) scale(.985)'],
+            [duration, 0],
+          ]
+        : [
+            [0, 0, 'translateY(-12px) scale(.985)'],
+            [450, 1, 'translateY(0) scale(1)'],
+            [duration, 1],
+          ]
+    )
     if (immunity)
       a('.vox-immunity-emblem', [
         [0, 0, 'translateY(12px) scale(.72)'],

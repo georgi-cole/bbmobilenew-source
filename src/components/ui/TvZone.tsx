@@ -733,6 +733,7 @@ export default function TvZone(props: TvZoneProps) {
   // A consumed bulletin remains in history. Only the currently queued one may
   // own the viewport; otherwise it would incorrectly suppress Day Complete.
   const weatherBulletinIsQueued = weatherBulletinIsActive
+  const voxFinaleReady = gameState.voxPopuli?.finaleStage === 'ready'
   // During social_2 the weather controller publishes its dedicated bulletin
   // immediately after the preceding social beat is consumed. There is one
   // queue-empty render between those two updates; do not let the generic
@@ -740,7 +741,7 @@ export default function TvZone(props: TvZoneProps) {
   // This guard is scoped to social_2 so the normal daily transition cards keep
   // their original presentation everywhere else.
   const dailyTransitionPhase =
-    weatherBulletinIsQueued || gameState.phase === 'social_2' || !displayedEvent
+    weatherBulletinIsQueued || voxFinaleReady || gameState.phase === 'social_2' || !displayedEvent
       ? null
       : getDailyTransitionPhase(displayedEvent)
   const weekendDayTransitionActive =
@@ -1037,7 +1038,9 @@ export default function TvZone(props: TvZoneProps) {
     !cupidFollowUpVisible &&
     (!showInlineAnnouncement || cupidFollowUpVisible) &&
     winnerBroadcast == null
-  const viewportMessageOverride = props.viewportMessageOverride?.trim() || null
+  const viewportMessageOverride =
+    props.viewportMessageOverride?.trim() ||
+    (voxFinaleReady && !activeAnnouncement ? 'Ready for the Finale? Make your move.' : null)
   const hideViewportMessage =
     !viewportMessageOverride &&
     (!displayedEvent ||
@@ -1554,18 +1557,22 @@ export default function TvZone(props: TvZoneProps) {
   const weekendVisualTheme = resolveWeekendVisualTheme(activeWeekend)
   const phaseLabel = guestSaveReminderQueued
     ? 'HUB UPDATE'
-    : activeWeekend?.active
-      ? 'WEEKEND'
-      : gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
-        ? 'Final Audience Vote'
-        : gameState.voxPopuli?.status === 'active' && gameState.phase.startsWith('final3_comp')
-          ? 'Final Immunity'
-          : formatPhaseLabel(gameState.phase)
+    : voxFinaleReady
+      ? 'FINALE READY'
+      : activeWeekend?.active
+        ? 'WEEKEND'
+        : gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
+          ? 'Final Audience Vote'
+          : gameState.voxPopuli?.status === 'active' && gameState.phase.startsWith('final3_comp')
+            ? 'Final Immunity'
+            : formatPhaseLabel(gameState.phase)
   const shortPhaseLabel = guestSaveReminderQueued
     ? 'UPDATE'
-    : activeWeekend?.active
-      ? 'WEEKEND'
-      : compactPhaseLabel(gameState.phase)
+    : voxFinaleReady
+      ? 'FINALE'
+      : activeWeekend?.active
+        ? 'WEEKEND'
+        : compactPhaseLabel(gameState.phase)
   const headerRef = useRef<HTMLDivElement>(null)
   const headerPillsRef = useRef<HTMLUListElement>(null)
   const headerActionsRef = useRef<HTMLDivElement>(null)
