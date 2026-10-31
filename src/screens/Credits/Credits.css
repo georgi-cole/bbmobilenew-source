@@ -232,7 +232,11 @@
     radial-gradient(circle at 65% 50%, rgba(162, 207, 255, 0.78) 0 1px, transparent 2px),
     radial-gradient(circle at 81% 66%, rgba(255, 215, 130, 0.86) 0 1px, transparent 2px);
   filter: drop-shadow(0 0 4px rgba(187, 211, 255, 0.42));
-  animation: credits-city-lights 5.6s steps(2, end) infinite;
+  animation: credits-city-lights 5.6s steps(2, end) 2 both;
+}
+
+.credits-media[data-video-ready='true'] .credits-fallback__lights {
+  animation-play-state: paused;
 }
 
 .credits-end-guard {

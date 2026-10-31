@@ -1,9 +1,16 @@
-import { useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from 'react'
+import { memo, useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from 'react'
 import type { CupidArrowPair, Player } from '../../types'
 import { store } from '../../store/store'
 import { normalisePublicSaveVoteShares } from '../../publicOpinion/PublicSaveService'
 import { completeDramaPublicSave } from '../../publicOpinion/DramaPublicSaveIntegration'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
+import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
+import { usePresentationTimeline } from '../../services/presentation/usePresentationTimeline'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+  usePresentationForeground,
+} from '../../services/presentation/presentationOwnership'
 import './PublicSaveReveal.css'
 
 export interface PublicSaveRevealProps {
@@ -78,6 +85,48 @@ function formatShare(value: number): string {
   return `${formatted}%`
 }
 
+const PublicSaveShareCount = memo(function PublicSaveShareCount({
+  label,
+  value,
+  phase,
+  active,
+}: {
+  label: string
+  value: number
+  phase: AnimPhase
+  active: boolean
+}) {
+  const [displayedValue, setDisplayedValue] = useState(0)
+  const elapsedRef = useRef(0)
+
+  useEffect(() => {
+    if (!active || phase !== 'revealing' || elapsedRef.current >= COUNT_VALUES_MS) return undefined
+
+    let animationFrame = 0
+    const startedAt = performance.now() - elapsedRef.current
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / COUNT_VALUES_MS)
+      elapsedRef.current = progress * COUNT_VALUES_MS
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setDisplayedValue(value * eased)
+      if (progress < 1) animationFrame = window.requestAnimationFrame(tick)
+      else setDisplayedValue(value)
+    }
+
+    animationFrame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [active, phase, value])
+
+  return (
+    <span
+      className={`psr__approval-value${phase === 'revealing' ? ' psr__approval-value--counting' : ''}`}
+      aria-label={`${label} save vote: ${phase === 'revealing' ? 'counting' : formatShare(value)}`}
+    >
+      {phase === 'entering' ? '—' : formatShare(phase === 'revealing' ? displayedValue : value)}
+    </span>
+  )
+})
+
 function NormalPublicSaveReveal({
   nominees,
   voteShares,
@@ -94,10 +143,14 @@ function NormalPublicSaveReveal({
   onDone: () => void
 }) {
   const [phase, setPhase] = useState<AnimPhase>('entering')
-  const [valuesRevealed, setValuesRevealed] = useState(false)
-  const [displayedShares, setDisplayedShares] = useState<Record<string, number>>({})
-  const timersRef = useRef<number[]>([])
+  const reducedMotion = usePresentationReducedMotion()
+  const { isOwner } = usePresentationOwner('public-save', PRESENTATION_PRIORITY.audienceResult)
+  const active = usePresentationForeground() && isOwner
   const doneRef = useRef(false)
+  const onDoneRef = useRef(onDone)
+  useEffect(() => {
+    onDoneRef.current = onDone
+  }, [onDone])
   const displayUnits = useMemo(
     () => buildPublicSaveDisplayUnits(nominees, voteShares, pairs),
     [nominees, pairs, voteShares]
@@ -119,61 +172,34 @@ function NormalPublicSaveReveal({
       ? 'These shares match at 0.0001% precision. The saved result follows the full audience-ballot calculation.'
       : null
 
-  const clearTimers = useCallback(() => {
-    timersRef.current.forEach((id) => window.clearTimeout(id))
-    timersRef.current = []
-  }, [])
-
   const fireDone = useCallback(() => {
     if (doneRef.current) return
     doneRef.current = true
-    clearTimers()
-    onDone()
-  }, [clearTimers, onDone])
+    onDoneRef.current()
+  }, [])
 
-  useEffect(() => {
-    doneRef.current = false
-
-    if (document.body.classList.contains('no-animations')) {
-      fireDone()
-      return
-    }
-
-    timersRef.current = [
-      window.setTimeout(() => setPhase('revealing'), ENTER_TO_REVEAL_MS),
-      window.setTimeout(() => setPhase('saved'), SHOW_SAVED_MS),
-      window.setTimeout(() => setPhase('exiting'), EXIT_MS),
-      window.setTimeout(() => fireDone(), DONE_MS),
-    ]
-
-    return clearTimers
-  }, [clearTimers, fireDone])
-
-  useEffect(() => {
-    if (phase !== 'revealing') return undefined
-
-    let animationFrame = 0
-    const startedAt = performance.now()
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / COUNT_VALUES_MS)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      setDisplayedShares(
-        Object.fromEntries(displayUnits.map((unit) => [unit.id, unit.voteShare * eased]))
-      )
-      if (progress < 1) {
-        animationFrame = window.requestAnimationFrame(tick)
-      } else {
-        setValuesRevealed(true)
-      }
-    }
-
-    animationFrame = window.requestAnimationFrame(tick)
-    return () => window.cancelAnimationFrame(animationFrame)
-  }, [displayUnits, phase])
+  const cues = useMemo(
+    () =>
+      reducedMotion
+        ? [{ atMs: 0, run: fireDone }]
+        : [
+            { atMs: ENTER_TO_REVEAL_MS, run: () => setPhase('revealing') },
+            { atMs: SHOW_SAVED_MS, run: () => setPhase('saved') },
+            { atMs: EXIT_MS, run: () => setPhase('exiting') },
+            { atMs: DONE_MS, run: fireDone },
+          ],
+    [fireDone, reducedMotion]
+  )
+  usePresentationTimeline(active, cues, reducedMotion ? 'reduced' : 'full')
 
   return (
     <div
       className={`psr psr--${phase}`}
+      data-presentation-root="public-save-reveal"
+      data-presentation-suspended={!active || undefined}
+      aria-hidden={!active || undefined}
+      inert={!active}
+      style={active ? undefined : { visibility: 'hidden' }}
       role="status"
       aria-live="assertive"
       aria-label={`Public Save: ${savedUnit?.label ?? ''} ${savedUnit?.members.length === 2 ? 'are' : 'is'} saved`}
@@ -191,8 +217,6 @@ function NormalPublicSaveReveal({
           {displayUnits.map((unit, index) => {
             const isSaved = unit.members.some((member) => member.id === savedId)
             const voteShare = unit.voteShare
-            const formattedShare = formatShare(voteShare)
-            const displayedShare = displayedShares[unit.id] ?? 0
             return (
               <div
                 key={unit.id}
@@ -224,14 +248,12 @@ function NormalPublicSaveReveal({
                   ))}
                 </div>
                 <span className="psr__name">{unit.label}</span>
-                <span
-                  className={`psr__approval-value${phase === 'revealing' ? ' psr__approval-value--counting' : ''}`}
-                  aria-label={`${unit.label} save vote: ${valuesRevealed ? formattedShare : 'counting'}`}
-                >
-                  {phase === 'entering'
-                    ? '—'
-                    : formatShare(valuesRevealed ? voteShare : displayedShare)}
-                </span>
+                <PublicSaveShareCount
+                  label={unit.label}
+                  value={voteShare}
+                  phase={phase}
+                  active={active}
+                />
               </div>
             )
           })}

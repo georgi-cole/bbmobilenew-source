@@ -1,5 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationForeground,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
+import { usePresentationTimeline } from '../../services/presentation/usePresentationTimeline'
+import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
 import type { Player } from '../../types'
 import { HOUSEMATES_BIO_CARDS } from '../HousematesBioCinematic/housematesBioData'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
@@ -19,26 +26,39 @@ interface Props {
 const SLIDE_MS = 3_200
 
 export default function VoxFinalistShowcase({ finalists, onComplete }: Props) {
+  const { isOwner } = usePresentationOwner('season-finale', PRESENTATION_PRIORITY.finale)
+  const foreground = usePresentationForeground()
+  const active = isOwner && foreground
+  const reducedMotion = usePresentationReducedMotion()
   const slides = useMemo(
-    () => finalists.flatMap((entry) => [{ ...entry, kind: 'story' as const }, { ...entry, kind: 'case' as const }]),
+    () =>
+      finalists.flatMap((entry) => [
+        { ...entry, kind: 'story' as const },
+        { ...entry, kind: 'case' as const },
+      ]),
     [finalists]
   )
   const [index, setIndex] = useState(0)
   const completedRef = useRef(false)
   const current = slides[index]
 
-  useEffect(() => {
-    if (!current) return
-    const timer = window.setTimeout(() => {
-      if (index < slides.length - 1) {
-        setIndex((value) => value + 1)
-      } else if (!completedRef.current) {
-        completedRef.current = true
-        onComplete()
-      }
-    }, SLIDE_MS)
-    return () => window.clearTimeout(timer)
-  }, [current, index, onComplete, slides.length])
+  const cues = useMemo(
+    () => [
+      {
+        atMs: SLIDE_MS,
+        run: () => {
+          if (index < slides.length - 1) {
+            setIndex((value) => value + 1)
+          } else if (!completedRef.current) {
+            completedRef.current = true
+            onComplete()
+          }
+        },
+      },
+    ],
+    [index, onComplete, slides.length]
+  )
+  const cancel = usePresentationTimeline(active && Boolean(current), cues, index)
 
   if (!current) return null
 
@@ -48,34 +68,52 @@ export default function VoxFinalistShowcase({ finalists, onComplete }: Props) {
   const skip = () => {
     if (completedRef.current) return
     completedRef.current = true
+    cancel()
     onComplete()
   }
 
   return (
-    <div className="vox-finalist-showcase" role="dialog" aria-modal="true" aria-label="Meet the final two">
+    <div
+      className="vox-finalist-showcase"
+      data-presentation-root="finalist-showcase"
+      data-presentation-suspended={!active || undefined}
+      aria-hidden={!active || undefined}
+      inert={!active || undefined}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Meet the final two"
+    >
       <div className="vox-finalist-showcase__lights" aria-hidden="true" />
       <header className="vox-finalist-showcase__header">
         <span>Final Two • Closing Arguments</span>
-        <button type="button" onClick={skip}>Skip presentation</button>
+        <button type="button" onClick={skip}>
+          Skip presentation
+        </button>
       </header>
 
       <AnimatePresence mode="wait">
         <motion.article
           className={`vox-finalist-showcase__slide vox-finalist-showcase__slide--${current.kind}`}
           key={`${current.player.id}-${current.kind}`}
-          initial={{ opacity: 0, x: 34 }}
+          initial={reducedMotion ? false : { opacity: 0, x: 34 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -34 }}
-          transition={{ duration: 0.4 }}
+          exit={{ opacity: 0, x: reducedMotion ? 0 : -34 }}
+          transition={{ duration: reducedMotion ? 0 : 0.4 }}
         >
           <div className="vox-finalist-showcase__copy">
             <small>{current.kind === 'story' ? 'Their story' : 'Their road to the final'}</small>
             <h2>{current.player.name}</h2>
             {current.kind === 'story' ? (
-              <p>{current.introduction ?? bio?.introduction ?? `${current.player.name} entered the Hub ready to be seen—and stayed long enough to make the audience listen.`}</p>
+              <p>
+                {current.introduction ??
+                  bio?.introduction ??
+                  `${current.player.name} entered the Hub ready to be seen—and stayed long enough to make the audience listen.`}
+              </p>
             ) : (
               <ul>
-                {current.powerMoves.map((move) => <li key={move}>{move}</li>)}
+                {current.powerMoves.map((move) => (
+                  <li key={move}>{move}</li>
+                ))}
               </ul>
             )}
           </div>
@@ -88,14 +126,22 @@ export default function VoxFinalistShowcase({ finalists, onComplete }: Props) {
             />
           </div>
           <strong className="vox-finalist-showcase__vote-line">
-            {current.kind === 'story' ? 'One last look at the journey.' : `Does ${current.player.name} deserve your vote?`}
+            {current.kind === 'story'
+              ? 'One last look at the journey.'
+              : `Does ${current.player.name} deserve your vote?`}
           </strong>
         </motion.article>
       </AnimatePresence>
 
-      <footer className="vox-finalist-showcase__progress" aria-label={`Presentation ${index + 1} of ${slides.length}`}>
+      <footer
+        className="vox-finalist-showcase__progress"
+        aria-label={`Presentation ${index + 1} of ${slides.length}`}
+      >
         {slides.map((slide, slideIndex) => (
-          <i key={`${slide.player.id}-${slide.kind}`} className={slideIndex <= index ? 'is-active' : ''} />
+          <i
+            key={`${slide.player.id}-${slide.kind}`}
+            className={slideIndex <= index ? 'is-active' : ''}
+          />
         ))}
       </footer>
     </div>

@@ -96,15 +96,17 @@ export function useTwistFlow({
   // ── Twin Shock reveal choreography ───────────────────────────────────────
   const twinShockReveal = game.twinShock?.pendingRevealAnimation ?? null
   const twinShockSequenceKey = twinShockReveal
-    ? `${game.season}-${game.week}-${twinShockReveal.type}-${twinShockReveal.type === 'combined' ? twinShockReveal.playerId : twinShockReveal.incomingPlayerId}`
+    ? `${game.gameId || game.seed}-${game.season}-${game.week}-${twinShockReveal.type}-${twinShockReveal.type === 'combined' ? twinShockReveal.playerId : twinShockReveal.incomingPlayerId}`
     : null
   const [completedTwinShockIntroKey, setCompletedTwinShockIntroKey] = useState<string | null>(null)
   const handleTwinShockIntroDone = useCallback(() => {
+    if (store.getState().game.gameId !== game.gameId) return
     if (twinShockSequenceKey) setCompletedTwinShockIntroKey(twinShockSequenceKey)
-  }, [twinShockSequenceKey])
+  }, [game.gameId, store, twinShockSequenceKey])
   const handleTwinShockRevealDone = useCallback(() => {
+    if (store.getState().game.gameId !== game.gameId) return
     dispatch(completeTwinShockRevealAnimation())
-  }, [dispatch])
+  }, [dispatch, game.gameId, store])
 
   // ── Twist activation on canonical phase boundaries ──────────────────────
   const doubleEvictionActivationKeyRef = useRef<string | null>(null)

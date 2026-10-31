@@ -18,6 +18,13 @@
 
 /* ── Design Tokens ────────────────────────────────────────────────────────── */
 :root {
+  /* Broadcast motion: short entrances, one clear emphasis beat, then settle. */
+  --presentation-motion-fast: 160ms;
+  --presentation-motion-enter: 360ms;
+  --presentation-motion-emphasis: 520ms;
+  --presentation-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --presentation-ease-emphasis: cubic-bezier(0.34, 1.28, 0.64, 1);
+
   /* Palette */
   --color-bg: #0d111a;
   --color-card: #141b26;
@@ -344,4 +351,18 @@ html[data-visual-freeze='true'] .overlay-backdrop,
 html[data-visual-freeze='true'] .backdrop,
 html[data-visual-freeze='true'] .modal-backdrop {
   display: none !important;
+}
+
+/* Retain finite scene state while a foreground owner covers its decoration. */
+[data-presentation-suspended='true'] {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+[data-presentation-suspended='true'],
+[data-presentation-suspended='true']::before,
+[data-presentation-suspended='true']::after,
+[data-presentation-suspended='true'] *,
+[data-presentation-suspended='true'] *::before,
+[data-presentation-suspended='true'] *::after {
+  animation-play-state: paused !important;
 }

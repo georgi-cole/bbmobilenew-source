@@ -111,6 +111,12 @@
   pointer-events: none;
 }
 
+.weekend-party-backdrop[data-presentation-suspended='true'],
+.weekend-party-disco[data-presentation-suspended='true'],
+.weekend-party-disco[data-presentation-suspended='true'] * {
+  animation-play-state: paused !important;
+}
+
 .weekend-party-disco__flight {
   position: absolute;
   top: 0;

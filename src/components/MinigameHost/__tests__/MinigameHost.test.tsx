@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GameRegistryEntry } from '../../../minigames/registry'
 import MinigameHost from '../MinigameHost'
+import TwinShockIntroCinematic from '../../TwinShockIntroCinematic/TwinShockIntroCinematic'
+import { getPresentationOwner } from '../../../services/presentation/presentationOwnership'
 
 const legacyMinigameMock = vi.hoisted(() => ({
   completionHandlers: [] as Array<(result: { value: number }) => void>,
@@ -11,7 +13,20 @@ vi.mock('../../../services/sound/SoundManager', () => ({
   SoundManager: {
     play: vi.fn(),
     stop: vi.fn(),
+    syncMusic: vi.fn(),
   },
+}))
+
+vi.mock('../../../services/sound/cinematicAudio', () => ({
+  createCinematicAudio: () => ({
+    play: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    syncTo: vi.fn(),
+    currentTime: () => 0,
+    fadeOutAndStop: vi.fn(),
+    dispose: vi.fn(),
+  }),
 }))
 
 vi.mock('../../../i18n/I18nContext', () => ({
@@ -111,6 +126,52 @@ describe('MinigameHost competition retry', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.clearAllMocks()
+    vi.unstubAllEnvs()
+  })
+
+  it('releases a covering cinematic before countdown and keeps gameplay moving', async () => {
+    vi.stubEnv('VITE_FEATURE_TWIN_SHOCK_VIDEO_PILOT', 'true')
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    const onCinematicComplete = vi.fn()
+    const intro = (
+      <TwinShockIntroCinematic
+        reveal={{
+          type: 'combined',
+          playerId: 'lia',
+          fromName: 'Lia',
+          fromAvatar: '/lia.webp',
+          toName: 'Lia & Ali',
+          toAvatar: '/lia-ali.webp',
+        }}
+        onComplete={onCinematicComplete}
+      />
+    )
+    const { rerender } = render(<>{intro}</>)
+    const video = screen.getByTestId('twin-shock-background-video')
+    fireEvent.loadedData(video)
+    fireEvent.playing(video)
+    expect(video).toHaveAttribute('src')
+    const onPhaseChange = vi.fn((phase: string) => {
+      if (phase === 'countdown') {
+        expect(getPresentationOwner()?.groupId).toBe('timed-gameplay')
+        expect(document.querySelector('video[src]')).toBeNull()
+      }
+    })
+    rerender(
+      <>
+        {intro}
+        <MinigameHost game={baseGame} onDone={vi.fn()} skipRules onPhaseChange={onPhaseChange} />
+      </>
+    )
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(video).not.toHaveAttribute('src')
+    expect(onPhaseChange).toHaveBeenCalledWith('countdown')
+    act(() => vi.advanceTimersByTime(3_700))
+    expect(onPhaseChange).toHaveBeenCalledWith('playing')
+    expect(onCinematicComplete).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Finish Test Game' })).toBeInTheDocument()
   })
 
   it('finishes the ready sequence by elapsed time after a stalled callback', () => {

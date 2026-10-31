@@ -2,7 +2,7 @@ const CREDITS_CITY_PATH = 'assets/credits/city.png'
 const CREDITS_BIG_EYE_PATH = 'assets/credits/big-eye.svg'
 const CREDITS_MOON_PATH = 'assets/credits/moon.svg'
 const CREDITS_VIDEO_PATH = 'assets/credits/big-eye-cinematic-background.mp4'
-const CREDITS_POSTER_PATH = 'assets/splash-city-skyline-photographic.webp'
+const CREDITS_POSTER_PATH = 'assets/credits/credits-background-poster.webp'
 
 function normalizeCreditsAssetUrl(candidate: string): string {
   if (typeof document === 'undefined') {

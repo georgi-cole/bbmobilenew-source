@@ -1,12 +1,18 @@
-import { useContext, useEffect, type CSSProperties } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { useReducedMotion } from 'framer-motion'
+import { usePresentationReducedMotion } from '../../../services/presentation/usePresentationReducedMotion'
+import { usePresentationTimeline } from '../../../services/presentation/usePresentationTimeline'
+import { usePresentationSound } from '../../../services/presentation/usePresentationSound'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+  usePresentationForeground,
+} from '../../../services/presentation/presentationOwnership'
 import { ReactReduxContext } from 'react-redux'
 import TvAnnouncementOverlay, {
   type Announcement,
 } from '../TvAnnouncementOverlay/TvAnnouncementOverlay'
 import type { CupidArrowPair, GameState } from '../../../types'
-import { SoundManager } from '../../../services/sound/SoundManager'
 import './ShockIntroOverlay.css'
 
 const SHOCK_INTRO_FULLSCREEN_HOLD_MS = 3000
@@ -236,7 +242,9 @@ export default function ShockIntroOverlay({
   cupidPairs = [],
   onComplete,
 }: ShockIntroOverlayProps) {
-  const prefersReducedMotion = useReducedMotion()
+  const prefersReducedMotion = usePresentationReducedMotion()
+  const foreground = usePresentationForeground()
+  const completedKeyRef = useRef<string | null>(null)
   const reduxContext = useContext(ReactReduxContext)
   const isCupidIntro = shockKey === 'cupid_arrow'
   const isCupidBreak = shockKey === 'cupid_arrow_broken'
@@ -258,6 +266,16 @@ export default function ShockIntroOverlay({
   const replayGuardAcknowledged = Boolean(
     replayGuardEventId && acknowledgedSeasonStartShockEventIds.has(replayGuardEventId)
   )
+  const { isOwner } = usePresentationOwner(
+    'broadcast-shock',
+    PRESENTATION_PRIORITY.broadcastShock,
+    active && !replayGuardAcknowledged
+  )
+  const visible = isOwner && foreground
+  const { play: playPresentationSound, cancel: cancelPresentationSound } = usePresentationSound(
+    active && visible && !replayGuardAcknowledged,
+    `${shockKey}:${replayGuardEventId ?? ''}`
+  )
   const duration = prefersReducedMotion
     ? SHOCK_INTRO_REDUCED_DURATION_MS
     : isCupidBreak
@@ -266,59 +284,89 @@ export default function ShockIntroOverlay({
         ? CUPID_INTRO_DURATION_MS
         : SHOCK_INTRO_DURATION_MS
 
-  const completeIntro = () => {
+  const completeIntro = useCallback(() => {
+    const completionKey = `${shockKey}:${replayGuardEventId ?? ''}`
+    if (completedKeyRef.current === completionKey) return
+    completedKeyRef.current = completionKey
     if (replayGuardEventId) acknowledgedSeasonStartShockEventIds.add(replayGuardEventId)
+    cancelPresentationSound()
     onComplete()
-  }
+  }, [cancelPresentationSound, onComplete, replayGuardEventId, shockKey])
 
   useEffect(() => {
-    if (!active || !replayGuardAcknowledged) return
+    if (!active || !foreground || !replayGuardAcknowledged) return
     // TvZone deliberately keeps the underlying Day 1 expansion broadcast
     // alive for its Faux-TV handoff. When this route remounts after the player
     // already acknowledged the fullscreen stinger, restore that handoff state
     // immediately instead of replaying the entire Vox/Cupid cinematic.
-    onComplete()
-  }, [active, onComplete, replayGuardAcknowledged])
+    completeIntro()
+  }, [active, completeIntro, foreground, replayGuardAcknowledged])
 
-  useEffect(() => {
-    if (!active || replayGuardAcknowledged) return
-
-    const cueTimers: number[] = []
+  const cues = useMemo(() => {
     if (isCupidIntro) {
       // Keep Cupid distinct from the season-winner reveal: a soft arrival cue,
       // then a separate sparkle when the pairs lock in.
-      void SoundManager.play('ui:navigate', { volume: 0.34 })
-      cueTimers.push(
-        window.setTimeout(() => void SoundManager.play('ui:confirm', { volume: 0.34 }), 1450)
-      )
+      return [
+        {
+          atMs: 0,
+          run: () => {
+            playPresentationSound('ui:navigate', { volume: 0.34 })
+          },
+        },
+        {
+          atMs: 1450,
+          run: () => {
+            playPresentationSound('ui:confirm', { volume: 0.34 })
+          },
+        },
+      ]
     } else if (isCupidBreak) {
-      void SoundManager.play('player:evicted', { volume: 0.48 })
-      cueTimers.push(
-        window.setTimeout(() => void SoundManager.play('ui:confirm', { volume: 0.25 }), 2500),
-        window.setTimeout(() => void SoundManager.play('ui:error', { volume: 0.38 }), 4400),
-        window.setTimeout(() => void SoundManager.play('ui:navigate', { volume: 0.3 }), 5850)
-      )
+      return [
+        {
+          atMs: 0,
+          run: () => {
+            playPresentationSound('player:evicted', { volume: 0.48 })
+          },
+        },
+        {
+          atMs: 2500,
+          run: () => {
+            playPresentationSound('ui:confirm', { volume: 0.25 })
+          },
+        },
+        {
+          atMs: 4400,
+          run: () => {
+            playPresentationSound('ui:error', { volume: 0.38 })
+          },
+        },
+        {
+          atMs: 5850,
+          run: () => {
+            playPresentationSound('ui:navigate', { volume: 0.3 })
+          },
+        },
+        { atMs: prefersReducedMotion ? 450 : CUPID_BREAK_DURATION_MS, run: completeIntro },
+      ]
     } else {
       // All standard shock reveals share the original cinematic thunder cue.
       // Cupid and the Twin Shock cinematic intentionally keep their bespoke
       // audio treatment above.
-      void SoundManager.play('minigame:cinematic_thunder', { volume: 0.72 })
+      return [
+        {
+          atMs: 0,
+          run: () => {
+            playPresentationSound('minigame:cinematic_thunder', { volume: 0.72 })
+          },
+        },
+      ]
     }
-
-    return () => cueTimers.forEach((timerId) => window.clearTimeout(timerId))
-  }, [active, isCupidBreak, isCupidIntro, replayGuardAcknowledged])
-
-  useEffect(() => {
-    if (!active || !isCupidBreak) return
-    // The dissociation is a self-contained departure cinematic. Its copy
-    // intentionally fades before the heart breaks, so never leave the player
-    // behind a full-screen layer with no visible acknowledgement control.
-    const timer = window.setTimeout(
-      onComplete,
-      prefersReducedMotion ? 450 : CUPID_BREAK_DURATION_MS
-    )
-    return () => window.clearTimeout(timer)
-  }, [active, isCupidBreak, onComplete, prefersReducedMotion])
+  }, [completeIntro, isCupidBreak, isCupidIntro, playPresentationSound, prefersReducedMotion])
+  usePresentationTimeline(
+    active && visible && !replayGuardAcknowledged,
+    cues,
+    `${shockKey}:${replayGuardEventId ?? ''}`
+  )
 
   if (!active || replayGuardAcknowledged || typeof document === 'undefined') return null
 
@@ -341,7 +389,16 @@ export default function ShockIntroOverlay({
       data-cupid-mode={isCupidBreak ? 'breaking' : isCupidIntro ? 'arriving' : undefined}
       data-shock-theme={isCupid ? 'cupid' : isDepressionDrain ? 'depression-drain' : 'main'}
       data-testid="shock-intro-overlay"
-      style={{ '--shock-intro-duration-ms': `${duration}ms` } as CSSProperties}
+      data-presentation-root="broadcast-shock"
+      data-presentation-suspended={!visible || undefined}
+      aria-hidden={!visible || undefined}
+      inert={!visible}
+      style={
+        {
+          '--shock-intro-duration-ms': `${duration}ms`,
+          visibility: visible ? undefined : 'hidden',
+        } as CSSProperties
+      }
     >
       {isCupid && (
         <div className="shock-intro__cupid-cinematic">
@@ -440,6 +497,10 @@ export default function ShockIntroOverlay({
       ) : (
         <div className="shock-intro__vision-stage">
           <TvAnnouncementOverlay
+            presentationOwner={{
+              groupId: 'broadcast-shock',
+              priority: PRESENTATION_PRIORITY.broadcastShock,
+            }}
             announcement={displayAnnouncement}
             paused
             showInfoButton={false}

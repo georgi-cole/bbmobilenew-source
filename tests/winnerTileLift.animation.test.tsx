@@ -22,6 +22,7 @@ describe('WinnerTileLiftAnimation', () => {
     cleanup()
     vi.useRealTimers()
     vi.restoreAllMocks()
+    Reflect.deleteProperty(document, 'hidden')
     document.body.replaceChildren()
     Object.defineProperty(window, 'visualViewport', {
       configurable: true,
@@ -34,6 +35,63 @@ describe('WinnerTileLiftAnimation', () => {
     act(() => callbacks.forEach((callback) => callback(performance.now())))
   }
 
+  function renderedRect(tile: HTMLElement) {
+    const transform = tile.style.transform.match(
+      /^translate3d\(([-\d.]+)px, ([-\d.]+)px, 0\) scale\(([\d.]+), ([\d.]+)\)$/
+    )
+    expect(transform).not.toBeNull()
+    return new DOMRect(
+      Number.parseFloat(tile.style.left) + Number(transform![1]),
+      Number.parseFloat(tile.style.top) + Number(transform![2]),
+      Number.parseFloat(tile.style.width) * Number(transform![3]),
+      Number.parseFloat(tile.style.height) * Number(transform![4])
+    )
+  }
+
+  it('pauses a backgrounded award without recapturing the tile or replaying its landing phase', () => {
+    const source = document.createElement('div')
+    source.textContent = 'Alice'
+    document.body.append(source)
+    vi.spyOn(source, 'getBoundingClientRect').mockReturnValue(new DOMRect(22, 48, 72, 72))
+    const clone = vi.spyOn(source, 'cloneNode')
+    const onDone = vi.fn()
+    render(
+      <WinnerTileLiftAnimation
+        targetIds={['alice']}
+        tiles={[{ rect: null, badge: '👑' }]}
+        caption="Alice wins"
+        resolveTarget={() => source}
+        onDone={onDone}
+      />
+    )
+    flushAnimationFrame()
+    flushAnimationFrame()
+    flushAnimationFrame()
+    act(() => vi.advanceTimersByTime(1000))
+    expect(document.querySelector('[data-winner-tile-lift-phase="awarded"]')).not.toBeNull()
+    act(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(source.style.visibility).toBe('')
+    expect(
+      document.querySelector('.winner-tile-lift')?.getAttribute('data-presentation-suspended')
+    ).toBe('true')
+    act(() => vi.advanceTimersByTime(20_000))
+    expect(onDone).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-winner-tile-lift-phase="awarded"]')).not.toBeNull()
+    act(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(source.style.visibility).toBe('hidden')
+    expect(clone).toHaveBeenCalledTimes(1)
+    act(() => vi.advanceTimersByTime(1800))
+    expect(onDone).toHaveBeenCalledTimes(1)
+    expect(source.style.visibility).toBe('')
+    Reflect.deleteProperty(document, 'hidden')
+  })
+
   it('lifts a frozen copy, attaches the badge, remeasures the return, and restores the source', () => {
     const source = document.createElement('div')
     source.dataset.ceremonyTile = 'true'
@@ -43,7 +101,11 @@ describe('WinnerTileLiftAnimation', () => {
     document.body.append(source)
 
     let rect = new DOMRect(22, 48, 72, 72)
-    vi.spyOn(source, 'getBoundingClientRect').mockImplementation(() => rect)
+    vi.spyOn(source, 'getBoundingClientRect').mockImplementation(() =>
+      source.style.getPropertyValue('content-visibility') === 'hidden'
+        ? new DOMRect(rect.x, rect.y, rect.width, 2)
+        : rect
+    )
     const onDone = vi.fn()
 
     render(
@@ -85,9 +147,14 @@ describe('WinnerTileLiftAnimation', () => {
     act(() => vi.advanceTimersByTime(1720))
     const liftedTile = document.querySelector<HTMLElement>('.winner-tile-lift__tile')
     expect(document.querySelector('[data-winner-tile-lift-phase="returning"]')).not.toBeNull()
-    expect(liftedTile?.style.left).toBe('108px')
-    expect(liftedTile?.style.top).toBe('226px')
-    expect(liftedTile?.style.width).toBe('64px')
+    expect(liftedTile).not.toBeNull()
+    expect(liftedTile?.dataset.winnerTargetLeft).toBe('108')
+    expect(liftedTile?.dataset.winnerTargetTop).toBe('226')
+    const returned = renderedRect(liftedTile!)
+    expect(returned.x).toBeCloseTo(108)
+    expect(returned.y).toBeCloseTo(226)
+    expect(returned.width).toBeCloseTo(64)
+    expect(returned.height).toBeCloseTo(64)
 
     act(() => vi.advanceTimersByTime(560))
     expect(onDone).toHaveBeenCalledTimes(1)
@@ -152,7 +219,44 @@ describe('WinnerTileLiftAnimation', () => {
     expect(document.querySelector('.winner-tile-lift')).toBeNull()
   })
 
-  it('fits paired winners inside a compact visual viewport', () => {
+  it('waits for a rebuilding portrait instead of stretching its border into the award', () => {
+    const source = document.createElement('div')
+    source.textContent = 'Alice'
+    document.body.append(source)
+    let rect = new DOMRect(12, 90, 72, 2)
+    vi.spyOn(source, 'getBoundingClientRect').mockImplementation(() => rect)
+    const clone = vi.spyOn(source, 'cloneNode')
+    const onDone = vi.fn()
+    render(
+      <WinnerTileLiftAnimation
+        targetIds={['alice']}
+        tiles={[{ rect: null, badge: '👑' }]}
+        caption="Alice wins"
+        resolveTarget={() => source}
+        onDone={onDone}
+      />
+    )
+    flushAnimationFrame()
+    expect(clone).not.toHaveBeenCalled()
+    expect(source.style.visibility).toBe('')
+    rect = new DOMRect(12, 90, 72, 72)
+    flushAnimationFrame()
+    expect(clone).toHaveBeenCalledTimes(1)
+    expect(source.style.visibility).toBe('hidden')
+    expect(onDone).not.toHaveBeenCalled()
+    flushAnimationFrame()
+    flushAnimationFrame()
+    rect = new DOMRect(12, 90, 72, 2)
+    act(() => vi.advanceTimersByTime(2240))
+    expect(
+      document.querySelector<HTMLElement>('.winner-tile-lift__tile')?.dataset.winnerTargetHeight
+    ).toBe('72')
+    act(() => vi.advanceTimersByTime(560))
+    expect(onDone).toHaveBeenCalledTimes(1)
+    expect(source.style.visibility).toBe('')
+  })
+
+  it('fits paired winners and recenters them when the visual viewport changes', () => {
     Object.defineProperty(window, 'visualViewport', {
       configurable: true,
       value: {
@@ -189,14 +293,31 @@ describe('WinnerTileLiftAnimation', () => {
 
     const liftedTiles = [...document.querySelectorAll<HTMLElement>('.winner-tile-lift__tile')]
     expect(liftedTiles).toHaveLength(2)
-    expect(liftedTiles.map((tile) => tile.style.width)).toEqual(['112px', '112px'])
-    expect(Number.parseFloat(liftedTiles[0].style.left)).toBeGreaterThanOrEqual(7)
+    const bounds = liftedTiles.map(renderedRect)
+    expect(bounds.every((rect) => rect.width >= 62 && rect.width <= 144)).toBe(true)
+    expect(bounds[0].left).toBeGreaterThanOrEqual(7)
+    expect(bounds[1].right).toBeLessThanOrEqual(327)
+    expect(Number.parseFloat(liftedTiles[0].dataset.winnerTargetLeft ?? '')).toBeGreaterThanOrEqual(
+      7
+    )
     expect(
-      Number.parseFloat(liftedTiles[1].style.left) + Number.parseFloat(liftedTiles[1].style.width)
+      Number.parseFloat(liftedTiles[1].dataset.winnerTargetLeft ?? '') +
+        Number.parseFloat(liftedTiles[1].dataset.winnerTargetWidth ?? '')
     ).toBeLessThanOrEqual(327)
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: { width: 640, height: 320, offsetLeft: 7, offsetTop: 11 },
+    })
+    act(() => window.dispatchEvent(new Event('resize')))
+    flushAnimationFrame()
+    const recentered = liftedTiles.map(renderedRect)
+    expect((recentered[0].left + recentered[1].right) / 2).toBeCloseTo(327)
+    expect(recentered.every((rect) => rect.top >= 11 && rect.bottom <= 331)).toBe(true)
   })
 
   it('restores the real tile if the animation is interrupted', () => {
+    const addListener = vi.spyOn(window, 'addEventListener')
+    const removeListener = vi.spyOn(window, 'removeEventListener')
     const source = document.createElement('div')
     source.getBoundingClientRect = vi.fn(() => new DOMRect(20, 40, 70, 70))
     document.body.append(source)
@@ -213,11 +334,14 @@ describe('WinnerTileLiftAnimation', () => {
 
     flushAnimationFrame()
     expect(source.style.visibility).toBe('hidden')
+    const resizeHandler = addListener.mock.calls.find(([type]) => type === 'resize')?.[1]
+    expect(resizeHandler).toBeDefined()
 
     view.unmount()
 
     expect(source.style.visibility).toBe('')
     expect(source.dataset.ceremonyTileLifted).toBeUndefined()
     expect(onDone).not.toHaveBeenCalled()
+    expect(removeListener).toHaveBeenCalledWith('resize', resizeHandler)
   })
 })

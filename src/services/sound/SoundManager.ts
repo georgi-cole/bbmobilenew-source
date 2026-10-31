@@ -106,6 +106,8 @@ const SFX_DEDUP_WINDOW_MS = 40
 const FAILED_ASSET_RETRY_MS = 10_000
 
 export interface PlayOptions {
+  /** Cancel only this playback instance, including a pending play/seek/envelope. */
+  signal?: AbortSignal
   /** Volume override (0–1).  Defaults to entry volume or 1. */
   volume?: number
   /**
@@ -275,6 +277,7 @@ class _SoundManager {
   // SFX: pool of HTMLAudioElements per key
   private _sfxPools = new Map<string, HTMLAudioElement[]>()
   private _sfxTimers = new WeakMap<HTMLAudioElement, number[]>()
+  private _sfxPlaybackCleanup = new WeakMap<HTMLAudioElement, () => void>()
 
   // Keys that have encountered a load/decode/play error — skip on subsequent calls
   private _failedKeys = new Set<string>()
@@ -290,6 +293,7 @@ class _SoundManager {
 
   // Requests queued before the first user gesture (SFX markers only).
   private _playQueue: QueuedPlay[] = []
+  private _queuedSfxCleanup: (() => void) | null = null
 
   // Per-key timestamp of the most recent accepted play() call, used for the
   // short dedup window that collapses same-tick duplicate triggers (see
@@ -402,7 +406,7 @@ class _SoundManager {
    * first user gesture.
    */
   async play(key: string, opts?: PlayOptions): Promise<void> {
-    if (SOUND_MANAGER_DISABLED) return
+    if (SOUND_MANAGER_DISABLED || opts?.signal?.aborted) return
     if (!this._unlocked) {
       if (_audioDebug) {
         console.log(`[SoundManager] play("${key}") queued — not yet unlocked`)
@@ -431,6 +435,7 @@ class _SoundManager {
   }
 
   private async _doPlay(key: string, opts?: PlayOptions): Promise<void> {
+    if (opts?.signal?.aborted) return
     if (this._failedKeys.has(key)) return // previously failed — silent skip
 
     const entry = this._getEntry(key)
@@ -458,7 +463,11 @@ class _SoundManager {
     // so real-time category volume changes do not affect already-preloaded SFX.
     // The fast-path is skipped when effectiveVol is 0 (muted) so silence is honoured.
     const nativeKey = NATIVE_SFX_MAP[key as keyof typeof NATIVE_SFX_MAP]
-    if (nativeKey && NativeAudioAdapter.isAvailable() && effectiveVol > 0) {
+    // The native backend is keyed by sound rather than playback instance. A
+    // scoped cinematic uses the bounded HTML pool so aborting an older scene
+    // cannot stop a newer instance with the same key. Ordinary game SFX retain
+    // their native fast path.
+    if (nativeKey && NativeAudioAdapter.isAvailable() && effectiveVol > 0 && !opts?.signal) {
       try {
         NativeAudioAdapter.playSfx(nativeKey)
         return
@@ -503,24 +512,67 @@ class _SoundManager {
       }
       // Fallback: steal the first element if the loop produced no result
       el = stolen ?? pool[0]!
-      this._clearSfxTimers(el)
-      el.pause()
-      _resetAudioTime(el)
+      this._stopSfxPlayback(el)
     }
 
-    this._clearSfxTimers(el!)
+    const media = el!
+    this._sfxPlaybackCleanup.get(media)?.()
+    this._clearSfxTimers(media)
     el!.volume = (opts?.fadeInMs ?? 0) > 0 ? 0 : effectiveVol
     el!.muted = false
-    this._seekAudioTime(el!, opts?.startAtSec ?? 0)
+    const cancelSeek = this._seekAudioTime(media, opts?.startAtSec ?? 0)
+    let disposed = false
+    const ownsPlayback = () => this._sfxPlaybackCleanup.get(media) === cancelPlayback
+    const cleanup = (stop: boolean) => {
+      if (disposed) return
+      disposed = true
+      cancelSeek()
+      opts?.signal?.removeEventListener('abort', cancelPlayback)
+      media.removeEventListener('ended', finishPlayback)
+      media.removeEventListener('error', cancelPlayback)
+      if (!ownsPlayback()) return
+      this._sfxPlaybackCleanup.delete(media)
+      this._clearSfxTimers(media)
+      if (stop) {
+        media.pause()
+        _resetAudioTime(media)
+      }
+    }
+    const cancelPlayback = () => cleanup(true)
+    const finishPlayback = () => cleanup(false)
+    this._sfxPlaybackCleanup.set(media, cancelPlayback)
+    media.addEventListener('ended', finishPlayback, { once: true })
+    media.addEventListener('error', cancelPlayback, { once: true })
+    opts?.signal?.addEventListener('abort', cancelPlayback, { once: true })
+    if (opts?.signal?.aborted) {
+      cancelPlayback()
+      return
+    }
 
     if (_audioDebug) {
       console.log(`[SoundManager] play("${key}") vol=${effectiveVol.toFixed(2)} src="${entry.src}"`)
     }
 
     try {
-      await el!.play()
-      this._scheduleSfxEnvelope(el!, effectiveVol, opts)
+      await media.play()
+      if (!ownsPlayback()) {
+        // A late promise must not restart a cancelled element. If the pool
+        // has already reassigned it, its newer owner alone controls playback.
+        if (!this._sfxPlaybackCleanup.has(media)) {
+          media.pause()
+          _resetAudioTime(media)
+        }
+        return
+      }
+      if (opts?.signal?.aborted) {
+        cancelPlayback()
+        return
+      }
+      this._scheduleSfxEnvelope(media, effectiveVol, opts)
     } catch (err) {
+      if (!ownsPlayback()) return
+      cleanup(true)
+      if (opts?.signal?.aborted || (err as DOMException).name === 'AbortError') return
       if ((err as DOMException).name === 'NotAllowedError') {
         // Autoplay blocked (either before unlock or iOS blocking a non-gesture
         // call on a primed element). Queue a single SFX marker so the next
@@ -541,7 +593,7 @@ class _SoundManager {
     }
   }
 
-  private _seekAudioTime(element: HTMLAudioElement, time: number): void {
+  private _seekAudioTime(element: HTMLAudioElement, time: number): () => void {
     const seek = () => {
       try {
         element.currentTime = Math.max(0, time)
@@ -553,6 +605,7 @@ class _SoundManager {
     if (time > 0 && element.readyState < HTMLMediaElement.HAVE_METADATA) {
       element.addEventListener('loadedmetadata', seek, { once: true })
     }
+    return () => element.removeEventListener('loadedmetadata', seek)
   }
 
   private _clearSfxTimers(element: HTMLAudioElement): void {
@@ -561,6 +614,17 @@ class _SoundManager {
       window.clearInterval(timer)
     }
     this._sfxTimers.delete(element)
+  }
+
+  private _stopSfxPlayback(element: HTMLAudioElement): void {
+    const cleanup = this._sfxPlaybackCleanup.get(element)
+    if (cleanup) {
+      cleanup()
+      return
+    }
+    this._clearSfxTimers(element)
+    element.pause()
+    _resetAudioTime(element)
   }
 
   private _scheduleSfxEnvelope(
@@ -586,9 +650,7 @@ class _SoundManager {
     if (durationMs !== null) {
       const beginFadeAt = Math.max(fadeInMs, durationMs - fadeOutMs)
       const stop = () => {
-        this._clearSfxTimers(element)
-        element.pause()
-        _resetAudioTime(element)
+        this._stopSfxPlayback(element)
       }
       const fadeTimer = window.setTimeout(() => {
         if (fadeOutMs <= 0) {
@@ -1363,9 +1425,7 @@ class _SoundManager {
       console.log(`[SoundManager] stop("${key}")`)
     }
     for (const el of pool) {
-      this._clearSfxTimers(el)
-      el.pause()
-      _resetAudioTime(el)
+      this._stopSfxPlayback(el)
     }
   }
 
@@ -1435,7 +1495,7 @@ class _SoundManager {
       this._primeMusicForMobile()
       this._primeSfxForMobile()
       this._cueEngine.unlock()
-      this._playQueue = []
+      this._clearSfxQueue()
       void this.syncMusic()
       return
     }
@@ -1444,7 +1504,7 @@ class _SoundManager {
     this._unlocked = true
 
     if (SOUND_MANAGER_DISABLED) {
-      this._playQueue = []
+      this._clearSfxQueue()
       return
     }
 
@@ -1458,7 +1518,7 @@ class _SoundManager {
     // pre-unlock play() calls collapse to at most one, but on the actual
     // gesture we do NOT want to replay stale events.  Music is re-synced
     // from the current desired track only.
-    this._playQueue = []
+    this._clearSfxQueue()
     this._primeMusicForMobile()
     this._cueEngine.unlock()
     void this.syncMusic()
@@ -1505,7 +1565,24 @@ class _SoundManager {
   }
 
   private _queueSfxMarker(key: string, opts?: PlayOptions): void {
-    this._playQueue = [{ key, opts }]
+    this._clearSfxQueue()
+    if (opts?.signal?.aborted) return
+    const marker = { key, opts }
+    this._playQueue = [marker]
+    if (opts?.signal) {
+      const signal = opts.signal
+      const abort = () => {
+        if (this._playQueue[0] === marker) this._clearSfxQueue()
+      }
+      signal.addEventListener('abort', abort, { once: true })
+      this._queuedSfxCleanup = () => signal.removeEventListener('abort', abort)
+    }
+  }
+
+  private _clearSfxQueue(): void {
+    this._queuedSfxCleanup?.()
+    this._queuedSfxCleanup = null
+    this._playQueue = []
   }
 
   private _clearUnlockListeners(): void {

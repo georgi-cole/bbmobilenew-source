@@ -17,7 +17,7 @@
   position: absolute;
   inset: 0;
   opacity: 0;
-  transition: opacity 0.35s ease;
+  transition: opacity var(--presentation-motion-enter, 360ms) var(--presentation-ease-out, ease);
 }
 
 .ceremony-overlay--visible {
@@ -113,7 +113,8 @@
 
 /* Phase 1: badge appears and scales in at the start position (centre or off-screen) */
 .ceremony-overlay__badge--appearing {
-  animation: badgeAppear 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: badgeAppear 450ms var(--presentation-ease-emphasis, cubic-bezier(0.34, 1.28, 0.64, 1))
+    forwards;
 }
 
 .ceremony-overlay__badge[data-badge-motion='extract'].ceremony-overlay__badge--appearing {
@@ -163,7 +164,8 @@
 /* Phase 3: badge lands with a settle pulse */
 .ceremony-overlay__badge--landed {
   opacity: 1;
-  animation: badgeLand 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: badgeLand var(--presentation-motion-enter, 360ms)
+    var(--presentation-ease-emphasis, cubic-bezier(0.34, 1.28, 0.64, 1)) forwards;
 }
 
 @keyframes badgeLand {
@@ -178,7 +180,7 @@
 /* Phase 4: badge lingers with a gentle pulse */
 .ceremony-overlay__badge--holding {
   opacity: 1;
-  animation: badgeHoldPulse 0.8s ease infinite alternate;
+  animation: badgeHoldPulse 0.8s ease 2 alternate both;
 }
 
 .ceremony-overlay__badge[data-badge-motion='extract'].ceremony-overlay__badge--landed,

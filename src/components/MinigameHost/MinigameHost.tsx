@@ -31,6 +31,10 @@ import LegacyMinigameWrapper from '../../minigames/LegacyMinigameWrapper'
 import type { LegacyRawResult } from '../../minigames/LegacyMinigameWrapper'
 import { SoundManager } from '../../services/sound/SoundManager'
 import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
+import {
   MINIGAME_MUSIC_VARIANT_EVENT,
   type MinigameMusicVariantDetail,
 } from '../../services/sound/minigameMusicVariant'
@@ -208,6 +212,8 @@ export default function MinigameHost({
   participants,
   competitionRetry,
 }: Props) {
+  // Claim before rules/countdown so decorative media cannot prepare behind play.
+  const { isOwner } = usePresentationOwner('timed-gameplay', PRESENTATION_PRIORITY.gameplay)
   const hasPremiumChallengesAccess = useSyncExternalStore(
     store.subscribe,
     () => selectHasPremiumChallengesAccess(store.getState()),
@@ -348,9 +354,10 @@ export default function MinigameHost({
   }, [attemptToken])
 
   useEffect(() => {
+    if (!isOwner) return
     onPhaseChange?.(phase)
     if (phase !== 'playing') onMusicVariantChange?.('normal')
-  }, [onMusicVariantChange, onPhaseChange, phase])
+  }, [isOwner, onMusicVariantChange, onPhaseChange, phase])
 
   useEffect(() => {
     const handleVariant = (event: Event) => {
@@ -404,7 +411,7 @@ export default function MinigameHost({
 
   // Pause the host-owned countdown while the menu, rules, or warning is open.
   useEffect(() => {
-    if (phase !== 'countdown' || utilityView !== null) return
+    if (!isOwner || phase !== 'countdown' || utilityView !== null) return
     if (skipCountdown) {
       const t = setTimeout(() => setPhase('playing'), 0)
       return () => clearTimeout(t)
@@ -421,17 +428,17 @@ export default function MinigameHost({
     }
     timer = setTimeout(update, 0)
     return () => clearTimeout(timer)
-  }, [phase, skipCountdown, utilityView])
+  }, [isOwner, phase, skipCountdown, utilityView])
 
   // Keep the countdown SFX synchronized with the reset/paused visual countdown.
   useEffect(() => {
-    if (phase !== 'countdown' || skipCountdown || utilityView !== null) {
+    if (!isOwner || phase !== 'countdown' || skipCountdown || utilityView !== null) {
       SoundManager.stop(COUNTDOWN_TIMER_KEY)
       return
     }
     void SoundManager.play(COUNTDOWN_TIMER_KEY)
     return () => SoundManager.stop(COUNTDOWN_TIMER_KEY)
-  }, [phase, skipCountdown, utilityView])
+  }, [isOwner, phase, skipCountdown, utilityView])
 
   const handleComplete = useCallback((result: LegacyRawResult) => {
     setFinalValue(result.value)
@@ -1045,6 +1052,8 @@ export default function MinigameHost({
       />
     )
   }
+
+  if (!isOwner) return null
 
   return (
     <div

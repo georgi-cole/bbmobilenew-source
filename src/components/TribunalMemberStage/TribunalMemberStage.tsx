@@ -15,7 +15,7 @@
  *     previously revealed jurors.
  *   - Human vote prompt slides in when it is the viewer's turn.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Player } from '../../types'
 import type { JurorReveal } from '../../store/finaleSlice'
 import { PUBLIC_JUROR_ID } from '../../store/finaleSlice'
@@ -34,6 +34,7 @@ interface JurorEntry {
 }
 
 interface Props {
+  active?: boolean
   /** The complete Tribunal, shown once as a formal group portrait. */
   tribunalMembers: Player[]
   /** All jurors that have been revealed so far (in reveal order). */
@@ -80,31 +81,36 @@ function SilhouetteAvatar({ player }: { player: Player }) {
   )
 }
 
-function PhraseTyper({ phrase }: { phrase: string }) {
+function PhraseTyper({ phrase, active }: { phrase: string; active: boolean }) {
   const [visibleChars, setVisibleChars] = useState(0)
+  const typedRef = useRef(0)
 
   useEffect(() => {
-    if (!phrase) return undefined
+    if (!active || !phrase || typedRef.current >= phrase.length) return undefined
 
-    let charIndex = 0
+    let charIndex = typedRef.current
     let typingTimeout: ReturnType<typeof setTimeout> | null = null
-    const startDelay = setTimeout(() => {
-      const typeNext = () => {
-        charIndex += 1
-        setVisibleChars(charIndex)
-        if (charIndex < phrase.length) {
-          typingTimeout = setTimeout(typeNext, PHRASE_TYPING_CHAR_INTERVAL_MS)
+    const startDelay = setTimeout(
+      () => {
+        const typeNext = () => {
+          charIndex += 1
+          typedRef.current = charIndex
+          setVisibleChars(charIndex)
+          if (charIndex < phrase.length) {
+            typingTimeout = setTimeout(typeNext, PHRASE_TYPING_CHAR_INTERVAL_MS)
+          }
         }
-      }
 
-      typeNext()
-    }, PHRASE_TYPING_START_DELAY_MS)
+        typeNext()
+      },
+      charIndex === 0 ? PHRASE_TYPING_START_DELAY_MS : PHRASE_TYPING_CHAR_INTERVAL_MS
+    )
 
     return () => {
       clearTimeout(startDelay)
       if (typingTimeout) clearTimeout(typingTimeout)
     }
-  }, [phrase])
+  }, [active, phrase])
 
   return <p className="tms-phrase">{phrase.slice(0, visibleChars)}</p>
 }
@@ -115,6 +121,7 @@ function tribunalPortraitAttire(player: Player): 'formal' | 'informal' {
 }
 
 export default function TribunalMemberStage({
+  active = true,
   tribunalMembers,
   revealedJurors,
   awaitingHumanPlayer,
@@ -126,12 +133,12 @@ export default function TribunalMemberStage({
   const [portraitIndex, setPortraitIndex] = useState(0)
 
   useEffect(() => {
-    if (!waitingForOpeningCue || tribunalMembers.length < 2) return
+    if (!active || !waitingForOpeningCue || tribunalMembers.length < 2) return
     const id = window.setInterval(() => {
       setPortraitIndex((index) => (index + 1) % tribunalMembers.length)
     }, 2400)
     return () => window.clearInterval(id)
-  }, [tribunalMembers.length, waitingForOpeningCue])
+  }, [active, tribunalMembers.length, waitingForOpeningCue])
 
   const currentJurorId = current?.juror.id ?? null
   const currentPhrase = current?.reveal.phrase ?? ''
@@ -245,7 +252,7 @@ export default function TribunalMemberStage({
 
       {current && trimmedCurrentPhrase && (
         <div className="tms-speech-bubble" key={`phrase-${phraseAnimationKey}`}>
-          <PhraseTyper phrase={currentPhrase} />
+          <PhraseTyper key={currentPhrase} phrase={currentPhrase} active={active} />
         </div>
       )}
 
