@@ -1,3 +1,4 @@
+import { requestAmbush } from '../cinematic/ceremonies/runtime.mjs'
 import type { Middleware } from '@reduxjs/toolkit'
 
 type BackdoorPlanSnapshot = {
@@ -101,7 +102,8 @@ function canonicalizeLohTargetLog(action: unknown, state: BackdoorPresentationSt
   }
 }
 
-function playBackdoorFauxTvEffect(): void {
+function playBackdoorFauxTvEffect(skipPremium = false): void {
+  if (!skipPremium && requestAmbush(() => playBackdoorFauxTvEffect(true))) return
   if (typeof document === 'undefined' || typeof window === 'undefined') return
 
   const zone = document.querySelector<HTMLElement>('.tv-zone')
@@ -254,13 +256,21 @@ function scheduleBackdoorFauxTvEffect(): void {
 
   const watchForCeremonyClear = () => {
     if (cancelled) return
-    if (!document.querySelector('.ceremony-overlay')) {
+    if (
+      !document.querySelector(
+        '.ceremony-overlay, .winner-tile-lift, .seo, [data-cinematic-active="true"]'
+      )
+    ) {
       observer?.disconnect()
       observer = null
       if (settleTimer !== null) window.clearTimeout(settleTimer)
       settleTimer = window.setTimeout(() => {
         if (cancelled) return
-        if (document.querySelector('.ceremony-overlay')) {
+        if (
+          document.querySelector(
+            '.ceremony-overlay, .winner-tile-lift, .seo, [data-cinematic-active="true"]'
+          )
+        ) {
           watchForCeremonyClear()
           return
         }
@@ -271,7 +281,12 @@ function scheduleBackdoorFauxTvEffect(): void {
     }
     observer?.disconnect()
     observer = new MutationObserver(() => {
-      if (!document.querySelector('.ceremony-overlay')) watchForCeremonyClear()
+      if (
+        !document.querySelector(
+          '.ceremony-overlay, .winner-tile-lift, .seo, [data-cinematic-active="true"]'
+        )
+      )
+        watchForCeremonyClear()
     })
     observer.observe(document.body, { childList: true, subtree: true })
   }

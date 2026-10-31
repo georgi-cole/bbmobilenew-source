@@ -1983,7 +1983,12 @@
   content: none;
 }
 
-#root .hoc-root[data-phase='tool_select'][data-presentation='premium'] .hoc-tool-choice__icon {
+#root
+  .hoc-root[data-phase='tool_select'][data-presentation='premium']
+  .hoc-tool-choice
+  > .hoc-tool-choice__icon {
+  grid-column: 1;
+  grid-row: 1;
   width: 48px;
   height: 48px;
   border: 1px solid color-mix(in srgb, var(--tool-accent) 52%, white);

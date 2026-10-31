@@ -1,0 +1,135 @@
+{
+  "crown.webp": {
+    "bytes": 3866,
+    "width": 144,
+    "height": 44,
+    "sha256": "093c809ae1701b890f388ccd58a1f92676183cc81cf43a8923ab2d1565b301c5",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "shield.webp": {
+    "bytes": 15036,
+    "width": 240,
+    "height": 300,
+    "sha256": "e757ad580a9b0731aec01810ab06fbf4fc34464cb52213c2a696bb0b96a567d3",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "throne.webp": {
+    "bytes": 94524,
+    "width": 600,
+    "height": 900,
+    "sha256": "8795123c51db09abf84256bea26f57b34e14f3e7d13c9c9f71bf4725d99ae2b6",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "hub-chamber.webp": {
+    "bytes": 93882,
+    "width": 720,
+    "height": 1080,
+    "sha256": "9e6d37a838ef660693fd9bf03f32d534933f674d617aa841f232b921ead41b5e",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "royal-room.webp": {
+    "bytes": 93730,
+    "width": 720,
+    "height": 1080,
+    "sha256": "8658168aae0912595fa85113996ed646479e0f89be0e516684520d99f57cf066",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "door-leaf.webp": {
+    "bytes": 5396,
+    "width": 95,
+    "height": 480,
+    "sha256": "d44eb5d5df49d3cd8f81b223e4123a46a00a669f5599d7f99e417c7028fa1457",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "sanctuary.webp": {
+    "bytes": 31070,
+    "width": 480,
+    "height": 720,
+    "sha256": "6fd02da940f25b3d596376ed664f57ef994a7a10bfcedf60aabb324d9aac9849",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "danger-chamber.webp": {
+    "bytes": 18322,
+    "width": 480,
+    "height": 720,
+    "sha256": "1deb5dc0218ee3d2b7d1d741b229bdb7ccbf7e51efa70d43a86c8a942c797b20",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "power-console.webp": {
+    "bytes": 147344,
+    "width": 640,
+    "height": 960,
+    "sha256": "00af78424c331cb8ea36aa5de82aad628970819956c047fc753ac66a6a91927b",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "shock-chamber.webp": {
+    "bytes": 99502,
+    "width": 720,
+    "height": 1080,
+    "sha256": "3b7fe123c8d35dd8497ddf98bcdb7ebbc1b605a66055346d73930df87363385e",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "atmosphere.webp": {
+    "bytes": 25952,
+    "width": 360,
+    "height": 540,
+    "sha256": "83debd9b9b0cc7de29f129d4cd3b8fd1e67cdf410ff0861c8d315cc89513dd09",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "decision-token.webp": {
+    "bytes": 6074,
+    "width": 192,
+    "height": 128,
+    "sha256": "5a6c713b089b34f1eb9f645051040ec532f260f49cc839f62743eb8078d91221",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "hub-city.webp": {
+    "bytes": 213462,
+    "width": 600,
+    "height": 1297,
+    "sha256": "5ca6210500803030c88e7d4261e1a91186ad87b953c3200fe559302503d41c4b",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "safety-shield-reveal.webp": {
+    "bytes": 26190,
+    "width": 256,
+    "height": 320,
+    "sha256": "7bff8a67066074378de92e03b44b139748e1d81c4b66630e30ac281ee0481fa5",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "danger-platform.webp": {
+    "bytes": 15378,
+    "width": 400,
+    "height": 220,
+    "sha256": "016e5ce194331f650dbb8bf09e49035da2a217eb203bbe1c6017a6c6dfee04d8",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "exit-doorframe.webp": {
+    "bytes": 32250,
+    "width": 480,
+    "height": 720,
+    "sha256": "1397f69abfa2b87bf6e73ea02044489b531d040aa3902d90f0d284a474734740",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "tiebreak-scales.webp": {
+    "bytes": 23732,
+    "width": 384,
+    "height": 288,
+    "sha256": "2de6e9e7c9b3aa7b5f88319bb2246b51ba4b74d34fb146e8c1a77e5fc0b9fcf8",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "shock-eye-seal.webp": {
+    "bytes": 24188,
+    "width": 384,
+    "height": 288,
+    "sha256": "b98bc2be9dc68046e07180b62426b9eaded8ae0639a901cd1d710686e42782bd",
+    "mode": "reused-approved-prototype-artwork"
+  },
+  "curtain.webp": {
+    "bytes": 28114,
+    "width": 176,
+    "height": 592,
+    "sha256": "f6edf2c08ec15c15d621c4bfb494c1df61c9d01c0399dde68fcd0c9bebe98074",
+    "mode": "reused-approved-prototype-artwork"
+  }
+}

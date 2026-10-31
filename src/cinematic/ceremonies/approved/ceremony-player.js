@@ -1,0 +1,282 @@
+import { CINEMA_CONFIG } from './cinema-scenes.js'
+
+export const CEREMONIES = {
+  safety: {
+    label: 'Winning Safety',
+    number: '01',
+    title: 'Power becomes protection.',
+    subtitle: 'The shield chooses its knight.',
+    duration: 4200,
+    art: ['male', 'shield', 'knight', 'cinema_sanctuary'],
+    description:
+      'The winner receives the Power of Safety. A shield flies into place, then a purple-and-gold camera flash reveals a knight holding it.',
+    beats: [
+      ['00.0', 'The winner steps forward'],
+      ['00.8', 'The shield arrives'],
+      ['01.7', 'A knight of Safety is revealed'],
+    ],
+    moments: [1200, 2600, 3500],
+  },
+  nominations: {
+    label: 'Nominations',
+    number: '02',
+    title: 'A place on the edge.',
+    subtitle: 'Two nominees. One uncertain future.',
+    duration: 4800,
+    art: ['male', 'female', 'platform', 'cinema_danger'],
+    description:
+      'Two suspended stone ledges hang over a dark chasm. Each nominee is revealed in turn, then both remain in view above the danger below.',
+    beats: [
+      ['00.4', 'The first nominee takes the ledge'],
+      ['01.6', 'The second nominee is revealed'],
+      ['02.6', 'Both are left on the edge'],
+    ],
+    moments: [1100, 2300, 3500],
+  },
+  save: {
+    label: 'Saved by Safety',
+    number: '03',
+    title: 'A way back to safety.',
+    subtitle: 'One shield. A second chance.',
+    duration: 4500,
+    art: ['female', 'platform', 'shield', 'cinema_sanctuary'],
+    description:
+      'The nominee begins on a danger ledge. Safety arrives, breaks the red danger frame, and lets the ledge fall away. The player remains protected in warm light.',
+    beats: [
+      ['00.0', 'A nominee stands in danger'],
+      ['01.2', 'Safety reaches the player'],
+      ['01.9', 'The block breaks away'],
+    ],
+    moments: [900, 1700, 3200],
+  },
+  exit: {
+    label: 'Leaving the Hub',
+    number: '04',
+    title: 'One last goodbye.',
+    subtitle: 'The door closes. Their chapter ends.',
+    duration: 5000,
+    art: ['door', 'departing'],
+    description:
+      'The departing player carries a bag and suitcase toward the Hub exit. They disappear through the doorway, the door swings shut, and the scene fades to darkness.',
+    beats: [
+      ['00.0', 'Bags packed. A last walk out.'],
+      ['02.1', 'Through the exit doorway'],
+      ['03.3', 'The door closes, then darkness'],
+    ],
+    moments: [1000, 2650, 3900],
+  },
+  tiebreak: {
+    label: 'Tiebreak',
+    number: '05',
+    title: 'The deciding vote.',
+    subtitle: 'One final choice breaks the tie.',
+    duration: 4200,
+    art: ['male', 'female', 'scales'],
+    description:
+      'The tied nominees stand across a ceremonial balance. A single golden LOH vote lands, the scales tilt, and the decided outcome is revealed.',
+    beats: [
+      ['00.4', 'Two nominees. Equal footing.'],
+      ['01.4', 'The LOH casts the deciding vote'],
+      ['02.4', 'The balance tips'],
+    ],
+    moments: [900, 2100, 3300],
+  },
+  ambush: {
+    label: 'Ambush',
+    number: '06',
+    title: 'You never saw it coming.',
+    subtitle: 'The hidden target steps into danger.',
+    duration: 4300,
+    art: ['male', 'female', 'finalist', 'platform', 'curtain'],
+    description:
+      'The initial nominees hold their places. A hidden target appears from behind the Hub curtains as a new danger ledge rises beneath them: the true ambush nominee.',
+    beats: [
+      ['00.5', 'The block appears settled'],
+      ['01.8', 'The curtain parts'],
+      ['02.5', 'A new name is on the block'],
+    ],
+    moments: [1200, 2450, 3500],
+  },
+  allPower: {
+    label: 'All the Power',
+    number: '07',
+    title: 'The sovereign.',
+    subtitle: 'Leader and Safety holder. One player.',
+    duration: 4200,
+    art: ['seatedKing', 'shield', 'eyeSeal'],
+    description:
+      'The crowned Leader sits on the throne as the Safety shield joins the scene. Both powers flare together behind the Hub’s sovereign.',
+    beats: [
+      ['00.5', 'The Leader takes the throne'],
+      ['01.4', 'Safety joins the crown'],
+      ['02.5', 'All the power, in one seat'],
+    ],
+    moments: [900, 2200, 3400],
+  },
+  shock: {
+    label: 'Shock announcement',
+    number: '08',
+    title: 'The Eye interrupts.',
+    subtitle: 'Choose a real shock type to preview.',
+    duration: 3400,
+    art: ['eyeSeal', 'curtain'],
+    shock: true,
+    description:
+      'A single fast broadcast reveal adapts to the selected shock: its real announcement title and copy appear with a matching color and light cue. No extra generated clip per twist.',
+    beats: [
+      ['00.0', 'The Hub lights dip'],
+      ['00.8', 'The Eye opens'],
+      ['01.4', 'The twist is announced'],
+    ],
+    moments: [500, 1300, 2400],
+  },
+  final4: {
+    label: 'Final 4 Safety',
+    number: '09',
+    title: 'One vote. Two nominees.',
+    subtitle: 'The protected LOH is off-stage.',
+    duration: 4400,
+    art: ['male', 'female', 'finalist', 'shield'],
+    description:
+      'Only the three eligible players appear. The LOH is already safe and is not shown as a participant. One golden ballot is cast and the selected player is revealed.',
+    beats: [
+      ['00.3', 'Three eligible players enter'],
+      ['01.5', 'The sole vote is cast'],
+      ['02.5', 'One journey ends'],
+    ],
+    moments: [1100, 2300, 3500],
+  },
+  final3: {
+    label: 'Final 3 elimination',
+    number: '10',
+    title: 'The final invitation.',
+    subtitle: 'The LOH chooses who finishes third.',
+    duration: 5000,
+    art: ['male', 'female', 'finalist', 'crown', 'door'],
+    description:
+      'The crowned LOH faces the other two finalists. A royal decree selects the third-place finisher, who leaves through the Hub exit as the last two step into the finale.',
+    beats: [
+      ['00.5', 'Three journeys remain'],
+      ['01.9', 'The LOH makes the final choice'],
+      ['03.0', 'A finalist exits. Two remain.'],
+    ],
+    moments: [1200, 2550, 4300],
+  },
+}
+
+for (const [id, config] of Object.entries(CINEMA_CONFIG))
+  CEREMONIES[id] = { ...CEREMONIES[id], ...config, cinema: true }
+export const SHOCK_VARIANTS = {
+  doubleEviction: {
+    label: 'Double Elimination',
+    title: 'DOUBLE ELIMINATION',
+    copy: 'Two exits. One night.',
+    tone: 'danger',
+    motif: 'slashes',
+  },
+  voxDouble: {
+    label: 'Vox Populi Double Elimination',
+    title: 'THE PUBLIC DECIDES',
+    copy: 'The audience will eliminate two.',
+    tone: 'danger',
+    motif: 'pulse',
+  },
+  dayStartShock: {
+    label: 'Morning Shock',
+    title: 'MORNING SHOCK',
+    copy: 'A new day. A sudden exit.',
+    tone: 'dawn',
+    motif: 'sunrise',
+  },
+  battleBack: {
+    label: 'Back 2 the Game',
+    title: 'BACK 2 THE GAME',
+    copy: 'One eliminated player may return.',
+    tone: 'gold',
+    motif: 'return',
+  },
+  battleBackRules: {
+    label: 'Back 2 the Game Rules',
+    title: 'THE RULES HAVE CHANGED',
+    copy: 'Only one can earn a way back.',
+    tone: 'gold',
+    motif: 'return',
+  },
+  battleBackChallenge: {
+    label: 'Back 2 the Game Challenge',
+    title: 'THE RETURN CHALLENGE',
+    copy: 'The showdown starts now.',
+    tone: 'gold',
+    motif: 'return',
+  },
+  vip: {
+    label: 'Double Trouble Safety',
+    title: 'DOUBLE TROUBLE',
+    copy: 'Safety can be used twice.',
+    tone: 'violet',
+    motif: 'twin-shields',
+  },
+  diamond: {
+    label: 'Halo Exchange Safety',
+    title: 'HALO EXCHANGE',
+    copy: 'The Safety holder names the replacement.',
+    tone: 'violet',
+    motif: 'halo',
+  },
+  coup: {
+    label: 'Detox Safety',
+    title: 'DETOX',
+    copy: 'Both nominees are cleared. Two replacements.',
+    tone: 'danger',
+    motif: 'cleared',
+  },
+  spotlight: {
+    label: 'Force Majeure Safety',
+    title: 'FORCE MAJEURE',
+    copy: 'The Safety power must be used.',
+    tone: 'gold',
+    motif: 'spotlight',
+  },
+  democracia: {
+    label: 'Democracia',
+    title: 'DEMOCRACIA',
+    copy: 'The Hub elects its new Leader.',
+    tone: 'gold',
+    motif: 'ballots',
+  },
+  twinShock: {
+    label: 'Twin Shock',
+    title: 'TWIN SHOCK',
+    copy: 'Two new faces change the game.',
+    tone: 'violet',
+    motif: 'twins',
+  },
+  depressionShock: {
+    label: 'Depression Shock',
+    title: 'DEPRESSION SHOCK',
+    copy: 'The Hub’s mood takes a turn.',
+    tone: 'storm',
+    motif: 'storm',
+  },
+  cupidArrow: {
+    label: 'Cupid’s Arrow',
+    title: 'CUPID’S ARROW',
+    copy: 'The Hub is bound into pairs.',
+    tone: 'rose',
+    motif: 'arrows',
+  },
+  cupidBroken: {
+    label: 'Cupid’s Spell Is Broken',
+    title: 'THE SPELL IS BROKEN',
+    copy: 'The pairs are over. Everyone plays alone.',
+    tone: 'rose',
+    motif: 'broken-heart',
+  },
+  generic: {
+    label: 'General Shock Alert',
+    title: 'SHOCK ALERT!',
+    copy: 'The Big Eye has a surprise.',
+    tone: 'violet',
+    motif: 'pulse',
+  },
+}
