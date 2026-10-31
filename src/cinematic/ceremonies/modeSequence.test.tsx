@@ -8,6 +8,7 @@ import type { AnimatedVoteResultsModalProps } from '../../components/AnimatedVot
 
 const film = vi.hoisted(() => ({
   prepare: vi.fn(async (_scene: string, _cast: unknown, _shock: string, _details: unknown) => ({})),
+  resolvePrepare: null as ((value: object) => void) | null,
   complete: null as (() => void) | null,
 }))
 vi.mock('./renderer.js', () => ({
@@ -29,7 +30,9 @@ vi.mock('../../components/AnimatedVoteResultsModal/AnimatedVoteResultsModal', ()
 }))
 afterEach(cleanup)
 beforeEach(() => {
-  film.prepare.mockClear()
+  film.prepare.mockReset()
+  film.prepare.mockImplementation(async () => ({}))
+  film.resolvePrepare = null
   film.complete = null
 })
 function fixture(
@@ -97,6 +100,33 @@ it('replaces the public result once, including Skip; a double result does not re
   film.complete?.()
   expect(done).toHaveBeenCalledTimes(1)
   expect(film.prepare.mock.calls[0][0]).toBe('voxResults')
+})
+it('covers asset preparation with the cinematic entrance and lets Skip continue immediately', async () => {
+  const { store, nominees } = fixture()
+  const done = vi.fn()
+  film.prepare.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        film.resolvePrepare = resolve
+      })
+  )
+
+  render(
+    <Provider store={store}>
+      <VoteResults
+        resultMode="public"
+        nominees={nominees}
+        evictee={nominees[0].nominee}
+        onDone={done}
+      />
+    </Provider>
+  )
+
+  await waitFor(() => expect(film.prepare).toHaveBeenCalled())
+  expect(screen.getByText('Public vote reveal')).toBeInTheDocument()
+  fireEvent.click(screen.getByLabelText('Skip cinematic'))
+  expect(done).toHaveBeenCalledTimes(1)
+  film.resolvePrepare?.({})
 })
 it('does not commit a tied result before the existing tiebreak callback', async () => {
   const { store, nominees } = fixture()

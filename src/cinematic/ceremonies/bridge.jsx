@@ -9,6 +9,7 @@ import {
 } from '../../services/presentation/presentationOwnership'
 import { MotionConfig } from 'framer-motion'
 import { modeDetails, baseScene } from './mode-routing.mjs'
+import './bridge.css'
 import {
   shouldPlayCinematic,
   ceremonyCast,
@@ -46,7 +47,26 @@ export function PremiumBridge({
   )
   const [owned, setOwned] = useState(!managed),
     [handover, setHandover] = useState(!wantsClip),
+    [preparing, setPreparing] = useState(false),
     [finished, setFinished] = useState(false)
+  const sceneLabel =
+    scene === 'voxResults'
+      ? 'Public vote reveal'
+      : scene === 'voxFinal4'
+        ? 'Final 4 ceremony'
+        : ({
+            loh: 'Leader of the Hub',
+            safety: 'Power of Safety',
+            allPower: 'All the power',
+            nominations: 'Nominations',
+            save: 'Safety save',
+            exit: 'Leaving the Hub',
+            tiebreak: 'Tiebreak',
+            final3: 'Final 3',
+            final4: 'Final 4',
+            ambush: 'Ambush',
+            shock: 'Shock announcement',
+          }[baseScene(scene)] ?? 'Ceremony')
   const globalPriority =
     scene === 'shock'
       ? PRESENTATION_PRIORITY.broadcastShock
@@ -77,6 +97,7 @@ export function PremiumBridge({
       completed.current = true
       clip.current?.stop()
       clearTimeout(run.current?.watchdog)
+      setPreparing(false)
       if (
         scene === 'shock' &&
         shouldPlayCinematic(store.getState(), selectIsVipActive(store.getState()))
@@ -96,6 +117,7 @@ export function PremiumBridge({
       if (completed.current || handed.current || run.current?.cancelled) return
       handed.current = true
       clearTimeout(run.current?.watchdog)
+      setPreparing(false)
       if (scene === 'shock' && run.current?.started)
         battleBackIntroGuard(store).mark(store.getState(), props.current.shockKey)
       emit('handoff', { reason })
@@ -139,6 +161,7 @@ export function PremiumBridge({
       }
       current.started = true
       setHandover(false)
+      setPreparing(true)
       current.watchdog = setTimeout(() => {
         if (!current.cancelled && !handed.current) {
           clip.current?.stop()
@@ -190,6 +213,7 @@ export function PremiumBridge({
             }
           )
           mountedMovie.current = true
+          setPreparing(false)
           const visible = !document.hidden && canPresent.current
           controller.setVisible(visible)
           if (!visible) controller.pause()
@@ -344,6 +368,15 @@ export function PremiumBridge({
               aria-label={`${scene} cinematic`}
               style={{ position: 'fixed', inset: 0, zIndex: 10001 }}
             >
+              {preparing && (
+                <div className="vip-film-prelude" aria-hidden="true">
+                  <div className="vip-film-prelude__title">
+                    <span>THE BIG EYE</span>
+                    <i />
+                    <strong>{sceneLabel}</strong>
+                  </div>
+                </div>
+              )}
               <button
                 ref={skipButton}
                 className="seo__skip-btn"

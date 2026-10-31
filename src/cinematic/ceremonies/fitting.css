@@ -8,10 +8,11 @@
 }
 .stage {
   position: relative !important;
-  width: min(100vw, 66.6667dvh) !important;
-  height: auto !important;
+  width: min(100vw, 56.25dvh) !important;
+  height: 100vh !important;
+  height: 100dvh !important;
   max-width: none !important;
-  aspect-ratio: 2/3 !important;
+  aspect-ratio: auto !important;
   max-height: 100dvh !important;
   border: 0 !important;
   border-radius: 0 !important;
