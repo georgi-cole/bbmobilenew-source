@@ -1,8 +1,5 @@
 /* Reusable actors stay independent from the sets. Only transform and opacity animate. */
-.paired-film[data-mode-scene='cupidAmbush'] .nom-person {
-  width: 100%;
-  left: 0;
-}
+
 .paired-film .pair-link-heart {
   position: absolute;
   width: 9%;

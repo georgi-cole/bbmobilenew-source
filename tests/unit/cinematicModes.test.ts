@@ -28,6 +28,30 @@ const game = {
   },
 }
 describe('mode-aware premium ceremonies', () => {
+  it('keeps three distinct nominees when twins share the same character artwork', () => {
+    const twins = ['One', 'Two', 'Three'].map((name, i) => ({
+      id: 'nominee-' + i,
+      name,
+      avatar: `${characters[i === 1 ? 0 : i].id}_avatar.webp`,
+      status: 'nominated',
+    }))
+    const sharedGame = {
+      ...game,
+      players: twins,
+      cupidArrow: { status: 'inactive' },
+      voxPopuli: { status: 'active' },
+    }
+    const props = {
+      actorIds: twins.map((p) => p.id),
+      caption: 'One & Two & Three have been nominated',
+    }
+    for (const scene of ['nominations', 'voxNominations']) {
+      const cast = ceremonyCast(scene, props, sharedGame, characters)
+      expect(cast.a.id).toBe(cast.b.id)
+      expect(cast.a.playerId).not.toBe(cast.b.playerId)
+      expect(sceneResources(scene, cast).cinema_standC).toBeDefined()
+    }
+  })
   it.each(['survival', 'survivor'])(
     'never prepares premium media in %s, even for VIP Cinematic',
     (mode) => {
@@ -87,11 +111,8 @@ describe('mode-aware premium ceremonies', () => {
   })
   it('keeps a shared exit once and the second native elimination; broken spells return to solo scenes', () => {
     const ambush = { ...game, lohNominationPlan: { targetId: players[2].id } }
-    expect(adaptCeremonyScene('ambush', {}, ambush)).toBe('cupidAmbush')
-    expect(isCinematicSceneAllowed(ambush, 'cupidAmbush')).toBe(true)
-    const cast = ceremonyCast('cupidAmbush', {}, ambush, characters)
-    expect([cast.a.playerId, cast.b.playerId]).toEqual([players[2].id, players[3].id])
-    expect(Object.values(sceneResources('cupidAmbush', cast)).every((r) => r?.src)).toBe(true)
+    expect(adaptCeremonyScene('ambush', {}, ambush)).toBeNull()
+    expect(isCinematicSceneAllowed(ambush, 'ambush')).toBe(false)
     const props = { evictee: players[0] }
     expect(adaptCeremonyScene('tiebreak', props, game)).toBe('cupidExit')
     expect(

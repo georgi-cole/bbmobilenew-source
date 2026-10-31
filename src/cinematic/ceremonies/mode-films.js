@@ -152,14 +152,6 @@ export function adaptModeFilm(scene, root, images, resources, cast, details, fit
     setText(root, '.c-caption strong', 'Linked by love. Facing danger.')
     setText(root, '.c-caption em', 'THE PAIRS FACE ELIMINATION TOGETHER.')
   }
-  if (scene === 'cupidAmbush') {
-    setText(root, '.nom-warning', 'CUPID’S ARROW · THE AMBUSH')
-    setText(root, '.nom-first .nom-label', names[0])
-    setText(root, '.nom-second .nom-label', names[1])
-    setText(root, '.c-caption span', 'THE BLOCK JUST CHANGED')
-    setText(root, '.c-caption strong', title)
-    setText(root, '.c-caption em', 'THE HIDDEN TARGET AND THEIR PARTNER ARE NOMINATED.')
-  }
   if (scene === 'cupidExit') {
     // Both sprites share the approved opaque doorway path and depth mask.
     for (const container of root.querySelectorAll('.cine-departure')) {

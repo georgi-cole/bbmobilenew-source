@@ -238,7 +238,11 @@ export function ceremonyCast(scene, props, game, catalog) {
     b = game.players.find((p) => (game.nomineeIds ?? []).includes(p.id) && p.id !== leaving?.id)
   if (scene === 'final4')
     a = game.players.find((p) => (game.nomineeIds ?? []).includes(p.id) && p.id !== leaving?.id)
-  const cast = { a: findArt(a, catalog), b: findArt(b, catalog), c: findArt(c, catalog) }
+  const artFor = (player) => {
+    const art = findArt(player, catalog)
+    return art ? { ...art, name: player.name, playerId: player.id } : null
+  }
+  const cast = { a: artFor(a), b: artFor(b), c: artFor(c) }
   const required =
     scene === 'shock'
       ? []

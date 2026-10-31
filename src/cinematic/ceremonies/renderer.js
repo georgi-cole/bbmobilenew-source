@@ -84,7 +84,10 @@ export function sceneResources(id, cast, shockType = 'doubleEviction') {
       ? ['winner', 'royal', 'seated', 'throne', 'crown', 'curtain', 'cinema_royalRoom']
       : SCENES[id].art.filter((key) => !['cinema_avatarC', 'cinema_eliminatedStamp'].includes(key))
   if (id === 'shock') keys.push('shockAtmosphere', 'shockMist', ...shockMotifKeys(shockType))
-  if (id === 'nominations' && new Set([cast.a.id, cast.b.id, cast.c.id]).size === 3)
+  if (
+    id === 'nominations' &&
+    new Set([cast.a, cast.b, cast.c].map((actor) => actor.playerId ?? actor.id)).size === 3
+  )
     keys.push('cinema_standC')
   // Final 4 needs only its Safety holder's rear pose and the two nominees.
   const needed = keys.filter(

@@ -6,7 +6,6 @@ export const MODE_BASE = {
   cupidNominations: 'nominations',
   cupidSave: 'save',
   cupidExit: 'exit',
-  cupidAmbush: 'nominations',
   voxImmunity: 'safety',
   voxFinal4: null,
   voxNominations: 'nominations',
@@ -40,8 +39,8 @@ export function adaptCeremonyScene(scene, props, game) {
     if (['final3', 'final4', 'tiebreak'].includes(scene)) return 'exit'
   }
   if (!isCupidActive(game)) return scene
-  if (scene === 'ambush')
-    return pairFor(game, game.lohNominationPlan?.targetId) ? 'cupidAmbush' : null
+  // Canonical nomination planning excludes Cupid's paired ruleset.
+  if (scene === 'ambush') return null
   if (['exit', 'tiebreak', 'final3', 'final4'].includes(scene)) {
     // The second native portrait still plays, but the two-person departure must not replay.
     if (game.cupidArrow.pendingPartnerEvictionId === props.evictee?.id) return null
@@ -64,8 +63,6 @@ export function adaptCeremonyScene(scene, props, game) {
   )
 }
 export function modeActors(scene, props, game) {
-  if (scene === 'cupidAmbush')
-    return expandPair(game, [game.lohNominationPlan?.targetId].filter(Boolean))
   if (scene === 'voxResults') return props.nominees?.map((t) => t.nominee.id) ?? []
   if (scene === 'cupidExit') return expandPair(game, [props.evictee.id])
   return expandPair(game, mentionedIds(props, game))
