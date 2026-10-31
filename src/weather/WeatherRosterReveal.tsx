@@ -1,8 +1,15 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { getDailyAtmosphere, type DailyAtmosphere } from '../broadcasting/dailyMoodSystem'
 import useSound from '../hooks/useSound'
 import { useAppSelector } from '../store/hooks'
+import {
+  usePresentationForeground,
+  usePresentationOwned,
+} from '../services/presentation/presentationOwnership'
+import { usePresentationReducedMotion } from '../services/presentation/usePresentationReducedMotion'
+import { usePresentationTimeline } from '../services/presentation/usePresentationTimeline'
+import { usePresentationSound } from '../services/presentation/usePresentationSound'
 import styles from './WeatherRosterReveal.module.css'
 
 type LegacyWeatherVisual =
@@ -81,59 +88,142 @@ function visualFamily(atmosphere: DailyAtmosphere): LegacyWeatherVisual {
  * before the Weather v2 presentation work. Both day-start and day-end
  * transitions use the same roster layer as the original implementation.
  */
-export default function WeatherRosterReveal() {
+export default function WeatherRosterReveal({ active = true }: { active?: boolean }) {
   const gameId = useAppSelector((state) => state.game.gameId)
+  const season = useAppSelector((state) => state.game.season)
+  const profileId = useAppSelector((state) =>
+    state.profiles?.isGuest ? 'guest' : (state.profiles?.activeProfileId ?? 'no-profile')
+  )
   const week = useAppSelector((state) => state.game.week)
   const phase = useAppSelector((state) => state.game.phase)
-  const { play } = useSound()
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
-  const [reveal, setReveal] = useState<{ key: string; atmosphere: DailyAtmosphere } | null>(null)
-  const lastRevealKeyRef = useRef<string | null>(null)
   const dailyPhase = phase === 'week_start' || phase === 'week_end' ? phase : null
+  const runScope = JSON.stringify([profileId, gameId, season])
+  const consumed = useMemo(() => ({ runScope, keys: new Set<string>() }), [runScope])
 
   const atmosphere = useMemo(
     () => (dailyPhase ? getDailyAtmosphere(gameId, week, dailyPhase) : null),
     [dailyPhase, gameId, week]
   )
 
+  if (!active || !dailyPhase || !atmosphere || !gameId) return null
+  const revealKey = `${runScope}:${week}:${dailyPhase}:${atmosphere}`
+  return (
+    <WeatherRevealInstance
+      key={revealKey}
+      revealKey={revealKey}
+      atmosphere={atmosphere}
+      consumedKeys={consumed.keys}
+    />
+  )
+}
+
+function WeatherRevealInstance({
+  revealKey,
+  atmosphere,
+  consumedKeys,
+}: {
+  revealKey: string
+  atmosphere: DailyAtmosphere
+  consumedKeys: Set<string>
+}) {
+  const [finished, setFinished] = useState(() => consumedKeys.has(revealKey))
+  const finish = useCallback(() => {
+    consumedKeys.add(revealKey)
+    setFinished(true)
+  }, [consumedKeys, revealKey])
+  if (finished) return null
+  return (
+    <ActiveWeatherReveal
+      revealKey={revealKey}
+      atmosphere={atmosphere}
+      consumedKeys={consumedKeys}
+      onFinish={finish}
+    />
+  )
+}
+
+function ActiveWeatherReveal({
+  revealKey,
+  atmosphere,
+  consumedKeys,
+  onFinish,
+}: {
+  revealKey: string
+  atmosphere: DailyAtmosphere
+  consumedKeys: Set<string>
+  onFinish: () => void
+}) {
+  const { play: playSound } = useSound()
+  const covered = usePresentationOwned()
+  const foreground = usePresentationForeground()
+  const reducedMotion = usePresentationReducedMotion()
+  // Coverage keeps this instance mounted. Completion removes all of its
+  // subscriptions; route/phase/run exit cannot restart a consumed instance.
+  const completedRef = useRef(false)
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
+  const active = !covered && foreground
+  const visible = active && !reducedMotion && Boolean(portalTarget?.isConnected)
+  const { play, cancel } = usePresentationSound(visible, revealKey, playSound)
+  const finish = useCallback(() => {
+    if (completedRef.current) return
+    completedRef.current = true
+    cancel()
+    onFinish()
+  }, [cancel, onFinish])
+
   useLayoutEffect(() => {
+    if (!active || reducedMotion) return undefined
     const resolveTarget = () => {
-      setPortalTarget(document.querySelector<HTMLElement>('[data-houseguest-roster="true"]'))
+      if (portalTarget && !portalTarget.isConnected) {
+        finish()
+        return true
+      }
+      const next = document.querySelector<HTMLElement>('[data-houseguest-roster="true"]')
+      setPortalTarget(next)
+      return Boolean(next)
     }
-    resolveTarget()
-    const observer = new MutationObserver(resolveTarget)
+    if (resolveTarget()) return undefined
+    // Observe only while waiting for the roster to mount, not throughout play.
+    const observer = new MutationObserver(() => {
+      if (resolveTarget()) observer.disconnect()
+    })
     observer.observe(document.body, { childList: true, subtree: true })
     return () => observer.disconnect()
-  }, [])
+  }, [active, finish, portalTarget, reducedMotion])
 
-  useEffect(() => {
-    if (!dailyPhase || !atmosphere || !gameId) return undefined
-    const key = `${gameId}:${week}:${dailyPhase}:${atmosphere}`
-    if (lastRevealKeyRef.current === key) return undefined
-    lastRevealKeyRef.current = key
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setReveal({ key, atmosphere })
-
+  const cues = useMemo(() => {
     const sound = WEATHER_REVEAL_SOUNDS[atmosphere]
-    const soundTimer = window.setTimeout(
-      () => play(sound.key, { volume: sound.volume }),
-      sound.delayMs
-    )
-    const revealTimer = window.setTimeout(() => setReveal(null), 4300)
-    return () => {
-      window.clearTimeout(soundTimer)
-      window.clearTimeout(revealTimer)
-    }
-  }, [atmosphere, dailyPhase, gameId, play, week])
+    return [
+      {
+        atMs: 0,
+        run: () => {
+          consumedKeys.add(revealKey)
+        },
+      },
+      {
+        atMs: sound.delayMs,
+        run: () => {
+          if (!reducedMotion) play(sound.key, { volume: sound.volume })
+        },
+      },
+      { atMs: reducedMotion ? 0 : 4300, run: finish },
+    ]
+  }, [atmosphere, consumedKeys, finish, play, reducedMotion, revealKey])
+  usePresentationTimeline(
+    active && (reducedMotion || Boolean(portalTarget?.isConnected)),
+    cues,
+    revealKey
+  )
 
-  if (!portalTarget || !reveal) return null
+  if (reducedMotion || !portalTarget?.isConnected) return null
 
   return createPortal(
     <div
-      key={reveal.key}
+      key={revealKey}
       className={styles.weatherReveal}
-      data-weather={visualFamily(reveal.atmosphere)}
-      data-weather-detail={reveal.atmosphere}
+      data-weather={visualFamily(atmosphere)}
+      data-weather-detail={atmosphere}
+      data-presentation-suspended={!visible || undefined}
       aria-hidden="true"
     />,
     portalTarget

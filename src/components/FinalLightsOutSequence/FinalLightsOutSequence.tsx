@@ -12,193 +12,203 @@
  *   5  → TV fully powers down
  *   6  → full blackout → calls onComplete
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
-import './FinalLightsOutSequence.css';
+import { useState, useEffect, useMemo, useRef } from 'react'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationForeground,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
+import { usePresentationTimeline } from '../../services/presentation/usePresentationTimeline'
+import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
+import './FinalLightsOutSequence.css'
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
 
 export interface FinalLightsOutSequenceProps {
   /** Retained for call-site compatibility; the final TV card intentionally contains only the farewell. */
-  publicFavoriteWinnerName?: string;
-  onComplete: () => void;
+  publicFavoriteWinnerName?: string
+  onComplete: () => void
 }
 
 type TvViewportRect = {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-};
+  top: number
+  left: number
+  width: number
+  height: number
+}
 
 function areViewportRectsEqual(a: TvViewportRect | null, b: TvViewportRect | null) {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height;
+  if (a === b) return true
+  if (!a || !b) return false
+  return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height
 }
 
 // Number of light rows on each side (each pair goes off together)
-const LIGHT_ROWS = 5;
+const LIGHT_ROWS = 5
 // Durations for each stage (ms)
-const STAGE_DURATIONS = [800, 1400, 1400, 1400, 3000, 1800, 1400];
+const STAGE_DURATIONS = [800, 1400, 1400, 1400, 3000, 1800, 1400]
 
-export default function FinalLightsOutSequence({
-  onComplete,
-}: FinalLightsOutSequenceProps) {
-  const [stage, setStage] = useState(0);
-  const [tvViewportRect, setTvViewportRect] = useState<TvViewportRect | null>(null);
-  const [tvZoneRect, setTvZoneRect] = useState<TvViewportRect | null>(null);
-  const rafRef = useRef<number>(0);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const observedViewportRef = useRef<HTMLElement | null>(null);
-  const observedZoneRef = useRef<HTMLElement | null>(null);
-  const lastMeasuredRectRef = useRef<TvViewportRect | null>(null);
-  const lastMeasuredZoneRectRef = useRef<TvViewportRect | null>(null);
-  const [noAnim] = useState(
-    () =>
-      typeof document !== 'undefined' &&
-      !!document.body &&
-      document.body.classList.contains('no-animations'),
-  );
-
-  const advance = useCallback(() => {
-    setStage((s) => s + 1);
-  }, []);
-
-  useEffect(() => {
-    if (stage >= STAGE_DURATIONS.length) {
-      onComplete();
-      return;
-    }
-    const delay = noAnim ? 0 : STAGE_DURATIONS[stage];
-    const t = setTimeout(advance, delay);
-    return () => clearTimeout(t);
-  }, [stage, noAnim, advance, onComplete]);
+export default function FinalLightsOutSequence({ onComplete }: FinalLightsOutSequenceProps) {
+  const [stage, setStage] = useState(0)
+  const [tvViewportRect, setTvViewportRect] = useState<TvViewportRect | null>(null)
+  const [tvZoneRect, setTvZoneRect] = useState<TvViewportRect | null>(null)
+  const rafRef = useRef<number>(0)
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
+  const observedViewportRef = useRef<HTMLElement | null>(null)
+  const observedZoneRef = useRef<HTMLElement | null>(null)
+  const lastMeasuredRectRef = useRef<TvViewportRect | null>(null)
+  const lastMeasuredZoneRectRef = useRef<TvViewportRect | null>(null)
+  const noAnim = usePresentationReducedMotion()
+  const { isOwner } = usePresentationOwner('season-finale', PRESENTATION_PRIORITY.finale)
+  const foreground = usePresentationForeground()
+  const active = isOwner && foreground
+  const completedRef = useRef(false)
+  const cues = useMemo(
+    () => [
+      {
+        atMs: noAnim ? 0 : (STAGE_DURATIONS[stage] ?? 0),
+        run: () => {
+          if (stage < STAGE_DURATIONS.length) setStage((value) => value + 1)
+          else if (!completedRef.current) {
+            completedRef.current = true
+            onComplete()
+          }
+        },
+      },
+    ],
+    [noAnim, onComplete, stage]
+  )
+  usePresentationTimeline(active, cues, stage)
 
   // How many light rows are currently dark: stage 1 → row 0, stage 2 → rows 0-1, etc.
-  const darkRows = Math.max(0, stage - 1);
+  const darkRows = Math.max(0, stage - 1)
 
   useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const getViewport = () => document.querySelector<HTMLElement>('.tv-zone__viewport');
-    const getTvZone = () => document.querySelector<HTMLElement>('.tv-zone');
+    if (!active || typeof window === 'undefined') return undefined
+    const getViewport = () => document.querySelector<HTMLElement>('.tv-zone__viewport')
+    const getTvZone = () => document.querySelector<HTMLElement>('.tv-zone')
     const requestFrame =
       typeof window.requestAnimationFrame === 'function'
         ? window.requestAnimationFrame.bind(window)
-        : (callback: FrameRequestCallback) => window.setTimeout(() => callback(Date.now()), 16);
+        : (callback: FrameRequestCallback) => window.setTimeout(() => callback(Date.now()), 16)
     const cancelFrame =
       typeof window.cancelAnimationFrame === 'function'
         ? window.cancelAnimationFrame.bind(window)
-        : window.clearTimeout.bind(window);
+        : window.clearTimeout.bind(window)
 
     const setMeasuredRect = (nextRect: TvViewportRect | null) => {
-      if (areViewportRectsEqual(lastMeasuredRectRef.current, nextRect)) return;
-      lastMeasuredRectRef.current = nextRect;
-      setTvViewportRect(nextRect);
-    };
+      if (areViewportRectsEqual(lastMeasuredRectRef.current, nextRect)) return
+      lastMeasuredRectRef.current = nextRect
+      setTvViewportRect(nextRect)
+    }
 
     const setMeasuredZoneRect = (nextRect: TvViewportRect | null) => {
-      if (areViewportRectsEqual(lastMeasuredZoneRectRef.current, nextRect)) return;
-      lastMeasuredZoneRectRef.current = nextRect;
-      setTvZoneRect(nextRect);
-    };
+      if (areViewportRectsEqual(lastMeasuredZoneRectRef.current, nextRect)) return
+      lastMeasuredZoneRectRef.current = nextRect
+      setTvZoneRect(nextRect)
+    }
 
     const attachResizeObserver = (viewport: HTMLElement | null, zone: HTMLElement | null) => {
-      if (observedViewportRef.current === viewport && observedZoneRef.current === zone) return;
+      if (observedViewportRef.current === viewport && observedZoneRef.current === zone) return
 
-      resizeObserverRef.current?.disconnect();
-      observedViewportRef.current = viewport;
-      observedZoneRef.current = zone;
+      resizeObserverRef.current?.disconnect()
+      observedViewportRef.current = viewport
+      observedZoneRef.current = zone
 
       if (typeof ResizeObserver === 'undefined') {
-        resizeObserverRef.current = null;
-        return;
+        resizeObserverRef.current = null
+        return
       }
 
       resizeObserverRef.current = new ResizeObserver(() => {
-        scheduleRefresh();
-      });
-      if (viewport) resizeObserverRef.current.observe(viewport);
-      if (zone && zone !== viewport) resizeObserverRef.current.observe(zone);
-    };
+        scheduleRefresh()
+      })
+      if (viewport) resizeObserverRef.current.observe(viewport)
+      if (zone && zone !== viewport) resizeObserverRef.current.observe(zone)
+    }
 
     const measureTvViewport = (viewport: HTMLElement | null) => {
       if (!viewport) {
-        setMeasuredRect(null);
-        return null;
+        setMeasuredRect(null)
+        return null
       }
 
-      const { top, left, width, height } = viewport.getBoundingClientRect();
+      const { top, left, width, height } = viewport.getBoundingClientRect()
       if (width <= 0 || height <= 0) {
-        setMeasuredRect(null);
-        return viewport;
+        setMeasuredRect(null)
+        return viewport
       }
 
-      setMeasuredRect({ top, left, width, height });
-      return viewport;
-    };
+      setMeasuredRect({ top, left, width, height })
+      return viewport
+    }
 
     const measureTvZone = (zone: HTMLElement | null) => {
       if (!zone) {
-        setMeasuredZoneRect(null);
-        return null;
+        setMeasuredZoneRect(null)
+        return null
       }
 
-      const { top, left, width, height } = zone.getBoundingClientRect();
+      const { top, left, width, height } = zone.getBoundingClientRect()
       if (width <= 0 || height <= 0) {
-        setMeasuredZoneRect(null);
-        return zone;
+        setMeasuredZoneRect(null)
+        return zone
       }
 
-      setMeasuredZoneRect({ top, left, width, height });
-      return zone;
-    };
+      setMeasuredZoneRect({ top, left, width, height })
+      return zone
+    }
 
     const refreshTvViewportRect = () => {
-      const viewport = getViewport();
-      const zone = getTvZone();
-      attachResizeObserver(viewport, zone);
-      measureTvViewport(viewport);
-      measureTvZone(zone);
-    };
+      const viewport = getViewport()
+      const zone = getTvZone()
+      attachResizeObserver(viewport, zone)
+      measureTvViewport(viewport)
+      measureTvZone(zone)
+    }
 
     const scheduleRefresh = () => {
-      if (rafRef.current) cancelFrame(rafRef.current);
+      if (rafRef.current) cancelFrame(rafRef.current)
       rafRef.current = requestFrame(() => {
-        rafRef.current = 0;
-        refreshTvViewportRect();
-      });
-    };
+        rafRef.current = 0
+        refreshTvViewportRect()
+      })
+    }
 
     const mutationObserver =
       typeof MutationObserver !== 'undefined'
         ? new MutationObserver(() => {
-          scheduleRefresh();
-        })
-        : null;
+            scheduleRefresh()
+          })
+        : null
 
-    scheduleRefresh();
+    scheduleRefresh()
 
-    window.addEventListener('resize', scheduleRefresh);
-    window.addEventListener('scroll', scheduleRefresh, { capture: true, passive: true });
-    window.visualViewport?.addEventListener('resize', scheduleRefresh);
-    window.visualViewport?.addEventListener('scroll', scheduleRefresh);
-    mutationObserver?.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener('resize', scheduleRefresh)
+    window.addEventListener('scroll', scheduleRefresh, { capture: true, passive: true })
+    window.visualViewport?.addEventListener('resize', scheduleRefresh)
+    window.visualViewport?.addEventListener('scroll', scheduleRefresh)
+    mutationObserver?.observe(document.body, { childList: true, subtree: true })
 
     return () => {
-      if (rafRef.current) cancelFrame(rafRef.current);
-      resizeObserverRef.current?.disconnect();
-      observedZoneRef.current = null;
-      mutationObserver?.disconnect();
-      window.removeEventListener('resize', scheduleRefresh);
-      window.removeEventListener('scroll', scheduleRefresh, true);
-      window.visualViewport?.removeEventListener('resize', scheduleRefresh);
-      window.visualViewport?.removeEventListener('scroll', scheduleRefresh);
-    };
-  }, []);
+      if (rafRef.current) cancelFrame(rafRef.current)
+      resizeObserverRef.current?.disconnect()
+      observedZoneRef.current = null
+      mutationObserver?.disconnect()
+      window.removeEventListener('resize', scheduleRefresh)
+      window.removeEventListener('scroll', scheduleRefresh, true)
+      window.visualViewport?.removeEventListener('resize', scheduleRefresh)
+      window.visualViewport?.removeEventListener('scroll', scheduleRefresh)
+    }
+  }, [active])
 
   return (
     <div
       className={`flo-overlay flo-stage-${Math.min(stage, STAGE_DURATIONS.length - 1)}`}
+      data-presentation-root="final-lights-out"
+      data-presentation-suspended={!active || undefined}
+      aria-hidden={!active || undefined}
+      inert={!active || undefined}
       role="dialog"
       aria-modal="true"
       aria-label="Season finale lights out"
@@ -210,10 +220,7 @@ export default function FinalLightsOutSequence({
       {/* ── Left light rail ── */}
       <div className="flo-light-rail flo-light-rail--left" aria-hidden="true">
         {Array.from({ length: LIGHT_ROWS }).map((_, i) => (
-          <div
-            key={i}
-            className={`flo-light-row${i < darkRows ? ' flo-light-row--off' : ''}`}
-          >
+          <div key={i} className={`flo-light-row${i < darkRows ? ' flo-light-row--off' : ''}`}>
             <span className="flo-light flo-light--a" />
             <span className="flo-light flo-light--b" />
           </div>
@@ -223,10 +230,7 @@ export default function FinalLightsOutSequence({
       {/* ── Right light rail ── */}
       <div className="flo-light-rail flo-light-rail--right" aria-hidden="true">
         {Array.from({ length: LIGHT_ROWS }).map((_, i) => (
-          <div
-            key={i}
-            className={`flo-light-row${i < darkRows ? ' flo-light-row--off' : ''}`}
-          >
+          <div key={i} className={`flo-light-row${i < darkRows ? ' flo-light-row--off' : ''}`}>
             <span className="flo-light flo-light--a" />
             <span className="flo-light flo-light--b" />
           </div>
@@ -239,7 +243,9 @@ export default function FinalLightsOutSequence({
           tvZoneRect ? 'flo-tv-shell--anchored' : 'flo-tv-shell--fallback',
           'flo-tv-shell--active',
           stage >= 5 ? 'flo-tv-shell--off' : null,
-        ].filter(Boolean).join(' ')}
+        ]
+          .filter(Boolean)
+          .join(' ')}
         style={tvZoneRect ?? undefined}
         data-testid="final-lights-off-tv-shell"
         aria-hidden="true"
@@ -252,7 +258,9 @@ export default function FinalLightsOutSequence({
           tvViewportRect ? 'flo-tv-frame--anchored' : 'flo-tv-frame--fallback',
           'flo-tv-frame--active',
           stage >= 5 ? 'flo-tv-frame--off' : null,
-        ].filter(Boolean).join(' ')}
+        ]
+          .filter(Boolean)
+          .join(' ')}
         style={tvViewportRect ?? undefined}
         data-testid="final-lights-off-tv"
       >
@@ -275,9 +283,7 @@ export default function FinalLightsOutSequence({
       </div>
 
       {/* Stage 6+: Complete blackout */}
-      {stage >= 6 && (
-        <div className="flo-final-black" aria-hidden="true" />
-      )}
+      {stage >= 6 && <div className="flo-final-black" aria-hidden="true" />}
     </div>
-  );
+  )
 }

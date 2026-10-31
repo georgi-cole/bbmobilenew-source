@@ -7,8 +7,15 @@ import {
   useState,
   type CSSProperties,
 } from 'react'
+import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
+import { usePresentationTimeline } from '../../services/presentation/usePresentationTimeline'
 import { createPortal } from 'react-dom'
 import type { CeremonyTile } from '../CeremonyOverlay/CeremonyOverlay'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+  usePresentationForeground,
+} from '../../services/presentation/presentationOwnership'
 import rosterStyles from '../HouseguestGrid/HouseguestGrid.module.css'
 import './WinnerTileLiftAnimation.css'
 
@@ -60,10 +67,14 @@ export interface WinnerTileLiftAnimationProps {
   onDone: () => void
 }
 
+function hasTileDimensions(rect: DOMRect): boolean {
+  // An undecoded/rebuilding portrait can temporarily expose only its border.
+  // Treat that as unavailable rather than stretching a two-pixel snapshot.
+  return rect.width >= 16 && rect.height >= 16
+}
+
 function isMeasurable(element: HTMLElement | null): element is HTMLElement {
-  if (!element || !element.isConnected) return false
-  const rect = element.getBoundingClientRect()
-  return rect.width > 0 && rect.height > 0
+  return Boolean(element?.isConnected && hasTileDimensions(element.getBoundingClientRect()))
 }
 
 function stripDuplicateIds(root: HTMLElement) {
@@ -95,9 +106,6 @@ function hideLiftedSource(element: HTMLElement) {
   element.style.setProperty('clip-path', 'inset(50%)', 'important')
   element.style.setProperty('-webkit-clip-path', 'inset(50%)', 'important')
   element.style.setProperty('pointer-events', 'none', 'important')
-  // Force the native compositor to observe the paint suppression before the
-  // fixed snapshot starts its first frame.
-  element.getBoundingClientRect()
 }
 
 function restoreLiftedSourceStyles(element: HTMLElement, styles: LiftedSourceStyles) {
@@ -110,6 +118,27 @@ function restoreLiftedSourceStyles(element: HTMLElement, styles: LiftedSourceSty
     }
   })
   element.removeAttribute('data-ceremony-tile-lifted')
+}
+
+function measureLiftedSources(targets: LiftTarget[]): DOMRect[] {
+  const visibility = targets.map(({ source }) => ({
+    source,
+    value: source.style.getPropertyValue('content-visibility'),
+    priority: source.style.getPropertyPriority('content-visibility'),
+  }))
+  // Restore layout while the other paint-suppression properties stay active.
+  // A hidden auto-sized anchor can otherwise collapse to its border height.
+  visibility.forEach(({ source }) =>
+    source.style.setProperty('content-visibility', 'visible', 'important')
+  )
+  try {
+    return targets.map(({ source }) => source.getBoundingClientRect())
+  } finally {
+    visibility.forEach(({ source, value, priority }) => {
+      if (value) source.style.setProperty('content-visibility', value, priority)
+      else source.style.removeProperty('content-visibility')
+    })
+  }
 }
 
 function freezeVisualStyles(source: HTMLElement, clone: HTMLElement) {
@@ -156,8 +185,7 @@ function getVisibleViewport() {
   }
 }
 
-function calculateStageRects(targets: LiftTarget[]): DOMRect[] {
-  const viewport = getVisibleViewport()
+function calculateStageRects(targets: LiftTarget[], viewport = getVisibleViewport()): DOMRect[] {
   const availableWidth = Math.max(1, viewport.width - 32 - STAGE_GAP * (targets.length - 1))
   const maxPerTile = availableWidth / Math.max(1, targets.length)
   const largestSource = Math.max(...targets.map((target) => target.sourceRect.width))
@@ -182,6 +210,15 @@ function rectStyle(rect: DOMRect): CSSProperties {
   }
 }
 
+function transformBetweenRects(source: DOMRect, destination: DOMRect): string {
+  if (source.width <= 0 || source.height <= 0) return 'none'
+  const translateX = destination.left - source.left
+  const translateY = destination.top - source.top
+  const scaleX = destination.width / source.width
+  const scaleY = destination.height / source.height
+  return `translate3d(${translateX}px, ${translateY}px, 0) scale(${scaleX}, ${scaleY})`
+}
+
 export default function WinnerTileLiftAnimation({
   targetIds,
   tiles,
@@ -192,11 +229,16 @@ export default function WinnerTileLiftAnimation({
   resolveTarget,
   onDone,
 }: WinnerTileLiftAnimationProps) {
+  const prefersReducedMotion = usePresentationReducedMotion()
+  const { isOwner } = usePresentationOwner('winner-award', PRESENTATION_PRIORITY.winnerAward)
+  const active = usePresentationForeground() && isOwner
   const [targets, setTargets] = useState<LiftTarget[]>([])
   const [phase, setPhase] = useState<LiftPhase>('captured')
+  const [viewport, setViewport] = useState(getVisibleViewport)
   const targetsRef = useRef<LiftTarget[]>([])
   const originalStylesRef = useRef(new Map<HTMLElement, LiftedSourceStyles>())
   const finishedRef = useRef(false)
+  const cancelTimelineRef = useRef<() => void>(() => {})
 
   const restoreOriginals = useCallback(() => {
     originalStylesRef.current.forEach((styles, element) => {
@@ -208,17 +250,33 @@ export default function WinnerTileLiftAnimation({
   const finish = useCallback(() => {
     if (finishedRef.current) return
     finishedRef.current = true
+    cancelTimelineRef.current()
     restoreOriginals()
     onDone()
   }, [onDone, restoreOriginals])
 
   useLayoutEffect(() => {
+    if (!active) return undefined
+    if (targetsRef.current.length > 0) {
+      // A covered/backgrounded award resumes its existing frozen tiles and
+      // timeline. It does not clone them again or replay the landing badge.
+      targetsRef.current.forEach(({ source }) => {
+        originalStylesRef.current.set(source, captureLiftedSourceStyles(source))
+        hideLiftedSource(source)
+      })
+      if (prefersReducedMotion) finish()
+      return restoreOriginals
+    }
     let frame = 0
     let raf = 0
     let cancelled = false
 
     const capture = () => {
       if (cancelled) return
+      if (prefersReducedMotion || document.body.classList.contains('no-animations')) {
+        finish()
+        return
+      }
       const elements = targetIds.map((targetId) => resolveTarget(targetId))
       if (elements.every(isMeasurable)) {
         const currentRects = elements.map((element) => element.getBoundingClientRect())
@@ -227,7 +285,6 @@ export default function WinnerTileLiftAnimation({
           const snapshot = source.cloneNode(true) as HTMLElement
           freezeVisualStyles(source, snapshot)
           originalStylesRef.current.set(source, captureLiftedSourceStyles(source))
-          hideLiftedSource(source)
           return {
             id: targetIds[index],
             source,
@@ -238,7 +295,12 @@ export default function WinnerTileLiftAnimation({
             compact: Boolean(source.closest(`.${rosterStyles.compact}`)),
           }
         })
+        // Batch source paint suppression and force at most one style/layout
+        // flush after all reads. Repeated per-tile reads here caused N flushes.
+        captured.forEach(({ source }) => hideLiftedSource(source))
+        void document.documentElement.offsetHeight
         targetsRef.current = captured
+        setPhase('captured')
         setTargets(captured)
         return
       }
@@ -257,43 +319,92 @@ export default function WinnerTileLiftAnimation({
       cancelAnimationFrame(raf)
       restoreOriginals()
     }
-  }, [finish, resolveTarget, restoreOriginals, targetIds, tiles])
+  }, [active, finish, prefersReducedMotion, resolveTarget, restoreOriginals, targetIds, tiles])
 
   useEffect(() => {
-    if (targets.length === 0) return
+    if (!active || targets.length === 0) return
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [active, targets.length])
+
+  useLayoutEffect(() => {
+    if (!active || targets.length === 0) return undefined
+    let frame = 0
+    let cancelled = false
+    const queueViewport = () => {
+      if (frame) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        if (cancelled) return
+        const next = getVisibleViewport()
+        setViewport((current) =>
+          current.left === next.left &&
+          current.top === next.top &&
+          current.width === next.width &&
+          current.height === next.height
+            ? current
+            : next
+        )
+      })
+    }
+    const visualViewport = window.visualViewport
+    window.addEventListener('resize', queueViewport, { passive: true })
+    visualViewport?.addEventListener?.('resize', queueViewport, { passive: true })
+    visualViewport?.addEventListener?.('scroll', queueViewport, { passive: true })
+    queueViewport()
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(frame)
+      window.removeEventListener('resize', queueViewport)
+      visualViewport?.removeEventListener?.('resize', queueViewport)
+      visualViewport?.removeEventListener?.('scroll', queueViewport)
+    }
+  }, [active, targets.length])
+
+  useEffect(() => {
+    if (!active || targets.length === 0 || phase !== 'captured') return
     let secondFrame = 0
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => setPhase('lifted'))
     })
-    const awardTimer = window.setTimeout(() => setPhase('awarded'), LIFT_DURATION_MS)
-    const returnAt = Math.max(LIFT_DURATION_MS + 650, durationMs - RETURN_DURATION_MS)
-    const returnTimer = window.setTimeout(() => {
-      const refreshed = targetsRef.current.map((target) => {
-        const rect = target.source.getBoundingClientRect()
-        return {
-          ...target,
-          returnRect: rect.width > 0 && rect.height > 0 ? rect : target.sourceRect,
-        }
-      })
-      targetsRef.current = refreshed
-      setTargets(refreshed)
-      setPhase('returning')
-    }, returnAt)
-    const doneTimer = window.setTimeout(finish, returnAt + RETURN_DURATION_MS)
-
     return () => {
-      document.body.style.overflow = previousOverflow
       cancelAnimationFrame(firstFrame)
       cancelAnimationFrame(secondFrame)
-      window.clearTimeout(awardTimer)
-      window.clearTimeout(returnTimer)
-      window.clearTimeout(doneTimer)
     }
-  }, [durationMs, finish, targets.length])
+  }, [active, phase, targets.length])
 
-  const stageRects = useMemo(() => calculateStageRects(targets), [targets])
+  const cues = useMemo(() => {
+    const returnAt = Math.max(LIFT_DURATION_MS + 650, durationMs - RETURN_DURATION_MS)
+    return [
+      { atMs: LIFT_DURATION_MS, run: () => setPhase('awarded') },
+      {
+        atMs: returnAt,
+        run: () => {
+          const rects = measureLiftedSources(targetsRef.current)
+          const refreshed = targetsRef.current.map((target, index) => {
+            const rect = rects[index]
+            return {
+              ...target,
+              returnRect: hasTileDimensions(rect) ? rect : target.sourceRect,
+            }
+          })
+          targetsRef.current = refreshed
+          setTargets(refreshed)
+          setPhase('returning')
+        },
+      },
+      { atMs: returnAt + RETURN_DURATION_MS, run: finish },
+    ]
+  }, [durationMs, finish])
+  const cancelTimeline = usePresentationTimeline(active && targets.length > 0, cues)
+  useLayoutEffect(() => {
+    cancelTimelineRef.current = cancelTimeline
+  }, [cancelTimeline])
+
+  const stageRects = useMemo(() => calculateStageRects(targets, viewport), [targets, viewport])
 
   if (targets.length === 0 || typeof document === 'undefined') return null
 
@@ -304,6 +415,10 @@ export default function WinnerTileLiftAnimation({
       aria-live="assertive"
       aria-label={ariaLabel ?? caption}
       data-winner-tile-lift-phase={phase}
+      data-presentation-root="winner-tile-lift"
+      data-presentation-suspended={!active || undefined}
+      aria-hidden={!active || undefined}
+      inert={!active || undefined}
     >
       <div className="winner-tile-lift__backdrop" aria-hidden="true" />
       {targets.map((target, index) => {
@@ -313,13 +428,21 @@ export default function WinnerTileLiftAnimation({
             : phase === 'returning'
               ? target.returnRect
               : stageRects[index]
+        const tileStyle: CSSProperties = {
+          ...rectStyle(target.sourceRect),
+          transform: transformBetweenRects(target.sourceRect, destination),
+        }
         const badgeActive = phase === 'awarded' || phase === 'returning'
         return (
           <div
             key={target.id}
             className="winner-tile-lift__tile"
-            style={rectStyle(destination)}
+            style={tileStyle}
             data-winner-tile-id={target.id}
+            data-winner-target-left={destination.left}
+            data-winner-target-top={destination.top}
+            data-winner-target-width={destination.width}
+            data-winner-target-height={destination.height}
           >
             <FrozenTile snapshot={target.snapshot} />
             <div className="winner-tile-lift__glow" aria-hidden="true" />

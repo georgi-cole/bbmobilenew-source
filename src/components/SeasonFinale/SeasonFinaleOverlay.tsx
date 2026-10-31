@@ -16,7 +16,13 @@ import type { Player } from '../../types'
 import { resolveAvatar } from '../../utils/avatar'
 import { selectSettings } from '../../store/settingsSlice'
 import { setMusicScene } from '../../store/uiSlice'
-import { SoundManager } from '../../services/sound/SoundManager'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationForeground,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
+import { usePresentationTimeline } from '../../services/presentation/usePresentationTimeline'
+import { usePresentationSound } from '../../services/presentation/usePresentationSound'
 import FinalLightsOutSequence from '../FinalLightsOutSequence/FinalLightsOutSequence'
 import Credits from '../../screens/Credits/Credits'
 import { buildFinalGoodbyeMessages } from './finaleGoodbyes'
@@ -130,6 +136,17 @@ export default function SeasonFinaleOverlay() {
     () => game.players.find((player) => player.id === finale?.winnerId) ?? null,
     [finale?.winnerId, game.players]
   )
+  const { isOwner } = usePresentationOwner(
+    'season-finale',
+    PRESENTATION_PRIORITY.finale,
+    Boolean(finale && winner)
+  )
+  const foreground = usePresentationForeground()
+  const presentationActive = isOwner && foreground
+  const { play: playPresentationSound } = usePresentationSound(
+    presentationActive,
+    finale?.phase ?? 'inactive'
+  )
 
   const interviewLines = useMemo(
     () => (winner && finale ? buildInterviewLines(winner, finale.interviewIndex) : []),
@@ -187,14 +204,22 @@ export default function SeasonFinaleOverlay() {
     navigate('/game-over')
   }, [finale?.phase, location.pathname, navigate])
 
-  useEffect(() => {
-    if (finale?.phase !== 'winnerCinematic') return
-    // The finale stinger is the single winner sound for this reveal.
-    const reactionTimer = window.setTimeout(() => {
-      void SoundManager.play('tv:finale_winner_stinger')
-    }, 1500)
-    return () => window.clearTimeout(reactionTimer)
-  }, [finale?.phase])
+  const winnerCues = useMemo(
+    () => [
+      {
+        atMs: 1500,
+        run: () => {
+          playPresentationSound('tv:finale_winner_stinger')
+        },
+      },
+    ],
+    [playPresentationSound]
+  )
+  usePresentationTimeline(
+    presentationActive && finale?.phase === 'winnerCinematic',
+    winnerCues,
+    finale?.phase ?? 'inactive'
+  )
 
   if (!finale || !winner) return null
 
@@ -210,6 +235,10 @@ export default function SeasonFinaleOverlay() {
       {finale.phase === 'winnerCinematic' && (
         <div
           className="season-finale season-finale--winner"
+          data-presentation-root="season-winner"
+          data-presentation-suspended={!presentationActive || undefined}
+          aria-hidden={!presentationActive || undefined}
+          inert={!presentationActive || undefined}
           role="dialog"
           aria-modal="true"
           aria-label={`Season ${game.season} winner reveal`}

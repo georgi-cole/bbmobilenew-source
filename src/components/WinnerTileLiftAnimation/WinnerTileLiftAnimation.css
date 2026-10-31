@@ -47,12 +47,9 @@
   position: fixed;
   z-index: 2;
   border-radius: 10px;
-  transition:
-    left 520ms cubic-bezier(0.22, 1, 0.36, 1),
-    top 520ms cubic-bezier(0.22, 1, 0.36, 1),
-    width 520ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 520ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: left, top, width, height;
+  transform-origin: top left;
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 
 .winner-tile-lift--returning .winner-tile-lift__tile {
@@ -151,12 +148,23 @@
   }
 }
 
+@media (orientation: landscape) and (max-height: 500px) {
+  .winner-tile-lift__caption {
+    top: auto;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .winner-tile-lift__backdrop,
   .winner-tile-lift__tile,
   .winner-tile-lift__glow,
   .winner-tile-lift__caption {
     transition-duration: 1ms !important;
+  }
+
+  .winner-tile-lift__tile {
+    will-change: auto;
   }
 
   .winner-tile-lift__badge {

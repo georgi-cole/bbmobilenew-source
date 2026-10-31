@@ -4,7 +4,7 @@
  * Vite only exposes VITE_* variables on import.meta.env by default.
  *
  * Most established flags are enabled unless explicitly set to "false".
- * Features that are not release-ready must opt in explicitly.
+ * Each flag documents its default and independent rollback control below.
  */
 
 /**
@@ -33,3 +33,17 @@ export const FEATURE_SPECTATOR_REACT: boolean =
  */
 export const FEATURE_LOCALIZATION_SETTINGS: boolean =
   (import.meta.env.VITE_FEATURE_LOCALIZATION_SETTINGS ?? 'false') === 'true'
+
+/**
+ * Pre-rendered Twin Shock background, enabled by default. Device evidence is
+ * recorded separately; unavailable Xcode testing does not disable playback.
+ * Set VITE_FEATURE_TWIN_SHOCK_VIDEO_PILOT=false to use the live fallback.
+ */
+export function isTwinShockVideoPilotEnabled(): boolean {
+  return (import.meta.env.VITE_FEATURE_TWIN_SHOCK_VIDEO_PILOT ?? 'true') !== 'false'
+}
+
+/** Disable credits video independently while retaining its live text and Skip. */
+export function isCreditsVideoEnabled(): boolean {
+  return (import.meta.env.VITE_FEATURE_CREDITS_VIDEO ?? 'true') !== 'false'
+}

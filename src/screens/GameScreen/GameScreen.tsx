@@ -65,6 +65,10 @@ import TravelingDots from '../../components/TravelingDots/TravelingDots'
 import MinigameHost from '../../components/MinigameHost/MinigameHost'
 import type { HostPhase, MinigameParticipant } from '../../components/MinigameHost/MinigameHost'
 import type { MusicMinigameVariant } from '../../services/sound/musicConfig'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
 import { computeScores } from '../../minigames/scoring'
 import FloatingActionBar from '../../components/FloatingActionBar/FloatingActionBar'
 import { shouldRenderGameControlDock } from './gameScreenUiGuards'
@@ -256,6 +260,7 @@ export default function GameScreen() {
   const game = useAppSelector((s) => s.game, gameScreenGameEquality)
   const presentedRosterPlayers = useMemo(() => getPresentedRosterPlayers(game), [game])
   const activeProfileId = useAppSelector(selectActiveProfileId)
+  const presentationRunKey = `${activeProfileId ?? 'guest'}:${game.gameId || `${game.seed}:${game.season}`}`
   const isGuest = useAppSelector(selectIsGuest)
   const settings = useAppSelector(selectSettings)
   const hasPublicModeAccess = useAppSelector(selectHasPublicModeAccess)
@@ -1081,14 +1086,26 @@ export default function GameScreen() {
   }, [dispatch, game.mode, game.phase, humanIsChallengeParticipant, pendingChallenge])
   /** True whenever a native React LOH/POS minigame overlay should be displayed. */
   const showLohMinigame = !showMinigameHost && humanIsParticipant
-  const showPressurePlank = showLohMinigame && pendingMinigame?.key === 'pressurePlank'
-  const showBullseyeBlitz = showLohMinigame && pendingMinigame?.key === 'targetPractice'
+  const { isOwner: nativeGameplayIsOwner } = usePresentationOwner(
+    'timed-gameplay',
+    PRESENTATION_PRIORITY.gameplay,
+    showLohMinigame
+  )
+  const showPressurePlank =
+    nativeGameplayIsOwner && showLohMinigame && pendingMinigame?.key === 'pressurePlank'
+  const showBullseyeBlitz =
+    nativeGameplayIsOwner && showLohMinigame && pendingMinigame?.key === 'targetPractice'
   // TravelingDots is key-gated to its specific overlay component.
-  const showTravelingDots = showLohMinigame && pendingMinigame?.key === 'travelingDots'
+  const showTravelingDots =
+    nativeGameplayIsOwner && showLohMinigame && pendingMinigame?.key === 'travelingDots'
   // QuickTapRace handles the 'quickTap' key AND acts as a safe fallback for any
   // unrecognised pendingMinigame key so the human is never left with no UI.
   const showQuickTapRace =
-    showLohMinigame && !showPressurePlank && !showBullseyeBlitz && !showTravelingDots
+    nativeGameplayIsOwner &&
+    showLohMinigame &&
+    !showPressurePlank &&
+    !showBullseyeBlitz &&
+    !showTravelingDots
 
   // ── Ad hook: competition_retry ─────────────────────────────────────────────
   // Retry now lives in the MinigameHost results UI itself, so GameScreen only
@@ -2211,6 +2228,7 @@ export default function GameScreen() {
         {/* ── Winner tile lift — LOH / POS result without coordinate-space cutouts ── */}
         {showWinnerCeremony && pendingWinnerCeremony && (
           <WinnerTileLiftAnimation
+            key={`${presentationRunKey}:winner:${pendingWinnerCeremony.targetIds.join(',')}`}
             targetIds={pendingWinnerCeremony.targetIds}
             tiles={pendingWinnerCeremony.tiles}
             caption={pendingWinnerCeremony.caption}
@@ -2435,13 +2453,13 @@ export default function GameScreen() {
             pendingEvictionPlayer &&
             (game.mode === 'survival' ? (
               <SurveyevalTileEvictionEffect
-                key={pendingEvictionPlayer.id}
+                key={`${presentationRunKey}:${pendingEvictionPlayer.id}`}
                 evicteeId={pendingEvictionPlayer.id}
                 onDone={handleEvictionSplashDone}
               />
             ) : (
               <SpotlightEvictionOverlay
-                key={pendingEvictionPlayer.id}
+                key={`${presentationRunKey}:${pendingEvictionPlayer.id}`}
                 evictee={pendingEvictionPlayer}
                 contextLabel={`Season ${game.season} · Day ${game.week}`}
                 onDone={handleEvictionSplashDone}
@@ -2463,14 +2481,14 @@ export default function GameScreen() {
         <AnimatePresence>
           {twinShockReveal && completedTwinShockIntroKey !== twinShockSequenceKey && (
             <TwinShockIntroCinematic
-              key={`intro-${twinShockSequenceKey}`}
+              key={`${presentationRunKey}:intro-${twinShockSequenceKey}`}
               reveal={twinShockReveal}
               onComplete={handleTwinShockIntroDone}
             />
           )}
           {twinShockReveal && completedTwinShockIntroKey === twinShockSequenceKey && (
             <TwinShockRevealOverlay
-              key={`avatar-${twinShockSequenceKey}`}
+              key={`${presentationRunKey}:avatar-${twinShockSequenceKey}`}
               reveal={twinShockReveal}
               getTileRect={getTileRect}
               onDone={handleTwinShockRevealDone}
@@ -2927,6 +2945,7 @@ export default function GameScreen() {
       {game.tribunalInvitationTransition && humanPlayer && (
         <Suspense fallback={<TribunalCinematicLoading />}>
           <TribunalDecisionCinematic
+            key={`${presentationRunKey}:${game.tribunalInvitationTransition}`}
             destination={game.tribunalInvitationTransition}
             player={humanPlayer}
             members={tribunalPlayers}

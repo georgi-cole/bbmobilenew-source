@@ -9,41 +9,41 @@
 //   4. GameScreen commits immediately when DOMRect is unavailable (headless fallback).
 //   5. SPOTLIGHT_SKIP / shouldSkipSpotlight correctly includes known skip keys including blackjackTournament.
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
-import { Provider } from 'react-redux';
-import { MemoryRouter } from 'react-router';
-import { configureStore } from '@reduxjs/toolkit';
-import gameReducer, { setPhase } from '../../src/store/gameSlice';
-import challengeReducer from '../../src/store/challengeSlice';
-import socialReducer from '../../src/social/socialSlice';
-import uiReducer from '../../src/store/uiSlice';
-import settingsReducer from '../../src/store/settingsSlice';
-import profilesReducer from '../../src/store/profilesSlice';
-import publicOpinionReducer from '../../src/publicOpinion/publicOpinionSlice';
-import type { GameState, Player } from '../../src/types';
-import CeremonyOverlay from '../../src/components/CeremonyOverlay/CeremonyOverlay';
-import GameScreen from '../../src/screens/GameScreen/GameScreen';
-import { SPOTLIGHT_SKIP, shouldSkipSpotlight } from '../../src/screens/GameScreen/spotlightUtils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
+import { Provider } from 'react-redux'
+import { MemoryRouter } from 'react-router'
+import { configureStore } from '@reduxjs/toolkit'
+import gameReducer, { setPhase } from '../../src/store/gameSlice'
+import challengeReducer from '../../src/store/challengeSlice'
+import socialReducer from '../../src/social/socialSlice'
+import uiReducer from '../../src/store/uiSlice'
+import settingsReducer from '../../src/store/settingsSlice'
+import profilesReducer from '../../src/store/profilesSlice'
+import publicOpinionReducer from '../../src/publicOpinion/publicOpinionSlice'
+import type { GameState, Player } from '../../src/types'
+import CeremonyOverlay from '../../src/components/CeremonyOverlay/CeremonyOverlay'
+import GameScreen from '../../src/screens/GameScreen/GameScreen'
+import { SPOTLIGHT_SKIP, shouldSkipSpotlight } from '../../src/screens/GameScreen/spotlightUtils'
 
 // ── Module-level captured callbacks ────────────────────────────────────────
 // vi.mock is hoisted so we capture MinigameHost's onDone via a module-level ref.
-let capturedMinigameOnDone: ((rawValue: number) => void) | null = null;
+let capturedMinigameOnDone: ((rawValue: number) => void) | null = null
 
 vi.mock('../../src/components/MinigameHost/MinigameHost', () => ({
   default: ({ onDone }: { onDone: (rawValue: number) => void }) => {
-    capturedMinigameOnDone = onDone;
-    return <div data-testid="minigame-mock" />;
+    capturedMinigameOnDone = onDone
+    return <div data-testid="minigame-mock" />
   },
-}));
+}))
 
 vi.mock('../../src/minigames/LegacyMinigameWrapper', () => ({
   default: () => null,
-}));
+}))
 
 vi.mock('../../src/components/ui/TvZone', () => ({
   default: () => <div data-testid="tv-zone" />,
-}));
+}))
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ function makePlayers(count: number, userIndex = 0): Player[] {
     avatar: '🧑',
     status: 'active' as const,
     isUser: i === userIndex,
-  }));
+  }))
 }
 
 function makeStore(overrides: Partial<GameState> = {}) {
@@ -87,7 +87,7 @@ function makeStore(overrides: Partial<GameState> = {}) {
     players: makePlayers(6),
     tvFeed: [],
     isLive: false,
-  };
+  }
   return configureStore({
     reducer: {
       game: gameReducer,
@@ -99,7 +99,7 @@ function makeStore(overrides: Partial<GameState> = {}) {
       publicOpinion: publicOpinionReducer,
     },
     preloadedState: { game: { ...base, ...overrides } },
-  });
+  })
 }
 
 function renderWithStore(store: ReturnType<typeof makeStore>) {
@@ -108,191 +108,229 @@ function renderWithStore(store: ReturnType<typeof makeStore>) {
       <MemoryRouter>
         <GameScreen />
       </MemoryRouter>
-    </Provider>,
-  );
+    </Provider>
+  )
 }
 
 // ── CeremonyOverlay unit tests ────────────────────────────────────────────
 
 describe('CeremonyOverlay', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-  });
+    vi.useFakeTimers()
+  })
 
   afterEach(() => {
-    vi.useRealTimers();
-  });
+    vi.useRealTimers()
+  })
 
   it('renders caption and dim layer when tiles have valid rects', async () => {
-    const rect = new DOMRect(50, 100, 60, 80);
-    const onDone = vi.fn();
+    const rect = new DOMRect(50, 100, 60, 80)
+    const onDone = vi.fn()
     render(
       <CeremonyOverlay
         tiles={[{ rect, badge: '👑', badgeStart: 'center' }]}
         caption="Alice wins Leader of the House!"
         onDone={onDone}
         durationMs={1000}
-      />,
-    );
-    expect(screen.getByText('Alice wins Leader of the House!')).toBeTruthy();
-  });
+      />
+    )
+    expect(screen.getByText('Alice wins Leader of the House!')).toBeTruthy()
+  })
 
   it('fires onDone after durationMs (+ exit delay) when tiles are valid', async () => {
-    const rect = new DOMRect(50, 100, 60, 80);
-    const onDone = vi.fn();
+    const rect = new DOMRect(50, 100, 60, 80)
+    const onDone = vi.fn()
     render(
       <CeremonyOverlay
         tiles={[{ rect, badge: '👑', badgeStart: 'center' }]}
         caption="Alice wins Leader of the House!"
         onDone={onDone}
         durationMs={1000}
-      />,
-    );
+      />
+    )
 
-    expect(onDone).not.toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled()
 
     // Advance past durationMs — visibility timer fires, exit animation begins.
-    await act(async () => { vi.advanceTimersByTime(1000); });
-    expect(onDone).not.toHaveBeenCalled(); // exit animation still in progress
+    await act(async () => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(onDone).not.toHaveBeenCalled() // exit animation still in progress
 
     // Advance past the 350 ms exit transition.
-    await act(async () => { vi.advanceTimersByTime(350 + 50); });
-    expect(onDone).toHaveBeenCalledTimes(1);
-  });
+    await act(async () => {
+      vi.advanceTimersByTime(350 + 50)
+    })
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
 
   it('fires onDone immediately and renders nothing when all tile rects are null', async () => {
-    const onDone = vi.fn();
+    const onDone = vi.fn()
     const { container } = render(
       <CeremonyOverlay
         tiles={[{ rect: null, badge: '👑' }]}
         caption="Alice wins Leader of the House!"
         onDone={onDone}
-      />,
-    );
+      />
+    )
 
     // Run pending microtasks / effects.
-    await act(async () => {});
-    expect(onDone).toHaveBeenCalledTimes(1);
+    await act(async () => {})
+    expect(onDone).toHaveBeenCalledTimes(1)
     // Component renders null — container is empty.
-    expect(container.firstChild).toBeNull();
-  });
+    expect(container.firstChild).toBeNull()
+  })
 
   it('fires onDone immediately when tile rects have zero dimensions (headless / jsdom)', async () => {
-    const onDone = vi.fn();
-    const zeroRect = new DOMRect(0, 0, 0, 0);
+    const onDone = vi.fn()
+    const zeroRect = new DOMRect(0, 0, 0, 0)
     render(
       <CeremonyOverlay
         tiles={[{ rect: zeroRect, badge: '🛡️' }]}
         caption="Bob wins Power of Safety!"
         onDone={onDone}
-      />,
-    );
+      />
+    )
 
-    await act(async () => {});
-    expect(onDone).toHaveBeenCalledTimes(1);
-  });
-});
+    await act(async () => {})
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+})
 
 // ── GameScreen × CeremonyOverlay integration tests ────────────────────────
 
 describe('GameScreen – CeremonyOverlay defers LOH/POS store mutations', () => {
   beforeEach(() => {
-    capturedMinigameOnDone = null;
-    vi.useFakeTimers();
-  });
+    capturedMinigameOnDone = null
+    vi.useFakeTimers()
+  })
 
   afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-  });
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
 
   it('hides the committed tile badge until an advance-picked LOH ceremony finishes', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      x: 50, y: 100, width: 60, height: 80,
-      top: 100, left: 50, bottom: 180, right: 110,
+      x: 50,
+      y: 100,
+      width: 60,
+      height: 80,
+      top: 100,
+      left: 50,
+      bottom: 180,
+      right: 110,
       toJSON: () => ({}),
-    } as DOMRect);
+    } as DOMRect)
 
     const store = makeStore({
       phase: 'loh_results',
       lohId: 'p1',
       prevHohId: 'p0',
-    });
-    renderWithStore(store);
+    })
+    renderWithStore(store)
 
-    const ceremonyBadges = document.querySelectorAll<HTMLImageElement>('img[src*="loh_badge.png"]');
-    expect(ceremonyBadges).toHaveLength(1);
-    expect(ceremonyBadges[0]).toHaveClass('ceremony-overlay__badge-image');
+    const ceremonyBadges = document.querySelectorAll<HTMLImageElement>(
+      'img[src*="loh_badge_128.webp"]'
+    )
+    expect(ceremonyBadges).toHaveLength(1)
+    expect(ceremonyBadges[0]).toHaveClass('ceremony-overlay__badge-image')
 
-    await act(async () => { vi.advanceTimersByTime(2800 + 400); });
+    await act(async () => {
+      vi.advanceTimersByTime(2800 + 400)
+    })
 
-    const landedBadges = document.querySelectorAll<HTMLImageElement>('img[src*="loh_badge.png"]');
-    expect(landedBadges).toHaveLength(1);
-    expect(landedBadges[0]).not.toHaveClass('ceremony-overlay__badge-image');
-  });
+    const landedBadges = document.querySelectorAll<HTMLImageElement>(
+      'img[src*="loh_badge_128.webp"]'
+    )
+    expect(landedBadges).toHaveLength(1)
+    expect(landedBadges[0]).not.toHaveClass('ceremony-overlay__badge-image')
+  })
 
   it('commits applyMinigameWinner immediately when DOMRects are unavailable (defensive fallback)', async () => {
     // jsdom returns zero-sized rects by default → defensive fallback path.
-    const store = makeStore();
-    renderWithStore(store);
+    const store = makeStore()
+    renderWithStore(store)
 
     // Start LOH comp and wait for challenge to be created.
-    await act(async () => { store.dispatch(setPhase('loh_comp')); });
+    await act(async () => {
+      store.dispatch(setPhase('loh_comp'))
+    })
 
     // MinigameHost should be mounted (mock captures onDone).
-    expect(screen.getByTestId('minigame-mock')).toBeTruthy();
-    expect(capturedMinigameOnDone).not.toBeNull();
+    expect(screen.getByTestId('minigame-mock')).toBeTruthy()
+    expect(capturedMinigameOnDone).not.toBeNull()
 
     // Simulate minigame completion.
-    await act(async () => { capturedMinigameOnDone!(100); });
+    await act(async () => {
+      capturedMinigameOnDone!(100)
+    })
     // SpotlightAnimation samples the restored roster for up to 24 frames before
     // accepting an empty-geometry fallback.
-    await act(async () => { vi.advanceTimersByTime(500); });
+    await act(async () => {
+      vi.advanceTimersByTime(500)
+    })
 
     // Zero DOMRect → no animation → phase transitions immediately.
-    expect(store.getState().game.phase).toBe('loh_results');
-    expect(store.getState().game.lohId).not.toBeNull();
-  });
+    expect(store.getState().game.phase).toBe('loh_results')
+    expect(store.getState().game.lohId).not.toBeNull()
+  })
 
   it('defers applyMinigameWinner until CeremonyOverlay completes when rects are valid', async () => {
     // Mock getBoundingClientRect to return a valid non-zero rect.
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      x: 50, y: 100, width: 60, height: 80,
-      top: 100, left: 50, bottom: 180, right: 110,
+      x: 50,
+      y: 100,
+      width: 60,
+      height: 80,
+      top: 100,
+      left: 50,
+      bottom: 180,
+      right: 110,
       toJSON: () => ({}),
-    } as DOMRect);
+    } as DOMRect)
 
-    const store = makeStore();
-    renderWithStore(store);
+    const store = makeStore()
+    renderWithStore(store)
 
-    await act(async () => { store.dispatch(setPhase('loh_comp')); });
+    await act(async () => {
+      store.dispatch(setPhase('loh_comp'))
+    })
 
-    expect(capturedMinigameOnDone).not.toBeNull();
+    expect(capturedMinigameOnDone).not.toBeNull()
 
     // Trigger minigame done.
-    await act(async () => { capturedMinigameOnDone!(100); });
+    await act(async () => {
+      capturedMinigameOnDone!(100)
+    })
     // Allow the first post-minigame roster measurement frame to run.
-    await act(async () => { vi.advanceTimersByTime(20); });
+    await act(async () => {
+      vi.advanceTimersByTime(20)
+    })
 
     // Valid DOMRect → CeremonyOverlay is showing → phase NOT yet committed.
-    expect(store.getState().game.phase).toBe('loh_comp');
-    expect(store.getState().game.lohId).toBeNull();
+    expect(store.getState().game.phase).toBe('loh_comp')
+    expect(store.getState().game.lohId).toBeNull()
 
     // CeremonyOverlay should be visible with appropriate aria label.
-    const statusEl = screen.getByRole('status');
-    expect(statusEl.getAttribute('aria-label')).toContain('wins Leader of the House');
-    const badgeImage = document.querySelector<HTMLImageElement>('.ceremony-overlay__badge-image');
-    expect(badgeImage?.getAttribute('src')).toContain('loh_badge.png');
+    const statusEl = screen.getByRole('status')
+    expect(statusEl.getAttribute('aria-label')).toContain('wins Leader of the Hub')
+    const badgeImage = document.querySelector<HTMLImageElement>('.ceremony-overlay__badge-image')
+    expect(badgeImage?.getAttribute('src')).toContain('loh_badge_128.webp')
 
     // Advance past default durationMs (2800) + exit animation (350).
-    await act(async () => { vi.advanceTimersByTime(2800); });
-    await act(async () => { vi.advanceTimersByTime(350 + 50); });
+    await act(async () => {
+      vi.advanceTimersByTime(2800)
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(350 + 50)
+    })
 
     // Now the store mutation should have fired.
-    expect(store.getState().game.phase).toBe('loh_results');
-    expect(store.getState().game.lohId).not.toBeNull();
-  });
-});
+    expect(store.getState().game.phase).toBe('loh_results')
+    expect(store.getState().game.lohId).not.toBeNull()
+  })
+})
 
 // ── SPOTLIGHT_SKIP / shouldSkipSpotlight unit tests ───────────────────────
 //
@@ -303,9 +341,9 @@ describe('GameScreen – CeremonyOverlay defers LOH/POS store mutations', () => 
 
 describe('SPOTLIGHT_SKIP and shouldSkipSpotlight', () => {
   it('SPOTLIGHT_SKIP is an empty Set — no games require skipping after the mismatch fix', () => {
-    expect(SPOTLIGHT_SKIP).toBeInstanceOf(Set);
-    expect(SPOTLIGHT_SKIP.size).toBe(0);
-  });
+    expect(SPOTLIGHT_SKIP).toBeInstanceOf(Set)
+    expect(SPOTLIGHT_SKIP.size).toBe(0)
+  })
 
   it.each([
     'dontGoOver',
@@ -316,12 +354,12 @@ describe('SPOTLIGHT_SKIP and shouldSkipSpotlight', () => {
     'blackjackTournament',
     'silentSaboteur',
   ])('shouldSkipSpotlight(%s) returns false — game is no longer in the skip list', (key) => {
-    expect(shouldSkipSpotlight(key)).toBe(false);
-  });
+    expect(shouldSkipSpotlight(key)).toBe(false)
+  })
 
   it('shouldSkipSpotlight returns false for minigames that never needed skipping', () => {
-    expect(shouldSkipSpotlight('tapRace')).toBe(false);
-    expect(shouldSkipSpotlight('castleRescue')).toBe(false);
-    expect(shouldSkipSpotlight('')).toBe(false);
-  });
-});
+    expect(shouldSkipSpotlight('tapRace')).toBe(false)
+    expect(shouldSkipSpotlight('castleRescue')).toBe(false)
+    expect(shouldSkipSpotlight('')).toBe(false)
+  })
+})

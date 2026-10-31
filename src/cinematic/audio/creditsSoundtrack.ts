@@ -4,6 +4,14 @@ import { SoundManager } from '../../services/sound/SoundManager'
 
 let soundtrack: HTMLAudioElement | null = null
 let volumeAnimationFrame: number | null = null
+let playbackGeneration = 0
+let pendingMetadataCleanup: (() => void) | null = null
+
+const cancelPendingPlayback = () => {
+  playbackGeneration += 1
+  pendingMetadataCleanup?.()
+  pendingMetadataCleanup = null
+}
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value))
 
@@ -77,6 +85,8 @@ export const startCreditsSoundtrackFromGesture = (elapsedSeconds = 0): Promise<v
   }
 
   cancelVolumeAnimation()
+  cancelPendingPlayback()
+  const generation = playbackGeneration
   audio.pause()
   audio.volume = 0
   SoundManager.claimExternalMusic('cinematic:credits', audio, CINEMATIC_AUDIO.volume)
@@ -84,24 +94,25 @@ export const startCreditsSoundtrackFromGesture = (elapsedSeconds = 0): Promise<v
   if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) {
     seekToCinematicTime(audio, elapsedSeconds)
   } else {
-    audio.addEventListener(
-      'loadedmetadata',
-      () => {
-        seekToCinematicTime(audio, elapsedSeconds)
-      },
-      { once: true }
-    )
+    const seekWhenReady = () => {
+      if (generation === playbackGeneration) seekToCinematicTime(audio, elapsedSeconds)
+      pendingMetadataCleanup = null
+    }
+    audio.addEventListener('loadedmetadata', seekWhenReady, { once: true })
+    pendingMetadataCleanup = () => audio.removeEventListener('loadedmetadata', seekWhenReady)
   }
 
   return audio.play().then(
     () => {
+      if (generation !== playbackGeneration) return
       volumeAnimationFrame = window.requestAnimationFrame(updateSoundtrackVolume)
     },
     (error: unknown) => {
       // A rejected browser play request must not leave a silent Credits element
       // holding the entire music channel. The next genuine tap can retry it,
       // while gameplay remains free to resume its state-selected cue.
-      SoundManager.releaseExternalMusic('cinematic:credits', audio)
+      if (generation === playbackGeneration)
+        SoundManager.releaseExternalMusic('cinematic:credits', audio)
       throw error
     }
   )
@@ -143,13 +154,29 @@ export const syncCreditsSoundtrackToTime = (elapsedSeconds: number, shouldPlay: 
   }
 
   if (shouldPlay && soundtrack.paused) {
-    void soundtrack.play().catch(() => undefined)
+    const audio = soundtrack
+    const generation = playbackGeneration
+    SoundManager.claimExternalMusic('cinematic:credits', audio, CINEMATIC_AUDIO.volume)
+    void audio
+      .play()
+      .then(() => {
+        if (generation !== playbackGeneration) return
+        cancelVolumeAnimation()
+        volumeAnimationFrame = window.requestAnimationFrame(updateSoundtrackVolume)
+      })
+      .catch(() => {
+        if (generation === playbackGeneration)
+          SoundManager.releaseExternalMusic('cinematic:credits', audio)
+      })
   } else if (!shouldPlay && !soundtrack.paused) {
+    cancelPendingPlayback()
+    cancelVolumeAnimation()
     soundtrack.pause()
   }
 }
 
 export const fadeOutCreditsSoundtrack = (durationMs: number) => {
+  cancelPendingPlayback()
   if (soundtrack == null || soundtrack.paused) return
 
   cancelVolumeAnimation()
@@ -170,7 +197,17 @@ export const fadeOutCreditsSoundtrack = (durationMs: number) => {
   volumeAnimationFrame = window.requestAnimationFrame(fade)
 }
 
+/** Pause and yield music ownership without resetting the credits timestamp. */
+export const pauseCreditsSoundtrack = () => {
+  cancelPendingPlayback()
+  cancelVolumeAnimation()
+  if (soundtrack == null) return
+  soundtrack.pause()
+  SoundManager.releaseExternalMusic('cinematic:credits', soundtrack)
+}
+
 export const stopCreditsSoundtrack = () => {
+  cancelPendingPlayback()
   cancelVolumeAnimation()
   if (soundtrack == null) {
     return

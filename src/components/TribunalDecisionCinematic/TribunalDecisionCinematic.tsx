@@ -6,6 +6,10 @@ import TribunalStageFigure from './TribunalStageFigure'
 import { joinPublicAssetPath } from '../../utils/avatar'
 import { recentTribunalMembers } from './recentTribunalMembers'
 import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
+import {
   createCinematicAudio,
   type CinematicAudioController,
 } from '../../services/sound/cinematicAudio'
@@ -54,6 +58,10 @@ export default function TribunalDecisionCinematic({
   history,
   onComplete,
 }: Props) {
+  const { isOwner } = usePresentationOwner(
+    'tribunal-decision',
+    PRESENTATION_PRIORITY.evictionSpotlight
+  )
   const settings = useAppSelector((state) => state.settings)
   const reduced =
     settings.display.reduceMotion ||
@@ -92,6 +100,8 @@ export default function TribunalDecisionCinematic({
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const completing = useRef(false)
+  const completionGeneration = useRef(0)
+  const completionTimer = useRef<number | null>(null)
   const audioRef = useRef<CinematicAudioController | null>(null)
   const root = useRef<HTMLDivElement>(null)
   const sceneRoot = useRef<HTMLDivElement>(null)
@@ -102,7 +112,7 @@ export default function TribunalDecisionCinematic({
   useEffect(() => {
     const scene = sceneRoot.current
     const plane = planeRoot.current
-    if (!scene || !plane) return
+    if (!isOwner || !scene || !plane) return
     const fit = (width: number, height: number) => {
       plane.style.width = `${width}px`
       plane.style.height = `${height}px`
@@ -129,11 +139,11 @@ export default function TribunalDecisionCinematic({
     )
     observer.observe(scene)
     return () => observer.disconnect()
-  }, [arrival, presentation])
+  }, [arrival, isOwner, presentation])
 
   const playFilmCue = presentation === 'film' && phase !== 'preparing'
   useEffect(() => {
-    if (!playFilmCue) return
+    if (!isOwner || !playFilmCue) return
     const audio = createCinematicAudio(
       joinPublicAssetPath('assets/sounds/cinematic/Twin_shock_presentation.mp4'),
       0.62,
@@ -145,10 +155,10 @@ export default function TribunalDecisionCinematic({
       audio.dispose()
       audioRef.current = null
     }
-  }, [playFilmCue])
+  }, [isOwner, playFilmCue])
 
   useEffect(() => {
-    if (phase !== 'preparing') return
+    if (!isOwner || phase !== 'preparing') return
     const timer = window.setTimeout(
       () => {
         if (artState === 'resolved') {
@@ -161,18 +171,19 @@ export default function TribunalDecisionCinematic({
       artState === 'pending' ? ART_DEADLINE_MS : 0
     )
     return () => window.clearTimeout(timer)
-  }, [artState, phase, reduced])
+  }, [artState, isOwner, phase, reduced])
 
   useEffect(() => {
-    if (phase !== 'playing') return
+    if (!isOwner || phase !== 'playing') return
     const timer = window.setTimeout(
       () => setPhase('ready'),
       reduced ? 0 : arrival ? ARRIVAL_DURATION_MS : EXIT_DURATION_MS
     )
     return () => window.clearTimeout(timer)
-  }, [arrival, phase, reduced])
+  }, [arrival, isOwner, phase, reduced])
 
   useEffect(() => {
+    if (!isOwner) return undefined
     const previousFocus = document.activeElement as HTMLElement | null
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -181,27 +192,48 @@ export default function TribunalDecisionCinematic({
       document.body.style.overflow = previousOverflow
       if (previousFocus?.isConnected) previousFocus.focus()
     }
-  }, [])
+  }, [isOwner])
 
   useEffect(() => {
-    if (phase === 'ready') primary.current?.focus()
-  }, [phase])
+    if (isOwner && phase === 'ready') primary.current?.focus()
+  }, [isOwner, phase])
+
+  useEffect(() => {
+    let resetTimer: number | null = null
+    if (!isOwner) {
+      completing.current = false
+      resetTimer = window.setTimeout(() => setBusy(false), 0)
+    }
+    return () => {
+      if (resetTimer != null) window.clearTimeout(resetTimer)
+      completionGeneration.current += 1
+      if (completionTimer.current != null) window.clearTimeout(completionTimer.current)
+      completionTimer.current = null
+    }
+  }, [isOwner])
 
   async function finish() {
     if (completing.current) return
+    const generation = ++completionGeneration.current
     completing.current = true
     setBusy(true)
     setFailed(false)
     if (audioRef.current) {
       audioRef.current.fadeOutAndStop(MUSIC_FADE_MS)
-      await new Promise<void>((resolve) => window.setTimeout(resolve, MUSIC_FADE_MS))
+      await new Promise<void>((resolve) => {
+        completionTimer.current = window.setTimeout(() => {
+          completionTimer.current = null
+          resolve()
+        }, MUSIC_FADE_MS)
+      })
     }
-    if (!root.current?.isConnected) return
+    if (generation !== completionGeneration.current || !root.current?.isConnected) return
     try {
       if (await onComplete()) return
     } catch {
       // Keep the selected outcome available when durable storage needs a retry.
     }
+    if (generation !== completionGeneration.current || !root.current?.isConnected) return
     completing.current = false
     setBusy(false)
     setFailed(true)
@@ -226,8 +258,10 @@ export default function TribunalDecisionCinematic({
       : `Your arrival at sequester with ${waitingCount} waiting Tribunal member${waitingCount === 1 ? '' : 's'}`
     : 'Your last look back from outside the Hub as its doors close'
 
+  if (!isOwner) return null
+
   return createPortal(
-    <div className="tdc-backdrop">
+    <div className="tdc-backdrop" data-presentation-root="tribunal-decision">
       <div
         ref={root}
         className={`tdc-dialog tdc-dialog--${destination}`}

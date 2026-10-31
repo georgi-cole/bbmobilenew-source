@@ -11,6 +11,12 @@ import { createPortal } from 'react-dom'
 import { useTranslate } from '../../../i18n'
 import type { CupidArrowPair, Player } from '../../../types'
 import { isBroadcastShockAnnouncementKey } from '../../../broadcasting/broadcastPresentationRegistry'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+  usePresentationForeground,
+} from '../../../services/presentation/presentationOwnership'
+import { usePresentationReducedMotion } from '../../../services/presentation/usePresentationReducedMotion'
 import './TvAnnouncementOverlay.css'
 import './TvAnnouncementShockPrelude.css'
 
@@ -41,6 +47,8 @@ export interface TvAnnouncementOverlayProps {
   /** Optional Cupid matching reveal shown inside the faux TV. */
   cupidPairs?: CupidArrowPair[]
   cupidPlayers?: Player[]
+  /** A nested card shares the fullscreen shock's owner instead of competing. */
+  presentationOwner?: { groupId: string; priority: number }
 }
 
 const SHOCK_PRELUDE_DURATION_MS = 2320
@@ -128,7 +136,15 @@ export default function TvAnnouncementOverlay({
   hideTitle = false,
   cupidPairs = [],
   cupidPlayers = [],
+  presentationOwner,
 }: TvAnnouncementOverlayProps) {
+  const { isOwner } = usePresentationOwner(
+    presentationOwner?.groupId ?? 'tv-announcement',
+    presentationOwner?.priority ?? PRESENTATION_PRIORITY.broadcast
+  )
+  const foreground = usePresentationForeground()
+  const reducedMotion = usePresentationReducedMotion()
+  const active = isOwner && foreground
   const t = useTranslate()
   const { title, subtitle, isLive, autoDismissMs } = announcement
   const shouldPlayShockPrelude =
@@ -164,22 +180,29 @@ export default function TvAnnouncementOverlay({
   const elapsedRef = useRef<number>(0)
   const rafRef = useRef<number>(0)
   const tickRef = useRef<() => void>(() => {})
+  const dismissedRef = useRef(false)
+  const preludeElapsedRef = useRef(0)
 
-  const isPaused = () => hoverPausedRef.current || paused || shockPreludeVisible
+  const isPaused = () => !active || hoverPausedRef.current || paused || shockPreludeVisible
 
   useEffect(() => {
-    if (!shockPreludeKey) return undefined
+    if (!active || !shockPreludeKey) return undefined
     const activeShockKey = shockPreludeKey
+    const startedAt = performance.now()
     const timer = window.setTimeout(
       () => setShockPreludeKey((current) => (current === activeShockKey ? null : current)),
-      SHOCK_PRELUDE_DURATION_MS
+      reducedMotion ? 0 : Math.max(0, SHOCK_PRELUDE_DURATION_MS - preludeElapsedRef.current)
     )
-    return () => window.clearTimeout(timer)
-  }, [shockPreludeKey])
+    return () => {
+      window.clearTimeout(timer)
+      preludeElapsedRef.current += performance.now() - startedAt
+    }
+  }, [active, reducedMotion, shockPreludeKey])
 
   useLayoutEffect(() => {
     tickRef.current = () => {
-      if (!isAuto) return
+      rafRef.current = 0
+      if (!isAuto || isPaused() || dismissedRef.current) return
       const now = performance.now()
       const delta = now - startTimeRef.current
       startTimeRef.current = now
@@ -188,6 +211,7 @@ export default function TvAnnouncementOverlay({
       const remaining = Math.max(0, (autoDismissMs as number) - elapsedRef.current)
 
       if (remaining <= 0) {
+        dismissedRef.current = true
         onDismiss?.()
         return
       }
@@ -196,24 +220,30 @@ export default function TvAnnouncementOverlay({
   })
 
   useEffect(() => {
-    if (!isAuto) return
-    startTimeRef.current = performance.now()
     elapsedRef.current = 0
-    rafRef.current = requestAnimationFrame(tickRef.current)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [isAuto])
+    dismissedRef.current = false
+  }, [announcement.key, autoDismissMs])
 
   useEffect(() => {
-    if (!isAuto) return
-    if (paused || shockPreludeVisible) {
-      cancelAnimationFrame(rafRef.current)
-    } else {
+    if (
+      isAuto &&
+      active &&
+      !paused &&
+      !shockPreludeVisible &&
+      !hoverPausedRef.current &&
+      !dismissedRef.current
+    ) {
       startTimeRef.current = performance.now()
       rafRef.current = requestAnimationFrame(tickRef.current)
     }
-  }, [paused, shockPreludeVisible, isAuto])
+    return () => {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = 0
+    }
+  }, [active, announcement.key, autoDismissMs, paused, shockPreludeVisible, isAuto])
 
   useEffect(() => {
+    if (!active) return undefined
     const handleKeyboardInput = () => {
       keyboardFocusPauseRef.current = true
     }
@@ -232,16 +262,17 @@ export default function TvAnnouncementOverlay({
       window.removeEventListener('pointerdown', handlePointerInput, true)
       window.removeEventListener('touchstart', handlePointerInput, true)
     }
-  }, [])
+  }, [active])
 
   const handleMouseEnter = () => {
     hoverPausedRef.current = true
     cancelAnimationFrame(rafRef.current)
+    rafRef.current = 0
   }
   const handleMouseLeave = () => {
     if (!isAuto) return
     hoverPausedRef.current = false
-    if (!isPaused()) {
+    if (!isPaused() && rafRef.current === 0 && !dismissedRef.current) {
       startTimeRef.current = performance.now()
       rafRef.current = requestAnimationFrame(tickRef.current)
     }
@@ -251,11 +282,12 @@ export default function TvAnnouncementOverlay({
     if (!(event.target instanceof HTMLElement)) return
     hoverPausedRef.current = true
     cancelAnimationFrame(rafRef.current)
+    rafRef.current = 0
   }
   const handleBlur = () => {
     if (!isAuto) return
     hoverPausedRef.current = false
-    if (!isPaused()) {
+    if (!isPaused() && rafRef.current === 0 && !dismissedRef.current) {
       startTimeRef.current = performance.now()
       rafRef.current = requestAnimationFrame(tickRef.current)
     }
@@ -270,6 +302,11 @@ export default function TvAnnouncementOverlay({
         aria-modal="true"
         aria-label={t('broadcast.shock.aria', { title })}
         data-testid="tv-shock-prelude"
+        data-presentation-root="tv-shock-prelude"
+        data-presentation-suspended={!active || undefined}
+        aria-hidden={!active || undefined}
+        inert={!active}
+        style={active ? undefined : { visibility: 'hidden' }}
       >
         <div className="tv-shock-prelude__content">
           <span className="tv-shock-prelude__eyebrow">{t('broadcast.shock.eyebrow')}</span>
@@ -283,7 +320,14 @@ export default function TvAnnouncementOverlay({
   }
 
   return (
-    <div className="tv-announcement-wrap">
+    <div
+      className="tv-announcement-wrap"
+      data-presentation-root="tv-announcement"
+      data-presentation-suspended={!active || undefined}
+      aria-hidden={!active || undefined}
+      inert={!active}
+      style={active ? undefined : { visibility: 'hidden' }}
+    >
       <div
         className={[
           'tv-announcement',

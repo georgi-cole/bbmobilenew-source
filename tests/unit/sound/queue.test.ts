@@ -273,7 +273,8 @@ describe('SoundManager music state machine', () => {
 
     await SoundManager.setDesiredMusic('public_voting', 'finale:publicFavorite')
 
-    expect(sm._musicEl?.loop).toBe(false)
+    // Public voting is a looping semantic cue in the current audio catalog.
+    expect(sm._musicEl?.loop).toBe(true)
 
     await SoundManager.setDesiredMusic('final_modal', 'route:game-over')
 

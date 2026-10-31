@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { createPortal } from 'react-dom'
 import type { Player } from '../../types'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
+import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
+import { usePresentationTimeline } from '../../services/presentation/usePresentationTimeline'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+  usePresentationForeground,
+} from '../../services/presentation/presentationOwnership'
 import './AudienceVerdictReveal.css'
 
 export interface AudienceVerdictRevealProps {
@@ -37,45 +44,56 @@ export default function AudienceVerdictReveal({
   savedId,
   onDone,
 }: AudienceVerdictRevealProps) {
+  const reducedMotion = usePresentationReducedMotion()
+  const { isOwner } = usePresentationOwner('audience-verdict', PRESENTATION_PRIORITY.audienceResult)
+  const active = usePresentationForeground() && isOwner
   const rootRef = useRef<HTMLDivElement | null>(null)
-  const timersRef = useRef<number[]>([])
   const doneRef = useRef(false)
+  const onDoneRef = useRef(onDone)
+  useEffect(() => {
+    onDoneRef.current = onDone
+  }, [onDone])
   const [phase, setPhase] = useState<VerdictPhase>('interrupt')
+  const [skipping, setSkipping] = useState(false)
   const [pulseMetrics, setPulseMetrics] = useState<PulseMetrics | null>(null)
-
-  const clearTimers = useCallback(() => {
-    timersRef.current.forEach((timer) => window.clearTimeout(timer))
-    timersRef.current = []
-  }, [])
 
   const fireDone = useCallback(() => {
     if (doneRef.current) return
     doneRef.current = true
-    clearTimers()
-    onDone()
-  }, [clearTimers, onDone])
+    onDoneRef.current()
+  }, [])
 
-  useEffect(() => {
-    doneRef.current = false
-    if (document.body.classList.contains('no-animations')) {
-      timersRef.current = [
-        window.setTimeout(() => {
-          setPhase('result')
-          fireDone()
-        }, 0),
-      ]
-      return clearTimers
-    }
-
-    timersRef.current = [
-      window.setTimeout(() => setPhase('lineup'), LINEUP_MS),
-      window.setTimeout(() => setPhase('settling'), SETTLING_MS),
-      window.setTimeout(() => setPhase('result'), RESULT_MS),
-      window.setTimeout(() => setPhase('exiting'), EXIT_MS),
-      window.setTimeout(fireDone, DONE_MS),
-    ]
-    return clearTimers
-  }, [clearTimers, fireDone])
+  const cues = useMemo(
+    () =>
+      reducedMotion
+        ? [
+            {
+              atMs: 0,
+              run: () => {
+                setPhase('result')
+                fireDone()
+              },
+            },
+          ]
+        : skipping
+          ? [
+              { atMs: 1500, run: () => setPhase('exiting') },
+              { atMs: 2100, run: fireDone },
+            ]
+          : [
+              { atMs: LINEUP_MS, run: () => setPhase('lineup') },
+              { atMs: SETTLING_MS, run: () => setPhase('settling') },
+              { atMs: RESULT_MS, run: () => setPhase('result') },
+              { atMs: EXIT_MS, run: () => setPhase('exiting') },
+              { atMs: DONE_MS, run: fireDone },
+            ],
+    [fireDone, reducedMotion, skipping]
+  )
+  const cancelTimeline = usePresentationTimeline(
+    active,
+    cues,
+    reducedMotion ? 'reduced' : skipping ? 'skip' : 'full'
+  )
 
   const ranked = useMemo(
     () =>
@@ -94,7 +112,7 @@ export default function AudienceVerdictReveal({
   const resultVisible = phase === 'result' || phase === 'exiting'
 
   useEffect(() => {
-    if (!resultVisible || !rootRef.current) return
+    if (!active || !resultVisible || !rootRef.current) return
     const target = document.querySelector<HTMLElement>(`[data-player-id="${savedId}"]`)
     if (!target) return
 
@@ -108,23 +126,25 @@ export default function AudienceVerdictReveal({
       deltaX: targetRect.left + targetRect.width / 2 - startX,
       deltaY: targetRect.top + targetRect.height / 2 - startY,
     })
-  }, [resultVisible, savedId])
+  }, [active, resultVisible, savedId])
 
   const skipToResult = useCallback(() => {
     if (resultVisible || doneRef.current) return
-    clearTimers()
+    cancelTimeline()
     setPhase('result')
-    timersRef.current = [
-      window.setTimeout(() => setPhase('exiting'), 1500),
-      window.setTimeout(fireDone, 2100),
-    ]
-  }, [clearTimers, fireDone, resultVisible])
+    setSkipping(true)
+  }, [cancelTimeline, resultVisible])
 
   return (
     <>
       <div
         ref={rootRef}
         className={`avr avr--${phase}`}
+        data-presentation-root="audience-verdict"
+        data-presentation-suspended={!active || undefined}
+        aria-hidden={!active || undefined}
+        inert={!active}
+        style={active ? undefined : { visibility: 'hidden' }}
         role="button"
         tabIndex={0}
         aria-label={`Audience Verdict: ${savedPlayer?.name ?? 'a nominee'} is saved. Activate to reveal now.`}
@@ -192,6 +212,7 @@ export default function AudienceVerdictReveal({
         createPortal(
           <span
             className="avr-extraction-pulse"
+            data-presentation-suspended={!active || undefined}
             aria-hidden="true"
             style={
               {

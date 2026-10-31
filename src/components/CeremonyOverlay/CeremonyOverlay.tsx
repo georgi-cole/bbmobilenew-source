@@ -22,6 +22,13 @@
 
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, useId } from 'react'
 import { createPortal } from 'react-dom'
+import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
+import { usePresentationTimeline } from '../../services/presentation/usePresentationTimeline'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+  usePresentationForeground,
+} from '../../services/presentation/presentationOwnership'
 import {
   normalizeRectToCeremonySurface,
   sameCeremonySurface,
@@ -237,10 +244,23 @@ export default function CeremonyOverlay({
   resolveTiles,
   layoutSignal,
 }: CeremonyOverlayProps) {
+  const { isOwner } = usePresentationOwner('ceremony', PRESENTATION_PRIORITY.ceremony)
+  const foreground = usePresentationForeground()
+  const active = isOwner && foreground
+  const reducedMotion = usePresentationReducedMotion()
+  const doneRef = useRef(false)
+  const onDoneRef = useRef(onDone)
+  useEffect(() => {
+    onDoneRef.current = onDone
+  }, [onDone])
+  const complete = useCallback(() => {
+    if (doneRef.current) return
+    doneRef.current = true
+    onDoneRef.current()
+  }, [])
   const [visible, setVisible] = useState(true)
   const [badgePhase, setBadgePhase] = useState<BadgePhase>('hidden')
   const [surface, setSurface] = useState<CeremonySurfaceMetrics | null>(null)
-  const timersRef = useRef<number[]>([])
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const surfaceRafRef = useRef(0)
   const maskId = `ceremony-cutout-mask-${useId().replace(/:/g, '')}`
@@ -258,6 +278,7 @@ export default function CeremonyOverlay({
   const tiles = resolvedTiles ?? tilesProp
 
   useEffect(() => {
+    if (!active) return undefined
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
 
     const mediaQuery = window.matchMedia(COMPACT_LABEL_BREAKPOINT)
@@ -279,7 +300,7 @@ export default function CeremonyOverlay({
         mediaQuery.removeListener(handleChange)
       }
     }
-  }, [])
+  }, [active])
 
   // Validate: at least one tile with a non-zero rect
   const validTiles = tiles.filter((t) => t.rect != null && (t.rect.width > 0 || t.rect.height > 0))
@@ -288,24 +309,14 @@ export default function CeremonyOverlay({
   const pendingResolve = resolveTiles != null && resolvedTiles === null
   const pendingSurface = hasValidTiles && surface === null
 
-  const clearTimers = useCallback(() => {
-    timersRef.current.forEach((id) => window.clearTimeout(id))
-    timersRef.current = []
-  }, [])
-
-  const addTimer = useCallback((fn: () => void, ms: number) => {
-    const id = window.setTimeout(fn, ms)
-    timersRef.current.push(id)
-    return id
-  }, [])
-
   // Resolve tiles lazily and refresh them when the measured layout changes.
   useEffect(() => {
+    if (!active) return
     if (resolveTiles) {
       setResolvedTiles(resolveTiles())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutSignal])
+  }, [active, layoutSignal])
 
   const measureSurface = useCallback(() => {
     const element = surfaceRef.current
@@ -349,11 +360,12 @@ export default function CeremonyOverlay({
   }, [measureSurface])
 
   useLayoutEffect(() => {
+    if (!active) return
     measureSurface()
-  }, [hasValidTiles, layoutSignal, measureSurface])
+  }, [hasValidTiles, active, layoutSignal, measureSurface])
 
   useEffect(() => {
-    if (!hasValidTiles || typeof window === 'undefined') return undefined
+    if (!active || !hasValidTiles || typeof window === 'undefined') return undefined
 
     window.addEventListener('resize', scheduleSurfaceMeasurement)
     window.addEventListener('scroll', scheduleSurfaceMeasurement, { capture: true, passive: true })
@@ -375,33 +387,34 @@ export default function CeremonyOverlay({
       window.visualViewport?.removeEventListener('scroll', scheduleSurfaceMeasurement)
       observer?.disconnect()
     }
-  }, [hasValidTiles, scheduleSurfaceMeasurement])
+  }, [hasValidTiles, active, scheduleSurfaceMeasurement])
 
   // Headless fallback: fire onDone immediately
   useEffect(() => {
     // Wait for tiles to be resolved before starting animation.
-    if (pendingResolve || pendingSurface) return
+    if (!active || pendingResolve || pendingSurface || doneRef.current) return
 
-    if (!hasValidTiles) {
-      onDone()
+    if (!hasValidTiles || reducedMotion) {
+      complete()
       return
     }
+  }, [hasValidTiles, active, durationMs, pendingResolve, pendingSurface, reducedMotion, complete])
 
-    // Badge animation timeline
-    addTimer(() => setBadgePhase('appearing'), APPEAR_DELAY)
-    addTimer(() => setBadgePhase('flying'), FLY_DELAY)
-    addTimer(() => setBadgePhase('landed'), LAND_DELAY)
-    addTimer(() => setBadgePhase('holding'), HOLD_DELAY)
-
-    // Exit sequence
-    addTimer(() => {
-      setVisible(false)
-      addTimer(onDone, 350)
-    }, durationMs)
-
-    return clearTimers
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasValidTiles, durationMs, pendingResolve, pendingSurface])
+  const cues = useMemo(
+    () => [
+      { atMs: APPEAR_DELAY, run: () => setBadgePhase('appearing') },
+      { atMs: FLY_DELAY, run: () => setBadgePhase('flying') },
+      { atMs: LAND_DELAY, run: () => setBadgePhase('landed') },
+      { atMs: HOLD_DELAY, run: () => setBadgePhase('holding') },
+      { atMs: durationMs, run: () => setVisible(false) },
+      { atMs: durationMs + 350, run: complete },
+    ],
+    [complete, durationMs]
+  )
+  usePresentationTimeline(
+    active && hasValidTiles && !pendingResolve && !pendingSurface && !reducedMotion,
+    cues
+  )
 
   const normalizedRects = surface
     ? validTiles.map((tile) => normalizeRectToCeremonySurface(tile.rect!, surface))
@@ -547,7 +560,8 @@ export default function CeremonyOverlay({
     }, [])
   }, [cutouts, useCompactTileLabels, validTiles, viewportWidth])
 
-  if (pendingResolve || !hasValidTiles || typeof document === 'undefined') return null
+  if (reducedMotion || pendingResolve || !hasValidTiles || typeof document === 'undefined')
+    return null
 
   const contents = surface ? (
     <>
@@ -663,7 +677,16 @@ export default function CeremonyOverlay({
   ) : null
 
   return createPortal(
-    <div ref={surfaceRef} className="ceremony-overlay-surface" data-ceremony-overlay-surface="true">
+    <div
+      ref={surfaceRef}
+      className="ceremony-overlay-surface"
+      data-ceremony-overlay-surface="true"
+      data-presentation-root="ceremony"
+      data-presentation-suspended={!active || undefined}
+      aria-hidden={!active || undefined}
+      inert={!active}
+      style={active ? undefined : { visibility: 'hidden' }}
+    >
       {contents}
     </div>,
     document.body

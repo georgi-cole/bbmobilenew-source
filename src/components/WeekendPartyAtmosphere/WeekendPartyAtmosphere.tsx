@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { WeekendVisualTheme } from '../../utils/weekendVisualTheme'
+import { usePresentationOwned } from '../../services/presentation/presentationOwnership'
 import firesidePage from '../../assets/weekend/weekend-fireside-background-v3.webp'
 import firesidePagePreview from '../../assets/weekend/weekend-fireside-background-v3-preview.webp'
 import firesideTv from '../../assets/weekend/weekend-fireside-tv-hearth.webp'
@@ -135,6 +136,7 @@ export default function WeekendPartyAtmosphere({
   animate: boolean
   theme: WeekendVisualTheme | null
 }) {
+  const presentationOwned = usePresentationOwned()
   const activeThemeRef = useRef<WeekendVisualTheme | null>(null)
   const [transition, setTransition] = useState<{
     from: WeekendVisualTheme | null
@@ -183,6 +185,7 @@ export default function WeekendPartyAtmosphere({
               key={`${layerTheme}-${motion || 'steady'}`}
               className={`weekend-party-backdrop ${motion}`.trim()}
               data-theme={layerTheme}
+              data-presentation-suspended={presentationOwned || undefined}
               aria-hidden="true"
             >
               <WeekendArtworkCover artwork={pageArtwork[layerTheme]} surface="page" />
@@ -190,7 +193,11 @@ export default function WeekendPartyAtmosphere({
           )
       )}
       {active && animate && (
-        <div className="weekend-party-disco" aria-hidden="true">
+        <div
+          className="weekend-party-disco"
+          data-presentation-suspended={presentationOwned || undefined}
+          aria-hidden="true"
+        >
           <span className="weekend-party-disco__flight weekend-party-disco__flight--first">
             <DiscoBall />
           </span>

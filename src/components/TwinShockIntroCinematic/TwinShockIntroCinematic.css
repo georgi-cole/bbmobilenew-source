@@ -19,6 +19,31 @@
     sans-serif;
 }
 
+.twin-intro__video {
+  position: absolute;
+  inset: -3%;
+  z-index: 0;
+  width: 106%;
+  height: 106%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.twin-intro__video--ready {
+  opacity: 1;
+}
+
+.twin-intro--video-ready .twin-intro__photo {
+  opacity: 0 !important;
+  animation-play-state: paused;
+}
+
+.twin-intro--video-ready .twin-intro__scan {
+  animation-play-state: paused;
+}
+
 .twin-intro::before {
   content: '';
   position: absolute;
@@ -52,17 +77,17 @@
 }
 
 .twin-intro__photo--childhood {
-  background-image: url('/assets/twin-shock/twin-shock-childhood.webp');
+  background-image: var(--twin-intro-childhood-image);
   background-position: center 38%;
 }
 
 .twin-intro__photo--grown {
-  background-image: url('/assets/twin-shock/twin-shock-roadtrip.webp');
+  background-image: var(--twin-intro-grown-image);
   background-position: center 33%;
 }
 
 .twin-intro__photo--reveal {
-  background-image: url('/assets/twin-shock/twin-shock-lia-ali-reveal.webp');
+  background-image: var(--twin-intro-reveal-image);
   background-position: center 27%;
 }
 
@@ -92,7 +117,7 @@
   pointer-events: none;
   background: linear-gradient(180deg, transparent, rgba(122, 226, 255, 0.18), transparent);
   mix-blend-mode: screen;
-  animation: twin-intro-scan 3.2s linear infinite;
+  animation: twin-intro-scan 3.2s linear 1 forwards;
 }
 
 .twin-intro__grain {

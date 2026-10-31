@@ -146,7 +146,7 @@ export default function App() {
         <FauxTvProgrammingController />
         <WeatherController />
         <WeatherBulletinOverlay />
-        <WeatherRosterReveal />
+        <WeatherRosterReveal active={/^#\/game(?:[/?]|$)/.test(hash)} />
         <SeasonStartOnboardingController />
         <DepressionShockController />
         <AudioStateSync hash={hash} />

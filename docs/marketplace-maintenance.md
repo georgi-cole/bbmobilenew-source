@@ -44,6 +44,17 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-30: Reviewed premium presentation lifecycle maintenance and the shared
+  minigame host guard that suspends decorative cinematics before countdown.
+  Shared TV/Cupid stingers and ceremony timelines pause with their owner and
+  preserve existing decisions and outcomes; video rollback controls add no offer.
+  Standard and premium games retain their rules, scoring, variants, access gates,
+  products and prices. The existing Premium Challenges and VIP offers remain
+  accurate; no catalog wording changes are needed.
+  The subsequent scoped sound/weather/winner lifecycle fixes and isolated
+  device-test packaging preserve those same offers. QA builds simulate native
+  purchases, use separate identifiers, and are not store products.
+
 - 2026-10-29: Reviewed the Tribunal Agree/Exit choice and its sequester arrival
   and season departure scenes. These are base post-elimination presentations.
   They add no purchasable content and change no premium access gates, prices,

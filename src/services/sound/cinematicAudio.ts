@@ -2,6 +2,10 @@ import { SoundManager } from './SoundManager'
 
 export interface CinematicAudioController {
   play: () => void
+  pause: () => void
+  resume: () => void
+  syncTo: (timeSeconds: number) => void
+  currentTime: () => number
   fadeOutAndStop: (durationMs: number) => void
   dispose: () => void
 }
@@ -31,6 +35,10 @@ export function createCinematicAudio(
   if (typeof Audio === 'undefined') {
     return {
       play: () => {},
+      pause: () => {},
+      resume: () => {},
+      syncTo: () => {},
+      currentTime: () => 0,
       fadeOutAndStop: () => {},
       dispose: () => {},
     }
@@ -47,6 +55,7 @@ export function createCinematicAudio(
   let retryHandler: (() => void) | null = null
   let playAttemptToken = 0
   let currentBaseVolume = baseVolume
+  let disposed = false
 
   const clearFadeTimer = () => {
     if (fadeTimer != null) {
@@ -69,13 +78,16 @@ export function createCinematicAudio(
     retryHandler = null
   }
 
-  const attemptPlay = () => {
+  const attemptPlay = (restart = true) => {
+    if (disposed) return
     const attemptToken = ++playAttemptToken
     clearFadeTimer()
     clearRetryHandler()
-    audio.currentTime = 0
-    audio.volume = baseVolume
-    currentBaseVolume = baseVolume
+    if (restart) {
+      audio.currentTime = 0
+      audio.volume = baseVolume
+      currentBaseVolume = baseVolume
+    }
     SoundManager.claimExternalMusic(owner, audio, baseVolume)
     void audio.play().catch((error: unknown) => {
       if (attemptToken !== playAttemptToken) {
@@ -85,9 +97,7 @@ export function createCinematicAudio(
         if (retryHandler != null) {
           return
         }
-        retryHandler = () => {
-          attemptPlay()
-        }
+        retryHandler = () => attemptPlay(restart)
         for (const eventName of RETRY_EVENTS) {
           document.addEventListener(eventName, retryHandler, true)
         }
@@ -96,6 +106,7 @@ export function createCinematicAudio(
   }
 
   const stop = () => {
+    playAttemptToken += 1
     clearFadeTimer()
     clearRetryHandler()
     audio.pause()
@@ -106,8 +117,31 @@ export function createCinematicAudio(
   }
 
   return {
-    play: attemptPlay,
+    play: () => attemptPlay(true),
+    pause: () => {
+      playAttemptToken += 1
+      clearFadeTimer()
+      clearRetryHandler()
+      audio.pause()
+      SoundManager.releaseExternalMusic(owner, audio)
+    },
+    resume: () => attemptPlay(false),
+    syncTo: (timeSeconds) => {
+      if (!Number.isFinite(timeSeconds) || timeSeconds < 0) return
+      try {
+        const end = Number.isFinite(audio.duration)
+          ? Math.max(0, audio.duration - 0.05)
+          : timeSeconds
+        if (Math.abs(audio.currentTime - timeSeconds) > 0.18) {
+          audio.currentTime = Math.min(timeSeconds, end)
+        }
+      } catch {
+        // Media may not have metadata yet; its first playback event will sync again.
+      }
+    },
+    currentTime: () => audio.currentTime,
     fadeOutAndStop: (durationMs: number) => {
+      playAttemptToken += 1
       clearFadeTimer()
       clearRetryHandler()
 
@@ -132,6 +166,7 @@ export function createCinematicAudio(
       }, intervalMs)
     },
     dispose: () => {
+      disposed = true
       stop()
       audio.removeAttribute('src')
       audio.load()

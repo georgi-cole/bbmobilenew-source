@@ -59,6 +59,10 @@ export default function AppShell() {
   const mainRef = useRef<HTMLElement>(null)
   const phase = useAppSelector((s) => s.game.phase)
   const gameMode = useAppSelector((s) => s.game.mode)
+  const presentationRunKey = useAppSelector(
+    (s) =>
+      `${s.profiles?.activeProfileId ?? 'guest'}:${s.game.gameId || `${s.game.seed}:${s.game.season}`}`
+  )
   const seasonFinale = useAppSelector((s) => s.game.seasonFinale)
   const voxPopuliActive = useAppSelector((s) => s.game.voxPopuli?.status === 'active')
   const finale = useAppSelector(selectFinale)
@@ -182,17 +186,17 @@ export default function AppShell() {
         seasonFinale == null &&
         (finale.isActive || !finale.hasStarted || finale.isComplete) && (
           <Suspense fallback={null}>
-            <FinalFaceoff />
+            <FinalFaceoff key={presentationRunKey} />
           </Suspense>
         )}
       {location.pathname === '/game' && seasonFinale && (
         <Suspense fallback={null}>
-          <SeasonFinaleOverlay />
+          <SeasonFinaleOverlay key={presentationRunKey} />
         </Suspense>
       )}
       {location.pathname === '/game' && !seasonFinale && voxPopuliActive && (
         <Suspense fallback={null}>
-          <VoxPopuliFinaleOverlay />
+          <VoxPopuliFinaleOverlay key={presentationRunKey} />
         </Suspense>
       )}
       {!allowsLandscape && <PortraitOrientationGuard />}

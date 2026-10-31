@@ -1,45 +1,118 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import SeasonRecapCinematic from '../src/components/SeasonRecapCinematic/SeasonRecapCinematic';
-import { buildSeasonRecapData } from '../src/components/SeasonRecapCinematic/seasonRecapData';
-import type { GameHistoryEvent, Player } from '../src/types';
-import type { PublicOpinionState } from '../src/publicOpinion/types';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import SeasonRecapCinematic from '../src/components/SeasonRecapCinematic/SeasonRecapCinematic'
+import { buildSeasonRecapData } from '../src/components/SeasonRecapCinematic/seasonRecapData'
+import type { GameHistoryEvent, Player } from '../src/types'
+import type { PublicOpinionState } from '../src/publicOpinion/types'
+import {
+  acquirePresentationOwnership,
+  createPresentationOwnerToken,
+} from '../src/services/presentation/presentationOwnership'
 
 vi.mock('framer-motion', async () => {
-  const React = await import('react');
-  const motion = new Proxy({}, {
-    get: (_target, tag: string) => ({
-      children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, whileTap: _whileTap, layoutId: _layoutId, ...props
-    }: React.HTMLAttributes<HTMLElement> & Record<string, unknown>) =>
-      React.createElement(tag, props, children),
-  });
+  const React = await import('react')
+  const motion = new Proxy(
+    {},
+    {
+      get:
+        (_target, tag: string) =>
+        ({
+          children,
+          initial: _initial,
+          animate: _animate,
+          exit: _exit,
+          transition: _transition,
+          whileTap: _whileTap,
+          layoutId: _layoutId,
+          ...props
+        }: React.HTMLAttributes<HTMLElement> & Record<string, unknown>) =>
+          React.createElement(tag, props, children),
+    }
+  )
   return {
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+    AnimatePresence: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
     motion,
     useReducedMotion: () => true,
-  };
-});
+  }
+})
 
 const PLAYERS: Player[] = [
-  { id: 'f1', name: 'Avery', status: 'active', avatar: '🙂', stats: { lohWins: 2, posWins: 1, timesNominated: 1 } },
-  { id: 'f2', name: 'Blake', status: 'active', avatar: '😎', stats: { lohWins: 1, posWins: 2, timesNominated: 2 } },
-  { id: 'j1', name: 'Casey', status: 'jury', avatar: '🧠', seasonPlacement: 3, evictedAtWeek: 10, stats: { lohWins: 1, posWins: 0, timesNominated: 3 } },
-  { id: 'e1', name: 'Drew', status: 'evicted', avatar: '🔥', seasonPlacement: 4, evictedAtWeek: 6, stats: { lohWins: 0, posWins: 1, timesNominated: 2 } },
-];
+  {
+    id: 'f1',
+    name: 'Avery',
+    status: 'active',
+    avatar: '🙂',
+    stats: { lohWins: 2, posWins: 1, timesNominated: 1 },
+  },
+  {
+    id: 'f2',
+    name: 'Blake',
+    status: 'active',
+    avatar: '😎',
+    stats: { lohWins: 1, posWins: 2, timesNominated: 2 },
+  },
+  {
+    id: 'j1',
+    name: 'Casey',
+    status: 'jury',
+    avatar: '🧠',
+    seasonPlacement: 3,
+    evictedAtWeek: 10,
+    stats: { lohWins: 1, posWins: 0, timesNominated: 3 },
+  },
+  {
+    id: 'e1',
+    name: 'Drew',
+    status: 'evicted',
+    avatar: '🔥',
+    seasonPlacement: 4,
+    evictedAtWeek: 6,
+    stats: { lohWins: 0, posWins: 1, timesNominated: 2 },
+  },
+]
 
 const PUBLIC_OPINION: PublicOpinionState = {
   profiles: {
-    f1: { playerId: 'f1', approval: 82, previousApproval: 74, seasonApprovals: [50, 61, 74, 82], completedDirectionCount: 1, cumulativePositiveDelta: 32 },
-    f2: { playerId: 'f2', approval: 47, previousApproval: 55, seasonApprovals: [50, 59, 55, 47], completedDirectionCount: 0, cumulativePositiveDelta: 9 },
-    j1: { playerId: 'j1', approval: 63, previousApproval: 58, seasonApprovals: [50, 55, 58, 63], completedDirectionCount: 0, cumulativePositiveDelta: 13 },
-    e1: { playerId: 'e1', approval: 21, previousApproval: 39, seasonApprovals: [50, 45, 39, 21], completedDirectionCount: 0, cumulativePositiveDelta: 0 },
+    f1: {
+      playerId: 'f1',
+      approval: 82,
+      previousApproval: 74,
+      seasonApprovals: [50, 61, 74, 82],
+      completedDirectionCount: 1,
+      cumulativePositiveDelta: 32,
+    },
+    f2: {
+      playerId: 'f2',
+      approval: 47,
+      previousApproval: 55,
+      seasonApprovals: [50, 59, 55, 47],
+      completedDirectionCount: 0,
+      cumulativePositiveDelta: 9,
+    },
+    j1: {
+      playerId: 'j1',
+      approval: 63,
+      previousApproval: 58,
+      seasonApprovals: [50, 55, 58, 63],
+      completedDirectionCount: 0,
+      cumulativePositiveDelta: 13,
+    },
+    e1: {
+      playerId: 'e1',
+      approval: 21,
+      previousApproval: 39,
+      seasonApprovals: [50, 45, 39, 21],
+      completedDirectionCount: 0,
+      cumulativePositiveDelta: 0,
+    },
   },
   directions: [],
   feed: [],
   lastUpdatedWeek: 11,
   feedPostsThisDay: 0,
   currentFeedDay: 11,
-};
+}
 
 const EXIT_HISTORY: GameHistoryEvent[] = [
   {
@@ -56,7 +129,7 @@ const EXIT_HISTORY: GameHistoryEvent[] = [
     },
     timestamp: 1,
   },
-];
+]
 
 function renderRecap(onComplete = vi.fn()) {
   render(
@@ -67,78 +140,84 @@ function renderRecap(onComplete = vi.fn()) {
       history={EXIT_HISTORY}
       publicOpinion={PUBLIC_OPINION}
       onComplete={onComplete}
-    />,
-  );
-  return onComplete;
+    />
+  )
+  return onComplete
 }
 
 function skipOpening() {
-  fireEvent.click(screen.getByRole('button', { name: /skip opening/i }));
+  fireEvent.click(screen.getByRole('button', { name: /skip opening/i }))
 }
 
 describe('Season recap archive', () => {
   it('uses the photoshoot and hidden moments as an automatic opening, then offers only awards and finale chapters', () => {
-    renderRecap();
+    renderRecap()
 
-    expect(screen.getByRole('heading', { name: /they lefttheir mark/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /skip opening/i })).toBeTruthy();
-    skipOpening();
+    expect(screen.getByRole('heading', { name: /they lefttheir mark/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /skip opening/i })).toBeTruthy()
+    skipOpening()
 
-    expect(screen.getByText('Choose the next chapter.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /enter ceremony/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /open calendar/i })).toBeTruthy();
-    expect(screen.getByLabelText(/opening chapters completed/i)).toBeTruthy();
-    expect(screen.getByText('Final photoshoot')).toBeTruthy();
-    expect(screen.getByText('Hidden moments')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /final photoshoot/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /hidden moments/i })).toBeNull();
-  });
+    expect(screen.getByText('Choose the next chapter.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /enter ceremony/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /open calendar/i })).toBeTruthy()
+    expect(screen.getByLabelText(/opening chapters completed/i)).toBeTruthy()
+    expect(screen.getByText('Final photoshoot')).toBeTruthy()
+    expect(screen.getByText('Hidden moments')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /final photoshoot/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /hidden moments/i })).toBeNull()
+  })
 
   it('opens an awards ceremony list before revealing the achievement-linked, formal winner result', () => {
-    renderRecap();
-    skipOpening();
-    fireEvent.click(screen.getByRole('button', { name: /enter ceremony/i }));
+    renderRecap()
+    skipOpening()
+    fireEvent.click(screen.getByRole('button', { name: /enter ceremony/i }))
 
-    expect(screen.getByRole('list', { name: /season honor categories/i })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /compzilla/i }));
+    expect(screen.getByRole('list', { name: /season honor categories/i })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /compzilla/i }))
 
-    expect(screen.getByText('COMPZILLA')).toBeTruthy();
-    expect(screen.getByText('Avery')).toBeTruthy();
-    expect(screen.getByText('3 comps won')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /all categories/i })).toBeTruthy();
-  });
+    expect(screen.getByText('COMPZILLA')).toBeTruthy()
+    expect(screen.getByText('Avery')).toBeTruthy()
+    expect(screen.getByText('3 comps won')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /all categories/i })).toBeTruthy()
+  })
 
   it('uses a tappable season calendar that expands a selected event day', () => {
-    renderRecap();
-    skipOpening();
-    fireEvent.click(screen.getByRole('button', { name: /open calendar/i }));
+    renderRecap()
+    skipOpening()
+    fireEvent.click(screen.getByRole('button', { name: /open calendar/i }))
 
-    expect(screen.getByLabelText(/event legend/i)).toBeTruthy();
-    expect(screen.getByLabelText(/12-day season/i)).toBeTruthy();
-    expect(screen.queryByRole('tab')).toBeNull();
-    expect(screen.queryByRole('button', { name: /day 13:/i })).toBeNull();
-    const drewCheckpoint = screen.getByRole('button', { name: /day 6: drew, exit/i });
-    fireEvent.click(drewCheckpoint);
+    expect(screen.getByLabelText(/event legend/i)).toBeTruthy()
+    expect(screen.getByLabelText(/12-day season/i)).toBeTruthy()
+    expect(screen.queryByRole('tab')).toBeNull()
+    expect(screen.queryByRole('button', { name: /day 13:/i })).toBeNull()
+    const drewCheckpoint = screen.getByRole('button', { name: /day 6: drew, exit/i })
+    fireEvent.click(drewCheckpoint)
 
-    expect(screen.queryByLabelText(/event legend/i)).toBeNull();
-    expect(screen.getByText(/Drew's season ended here/i)).toBeTruthy();
-    expect(screen.getByText(/eliminated during Avery's leadership/i)).toBeTruthy();
-    expect(screen.getByText(/2 of 3 recorded votes/i)).toBeTruthy();
-    expect(screen.queryByText(/house note/i)).toBeNull();
+    expect(screen.queryByLabelText(/event legend/i)).toBeNull()
+    expect(screen.getByText(/Drew's season ended here/i)).toBeTruthy()
+    expect(screen.getByText(/eliminated during Avery's leadership/i)).toBeTruthy()
+    expect(screen.getByText(/2 of 3 recorded votes/i)).toBeTruthy()
+    expect(screen.queryByText(/house note/i)).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: /calendar/i }));
-    expect(screen.getByRole('button', { name: /day 6: drew, exit/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /calendar/i }))
+    expect(screen.getByRole('button', { name: /day 6: drew, exit/i })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: /day 5: midseason turn, milestone/i }));
-    expect(screen.getByText('Why it mattered')).toBeTruthy();
-  });
+    fireEvent.click(screen.getByRole('button', { name: /day 5: midseason turn, milestone/i }))
+    expect(screen.getByText('Why it mattered')).toBeTruthy()
+  })
 
   it('keeps a fourth-place finisher visible when another moment shares their exit day', () => {
     const players = PLAYERS.map((player) =>
       player.id === 'e1'
-        ? { ...player, status: 'active' as const, isUser: true, seasonPlacement: 4, evictedAtWeek: 5 }
-        : player,
-    );
+        ? {
+            ...player,
+            status: 'active' as const,
+            isUser: true,
+            seasonPlacement: 4,
+            evictedAtWeek: 5,
+          }
+        : player
+    )
     render(
       <SeasonRecapCinematic
         season={9}
@@ -147,24 +226,27 @@ describe('Season recap archive', () => {
         history={EXIT_HISTORY}
         publicOpinion={PUBLIC_OPINION}
         onComplete={vi.fn()}
-      />,
-    );
-    skipOpening();
-    fireEvent.click(screen.getByRole('button', { name: /open calendar/i }));
+      />
+    )
+    skipOpening()
+    fireEvent.click(screen.getByRole('button', { name: /open calendar/i }))
 
     const sharedDay = screen.getByRole('button', {
       name: /day 5: drew, exit, 1 more moment: midseason turn/i,
-    });
-    expect(sharedDay.querySelector('em')).toHaveAttribute('title', '+1 other moment: Midseason turn');
-    fireEvent.click(sharedDay);
+    })
+    expect(sharedDay.querySelector('em')).toHaveAttribute(
+      'title',
+      '+1 other moment: Midseason turn'
+    )
+    fireEvent.click(sharedDay)
 
-    expect(screen.getByText(/Drew's season ended here/i)).toBeTruthy();
-    expect(screen.getByText(/Finished #4/i)).toBeTruthy();
-    expect(screen.getByText('Midseason turn · Milestone')).toBeTruthy();
-  });
+    expect(screen.getByText(/Drew's season ended here/i)).toBeTruthy()
+    expect(screen.getByText(/Finished #4/i)).toBeTruthy()
+    expect(screen.getByText('Midseason turn · Milestone')).toBeTruthy()
+  })
 
   it('keeps the original category data and makes the comp result explicit', () => {
-    const data = buildSeasonRecapData(PLAYERS, 12, PUBLIC_OPINION);
+    const data = buildSeasonRecapData(PLAYERS, 12, PUBLIC_OPINION)
     expect(data.categories.map((category) => category.id)).toEqual([
       'compzilla',
       'head_honcho',
@@ -172,14 +254,63 @@ describe('Season recap archive', () => {
       'ghost_mode',
       'vibe_curator',
       'heat_magnet',
-    ]);
-    expect(data.categories[0]?.winner.id).toBe('f1');
-    expect(data.categories[0]?.winnerStat).toBe('3 comps won');
-  });
+    ])
+    expect(data.categories[0]?.winner.id).toBe('f1')
+    expect(data.categories[0]?.winnerStat).toBe('3 comps won')
+  })
 
   it('always allows an immediate exit', async () => {
-    const onComplete = renderRecap();
-    fireEvent.click(screen.getByRole('button', { name: /exit season recap/i }));
-    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
-  });
-});
+    const onComplete = renderRecap()
+    fireEvent.click(screen.getByRole('button', { name: /exit season recap/i }))
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1))
+  })
+
+  it('cancels the delayed exit callback when unmounted during the fade', () => {
+    vi.useFakeTimers()
+    try {
+      const onComplete = vi.fn()
+      const { unmount } = render(
+        <SeasonRecapCinematic
+          season={9}
+          week={12}
+          players={PLAYERS}
+          history={EXIT_HISTORY}
+          publicOpinion={PUBLIC_OPINION}
+          onComplete={onComplete}
+        />
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: /exit season recap/i }))
+      unmount()
+      act(() => vi.runOnlyPendingTimers())
+
+      expect(onComplete).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('suspends a pending exit while gameplay owns the screen', async () => {
+    vi.useFakeTimers()
+    let release: () => void = () => undefined
+    try {
+      const onComplete = renderRecap()
+      fireEvent.click(screen.getByRole('button', { name: /exit season recap/i }))
+      act(() => {
+        release = acquirePresentationOwnership(createPresentationOwnerToken(), 'gameplay', 200)
+      })
+      act(() => vi.advanceTimersByTime(1_000))
+      expect(onComplete).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).toBeNull()
+      await act(async () => {
+        release()
+        await Promise.resolve()
+      })
+      act(() => vi.advanceTimersByTime(1_000))
+      expect(onComplete).toHaveBeenCalledTimes(1)
+    } finally {
+      release()
+      vi.useRealTimers()
+    }
+  })
+})
