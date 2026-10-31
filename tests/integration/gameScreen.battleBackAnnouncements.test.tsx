@@ -18,7 +18,8 @@ vi.mock('../../src/minigames/LegacyMinigameWrapper', () => ({
   default: () => null,
 }))
 
-vi.mock('../../src/store/confessionalDecisionSelectors', () => ({
+vi.mock('../../src/store/confessionalDecisionSelectors', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/store/confessionalDecisionSelectors')>()),
   selectActiveConfessionalDecision: () => null,
 }))
 

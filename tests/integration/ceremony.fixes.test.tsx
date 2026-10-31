@@ -36,7 +36,8 @@ vi.mock('../../src/minigames/LegacyMinigameWrapper', () => ({
   default: () => null,
 }))
 
-vi.mock('../../src/store/confessionalDecisionSelectors', () => ({
+vi.mock('../../src/store/confessionalDecisionSelectors', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/store/confessionalDecisionSelectors')>()),
   selectActiveConfessionalDecision: () => null,
 }))
 
@@ -113,6 +114,11 @@ let capturedOnTiebreakerRequired: ((tiedIds: string[]) => void) | null = null
 let capturedOnExternalAnnouncementDismiss: (() => void) | null = null
 let capturedEvictionSplashDone: (() => void) | null = null
 const EVICTION_PRESENTATION_SETTLE_MS = 40
+
+beforeEach(() => {
+  localStorage.clear()
+  sessionStorage.clear()
+})
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -269,9 +275,21 @@ describe('Ceremony fix: replacement animation gated on veto being used', () => {
       replacementNeeded: false,
     })
     renderWithStore(store)
-    await act(async () => {})
+    await act(async () => {
+      vi.advanceTimersByTime(0)
+    })
 
-    // CeremonyOverlay with replacement label should be visible.
+    // Present the save before the committed replacement; neither may replay.
+    expect(screen.getByRole('status').getAttribute('aria-label')).toContain('has been saved')
+    expect(screen.queryByRole('status', { name: /Backup nominee ceremony/i })).toBeNull()
+    await act(async () => {
+      vi.advanceTimersByTime(3500)
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(100)
+    })
+
+    // CeremonyOverlay with replacement label is visible after the save clears.
     const statusEl = screen.getByRole('status')
     expect(statusEl.getAttribute('aria-label')).toContain('Backup nominee ceremony')
   })
@@ -336,7 +354,7 @@ describe('Ceremony fix: AI LOH tiebreak choreography', () => {
       capturedOnExternalAnnouncementDismiss?.()
     })
     expect(screen.getByTestId('external-announcement')).toHaveTextContent(
-      'The LOH chose to evict Player 3.'
+      'The Leader of the Hub chose to eliminate Player 3.'
     )
 
     await act(async () => {
@@ -344,7 +362,7 @@ describe('Ceremony fix: AI LOH tiebreak choreography', () => {
     })
     expect(screen.getByTestId('external-announcement')).toHaveTextContent('By a vote of 2 to 1')
     expect(screen.getByTestId('external-announcement')).toHaveTextContent(
-      'Player 3, you have been eliminated from The Big Eye house.'
+      'Player 3, you have been eliminated from the Hub.'
     )
     expect(screen.queryByText(/please say your goodbyes/i)).toBeNull()
 
@@ -508,10 +526,20 @@ describe('Ceremony fix: live badge choreography for save and replacement', () =>
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Confirm:\s*Player 2/i }))
     })
+    // The committed Safety choice queues its ceremony on the next event-loop turn.
+    await act(async () => {
+      vi.advanceTimersByTime(0)
+    })
     await act(async () => {
       vi.advanceTimersByTime(1000)
     })
 
+    await act(async () => {
+      vi.advanceTimersToNextFrame()
+    })
+    await act(async () => {
+      vi.advanceTimersToNextFrame()
+    })
     expect(screen.getByRole('status').getAttribute('aria-label')).toContain('has been saved')
     expect(
       document.querySelectorAll('.ceremony-overlay__glow[data-ceremony-tone="gold"]')
@@ -793,10 +821,10 @@ describe('Ceremony follow-up: eviction vote breakdown reward prompt', () => {
     expect(screen.queryByRole('dialog', { name: /peek behind the curtain/i })).toBeNull()
     expect(screen.getByRole('dialog', { name: /vote breakdown/i })).toBeInTheDocument()
     expect(screen.getByText(/who voted for whom/i)).toBeInTheDocument()
-    expect(screen.getByRole('table', { name: /eviction vote breakdown/i })).toHaveTextContent(
+    expect(screen.getByRole('table', { name: /elimination vote breakdown/i })).toHaveTextContent(
       'Player 1'
     )
-    expect(screen.getByRole('table', { name: /eviction vote breakdown/i })).toHaveTextContent(
+    expect(screen.getByRole('table', { name: /elimination vote breakdown/i })).toHaveTextContent(
       'Player 0'
     )
   })

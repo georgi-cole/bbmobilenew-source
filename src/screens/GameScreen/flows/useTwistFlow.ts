@@ -409,7 +409,8 @@ export function useTwistFlow({
   const handleDayStartShockConfirm = useCallback(() => {
     dispatch(confirmDayStartShock())
   }, [dispatch])
-  const dayStartShock = game.dayStartShock
+  // Older saves may omit this field; presentation guards use null for inactivity.
+  const dayStartShock = game.dayStartShock ?? null
   const dayStartShockPlayer = useMemo(() => {
     if (!dayStartShock) return null
     return game.players.find((player) => player.id === dayStartShock.targetId) ?? null

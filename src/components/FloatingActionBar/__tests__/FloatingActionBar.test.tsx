@@ -596,6 +596,36 @@ describe('FloatingActionBar – layout', () => {
     expect(store.getState().game.phase).toBe('week_start')
   })
 
+  it('forwards repeated Battle Back announcement presses without advancing the season', () => {
+    const store = makeStore(true, {
+      phase: 'week_end',
+      week: 1,
+      battleBack: {
+        used: false,
+        active: true,
+        competitionActive: false,
+        weekDecided: 1,
+        candidates: [],
+        winnerId: null,
+      },
+    })
+    const onPlay = vi.fn()
+    window.addEventListener('ui:playPressed', onPlay)
+    try {
+      renderFAB(store)
+      const playButton = screen.getByRole('button', { name: 'Advance to next phase' })
+      act(() => {
+        playButton.click()
+        playButton.click()
+      })
+      expect(onPlay).toHaveBeenCalledTimes(2)
+      expect(store.getState().game.phase).toBe('week_end')
+      expect(store.getState().game.week).toBe(1)
+    } finally {
+      window.removeEventListener('ui:playPressed', onPlay)
+    }
+  })
+
   it('uses Play to reveal Democracia results without a TV card consuming the press', () => {
     const initial = makeStore().getState().game
     const players = initial.players.slice(0, 6).map((player, index) => ({

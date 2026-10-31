@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-31: Reviewed ceremony-flow compatibility and integration regressions.
+  An omitted morning-shock field now counts as inactive, allowing queued
+  post-competition and post-elimination prompts to appear. Existing rewarded-ad
+  requirements, retry limits, rewards, purchases, premium access and offer copy
+  are unchanged. Current marketplace listings remain accurate.
+
 - 2026-10-29: Reviewed the Tribunal Agree/Exit choice and its sequester arrival
   and season departure scenes. These are base post-elimination presentations.
   They add no purchasable content and change no premium access gates, prices,
