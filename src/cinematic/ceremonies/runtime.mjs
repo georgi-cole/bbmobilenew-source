@@ -6,7 +6,7 @@ import {
   MODE_BASE,
   modeActors,
 } from './mode-routing.mjs'
-export { adaptCeremonyScene } from './mode-routing.mjs'
+export { adaptCeremonyScene, baseScene } from './mode-routing.mjs'
 export function shouldPlayCinematic(state, vip) {
   return Boolean(
     vip &&
