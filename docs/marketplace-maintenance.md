@@ -44,6 +44,10 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-31: Reviewed Cupid paired-exit figure fitting. Wider, proportionally
+  framed characters improve the VIP departure film; paired rules, entitlements,
+  benefits, prices and Store copy are unchanged.
+
 - 2026-10-31: Reviewed mode-aware VIP cinematic coverage. Classic keeps the
   approved films; Cupid uses linked-pair awards, nominations, saves and departures;
   Vox uses immunity, secret-ballot nominations and an official public-verdict
