@@ -1,0 +1,267 @@
+/* Reusable actors stay independent from the sets. Only transform and opacity animate. */
+.paired-film[data-mode-scene='cupidAmbush'] .nom-person {
+  width: 100%;
+  left: 0;
+}
+.paired-film .pair-link-heart {
+  position: absolute;
+  width: 9%;
+  height: 6%;
+  object-fit: contain;
+  left: 45.5%;
+  top: 20%;
+  z-index: 4;
+  opacity: 0;
+}
+.paired-film.fitted-loh .loh-figure,
+.paired-film.fitted-loh .loh-seated {
+  width: 49%;
+  bottom: 22%;
+  z-index: 2;
+  margin: 0;
+}
+.paired-film.fitted-loh .pair-first {
+  left: 2%;
+}
+.paired-film.fitted-loh .pair-second {
+  left: 49%;
+}
+.paired-film .loh-name {
+  font-size: clamp(20px, 5.3vw, 38px);
+  line-height: 1.08;
+}
+.paired-film .loh-titles {
+  bottom: 8%;
+}
+.paired-film .pair-power-shield {
+  position: absolute;
+  width: 17%;
+  height: 20%;
+  object-fit: contain;
+  left: 41.5%;
+  top: 48%;
+  z-index: 4;
+}
+.paired-film.c-safety .c-hero,
+.paired-film.c-save .c-hero {
+  width: 49%;
+  height: 54%;
+  bottom: 25%;
+  object-fit: contain;
+}
+.paired-film.c-safety .pair-first,
+.paired-film.c-save .pair-first {
+  left: 3%;
+}
+.paired-film.c-safety .pair-second,
+.paired-film.c-save .pair-second {
+  left: 48%;
+}
+.paired-film .fitted-knight-shield {
+  left: 44%;
+  top: 43%;
+  width: 12%;
+  height: 15%;
+}
+.paired-film .safety-flying-shield {
+  left: 43%;
+  width: 14%;
+}
+.paired-film .save-shield {
+  left: 39%;
+  width: 22%;
+}
+.paired-film .save-platform {
+  left: 6%;
+  width: 88%;
+}
+.paired-film .c-caption strong {
+  font-size: clamp(21px, 5.7vw, 42px);
+  line-height: 1.08;
+}
+.paired-film .nom-pod {
+  width: 48%;
+}
+.paired-film .nom-person {
+  width: 72%;
+  height: 86%;
+  bottom: 25%;
+}
+.paired-film .nom-person.pair-first {
+  left: -9%;
+}
+.paired-film .nom-person.pair-second {
+  left: 37%;
+}
+.paired-film .nom-platform {
+  width: 110%;
+  left: -5%;
+}
+.paired-film .nom-label {
+  font-size: clamp(8px, 2.1vw, 14px);
+  letter-spacing: 0.03em;
+  text-align: center;
+  white-space: normal;
+}
+.paired-film.decision-film .cine-departure {
+  width: 48%;
+  left: 26%;
+}
+.paired-film.decision-film .cine-rear {
+  position: absolute;
+  width: 70%;
+  height: 100%;
+  bottom: 0;
+}
+.paired-film.decision-film .cine-rear.pair-first {
+  left: -5%;
+}
+.paired-film.decision-film .cine-rear.pair-second {
+  left: 35%;
+}
+.paired-film .exit-caption h3 {
+  font-size: clamp(20px, 5vw, 36px);
+}
+.vox-broadcast {
+  color: #f5efdf;
+  font-family: Georgia, serif;
+  overflow: hidden;
+  background: #09060f;
+}
+.vox-camera,
+.vox-set,
+.vox-light,
+.vox-cut {
+  position: absolute;
+  inset: 0;
+}
+.vox-camera {
+  transform-origin: 50% 55%;
+}
+.vox-backdrop {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.vox-haze {
+  position: absolute;
+  left: -15%;
+  width: 130%;
+  height: 35%;
+  bottom: 15%;
+  opacity: 0.25;
+  pointer-events: none;
+}
+.vox-smoke {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+.vox-light {
+  background: linear-gradient(#05020c88, transparent 34%, #05020c66 70%, #05020c);
+}
+.vox-heading {
+  position: absolute;
+  top: 7%;
+  left: 7%;
+  right: 7%;
+  text-align: center;
+}
+.vox-heading span,
+.vox-verdict span {
+  font:
+    9px/1.5 system-ui,
+    sans-serif;
+  letter-spacing: 0.2em;
+  color: #dcc585;
+}
+.vox-heading h2 {
+  font-size: clamp(25px, 6vw, 44px);
+  font-weight: 400;
+  margin: 10px 0;
+}
+.vox-heading p,
+.vox-verdict p {
+  font:
+    10px/1.7 system-ui,
+    sans-serif;
+  color: #d1c4dc;
+  letter-spacing: 0.06em;
+}
+.vox-contestants {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: 27%;
+  height: 51%;
+  display: grid;
+  grid-template-columns: repeat(var(--contestants), minmax(0, 1fr));
+  align-items: end;
+}
+.vox-contestant {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: center;
+  min-width: 0;
+}
+.vox-person {
+  position: absolute;
+  bottom: 17%;
+  height: 85%;
+  width: 155%;
+  max-width: none;
+  object-fit: contain;
+  object-position: 50% 100%;
+}
+.vox-contestant strong {
+  font-size: clamp(15px, 3.7vw, 27px);
+  font-weight: 400;
+  line-height: 1.1;
+  z-index: 1;
+  overflow-wrap: anywhere;
+}
+.vox-count {
+  font:
+    600 clamp(19px, 5vw, 35px)/1.8 system-ui,
+    sans-serif;
+  color: #e4cc91;
+  z-index: 1;
+}
+.vox-verdict {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 7%;
+  text-align: center;
+}
+.vox-verdict h3 {
+  font-size: clamp(28px, 7vw, 49px);
+  font-weight: 400;
+  margin: 9px 0;
+  line-height: 1.08;
+}
+.vox-cut {
+  background: radial-gradient(ellipse at 50% 55%, #a380ba88, #d2b27822 35%, transparent 70%);
+  pointer-events: none;
+}
+.vox-token {
+  position: absolute;
+  width: 13%;
+  height: 14%;
+  object-fit: contain;
+  bottom: 22%;
+  left: 43.5%;
+}
+.vox-broadcast[data-mode-scene='voxFinal4'] .vox-person {
+  width: 100%;
+}
+.vox-broadcast[data-mode-scene='voxFinal4'] .vox-count {
+  display: none;
+}
+.vox-broadcast[data-mode-scene='voxFinal4'] .vox-contestant strong {
+  display: none;
+}

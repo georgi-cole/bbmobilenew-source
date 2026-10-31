@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-31: Reviewed mode-aware VIP cinematic coverage. Classic keeps the
+  approved films; Cupid uses linked-pair awards, nominations, saves and departures;
+  Vox uses immunity, secret-ballot nominations and an official public-verdict
+  broadcast. Survival retains its standard presentation. Updated canonical VIP
+  benefit copy to state this scope. Prices, purchases, mode access, premium
+  minigames and native outcome callbacks are unchanged.
+
 - 2026-10-31: Reviewed ceremony-flow compatibility and integration regressions.
   An omitted morning-shock field now counts as inactive, allowing queued
   post-competition and post-elimination prompts to appear. Existing rewarded-ad

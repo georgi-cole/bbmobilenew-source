@@ -65,7 +65,8 @@ import TvAnnouncementOverlay, {
 } from './TvAnnouncementOverlay/TvAnnouncementOverlay'
 import TvAnnouncementModal from './TvAnnouncementModal/TvAnnouncementModal'
 import ConfirmExitModal from '../ConfirmExitModal/ConfirmExitModal'
-import AnimatedVoteResultsModal, {
+import AnimatedVoteResultsModal from '../../cinematic/ceremonies/vote-results.jsx'
+import {
   type PublicEvictionTiebreakDisplay,
   type VoteTally,
 } from '../AnimatedVoteResultsModal/AnimatedVoteResultsModal'

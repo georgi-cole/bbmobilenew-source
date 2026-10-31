@@ -5,13 +5,14 @@ import Standard from '../../components/WinnerTileLiftAnimation/WinnerTileLiftAni
 import { PremiumBridge } from './bridge.jsx'
 import { winnerScene } from './runtime.mjs'
 export default function Winner(props) {
-  const cinematic = useCinematicSession()
   const game = useStore().getState().game
+  const scene = winnerScene(props, game)
+  const cinematic = useCinematicSession(scene)
   if (!cinematic) return <Standard {...props} />
   return (
     <PremiumBridge
       key={`${props.caption}:${props.targetIds?.join(',')}`}
-      scene={winnerScene(props, game)}
+      scene={scene}
       standard={Standard}
       original={props}
     />

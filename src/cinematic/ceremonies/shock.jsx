@@ -4,7 +4,7 @@ import Standard from '../../components/ui/ShockIntroOverlay/ShockIntroOverlay'
 import { PremiumBridge } from './bridge.jsx'
 import { shockVariant } from './runtime.mjs'
 export default function Shock(props) {
-  const cinematic = useCinematicSession()
+  const cinematic = useCinematicSession('shock', props.shockKey)
   if (!cinematic) return <Standard {...props} />
   return props.active ? (
     <PremiumBridge

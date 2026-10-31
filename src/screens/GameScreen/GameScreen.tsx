@@ -1850,6 +1850,7 @@ export default function GameScreen() {
         {/* Shown for BOTH human LOH (deferred commit) and AI LOH (already committed). */}
         {shouldShowNominationCeremony && (
           <CeremonyOverlay
+            actorIds={nomAnimPlayers.map((p) => p.id)}
             tiles={[]}
             layoutSignal={responsiveGameLayout.revision}
             resolveTiles={() => {
@@ -2408,6 +2409,7 @@ export default function GameScreen() {
         {/* ── CeremonyOverlay — POS save ceremony (human POS holder) ────── */}
         {showSaveCeremony && pendingSaveCeremony && (
           <CeremonyOverlay
+            actorIds={expandCupidIds(game, [pendingSaveCeremony.savedId])}
             tiles={[]}
             layoutSignal={responsiveGameLayout.revision}
             resolveTiles={pendingSaveCeremony.resolveTiles}

@@ -22,9 +22,19 @@ Cinematic portions are 4.4s for crowning, 4.2s for Safety, 4.8s for nominations,
 
 Back 2 the Game has one main cinematic per activation. Rules and challenge-launch keys remain ordinary cards. Both main aliases share a replay guard scoped to profile, game, activation day and candidate set; a retry does not replay the reveal. This guard is bounded and does not persist new gameplay state.
 
+## Ruleset-specific presentation
+
+Survival (including its legacy `survivor` alias) never enters the premium queue or prepares ceremony media. VIP and Cinematic settings do not change its native pace.
+
+Cupid�s Arrow reuses the approved choreography with both actual partners: two individually fitted crowns and thrones (4.4s), two Safety knights (4.2s), two or three nominated pairs (4.8s), both saved players (4.5s), and a shared opaque doorway exit (4.74s before native handoff). The paired All the Power film combines two crowns and the Safety shield in 4.4s. Each player retains their original native badge or Grey Lux elimination. The pending-partner receipt suppresses a second shared departure, including a restored save. After the spell breaks, solo films apply again. The existing pairing reveal, spell-break story, ballots and decision UI remain native; a 4.8s paired Ambush reveals the hidden target and their partner before handing to the native backdoor effect.
+
+Vox awards immunity rather than an LOH crown (4.2s). Its Final 4 competition win has a separate 4.4s studio scene explicitly stating that no immunity is awarded. POS wins and saves reuse the neutral Safety films; holding both roles never invokes royal All the Power. Nominations explicitly come from secret housemate ballots. The 7.2s public-verdict broadcast shows the actual final vote-to-eliminate percentages and confirmed departing player(s), then calls the original results continuation once. It replaces the native result reveal instead of preceding a duplicate reveal. Ordinary exits then hand into native Grey Lux elimination; no LOH final-three or tiebreak decision is invented. The provisional audience-pulse preview stays separate and unchanged.
+
+An unresolved vote tie calls the original tiebreak callback without committing an elimination. A supplied audience-approval tiebreak shows approval values separately from eviction percentages and resolves through the original callback before continuing. Skip uses the same callback contract. Vox�s bespoke mode introduction and final-winner sequence stay native.
+
 ## Media and resource lifetime
 
-The release includes six approved poses for each of 55 character packs, plus shared props and themed cutouts: 357 WebP assets totalling about 19.1 MB on disk. They are public lazy resources, not imported images or an eager preload list. Only the active scene/cast resources decode. Native, Standard and disabled-animation paths do not prepare cinematic artwork. Custom or missing character art falls back to native presentation.
+The release includes six approved poses for each of 55 character packs, plus shared props and themed cutouts: 358 WebP assets totalling about 19.2 MB on disk. They are public lazy resources, not imported images or an eager preload list. Only the active scene/cast resources decode. Native, Standard and disabled-animation paths do not prepare cinematic artwork. Custom or missing character art falls back to native presentation.
 
 The renderer and cast metadata are dynamically imported after entitlement and presentation ownership checks. Styles live in a shadow root. The queue prevents overlapping clips and retains ownership through native handoff. Global presentation priority and page visibility pause/hide active clips during gameplay or backgrounding. Preparation failures/timeouts fall back to native. Completion, Skip and unmount cancel timers/animations, clear image references and remove film layers. No per-frame gameplay or particle simulation was added.
 
@@ -32,4 +42,4 @@ Artwork prompts and optical-layer metadata are in `src/cinematic/ceremonies/ARTW
 
 ## Validation
 
-Focused routing tests cover preference gates, serial ownership, cancelled startup, Back 2 the Game aliases/follow-ups, result receipts and profile/run/day invalidation. Asset tests verify every pack's six slots, WebP headers, byte sizes and approved pose hashes. The local browser audit exercises all ceremony triggers, native handoffs, Skip/settings changes and presentation priority. Desktop measurements are not a guarantee of zero GPU cost or a substitute for device QA.
+Focused routing tests cover mode rules, paired follow-ups, public percentages/ties/double results, preference gates, serial ownership, cancelled startup, Back 2 the Game aliases/follow-ups, result receipts and profile/run/day invalidation. Asset tests verify every pack's six slots, WebP headers, byte sizes and approved pose hashes. The local browser audit exercises all ceremony triggers, native handoffs, Skip/settings changes and presentation priority. Desktop measurements are not a guarantee of zero GPU cost or a substitute for device QA.

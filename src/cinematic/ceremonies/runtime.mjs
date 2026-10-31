@@ -1,17 +1,60 @@
+import {
+  adaptCeremonyScene,
+  baseScene,
+  isCupidActive,
+  isVoxActive,
+  MODE_BASE,
+  modeActors,
+} from './mode-routing.mjs'
+export { adaptCeremonyScene } from './mode-routing.mjs'
 export function shouldPlayCinematic(state, vip) {
   return Boolean(
     vip &&
+    !['survival', 'survivor'].includes(state.game?.mode) &&
     state.settings.gameUX.animations &&
     state.settings.gameUX.animationMode !== 'standard' &&
     !state.settings.display.reduceMotion
   )
 }
+export function isCinematicSceneAllowed(game, scene, shockKey) {
+  if (['survival', 'survivor'].includes(game.mode)) return false
+  if (!scene) return false
+  if (isVoxActive(game)) {
+    if (scene === 'shock') return shockKey !== 'vox_populi'
+    return [
+      'voxImmunity',
+      'voxFinal4',
+      'voxNominations',
+      'voxResults',
+      'safety',
+      'save',
+      'exit',
+    ].includes(scene)
+  }
+  if (scene.startsWith('vox')) return false
+  if (scene.startsWith('cupid')) return isCupidActive(game)
+  if (isCupidActive(game) && scene === 'ambush') return false
+  if (isCupidActive(game) && ['loh', 'safety', 'allPower', 'nominations', 'save'].includes(scene))
+    return false
+  return true
+}
 export function winnerScene(props, game) {
   const text = `${props.caption ?? ''} ${props.ariaLabel ?? ''}`
   const codes = (props.tiles ?? []).map((t) => t.badgeCode)
-  if (/power of safety|\bPOS\b/i.test(text) || codes.includes('pos'))
-    return game.lohId && props.targetIds?.includes(game.lohId) ? 'allPower' : 'safety'
-  return /leader of the hub|\bLOH\b/i.test(text) || codes.includes('loh') ? 'loh' : null
+  if (/power of safety|\bPOS\b/i.test(text) || codes.includes('pos')) {
+    const scene =
+      !isVoxActive(game) && game.lohId && props.targetIds?.includes(game.lohId)
+        ? 'allPower'
+        : 'safety'
+    return adaptCeremonyScene(scene, props, game)
+  }
+  if (isVoxActive(game)) {
+    if (/final 4 competition/i.test(text)) return 'voxFinal4'
+    return /immunity/i.test(text) || codes.includes('immune') ? 'voxImmunity' : null
+  }
+  return /leader of the hub|\bLOH\b/i.test(text) || codes.includes('loh')
+    ? adaptCeremonyScene('loh', props, game)
+    : null
 }
 export function createExitTracker() {
   let cycle,
@@ -149,6 +192,27 @@ export function findArt(player, catalog) {
 }
 export function ceremonyCast(scene, props, game, catalog) {
   const get = (id) => game.players.find((p) => p.id === id)
+  if (scene in MODE_BASE) {
+    const ids = modeActors(scene, props, game)
+    if (!ids.length || ids.length > 6) return null
+    const cast = {}
+    for (const [index, id] of ids.entries()) {
+      const player = get(id) ?? props.nominees?.find((t) => t.nominee.id === id)?.nominee
+      const art = findArt(player, catalog)
+      if (!art) return null
+      cast[String.fromCharCode(97 + index)] = { ...art, name: player.name, playerId: player.id }
+    }
+    if (scene.startsWith('cupid') && scene !== 'cupidNominations' && ids.length !== 2) return null
+    if (scene === 'cupidNominations' && (ids.length < 4 || ids.length % 2)) return null
+    if (baseScene(scene) === 'nominations' && !scene.startsWith('cupid') && ids.length > 3)
+      return null
+    if (scene === 'voxNominations' && ids.length < 2) return null
+    if (!baseScene(scene)) return cast
+    // Legacy scenes address three role slots, even when a single actor is on screen.
+    cast.b ??= cast.a
+    cast.c ??= cast.a
+    return cast
+  }
   const mentioned = game.players.filter(
     (p) => p.name && `${props.caption ?? ''} ${props.ariaLabel ?? ''}`.includes(p.name)
   )

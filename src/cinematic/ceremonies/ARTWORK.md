@@ -51,6 +51,14 @@ Use case: product-mockup. Asset type: premium Twin Shock cinematic molecular VFX
 
 Use case: product-mockup. Asset type: isolated premium election ceremony VFX object. One compact, beautifully made square ballot box of polished deep obsidian-black lacquer with fine champagne gold metal edges, a narrow horizontal voting slot centered on the lid, one small engraved gold checkmark centered on its front face. Seen from a slightly raised front three-quarter camera angle so the lid and slot are clearly visible. Luxurious restrained dark royal game aesthetic, realistic expensive physical object, cinematic product photography with fine specular reflections. Entire box centered with generous truly transparent padding all around. No ballot paper, no people, no hands, no writing, no letters, no words, no numbers, no extra objects, no pedestal, no background, no watermark, no cartoon, no flat icon. Square composition.
 
+## Vox Populi broadcast studio
+
+Generated with the built-in imagegen tool. Source: `artwork/ceremonies/source/vox-studio.png`. Runtime: `public/assets/ceremonies/shared/vox-studio.webp`, 720 × 1080, 45,186 bytes, quality 78. The empty set contains no embedded character, vote, text or outcome; independent full-body cutouts, lighting, mist, result typography and camera transforms are composited at runtime. Cupid scenes reuse the existing six poses and glass heart; no new per-character artwork is required.
+
+### Generation prompt
+
+Use case: stylized-concept. Asset type: reusable empty cinematic TV results studio backdrop for a premium social strategy mobile game called The Big Eye. Photoreal architectural set, portrait 2:3. A luxurious, dark obsidian and smoked glass broadcast chamber, controlled rich purple ambient light and restrained fine champagne-gold architectural edges. Deep spatial perspective, an enormous gently curved dark panoramic glass LED wall in background with only abstract very faint violet light, absolutely no writing or numbers. Two subtle overhead volumetric light shafts, glossy dark floor with refined reflections, lower foreground mostly empty. Eye-level lens 35mm, symmetrical central vanishing point. Central 75 percent must be uncluttered negative space and low contrast so independently composited full-body contestants and live numeric voting results remain the focus. Understated suspenseful prime-time live final atmosphere, believable cinematic lighting, premium detailed materials, no sci-fi gadgets, no literal eyes, no crowns, no people, no furniture, no logos, no frames or UI, no text, no watermark. Must feel like a deep real room, not flat purple wallpaper. Build a beautiful environment only; all graphics and players added independently.
+
 ## Detox and Force Majeure
 
 | Runtime WebP                                  | Dimensions |  Bytes | Used for           |

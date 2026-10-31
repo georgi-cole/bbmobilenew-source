@@ -7,11 +7,13 @@ import {
   PRESENTATION_PRIORITY,
 } from '../../services/presentation/presentationOwnership'
 import { MotionConfig } from 'framer-motion'
+import { modeDetails, baseScene } from './mode-routing.mjs'
 import {
   shouldPlayCinematic,
   ceremonyCast,
   ceremonyQueue,
   battleBackIntroGuard,
+  isCinematicSceneAllowed,
 } from './runtime.mjs'
 export function PremiumBridge({
   scene,
@@ -31,11 +33,12 @@ export function PremiumBridge({
     skipButton = useRef(null)
   props.current = original
   const vip = useSelector(selectIsVipActive),
-    settings = useSelector((s) => s.settings)
+    settings = useSelector((s) => s.settings),
+    mode = useSelector((s) => s.game.mode)
   const managed = Boolean(scene || original.onDone || finishDirect)
   const wantsClip = Boolean(
     scene &&
-    shouldPlayCinematic({ settings }, vip) &&
+    shouldPlayCinematic({ settings, game: { mode } }, vip) &&
     !matchMedia('(prefers-reduced-motion: reduce)').matches
   )
   const [owned, setOwned] = useState(!managed),
@@ -44,9 +47,10 @@ export function PremiumBridge({
   const globalPriority =
     scene === 'shock'
       ? PRESENTATION_PRIORITY.broadcastShock
-      : ['exit', 'final3', 'final4', 'tiebreak'].includes(scene)
+      : ['exit', 'final3', 'final4', 'tiebreak'].includes(baseScene(scene)) ||
+          scene === 'voxResults'
         ? PRESENTATION_PRIORITY.evictionSpotlight
-        : ['loh', 'safety', 'allPower'].includes(scene)
+        : ['loh', 'safety', 'allPower'].includes(baseScene(scene)) || scene === 'voxFinal4'
           ? PRESENTATION_PRIORITY.winnerAward
           : PRESENTATION_PRIORITY.ceremony
   const globalOwner = usePresentationOwner(
@@ -115,6 +119,7 @@ export function PremiumBridge({
       if (
         !scene ||
         !shouldPlayCinematic(state, selectIsVipActive(state)) ||
+        !isCinematicSceneAllowed(state.game, scene, props.current.shockKey) ||
         matchMedia('(prefers-reduced-motion: reduce)').matches
       ) {
         handoff('standard')
@@ -154,7 +159,8 @@ export function PremiumBridge({
           }
           const controller = clipModule.createClip()
           clip.current = controller
-          const ok = await controller.prepare(scene, cast, shockType)
+          const details = modeDetails(scene, props.current, state.game)
+          const ok = await controller.prepare(scene, cast, shockType, details)
           if (current.cancelled || completed.current || handed.current || !ok) return
           clearTimeout(current.watchdog)
           if (scene === 'shock') battleBackIntroGuard(store).mark(state, props.current.shockKey)
@@ -258,6 +264,7 @@ export function PremiumBridge({
     }
   }, [
     owned,
+    mode,
     settings.gameUX.animations,
     settings.gameUX.animationMode,
     settings.display.reduceMotion,

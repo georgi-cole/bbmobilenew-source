@@ -131,5 +131,10 @@
     "height": 592,
     "sha256": "f6edf2c08ec15c15d621c4bfb494c1df61c9d01c0399dde68fcd0c9bebe98074",
     "mode": "reused-approved-prototype-artwork"
+  },
+  "vox-studio.webp": {
+    "width": 720,
+    "height": 1080,
+    "bytes": 45186
   }
 }

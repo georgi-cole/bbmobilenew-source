@@ -17,8 +17,22 @@ import shared from './shared-manifest.json'
 import announcementAtmosphere from './optical.json'
 import premiumVfx from './vfx.json'
 import { shockMotifKeys } from './shock-motifs.js'
+import { baseScene } from './mode-routing.mjs'
+import {
+  MODE_SCENES,
+  modeResources,
+  adaptModeFilm,
+  makeVoxFilm,
+  animateVoxFilm,
+  animateModeLayers,
+} from './mode-films.js'
+import modeStyles from './mode-films.css?raw'
 
-export const SCENES = { loh: { label: 'LOH crowning', duration: 4400 }, ...CEREMONIES }
+export const SCENES = {
+  loh: { label: 'LOH crowning', duration: 4400 },
+  ...CEREMONIES,
+  ...MODE_SCENES,
+}
 export const OPTIONS = Object.keys(SCENES)
 const props = {
   shield: 'safety-shield-reveal',
@@ -44,6 +58,11 @@ let stylePromise
 const percent = (n) => (n * 100).toFixed(4) + '%'
 
 export function sceneResources(id, cast, shockType = 'doubleEviction') {
+  const mode = id
+  const extra = modeResources(mode, cast, shared, premiumVfx)
+  id = baseScene(id)
+  if (!id) return extra
+  if (mode === 'cupidNominations') cast = { a: cast.a, b: cast.c, c: cast.e ?? cast.a }
   const pose = (actor, key) => ({ ...cast[actor].poses[key], character: cast[actor].id, pose: key })
   const actors = {
     male: pose('a', 'front'),
@@ -72,17 +91,20 @@ export function sceneResources(id, cast, shockType = 'doubleEviction') {
     (key) =>
       !(DECISION_CONFIG[id] && key === (id === 'final4' ? 'cinema_decisionA' : 'cinema_decisionB'))
   )
-  return Object.fromEntries(
-    needed.map((key) => {
-      if (premiumVfx[key]) return [key, premiumVfx[key]]
-      if (key === 'shockAtmosphere') return [key, announcementAtmosphere]
-      if (actors[key]) return [key, actors[key]]
-      const file = props[key] + '.webp',
-        asset = shared[file]
-      if (!asset) throw new Error('No reusable resource for ' + key)
-      return [key, { src: 'assets/ceremonies/shared/' + file, ...asset }]
-    })
-  )
+  return {
+    ...Object.fromEntries(
+      needed.map((key) => {
+        if (premiumVfx[key]) return [key, premiumVfx[key]]
+        if (key === 'shockAtmosphere') return [key, announcementAtmosphere]
+        if (actors[key]) return [key, actors[key]]
+        const file = props[key] + '.webp',
+          asset = shared[file]
+        if (!asset) throw new Error('No reusable resource for ' + key)
+        return [key, { src: 'assets/ceremonies/shared/' + file, ...asset }]
+      })
+    ),
+    ...extra,
+  }
 }
 
 function fitCrown(crown, pose) {
@@ -370,12 +392,12 @@ export function createClip() {
       if (host) host.style.visibility = visible ? 'visible' : 'hidden'
       transitionNodes.forEach((node) => (node.style.visibility = visible ? 'visible' : 'hidden'))
     },
-    async prepare(id, cast, shockType = 'doubleEviction') {
+    async prepare(id, cast, shockType = 'doubleEviction', details = {}) {
       sceneId = id
       const resources = sceneResources(id, cast, shockType),
         start = performance.now()
       stylePromise ??= Promise.resolve(
-        [sheet0, sheet1, sheet2, sheet3, sheet4, sheet5, fittingStyles].join('\n')
+        [sheet0, sheet1, sheet2, sheet3, sheet4, sheet5, fittingStyles, modeStyles].join('\n')
       )
       const entries = await Promise.all(
         Object.entries(resources).map(async ([key, resource]) => {
@@ -391,6 +413,7 @@ export function createClip() {
         resources,
         css,
         cast,
+        details,
         preparationMs: performance.now() - start,
         transferBytes: [
           ...new Map(Object.values(resources).map((r) => [r.src, r])).values(),
@@ -404,9 +427,9 @@ export function createClip() {
     },
     mount(parent, onHandoff, onComplete, shockType = 'doubleEviction', options = {}) {
       if (dead || !prepared) return
-      const id = sceneId,
+      const id = baseScene(sceneId),
         decision = Boolean(DECISION_CONFIG[id]),
-        { images, resources, css, cast } = prepared
+        { images, resources, css, cast, details } = prepared
       host = document.createElement('div')
       host.className = 'game-sample-film'
       parent.append(host)
@@ -415,13 +438,14 @@ export function createClip() {
       style.textContent = css
       const stage = document.createElement('div')
       stage.className = 'stage is-playing'
-      root =
-        id === 'loh'
+      root = !id
+        ? makeVoxFilm(sceneId, images, cast, details)
+        : id === 'loh'
           ? makeLoh(images)
           : decision
             ? makeDecisionScene(id, images, 0, { nativeHandoff: true })
             : makeScene(id, images, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic, 0)
-      if (id === 'nominations' && images.cinema_standC) {
+      if (id === 'nominations' && images.cinema_standC && sceneId !== 'cupidNominations') {
         root.classList.add('nom-three')
         const third = root.querySelector('.nom-second').cloneNode(true)
         third.classList.replace('nom-second', 'nom-third')
@@ -433,7 +457,7 @@ export function createClip() {
         root.querySelector('.c-caption strong').textContent = 'Three names. One block.'
       }
       if (id === 'shock') decorateShock(root, shockType, images)
-      fitScene(root, id, images, resources, cast)
+      if (id) fitScene(root, id, images, resources, cast)
       if (id === 'loh') {
         for (const [selector, key] of [
           ['.loh-before .loh-crown', 'winner'],
@@ -446,9 +470,10 @@ export function createClip() {
           `translate(${percent(t.x)},${percent(t.y)}) scale(${t.scale})`
         root.querySelector('.loh-name').textContent = cast.a.name
       }
+      if (sceneId !== id) adaptModeFilm(sceneId, root, images, resources, cast, details, fitCrown)
       stage.append(root)
       shadow.append(style, stage)
-      const duration = SCENES[id].duration
+      const duration = SCENES[sceneId].duration
       startTime = document.timeline.currentTime
       if (id === 'nominations' && options.matchHandoff) {
         const rect = options.origin
@@ -519,10 +544,11 @@ export function createClip() {
           animations.push(animation)
         }
       }
-      if (id === 'loh') animateLoh(root, a)
+      if (!id) animateVoxFilm(sceneId, root, a, duration)
+      else if (id === 'loh') animateLoh(root, a)
       else if (decision) animateDecisionScene(id, root, a, { nativeHandoff: true })
       else animateScene(id, root, a, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic)
-      if (id === 'nominations' && images.cinema_standC) {
+      if (id === 'nominations' && images.cinema_standC && sceneId === id) {
         a('.nom-third', [
           [0, 0, 'translateY(18px)'],
           [2700, 0, 'translateY(18px)'],
@@ -537,6 +563,7 @@ export function createClip() {
         ])
       }
       if (id === 'shock') animateShockTheme(root, shockType, a, duration)
+      if (sceneId !== id) animateModeLayers(sceneId, root, a, duration)
       if (id === 'safety')
         a('.fitted-knight-shield', [
           [0, 0],

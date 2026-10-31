@@ -23,6 +23,7 @@ export function createBattleBackIntroGuard(): {
 }
 export function shouldPlayCinematic(
   state: {
+    game?: { mode?: string }
     settings: {
       gameUX: { animations: boolean; animationMode?: string }
       display: { reduceMotion?: boolean }
@@ -35,3 +36,13 @@ export function createCeremonyQueue(): {
   subscribe(listener: () => void): () => void
   counts: { active: number; queued: number }
 }
+
+export function isCinematicSceneAllowed(
+  game: {
+    mode?: string
+    voxPopuli?: { status?: string }
+    cupidArrow?: { status?: string; pendingPartnerEvictionId?: string | null }
+  },
+  scene: string | null,
+  shockKey?: string
+): boolean
