@@ -192,6 +192,7 @@ export function makeDecisionScene(id, images, cast = 0, { nativeHandoff = false 
 }
 export function animateDecisionScene(id, root, a, { nativeHandoff = false } = {}) {
   const suspense = id === 'final4' || id === 'final3'
+  const pairedExit = root.classList.contains('paired-film')
   const { duration: d, exitAt: e, avatarAt: v } = DECISION_CONFIG[id],
     smooth = 'cubic-bezier(.16,1,.3,1)'
   const hold = (sel, frames) => a(sel, [...frames, [d, frames.at(-1)[1], frames.at(-1)[2]]])
@@ -312,11 +313,22 @@ export function animateDecisionScene(id, root, a, { nativeHandoff = false } = {}
   ])
   const path = [
     [e, 1, 'translateY(7%) scale(1)'],
-    [e + 650, 1, 'translateY(-8%) scale(.92)'],
-    [e + 1300, 1, 'translateY(-28%) scale(.8)'],
-    [e + 1900, 1, 'translateY(-47%) scale(.68)'],
-    [e + 2300, 1, 'translateY(-61%) scale(.6)'],
-    [e + 3000, 1, 'translateY(-82%) scale(.48)'],
+    ...(pairedExit
+      ? [
+          [e + 650, 1, 'translateY(2%) scale(.98)'],
+          [e + 1300, 1, 'translateY(-12%) scale(.9)'],
+          [e + 1900, 1, 'translateY(-30%) scale(.78)'],
+          [e + 2300, 1, 'translateY(-46%) scale(.65)'],
+          [e + 3000, 1, 'translateY(-63%) scale(.55)'],
+          [e + 3400, 1, 'translateY(-67%) scale(.52)'],
+        ]
+      : [
+          [e + 650, 1, 'translateY(-8%) scale(.92)'],
+          [e + 1300, 1, 'translateY(-28%) scale(.8)'],
+          [e + 1900, 1, 'translateY(-47%) scale(.68)'],
+          [e + 2300, 1, 'translateY(-61%) scale(.6)'],
+          [e + 3000, 1, 'translateY(-82%) scale(.48)'],
+        ]),
   ]
   for (const selector of ['.departure-near', '.departure-far'])
     a(selector, [
@@ -324,25 +336,39 @@ export function animateDecisionScene(id, root, a, { nativeHandoff = false } = {}
       ...path.filter((x) => x[0] > 0),
       [d, 1, path.at(-1)[2]],
     ])
+  const thresholdAt = pairedExit ? e + 3000 : e + 2300
   // Binary depth transfer at the threshold. Both sprites stay fully opaque.
   hold('.departure-near .cine-rear', [
     [0, 1],
-    [e + 2299, 1, undefined, 'steps(1,end)'],
-    [e + 2300, 0],
+    [thresholdAt - 1, 1, undefined, 'steps(1,end)'],
+    [thresholdAt, 0],
   ])
   hold('.departure-far .cine-rear', [
     [0, 0, undefined, 'steps(1,end)'],
-    [e + 2300, 1],
+    [thresholdAt, 1],
   ])
   for (const [sel, dir, mirror] of [
     ['.gate-left', -1, ''],
     ['.gate-right', 1, ' scaleX(-1)'],
-  ])
-    hold(sel, [
-      [0, 1, 'translateX(' + dir * 105 + '%)' + mirror],
-      [e + 3200, 1, 'translateX(' + dir * 105 + '%)' + mirror, 'cubic-bezier(.45,0,.2,1)'],
-      [e + 3900, 1, 'translateX(0)' + mirror],
-    ])
+  ]) {
+    const open = 'translateX(' + dir * 105 + '%)' + mirror
+    const closed = 'translateX(0)' + mirror
+    hold(
+      sel,
+      pairedExit
+        ? [
+            [0, 1, closed],
+            [e + 500, 1, open],
+            [e + 3300, 1, open, 'cubic-bezier(.45,0,.2,1)'],
+            [e + 3900, 1, closed],
+          ]
+        : [
+            [0, 1, open],
+            [e + 3200, 1, open, 'cubic-bezier(.45,0,.2,1)'],
+            [e + 3900, 1, closed],
+          ]
+    )
+  }
   hold('.exit-camera', [
     [0, 1, 'scale(1.02)'],
     [e + 3300, 1, 'scale(1.02)'],
@@ -373,9 +399,9 @@ export function animateDecisionScene(id, root, a, { nativeHandoff = false } = {}
     [0, 0, undefined, 'steps(1,end)'],
     [v + 80, 1],
   ])
-  // INTEGRATION: remove this lab recreation. Hand off once to the existing
-  // SpotlightEvictionOverlay, then automatically restore the main game UI.
-  // Never trigger a second avatar sequence or commit the elimination twice.
+  // Runtime omits this laboratory portrait recreation. Premium departures
+  // reveal the original roster confirmation and commit through its outcome
+  // callback once; Standard/fallback keep SpotlightEvictionOverlay.
   // Local preview of SpotlightEvictionOverlay's 5.4s portrait choreography.
   // Reuse its actual stamp artwork and timing; no Redux/game callbacks are invoked.
   hold('.avatar-hero', [

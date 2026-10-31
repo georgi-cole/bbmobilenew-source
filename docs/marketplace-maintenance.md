@@ -44,6 +44,14 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-31: Reviewed the VIP Cinematic Vox public-vote reveal and Cupid paired
+  exit refinements. The Vox tally is presented inside its existing premium film
+  and proceeds directly to its exit film and a brief confirmation using the original
+  coloured roster tiles and eviction marks. Cupid confirms both partners together;
+  full native portraits remain on Standard and preparation fallback paths. Standard
+  results, public-vote rules, VIP access, products, prices, benefits, and Store copy
+  are unchanged.
+
 - 2026-10-31: Reviewed Cupid paired-exit figure fitting. Wider, proportionally
   framed characters improve the VIP departure film; paired rules, entitlements,
   benefits, prices and Store copy are unchanged.

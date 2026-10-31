@@ -8,6 +8,11 @@ import {
 } from '../../src/cinematic/ceremonies/runtime.mjs'
 import { modeDetails, publicResult } from '../../src/cinematic/ceremonies/mode-routing.mjs'
 import { sceneResources } from '../../src/cinematic/ceremonies/renderer.js'
+import {
+  animateVoxFilm,
+  makeVoxFilm,
+  MODE_SCENES,
+} from '../../src/cinematic/ceremonies/mode-films.js'
 import catalog from '../../src/cinematic/ceremonies/cast.json'
 
 const characters = catalog.characters.slice(0, 6)
@@ -161,6 +166,45 @@ describe('mode-aware premium ceremonies', () => {
       ids: [players[1].id],
       approval: [{ value: 23 }],
     })
+  })
+  it('reveals Vox public tallies in one broadcast film before focusing the evictee', () => {
+    const images = Object.fromEntries(
+      ['voxStudio', 'voxMist', 'voxActor_a', 'voxActor_b'].map((key) => {
+        const image = document.createElement('img')
+        return [key, image]
+      })
+    )
+    const root = makeVoxFilm(
+      'voxResults',
+      images,
+      { a: { playerId: players[0].id, name: players[0].name } },
+      {
+        kind: 'result',
+        ids: [players[0].id],
+        tallies: [
+          { id: players[0].id, name: 'Nova', value: 61.4 },
+          { id: players[1].id, name: 'Lia', value: 38.6 },
+        ],
+      }
+    )
+    const counts = [...root.querySelectorAll('.vox-percent')]
+    expect(counts.map((node) => node.textContent)).toEqual(['0.0%', '0.0%'])
+    expect(root.querySelectorAll('strong')).toHaveLength(2)
+    expect(root.querySelector('.vox-heading,.vox-verdict,.vox-scoreboard')).toBeNull()
+    expect(root.querySelector('.vox-departing')?.getAttribute('data-player-id')).toBe(players[0].id)
+    expect(root.querySelector('.vox-safe')?.getAttribute('data-player-id')).toBe(players[1].id)
+    let now = 0
+    const ticks: Array<{ at: number; callback: () => void }> = []
+    const later = (callback: () => void, delay: number) => ticks.push({ at: now + delay, callback })
+    animateVoxFilm('voxResults', root, () => {}, MODE_SCENES.voxResults.duration, later)
+    while (ticks.length) {
+      ticks.sort((a, b) => a.at - b.at)
+      const tick = ticks.shift()!
+      now = tick.at
+      tick.callback()
+    }
+    expect(counts.map((node) => node.textContent)).toEqual(['61.4%', '38.6%'])
+    expect(now).toBeLessThan(MODE_SCENES.voxResults.duration)
   })
   it('fits every character pack in both halves of a pair; missing custom art falls back safely', () => {
     for (const character of catalog.characters) {

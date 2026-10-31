@@ -11,7 +11,7 @@ export const MODE_SCENES = {
   voxImmunity: { label: 'Vox · immunity', duration: 4200 },
   voxFinal4: { label: 'Vox · Final 4 competition', duration: 4400 },
   voxNominations: { label: 'Vox · secret nominations', duration: 4800 },
-  voxResults: { label: 'Vox · public verdict', duration: 7200 },
+  voxResults: { label: 'Vox · public verdict', duration: 10000 },
 }
 export function modeResources(scene, cast, shared, vfx) {
   const prop = (name) => ({
@@ -166,15 +166,18 @@ export function adaptModeFilm(scene, root, images, resources, cast, details, fit
 }
 
 export function makeVoxFilm(scene, images, cast, details) {
+  const result = scene === 'voxResults'
   const root = document.createElement('div')
   root.className = 'c-scene vox-broadcast'
   root.dataset.modeScene = scene
   root.setAttribute('aria-hidden', 'true')
   root.innerHTML =
-    '<div class="vox-camera"><div class="vox-set"></div><div class="vox-haze"></div><div class="vox-light"></div><div class="vox-contestants"></div></div><div class="vox-heading"><span></span><h2></h2><p></p></div><div class="vox-verdict"><span></span><h3></h3><p></p></div><div class="vox-cut"></div>'
+    '<div class="vox-camera"><div class="vox-set"></div><div class="vox-haze"></div><div class="vox-light"></div><div class="vox-room-dim"></div><div class="vox-danger-tint"></div><div class="vox-contestants"></div></div><div class="vox-cut"></div><div class="vox-reveal-sweep"></div>' +
+    (result
+      ? ''
+      : '<div class="vox-heading"><span>VOX POPULI · FINAL FOUR</span><h2>Competition won.</h2><p>NO IMMUNITY IS AWARDED.</p></div><div class="vox-verdict"><span>THE FINAL FOUR CONTINUE</span><h3></h3><p>The audience still decides who leaves.</p></div>')
   root.querySelector('.vox-set').append(copy(images, 'voxStudio', 'vox-backdrop'))
   root.querySelector('.vox-haze').append(copy(images, 'voxMist', 'vox-smoke'))
-  const result = scene === 'voxResults'
   const entries = result ? details.tallies : [{ id: cast.a.playerId, name: cast.a.name }]
   const field = root.querySelector('.vox-contestants')
   field.style.setProperty('--contestants', entries.length)
@@ -183,116 +186,223 @@ export function makeVoxFilm(scene, images, cast, details) {
     card.className = 'vox-contestant'
     card.dataset.playerId = entry.id
     const art = copy(images, 'voxActor_' + String.fromCharCode(97 + index), 'vox-person')
+    const identity = document.createElement('div')
+    identity.className = 'vox-identity'
     const name = document.createElement('strong')
     name.textContent = entry.name
     const count = document.createElement('span')
-    count.className = 'vox-count'
-    count.textContent = result ? Number(entry.value).toFixed(1) + '%' : 'COMPETITION WINNER'
-    card.append(art, name, count)
-    if (result && details.ids.includes(entry.id) && details.kind !== 'tie')
-      card.classList.add('vox-departing')
+    count.className = result ? 'vox-count vox-percent' : 'vox-count'
+    count.textContent = result ? '0.0%' : 'COMPETITION WINNER'
+    if (result) count.dataset.finalValue = String(Number(entry.value))
+    identity.append(name)
+    if (result) {
+      const plate = document.createElement('div')
+      plate.className = 'vox-percent-shell'
+      plate.innerHTML =
+        '<i class="vox-percent-tone"></i><i class="vox-score-sheen"></i><i class="vox-number-bloom"></i>'
+      plate.append(count)
+      identity.append(plate)
+      const pool = document.createElement('div')
+      pool.className = 'vox-floor-pool'
+      const focus = document.createElement('div')
+      focus.className = 'vox-focus-light'
+      card.append(pool, focus)
+    } else identity.append(count)
+    card.append(art, identity)
+    if (result && details.kind !== 'tie') {
+      card.classList.add(details.ids.includes(entry.id) ? 'vox-departing' : 'vox-safe')
+    }
     field.append(card)
   }
-  setText(
-    root,
-    '.vox-heading span',
-    result ? 'VOX POPULI · OFFICIAL PUBLIC VOTE' : 'VOX POPULI · FINAL FOUR'
-  )
-  setText(root, '.vox-heading h2', result ? 'The public has spoken.' : 'Competition won.')
-  setText(
-    root,
-    '.vox-heading p',
-    result ? 'VOTES TO ELIMINATE · FINAL RESULTS' : 'NO IMMUNITY IS AWARDED.'
-  )
-  const outNames = details.tallies
-    ?.filter((t) => details.ids.includes(t.id))
-    .map((t) => t.name)
-    .join(' & ')
-  setText(
-    root,
-    '.vox-verdict span',
-    details.kind === 'public-tie'
-      ? 'TIED PUBLIC VOTE · APPROVAL TIEBREAK'
-      : details.kind === 'tie'
-        ? 'THE VOTE IS TIED'
-        : result
-          ? details.finalists
-            ? 'THIRD PLACE · LEAVING THE HUB'
-            : 'ELIMINATED BY PUBLIC VOTE'
-          : 'THE FINAL FOUR CONTINUE'
-  )
-  setText(root, '.vox-verdict h3', result ? outNames : cast.a.name)
-  setText(
-    root,
-    '.vox-verdict p',
-    details.kind === 'public-tie'
-      ? details.approval.map((t) => `${t.name}: ${Number(t.value).toFixed(1)} approval`).join(' · ')
-      : details.kind === 'tie'
-        ? 'THE TIEBREAK WILL NOW RESOLVE THE RESULT.'
-        : result
-          ? details.ids.length > 1
-            ? 'The highest vote-to-eliminate totals leave.'
-            : 'The highest vote to eliminate leaves.'
-          : 'The audience still decides who leaves.'
-  )
-  if (!result) root.querySelector('.vox-camera').append(copy(images, 'voxToken', 'vox-token'))
+  if (result && ['public-tie', 'tie'].includes(details.kind)) {
+    const note = document.createElement('div')
+    note.className = 'vox-tie-note'
+    note.textContent =
+      details.kind === 'public-tie'
+        ? 'TIED VOTE · APPROVAL TIEBREAK · ' +
+          details.approval.map((t) => `${t.name}: ${Number(t.value).toFixed(1)}`).join(' · ')
+        : 'THE VOTE IS TIED · TIEBREAK FOLLOWS'
+    root.append(note)
+  }
+  if (!result) {
+    setText(root, '.vox-verdict h3', cast.a.name)
+    root.querySelector('.vox-camera').append(copy(images, 'voxToken', 'vox-token'))
+  }
   return root
 }
-export function animateVoxFilm(scene, root, a, duration) {
+export function animateVoxFilm(scene, root, a, duration, later) {
   const result = scene === 'voxResults'
+  const cards = [...root.querySelectorAll('.vox-contestant')]
+  const departing = cards.filter((card) => card.classList.contains('vox-departing'))
+  const field = root.querySelector('.vox-contestants')
+  const survivorCount = cards.filter((card) => !card.classList.contains('vox-safe')).length
+  const settle = 'cubic-bezier(.22,.72,.22,1)'
+  const glide = 'cubic-bezier(.16,1,.3,1)'
   a(root, [
     [0, 0],
     [180, 1],
     [duration - 250, 1],
     [duration, 0],
   ])
-  a('.vox-camera', [
-    [0, 1, 'scale(1.12) translateY(1%)'],
-    [1400, 1, 'scale(1.03) translateY(0)'],
-    [duration, 1, 'scale(1.065) translateY(-1%)'],
-  ])
+  a(
+    '.vox-camera',
+    result
+      ? [
+          [0, 1, 'scale(1.1) translateY(1%)', glide],
+          [1500, 1, 'scale(1) translateY(0)'],
+          [5000, 1, 'scale(1.015) translateY(0)', settle],
+          [6100, 1, 'scale(1.055) translateY(-.5%)', glide],
+          [6700, 1, 'scale(1.025) translateY(0)', settle],
+          [duration, 1, 'scale(1.075) translateY(-.8%)'],
+        ]
+      : [
+          [0, 1, 'scale(1.12) translateY(1%)'],
+          [1400, 1, 'scale(1.03) translateY(0)'],
+          [duration, 1, 'scale(1.065) translateY(-1%)'],
+        ]
+  )
   a('.vox-haze', [
     [0, 0.22, 'translateX(-8%) scale(1.1)'],
     [duration, 0.28, 'translateX(7%) scale(1.15)'],
   ])
-  a('.vox-heading', [
-    [0, 0, 'translateY(-12px)'],
-    [450, 1, 'translateY(0)'],
-    [duration, 1],
-  ])
-  for (const [i, card] of [...root.querySelectorAll('.vox-contestant')].entries()) {
+  for (const [i, card] of cards.entries()) {
+    const safe = card.classList.contains('vox-safe')
+    const outIndex = departing.indexOf(card)
+    const focusX =
+      outIndex >= 0
+        ? field.clientWidth * ((outIndex + 0.5) / Math.max(1, survivorCount)) -
+          (card.offsetLeft + card.offsetWidth / 2)
+        : 0
+    const finalTransform = `translateX(${focusX}px) scale(1.035)`
     a(card, [
-      [0, 0, 'translateY(22px)'],
-      [450 + i * 220, 0, 'translateY(22px)'],
-      [1050 + i * 220, 1, 'translateY(0)'],
+      [0, 0, 'translateY(22px)', glide],
+      [350 + i * 150, 0, 'translateY(22px)', glide],
+      [1100 + i * 150, 1, 'translateY(0)'],
+      ...(result && safe
+        ? [
+            [6400, 1, 'translateX(0)', settle],
+            [7150, 0, `translateX(${i < cards.length / 2 ? -32 : 32}px) scale(.97)`],
+            [duration, 0],
+          ]
+        : result && outIndex >= 0
+          ? [
+              [6800, 1, 'translateX(0) scale(1)', settle],
+              [8000, 1, finalTransform],
+              [duration, 1, finalTransform],
+            ]
+          : [[duration, 1]]),
+    ])
+    const count = card.querySelector('.vox-count')
+    if (result) {
+      a(card.querySelector('.vox-percent-shell'), [
+        [0, 0, 'translateY(16px) scaleX(.82)'],
+        [1400, 0, 'translateY(16px) scaleX(.82)', glide],
+        [2050, 1, 'translateY(0) scaleX(1)'],
+        [duration, 1],
+      ])
+      a(card.querySelector('.vox-score-sheen'), [
+        [0, 0, 'translateX(-170%) skewX(-18deg)'],
+        [4250, 0, 'translateX(-170%) skewX(-18deg)'],
+        [4470, 0.8, 'translateX(-20%) skewX(-18deg)', glide],
+        [4950, 0, 'translateX(210%) skewX(-18deg)'],
+        [duration, 0],
+      ])
+      a(card.querySelector('.vox-number-bloom'), [
+        [0, 0],
+        [4380, 0],
+        [4550, 0.28],
+        [5100, 0],
+        [duration, 0],
+      ])
+      a(card.querySelector('.vox-floor-pool'), [
+        [0, 0],
+        [1200, 0.35],
+        [5200, 0.35],
+        [5900, 0.12],
+        [duration, 0.12],
+      ])
+      if (outIndex >= 0) {
+        a(card.querySelector('.vox-focus-light'), [
+          [0, 0],
+          [6200, 0],
+          [6750, 0.8],
+          [duration, 0.65],
+        ])
+        a(card.querySelector('.vox-percent-tone'), [
+          [0, 0],
+          [6400, 0],
+          [7350, 0.72],
+          [duration, 0.72],
+        ])
+      }
+    } else
+      a(count, [
+        [0, 0],
+        [1100, 0],
+        [1600, 1],
+        [duration, 1],
+      ])
+  }
+  if (result) {
+    // A single clip-owned clock keeps all percentages in sync and stops on Skip.
+    const counts = cards.map((card) => card.querySelector('.vox-count'))
+    const step = (index) => {
+      const progress = index / 50
+      const eased = progress * progress * (3 - 2 * progress)
+      for (const count of counts)
+        count.textContent = `${(Number(count.dataset.finalValue) * eased).toFixed(1)}%`
+      if (index < 50) later(() => step(index + 1), 40)
+    }
+    later(() => step(0), 2400)
+    if (departing.length) {
+      a('.vox-room-dim', [
+        [0, 0],
+        [5100, 0],
+        [5900, 0.74],
+        [6450, 0.74],
+        [7600, 0.38],
+        [duration, 0.38],
+      ])
+      a('.vox-danger-tint', [
+        [0, 0],
+        [6500, 0],
+        [7800, 0.65],
+        [duration, 0.65],
+      ])
+      a('.vox-reveal-sweep', [
+        [0, 0, 'translateX(-115%)'],
+        [6150, 0, 'translateX(-115%)'],
+        [6450, 0.7, 'translateX(-35%)', glide],
+        [7100, 0, 'translateX(100%)'],
+        [duration, 0],
+      ])
+    }
+    if (root.querySelector('.vox-tie-note'))
+      a('.vox-tie-note', [
+        [0, 0],
+        [5900, 0],
+        [6500, 1],
+        [duration, 1],
+      ])
+  } else {
+    a('.vox-heading', [
+      [0, 0, 'translateY(-12px)'],
+      [450, 1, 'translateY(0)'],
       [duration, 1],
     ])
-    a(card.querySelector('.vox-count'), [
-      [0, 0, 'translateY(12px)'],
-      [result ? 2300 : 1100, 0, 'translateY(12px)'],
-      [result ? 2850 : 1600, 1, 'translateY(0)'],
+    a('.vox-verdict', [
+      [0, 0, 'translateY(18px)'],
+      [1900, 0, 'translateY(18px)'],
+      [2450, 1, 'translateY(0)'],
       [duration, 1],
-    ])
-    const person = card.querySelector('.vox-person')
-    a(person, [
-      [0, 1],
-      [result ? 3950 : 1800, 1],
-      [result ? 4650 : 2100, card.classList.contains('vox-departing') || !result ? 1 : 0.28],
-      [duration, card.classList.contains('vox-departing') || !result ? 1 : 0.28],
     ])
   }
   a('.vox-cut', [
     [0, 0],
-    [result ? 3820 : 1700, 0],
-    [result ? 4000 : 1900, 0.45],
-    [result ? 4370 : 2200, 0],
+    [result ? 6150 : 1700, 0],
+    [result ? 6420 : 1900, result ? 0.22 : 0.45],
+    [result ? 6900 : 2200, 0],
     [duration, 0],
-  ])
-  a('.vox-verdict', [
-    [0, 0, 'translateY(18px)'],
-    [result ? 4100 : 1900, 0, 'translateY(18px)'],
-    [result ? 4650 : 2450, 1, 'translateY(0)'],
-    [duration, 1],
   ])
 }
 export function animateModeLayers(scene, root, a, duration) {

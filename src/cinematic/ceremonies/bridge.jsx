@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useStore, useSelector } from 'react-redux'
 import { selectIsVipActive } from '../../store/vipSlice'
 import {
@@ -21,6 +22,7 @@ export function PremiumBridge({
   original,
   shockType = 'generic',
   finishDirect = false,
+  rosterExit = false,
 }) {
   const store = useStore(),
     target = useRef(null),
@@ -30,7 +32,8 @@ export function PremiumBridge({
     lease = useRef(null),
     run = useRef(null),
     props = useRef(original),
-    skipButton = useRef(null)
+    skipButton = useRef(null),
+    mountedMovie = useRef(false)
   props.current = original
   const vip = useSelector(selectIsVipActive),
     settings = useSelector((s) => s.settings),
@@ -186,6 +189,7 @@ export function PremiumBridge({
               })(),
             }
           )
+          mountedMovie.current = true
           const visible = !document.hidden && canPresent.current
           controller.setVisible(visible)
           if (!visible) controller.pause()
@@ -284,7 +288,7 @@ export function PremiumBridge({
           }),
         ])
       clearTimeout(decodeTimer)
-      if (!cancelled) clip.current?.nativeReady()
+      if (!cancelled) clip.current?.nativeReady(rosterExit && mountedMovie.current)
     })
     return () => {
       cancelled = true
@@ -320,33 +324,37 @@ export function PremiumBridge({
   if (!managed) return <Standard {...original} />
   if (finished) return null
   let standardProps = { ...original }
+  if (rosterExit) standardProps.premiumRosterExit = mountedMovie.current
   for (const method of ['onDone', 'onComplete', 'onDismiss', 'onConfirm'])
     if (typeof original[method] === 'function') standardProps[method] = () => finish(method)
   return (
     <>
-      <div ref={target} />
+      {createPortal(<div ref={target} />, document.body)}
       {owned &&
         (handover ? (
           <MotionConfig skipAnimations={!settings.gameUX.animations}>
             <Standard {...standardProps} />
           </MotionConfig>
         ) : globalOwner.isOwner && foreground ? (
-          <div
-            data-cinematic-active="true"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${scene} cinematic`}
-            style={{ position: 'fixed', inset: 0, zIndex: 10001 }}
-          >
-            <button
-              ref={skipButton}
-              aria-label="Skip cinematic"
-              style={{ position: 'absolute', bottom: 24, right: 24 }}
-              onClick={skip}
+          createPortal(
+            <div
+              data-cinematic-active="true"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${scene} cinematic`}
+              style={{ position: 'fixed', inset: 0, zIndex: 10001 }}
             >
-              Skip
-            </button>
-          </div>
+              <button
+                ref={skipButton}
+                className="seo__skip-btn"
+                aria-label="Skip cinematic"
+                onClick={skip}
+              >
+                ⏭ Skip
+              </button>
+            </div>,
+            document.body
+          )
         ) : null)}
     </>
   )

@@ -42,7 +42,7 @@ export function adaptCeremonyScene(scene, props, game) {
   // Canonical nomination planning excludes Cupid's paired ruleset.
   if (scene === 'ambush') return null
   if (['exit', 'tiebreak', 'final3', 'final4'].includes(scene)) {
-    // The second native portrait still plays, but the two-person departure must not replay.
+    // The queued partner keeps its outcome callback; the shared departure must not replay.
     if (game.cupidArrow.pendingPartnerEvictionId === props.evictee?.id) return null
     const pair = pairFor(game, props.evictee?.id)
     const partner = game.players.find(

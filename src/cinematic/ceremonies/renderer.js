@@ -547,7 +547,7 @@ export function createClip() {
           animations.push(animation)
         }
       }
-      if (!id) animateVoxFilm(sceneId, root, a, duration)
+      if (!id) animateVoxFilm(sceneId, root, a, duration, later)
       else if (id === 'loh') animateLoh(root, a)
       else if (decision) animateDecisionScene(id, root, a, { nativeHandoff: true })
       else animateScene(id, root, a, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic)
@@ -605,17 +605,23 @@ export function createClip() {
         }
       }, endAt)
     },
-    nativeReady() {
+    nativeReady(rosterOnly = false) {
       if (dead || !handedOff || nativeRevealed) return
       nativeRevealed = true
-      // The real component begins over its measured roster tile. Cover that
-      // expansion; reveal its real Grey Lux portrait after its 480 ms push.
-      later(() => {
-        if (!host || dead) return
-        const fade = host.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, fill: 'both' })
-        animations.push(fade)
-        later(dropFilm, 270)
-      }, 480)
+      // Premium departures reveal the coloured roster immediately. The full native
+      // fallback still covers its 480 ms tile-to-Grey-Lux expansion.
+      later(
+        () => {
+          if (!host || dead) return
+          const fade = host.animate([{ opacity: 1 }, { opacity: 0 }], {
+            duration: rosterOnly ? 140 : 260,
+            fill: 'both',
+          })
+          animations.push(fade)
+          later(dropFilm, rosterOnly ? 150 : 270)
+        },
+        rosterOnly ? 0 : 480
+      )
     },
     seek(ms) {
       for (const timer of timers) clearTimeout(timer.handle)

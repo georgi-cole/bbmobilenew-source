@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import AvatarTile from './AvatarTile'
+import { useRosterExitPreview } from '../../cinematic/ceremonies/roster-exit-state'
 import ReunionGuestInteractionDialog from './ReunionGuestInteractionDialog'
 import StatusPill from '../ui/StatusPill'
 import SurvivorStandoutCard from '../SurvivorStandout/SurvivorStandoutCard'
@@ -148,6 +149,7 @@ export default function HouseguestGrid({
   onOpenGameLog,
   showNames = true,
 }: Props) {
+  const rosterExit = useRosterExitPreview()
   const layoutRevision = `${gridSize}:${compact}:${rosterMode}:${headerMode}:${placeholderCount}:${houseguests.map((guest) => guest.id).join(',')}`
   const dispatch = useAppDispatch()
   const game = useAppSelector((s) => s.game, houseguestGridGameEquality)
@@ -466,7 +468,12 @@ export default function HouseguestGrid({
                   avatarUrl={
                     cupidVisualsRevealed ? resolveCupidLoveAvatar(hg.avatarUrl) : hg.avatarUrl
                   }
-                  isEvicted={isReunionPresent ? false : hg.isEvicted}
+                  isEvicted={
+                    isReunionPresent
+                      ? false
+                      : hg.isEvicted ||
+                        (rosterExit.marked && rosterExit.ids.includes(String(hg.id)))
+                  }
                   isYou={hg.isYou}
                   onClick={() => {
                     if (canInteractWithReunionGuests && isReunionPresent && !hg.isYou) {
@@ -478,12 +485,18 @@ export default function HouseguestGrid({
                   roboStats={resolvedRoboStats}
                   onHoldPreviewStart={hg.onHoldPreviewStart}
                   onHoldPreviewEnd={hg.onHoldPreviewEnd}
-                  statuses={isReunionPresent && !isReunionDeparting ? '' : hg.statuses}
+                  statuses={
+                    (isReunionPresent && !isReunionDeparting) ||
+                    (rosterExit.marked && rosterExit.ids.includes(String(hg.id)))
+                      ? ''
+                      : hg.statuses
+                  }
                   finalRank={hg.finalRank}
                   showPermanentBadge={hg.showPermanentBadge}
                   layoutId={hg.layoutId}
                   layoutRevision={layoutRevision}
-                  isEvicting={hg.isEvicting}
+                  isEvicting={rosterExit.ids.includes(String(hg.id)) ? false : hg.isEvicting}
+                  rosterExitVisible={rosterExit.ids.includes(String(hg.id))}
                   isSurveyevalEvicting={hg.isSurveyevalEvicting}
                   isReunionReturning={isReunionReturning}
                   isReunionDeparting={isReunionDeparting}

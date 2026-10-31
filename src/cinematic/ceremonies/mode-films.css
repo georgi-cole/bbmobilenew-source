@@ -101,8 +101,8 @@
   white-space: normal;
 }
 .paired-film.decision-film .cine-departure {
-  width: 78%;
-  left: 11%;
+  width: 68%;
+  left: 16%;
   aspect-ratio: 1.39;
 }
 .paired-film.decision-film .cine-rear {
@@ -113,10 +113,13 @@
   object-fit: contain;
 }
 .paired-film.decision-film .cine-rear.pair-first {
-  left: 0;
+  left: 11%;
 }
 .paired-film.decision-film .cine-rear.pair-second {
-  left: 52%;
+  left: 41%;
+}
+.paired-film.decision-film .departure-near {
+  z-index: 7;
 }
 .paired-film .exit-caption h3 {
   font-size: clamp(20px, 5vw, 36px);
@@ -159,6 +162,14 @@
 .vox-light {
   background: linear-gradient(#05020c88, transparent 34%, #05020c66 70%, #05020c);
 }
+.vox-danger-tint {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 48%, #a51d2b24, #3a0712a8 78%);
+}
 .vox-heading {
   position: absolute;
   top: 7%;
@@ -192,6 +203,7 @@
   left: 4%;
   right: 4%;
   bottom: 27%;
+  z-index: 2;
   height: 51%;
   display: grid;
   grid-template-columns: repeat(var(--contestants), minmax(0, 1fr));
@@ -235,6 +247,152 @@
   left: 8%;
   right: 8%;
   bottom: 7%;
+  text-align: center;
+}
+.vox-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  position: relative;
+}
+.vox-broadcast[data-mode-scene='voxResults'] .vox-contestants {
+  bottom: 12%;
+  height: 75%;
+}
+.vox-broadcast[data-mode-scene='voxResults'] .vox-person {
+  bottom: 16%;
+  height: 84%;
+}
+.vox-broadcast[data-mode-scene='voxResults'] .vox-identity {
+  position: absolute;
+  bottom: 0;
+}
+.vox-broadcast[data-mode-scene='voxResults'] .vox-identity strong {
+  max-width: 94%;
+  font-size: clamp(18px, 4.5vw, 29px);
+  text-shadow: 0 2px 10px #000c;
+}
+.vox-percent-shell {
+  position: relative;
+  width: min(86%, 160px);
+  min-width: 72px;
+  padding: 1px;
+  overflow: hidden;
+  isolation: isolate;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  background: linear-gradient(125deg, #efd69fa8, #89709640 30%, #5c3d7040 64%, #ddbc8190);
+}
+.vox-percent-shell::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  clip-path: inherit;
+  background: linear-gradient(115deg, #100b1a, #35243c 48%, #170d20);
+}
+.vox-percent {
+  display: block;
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 7px 13px;
+  color: #f4e0b2;
+  font:
+    500 clamp(23px, 5.8vw, 37px)/1.05 system-ui,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+  text-align: center;
+  text-shadow: 0 1px 7px #cfac6638;
+}
+.vox-percent-tone,
+.vox-number-bloom {
+  position: absolute;
+  inset: 1px;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+}
+.vox-percent-tone {
+  background: linear-gradient(120deg, #592a3baa, #6f1826bd, #341a32b0);
+}
+.vox-number-bloom {
+  background: radial-gradient(ellipse at 50% 60%, #eed6a2bb, #ba8c7144 55%, transparent 80%);
+}
+.vox-score-sheen {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 10%;
+  width: 55%;
+  z-index: 1;
+  opacity: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #f5dfb70d 25%,
+    #f6e5bb60 50%,
+    #bc92cc15 70%,
+    transparent
+  );
+}
+.vox-floor-pool {
+  position: absolute;
+  left: 0;
+  bottom: 15%;
+  width: 100%;
+  height: 4%;
+  opacity: 0;
+  background: radial-gradient(ellipse, #e1bd773d, #946ca225 42%, transparent 72%);
+}
+.vox-focus-light {
+  position: absolute;
+  left: -12%;
+  bottom: 16%;
+  width: 124%;
+  height: 83%;
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 65%, #e5bd6824, #b78bc115 40%, transparent 70%);
+}
+.vox-room-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  background: linear-gradient(#030107a6, #07040aa6 65%, #050209);
+}
+.vox-reveal-sweep {
+  position: absolute;
+  inset: -10% -30%;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    #8f6ab20a 40%,
+    #d8b68538 49%,
+    #dec59958 50%,
+    #ae80ba12 56%,
+    transparent 68%
+  );
+}
+.vox-broadcast[data-mode-scene='voxResults'] .vox-danger-tint {
+  background: linear-gradient(#61142626, #7212225c);
+}
+.vox-tie-note {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 4%;
+  color: #ddc795;
+  font:
+    600 9px/1.5 system-ui,
+    sans-serif;
+  letter-spacing: 0.12em;
   text-align: center;
 }
 .vox-verdict h3 {
