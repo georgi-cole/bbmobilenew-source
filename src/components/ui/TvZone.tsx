@@ -242,7 +242,9 @@ function getPhaseAnnouncementKey(
   if (phase === 'nominations' && voxPopuliActive) return 'vox_nominations'
   if (phase === 'nominations')
     return doubleEvictionActive ? 'double_eviction' : 'nomination_ceremony'
-  if (phase === 'live_vote') return voxPopuliActive ? 'vox_public_vote' : 'live_eviction'
+  // Vox's audience verdict card at the end of voting carries this information.
+  // Do not repeat it as a pre-vote card when the audience is about to vote.
+  if (phase === 'live_vote') return voxPopuliActive ? null : 'live_eviction'
   if (phase === 'final3')
     // Classic has a dedicated, Play-paced guide overlay for the final week.
     // Replaying the same information as a Faux TV card behind it was redundant.
@@ -410,17 +412,43 @@ export default function TvZone(props: TvZoneProps) {
   const depressionShockRainyTv = depressionShockPhase === 'day1' || depressionShockPhase === 'day2'
   const depressionShockSunnyTv = depressionShockPhase === 'sunbreak'
 
-  // Filter entries for the TV viewport (excludes DR-only events).
-  const tvVisibleFeed = useMemo(() => gameState.tvFeed.filter(isVisibleOnTv), [gameState.tvFeed])
-  // Filter entries for the main-screen log strip (excludes DR-only events).
-  const mainLogFeed = useMemo(() => gameState.tvFeed.filter(isVisibleInMainLog), [gameState.tvFeed])
+  const isRedundantVoxVoteIntro = useCallback(
+    (event: TvEvent) =>
+      gameState.voxPopuli?.status === 'active' &&
+      (event.meta?.broadcastTemplateId === 'card.vox-public-vote' ||
+        extractMajorKey(event) === 'vox_public_vote'),
+    [gameState.voxPopuli?.status]
+  )
+  // The post-vote result is the canonical Vox verdict card. Hide the earlier
+  // generic intro from both live TV and the compact log while Vox is active.
+  const tvVisibleFeed = useMemo(
+    () =>
+      gameState.tvFeed.filter((event) => isVisibleOnTv(event) && !isRedundantVoxVoteIntro(event)),
+    [gameState.tvFeed, isRedundantVoxVoteIntro]
+  )
+  // Filter entries for the main-screen log strip (excludes DR-only events and
+  // the redundant Vox pre-vote card).
+  const mainLogFeed = useMemo(
+    () =>
+      gameState.tvFeed.filter(
+        (event) => isVisibleInMainLog(event) && !isRedundantVoxVoteIntro(event)
+      ),
+    [gameState.tvFeed, isRedundantVoxVoteIntro]
+  )
   const queuedBroadcastEvent = useMemo(() => {
     for (const queuedId of gameState.broadcastQueue ?? []) {
       const event = gameState.tvFeed.find((candidate) => candidate.id === queuedId) ?? null
+      if (event && isRedundantVoxVoteIntro(event)) continue
       if (isCurrentPhaseBroadcastEvent(event, gameState.phase, gameState.week)) return event
     }
     return null
-  }, [gameState.broadcastQueue, gameState.phase, gameState.tvFeed, gameState.week])
+  }, [
+    gameState.broadcastQueue,
+    gameState.phase,
+    gameState.tvFeed,
+    gameState.week,
+    isRedundantVoxVoteIntro,
+  ])
   // Season-start expansion activations must outrank the onboarding welcome in
   // presentation even when an older/persisted queue was seeded in template
   // order. They remain normal managed events and are consumed normally after

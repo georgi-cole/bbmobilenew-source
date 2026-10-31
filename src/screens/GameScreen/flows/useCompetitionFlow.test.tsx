@@ -12,6 +12,72 @@ import type { RootState } from '../../../store/store'
 import { useCompetitionFlow } from './useCompetitionFlow'
 
 describe('competition result ceremony handoff', () => {
+  it('reveals Vox immunity and the last-place nominee together before committing results', () => {
+    const fixture = structuredClone(baseline.getState())
+    const game = createInitialGameState({ seed: 42, seasonArchives: [] })
+    const players = game.players
+      .slice(0, 3)
+      .map((p, i) => ({ ...p, isUser: i === 0, status: 'active' as const }))
+    Object.assign(game, {
+      players,
+      phase: 'loh_comp',
+      lohId: null,
+      voxPopuli: { ...game.voxPopuli!, status: 'active' },
+    })
+    const pending = {
+      id: 'vox-immunity-receipt',
+      game: getGame('quickTap')!,
+      seed: 42,
+      participants: players.map((p) => p.id),
+      phase: 'results' as const,
+      aiScores: { [players[1].id]: 100, [players[2].id]: 50 },
+      prizeType: 'LOH' as const,
+    }
+    const initial: RootState = { ...fixture, game, challenge: { ...fixture.challenge, pending } }
+    const store = configureStore({
+      reducer: (state = initial, action) => ({
+        ...state,
+        game: gameReducer(state.game, action),
+        challenge: challengeReducer(state.challenge, action),
+        profiles: profilesReducer(state.profiles, action),
+      }),
+      middleware: (get) => get({ serializableCheck: false, immutableCheck: false }),
+    })
+    const { result } = renderHook(
+      () =>
+        useCompetitionFlow({
+          game: store.getState().game,
+          humanPlayer: players[0],
+          aliveIds: players.map((p) => p.id),
+          hohCompParticipants: players.map((p) => p.id),
+          humanIsOutgoingHoh: false,
+          spectatorReactEnabled: false,
+          spectatorMode: false,
+          dispatch: store.dispatch,
+        }),
+      {
+        wrapper: ({ children }: { children: React.ReactNode }) => (
+          <Provider store={store}>{children}</Provider>
+        ),
+      }
+    )
+
+    act(() => result.current.handleChallengeDone(0, false))
+
+    expect(result.current.pendingWinnerCeremony?.winnerId).toBe(players[1].id)
+    expect(result.current.pendingWinnerCeremony?.voxLastPlaceId).toBe(players[0].id)
+    expect(result.current.pendingWinnerCeremony?.targetIds).toEqual([players[1].id, players[0].id])
+    expect(result.current.pendingWinnerCeremony?.tiles.map((tile) => tile.badgeCode)).toEqual([
+      'immune',
+      'nominated',
+    ])
+    expect(store.getState().game.voxPopuli?.autoNomineeId).toBeNull()
+
+    act(() => result.current.handleWinnerCeremonyDone())
+
+    expect(store.getState().game.voxPopuli?.autoNomineeId).toBe(players[0].id)
+  })
+
   it.each([
     ...(['LOH', 'POS'] as const).flatMap((prizeType) =>
       [true, false].flatMap((partial) =>

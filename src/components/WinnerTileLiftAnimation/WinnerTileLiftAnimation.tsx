@@ -58,6 +58,8 @@ type LiftedSourceStyles = Record<SourceHideProperty, InlineStyleValue>
 
 export interface WinnerTileLiftAnimationProps {
   targetIds: string[]
+  /** Vox film actor ID; roster presentation still uses the matching targetIds/tiles. */
+  voxLastPlaceId?: string | null
   tiles: CeremonyTile[]
   caption: string
   subtitle?: string

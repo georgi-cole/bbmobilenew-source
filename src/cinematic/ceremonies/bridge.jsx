@@ -3,12 +3,15 @@ import { createPortal } from 'react-dom'
 import { useStore, useSelector } from 'react-redux'
 import { selectIsVipActive } from '../../store/vipSlice'
 import {
+  getPresentationOwner,
   usePresentationOwner,
   usePresentationForeground,
   PRESENTATION_PRIORITY,
 } from '../../services/presentation/presentationOwnership'
 import { MotionConfig } from 'framer-motion'
+import CinematicSkipButton from '../../components/CinematicSkipButton/CinematicSkipButton'
 import { modeDetails, baseScene } from './mode-routing.mjs'
+import './bridge.css'
 import {
   shouldPlayCinematic,
   ceremonyCast,
@@ -23,6 +26,7 @@ export function PremiumBridge({
   shockType = 'generic',
   finishDirect = false,
   rosterExit = false,
+  badgeOnlyHandoff = false,
 }) {
   const store = useStore(),
     target = useRef(null),
@@ -46,16 +50,42 @@ export function PremiumBridge({
   )
   const [owned, setOwned] = useState(!managed),
     [handover, setHandover] = useState(!wantsClip),
+    [preparing, setPreparing] = useState(false),
+    [entryCover, setEntryCover] = useState(() => wantsClip && ceremonyQueue.counts.active === 0),
     [finished, setFinished] = useState(false)
+  const sceneLabel =
+    scene === 'voxImmunity'
+      ? 'Immunity and nomination'
+      : scene === 'voxResults'
+        ? 'Public vote reveal'
+        : scene === 'voxFinal4'
+          ? 'Final 4 ceremony'
+          : ({
+              loh: 'Leader of the Hub',
+              safety: 'Power of Safety',
+              allPower: 'All the power',
+              nominations: 'Nominations',
+              save: 'Safety save',
+              exit: 'Leaving the Hub',
+              tiebreak: 'Tiebreak',
+              final3: 'Final 3',
+              final4: 'Final 4',
+              ambush: 'Ambush',
+              shock: 'Shock announcement',
+            }[baseScene(scene)] ?? 'Ceremony')
   const globalPriority =
     scene === 'shock'
       ? PRESENTATION_PRIORITY.broadcastShock
       : ['exit', 'final3', 'final4', 'tiebreak'].includes(baseScene(scene)) ||
           scene === 'voxResults'
         ? PRESENTATION_PRIORITY.evictionSpotlight
-        : ['loh', 'safety', 'allPower'].includes(baseScene(scene)) || scene === 'voxFinal4'
+        : ['loh', 'safety', 'allPower'].includes(baseScene(scene)) ||
+            ['voxFinal4', 'voxImmunity'].includes(scene)
           ? PRESENTATION_PRIORITY.winnerAward
           : PRESENTATION_PRIORITY.ceremony
+  const currentPresentation = getPresentationOwner()
+  const canCoverCurrentPresentation =
+    !currentPresentation || currentPresentation.priority <= globalPriority
   const globalOwner = usePresentationOwner(
     'vip-cinematic',
     globalPriority,
@@ -77,6 +107,8 @@ export function PremiumBridge({
       completed.current = true
       clip.current?.stop()
       clearTimeout(run.current?.watchdog)
+      setPreparing(false)
+      setEntryCover(false)
       if (
         scene === 'shock' &&
         shouldPlayCinematic(store.getState(), selectIsVipActive(store.getState()))
@@ -96,6 +128,8 @@ export function PremiumBridge({
       if (completed.current || handed.current || run.current?.cancelled) return
       handed.current = true
       clearTimeout(run.current?.watchdog)
+      setPreparing(false)
+      setEntryCover(false)
       if (scene === 'shock' && run.current?.started)
         battleBackIntroGuard(store).mark(store.getState(), props.current.shockKey)
       emit('handoff', { reason })
@@ -139,6 +173,7 @@ export function PremiumBridge({
       }
       current.started = true
       setHandover(false)
+      setPreparing(true)
       current.watchdog = setTimeout(() => {
         if (!current.cancelled && !handed.current) {
           clip.current?.stop()
@@ -190,6 +225,8 @@ export function PremiumBridge({
             }
           )
           mountedMovie.current = true
+          setPreparing(false)
+          setEntryCover(false)
           const visible = !document.hidden && canPresent.current
           controller.setVisible(visible)
           if (!visible) controller.pause()
@@ -325,11 +362,31 @@ export function PremiumBridge({
   if (finished) return null
   let standardProps = { ...original }
   if (rosterExit) standardProps.premiumRosterExit = mountedMovie.current
+  if (badgeOnlyHandoff) standardProps.badgeOnlyHandoff = mountedMovie.current
   for (const method of ['onDone', 'onComplete', 'onDismiss', 'onConfirm'])
     if (typeof original[method] === 'function') standardProps[method] = () => finish(method)
   return (
     <>
       {createPortal(<div ref={target} />, document.body)}
+      {entryCover &&
+        wantsClip &&
+        canCoverCurrentPresentation &&
+        !handover &&
+        !finished &&
+        createPortal(
+          <div
+            className="vip-film-prelude"
+            aria-hidden="true"
+            style={{ zIndex: 10001, pointerEvents: 'auto' }}
+          >
+            <div className="vip-film-prelude__title">
+              <span>THE BIG EYE</span>
+              <i />
+              <strong>{sceneLabel}</strong>
+            </div>
+          </div>,
+          document.body
+        )}
       {owned &&
         (handover ? (
           <MotionConfig skipAnimations={!settings.gameUX.animations}>
@@ -344,14 +401,16 @@ export function PremiumBridge({
               aria-label={`${scene} cinematic`}
               style={{ position: 'fixed', inset: 0, zIndex: 10001 }}
             >
-              <button
-                ref={skipButton}
-                className="seo__skip-btn"
-                aria-label="Skip cinematic"
-                onClick={skip}
-              >
-                ⏭ Skip
-              </button>
+              {preparing && !entryCover && (
+                <div className="vip-film-prelude" aria-hidden="true">
+                  <div className="vip-film-prelude__title">
+                    <span>THE BIG EYE</span>
+                    <i />
+                    <strong>{sceneLabel}</strong>
+                  </div>
+                </div>
+              )}
+              <CinematicSkipButton ref={skipButton} ariaLabel="Skip cinematic" onClick={skip} />
             </div>,
             document.body
           )

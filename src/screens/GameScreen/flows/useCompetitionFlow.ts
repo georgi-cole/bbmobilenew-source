@@ -26,6 +26,7 @@ import { rankPressurePlankResults } from '../../../components/PressurePlank/pres
 
 const LOH_BADGE_SRC = statusBadgeImageSrc('loh')
 const POS_BADGE_SRC = statusBadgeImageSrc('pos')
+const NOMINATION_BADGE_SRC = statusBadgeImageSrc('nominated')
 const EXITED_PLAYER_SORT_VALUE = Number.NEGATIVE_INFINITY
 
 function competitionScope(state: RootState): string {
@@ -74,6 +75,7 @@ export function useCompetitionFlow({
     scope: string
     runId: string
     winnerId: string
+    voxLastPlaceId?: string
     targetIds: string[]
     tiles: CeremonyTile[]
     caption: string
@@ -571,7 +573,30 @@ export function useCompetitionFlow({
         badgeStart: 'center',
         badgeLabel: `${winnerPlayer.name} wins ${winLabel}`,
       }))
+      const voxLastPlace =
+        isVoxImmunityComp && compLastPlaceId && !winnerIds.includes(compLastPlaceId)
+          ? game.players.find((player) => player.id === compLastPlaceId)
+          : undefined
+      const voxLastPlaceId = voxLastPlace?.id
+      const ceremonyTargetIds = voxLastPlaceId ? [...winnerIds, voxLastPlaceId] : winnerIds
+      const ceremonyTiles: CeremonyTile[] = voxLastPlace
+        ? [
+            ...winnerTileMetadata,
+            {
+              rect: null,
+              badge: '❓',
+              badgeImageSrc: NOMINATION_BADGE_SRC,
+              badgeCode: 'nominated',
+              badgeStart: 'center',
+              badgeLabel: `${voxLastPlace.name} is nominated for finishing last`,
+              glowTone: 'danger',
+            },
+          ]
+        : winnerTileMetadata
       const winnerNames = winnerPlayers.map((player) => player.name).join(' & ')
+      const voxLastPlaceCopy = voxLastPlace
+        ? ` ${voxLastPlace.name} finishes last and is nominated.`
+        : ''
       const acceptedScope = competitionScope(liveState)
       const acceptedRunId = pendingChallenge.id
       pendingWinnerDispatchRef.current = {
@@ -593,13 +618,14 @@ export function useCompetitionFlow({
         scope: acceptedScope,
         runId: acceptedRunId,
         winnerId: finalWinnerId,
-        targetIds: winnerIds,
+        ...(voxLastPlaceId ? { voxLastPlaceId } : {}),
+        targetIds: ceremonyTargetIds,
         // Geometry is deliberately absent: the lift animation resolves and
         // snapshots the live roster element after MinigameHost has unmounted.
-        tiles: winnerTileMetadata,
-        caption: `${winnerNames} ${isCupidArrowActive(game) ? 'win' : 'wins'} ${winLabel}!`,
+        tiles: ceremonyTiles,
+        caption: `${winnerNames} ${isCupidArrowActive(game) ? 'win' : 'wins'} ${winLabel}!${voxLastPlaceCopy}`,
         subtitle: winSymbol,
-        ariaLabel: `${winnerNames} ${isCupidArrowActive(game) ? 'win' : 'wins'} ${winLabel}`,
+        ariaLabel: `${winnerNames} ${isCupidArrowActive(game) ? 'win' : 'wins'} ${winLabel}.${voxLastPlaceCopy}`,
       })
     },
     [aliveIds.length, dispatch, game, humanPlayer, isF3MinigamePhase, pendingChallenge, store]

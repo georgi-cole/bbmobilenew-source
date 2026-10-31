@@ -14,7 +14,7 @@ describe('immediate automatic-nominee badge', () => {
     ).toBe('last-place')
   })
 
-  it('uses Vox immunity results and does not leak the badge into later phases', () => {
+  it('keeps the Vox last-place badge through nominations and does not leak into later phases', () => {
     const base = {
       isVoxPopuli: true,
       publicAutoNomineeId: 'wrong-public-id',
@@ -23,6 +23,12 @@ describe('immediate automatic-nominee badge', () => {
     }
 
     expect(getImmediateAutoNomineeId({ ...base, phase: 'loh_results' })).toBe('vox-last-place')
-    expect(getImmediateAutoNomineeId({ ...base, phase: 'nominations' })).toBeNull()
+    expect(getImmediateAutoNomineeId({ ...base, phase: 'social_1' })).toBe('vox-last-place')
+    expect(getImmediateAutoNomineeId({ ...base, phase: 'nominations' })).toBe('vox-last-place')
+    expect(getImmediateAutoNomineeId({ ...base, phase: 'nomination_results' })).toBe(
+      'vox-last-place'
+    )
+    expect(getImmediateAutoNomineeId({ ...base, phase: 'social_2' })).toBe('vox-last-place')
+    expect(getImmediateAutoNomineeId({ ...base, phase: 'pos_comp' })).toBeNull()
   })
 })

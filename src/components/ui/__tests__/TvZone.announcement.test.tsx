@@ -28,6 +28,7 @@ import gameReducer, {
   activateDemocracia,
   activateDoubleEviction,
   activateSpecialVeto,
+  activateVoxPopuliNow,
   addTvEvent,
   consumeBroadcastEvent,
   debugActivateWeekendInterlude,
@@ -1810,6 +1811,47 @@ describe('TvZone — phase-based announcement triggers', () => {
     })
 
     expect(screen.getByRole('dialog', { name: /Announcement: Live Elimination/i })).toBeDefined()
+  })
+
+  it('skips the redundant Vox public-vote intro and leaves the later verdict announcement', () => {
+    const store = makeStore()
+    act(() => {
+      store.dispatch(activateVoxPopuliNow())
+      store.dispatch(
+        addTvEvent(
+          makeEvent({
+            id: 'ev-vox-public-vote-intro',
+            text: 'The audience decides who leaves.',
+            meta: {
+              major: 'vox_public_vote',
+              broadcastTemplateId: 'card.vox-public-vote',
+            },
+          })
+        )
+      )
+      store.dispatch(setPhase('live_vote'))
+    })
+    renderTvZone(store)
+
+    expect(screen.queryByRole('dialog', { name: /Announcement: Public Vote/i })).toBeNull()
+    expect(screen.queryByText('The audience decides who leaves.')).toBeNull()
+
+    act(() => {
+      store.dispatch(setPhase('eviction_results'))
+      store.dispatch(
+        addTvEvent(
+          makeEvent({
+            id: 'ev-vox-public-vote-closed',
+            text: 'The audience vote is closed. The result is final.',
+            meta: { major: 'vox_populi_public_vote_closed' },
+          })
+        )
+      )
+    })
+
+    expect(
+      screen.getAllByText('The audience vote is closed. The result is final.').length
+    ).toBeGreaterThan(0)
   })
 
   it('shows The Finale overlay when phase transitions to final3 with exactly 3 alive players', () => {

@@ -8,7 +8,7 @@ export const MODE_SCENES = {
   cupidSave: { label: 'Cupid · pair saved', duration: 4500 },
   cupidExit: { label: 'Cupid · paired departure', duration: 10200 },
   cupidAmbush: { label: 'Cupid · pair ambush', duration: 4800 },
-  voxImmunity: { label: 'Vox · immunity', duration: 4200 },
+  voxImmunity: { label: 'Vox · immunity and last place', duration: 6400 },
   voxFinal4: { label: 'Vox · Final 4 competition', duration: 4400 },
   voxNominations: { label: 'Vox · secret nominations', duration: 4800 },
   voxResults: { label: 'Vox · public verdict', duration: 10000 },
@@ -39,12 +39,13 @@ export function modeResources(scene, cast, shared, vfx) {
     }
     if (scene !== 'cupidExit') resources.pairHeart = vfx.shockHeart
   }
-  if (['voxResults', 'voxFinal4'].includes(scene)) {
+  if (['voxResults', 'voxFinal4', 'voxImmunity'].includes(scene)) {
     resources.voxStudio = prop('vox-studio')
     resources.voxMist = vfx.shockMist
     for (const [key, value] of Object.entries(cast))
       if (value.playerId) resources['voxActor_' + key] = actor(key, 'front')
     if (scene === 'voxFinal4') resources.voxToken = prop('decision-token')
+    if (scene === 'voxImmunity') resources.voxShield = prop('shield')
   }
   return resources
 }
@@ -71,11 +72,6 @@ export function adaptModeFilm(scene, root, images, resources, cast, details, fit
     setText(root, '.c-caption span', 'VOX POPULI · NOMINATIONS')
     setText(root, '.c-caption strong', 'The Hub has nominated.')
     setText(root, '.c-caption em', 'THE PUBLIC WILL VOTE TO ELIMINATE.')
-  }
-  if (scene === 'voxImmunity') {
-    setText(root, '.c-caption span', 'VOX POPULI · IMMUNITY')
-    setText(root, '.c-caption strong', cast.a.name)
-    setText(root, '.c-caption em', 'PROTECTED FROM NOMINATION THIS ROUND.')
   }
   if (!scene.startsWith('cupid')) return
   root.classList.add('paired-film')
@@ -167,6 +163,7 @@ export function adaptModeFilm(scene, root, images, resources, cast, details, fit
 
 export function makeVoxFilm(scene, images, cast, details) {
   const result = scene === 'voxResults'
+  const immunity = scene === 'voxImmunity'
   const root = document.createElement('div')
   root.className = 'c-scene vox-broadcast'
   root.dataset.modeScene = scene
@@ -175,10 +172,19 @@ export function makeVoxFilm(scene, images, cast, details) {
     '<div class="vox-camera"><div class="vox-set"></div><div class="vox-haze"></div><div class="vox-light"></div><div class="vox-room-dim"></div><div class="vox-danger-tint"></div><div class="vox-contestants"></div></div><div class="vox-cut"></div><div class="vox-reveal-sweep"></div>' +
     (result
       ? ''
-      : '<div class="vox-heading"><span>VOX POPULI · FINAL FOUR</span><h2>Competition won.</h2><p>NO IMMUNITY IS AWARDED.</p></div><div class="vox-verdict"><span>THE FINAL FOUR CONTINUE</span><h3></h3><p>The audience still decides who leaves.</p></div>')
+      : immunity
+        ? '<div class="vox-heading"><span>VOX POPULI · IMMUNITY CHALLENGE</span><h2>The result is in.</h2><p>FIRST PLACE IS SAFE · LAST PLACE IS NOMINATED</p></div>'
+        : '<div class="vox-heading"><span>VOX POPULI · FINAL FOUR</span><h2>Competition won.</h2><p>NO IMMUNITY IS AWARDED.</p></div><div class="vox-verdict"><span>THE FINAL FOUR CONTINUE</span><h3></h3><p>The audience still decides who leaves.</p></div>')
   root.querySelector('.vox-set').append(copy(images, 'voxStudio', 'vox-backdrop'))
   root.querySelector('.vox-haze').append(copy(images, 'voxMist', 'vox-smoke'))
-  const entries = result ? details.tallies : [{ id: cast.a.playerId, name: cast.a.name }]
+  const entries = result
+    ? details.tallies
+    : immunity
+      ? [
+          { id: cast.a.playerId, name: cast.a.name, role: 'IMMUNITY WINNER' },
+          { id: cast.b.playerId, name: cast.b.name, role: 'LAST PLACE · NOMINATED' },
+        ]
+      : [{ id: cast.a.playerId, name: cast.a.name }]
   const field = root.querySelector('.vox-contestants')
   field.style.setProperty('--contestants', entries.length)
   for (const [index, entry] of entries.entries()) {
@@ -194,6 +200,12 @@ export function makeVoxFilm(scene, images, cast, details) {
     count.className = result ? 'vox-count vox-percent' : 'vox-count'
     count.textContent = result ? '0.0%' : 'COMPETITION WINNER'
     if (result) count.dataset.finalValue = String(Number(entry.value))
+    if (immunity) {
+      card.classList.add(index === 0 ? 'vox-immunity-winner' : 'vox-last-place-nominee')
+      count.className = 'vox-count vox-role-label'
+      count.textContent = entry.role
+      if (index === 0) identity.append(copy(images, 'voxShield', 'vox-immunity-emblem'))
+    }
     identity.append(name)
     if (result) {
       const plate = document.createElement('div')
@@ -224,7 +236,7 @@ export function makeVoxFilm(scene, images, cast, details) {
         : 'THE VOTE IS TIED · TIEBREAK FOLLOWS'
     root.append(note)
   }
-  if (!result) {
+  if (!result && !immunity) {
     setText(root, '.vox-verdict h3', cast.a.name)
     root.querySelector('.vox-camera').append(copy(images, 'voxToken', 'vox-token'))
   }
@@ -232,6 +244,7 @@ export function makeVoxFilm(scene, images, cast, details) {
 }
 export function animateVoxFilm(scene, root, a, duration, later) {
   const result = scene === 'voxResults'
+  const immunity = scene === 'voxImmunity'
   const cards = [...root.querySelectorAll('.vox-contestant')]
   const departing = cards.filter((card) => card.classList.contains('vox-departing'))
   const field = root.querySelector('.vox-contestants')
@@ -335,7 +348,14 @@ export function animateVoxFilm(scene, root, a, duration, later) {
           [duration, 0.72],
         ])
       }
-    } else
+    } else if (immunity)
+      a(count, [
+        [0, 0, 'translateY(12px)'],
+        [1450 + i * 650, 0, 'translateY(12px)', glide],
+        [1950 + i * 650, 1, 'translateY(0)'],
+        [duration, 1],
+      ])
+    else
       a(count, [
         [0, 0],
         [1100, 0],
@@ -386,16 +406,24 @@ export function animateVoxFilm(scene, root, a, duration, later) {
       ])
   } else {
     a('.vox-heading', [
-      [0, 0, 'translateY(-12px)'],
-      [450, 1, 'translateY(0)'],
+      [0, 0, 'translateY(-12px) scale(.985)'],
+      [immunity ? 650 : 450, 1, 'translateY(0) scale(1)'],
       [duration, 1],
     ])
-    a('.vox-verdict', [
-      [0, 0, 'translateY(18px)'],
-      [1900, 0, 'translateY(18px)'],
-      [2450, 1, 'translateY(0)'],
-      [duration, 1],
-    ])
+    if (immunity)
+      a('.vox-immunity-emblem', [
+        [0, 0, 'translateY(12px) scale(.72)'],
+        [1800, 0, 'translateY(12px) scale(.72)', glide],
+        [2350, 1, 'translateY(0) scale(1)'],
+        [duration, 1, 'translateY(-2px) scale(1.03)'],
+      ])
+    else
+      a('.vox-verdict', [
+        [0, 0, 'translateY(18px)'],
+        [1900, 0, 'translateY(18px)'],
+        [2450, 1, 'translateY(0)'],
+        [duration, 1],
+      ])
   }
   a('.vox-cut', [
     [0, 0],

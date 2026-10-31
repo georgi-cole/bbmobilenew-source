@@ -422,3 +422,86 @@
 .vox-broadcast[data-mode-scene='voxFinal4'] .vox-contestant strong {
   display: none;
 }
+.vox-broadcast[data-mode-scene='voxImmunity'] .vox-heading {
+  top: 8%;
+}
+.vox-broadcast[data-mode-scene='voxImmunity'] .vox-heading h2 {
+  margin: 8px 0 5px;
+  font-size: clamp(27px, 7vw, 46px);
+}
+.vox-broadcast[data-mode-scene='voxImmunity'] .vox-heading p {
+  color: #e5cf9a;
+  font-size: clamp(8px, 2vw, 10px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+.vox-broadcast[data-mode-scene='voxImmunity'] .vox-contestants {
+  bottom: 14%;
+  height: 67%;
+}
+.vox-broadcast[data-mode-scene='voxImmunity'] .vox-contestant::before {
+  position: absolute;
+  right: 6%;
+  bottom: 0;
+  left: 6%;
+  height: 20%;
+  border: 1px solid rgba(222, 195, 139, 0.2);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    rgba(202, 170, 103, 0.2),
+    rgba(28, 18, 35, 0.1) 60%,
+    transparent 75%
+  );
+  content: '';
+}
+.vox-broadcast[data-mode-scene='voxImmunity'] .vox-last-place-nominee::before {
+  border-color: rgba(183, 77, 83, 0.27);
+  background: radial-gradient(
+    ellipse,
+    rgba(151, 40, 52, 0.24),
+    rgba(28, 18, 35, 0.1) 60%,
+    transparent 75%
+  );
+}
+.vox-broadcast[data-mode-scene='voxImmunity'] .vox-person {
+  z-index: 1;
+  bottom: 12%;
+  height: 88%;
+}
+.vox-broadcast[data-mode-scene='voxImmunity'] .vox-identity {
+  position: absolute;
+  bottom: 0;
+  z-index: 2;
+  gap: 6px;
+}
+.vox-broadcast[data-mode-scene='voxImmunity'] .vox-identity strong {
+  max-width: 92%;
+  font-size: clamp(17px, 4.5vw, 28px);
+  text-shadow: 0 2px 12px #000e;
+}
+.vox-role-label {
+  box-sizing: border-box;
+  max-width: 96%;
+  padding: 6px 9px;
+  border: 1px solid rgba(229, 205, 157, 0.44);
+  border-radius: 3px;
+  color: #f2dfb7;
+  background: linear-gradient(110deg, rgba(34, 24, 38, 0.9), rgba(74, 54, 53, 0.78));
+  font:
+    700 clamp(7px, 1.8vw, 9px)/1.2 system-ui,
+    sans-serif;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+.vox-last-place-nominee .vox-role-label {
+  border-color: rgba(210, 103, 107, 0.58);
+  color: #f3c6c3;
+  background: linear-gradient(110deg, rgba(57, 18, 29, 0.94), rgba(58, 24, 39, 0.84));
+}
+.vox-immunity-emblem {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(230, 194, 117, 0.28));
+}

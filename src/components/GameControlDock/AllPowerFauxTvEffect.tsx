@@ -29,6 +29,7 @@ export default function AllPowerFauxTvEffect() {
   const gameId = useAppSelector((state) => state.game.gameId)
   const week = useAppSelector((state) => state.game.week)
   const phase = useAppSelector((state) => state.game.phase)
+  const isVoxPopuli = useAppSelector((state) => state.game.voxPopuli?.status === 'active')
   const lohId = useAppSelector((state) => state.game.lohId)
   const posWinnerId = useAppSelector((state) => state.game.posWinnerId)
   const winnerName = useAppSelector((state) =>
@@ -37,9 +38,16 @@ export default function AllPowerFauxTvEffect() {
   const [completedKey, setCompletedKey] = useState<string | null>(null)
 
   const triggerKey = useMemo(() => {
-    if (phase !== 'pos_results' || !posWinnerId || posWinnerId !== lohId || !winnerName) return null
+    if (
+      isVoxPopuli ||
+      phase !== 'pos_results' ||
+      !posWinnerId ||
+      posWinnerId !== lohId ||
+      !winnerName
+    )
+      return null
     return seenStorageKey(gameId, week, posWinnerId)
-  }, [gameId, lohId, phase, posWinnerId, week, winnerName])
+  }, [gameId, isVoxPopuli, lohId, phase, posWinnerId, week, winnerName])
 
   const shouldRender = Boolean(
     triggerKey && completedKey !== triggerKey && !hasSeenEffect(triggerKey)

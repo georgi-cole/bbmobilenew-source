@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 import { useStore } from 'react-redux'
 import { motion } from 'framer-motion'
+import CinematicSkipButton from '../../components/CinematicSkipButton/CinematicSkipButton'
 import type { RootState } from '../../store/store'
 import type { Player } from '../../types'
 import {
@@ -103,14 +104,7 @@ export default function RosterExit({
       transition={{ duration: 0.08 }}
       style={{ position: 'fixed', inset: 0, zIndex: 10001 }}
     >
-      <button
-        className="seo__skip-btn"
-        type="button"
-        onClick={finish}
-        aria-label="Skip roster elimination"
-      >
-        ⏭ Skip
-      </button>
+      <CinematicSkipButton ariaLabel="Skip roster elimination" onClick={finish} />
     </motion.div>,
     document.body
   )

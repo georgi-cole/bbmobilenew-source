@@ -6,7 +6,7 @@ import {
   MODE_BASE,
   modeActors,
 } from './mode-routing.mjs'
-export { adaptCeremonyScene } from './mode-routing.mjs'
+export { adaptCeremonyScene, baseScene } from './mode-routing.mjs'
 export function shouldPlayCinematic(state, vip) {
   return Boolean(
     vip &&
@@ -204,6 +204,7 @@ export function ceremonyCast(scene, props, game, catalog) {
     }
     if (scene.startsWith('cupid') && scene !== 'cupidNominations' && ids.length !== 2) return null
     if (scene === 'cupidNominations' && (ids.length < 4 || ids.length % 2)) return null
+    if (scene === 'voxImmunity' && ids.length !== 2) return null
     if (baseScene(scene) === 'nominations' && !scene.startsWith('cupid') && ids.length > 3)
       return null
     if (scene === 'voxNominations' && ids.length < 2) return null

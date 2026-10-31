@@ -53,14 +53,19 @@ function firstToThreshold(
 }
 
 function powerCandidate(
-  state: Pick<GameState, 'players' | 'tvFeed'>,
+  state: Pick<GameState, 'players' | 'tvFeed' | 'voxPopuli'>,
   player: Player,
   stat: 'lohWins' | 'posWins'
 ): FauxTvEditorialCandidate | null {
   const count = player.stats?.[stat] ?? 0
   if (!POWER_MILESTONES.has(count)) return null
 
-  const label = stat === 'lohWins' ? 'LOH' : 'Power of Safety'
+  const label =
+    stat === 'lohWins'
+      ? state.voxPopuli?.status === 'active'
+        ? 'Immunity'
+        : 'LOH'
+      : 'Power of Safety'
   const keyPart = stat === 'lohWins' ? 'loh' : 'pos'
   const storyKey = `stats:${keyPart}:${player.id}:${count}`
   if (hasStory(state.tvFeed, storyKey)) return null
@@ -81,7 +86,7 @@ function powerCandidate(
 }
 
 function dualPowerCandidate(
-  state: Pick<GameState, 'players' | 'tvFeed'>,
+  state: Pick<GameState, 'players' | 'tvFeed' | 'voxPopuli'>,
   player: Player
 ): FauxTvEditorialCandidate | null {
   const lohWins = player.stats?.lohWins ?? 0
@@ -100,9 +105,11 @@ function dualPowerCandidate(
     return otherLoh >= 1 && otherPos >= 1 && otherLoh + otherPos >= 3
   })
 
+  const firstPowerName = state.voxPopuli?.status === 'active' ? 'Immunity' : 'LOH'
+
   return {
     text: anyoneElseHasBothAtThisLevel
-      ? `${player.name} now has ${lohWins + posWins} power wins split across LOH and the Power of Safety.`
+      ? `${player.name} now has ${lohWins + posWins} power wins split across ${firstPowerName} and the Power of Safety.`
       : `${player.name} is the first player this season to turn wins in both powers into a three-win résumé.`,
     storyKey,
     cooldownKey: `stats:power:${player.id}`,
@@ -176,7 +183,10 @@ function pickBest(candidates: FauxTvEditorialCandidate[]): FauxTvEditorialCandid
  * no relationship, intelligence, targeting, personality or hidden AI state.
  */
 export function buildByTheNumbersCandidate(
-  state: Pick<GameState, 'phase' | 'players' | 'tvFeed' | 'lohId' | 'posWinnerId' | 'nomineeIds'>
+  state: Pick<
+    GameState,
+    'phase' | 'players' | 'tvFeed' | 'lohId' | 'posWinnerId' | 'nomineeIds' | 'voxPopuli'
+  >
 ): FauxTvEditorialCandidate | null {
   const candidates: FauxTvEditorialCandidate[] = []
 

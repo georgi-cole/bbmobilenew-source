@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-31: Reviewed Cinematic-only badge handoffs for competition wins and
+  nominations, plus suppression of the redundant Vox pre-vote card. Existing
+  result callbacks and Standard animations remain intact. This changes no VIP
+  offer, access gate, product, price, entitlement, or Store copy.
+
 - 2026-10-31: Reviewed the VIP Cinematic Vox public-vote reveal and Cupid paired
   exit refinements. The Vox tally is presented inside its existing premium film
   and proceeds directly to its exit film and a brief confirmation using the original
@@ -169,3 +174,13 @@ store listings or change configured prices.
 - 2026-10-28: Reviewed optional per-season contestant selection and three-profile creation cap across Classic, Cupid, Vox Populi, and SurveyEval. Existing access gates and wallet ownership remain. Deferred public-favorite UI and relocated House of Cards styles preserve rewards, callbacks, and style order. Current character catalog and analytics retained. Products, prices, premium variants, and offer copy are unchanged.
 
 - 2026-10-28: Removed the unrequested contestant-setup page and restored the existing direct Classic, Cupid, Vox Populi, and SurveyEval launch controls. Reviewed existing launch gates, mode initialization, save ownership, and launch analytics; products, prices, entitlements, and gameplay offers are unchanged.
+
+- 2026-10-31: Reviewed the cinematic ceremony entrance and fullscreen portrait
+  framing. This presentation-only change does not alter VIP access, ceremony
+  content, products, prices, or marketplace copy.
+
+- 2026-10-31: Reviewed the Vox immunity/last-place result ceremony, persistent
+  auto-nominee badge, Vox milestone wording, and removal of the classic All the
+  Power presentation from Vox. Also consolidated Skip styling across cinematic
+  films and the season archive. VIP access, products, prices, benefits, and Store
+  copy are unchanged.
