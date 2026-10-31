@@ -6,100 +6,57 @@
   place-items: center;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 50% 46%, rgb(67 39 83 / 76%), transparent 56%),
-    linear-gradient(155deg, #100b18 0%, #211329 53%, #09070d 100%);
-  animation: vip-film-prelude-enter 420ms cubic-bezier(0.2, 0.7, 0.25, 1) both;
+    radial-gradient(ellipse at 50% 48%, rgb(45 24 57 / 58%), transparent 49%),
+    linear-gradient(155deg, #08060d, #130b1c 52%, #05040a);
   pointer-events: none;
 }
 
-.vip-film-prelude::before,
 .vip-film-prelude::after {
   position: absolute;
-  inset: -20%;
+  inset: 0;
   content: '';
   pointer-events: none;
 }
 
-.vip-film-prelude::before {
-  background: linear-gradient(112deg, transparent 42%, rgb(224 190 117 / 10%) 50%, transparent 58%);
-  transform: translateX(-34%);
-  animation: vip-film-prelude-sweep 1.15s ease-out both;
-}
-
 .vip-film-prelude::after {
-  inset: 0;
-  background: radial-gradient(ellipse, transparent 38%, rgb(3 2 7 / 65%) 100%);
+  background: radial-gradient(ellipse, transparent 32%, rgb(2 1 5 / 72%) 100%);
 }
 
-.vip-film-prelude__title {
+.vip-film-prelude__eye {
   position: relative;
   z-index: 1;
-  display: grid;
-  justify-items: center;
-  gap: 18px;
-  padding: 28px;
-  color: #f0e7d7;
-  text-align: center;
-  text-shadow: 0 2px 24px rgb(0 0 0 / 48%);
-  animation: vip-film-title-arrive 520ms 80ms cubic-bezier(0.2, 0.7, 0.25, 1) both;
+  width: clamp(72px, 21vw, 126px);
+  height: auto;
+  overflow: visible;
+  color: #d8bd85;
+  filter: drop-shadow(0 0 17px rgb(166 115 211 / 35%));
+  animation: vip-film-eye-breathe 1.8s ease-in-out infinite alternate;
 }
 
-.vip-film-prelude__title span {
-  color: #d8bd83;
-  font:
-    600 10px/1.2 Arial,
-    Helvetica,
-    sans-serif;
-  letter-spacing: 0.28em;
+.vip-film-prelude__eye path,
+.vip-film-prelude__eye circle {
+  stroke: currentColor;
+  stroke-width: 1.8;
 }
 
-.vip-film-prelude__title i {
-  width: 42px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #ddc58f, transparent);
+.vip-film-prelude__eye .vip-film-prelude__iris {
+  fill: #b993d0;
+  stroke: #eed6a5;
 }
 
-.vip-film-prelude__title strong {
-  font:
-    500 clamp(28px, 8vw, 44px)/1.08 Georgia,
-    'Times New Roman',
-    serif;
-}
-
-@keyframes vip-film-prelude-enter {
+@keyframes vip-film-eye-breathe {
   from {
-    opacity: 0;
+    opacity: 0.28;
+    transform: scale(0.94);
   }
   to {
-    opacity: 1;
-  }
-}
-
-@keyframes vip-film-prelude-sweep {
-  from {
-    transform: translateX(-34%);
-  }
-  to {
-    transform: translateX(34%);
-  }
-}
-
-@keyframes vip-film-title-arrive {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    opacity: 0.62;
+    transform: scale(1.02);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vip-film-prelude,
-  .vip-film-prelude::before,
-  .vip-film-prelude__title {
-    animation-duration: 1ms;
-    animation-delay: 0ms;
+  .vip-film-prelude__eye {
+    animation: none;
   }
 }

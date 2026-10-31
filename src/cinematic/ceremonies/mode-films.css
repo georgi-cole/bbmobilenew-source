@@ -436,43 +436,47 @@
   letter-spacing: 0.14em;
 }
 .vox-broadcast[data-mode-scene='voxImmunity'] .vox-contestants {
-  bottom: 14%;
-  height: 67%;
+  bottom: 13%;
+  height: 68%;
 }
-.vox-broadcast[data-mode-scene='voxImmunity'] .vox-contestant::before {
+.vox-immunity-spot {
   position: absolute;
-  right: 6%;
-  bottom: 0;
-  left: 6%;
-  height: 20%;
-  border: 1px solid rgba(222, 195, 139, 0.2);
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse,
-    rgba(202, 170, 103, 0.2),
-    rgba(28, 18, 35, 0.1) 60%,
-    transparent 75%
-  );
-  content: '';
+  inset: -18% -30% 11%;
+  opacity: 0;
+  background: linear-gradient(180deg, #efd69a63, #bda36527 48%, transparent 88%);
+  clip-path: polygon(47% 0, 53% 0, 92% 100%, 8% 100%);
+  filter: blur(8px);
+  pointer-events: none;
 }
-.vox-broadcast[data-mode-scene='voxImmunity'] .vox-last-place-nominee::before {
-  border-color: rgba(183, 77, 83, 0.27);
-  background: radial-gradient(
-    ellipse,
-    rgba(151, 40, 52, 0.24),
-    rgba(28, 18, 35, 0.1) 60%,
-    transparent 75%
-  );
+.vox-last-place-nominee .vox-immunity-spot {
+  background: linear-gradient(180deg, #d78c9370, #81395037 50%, transparent 88%);
+}
+.vox-immunity-floor {
+  position: absolute;
+  right: 5%;
+  bottom: 10%;
+  left: 5%;
+  height: 10%;
+  border-bottom: 1px solid #dfc890a8;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 100%, #c6a76a52, transparent 65%);
+  box-shadow: 0 6px 22px #c99c6d20;
+  opacity: 0;
+}
+.vox-last-place-nominee .vox-immunity-floor {
+  border-bottom-color: #d77882b0;
+  background: radial-gradient(ellipse at 50% 100%, #9b3b4e77, transparent 65%);
+  box-shadow: 0 6px 22px #b6415b38;
 }
 .vox-broadcast[data-mode-scene='voxImmunity'] .vox-person {
-  z-index: 1;
+  z-index: 2;
   bottom: 12%;
   height: 88%;
 }
 .vox-broadcast[data-mode-scene='voxImmunity'] .vox-identity {
   position: absolute;
   bottom: 0;
-  z-index: 2;
+  z-index: 3;
   gap: 6px;
 }
 .vox-broadcast[data-mode-scene='voxImmunity'] .vox-identity strong {
@@ -484,10 +488,13 @@
   box-sizing: border-box;
   max-width: 96%;
   padding: 6px 9px;
-  border: 1px solid rgba(229, 205, 157, 0.44);
-  border-radius: 3px;
+  border: 1px solid rgba(229, 205, 157, 0.55);
+  border-radius: 2px;
   color: #f2dfb7;
-  background: linear-gradient(110deg, rgba(34, 24, 38, 0.9), rgba(74, 54, 53, 0.78));
+  background: linear-gradient(110deg, rgba(21, 16, 28, 0.94), rgba(74, 54, 53, 0.8));
+  box-shadow:
+    0 5px 18px #06030a99,
+    inset 0 1px #f1d9a42c;
   font:
     700 clamp(7px, 1.8vw, 9px)/1.2 system-ui,
     sans-serif;
@@ -498,10 +505,17 @@
   border-color: rgba(210, 103, 107, 0.58);
   color: #f3c6c3;
   background: linear-gradient(110deg, rgba(57, 18, 29, 0.94), rgba(58, 24, 39, 0.84));
+  box-shadow:
+    0 5px 18px #06030a99,
+    inset 0 1px #f4b4b429;
 }
 .vox-immunity-emblem {
-  width: 30px;
-  height: 30px;
+  position: absolute;
+  top: 19%;
+  right: 5%;
+  z-index: 3;
+  width: clamp(35px, 9vw, 52px);
+  height: clamp(35px, 9vw, 52px);
   object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(230, 194, 117, 0.28));
+  filter: drop-shadow(0 3px 14px rgba(230, 194, 117, 0.55));
 }

@@ -53,26 +53,6 @@ export function PremiumBridge({
     [preparing, setPreparing] = useState(false),
     [entryCover, setEntryCover] = useState(() => wantsClip && ceremonyQueue.counts.active === 0),
     [finished, setFinished] = useState(false)
-  const sceneLabel =
-    scene === 'voxImmunity'
-      ? 'Immunity and nomination'
-      : scene === 'voxResults'
-        ? 'Public vote reveal'
-        : scene === 'voxFinal4'
-          ? 'Final 4 ceremony'
-          : ({
-              loh: 'Leader of the Hub',
-              safety: 'Power of Safety',
-              allPower: 'All the power',
-              nominations: 'Nominations',
-              save: 'Safety save',
-              exit: 'Leaving the Hub',
-              tiebreak: 'Tiebreak',
-              final3: 'Final 3',
-              final4: 'Final 4',
-              ambush: 'Ambush',
-              shock: 'Shock announcement',
-            }[baseScene(scene)] ?? 'Ceremony')
   const globalPriority =
     scene === 'shock'
       ? PRESENTATION_PRIORITY.broadcastShock
@@ -379,11 +359,7 @@ export function PremiumBridge({
             aria-hidden="true"
             style={{ zIndex: 10001, pointerEvents: 'auto' }}
           >
-            <div className="vip-film-prelude__title">
-              <span>THE BIG EYE</span>
-              <i />
-              <strong>{sceneLabel}</strong>
-            </div>
+            <PreludeEye />
           </div>,
           document.body
         )}
@@ -403,11 +379,7 @@ export function PremiumBridge({
             >
               {preparing && !entryCover && (
                 <div className="vip-film-prelude" aria-hidden="true">
-                  <div className="vip-film-prelude__title">
-                    <span>THE BIG EYE</span>
-                    <i />
-                    <strong>{sceneLabel}</strong>
-                  </div>
+                  <PreludeEye />
                 </div>
               )}
               <CinematicSkipButton ref={skipButton} ariaLabel="Skip cinematic" onClick={skip} />
@@ -416,5 +388,16 @@ export function PremiumBridge({
           )
         ) : null)}
     </>
+  )
+}
+
+function PreludeEye() {
+  return (
+    <svg className="vip-film-prelude__eye" viewBox="0 0 160 100" fill="none" aria-hidden="true">
+      <path d="M7 50C29 21 53 9 80 9s51 12 73 41c-22 29-46 41-73 41S29 79 7 50Z" />
+      <circle cx="80" cy="50" r="24" />
+      <circle className="vip-film-prelude__iris" cx="80" cy="50" r="10" />
+      <path d="M25 50h18m74 0h18" />
+    </svg>
   )
 }

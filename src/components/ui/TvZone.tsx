@@ -471,7 +471,13 @@ export default function TvZone(props: TvZoneProps) {
     const id = gameState.lastPlainBroadcastEventId
     if (!id) return null
     const event = gameState.tvFeed.find((candidate) => candidate.id === id)
-    if (event?.meta?.phase !== gameState.phase || event?.meta?.week !== gameState.week) return null
+    if (
+      !event ||
+      !isVisibleOnTv(event) ||
+      event.meta?.phase !== gameState.phase ||
+      event.meta?.week !== gameState.week
+    )
+      return null
     return event
   }, [gameState.lastPlainBroadcastEventId, gameState.phase, gameState.tvFeed, gameState.week])
   const mainLogMaxVisible = props.mainLogMaxVisible ?? 2

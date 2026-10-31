@@ -29,9 +29,10 @@ import {
 import modeStyles from './mode-films.css?raw'
 
 export const SCENES = {
-  loh: { label: 'LOH crowning', duration: 4400 },
+  loh: { label: 'LOH crowning', duration: 3200 },
   ...CEREMONIES,
   ...MODE_SCENES,
+  nominations: { ...CEREMONIES.nominations, duration: 7600 },
 }
 export const OPTIONS = Object.keys(SCENES)
 const props = {
@@ -81,8 +82,19 @@ export function sceneResources(id, cast, shockType = 'doubleEviction') {
   }
   const keys =
     id === 'loh'
-      ? ['winner', 'royal', 'seated', 'throne', 'crown', 'curtain', 'cinema_royalRoom']
+      ? [
+          'winner',
+          'royal',
+          'crown',
+          'curtain',
+          'cinema_royalRoom',
+          ...(mode === 'cupidPower' ? ['seated', 'throne'] : []),
+        ]
       : SCENES[id].art.filter((key) => !['cinema_avatarC', 'cinema_eliminatedStamp'].includes(key))
+  if (id === 'nominations' && mode === 'nominations' && cast.d) {
+    keys.push('nomination_seated', 'throne', 'crown', 'cinema_royalRoom')
+    actors.nomination_seated = pose('d', 'royal-seated')
+  }
   if (id === 'shock') keys.push('shockAtmosphere', 'shockMist', ...shockMotifKeys(shockType))
   if (
     id === 'nominations' &&
@@ -163,7 +175,7 @@ function makeLoh(images) {
   const root = document.createElement('div')
   root.className = 'loh-scene fitted-loh'
   root.innerHTML =
-    '<div class="loh-backdrop"></div><div class="loh-halo"></div><div class="loh-floor"></div><div class="loh-room-pieces"></div><div class="loh-figure"><div class="loh-before loh-pose"></div><div class="loh-royal loh-pose"></div></div><div class="loh-seated"></div><div class="loh-flash"></div><div class="loh-seat-flash"></div><div class="loh-titles"><div class="loh-kicker">ALL HAIL YOUR NEW</div><div class="loh-name">Leader of the Hub</div><div class="loh-title">THE CROWN IS YOURS.</div></div>'
+    '<div class="loh-backdrop"></div><div class="loh-halo"></div><div class="loh-floor"></div><div class="loh-room-pieces"></div><div class="loh-figure"><div class="loh-before loh-pose"></div><div class="loh-royal loh-pose"></div></div><div class="loh-flash"></div><div class="loh-titles"><div class="loh-kicker">ALL HAIL YOUR NEW</div><div class="loh-name">Leader of the Hub</div><div class="loh-title">THE CROWN IS YOURS.</div></div>'
   const clone = (key, cls) => {
     const image = images[key].cloneNode()
     image.className = cls
@@ -176,12 +188,19 @@ function makeLoh(images) {
   ]) {
     root.querySelector(target).append(clone(pose, 'loh-person'), clone('crown', 'loh-crown'))
   }
-  const seated = root.querySelector('.loh-seated')
-  seated.append(
-    clone('throne', 'loh-seat-throne'),
-    clone('seated', 'loh-seated-image'),
-    clone('crown', 'loh-seated-crown')
-  )
+  if (images.seated) {
+    const seated = document.createElement('div')
+    seated.className = 'loh-seated'
+    seated.append(
+      clone('throne', 'loh-seat-throne'),
+      clone('seated', 'loh-seated-image'),
+      clone('crown', 'loh-seated-crown')
+    )
+    root.append(seated)
+    const flash = document.createElement('div')
+    flash.className = 'loh-seat-flash'
+    root.append(flash)
+  }
   const room = root.querySelector('.loh-room-pieces')
   for (const direction of ['left', 'right']) {
     const wrap = document.createElement('div')
@@ -192,60 +211,161 @@ function makeLoh(images) {
   return root
 }
 
-function animateLoh(root, a) {
+function addRoyalNomination(root, images, resources, cast) {
+  const shot = document.createElement('div')
+  shot.className = 'nom-decision'
+  shot.innerHTML =
+    '<div class="nom-decision-room"></div><div class="nom-decision-shadow"></div><div class="nom-decision-figure"></div><div class="nom-decision-caption"><span>THE LEADER OF THE HUB</span><strong></strong><em>DECISION IN PROGRESS</em><i class="nom-decision-progress"></i></div>'
+  const copy = (key, className) => {
+    const image = images[key].cloneNode()
+    image.className = className
+    return image
+  }
+  shot.querySelector('.nom-decision-room').append(copy('cinema_royalRoom', 'nom-decision-backdrop'))
+  const figure = shot.querySelector('.nom-decision-figure')
+  figure.append(
+    copy('throne', 'nom-decision-throne'),
+    copy('nomination_seated', 'nom-decision-person'),
+    copy('crown', 'nom-decision-crown')
+  )
+  const throne = resources.nomination_seated.throne
+  figure.querySelector('.nom-decision-throne').style.transform =
+    `translate(${percent(throne.x)},${percent(throne.y)}) scale(${throne.scale})`
+  fitCrown(figure.querySelector('.nom-decision-crown'), resources.nomination_seated)
+  shot.querySelector('.nom-decision-caption strong').textContent = cast.d.name
+  root.append(shot)
+  root.classList.add('nom-royal')
+}
+
+function animateRoyalNomination(root, a) {
+  const end = 7600
   a(root, [
     [0, 0],
     [180, 1],
-    [4020, 1],
-    [4400, 0],
+    [end - 340, 1],
+    [end, 0],
+  ])
+  a('.nom-decision', [
+    [0, 1],
+    [2450, 1],
+    [3000, 0],
+    [end, 0],
+  ])
+  a('.nom-decision-figure', [
+    [0, 0.74, 'scale(1.09)'],
+    [700, 1, 'scale(1.02)'],
+    [2450, 1, 'scale(1)'],
+    [end, 1],
+  ])
+  a('.nom-decision-caption', [
+    [0, 0],
+    [800, 1],
+    [2300, 1],
+    [2760, 0],
+    [end, 0],
+  ])
+  a('.nom-decision-progress', [
+    [0, 1, 'scaleX(0)'],
+    [450, 1, 'scaleX(0)'],
+    [2550, 1, 'scaleX(1)'],
+    [end, 1, 'scaleX(1)'],
+  ])
+  a('.ceremony-backdrop', [
+    [0, 0.45, 'translateY(1%) scale(1.08)'],
+    [end, 0.62, 'translateY(-1%) scale(1.01)'],
+  ])
+  a('.nom-chasm', [
+    [0, 0],
+    [2700, 0],
+    [3300, 0.92],
+    [end, 1],
+  ])
+  a('.nom-warning', [
+    [0, 0],
+    [3050, 0],
+    [3450, 1],
+    [end, 1],
+  ])
+  for (const [index, selector] of ['.nom-first', '.nom-second', '.nom-third'].entries()) {
+    if (!root.querySelector(selector)) continue
+    const start = 3300 + index * 1150
+    a(selector, [
+      [0, 0, 'translateY(16px) scale(1.035)'],
+      [start, 0, 'translateY(16px) scale(1.035)'],
+      [start + 480, 1, 'translateY(0) scale(1)'],
+      [end, 1, 'translateY(0) scale(1)'],
+    ])
+    a(`${selector} .nom-aura`, [
+      [0, 0],
+      [start + 100, 0],
+      [start + 450, 0.8],
+      [end, 0.48],
+    ])
+  }
+  a('.c-caption', [
+    [0, 0, 'translateY(12px)'],
+    [root.querySelector('.nom-third') ? 6080 : 5450, 0, 'translateY(12px)'],
+    [root.querySelector('.nom-third') ? 6500 : 5900, 1, 'translateY(0)'],
+    [end, 1],
+  ])
+}
+
+function animateLoh(root, a) {
+  const seated = Boolean(root.querySelector('.loh-seated'))
+  const end = seated ? 4400 : 3200
+  a(root, [
+    [0, 0],
+    [180, 1],
+    [end - 380, 1],
+    [end, 0],
   ])
   a('.loh-backdrop', [
     [0, 0.35, 'scale(1.09)'],
-    [4400, 0.58, 'scale(1.015)'],
+    [end, 0.58, 'scale(1.015)'],
   ])
   a('.loh-figure', [
     [0, 0, 'translateY(22px) scale(.94)'],
     [550, 1, 'translateY(0) scale(1)'],
     [2319, 1, 'scale(1.008)', 'steps(1,end)'],
-    [2320, 0],
-    [4400, 0],
+    ...(seated ? [[2320, 0]] : []),
+    [end, seated ? 0 : 1, 'scale(1.008)'],
   ])
   a('.loh-crown', [
     [0, 0, 'translateY(-36px)'],
     [650, 0, 'translateY(-36px)'],
     [1060, 1, 'translateY(-2px)'],
     [1160, 1, 'translateY(0)'],
-    [4400, 1, 'translateY(0)'],
+    [end, 1, 'translateY(0)'],
   ])
   a('.loh-before', [
     [0, 1],
     [1300, 1],
     [1660, 0],
-    [4400, 0],
+    [end, 0],
   ])
   a('.loh-royal', [
     [0, 0],
     [1300, 0],
     [1660, 1],
-    [4400, 1],
+    [end, 1],
   ])
   a('.loh-flash', [
     [0, 0],
     [1260, 0],
     [1420, 0.65],
     [1770, 0],
-    [4400, 0],
+    [end, 0],
   ])
   a('.loh-halo', [
     [0, 0, 'scale(.8)'],
     [580, 0.7, 'scale(1)'],
     [1700, 1, 'scale(1.12)'],
-    [4400, 0.8, 'scale(1.15)'],
+    [end, 0.8, 'scale(1.15)'],
   ])
   a('.loh-floor', [
     [0, 0],
     [600, 1],
-    [4400, 1],
+    [end, 1],
   ])
   for (const [side, dir] of [
     ['left', -1],
@@ -255,28 +375,30 @@ function animateLoh(root, a) {
       [0, 0, `translateX(${dir * 125}px)`],
       [1120, 0, `translateX(${dir * 125}px)`],
       [1760, 1, 'translateX(0)'],
-      [4400, 1],
+      [end, 1],
     ])
-  a('.loh-seat-flash', [
-    [0, 0],
-    [2170, 0],
-    [2260, 1],
-    [2370, 1],
-    [2610, 0],
-    [4400, 0],
-  ])
-  a('.loh-seated', [
-    [0, 0, 'scale(1.035)', 'steps(1,end)'],
-    [2320, 1, 'scale(1.035)'],
-    [2730, 1, 'scale(1)'],
-    [3980, 1, 'scale(1.012)'],
-    [4400, 1, 'scale(1.012)'],
-  ])
+  if (seated) {
+    a('.loh-seat-flash', [
+      [0, 0],
+      [2170, 0],
+      [2260, 1],
+      [2370, 1],
+      [2610, 0],
+      [4400, 0],
+    ])
+    a('.loh-seated', [
+      [0, 0, 'scale(1.035)', 'steps(1,end)'],
+      [2320, 1, 'scale(1.035)'],
+      [2730, 1, 'scale(1)'],
+      [3980, 1, 'scale(1.012)'],
+      [4400, 1, 'scale(1.012)'],
+    ])
+  }
   a('.loh-titles', [
     [0, 0, 'translateY(10px)'],
     [1660, 0, 'translateY(10px)'],
     [2040, 1, 'translateY(0)'],
-    [4400, 1],
+    [end, 1],
   ])
 }
 
@@ -459,18 +581,22 @@ export function createClip() {
         root.append(third)
         root.querySelector('.c-caption strong').textContent = 'Three names. One block.'
       }
+      if (sceneId === 'nominations' && images.nomination_seated)
+        addRoyalNomination(root, images, resources, cast)
       if (id === 'shock') decorateShock(root, shockType, images)
       if (id) fitScene(root, id, images, resources, cast)
       if (id === 'loh') {
         for (const [selector, key] of [
           ['.loh-before .loh-crown', 'winner'],
           ['.loh-royal .loh-crown', 'royal'],
-          ['.loh-seated-crown', 'seated'],
         ])
           fitCrown(root.querySelector(selector), resources[key])
-        const t = resources.seated.throne
-        root.querySelector('.loh-seat-throne').style.transform =
-          `translate(${percent(t.x)},${percent(t.y)}) scale(${t.scale})`
+        if (resources.seated) {
+          fitCrown(root.querySelector('.loh-seated-crown'), resources.seated)
+          const t = resources.seated.throne
+          root.querySelector('.loh-seat-throne').style.transform =
+            `translate(${percent(t.x)},${percent(t.y)}) scale(${t.scale})`
+        }
         root.querySelector('.loh-name').textContent = cast.a.name
       }
       if (sceneId !== id) adaptModeFilm(sceneId, root, images, resources, cast, details, fitCrown)
@@ -492,35 +618,6 @@ export function createClip() {
             { duration: 280, fill: 'both', easing: 'cubic-bezier(.18,.65,.3,1)' }
           )
         )
-        if (rect) {
-          const glow = document.createElement('div')
-          glow.className = 'vip-nomination-match'
-          Object.assign(glow.style, {
-            position: 'fixed',
-            left: rect.left + 'px',
-            top: rect.top + 'px',
-            width: rect.width + 'px',
-            height: rect.height + 'px',
-            border: '1px solid #cfb377',
-            borderRadius: '18px',
-            boxShadow: '0 0 24px #c09c5c88',
-            pointerEvents: 'none',
-            zIndex: 10002,
-          })
-          parent.append(glow)
-          transitionNodes.push(glow)
-          animations.push(
-            glow.animate(
-              [
-                { opacity: 0, transform: 'scale(1)' },
-                { opacity: 1, offset: 0.3 },
-                { opacity: 0, transform: 'scale(1.12)' },
-              ],
-              { duration: 360, fill: 'both', easing: 'ease-out' }
-            )
-          )
-          later(() => glow.remove(), 370)
-        }
       }
 
       const a = (selector, stops) => {
@@ -550,8 +647,21 @@ export function createClip() {
       if (!id) animateVoxFilm(sceneId, root, a, duration, later)
       else if (id === 'loh') animateLoh(root, a)
       else if (decision) animateDecisionScene(id, root, a, { nativeHandoff: true })
+      else if (root.classList.contains('nom-royal')) animateRoyalNomination(root, a)
+      else if (id === 'nominations' && sceneId === id)
+        animateScene(id, root, (selector, stops) =>
+          a(
+            selector,
+            stops.map(([ms, ...rest]) => [Math.round((ms / 4800) * duration), ...rest])
+          )
+        )
       else animateScene(id, root, a, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic)
-      if (id === 'nominations' && images.cinema_standC && sceneId === id) {
+      if (
+        id === 'nominations' &&
+        images.cinema_standC &&
+        sceneId === id &&
+        !root.classList.contains('nom-royal')
+      ) {
         a('.nom-third', [
           [0, 0, 'translateY(18px)'],
           [2700, 0, 'translateY(18px)'],
@@ -600,8 +710,17 @@ export function createClip() {
             onComplete()
           }, 250)
         } else {
-          stop()
-          onComplete()
+          animations.push(
+            host.animate([{ opacity: 1 }, { opacity: 0 }], {
+              duration: 220,
+              fill: 'both',
+              easing: 'ease-in-out',
+            })
+          )
+          later(() => {
+            stop()
+            onComplete()
+          }, 230)
         }
       }, endAt)
     },
