@@ -44,7 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
-- 2026-10-31: Released the approved cinematic ceremonies as a VIP benefit.
+- 2026-10-31: Reviewed ceremony-flow compatibility and integration regressions.
+  An omitted morning-shock field now counts as inactive, allowing queued
+  post-competition and post-elimination prompts to appear. Existing rewarded-ad
+  requirements, retry limits, rewards, purchases, premium access and offer copy
+  are unchanged. Current marketplace listings remain accurate.
+
+- 2026-10-31: Reviewed releasing the approved cinematic ceremonies as a VIP benefit.
   Added the benefit to the canonical VIP catalog and product description;
   Standard keeps native animations, and the animation master switch and reduced
   motion retain priority. Non-VIP Cinematic selection routes to Store. Artwork
