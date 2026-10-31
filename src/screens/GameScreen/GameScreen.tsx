@@ -2236,6 +2236,7 @@ export default function GameScreen() {
           <WinnerTileLiftAnimation
             key={`${presentationRunKey}:winner:${pendingWinnerCeremony.targetIds.join(',')}`}
             targetIds={pendingWinnerCeremony.targetIds}
+            voxLastPlaceId={pendingWinnerCeremony.voxLastPlaceId}
             tiles={pendingWinnerCeremony.tiles}
             caption={pendingWinnerCeremony.caption}
             subtitle={pendingWinnerCeremony.subtitle}

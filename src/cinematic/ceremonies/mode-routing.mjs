@@ -6,7 +6,8 @@ export const MODE_BASE = {
   cupidNominations: 'nominations',
   cupidSave: 'save',
   cupidExit: 'exit',
-  voxImmunity: 'safety',
+  // Vox immunity has its own two-person film: the winner and the last-place nominee.
+  voxImmunity: null,
   voxFinal4: null,
   voxNominations: 'nominations',
   voxResults: null,
@@ -35,7 +36,7 @@ export function adaptCeremonyScene(scene, props, game) {
   if (!scene) return null
   if (isVoxActive(game)) {
     if (scene === 'nominations') return 'voxNominations'
-    if (scene === 'allPower') return 'safety'
+    if (scene === 'allPower') return null
     if (['final3', 'final4', 'tiebreak'].includes(scene)) return 'exit'
   }
   if (!isCupidActive(game)) return scene
@@ -64,6 +65,12 @@ export function adaptCeremonyScene(scene, props, game) {
 }
 export function modeActors(scene, props, game) {
   if (scene === 'voxResults') return props.nominees?.map((t) => t.nominee.id) ?? []
+  if (scene === 'voxImmunity') {
+    const winnerId = props.targetIds?.[0]
+    return [winnerId, props.voxLastPlaceId].filter(
+      (id, index, ids) => id && ids.indexOf(id) === index
+    )
+  }
   if (scene === 'cupidExit') return expandPair(game, [props.evictee.id])
   return expandPair(game, mentionedIds(props, game))
 }

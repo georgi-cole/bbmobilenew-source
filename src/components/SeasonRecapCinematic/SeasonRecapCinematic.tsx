@@ -12,6 +12,7 @@ import {
 } from '../../services/presentation/presentationOwnership'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
+import CinematicSkipButton from '../CinematicSkipButton/CinematicSkipButton'
 import { buildSeasonRecapData, type AwardCategory, type RecapData } from './seasonRecapData'
 import './SeasonRecapCinematic.css'
 
@@ -1272,14 +1273,7 @@ export default function SeasonRecapCinematic({
       transition={{ duration: reducedMotion ? 0 : EXIT_FADE_MS / 1000 }}
     >
       <div className="src-explore__ambient" aria-hidden="true" />
-      <button
-        className="src-explore__exit"
-        type="button"
-        onClick={finish}
-        aria-label="Exit season recap"
-      >
-        Skip <span aria-hidden="true">×</span>
-      </button>
+      <CinematicSkipButton ariaLabel="Exit season recap" onClick={finish} />
       <div className="src-explore__music" aria-label="Season recap music is playing">
         ♫
       </div>

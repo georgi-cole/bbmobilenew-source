@@ -82,6 +82,8 @@ export interface CeremonyOverlayProps {
   showCaption?: boolean
   /** When false, this visual layer does not create a second live-region announcement. */
   announce?: boolean
+  /** Reveal badges in place without the full spotlight, caption, or flying handoff. */
+  badgeOnly?: boolean
   /** Glow tones omitted when this overlay is composed under another ceremony layer. */
   hiddenGlowTones?: CeremonyTile['glowTone'][]
   /**
@@ -240,6 +242,7 @@ export default function CeremonyOverlay({
   showDim = true,
   showCaption = true,
   announce = true,
+  badgeOnly = false,
   hiddenGlowTones = [],
   resolveTiles,
   layoutSignal,
@@ -401,15 +404,23 @@ export default function CeremonyOverlay({
   }, [hasValidTiles, active, durationMs, pendingResolve, pendingSurface, reducedMotion, complete])
 
   const cues = useMemo(
-    () => [
-      { atMs: APPEAR_DELAY, run: () => setBadgePhase('appearing') },
-      { atMs: FLY_DELAY, run: () => setBadgePhase('flying') },
-      { atMs: LAND_DELAY, run: () => setBadgePhase('landed') },
-      { atMs: HOLD_DELAY, run: () => setBadgePhase('holding') },
-      { atMs: durationMs, run: () => setVisible(false) },
-      { atMs: durationMs + 350, run: complete },
-    ],
-    [complete, durationMs]
+    () =>
+      badgeOnly
+        ? [
+            { atMs: 0, run: () => setBadgePhase('landed') },
+            { atMs: 380, run: () => setBadgePhase('holding') },
+            { atMs: 620, run: () => setVisible(false) },
+            { atMs: 1000, run: complete },
+          ]
+        : [
+            { atMs: APPEAR_DELAY, run: () => setBadgePhase('appearing') },
+            { atMs: FLY_DELAY, run: () => setBadgePhase('flying') },
+            { atMs: LAND_DELAY, run: () => setBadgePhase('landed') },
+            { atMs: HOLD_DELAY, run: () => setBadgePhase('holding') },
+            { atMs: durationMs, run: () => setVisible(false) },
+            { atMs: durationMs + 350, run: complete },
+          ],
+    [badgeOnly, complete, durationMs]
   )
   usePresentationTimeline(
     active && hasValidTiles && !pendingResolve && !pendingSurface && !reducedMotion,
@@ -453,7 +464,10 @@ export default function CeremonyOverlay({
     let startY: number
     let endY = targetY
 
-    if (t.badgeMotion === 'extract') {
+    if (badgeOnly) {
+      startX = targetX
+      startY = targetY
+    } else if (t.badgeMotion === 'extract') {
       startX = targetX
       startY = targetY
       endY = Math.max(BADGE_EXTRACT_MIN_TOP, targetY - BADGE_EXTRACT_Y_OFFSET)
@@ -573,7 +587,7 @@ export default function CeremonyOverlay({
         aria-hidden={announce ? undefined : true}
       >
         {/* SVG dim layer with mask cutouts */}
-        {showDim && (
+        {showDim && !badgeOnly && (
           <div className="ceremony-overlay__dim">
             <svg xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -601,34 +615,36 @@ export default function CeremonyOverlay({
         )}
 
         {/* Glow rings around cutout tiles */}
-        {cutouts.map((c, i) => {
-          const glowTone = validTiles[i]?.glowTone ?? 'gold'
-          if (hiddenGlowTones.includes(glowTone)) return null
-          return (
-            <div
-              key={i}
-              className={`ceremony-overlay__glow ceremony-overlay__glow--${glowTone}`}
-              style={{ left: c.x, top: c.y, width: c.w, height: c.h }}
-              data-ceremony-tone={glowTone}
-              aria-hidden="true"
-            />
-          )
-        })}
+        {!badgeOnly &&
+          cutouts.map((c, i) => {
+            const glowTone = validTiles[i]?.glowTone ?? 'gold'
+            if (hiddenGlowTones.includes(glowTone)) return null
+            return (
+              <div
+                key={i}
+                className={`ceremony-overlay__glow ceremony-overlay__glow--${glowTone}`}
+                style={{ left: c.x, top: c.y, width: c.w, height: c.h }}
+                data-ceremony-tone={glowTone}
+                aria-hidden="true"
+              />
+            )
+          })}
 
         {/* Optional role/context pills above spotlighted tiles */}
-        {labelLayouts.map((layout) => (
-          <div
-            key={layout.key}
-            className="ceremony-overlay__tile-label"
-            style={{ left: layout.left, top: layout.top }}
-            aria-hidden="true"
-          >
-            {layout.label}
-          </div>
-        ))}
+        {!badgeOnly &&
+          labelLayouts.map((layout) => (
+            <div
+              key={layout.key}
+              className="ceremony-overlay__tile-label"
+              style={{ left: layout.left, top: layout.top }}
+              aria-hidden="true"
+            >
+              {layout.label}
+            </div>
+          ))}
 
         {/* Caption text */}
-        {showCaption && (
+        {showCaption && !badgeOnly && (
           <div
             className={`ceremony-overlay__caption ${visible ? 'ceremony-overlay__caption--visible' : ''}`}
             style={{ top: captionTop }}
