@@ -276,6 +276,23 @@ export default function Settings() {
           get: (s) => s.gameUX.animations,
           onChange: (settingsDispatch, val) => settingsDispatch(setGameUX({ animations: val })),
         },
+        {
+          type: 'dropdown' as const,
+          id: 'animationMode',
+          label: 'Animation style',
+          options: [
+            { value: 'standard', label: 'Standard' },
+            { value: 'cinematic', label: 'Cinematic', vipOnly: true },
+          ],
+          get: (s: SettingsState) =>
+            !isVipActive
+              ? 'standard'
+              : s.gameUX.animationMode === 'standard'
+                ? 'standard'
+                : 'cinematic',
+          onChange: (settingsDispatch: AppDispatch, val: string) =>
+            settingsDispatch(setGameUX({ animationMode: val as 'standard' | 'cinematic' })),
+        },
       ],
     },
     {
@@ -303,6 +320,7 @@ export default function Settings() {
     'theme-preset',
     'compactRoster',
     'animations',
+    'animationMode',
     'reduceMotion',
     'highContrast',
     'haptics',
@@ -326,6 +344,7 @@ export default function Settings() {
   }, [activeProfileId, isGuest])
 
   function renderItem(item: SettingItem) {
+    if (item.id === 'animationMode' && !settings.gameUX.animations) return null
     if (
       (item.id === 'realityModePreset' || item.id === 'romanceStorylines') &&
       !showRealitySettings
@@ -400,6 +419,7 @@ export default function Settings() {
                 {item.label}
               </label>
               <select
+                aria-label={item.label}
                 id={`setting-${item.id}`}
                 className="settings-select"
                 value={value}
@@ -407,6 +427,11 @@ export default function Settings() {
                   const option = item.options.find(
                     (candidate) => candidate.value === event.target.value
                   )
+                  if (item.id === 'animationMode' && option?.vipOnly && !isVipActive) {
+                    item.onChange(dispatch, event.target.value)
+                    navigate('/store')
+                    return
+                  }
                   if (option?.vipOnly && !isVipActive) {
                     setLockedFeature('vipThemes')
                     return

@@ -1,0 +1,732 @@
+/* Revision 3: spatial entrances and explicit action. */
+.cinema-v3 {
+  perspective: 900px;
+}
+.cinema-v3 .cine-world,
+.cinema-v3 .shot-detail .cine-world {
+  transform: none;
+  transform-origin: 50% 35%;
+}
+.cinema-v3.film-allPower .shot-wide .cine-world {
+  transform: none;
+}
+.cinema-v3.film-final3 .shot-detail .cine-bg {
+  transform: none;
+}
+.cinema-v3 .cine-titles {
+  bottom: 8%;
+}
+.cinema-v3 .cine-titles h3 {
+  font-size: 29px;
+}
+.cinema-v3 .cine-titles p {
+  font-size: 6.5px;
+  letter-spacing: 0.11em;
+  max-width: 96%;
+  margin: 9px auto 0;
+}
+.actor-badge {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -6%;
+  text-align: center;
+  font-size: 5.5px;
+  letter-spacing: 0.12em;
+  color: #e0cda9;
+  text-shadow: 0 1px 6px #000;
+  white-space: nowrap;
+}
+.depth-entrance {
+  position: absolute;
+  inset: 0;
+  z-index: 14;
+  pointer-events: none;
+}
+.entrance-wing {
+  position: absolute;
+  top: -4%;
+  bottom: -4%;
+  width: 50.5%;
+  background: #181019;
+  box-shadow: 0 0 22px #000b;
+}
+.wing-left {
+  left: 0;
+}
+.wing-right {
+  right: 0;
+}
+.entrance-panel {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+.wing-right .entrance-panel {
+  transform: scaleX(-1);
+}
+.foreground-jamb {
+  position: absolute;
+  top: -5%;
+  bottom: -5%;
+  width: 7%;
+  z-index: 13;
+  background: linear-gradient(90deg, #100c13, #5c4729 30%, #c8ac705e 45%, #281c25 56%, #0c0910);
+  box-shadow: 0 0 20px #0009;
+  pointer-events: none;
+}
+.jamb-left {
+  left: -2%;
+}
+.jamb-right {
+  right: -2%;
+  background: linear-gradient(90deg, #0c0910, #281c25 44%, #c8ac705e 55%, #5c4729 70%, #100c13);
+}
+.cinema-v3 .cine-cut {
+  background: radial-gradient(ellipse at 52% 40%, #af9488, #826784 38%, #4b3c5d 72%, #201b2f);
+  inset: -5%;
+  z-index: 11;
+  transform: none;
+}
+.cinema-v3 .cine-cut i {
+  display: none;
+}
+.transition-blade {
+  position: absolute;
+  top: -6%;
+  left: 38%;
+  width: 26%;
+  height: 112%;
+  z-index: 12;
+  opacity: 0;
+  filter: blur(1px);
+  box-shadow:
+    -10px 0 26px #10071380,
+    10px 0 26px #10071380;
+  pointer-events: none;
+}
+.transition-texture {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+.ceremony-energy {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+.energy-ring {
+  position: absolute;
+  left: 11%;
+  top: 15%;
+  width: 78%;
+  height: 53%;
+  border-radius: 50%;
+  border: 1px solid #d6bc9c75;
+  box-shadow:
+    0 0 12px #b68ac244,
+    inset 0 0 10px #d6b58322;
+  opacity: 0;
+}
+.ring-b {
+  left: 4%;
+  width: 92%;
+  border-color: #ab8ec681;
+}
+.energy-core {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, #d1b17e2e, #8f6db62e 30%, transparent 68%);
+  opacity: 0;
+}
+.cine-beat {
+  position: absolute;
+  z-index: 13;
+  top: 8.2%;
+  left: 7%;
+  right: 7%;
+  text-align: center;
+  font-size: 6.5px;
+  line-height: 1.6;
+  letter-spacing: 0.15em;
+  color: #f0d9ad;
+  text-shadow: 0 1px 6px #000;
+  opacity: 0;
+  padding: 7px 3px;
+  background: linear-gradient(90deg, transparent, #13101b8c 25%, #13101b8c 75%, transparent);
+}
+.beat-action {
+  color: #e7d3b5;
+}
+.vote-caption {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 3%;
+  text-align: center;
+  color: #e4c88e;
+  font-size: 5px;
+  letter-spacing: 0.14em;
+  text-shadow: 0 1px 5px #000;
+}
+.shot-wide .vote-caption {
+  display: none;
+}
+.vote-tally {
+  position: absolute;
+  z-index: 8;
+  left: 29%;
+  width: 42%;
+  top: 15%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: #ead09d;
+  text-shadow: 0 2px 10px #000;
+  font-size: 24px;
+  font-family: Georgia, serif;
+  opacity: 0;
+}
+.vote-tally i {
+  font-size: 13px;
+  font-style: normal;
+  color: #a1927f;
+}
+.tally-after b:last-child {
+  color: #ec9e9b;
+}
+.vote-flight {
+  position: absolute;
+  z-index: 8;
+  left: 46.5%;
+  top: 51%;
+  width: 7%;
+  height: auto;
+  opacity: 0;
+  filter: drop-shadow(0 0 7px #e2c46e80);
+}
+.verdict-trail {
+  position: absolute;
+  z-index: 7;
+  left: 49%;
+  top: 51%;
+  height: 1px;
+  width: 28%;
+  background: linear-gradient(90deg, #cfb16600, #d8c17b, #d1787f);
+  box-shadow: 0 0 8px #d6ad7c70;
+  transform-origin: left;
+  opacity: 0;
+}
+.verdict-bracket {
+  position: absolute;
+  z-index: 5;
+  left: 62%;
+  right: 3%;
+  top: 23%;
+  height: 42%;
+  border-radius: 45% 45% 2px 2px;
+  background: radial-gradient(ellipse at 50% 90%, #b724383b, transparent 72%);
+  opacity: 0;
+  transform-origin: 50% 100%;
+}
+.verdict-bracket > i {
+  position: absolute;
+  top: 3%;
+  bottom: 0;
+  width: 14%;
+  border-top: 1px solid #cf8682;
+  border-bottom: 1px solid #cf8682;
+}
+.verdict-bracket > i:first-child {
+  left: 0;
+  border-left: 1px solid #cf8682;
+  border-radius: 10px 0 0 2px;
+}
+.verdict-bracket > i:nth-child(2) {
+  right: 0;
+  border-right: 1px solid #cf8682;
+  border-radius: 0 10px 2px 0;
+}
+.verdict-bracket > span {
+  position: absolute;
+  top: 106%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #e6b0a8;
+  font-size: 5.5px;
+  letter-spacing: 0.12em;
+}
+.film-final4 .tally-after {
+  top: 14.5%;
+  left: 37%;
+  width: 26%;
+  font-size: 22px;
+  gap: 13px;
+}
+.film-final4 .verdict-bracket {
+  left: 64%;
+  right: 3%;
+  top: 25%;
+  height: 40%;
+}
+.safety-spotlight {
+  position: absolute;
+  z-index: 2;
+  left: 28%;
+  width: 44%;
+  top: 12%;
+  height: 57%;
+  background: radial-gradient(ellipse, #d6b56e27, transparent 70%);
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+.ambush-save-shield {
+  position: absolute;
+  z-index: 5;
+  left: 13%;
+  top: 43%;
+  width: 15%;
+  height: 19%;
+  object-fit: contain;
+  opacity: 0;
+}
+.slot-open {
+  position: absolute;
+  z-index: 7;
+  left: 4%;
+  width: 42%;
+  top: 69%;
+  color: #dfc68e;
+  text-align: center;
+  font:
+    400 13px Georgia,
+    serif;
+  letter-spacing: 0.08em;
+  opacity: 0;
+}
+.slot-open > span {
+  display: block;
+  font:
+    5px Arial,
+    sans-serif;
+  letter-spacing: 0.12em;
+  margin-top: 5px;
+}
+.nomination-lock {
+  position: absolute;
+  z-index: 5;
+  top: 17%;
+  height: 46%;
+  width: 8%;
+  border-top: 2px solid #db8c8c;
+  border-bottom: 2px solid #db8c8c;
+  opacity: 0;
+}
+.lock-left {
+  left: 21%;
+  border-left: 2px solid #db8c8c;
+  border-radius: 14px 0 0 3px;
+}
+.lock-right {
+  right: 21%;
+  border-right: 2px solid #db8c8c;
+  border-radius: 0 14px 3px 0;
+}
+.cinema-v3 .role-back-left .actor-badge {
+  color: #dbce9d;
+}
+.cinema-v3 .role-back-right .actor-badge {
+  color: #d79c95;
+}
+.power-standing {
+  width: 61%;
+  left: 19.5%;
+  bottom: 29%;
+}
+.power-award-shield {
+  position: absolute;
+  z-index: 5;
+  left: 60%;
+  top: 43%;
+  width: 22%;
+  height: 27%;
+  object-fit: contain;
+  opacity: 0;
+}
+.royal-group {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+.royal-room-plane {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform-origin: 50% 25%;
+}
+.royal-aura {
+  position: absolute;
+  z-index: 2;
+  inset: 8% 8% 20%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #c6a36d2e, #9365bb15 45%, transparent 70%);
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+.city-depth,
+.eye-city-depth {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+.city-plate,
+.eye-city-plate {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.75) saturate(0.8);
+}
+.royal-window-room {
+  z-index: 1;
+  --royal-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1500'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H1000V1500H0Z M270 900V310C270 100 730 100 730 310V900Z'/%3E%3C/svg%3E");
+  mask-image: var(--royal-mask);
+  -webkit-mask-image: var(--royal-mask);
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+}
+.royal-glass {
+  position: absolute;
+  z-index: 2;
+  top: 8%;
+  height: 52%;
+  left: 27%;
+  width: 46%;
+  border-radius: 45% 45% 0 0;
+  background: linear-gradient(115deg, transparent 30%, #e3d1ba0c 45%, transparent 58%);
+  box-shadow: inset 0 0 0 1px #b89d6540;
+  overflow: hidden;
+}
+.royal-glass i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(90deg, #6d542b, #d4b476, #614b2c);
+}
+.royal-glass i:first-child {
+  left: 24%;
+}
+.royal-glass i:last-child {
+  right: 24%;
+}
+.city-light {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 100%;
+  background: #f8d891;
+  box-shadow: 0 0 5px #f8d89190;
+  opacity: 0.3;
+}
+.city-light-a {
+  left: 42%;
+  top: 41%;
+}
+.city-light-b {
+  left: 62%;
+  top: 49%;
+}
+.eye-window-room {
+  z-index: 1;
+  --eye-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1500'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H1000V1500H0Z M568 400A68 68 0 1 0 432 400A68 68 0 1 0 568 400Z'/%3E%3C/svg%3E");
+  mask-image: var(--eye-mask);
+  -webkit-mask-image: var(--eye-mask);
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+}
+.eye-city-depth .eye-city-plate {
+  object-position: 50% 62%;
+  filter: brightness(1) saturate(0.8);
+}
+.eye-orbit {
+  position: absolute;
+  z-index: 3;
+  left: 26%;
+  top: 11%;
+  width: 48%;
+  height: 32%;
+  border: 1px solid #d7bc8280;
+  border-radius: 50%;
+  box-shadow: 0 0 12px #ba85bb30;
+  opacity: 0;
+}
+.orbit-b {
+  left: 18%;
+  top: 6%;
+  width: 64%;
+  height: 43%;
+  border-color: #a285c890;
+}
+.shock-motif {
+  position: absolute;
+  z-index: 4;
+  left: 36%;
+  top: 56%;
+  width: 28%;
+  height: 9%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13%;
+  opacity: 0;
+}
+.shock-motif i {
+  display: block;
+  width: 25%;
+  height: 75%;
+  border: 1px solid #d5b77f;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #c09c4b26, #79669d26);
+  box-shadow: 0 0 10px #b9a56b1c;
+}
+.shock-motif b {
+  display: none;
+}
+.cinema-v3[data-motif='twin-shields'] .shock-motif i {
+  border-radius: 25% 25% 50% 50%;
+  height: 90%;
+}
+.cinema-v3[data-motif='slashes'] .shock-motif i {
+  width: 8%;
+  border-radius: 0;
+  transform: rotate(18deg);
+  border-color: #d7968e;
+  background: #a64f5b40;
+}
+.cinema-v3[data-motif='halo'] .shock-motif i {
+  height: 20%;
+  width: 65%;
+  border-radius: 50%;
+  transform: rotate(-15deg);
+}
+.cinema-v3[data-motif='halo'] .shock-motif i:nth-child(2) {
+  display: none;
+}
+.cinema-v3[data-motif='return'] .shock-motif {
+  border: 1px solid #d7b981;
+  border-right-color: transparent;
+  border-radius: 50%;
+  height: 8%;
+  width: 16%;
+  left: 42%;
+}
+.cinema-v3[data-motif='return'] .shock-motif i {
+  width: 0;
+  height: 0;
+  border: 5px solid transparent;
+  border-right: 7px solid #d7b981;
+  background: none;
+  position: absolute;
+  left: -5px;
+  top: 35%;
+}
+.cinema-v3[data-motif='return'] .shock-motif i:nth-child(2) {
+  display: none;
+}
+.cinema-v3[data-motif='ballots'] .shock-motif i {
+  border-radius: 1px;
+  transform: rotate(-8deg);
+  height: 60%;
+  width: 40%;
+}
+.cinema-v3[data-motif='storm'] .shock-motif i {
+  border-radius: 50% 50% 30% 30%;
+  width: 75%;
+  height: 50%;
+  background: #7b789044;
+  border-color: #9993a0;
+}
+.cinema-v3[data-motif='storm'] .shock-motif i:nth-child(2) {
+  display: none;
+}
+.cinema-v3[data-motif='sunrise'] .shock-motif i {
+  width: 55%;
+  height: 80%;
+  border-bottom: 0;
+  border-radius: 50% 50% 0 0;
+  background: #d6aa5430;
+}
+.cinema-v3[data-motif='sunrise'] .shock-motif i:nth-child(2) {
+  display: none;
+}
+.cinema-v3[data-motif='arrows'] .shock-motif i {
+  width: 70%;
+  height: 1px;
+  border: 0;
+  background: #d596b1;
+  transform: rotate(-25deg);
+}
+.cinema-v3[data-motif='broken-heart'] .shock-motif i {
+  border-radius: 60% 60% 0 0;
+  border-color: #d596b1;
+  transform: rotate(-25deg);
+}
+.cinema-v3[data-motif='broken-heart'] .shock-motif i:nth-child(2) {
+  transform: rotate(25deg);
+}
+.cinema-v3.film-shock .cine-titles {
+  bottom: 12%;
+}
+.cinema-v3.film-shock .cine-titles h3 {
+  font-size: 27px;
+}
+.cinema-v3.film-shock .cine-titles p {
+  font-size: 9px;
+  letter-spacing: 0.03em;
+}
+.final-decision {
+  position: absolute;
+  z-index: 7;
+  top: 65%;
+  left: 61%;
+  width: 35%;
+  padding: 7px 3px;
+  text-align: center;
+  color: #e9b4aa;
+  font:
+    400 12px Georgia,
+    serif;
+  opacity: 0;
+  background: #36182799;
+  border-top: 1px solid #bd7d7666;
+  border-bottom: 1px solid #bd7d7666;
+}
+.final-decision > span {
+  display: block;
+  font:
+    5px Arial,
+    sans-serif;
+  letter-spacing: 0.1em;
+  margin-top: 4px;
+}
+.cinema-v3.film-final3 .cine-departure {
+  width: 34%;
+  left: 33%;
+  bottom: 37%;
+  transform-origin: 50% 100%;
+  z-index: 3;
+}
+.doorway-volume {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  clip-path: inset(0 39% 57.5% 39%);
+  overflow: hidden;
+  pointer-events: none;
+}
+.cinema-v3 .cine-gates {
+  top: 0;
+  height: 42.5%;
+  left: 39%;
+  width: 22%;
+  z-index: 6;
+}
+.cinema-v3 .cine-gate {
+  width: 50.5%;
+  height: 100%;
+  background: #261a17;
+}
+.portal-floor-light {
+  position: absolute;
+  z-index: 1;
+  left: 37%;
+  width: 26%;
+  height: 4%;
+  top: 40%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #d8b27540, transparent 75%);
+}
+.cinema-v3 .departure-far {
+  opacity: 0;
+}
+.cinema-v3 .departure-near {
+  opacity: 1;
+}
+.cinema-v3.c-static .depth-entrance,
+.cinema-v3.c-static .foreground-jamb,
+.cinema-v3.c-static .transition-blade,
+.cinema-v3.c-static .ceremony-energy {
+  display: none;
+}
+.cinema-v3.c-static .beat-initial,
+.cinema-v3.c-static .beat-action {
+  display: none;
+}
+.cinema-v3.c-static .tally-after,
+.cinema-v3.c-static .verdict-bracket {
+  opacity: 1;
+}
+.cinema-v3.c-static .departure-near,
+.cinema-v3.c-static .departure-far {
+  visibility: hidden;
+}
+.cinema-v3.c-static.film-final3 .gate-left {
+  transform: translateX(0);
+}
+.cinema-v3.c-static.film-final3 .gate-right {
+  transform: translateX(0) scaleX(-1);
+}
+.cinema-v3.c-static .royal-group {
+  transform: none;
+}
+@media (min-width: 621px) {
+  .cinema-v3 .cine-titles h3 {
+    font-size: 32px;
+  }
+  .cine-beat {
+    font-size: 7px;
+  }
+  .actor-badge {
+    font-size: 6px;
+  }
+}
+@media (max-width: 360px) {
+  .cinema-v3 .cine-titles h3 {
+    font-size: 25px;
+  }
+  .cinema-v3 .cine-titles p {
+    font-size: 5.5px;
+  }
+  .cine-beat {
+    font-size: 5.5px;
+  }
+  .actor-badge {
+    font-size: 5px;
+  }
+  .cinema-v3.film-shock .cine-titles h3 {
+    font-size: 23px;
+  }
+}
+.cinema-v3[data-motif='pulse'] .shock-motif i {
+  height: 1px;
+  width: 40%;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(90deg, transparent, #d5bb88, transparent);
+  box-shadow: 0 0 9px #c5ab7b50;
+}
+.cinema-v3[data-motif='pulse'] .shock-motif b {
+  display: block;
+  position: absolute;
+  left: 48%;
+  top: 46%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #dac18e;
+  box-shadow: 0 0 14px #d5b67e80;
+}

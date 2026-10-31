@@ -115,6 +115,11 @@ let capturedOnExternalAnnouncementDismiss: (() => void) | null = null
 let capturedEvictionSplashDone: (() => void) | null = null
 const EVICTION_PRESENTATION_SETTLE_MS = 40
 
+beforeEach(() => {
+  localStorage.clear()
+  sessionStorage.clear()
+})
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function makePlayers(count: number, userIndex = 0): Player[] {
@@ -270,7 +275,9 @@ describe('Ceremony fix: replacement animation gated on veto being used', () => {
       replacementNeeded: false,
     })
     renderWithStore(store)
-    await act(async () => {})
+    await act(async () => {
+      vi.advanceTimersByTime(0)
+    })
 
     // CeremonyOverlay with replacement label should be visible.
     await act(async () => {
@@ -521,6 +528,10 @@ describe('Ceremony fix: live badge choreography for save and replacement', () =>
     })
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Confirm:\s*Player 2/i }))
+    })
+    // The committed Safety choice queues its ceremony on the next event-loop turn.
+    await act(async () => {
+      vi.advanceTimersByTime(0)
     })
     await act(async () => {
       vi.advanceTimersByTime(1000)

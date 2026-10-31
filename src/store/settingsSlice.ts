@@ -58,6 +58,7 @@ export interface SettingsState {
     houseFeed: boolean
     useHaptics: boolean
     animations: boolean
+    animationMode?: 'auto' | 'standard' | 'cinematic'
     /** Include optional two-day weekend interludes between numbered gameplay days. */
     weekendsEnabled: boolean
     spectatorMode: boolean
@@ -179,6 +180,9 @@ function normalizeGameUX(gameUX?: Partial<SettingsState['gameUX']>): SettingsSta
   const legacyCompactRosterLayout = (gameUX as { compactRosterLayout?: unknown } | undefined)
     ?.compactRosterLayout
   const merged = { ...DEFAULT_SETTINGS.gameUX, ...(gameUX ?? {}) }
+  merged.animationMode = ['standard', 'cinematic'].includes(gameUX?.animationMode ?? '')
+    ? gameUX!.animationMode
+    : 'auto'
   merged.realityModePreset = normalizeRealityModePreset(gameUX?.realityModePreset)
   merged.compSelection = normalizeCompSelection(gameUX?.compSelection)
   merged.gameManager = normalizeGameManagerConfig(gameUX?.gameManager)
@@ -215,6 +219,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     houseFeed: false,
     useHaptics: true,
     animations: true,
+    animationMode: 'auto',
     weekendsEnabled: true,
     spectatorMode: true,
     dramaMode: false,

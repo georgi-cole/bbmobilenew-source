@@ -1,3 +1,4 @@
+import VipAmbushDirector from './cinematic/ceremonies/ambush'
 /**
  * App.tsx — root component.
  *
@@ -137,6 +138,7 @@ export default function App() {
   return (
     <Provider store={store}>
       <I18nProvider>
+        <VipAmbushDirector />
         {IS_PUBLIC_QA_BUILD && (
           <div className="public-qa-banner" role="status">
             QA

@@ -44,6 +44,32 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-31: Released the approved cinematic ceremonies as a VIP benefit.
+  Added the benefit to the canonical VIP catalog and product description;
+  Standard keeps native animations, and the animation master switch and reduced
+  motion retain priority. Non-VIP Cinematic selection routes to Store. Artwork
+  loads by scene and character; Back 2 the Game follow-up cards cannot replay
+  its main reveal. Prices and premium-minigame entitlements are unchanged.
+
+- 2026-10-31: Reviewed the local shock-effect refinement: shared natural mist and
+  selectively prepared Cupid, Halo Exchange, Twin Shock and election cutouts. The authoring preview
+  retains the existing VIP/Standard gates and native announcement handoff.
+  No released offer, product copy, entitlement, price or benefit changes.
+
+- 2026-10-31: Reviewed the local full-game VIP ceremony preview and its animation
+  style preference. The authoring server alone supplies the cinematic bridge;
+  release routes do not expose the preview selector or import authoring artwork.
+  Standard access keeps the original presentations. Cinematic requires effective
+  VIP access, respects explicit Standard and the master switch, and remains a
+  local test experience. Early-exit winner presentation and interruption cleanup
+  preserve accepted outcomes, scoring, retry limits and rewards. No released
+  products, entitlements, benefits, prices or Store listings change.
+
+- 2026-10-31: Reviewed winner ceremonies after an early competition exit.
+  Early exits retain their losing placement and existing retry eligibility;
+  the winner ceremony now precedes the existing result commit. No rewards,
+  retry limits, paid access, offers or Store copy change.
+
 - 2026-10-30: Reviewed premium presentation lifecycle maintenance and the shared
   minigame host guard that suspends decorative cinematics before countdown.
   Shared TV/Cupid stingers and ceremony timelines pause with their owner and

@@ -97,7 +97,7 @@ import {
   formatSurveyevalCycleLabel,
   formatPhaseLabel,
 } from '../../utils/gameStatusLanguage'
-import ShockIntroOverlay from './ShockIntroOverlay/ShockIntroOverlay'
+import ShockIntroOverlay from '../../cinematic/ceremonies/shock'
 import ConfessionalSpotlightOverlay from '../FloatingActionBar/ConfessionalSpotlightOverlay'
 import DemocraciaResultsReveal from './DemocraciaResultsReveal/DemocraciaResultsReveal'
 import VoxAudiencePulseReveal, {

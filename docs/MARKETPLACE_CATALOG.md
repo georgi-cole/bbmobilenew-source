@@ -20,7 +20,7 @@ Permanently unlock every VIP feature for one bundle price.
 
 Every premium advantage. One permanent unlock.
 
-Own the complete premium collection in one purchase, including every current Store feature and VIP theme.
+Own the complete premium collection in one purchase, including every current Store feature, VIP theme and cinematic ceremony.
 
 - Premium Challenges Pack
 - Surveyeval Mode
@@ -30,6 +30,7 @@ Own the complete premium collection in one purchase, including every current Sto
 - Vox Populi
 - No automatic ads
 - VIP themes
+- Cinematic ceremonies
 
 A permanent, non-consumable purchase. Existing eligible standalone purchases receive 75% credit toward the nearest supported VIP upgrade tier, with a minimum upgrade price.
 

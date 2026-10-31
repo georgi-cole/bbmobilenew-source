@@ -1,0 +1,44 @@
+{
+  "shockMist": {
+    "src": "assets/ceremonies/vfx/natural-mist-v2.webp",
+    "width": 960,
+    "height": 320,
+    "bytes": 70978
+  },
+  "shockHeart": {
+    "src": "assets/ceremonies/vfx/rose-glass-heart-v1.webp",
+    "width": 256,
+    "height": 256,
+    "bytes": 13992
+  },
+  "shockHalo": {
+    "src": "assets/ceremonies/vfx/champagne-halo-v1.webp",
+    "width": 384,
+    "height": 192,
+    "bytes": 15012
+  },
+  "shockDna": {
+    "src": "assets/ceremonies/vfx/amethyst-dna-v1.webp",
+    "width": 192,
+    "height": 384,
+    "bytes": 24944
+  },
+  "shockBallot": {
+    "src": "assets/ceremonies/vfx/obsidian-ballot-box-v1.webp",
+    "width": 256,
+    "height": 256,
+    "bytes": 10990
+  },
+  "shockAntidote": {
+    "src": "assets/ceremonies/vfx/jade-antidote-v1.webp",
+    "width": 256,
+    "height": 384,
+    "bytes": 18230
+  },
+  "shockForce": {
+    "src": "assets/ceremonies/vfx/pressure-wave-v1.webp",
+    "width": 512,
+    "height": 512,
+    "bytes": 99334
+  }
+}
