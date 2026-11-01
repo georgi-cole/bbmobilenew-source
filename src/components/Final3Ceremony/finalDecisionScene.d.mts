@@ -37,6 +37,7 @@ export interface FinalDecisionSceneConfig {
   sceneId: string
   preview: boolean
   reducedMotion?: boolean
+  initiallyPaused?: boolean
   fixture: {
     holder: { id: string; name: string }
     nominees: Array<{

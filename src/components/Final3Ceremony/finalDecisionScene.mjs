@@ -1,4 +1,5 @@
 import './finalDecisionScene.css'
+import { paginateCeremonyCaption } from './finalDecisionCaptions.mjs'
 
 // A reusable physical housing with a live DOM screen. The generated asset
 // supplies only the object; all changing broadcast content stays editable.
@@ -79,11 +80,14 @@ function mountFinalDecision(root, config) {
   let captionPage = 0
   let captionPages = []
   let screenAnimation = null
+  let cameraAnimation = null
+  let compositionSize = ''
   let reviewIndex = -1
   let run = 1
   let timer = null
   const pauses = new Set()
   if (document.hidden) pauses.add('visibility')
+  if (cfg.initiallyPaused) pauses.add('presentation')
   const animations = new Set()
   const ambientAnimations = new Set()
   const layerNodes = {}
@@ -143,6 +147,9 @@ function mountFinalDecision(root, config) {
   const leftBeam = node('div', 'fd-beam fd-beam--left', light)
   const rightBeam = node('div', 'fd-beam fd-beam--right', light)
   const halo = node('div', 'fd-halo', light)
+  const backlight = node('div', 'fd-backlight', light)
+  const floorLight = node('div', 'fd-floor-light', light)
+  const architectureSweep = node('div', 'fd-architecture-sweep', light)
   node('div', 'fd-speaker-focus', light)
   const eliminationLight = node('div', 'fd-elimination-light', world)
   eliminationLight.setAttribute('aria-hidden', 'true')
@@ -205,31 +212,16 @@ function mountFinalDecision(root, config) {
   const monitorSheen = node('div', 'fd-monitor-sheen', monitor.element)
   monitorSheen.setAttribute('aria-hidden', 'true')
   layerNodes.monitor = [monitor.element]
-  const platesRoot = node('div', 'fd-nameplates', scene)
-  const plates = nominees.map((person) => {
-    const plate = node('div', 'fd-nameplate', platesRoot)
-    node('strong', '', plate, person.name)
-    return { el: plate }
-  })
   const topbar = node('div', 'fd-topbar', scene)
   const reviewButton = button('Review finalists', 'fd-top-button fd-review-button', topbar, () =>
     openReview()
   )
   reviewButton.setAttribute('aria-label', 'Review finalist comparisons')
-  const playback = node('div', 'fd-playback', topbar)
-  const pauseButton = button('Pause', 'fd-top-button', playback, () => togglePause())
-  pauseButton.setAttribute('aria-label', 'Pause scene')
-  const skipButton = button('Skip', 'fd-top-button', playback, () => skip())
-  skipButton.setAttribute('aria-label', 'Skip presentation; no decision will be made for you')
   const bottom = node('div', 'fd-bottom', scene)
   const actions = node('div', 'fd-actions', bottom)
   const live = node('p', 'fd-sr', scene)
   live.setAttribute('role', 'status')
   live.setAttribute('aria-live', 'polite')
-  const pauseCover = node('div', 'fd-pause-cover', scene)
-  const pauseInner = node('div', '', pauseCover)
-  button('Resume scene', 'fd-action', pauseInner, () => resume())
-  pauseCover.hidden = true
 
   let tools = null
   if (isPreview) {
@@ -316,6 +308,13 @@ function mountFinalDecision(root, config) {
     timer = { remaining: ms, start: performance.now(), fn, id: null }
     armTimer()
   }
+  function freezeAnimation(animation) {
+    // pause() settles on the browser's next animation tick. Pin its current time
+    // immediately so even that pending tick cannot advance an owned shot.
+    const time = animation.currentTime
+    animation.pause()
+    if (time != null) animation.currentTime = time
+  }
   function animate(el, frames, options, ambient = false) {
     if (reduced || !el || typeof el.animate !== 'function') return null
     const animation = el.animate(frames, options)
@@ -327,7 +326,7 @@ function mountFinalDecision(root, config) {
       if (options.fill !== 'forwards' && options.fill !== 'both') owned.delete(animation)
     }
     animation.oncancel = () => owned.delete(animation)
-    if (pauses.size) animation.pause()
+    if (pauses.size) freezeAnimation(animation)
     return animation
   }
   function stopAnimations(includeAmbient = false) {
@@ -355,8 +354,33 @@ function mountFinalDecision(root, config) {
       ],
       15000
     )
-    loop(leftBeam, [{ transform: 'rotate(-7deg)' }, { transform: 'rotate(3deg)' }], 8400)
-    loop(rightBeam, [{ transform: 'rotate(7deg)' }, { transform: 'rotate(-3deg)' }], 10200)
+    loop(leftBeam, [{ transform: 'rotate(-18deg)' }, { transform: 'rotate(12deg)' }], 6700)
+    loop(rightBeam, [{ transform: 'rotate(18deg)' }, { transform: 'rotate(-12deg)' }], 7900)
+    loop(
+      backlight,
+      [
+        { opacity: 0.45, transform: 'scaleX(.82)' },
+        { opacity: 0.85, transform: 'scaleX(1.12)' },
+      ],
+      5800
+    )
+    loop(
+      floorLight,
+      [
+        { opacity: 0.45, transform: 'translateX(-8%)' },
+        { opacity: 0.85, transform: 'translateX(8%)' },
+      ],
+      7300
+    )
+    loop(
+      architectureSweep,
+      [
+        { transform: 'translateX(-110%) skewX(-18deg)', opacity: 0 },
+        { transform: 'translateX(-20%) skewX(-18deg)', opacity: 0.35, offset: 0.4 },
+        { transform: 'translateX(110%) skewX(-18deg)', opacity: 0 },
+      ],
+      11500
+    )
     loop(
       halo,
       [
@@ -368,8 +392,8 @@ function mountFinalDecision(root, config) {
     loop(
       mist,
       [
-        { transform: 'translateX(-5%) scale(1.05)', opacity: 0.13 },
-        { transform: 'translateX(5%) scale(1.12)', opacity: 0.25 },
+        { transform: 'translateX(-9%) scale(1.05)', opacity: 0.16 },
+        { transform: 'translateX(9%) scale(1.12)', opacity: 0.3 },
       ],
       12000
     )
@@ -400,10 +424,7 @@ function mountFinalDecision(root, config) {
     actors.forEach((el, index) =>
       loop(
         el.querySelector('.fd-pose'),
-        [
-          { transform: 'translateY(0) rotate(-.2deg)' },
-          { transform: 'translateY(-3px) rotate(.2deg)' },
-        ],
+        [{ transform: 'scale(1,1)' }, { transform: 'scale(1.004,1.006)' }],
         6100 + index * 900,
         -index * 1700
       )
@@ -420,32 +441,82 @@ function mountFinalDecision(root, config) {
       )
     )
   }
+  function cameraPose() {
+    const compact = scene.clientHeight < 660
+    if (reduced) return { scale: 1, x: 0, y: 0 }
+    if (confirmed) {
+      return { scale: compact ? 1.055 : stage === 'seal' ? 1.055 : 1.085, x: 0, y: 0 }
+    }
+    if (stage === 'establish') return { scale: 1.08, x: 0, y: 0 }
+    if (stage === 'plea-a' || stage === 'plea-b' || (stage === 'confirm' && compact)) {
+      const left = stage === 'plea-a' || (stage === 'confirm' && selected === nominees[0].id)
+      return {
+        scale: compact ? 1.11 : 1.17,
+        x: (left ? 1 : -1) * (compact ? 0.045 : 0.052),
+        y: compact ? 0.007 : 0.01,
+      }
+    }
+    return { scale: stage === 'confirm' ? 1.1 : 1.055, x: 0, y: 0 }
+  }
   function layoutComposition() {
     const width = scene.clientWidth
     const height = scene.clientHeight
     if (!width || !height) return
-    scene.classList.toggle('fd-compact', height < 660)
-    const worldRect = world.getBoundingClientRect()
-    const scale = worldRect.width / width || 1
-    const monitorBottom = (monitor.element.getBoundingClientRect().bottom - worldRect.top) / scale
+    const size = width + 'x' + height
+    if (compositionSize && compositionSize !== size) cameraAnimation?.cancel()
+    compositionSize = size
+    const compact = height < 660
+    scene.classList.toggle('fd-compact', compact)
+    const nomineeFloor = compact ? 0.82 : 0.79
+    const holderFloor = compact ? 0.74 : 0.69
+    scene.style.setProperty('--fd-nominee-bottom', height * (1 - nomineeFloor) + 'px')
+    scene.style.setProperty('--fd-holder-bottom', height * (1 - holderFloor) + 'px')
+    const camera = cameraPose()
+    world.style.transform =
+      'scale(' + camera.scale + ') translate(' + camera.x * 100 + '%,' + camera.y * 100 + '%)'
+    const sceneRect = scene.getBoundingClientRect()
+    const monitorBottom = monitor.element.getBoundingClientRect().bottom - sceneRect.top
+    // Establish real floor anchors, then size the cast to the usable space.
+    // The compact layout reserves enough headroom for the strongest camera shot.
+    const nomineeWidth = Math.max(
+      80,
+      Math.min(width * 0.62, (height * nomineeFloor - monitorBottom - 40) / 1.5)
+    )
+    const holderWidth = Math.max(
+      64,
+      Math.min(width * 0.44, (height * holderFloor - monitorBottom - 66) / 1.5)
+    )
+    scene.style.setProperty('--fd-nominee-width', nomineeWidth + 'px')
+    scene.style.setProperty('--fd-holder-width', holderWidth + 'px')
+    // Use the destination camera, not an intermediate animation matrix. A late
+    // font load or resize must never move the ornament into the monitor/head.
+    const worldTop = height * 0.63 * (1 - camera.scale) + height * camera.y * camera.scale
+    const monitorWorldBottom = (monitorBottom - worldTop) / camera.scale
     if (!confirmed) {
-      const headTop =
-        (holderActor.querySelector('.fd-pose').getBoundingClientRect().top - worldRect.top) / scale
-      const gap = Math.max(0, headTop - monitorBottom - 20)
-      const size = Math.min(width * 0.15, 62, gap)
-      token.style.width = Math.max(18, size) + 'px'
-      token.style.height = Math.max(18, size) + 'px'
-      token.style.top = (monitorBottom + headTop) / 2 + 'px'
+      const headTop = height * holderFloor - holderWidth * 1.5 * 1.006
+      const gap = Math.max(0, headTop - monitorWorldBottom - 16)
+      const tokenSize = Math.min(width * 0.16, 62, gap)
+      token.style.width = Math.max(18, tokenSize) + 'px'
+      token.style.height = Math.max(18, tokenSize) + 'px'
+      token.style.top = (monitorWorldBottom + headTop) / 2 + 'px'
     }
-    const evicteeWidth = Math.min(
-      width * 0.76,
-      Math.max(0, (height * 0.89 - monitorBottom - 26) / 1.5)
+    const evicteeWidth = Math.max(
+      80,
+      Math.min(width * 0.82, (height * 0.9 - monitorBottom - 40) / 1.5)
     )
     scene.style.setProperty('--fd-evictee-width', evicteeWidth + 'px')
     scene.style.setProperty('--fd-evictee-left', (width - evicteeWidth) / 2 + 'px')
   }
+  function directCamera(from, duration) {
+    const target = world.style.transform || window.getComputedStyle(world).transform
+    cameraAnimation = animate(world, [{ transform: from }, { transform: target }], {
+      duration,
+      easing: 'cubic-bezier(.18,.64,.25,1)',
+      fill: 'backwards',
+    })
+  }
   function captureIsolationStart() {
-    return [...actors, foreground, token, platesRoot, eliminationLight].map((element) => {
+    return [...actors, foreground, token, eliminationLight].map((element) => {
       const style = window.getComputedStyle(element)
       const frame = Object.fromEntries(
         ['left', 'bottom', 'width', 'height', 'opacity', 'transform', 'filter'].map((key) => [
@@ -470,14 +541,9 @@ function mountFinalDecision(root, config) {
     })
   }
   function syncPausedUI() {
-    const userPause = pauses.has('user')
-    pauseButton.textContent = userPause ? 'Resume' : 'Pause'
-    pauseButton.setAttribute('aria-label', userPause ? 'Resume scene' : 'Pause scene')
-    pauseCover.hidden = !userPause
     actions.querySelectorAll('button').forEach((el) => {
       el.disabled = pauses.size > 0
     })
-    skipButton.disabled = pauses.size > 0
     reviewButton.disabled = pauses.size > 0
     scene.dataset.paused = String(pauses.size > 0)
   }
@@ -495,7 +561,7 @@ function mountFinalDecision(root, config) {
         scene.getAnimations({ subtree: true }).forEach((a) => {
           if (a.playState === 'running') {
             if (!ambientAnimations.has(a)) animations.add(a)
-            a.pause()
+            freezeAnimation(a)
           }
         })
       fire('onCue', { cue: 'presentation:pause', sceneId: cfg.sceneId || 'classic-final-decision' })
@@ -522,10 +588,6 @@ function mountFinalDecision(root, config) {
   function resume(reason) {
     removePause(reason || 'user')
   }
-  function togglePause() {
-    if (pauses.has('user')) resume()
-    else pause()
-  }
   function fitMonitorNames() {
     const contentStyle = window.getComputedStyle(monitor.content)
     const height =
@@ -549,11 +611,31 @@ function mountFinalDecision(root, config) {
       }
     })
   }
+  function fitBroadcastCaption() {
+    const caption = monitor.content.querySelector('.fd-broadcast-caption')
+    const speaker = monitor.content.querySelector('.fd-broadcast-speaker')
+    if (!caption || !speaker || !monitor.content.clientHeight) return
+    const style = window.getComputedStyle(monitor.content)
+    const available =
+      monitor.content.clientHeight -
+      parseFloat(style.paddingTop) -
+      parseFloat(style.paddingBottom) -
+      speaker.getBoundingClientRect().height -
+      (parseFloat(style.gap) || 0)
+    let size = parseFloat(window.getComputedStyle(caption).fontSize)
+    // A genuinely long unbroken word stays intact; the live screen can use a
+    // smaller caption instead of creating a final page containing punctuation.
+    while (size > 12 && caption.getBoundingClientRect().height > available + 0.5) {
+      size = Math.max(12, size - 0.5)
+      caption.style.fontSize = size + 'px'
+    }
+  }
   function showFrame(kind, renderFrame, accessibleText) {
     // Remove the outgoing message before revealing its replacement. There
     // is never a second caption surface or a crossfade of two text frames.
     monitor.setFrame(kind, renderFrame)
     fitMonitorNames()
+    fitBroadcastCaption()
     live.textContent = accessibleText || monitor.content.textContent
     if (screenAnimation) screenAnimation.cancel()
     screenAnimation = animate(
@@ -601,15 +683,12 @@ function mountFinalDecision(root, config) {
     )
   }
   function splitCaption(text) {
-    const words = String(text || '')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-    if (!words.length) return ['']
     const style = window.getComputedStyle(monitor.content)
     const width = Math.max(
       80,
-      monitor.content.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      monitor.content.clientWidth -
+        (parseFloat(style.paddingLeft) || 0) -
+        (parseFloat(style.paddingRight) || 0)
     )
     const probe = node('p', 'fd-broadcast-caption', monitor.content)
     Object.assign(probe.style, {
@@ -621,32 +700,11 @@ function mountFinalDecision(root, config) {
     const maxHeight = (parseFloat(window.getComputedStyle(probe).lineHeight) || 21.12) * 2
     const fits = (value) => {
       probe.textContent = value
-      return probe.scrollHeight <= maxHeight + 0.5
+      return probe.scrollHeight <= maxHeight + 0.5 && probe.scrollWidth <= width + 0.5
     }
-    const pages = []
-    let current = ''
-    words.forEach((word) => {
-      const candidate = current ? current + ' ' + word : word
-      if (fits(candidate)) {
-        current = candidate
-        return
-      }
-      if (current) {
-        pages.push(current)
-        current = ''
-      }
-      let remainder = word
-      while (!fits(remainder)) {
-        let end = 1
-        while (end < remainder.length && fits(remainder.slice(0, end + 1))) end += 1
-        pages.push(remainder.slice(0, end))
-        remainder = remainder.slice(end)
-      }
-      current = remainder
-    })
-    if (current) pages.push(current)
+    const pages = paginateCeremonyCaption(text, fits)
     probe.remove()
-    return pages.length ? pages : ['']
+    return pages
   }
   function renderPlea() {
     const person = nominees[stage === 'plea-a' ? 0 : 1]
@@ -744,6 +802,7 @@ function mountFinalDecision(root, config) {
   function go(next, shouldFocus) {
     if (disposed) return
     const isolationStart = next === 'seal' ? captureIsolationStart() : null
+    const cameraStart = window.getComputedStyle(world).transform
     cancelTimer()
     stopAnimations()
     if (next !== stage && next.startsWith('plea')) {
@@ -756,6 +815,10 @@ function mountFinalDecision(root, config) {
     render()
     layoutComposition()
     startAmbientMotion()
+    directCamera(
+      stage === 'establish' ? 'scale(1.005) translateY(1.8%)' : cameraStart,
+      stage === 'establish' ? 3400 : stage === 'announcement' ? 2800 : 1300
+    )
     fire('onCheckpoint', { ...snapshot(), sceneId: cfg.sceneId || 'classic-final-decision' })
     if (shouldFocus)
       queueMicrotask(() => {
@@ -764,6 +827,7 @@ function mountFinalDecision(root, config) {
         if (first) first.focus({ preventScroll: true })
       })
     if (stage === 'establish') {
+      fire('onCue', { cue: 'decision:begin', sceneId: cfg.sceneId || 'classic-final-decision' })
       if (!reduced) {
         actors.forEach((el, index) =>
           animate(
@@ -790,13 +854,21 @@ function mountFinalDecision(root, config) {
           { duration: 1000, delay: 800, fill: 'backwards' }
         )
       }
-      schedule(reduced ? 500 : 3000, () => go('plea-a', true))
+      schedule(reduced ? 500 : 3400, () => go('plea-a', true))
     } else if (stage === 'seal') {
       animateIsolation(isolationStart)
       fire('onCue', { cue: 'decision:seal', sceneId: cfg.sceneId || 'classic-final-decision' })
       schedule(reduced ? 550 : 2800, () => go('announcement', true))
     } else if (stage === 'announcement') {
       fire('onCue', { cue: 'decision:reveal', sceneId: cfg.sceneId || 'classic-final-decision' })
+      animate(
+        eliminationLight,
+        [{ opacity: 0.65 }, { opacity: 1, offset: 0.36 }, { opacity: 0.86 }],
+        {
+          duration: 2400,
+          easing: 'ease-in-out',
+        }
+      )
       schedule(reduced ? 600 : 3200, () => go('complete', true))
     } else if (stage === 'complete' && !completed) {
       completed = true
@@ -840,39 +912,38 @@ function mountFinalDecision(root, config) {
     completionCount = 0
     run += 1
     fire('onReplay', { run })
-    go('welcome', true)
+    go('establish', true)
   }
 
   function render() {
     scene.dataset.stage = stage
     scene.dataset.reviewing = String(reviewIndex >= 0)
-    scene.dataset.shot = stage === 'plea-a' ? 'aria' : stage === 'plea-b' ? 'dex' : 'wide'
+    scene.dataset.shot =
+      stage === 'plea-a'
+        ? 'aria'
+        : stage === 'plea-b'
+          ? 'dex'
+          : stage === 'confirm'
+            ? selected === nominees[0].id
+              ? 'aria'
+              : 'dex'
+            : 'wide'
     const isolated = Boolean(confirmed)
     scene.dataset.isolated = String(isolated)
     scene.dataset.isolatedPlayer = confirmed || ''
     actors.forEach((el) => {
       delete el.dataset.result
     })
-    plates.forEach((plate, index) => {
-      const result = isolated ? (nominees[index].id === confirmed ? 'leave' : 'stay') : ''
-      plate.el.dataset.result = result
-      nomineeActors[index].dataset.result = result
+    nomineeActors.forEach((actor, index) => {
+      actor.dataset.result = isolated ? (nominees[index].id === confirmed ? 'leave' : 'stay') : ''
     })
     actions.replaceChildren()
     actions.className = 'fd-actions' + (stage === 'confirm' ? ' fd-actions--confirm' : '')
-    pauseButton.hidden = stage === 'welcome' || stage === 'complete'
-    skipButton.hidden = ['choose', 'confirm', 'complete'].includes(stage)
     reviewButton.hidden =
       stage !== 'choose' ||
       reviewIndex >= 0 ||
       !nominees.some((person) => Boolean(person.comparison))
-    if (stage === 'welcome') {
-      titleFrame('welcome', 'The last decision.')
-      mainAction('Begin the ceremony', () => {
-        fire('onCue', { cue: 'decision:begin' })
-        go('establish', false)
-      })
-    } else if (stage === 'establish') {
+    if (stage === 'welcome' || stage === 'establish') {
       titleFrame('opening', 'One place beside you.')
     } else if (stage === 'plea-a' || stage === 'plea-b') {
       renderPlea()
@@ -939,31 +1010,35 @@ function mountFinalDecision(root, config) {
   }
   root.addEventListener('keydown', onKey)
   cleanups.push(() => root.removeEventListener('keydown', onKey))
+  function refreshCaptionLayout() {
+    if (disposed) return
+    if (!stage.startsWith('plea') && reviewIndex < 0) {
+      fitMonitorNames()
+      return
+    }
+    const cursor = captionPages
+      .slice(0, captionPage)
+      .reduce((sum, value) => sum + value.length + 1, 0)
+    const person = nominees[reviewIndex >= 0 ? reviewIndex : stage === 'plea-a' ? 0 : 1]
+    const repaged = splitCaption(
+      reviewIndex >= 0 ? person.comparison : person.shortPlea || person.plea
+    )
+    let consumed = 0
+    let page = 0
+    while (page < repaged.length - 1 && consumed + repaged[page].length < cursor) {
+      consumed += repaged[page].length + 1
+      page += 1
+    }
+    captionPage = page
+    render()
+  }
   if (typeof ResizeObserver === 'function') {
     let lastWidth = monitor.screen.clientWidth
     const observer = new ResizeObserver(() => {
       const width = monitor.screen.clientWidth
       if (disposed || width === lastWidth) return
       lastWidth = width
-      if (!stage.startsWith('plea') && reviewIndex < 0) {
-        fitMonitorNames()
-        return
-      }
-      const cursor = captionPages
-        .slice(0, captionPage)
-        .reduce((sum, value) => sum + value.length + 1, 0)
-      const person = nominees[reviewIndex >= 0 ? reviewIndex : stage === 'plea-a' ? 0 : 1]
-      const repaged = splitCaption(
-        reviewIndex >= 0 ? person.comparison : person.shortPlea || person.plea
-      )
-      let consumed = 0
-      let page = 0
-      while (page < repaged.length - 1 && consumed + repaged[page].length < cursor) {
-        consumed += repaged[page].length + 1
-        page += 1
-      }
-      captionPage = page
-      render()
+      refreshCaptionLayout()
     })
     observer.observe(monitor.screen)
     cleanups.push(() => observer.disconnect())
@@ -971,12 +1046,20 @@ function mountFinalDecision(root, config) {
     compositionObserver.observe(scene)
     cleanups.push(() => compositionObserver.disconnect())
   }
+  if (document.fonts?.ready) {
+    void document.fonts.ready.then(() => {
+      if (disposed) return
+      refreshCaptionLayout()
+      layoutComposition()
+    })
+  }
   const onMotion = (event) => {
     if (cfg.reducedMotion !== undefined) return
     reduced = event.matches
     scene.dataset.noMotion = String(reduced)
     if (reduced) stopAnimations(true)
     else startAmbientMotion()
+    layoutComposition()
   }
   if (mq && mq.addEventListener) {
     mq.addEventListener('change', onMotion)
@@ -993,9 +1076,7 @@ function mountFinalDecision(root, config) {
     fire('onCue', { cue: 'presentation:dispose' })
   }
   const api = { pause, resume, skip, replay, dispose, getState: snapshot }
-  render()
-  layoutComposition()
-  startAmbientMotion()
+  go('establish', false)
   return api
 }
 

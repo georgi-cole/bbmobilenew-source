@@ -3,16 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountFinalDecision, type FinalDecisionController } from '../finalDecisionScene.mjs'
 
 const mounted: Array<{ root: HTMLElement; controller: FinalDecisionController }> = []
-function mount(reducedMotion = true) {
+function mount(reducedMotion = true, initiallyPaused = false) {
   const root = document.createElement('div')
   root.id = 'final-decision-scene'
   document.body.appendChild(root)
   const onDecision = vi.fn()
   const onComplete = vi.fn()
+  const onCue = vi.fn()
   const controller = mountFinalDecision(root, {
     sceneId: 'controller-test',
     preview: false,
     reducedMotion,
+    initiallyPaused,
     fixture: {
       holder: { id: 'human', name: 'Season holder' },
       nominees: [
@@ -39,10 +41,11 @@ function mount(reducedMotion = true) {
     },
     onDecision,
     onComplete,
+    onCue,
     onCheckpoint: vi.fn(),
   })
   mounted.push({ root, controller })
-  return { root, controller, onDecision, onComplete, view: within(root) }
+  return { root, controller, onDecision, onComplete, onCue, view: within(root) }
 }
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => {
@@ -54,6 +57,29 @@ afterEach(() => {
 })
 
 describe('final decision presentation contract', () => {
+  it('starts the ceremony automatically without duplicate playback UI or floating name tags', () => {
+    const { controller, view, root, onCue } = mount()
+    expect(controller.getState().stage).toBe('establish')
+    expect(view.queryByRole('button', { name: /Begin|Pause|Resume|Skip/i })).toBeNull()
+    expect(root.querySelector('.fd-nameplates')).toBeNull()
+    expect(onCue).toHaveBeenCalledWith({ cue: 'decision:begin', sceneId: 'controller-test' })
+    expect(onCue.mock.calls.filter(([event]) => event.cue === 'decision:begin')).toHaveLength(1)
+    vi.advanceTimersByTime(500)
+    expect(controller.getState().stage).toBe('plea-a')
+  })
+
+  it('waits for presentation ownership before advancing an automatically started scene', () => {
+    const { controller } = mount(true, true)
+    vi.advanceTimersByTime(10_000)
+    expect(controller.getState()).toMatchObject({
+      stage: 'establish',
+      pauseReasons: ['presentation'],
+    })
+    controller.resume('presentation')
+    vi.advanceTimersByTime(500)
+    expect(controller.getState().stage).toBe('plea-a')
+  })
+
   it('skips to an explicit choice without inventing an outcome', () => {
     const { controller, view, onDecision, onComplete } = mount()
     controller.skip()
@@ -112,8 +138,7 @@ describe('final decision presentation contract', () => {
   )
 
   it('preserves user pause when ownership resumes, then continues the remaining timer', () => {
-    const { controller, view } = mount()
-    fireEvent.click(view.getByRole('button', { name: 'Begin the ceremony' }))
+    const { controller } = mount()
     vi.advanceTimersByTime(200)
     controller.pause('user')
     controller.pause('presentation')

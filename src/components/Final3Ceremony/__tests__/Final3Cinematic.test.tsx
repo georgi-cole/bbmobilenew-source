@@ -28,6 +28,7 @@ const movie = vi.hoisted(() => ({
   pause: vi.fn(),
   resume: vi.fn(),
   dispose: vi.fn(),
+  skip: vi.fn(),
 }))
 const soundtrack = vi.hoisted(() => ({
   create: vi.fn(),
@@ -54,7 +55,7 @@ vi.mock('../finalDecisionScene.mjs', () => ({
       pause: movie.pause,
       resume: movie.resume,
       dispose: movie.dispose,
-      skip: vi.fn(),
+      skip: movie.skip,
       getState: vi.fn(),
     }
   },
@@ -199,6 +200,7 @@ beforeEach(() => {
   movie.pause.mockClear()
   movie.resume.mockClear()
   movie.dispose.mockClear()
+  movie.skip.mockClear()
 })
 
 afterEach(async () => {
@@ -212,6 +214,26 @@ afterEach(async () => {
 })
 
 describe('human Final LOH cinematic integration', () => {
+  it('uses the shared cinematic Skip for presentation beats and removes it during the required decision', async () => {
+    const { config, store } = await openMovie()
+    act(() => config.onCheckpoint({ stage: 'establish' } as FinalDecisionCheckpoint))
+    const skip = screen.getByRole('button', {
+      name: 'Skip presentation; no decision will be made for you',
+    })
+    expect(skip).toHaveClass('cinematic-skip-button')
+    fireEvent.click(skip)
+    expect(movie.skip).toHaveBeenCalledTimes(1)
+    expect(store.getState().game.finalThree?.evicteeId).toBeNull()
+    for (const stage of ['choose', 'confirm', 'complete'] as const) {
+      act(() => config.onCheckpoint({ stage } as FinalDecisionCheckpoint))
+      expect(screen.queryByRole('button', { name: /^Skip presentation/ })).toBeNull()
+    }
+    act(() => config.onCheckpoint({ stage: 'seal' } as FinalDecisionCheckpoint))
+    expect(screen.getByRole('button', { name: /^Skip presentation/ })).toHaveClass(
+      'cinematic-skip-button'
+    )
+  })
+
   it.each([0, 1])(
     'keeps one scene mounted and defers contestant %s finalization until Final Two Play',
     async (index) => {
@@ -398,6 +420,45 @@ describe('human Final LOH cinematic integration', () => {
     expect(movie.mount).not.toHaveBeenCalled()
     expect(ceremonyQueue.counts.active).toBe(0)
     expect(store.getState().game.finalThree?.evicteeId).toBeNull()
+  })
+
+  it('starts suspended when preparation finishes after foreground ownership is lost', async () => {
+    let finishPreparation: (value: { assets: object }) => void = () => {}
+    movie.prepare.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishPreparation = resolve
+      })
+    )
+    const { store } = fixture()
+    render(
+      <Provider store={store}>
+        <Final3Ceremony />
+      </Provider>
+    )
+    await waitFor(() => expect(movie.prepare).toHaveBeenCalledTimes(1))
+    let release = () => {}
+    act(() => {
+      release = acquirePresentationOwnership(
+        createPresentationOwnerToken(),
+        'test-preparation-race',
+        PRESENTATION_PRIORITY.gameplay
+      )
+    })
+    try {
+      await act(async () => {
+        finishPreparation({ assets: {} })
+        await Promise.resolve()
+      })
+      await waitFor(() => expect(movie.mount).toHaveBeenCalledTimes(1))
+      expect(activeConfig().initiallyPaused).toBe(true)
+      expect(movie.pause).toHaveBeenCalledWith('presentation')
+      expect(soundtrack.setActive).toHaveBeenLastCalledWith(false)
+      expect(screen.queryByRole('dialog', { name: 'Final Power Decision' })).toBeNull()
+    } finally {
+      act(() => release())
+    }
+    await waitFor(() => expect(movie.resume).toHaveBeenLastCalledWith('presentation'))
+    expect(movie.mount).toHaveBeenCalledTimes(1)
   })
 
   it('suspends only the presentation pause reason under gameplay ownership and backgrounding', async () => {

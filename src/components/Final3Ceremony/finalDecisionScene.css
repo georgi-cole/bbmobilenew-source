@@ -65,9 +65,9 @@
   inset: 0;
 }
 #final-decision-scene .fd-world {
-  transform: scale(1.025);
-  transform-origin: 50% 48%;
-  transition: transform 950ms cubic-bezier(0.2, 0.65, 0.2, 1);
+  transform: scale(1.055);
+  transform-origin: 50% 63%;
+  will-change: transform;
 }
 #final-decision-scene .fd-background {
   width: 100%;
@@ -79,7 +79,7 @@
 }
 #final-decision-scene .fd-architecture-shade {
   background:
-    linear-gradient(180deg, #100912b8, transparent 24%, #1b101933 48%, #0b070bc9 83%, #090709),
+    linear-gradient(180deg, #10091285, transparent 22%, #1b10191a 48%, #0b070b7a 83%, #090709),
     linear-gradient(90deg, #08050b65, transparent 24%, transparent 76%, #08050b65);
 }
 #final-decision-scene .fd-grade {
@@ -89,9 +89,9 @@
     180deg,
     #08050a9c,
     transparent 23%,
-    transparent 59%,
-    #0a070ab5 74%,
-    #080608 96%
+    transparent 68%,
+    #0a070a55 82%,
+    #080608 99%
   );
 }
 #final-decision-scene .fd-light-layer {
@@ -101,39 +101,40 @@
 }
 #final-decision-scene .fd-beam {
   position: absolute;
-  top: 10%;
-  width: 39%;
-  height: 66%;
-  opacity: 0.38;
+  top: 4%;
+  width: 48%;
+  height: 84%;
+  opacity: 0.58;
   transform-origin: 50% 0;
   clip-path: polygon(43% 0, 57% 0, 100% 100%, 0 100%);
-  background: linear-gradient(180deg, #f6dba132, #f1d69e0a 70%, transparent);
+  background: linear-gradient(180deg, #f6dba169, #f1d69e1a 70%, transparent);
+  mix-blend-mode: screen;
   transition:
     opacity 800ms,
     transform 1s;
 }
 #final-decision-scene .fd-beam--left {
-  left: 4%;
-  transform: rotate(-8deg);
+  left: 0;
+  transform: rotate(-12deg);
 }
 #final-decision-scene .fd-beam--right {
-  right: 4%;
-  transform: rotate(8deg);
+  right: 0;
+  transform: rotate(12deg);
 }
 #final-decision-scene .fd-halo {
   position: absolute;
-  width: 60%;
-  height: 44%;
+  width: 84%;
+  height: 66%;
   top: 20%;
-  left: 20%;
-  background: radial-gradient(ellipse, #edc78e22, transparent 66%);
+  left: 8%;
+  background: radial-gradient(ellipse, #edc78e3d, transparent 67%);
 }
 #final-decision-scene .fd-mist {
   position: absolute;
   left: -8%;
-  bottom: 17%;
+  bottom: 12%;
   width: 116%;
-  height: 15%;
+  height: 19%;
   object-fit: contain;
   opacity: 0.11;
   z-index: 3;
@@ -144,9 +145,9 @@
 }
 #final-decision-scene .fd-actor {
   position: absolute;
-  bottom: 25.5%;
-  height: 42%;
-  width: 37%;
+  bottom: var(--fd-nominee-bottom, 21%);
+  width: var(--fd-nominee-width, 56%);
+  height: calc(var(--fd-nominee-width, 200px) * 1.5);
   transition:
     opacity 750ms,
     transform 950ms cubic-bezier(0.2, 0.65, 0.2, 1),
@@ -154,16 +155,16 @@
   transform-origin: 50% 95%;
 }
 #final-decision-scene .fd-actor--aria {
-  left: 6%;
+  left: calc(22% - var(--fd-nominee-width, 200px) / 2);
 }
 #final-decision-scene .fd-actor--dex {
-  left: 57%;
+  left: calc(78% - var(--fd-nominee-width, 200px) / 2);
 }
 #final-decision-scene .fd-actor--holder {
-  left: 36%;
-  width: 28%;
-  height: 33%;
-  bottom: 32%;
+  left: calc(50% - var(--fd-holder-width, 150px) / 2);
+  width: var(--fd-holder-width, 38%);
+  height: calc(var(--fd-holder-width, 150px) * 1.5);
+  bottom: var(--fd-holder-bottom, 31%);
   z-index: -1;
   opacity: 1;
   filter: brightness(0.9);
@@ -182,6 +183,7 @@
   left: 0;
   width: 100%;
   aspect-ratio: 2/3;
+  transform-origin: 50% 100%;
 }
 #final-decision-scene .fd-contact {
   position: absolute;
@@ -201,16 +203,6 @@
   bottom: -1%;
   background: radial-gradient(ellipse at 50% 95%, #d9ab6530, transparent 60%);
 }
-#final-decision-scene .fd-holder-tag {
-  position: absolute;
-  width: 100%;
-  top: -19px;
-  text-align: center;
-  color: #e5cc9c;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-}
 #final-decision-scene .fd-crown {
   position: absolute;
   width: 11.162%;
@@ -220,10 +212,10 @@
 }
 #final-decision-scene .fd-foreground {
   position: absolute;
-  width: 88%;
+  width: 102%;
   height: auto;
-  left: 6%;
-  bottom: 16.2%;
+  left: -1%;
+  bottom: 9%;
   object-fit: contain;
   object-position: center;
   z-index: 3;
@@ -256,49 +248,13 @@
   opacity: 0;
   transition: opacity 500ms;
 }
-#final-decision-scene .fd-nameplates {
-  position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: 20%;
-  display: flex;
-  justify-content: space-between;
-  z-index: 5;
-  pointer-events: none;
-}
-#final-decision-scene .fd-nameplate {
-  width: 38%;
-  padding: 6px 4px;
-  position: relative;
-  border-top: 1px solid #d8bd7d65;
-  background: linear-gradient(180deg, #100b10c9, transparent);
-  transition:
-    opacity 500ms,
-    border-color 500ms;
-}
-#final-decision-scene .fd-nameplate strong {
-  display: block;
-  font-size: 16px;
-  font-weight: 700;
-}
-#final-decision-scene .fd-nameplate[data-result='leave'] {
-  border-color: #b48768;
-}
-#final-decision-scene .fd-nameplate[data-result='stay'] {
-  border-color: #f6dc9b;
-}
 #final-decision-scene .fd-topbar {
   z-index: 8;
   position: absolute;
   top: 2.2%;
-  right: 4%;
+  left: 4%;
   display: flex;
   justify-content: flex-end;
-}
-#final-decision-scene .fd-playback {
-  display: flex;
-  align-items: center;
-  gap: 5px;
 }
 #final-decision-scene .fd-top-button {
   background: #130d14a8;
@@ -317,7 +273,7 @@
 #final-decision-scene .fd-bottom {
   z-index: 7;
   position: absolute;
-  bottom: 5%;
+  bottom: 3.5%;
   left: 24px;
   right: 24px;
 }
@@ -381,15 +337,6 @@
   font-size: 18px;
   font-weight: 800;
 }
-#final-decision-scene .fd-pause-cover {
-  z-index: 9;
-  position: absolute;
-  inset: 60px 0 0;
-  display: grid;
-  place-items: center;
-  background: #100b1596;
-  backdrop-filter: blur(3px);
-}
 #final-decision-scene .fd-layer-tools {
   width: min(100%, 520px);
   margin: 12px auto 0;
@@ -435,20 +382,14 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-#final-decision-scene .scene[data-shot='aria'] .fd-world {
-  transform: scale(1.07) translateX(2.6%);
-}
-#final-decision-scene .scene[data-shot='dex'] .fd-world {
-  transform: scale(1.07) translateX(-2.6%);
-}
 #final-decision-scene .scene[data-shot='aria'] .fd-actor--aria,
 #final-decision-scene .scene[data-shot='dex'] .fd-actor--dex {
-  transform: scale(1.055);
+  transform: scale(1.035);
 }
 #final-decision-scene .scene[data-shot='aria'] .fd-actor--dex,
 #final-decision-scene .scene[data-shot='dex'] .fd-actor--aria {
   opacity: 1;
-  filter: brightness(0.48) saturate(0.68);
+  filter: brightness(0.56) saturate(0.73);
 }
 #final-decision-scene .scene[data-shot='aria'] .fd-beam--left,
 #final-decision-scene .scene[data-shot='dex'] .fd-beam--right {
@@ -458,10 +399,6 @@
 #final-decision-scene .scene[data-shot='aria'] .fd-beam--right,
 #final-decision-scene .scene[data-shot='dex'] .fd-beam--left {
   opacity: 0.15;
-}
-#final-decision-scene .scene[data-stage='choose'] .fd-holder-tag,
-#final-decision-scene .scene[data-stage='confirm'] .fd-holder-tag {
-  color: #fff0c3;
 }
 #final-decision-scene .scene[data-no-motion='true'] *,
 #final-decision-scene .scene[data-no-motion='true'] *::before,
@@ -485,38 +422,6 @@
     min-height: 40px;
     padding: 8px 10px;
   }
-  #final-decision-scene .fd-actor {
-    width: 44%;
-    bottom: 22%;
-    height: 39%;
-  }
-  #final-decision-scene .fd-actor--aria {
-    left: -1%;
-  }
-  #final-decision-scene .fd-actor--dex {
-    left: 57%;
-  }
-  #final-decision-scene .fd-actor--holder {
-    width: 31%;
-    left: 34.5%;
-    height: 31%;
-    bottom: 29%;
-  }
-  #final-decision-scene .fd-holder-tag {
-    font-size: 11px;
-    top: -17px;
-  }
-  #final-decision-scene .fd-nameplates {
-    bottom: 18%;
-    left: 6%;
-    right: 6%;
-  }
-  #final-decision-scene .fd-nameplate strong {
-    font-size: 15px;
-  }
-  #final-decision-scene .fd-foreground {
-    bottom: 13%;
-  }
   #final-decision-scene .fd-bottom {
     left: 18px;
     right: 18px;
@@ -526,12 +431,16 @@
     padding: 12px 13px;
   }
   #final-decision-scene .fd-actions--confirm {
-    flex-direction: column;
     gap: 7px;
   }
   #final-decision-scene .fd-actions--confirm .fd-action {
-    min-height: 40px;
-    padding: 9px 12px;
+    flex: 1;
+    min-width: 0;
+    min-height: 46px;
+    padding: 10px 8px;
+  }
+  #final-decision-scene .fd-actions--confirm .fd-action:first-child {
+    flex: 1.3;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -547,9 +456,9 @@
 #final-decision-scene .fd-monitor {
   position: absolute;
   z-index: 6;
-  top: 10.5%;
-  left: 7%;
-  width: 86%;
+  top: max(62px, 7.5%);
+  left: 3%;
+  width: 94%;
   filter: drop-shadow(0 13px 18px #0009);
   overflow: hidden;
 }
@@ -702,13 +611,10 @@
     0 0 24px rgba(239, 68, 68, 0.4),
     0 1px 6px #000;
 }
-#final-decision-scene .fd-nameplate strong {
-  line-height: 1.2;
-}
 @container (max-width:390px) {
   #final-decision-scene .fd-monitor {
-    width: 90%;
-    left: 5%;
+    width: 94%;
+    left: 3%;
   }
   #final-decision-scene .fd-monitor-content {
     padding: 4px 8px;
@@ -727,15 +633,10 @@
 #final-decision-scene .fd-monitor-person span {
   flex-shrink: 0;
 }
-#final-decision-scene .fd-nameplate strong {
-  overflow-wrap: anywhere;
-}
 #final-decision-scene .fd-topbar {
   left: 4%;
-  justify-content: space-between;
-}
-#final-decision-scene .fd-playback {
-  margin-left: auto;
+  right: auto;
+  justify-content: flex-start;
 }
 #final-decision-scene .fd-review-button {
   color: #d0bfa7;
@@ -750,16 +651,10 @@
   font-size: 16px;
   line-height: 1.2;
 }
-#final-decision-scene .scene[data-stage='choose'][data-reviewing='false'] .fd-nameplates {
-  visibility: hidden;
-}
 
 /* Keep the ornament in measured clear space above the holder. */
 #final-decision-scene .scene.fd-compact .fd-monitor {
-  top: 8%;
-}
-#final-decision-scene .scene.fd-compact .fd-actor--holder {
-  bottom: 25%;
+  top: max(62px, 7.5%);
 }
 #final-decision-scene .fd-monitor-sheen {
   position: absolute;
@@ -788,26 +683,26 @@
 #final-decision-scene .fd-speaker-focus {
   position: absolute;
   left: 0;
-  top: 29%;
-  bottom: 12%;
-  width: 58%;
+  top: 21%;
+  bottom: 8%;
+  width: 65%;
   opacity: 0;
-  background: radial-gradient(ellipse at 50% 54%, #f4d89b35, #c79d5814 48%, transparent 73%);
+  background: radial-gradient(ellipse at 50% 54%, #f4d89b61, #c79d5828 48%, transparent 73%);
   transition:
     opacity 700ms ease,
     left 950ms ease;
 }
 #final-decision-scene .scene[data-shot='aria'] .fd-speaker-focus {
   opacity: 1;
-  left: -1%;
+  left: -5%;
 }
 #final-decision-scene .scene[data-shot='dex'] .fd-speaker-focus {
   opacity: 1;
-  left: 43%;
+  left: 40%;
 }
 #final-decision-scene .scene[data-shot='aria'] .fd-background,
 #final-decision-scene .scene[data-shot='dex'] .fd-background {
-  filter: brightness(0.66) saturate(0.8);
+  filter: brightness(0.74) saturate(0.84);
 }
 #final-decision-scene .scene[data-shot='aria'] .fd-foreground,
 #final-decision-scene .scene[data-shot='dex'] .fd-foreground {
@@ -815,11 +710,11 @@
 }
 #final-decision-scene .scene[data-shot='aria'] .fd-actor--holder,
 #final-decision-scene .scene[data-shot='dex'] .fd-actor--holder {
-  filter: brightness(0.55) saturate(0.72);
+  filter: brightness(0.64) saturate(0.75);
 }
 #final-decision-scene .scene[data-shot='aria'] .fd-actor--aria,
 #final-decision-scene .scene[data-shot='dex'] .fd-actor--dex {
-  filter: brightness(1.1) drop-shadow(0 0 8px #eec16d35);
+  filter: brightness(1.12) drop-shadow(0 0 12px #eec16d4a);
 }
 #final-decision-scene .fd-elimination-light {
   position: absolute;
@@ -840,23 +735,14 @@
 }
 
 /* Hold the evictee alone until the existing departure film takes over. */
-#final-decision-scene .scene[data-isolated='true'] .fd-world {
-  transform: scale(1.025);
-}
 #final-decision-scene .scene[data-isolated='true'] .fd-background {
   filter: saturate(0.38) brightness(0.6);
 }
 #final-decision-scene .scene[data-isolated='true'] .fd-light-layer {
-  opacity: 0.2;
+  opacity: 0.15;
 }
 #final-decision-scene .scene[data-isolated='true'] .fd-elimination-light {
   opacity: 1;
-}
-#final-decision-scene .scene[data-isolated='true'] .fd-actor,
-#final-decision-scene .scene[data-isolated='true'] .fd-foreground,
-#final-decision-scene .scene[data-isolated='true'] .fd-token,
-#final-decision-scene .scene[data-isolated='true'] .fd-nameplates {
-  transition: none;
 }
 #final-decision-scene .scene[data-isolated='true'] .fd-actor--holder,
 #final-decision-scene .scene[data-isolated='true'] .fd-actor[data-result='stay'] {
@@ -872,15 +758,12 @@
   opacity: 0;
   transform: translate(-50%, -80%) scale(0.8);
 }
-#final-decision-scene .scene[data-isolated='true'] .fd-nameplates {
-  opacity: 0;
-}
 #final-decision-scene .scene[data-isolated='true'] .fd-actor[data-result='leave'] {
   left: var(--fd-evictee-left, 12%);
   right: auto;
-  bottom: 11%;
+  bottom: 10%;
   width: var(--fd-evictee-width, 76%);
-  height: 68%;
+  height: calc(var(--fd-evictee-width, 300px) * 1.5);
   opacity: 1;
   transform: none;
   filter: brightness(1.04) drop-shadow(0 0 12px #ff354454);
@@ -890,4 +773,47 @@
 }
 #final-decision-scene .scene[data-isolated='true'] .fd-monitor-screen {
   background: linear-gradient(145deg, #0d0c10, #29151b 55%, #0a0a0e);
+}
+
+/* The room remains alive while each story beat has a deliberate camera position. */
+#final-decision-scene .fd-backlight {
+  position: absolute;
+  inset: 24% 0 17%;
+  background:
+    radial-gradient(ellipse at 10% 60%, #eab8584d, transparent 42%),
+    radial-gradient(ellipse at 90% 60%, #a887cf35, transparent 42%);
+  mix-blend-mode: screen;
+}
+#final-decision-scene .fd-floor-light {
+  position: absolute;
+  left: -10%;
+  bottom: 9%;
+  width: 120%;
+  height: 24%;
+  background: radial-gradient(ellipse, #e8bc5f55, #ba754415 45%, transparent 67%);
+  mix-blend-mode: screen;
+}
+#final-decision-scene .fd-architecture-sweep {
+  position: absolute;
+  inset: 0 8%;
+  background: linear-gradient(90deg, transparent 34%, #f6dca64d 49%, transparent 64%);
+  mix-blend-mode: screen;
+}
+#final-decision-scene .scene[data-stage='choose'] .fd-beam {
+  opacity: 0.9;
+}
+#final-decision-scene .scene[data-stage='confirm'] .fd-light-layer {
+  opacity: 0.65;
+}
+#final-decision-scene .scene[data-stage='confirm'] .fd-background {
+  filter: brightness(0.64) saturate(0.74);
+}
+#final-decision-scene .scene[data-isolated='true'] .fd-actor,
+#final-decision-scene .scene[data-isolated='true'] .fd-foreground,
+#final-decision-scene .scene[data-isolated='true'] .fd-token {
+  transition: none;
+}
+
+#final-decision-scene .scene.fd-compact .fd-foreground {
+  bottom: 3%;
 }

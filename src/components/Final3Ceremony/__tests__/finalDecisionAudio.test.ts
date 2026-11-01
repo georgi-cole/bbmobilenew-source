@@ -81,15 +81,15 @@ describe('Final Decision scene audio ownership', () => {
       expect.objectContaining({ volume: 0.16, durationMs: 1200, signal: expect.any(AbortSignal) })
     )
     await settle()
-    await vi.advanceTimersByTimeAsync(750)
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.fadeInMs + 50)
     expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.musicVolume)
     audio.setStage('plea-a')
-    await vi.advanceTimersByTimeAsync(400)
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.mixTransitionMs + 50)
     expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.pleaVolume)
     audio.dispose()
   })
 
-  it('keeps a silent music claim on manual Pause and resumes the same position without replaying accents', async () => {
+  it('keeps a silent music claim while suspended and resumes the same position without replaying accents', async () => {
     const audio = createFinalDecisionAudio('pause', enabled)
     audio.setActive(true)
     audio.cue('decision:begin')
@@ -103,7 +103,7 @@ describe('Final Decision scene audio ownership', () => {
     expect(element.volume).toBe(0)
     expect(sound.releaseExternalMusic).not.toHaveBeenCalled()
     // The shared manager may retry its external element after a mute toggle.
-    // A scene that is still manually paused must remain paused and silent.
+    // A scene that is still suspended must remain paused and silent.
     element.paused = false
     element.dispatchEvent(new Event('play'))
     expect(element.paused).toBe(true)
@@ -113,7 +113,7 @@ describe('Final Decision scene audio ownership', () => {
     expect(element.play).toHaveBeenCalledTimes(1)
     audio.cue('presentation:resume')
     await settle()
-    await vi.advanceTimersByTimeAsync(750)
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.fadeInMs + 50)
     expect(element.currentTime).toBe(13)
     expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.pleaVolume)
     expect(element.play).toHaveBeenCalledTimes(2)
@@ -121,7 +121,7 @@ describe('Final Decision scene audio ownership', () => {
     audio.dispose()
   })
 
-  it('releases music on ownership loss and preserves manual Pause across ownership restoration', async () => {
+  it('releases music on ownership loss and preserves another pause reason across ownership restoration', async () => {
     const audio = createFinalDecisionAudio('foreground', enabled)
     audio.setActive(true)
     audio.setStage('choose')
@@ -200,6 +200,57 @@ describe('Final Decision scene audio ownership', () => {
     audio.setActive(false)
     document.dispatchEvent(new Event('pointerdown'))
     expect(FakeAudio.instances[0].play).toHaveBeenCalledTimes(1)
+    audio.dispose()
+  })
+
+  it('autostarts at establishment, builds toward confirmation and drops the bed beneath the verdict accent', async () => {
+    const audio = createFinalDecisionAudio('dramatic-mix', enabled)
+    audio.setActive(true)
+    audio.setStage('establish')
+    audio.cue('decision:begin')
+    await settle()
+    const element = FakeAudio.instances[0]
+    expect(element.play).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.fadeInMs + 50)
+    expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.musicVolume)
+    audio.setStage('plea-a')
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.mixTransitionMs + 50)
+    expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.pleaVolume)
+    audio.setStage('choose')
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.suspenseBuildMs + 50)
+    expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.choiceVolume)
+    audio.setStage('confirm')
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.suspenseBuildMs + 50)
+    expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.confirmationVolume)
+    audio.setStage('seal')
+    audio.cue('decision:seal')
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.verdictDropMs + 50)
+    expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.sealVolume)
+    audio.setStage('announcement')
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.mixTransitionMs + 50)
+    expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.revealVolume)
+    expect(FakeAudio.instances).toHaveLength(1)
+    expect(element.play).toHaveBeenCalledTimes(1)
+    audio.dispose()
+  })
+
+  it('recovers blocked autoplay on the next gesture without restarting the scene or its opening accent', async () => {
+    FakeAudio.nextPlay = () => Promise.reject(new DOMException('Gesture needed', 'NotAllowedError'))
+    const audio = createFinalDecisionAudio('automatic-start', enabled)
+    audio.setActive(true)
+    audio.setStage('establish')
+    audio.cue('decision:begin')
+    await settle()
+    const element = FakeAudio.instances[0]
+    expect(element.play).toHaveBeenCalledTimes(1)
+    document.dispatchEvent(new Event('pointerdown'))
+    await settle()
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.fadeInMs + 50)
+    expect(element.play).toHaveBeenCalledTimes(2)
+    expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.musicVolume)
+    expect(sound.play).toHaveBeenCalledTimes(1)
+    document.dispatchEvent(new Event('pointerdown'))
+    expect(element.play).toHaveBeenCalledTimes(2)
     audio.dispose()
   })
 

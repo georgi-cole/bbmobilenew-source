@@ -2,14 +2,19 @@ import { SoundManager } from '../../services/sound/SoundManager'
 import { SOUND_REGISTRY } from '../../services/sound/sounds'
 import type { FinalDecisionSceneStage } from './finalDecisionScene.mjs'
 
-/** Existing assets, mixed quietly beneath this presentation's dialogue. */
+/** Existing assets, shaped around the room opening, pleas and final verdict. */
 export const FINAL_DECISION_AUDIO = {
   musicKey: 'music:final_three_week',
-  musicVolume: 0.22,
-  pleaVolume: 0.16,
-  revealVolume: 0.1,
-  fadeInMs: 700,
-  mixTransitionMs: 350,
+  musicVolume: 0.25,
+  pleaVolume: 0.15,
+  choiceVolume: 0.28,
+  confirmationVolume: 0.34,
+  sealVolume: 0.045,
+  revealVolume: 0.12,
+  fadeInMs: 900,
+  mixTransitionMs: 600,
+  suspenseBuildMs: 1400,
+  verdictDropMs: 180,
   cues: {
     'decision:begin': {
       key: 'tv:live_vote',
@@ -79,12 +84,19 @@ export function createFinalDecisionAudio(
     accents?.abort()
     accents = null
   }
-  const volume = () =>
-    stage === 'plea-a' || stage === 'plea-b'
-      ? FINAL_DECISION_AUDIO.pleaVolume
-      : stage === 'seal' || stage === 'announcement'
-        ? FINAL_DECISION_AUDIO.revealVolume
-        : FINAL_DECISION_AUDIO.musicVolume
+  const volume = () => {
+    if (stage === 'plea-a' || stage === 'plea-b') return FINAL_DECISION_AUDIO.pleaVolume
+    if (stage === 'choose') return FINAL_DECISION_AUDIO.choiceVolume
+    if (stage === 'confirm') return FINAL_DECISION_AUDIO.confirmationVolume
+    if (stage === 'seal') return FINAL_DECISION_AUDIO.sealVolume
+    if (stage === 'announcement') return FINAL_DECISION_AUDIO.revealVolume
+    return FINAL_DECISION_AUDIO.musicVolume
+  }
+  const transitionMs = () => {
+    if (stage === 'seal') return FINAL_DECISION_AUDIO.verdictDropMs
+    if (stage === 'choose' || stage === 'confirm') return FINAL_DECISION_AUDIO.suspenseBuildMs
+    return FINAL_DECISION_AUDIO.mixTransitionMs
+  }
   const applyMix = (value: number) => {
     currentMix = value
     if (music && claimed) SoundManager.setExternalMusicVolume(owner, music, value)
@@ -145,7 +157,7 @@ export function createFinalDecisionAudio(
     }
     if (paused || !preferences.sfxOn) cancelAccents()
     // A paused owner keeps a silent claim so the phase track cannot restart
-    // underneath Pause. Losing presentation ownership yields the channel above.
+    // underneath a suspended scene. Losing ownership yields the channel above.
     if (!preferences.musicOn && !music) return
     prepareMusic()
     if (!music || failed) return
@@ -191,7 +203,7 @@ export function createFinalDecisionAudio(
           }
         })
     } else if (!pendingPlay) {
-      fadeTo(volume(), FINAL_DECISION_AUDIO.mixTransitionMs)
+      fadeTo(volume(), transitionMs())
     }
   }
 

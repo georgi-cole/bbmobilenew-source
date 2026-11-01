@@ -22,9 +22,14 @@ import { usePresentationReducedMotion } from '../../services/presentation/usePre
 import { useAppSelector } from '../../store/hooks'
 import { selectIsVipActive } from '../../store/vipSlice'
 import type { Player } from '../../types'
+import CinematicSkipButton from '../CinematicSkipButton/CinematicSkipButton'
 import { prepareFinalDecisionArtwork } from './finalDecisionAssets'
 import { createFinalDecisionAudio, type FinalDecisionAudioController } from './finalDecisionAudio'
-import type { FinalDecisionController, FinalDecisionOutcome } from './finalDecisionScene.mjs'
+import type {
+  FinalDecisionController,
+  FinalDecisionOutcome,
+  FinalDecisionSceneStage,
+} from './finalDecisionScene.mjs'
 import './FinalDecisionPresentation.css'
 
 interface Props {
@@ -73,6 +78,7 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
   const [granted, setGranted] = useState(false)
   const [started, setStarted] = useState(false)
   const [ready, setReady] = useState(false)
+  const [sceneStage, setSceneStage] = useState<FinalDecisionSceneStage>('welcome')
   const foreground = usePresentationForeground()
   const { isOwner } = usePresentationOwner(
     `final-three-decision:${initial.sceneId}`,
@@ -122,6 +128,7 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
           sceneId: initial.sceneId,
           preview: false,
           reducedMotion: false,
+          initiallyPaused: !activeRef.current,
           fixture: {
             holder: { id: initial.holder.id, name: initial.holder.name },
             nominees: initial.nominees.map((player, index) => ({
@@ -139,6 +146,7 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
           },
           onCheckpoint: (checkpoint) => {
             if (cancelled) return
+            setSceneStage(checkpoint.stage)
             audio.current?.setStage(checkpoint.stage)
             if (choiceOpened || checkpoint.stage !== 'choose') return
             choiceOpened = true
@@ -240,6 +248,12 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
       data-cinematic-active={active ? 'true' : undefined}
     >
       <div id="final-decision-scene" ref={target} />
+      {ready && ['establish', 'plea-a', 'plea-b', 'seal', 'announcement'].includes(sceneStage) && (
+        <CinematicSkipButton
+          ariaLabel="Skip presentation; no decision will be made for you"
+          onClick={() => controller.current?.skip()}
+        />
+      )}
       {!ready && (
         <div className="final-decision-presentation__loading">
           <p role="status">Final Power Decision</p>
