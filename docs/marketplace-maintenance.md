@@ -53,6 +53,13 @@ store listings or change configured prices.
   change. VIP access and animation preferences remain the existing gates, and
   photo-only characters retain native animations.
 
+- 2026-11-01: Reviewed optional profile email, inline updates consent, and the
+  separate administrator sign-in for player audience reporting. Stable draft
+  profile IDs preserve the existing profile creation and wallet ownership rules;
+  administrator authentication grants no gameplay purchases or entitlements.
+  Products, prices, premium access, rewards, and Store copy are unchanged, so the
+  existing marketplace catalog remains accurate.
+
 - 2026-10-31: Reviewed Cinematic-only badge handoffs for competition wins and
   nominations, plus suppression of the redundant Vox pre-vote card. Existing
   result callbacks and Standard animations remain intact. This changes no VIP
@@ -193,10 +200,3 @@ store listings or change configured prices.
   Power presentation from Vox. Also consolidated Skip styling across cinematic
   films and the season archive. VIP access, products, prices, benefits, and Store
   copy are unchanged.
-
-- 2026-11-01: Reviewed optional profile email, inline updates consent, and the
-  separate administrator sign-in for player audience reporting. Stable draft
-  profile IDs preserve the existing profile creation and wallet ownership rules;
-  administrator authentication grants no gameplay purchases or entitlements.
-  Products, prices, premium access, rewards, and Store copy are unchanged, so the
-  existing marketplace catalog remains accurate.
