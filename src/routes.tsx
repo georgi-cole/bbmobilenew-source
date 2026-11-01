@@ -27,6 +27,7 @@ const Profile = lazy(() => import('./screens/Profile/Profile'))
 const EditProfile = lazy(() => import('./screens/Profile/EditProfile'))
 const DressingRoom = lazy(() => import('./screens/Profile/DressingRoom'))
 const ProfilePicker = lazy(() => import('./screens/ProfilePicker/ProfilePicker'))
+const PlayerAccount = lazy(() => import('./screens/PlayerAccount/PlayerAccount'))
 const Leaderboard = lazy(() => import('./screens/Leaderboard/Leaderboard'))
 const Credits = lazy(() => import('./screens/Credits/Credits'))
 const Week = lazy(() => import('./screens/Week/Week'))
@@ -199,6 +200,7 @@ export const router = createHashRouter([
       { path: 'profile-edit', element: load(<EditProfile />) },
       { path: 'profile/dressing-room', element: load(<DressingRoom />) },
       { path: 'profile-picker', element: load(<ProfilePicker />) },
+      { path: 'account', element: load(<PlayerAccount />) },
       { path: 'leaderboard', element: load(<Leaderboard />) },
       { path: 'credits', element: load(<Credits />) },
       { path: 'week', element: load(<Week />) },

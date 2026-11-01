@@ -48,9 +48,19 @@ export default function Legal() {
           and browser; an exact device model is included only when the browser provides it. A full
           browser user-agent string is not sent. Events carry a build label (QA, production, or
           development) so test activity can be distinguished. Purchase prices are not collected.
-          Photos, biographies, and conversation text are not sent. The anonymous backup is tied to
-          this installation and cannot yet be restored on another device. Contact support for data
-          access or deletion requests.
+          Photos, biographies, and conversation text are not sent. Guest activity uses a separate
+          installation identifier without a profile ID; it is not retroactively merged into a
+          profile when you create one. Saved seasons and other device-only data cannot yet be
+          restored on another device. Contact support for data access or deletion requests.
+        </p>
+        <p>
+          Connecting an email is optional. Supabase Auth stores and verifies the shared account
+          email for this device's profiles. Authentication emails do not subscribe you to news or
+          test invitations: those are separate choices in Account &amp; email, and you can withdraw
+          either choice there. Your email is not added to gameplay event payloads. Authorized
+          administrators can view account contact preferences alongside coarse activity groups.
+          Disconnecting this device keeps its local profiles and does not delete your online account
+          or withdraw contact preferences.
         </p>
         <p>
           Location is optional. If you allow it, coordinates are sent to Open-Meteo to request
@@ -97,7 +107,7 @@ export default function Legal() {
         )}
       </section>
 
-      <p className="legal-screen__version">The Big Eye 1.0.0 · Updated October 27, 2026</p>
+      <p className="legal-screen__version">The Big Eye 1.0.0 · Updated November 1, 2026</p>
     </main>
   )
 }

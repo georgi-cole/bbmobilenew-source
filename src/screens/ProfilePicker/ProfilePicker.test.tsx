@@ -115,6 +115,26 @@ describe('ProfilePicker', () => {
     }
   })
 
+  it.each([true, false])(
+    'opens optional email settings without changing guest=%s or the season',
+    (isGuest) => {
+      mockLocationState = { from: '/' }
+      mockState.profiles = {
+        profiles: isGuest
+          ? []
+          : [{ id: 'local-player', name: 'Maya', avatar: '👤', createdAt: '2026-10-27' }],
+        activeProfileId: isGuest ? null : 'local-player',
+        isGuest,
+      }
+      render(<ProfilePicker />)
+      fireEvent.click(screen.getByRole('button', { name: /Account & email/ }))
+      expect(mockNavigate).toHaveBeenCalledWith('/account', {
+        state: { from: '/profile-picker', profileReturnTo: '/' },
+      })
+      expect(mockDispatch).not.toHaveBeenCalled()
+    }
+  )
+
   it('replaces the picker history entry after creating a profile', async () => {
     render(<ProfilePicker />)
 

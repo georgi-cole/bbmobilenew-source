@@ -422,6 +422,26 @@ export default function ProfilePicker() {
       <h1 className="profile-picker__title">👤 Profiles</h1>
       <p className="profile-picker__subtitle">Select a profile to play as</p>
 
+      <button
+        type="button"
+        className="profile-picker__account game-ui-focusable"
+        onClick={() =>
+          navigate('/account', { state: { from: '/profile-picker', profileReturnTo: returnTo } })
+        }
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <rect x="3" y="5" width="18" height="14" rx="3" />
+          <path d="m4 7 8 6 8-6" />
+        </svg>
+        <span>
+          <strong>Account &amp; email</strong>
+          <small>Optional email connection and inbox choices</small>
+        </span>
+        <span className="profile-picker__account-chevron" aria-hidden="true">
+          ›
+        </span>
+      </button>
+
       {profiles.length > 0 && (
         <div className="profile-picker__list">
           {profiles.map((p) => {

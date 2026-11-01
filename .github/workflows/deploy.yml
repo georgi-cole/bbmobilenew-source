@@ -74,6 +74,7 @@ jobs:
           VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_ENABLED }}
         run: |
           test "$VITE_SUPABASE_ENABLED" = "true"
           case "$VITE_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "VITE_SUPABASE_URL must be a Supabase HTTPS project URL" >&2; exit 1;; esac
@@ -93,6 +94,7 @@ jobs:
           VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_ENABLED }}
         run: |
           test "$VITE_SUPABASE_ENABLED" = "true"
           case "$VITE_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "VITE_SUPABASE_URL must be a Supabase HTTPS project URL" >&2; exit 1;; esac
