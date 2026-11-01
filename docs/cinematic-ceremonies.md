@@ -36,12 +36,28 @@ An unresolved vote tie calls the original tiebreak callback without committing a
 
 ## Media and resource lifetime
 
-The release includes six approved poses for each of 55 character packs, plus shared props and themed cutouts: 358 WebP assets totalling about 19.2 MB on disk. They are public lazy resources, not imported images or an eager preload list. Only the active scene/cast resources decode. Native, Standard and disabled-animation paths do not prepare cinematic artwork. Custom or missing character art falls back to native presentation.
+The release includes six poses for each of 63 character packs: 28 AI houseguests and all 35 selectable player looks. Each pack supplies a front figure, royal standing and seated figures, a Safety knight, and separate decision and exit rear views. The additional Looks 28–35 use their existing casual artwork for the front figure and matching generated variants for the other five poses. Shared props and themed cutouts remain separate resources.
+
+The 378 character WebPs total 20,164,414 bytes. Including shared scenery, props and effects, the ceremony artwork directory contains 406 WebPs totalling 21,546,640 bytes (about 21.55 MB) on disk. These totals describe the complete catalog, not the resources downloaded or decoded for one scene.
+
+Artwork is loaded by the active scene and cast, without an eager preload of the catalog. Native, Standard and disabled-animation paths do not prepare cinematic artwork. Uploaded-photo-only players and genuinely missing character art retain the native presentation fallback.
 
 The renderer and cast metadata are dynamically imported after entitlement and presentation ownership checks. Styles live in a shadow root. Films and their matching native-style Skip control mount at the document body so game headers and TV text cannot paint over them. A lightweight purple-and-gold prelude covers asset decoding as soon as an unqueued film starts, preventing a main-screen flash during direct ceremony handoffs. The vertical film frame fills the viewport height while preserving a portrait composition. The percentage counter uses the clip scheduler, including its pause and cancellation controls. The queue prevents overlapping clips and retains ownership through native handoff. Global presentation priority and page visibility pause/hide active clips during gameplay or backgrounding. Preparation failures/timeouts fall back to native. Completion, Skip and unmount cancel timers/animations, clear image references and remove film layers. No per-frame gameplay or particle simulation was added.
 
 Artwork prompts and optical-layer metadata are in `src/cinematic/ceremonies/ARTWORK.md`. Crown, throne and exit anchors remain per-character metadata. Reusable hearts, halos, DNA, ballot box, antidote and pressure-wave cutouts load only for matching shock types.
 
+## Player identity and guest registration
+
+A player's explicit season-owned catalog appearance is authoritative when choosing a ceremony pack, including saves whose avatar URL still points to an older look or photo. Legacy avatar paths continue to resolve when no explicit catalog selection is present. An invalid or missing selected pack cannot silently resolve to a different character. Photo-only players retain the standard animation.
+
+This matters after an early exit from a Vox competition: the last-place player joins the immunity film and can remain in the public-vote cast. All required actors must have usable artwork. The catalog coverage test starts from the selectable-look list so a newly added profile character cannot be omitted merely because tests enumerate only existing ceremony packs.
+
+Registering a profile during a guest season applies its first selected catalog appearance immediately if both the live player and the season's identity snapshot still contain an unselected placeholder. Only appearance and avatar are filled; the contestant's name, biography, role and game progress remain owned by the season. Existing characters, uploaded photos and contestant presets are preserved. Subsequent character changes become defaults for a new season.
+
+The first selected appearance is retained with the profile. HomeHub and ProfilePicker can repair an older adopted silhouette save when resuming it, using that first known selection and verifying that the profile owns the snapshot. The repaired run is persisted. Raw game hydration never borrows an arbitrary active profile's appearance. For older profiles without recorded selection history, only the earliest stored selection is available for repair.
+
 ## Validation
 
-Focused routing tests cover mode rules, paired follow-ups, public percentages/ties/double results, preference gates, serial ownership, cancelled startup, Back 2 the Game aliases/follow-ups, result receipts and profile/run/day invalidation. Asset tests verify every pack's six slots, WebP headers, byte sizes and approved pose hashes. The local browser audit exercises all ceremony triggers, native handoffs, Skip/settings changes and presentation priority. Desktop measurements are not a guarantee of zero GPU cost or a substitute for device QA.
+Focused routing tests cover mode rules, paired follow-ups, public percentages/ties/double results, preference gates, serial ownership, cancelled startup, Back 2 the Game aliases/follow-ups, result receipts and profile/run/day invalidation. Every selectable look is exercised in the required Classic, Cupid and Vox ceremony roles, including a human finishing last in Vox. Identity tests cover explicit selections, stale avatar paths and photo-only fallback. Asset tests verify selectable-look coverage, the retained AI packs, each pack's six slots, WebP headers, byte sizes and pose hashes.
+
+Guest-appearance regressions cover registration, save/reload, later profile edits, owner isolation, existing catalog/photo/preset protection, rejected registration and stale-game actions. The local browser audit exercises ceremony triggers, native handoffs, Skip/settings changes and presentation priority. Desktop measurements are not a guarantee of zero GPU cost or a substitute for device QA.

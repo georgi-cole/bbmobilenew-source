@@ -18,6 +18,7 @@ import {
   getLaunchContestant,
   type SeasonContestant,
 } from '../appearance/seasonContestant'
+import { withInitialSeasonAppearance } from '../appearance/initialSeasonAppearance'
 import type { RootState, AppDispatch } from './store'
 import {
   getAlliancePowerHolderPriority,
@@ -9617,6 +9618,16 @@ const gameSlice = createSlice({
       state.players = action.payload
       state.competitionSeasonStateByPlayerId = buildInitialCompetitionSeasonState(action.payload)
     },
+    applyFirstSeasonAppearance(
+      state,
+      action: PayloadAction<{
+        gameId: string
+        appearance: import('../appearance/catalog').AppearanceSelection
+      }>
+    ) {
+      if (state.gameId !== action.payload.gameId) return
+      return withInitialSeasonAppearance(state, action.payload.appearance)
+    },
     updateUserPlayerIdentity(
       state,
       action: PayloadAction<{
@@ -13900,6 +13911,7 @@ export const {
   clearBlockingFlags,
   archiveSeason,
   replacePlayers,
+  applyFirstSeasonAppearance,
   updateUserPlayerIdentity,
   resolveUnfillableReplacement,
   debugForceBellaIntoCast,

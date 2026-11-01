@@ -39,6 +39,8 @@ import {
   type SeasonRuleset,
 } from '../../modes/seasonRulesets'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
+import { persistCurrentRunSnapshot } from '../../store/store'
+import { gameWithInitialProfileAppearance } from '../../appearance/initialSeasonAppearance'
 import useBackgroundTheme from '../../hooks/useBackgroundTheme'
 import KolequantSplash from '../../components/KolequantSplash/KolequantSplash'
 import RouteLoadingScreen from '../../components/RouteLoadingScreen/RouteLoadingScreen'
@@ -569,13 +571,18 @@ export default function HomeHub() {
         activeProfileId
       )
     beginGameplayAudioExit()
+    const resumedGame = gameWithInitialProfileAppearance(
+      snapshot,
+      !isGuest && snapshot.profileId === activeProfileId ? currentProfile : null
+    )
     withRunAutosaveSuspended(() => {
-      dispatch(hydrateGame(snapshot.game))
+      dispatch(hydrateGame(resumedGame))
       dispatch(hydrateFinale(snapshot.finale))
       dispatch(hydrateSocial(snapshot.social))
       if (snapshot.publicOpinion) dispatch(hydratePublicOpinion(snapshot.publicOpinion))
       if (snapshot.challenge) dispatch(hydrateChallenge(snapshot.challenge))
     })
+    if (resumedGame !== snapshot.game) persistCurrentRunSnapshot()
     navigate(gameRoute)
   }
 
