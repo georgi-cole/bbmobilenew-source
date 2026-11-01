@@ -172,9 +172,21 @@ export function shockVariant(key) {
 }
 export function findArt(player, catalog) {
   if (!player) return null
+  const source = player.avatar ?? ''
+  const isUser = player.isUser === true || player.id === 'user'
+  if (isUser && player.appearance?.kind === 'catalog') {
+    const selection = player.appearance
+    const number =
+      typeof selection.lookId === 'string' && selection.lookId.match(/^pc-(\d{3})$/)?.[1]
+    if (selection.revision !== 1 || !number) return null
+    // A run's selected look is authoritative even if its serialized avatar is
+    // older. Missing packs must not silently substitute another identity.
+    return catalog.find((character) => character.id === `character-${Number(number)}`) ?? null
+  }
+  if (/^(profile-photo:|data:|blob:)/i.test(source)) return null
   let avatar
   try {
-    avatar = decodeURIComponent(player.avatar ?? '').toLowerCase()
+    avatar = decodeURIComponent(source).toLowerCase()
   } catch {
     return null
   }
@@ -187,7 +199,7 @@ export function findArt(player, catalog) {
     (c) => avatar.includes(`${c.id}_avatar`) || avatar.includes(`${c.id}-avatar`)
   )
   if (avatarMatch) return avatarMatch
-  if (player.isUser) return null
+  if (isUser) return null
   return catalog.find((c) => c.name.toLowerCase() === player.name?.toLowerCase()) ?? null
 }
 export function ceremonyCast(scene, props, game, catalog) {

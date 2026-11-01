@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router'
 import AppearanceCarousel from '../../appearance/AppearanceCarousel'
 import { warmAppearanceRole, warmSelectedAppearance } from '../../appearance/preloadAppearance'
 import { getAppearanceAsset, SELECTABLE_LOOKS } from '../../appearance/catalog'
+import { canFillInitialSeasonAppearance } from '../../appearance/initialSeasonAppearance'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectCurrentProfile, updateProfile } from '../../store/profilesSlice'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
@@ -23,6 +24,9 @@ export default function DressingRoom() {
   const creatingProfile = routeState?.createProfile === true
   const dispatch = useAppDispatch()
   const profile = useAppSelector(selectCurrentProfile)
+  const canFillCurrentLook = useAppSelector((state) =>
+    Boolean(state.game && canFillInitialSeasonAppearance(state.game))
+  )
   const profileIdAtOpen = useRef(creatingProfile ? undefined : profile?.id)
   const figureRef = useRef<HTMLImageElement>(null)
   const [lockIn, setLockIn] = useState<LockInLook | null>(null)
@@ -59,6 +63,10 @@ export default function DressingRoom() {
     const look = SELECTABLE_LOOKS.find((candidate) => candidate.id === selectedId)
     if (!look) return
     const selection = { kind: 'catalog' as const, lookId: look.id, revision: look.revision }
+    const firstAppearance = profile?.initialAppearanceSelection ?? profile?.appearanceSelection
+    const appliesToCurrentSeason =
+      canFillCurrentLook &&
+      (firstAppearance?.kind !== 'catalog' || firstAppearance.lookId === selection.lookId)
     const casualAsset = getAppearanceAsset(selection, 'casual')
     const portraitAsset = getAppearanceAsset(selection, 'main')
     const figure = figureRef.current
@@ -96,7 +104,9 @@ export default function DressingRoom() {
         : null,
       ...(creatingProfile
         ? { readyEyebrow: 'Look chosen', completionCopy: 'Now make it yours.' }
-        : {}),
+        : appliesToCurrentSeason
+          ? { completionCopy: 'Your first character is ready for this season.' }
+          : {}),
     })
   }
 
@@ -147,7 +157,10 @@ export default function DressingRoom() {
           figureRef={figureRef}
         />
         {!creatingProfile && (
-          <p className="dressing-room__season-note">Changes will take effect on new season start</p>
+          <p className="dressing-room__season-note">
+            Your first character replaces the guest silhouette now. Changing an existing character
+            takes effect next season.
+          </p>
         )}
       </main>
       {lockIn && <LookLockInReveal look={lockIn} onComplete={finishLockIn} />}

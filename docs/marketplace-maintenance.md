@@ -44,6 +44,15 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-01: Reviewed ceremony coverage for all 35 existing selectable player
+  looks, including six matching poses for Looks 28–35 and resolution from the
+  season-owned appearance. Also reviewed immediate first-character selection
+  when registering during a guest season and owner-checked repair of adopted
+  silhouette saves. These fixes fulfill existing character and VIP cinematic
+  behavior; they add no product, paid look, entitlement, price or Store-copy
+  change. VIP access and animation preferences remain the existing gates, and
+  photo-only characters retain native animations.
+
 - 2026-10-31: Reviewed Cinematic-only badge handoffs for competition wins and
   nominations, plus suppression of the redundant Vox pre-vote card. Existing
   result callbacks and Standard animations remain intact. This changes no VIP

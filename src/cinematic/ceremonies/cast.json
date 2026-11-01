@@ -5225,6 +5225,766 @@
           }
         }
       }
+    },
+    {
+      "id": "character-28",
+      "name": "Character 28",
+      "poses": {
+        "front": {
+          "src": "assets/ceremonies/characters/character-28/ceremony-front.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 24720,
+          "sha256": "0309767191f8b42fb36d0f873d2e18c9e28217a525435ae36367eea209921d3e",
+          "crown": {
+            "x": 0.47024,
+            "baseY": 0.07279,
+            "width": 0.12893,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-standing": {
+          "src": "assets/ceremonies/characters/character-28/ceremony-royal-standing.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 58666,
+          "sha256": "6b13fb39cc5c0abaa16616b8bd2e47cdc50dbf35ee454dcc2db6bed48e137bf3",
+          "crown": {
+            "x": 0.47708,
+            "baseY": 0.07339,
+            "width": 0.12865,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "safety-knight": {
+          "src": "assets/ceremonies/characters/character-28/ceremony-safety-knight.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 59236,
+          "sha256": "f2fade9801d336cea3c2656a2810bad932975c3dc76877eae013acfd05ea6cfa",
+          "crown": {
+            "x": 0.43438,
+            "baseY": 0.07339,
+            "width": 0.12865,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "decision-back": {
+          "src": "assets/ceremonies/characters/character-28/ceremony-decision-back.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 26948,
+          "sha256": "7967520e4e123df22af0031cc7c61f71655135438304affab89600d20a886c14",
+          "crown": {
+            "x": 0.37262,
+            "baseY": 0.07438,
+            "width": 0.14702,
+            "angle": 0
+          },
+          "feetY": 0.94603
+        },
+        "exit-back": {
+          "src": "assets/ceremonies/characters/character-28/ceremony-exit-back.webp",
+          "width": 384,
+          "height": 576,
+          "bytes": 21274,
+          "sha256": "5b6aed93ba2ff54747227feea5628bee3bb26e4f2f3630ef3087a9109d3fd9b8",
+          "crown": {
+            "x": 0.5,
+            "baseY": 0.07235,
+            "width": 0.13112,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-seated": {
+          "src": "assets/ceremonies/characters/character-28/ceremony-royal-seated.webp",
+          "width": 600,
+          "height": 900,
+          "bytes": 96916,
+          "sha256": "34b3437e4e4580e2ec52c8621aa0cdc88c82641703223e3bc3a339731eaa3264",
+          "crown": {
+            "x": 0.48417,
+            "baseY": 0.13311,
+            "width": 0.13617,
+            "angle": 0
+          },
+          "feetY": 0.94444,
+          "throne": {
+            "x": 0,
+            "y": 0.03117,
+            "scale": 0.93026
+          }
+        }
+      }
+    },
+    {
+      "id": "character-29",
+      "name": "Character 29",
+      "poses": {
+        "front": {
+          "src": "assets/ceremonies/characters/character-29/ceremony-front.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 29016,
+          "sha256": "3efdabcbfd115cd7772b7df46ba17c4c2f26b962465c36d8c24895081bb56960",
+          "crown": {
+            "x": 0.4131,
+            "baseY": 0.07438,
+            "width": 0.10631,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-standing": {
+          "src": "assets/ceremonies/characters/character-29/ceremony-royal-standing.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 52994,
+          "sha256": "cc10e82507ff98be2df7671b8f246eb85ddd8b89e69338aa8141a9c37c35e672",
+          "crown": {
+            "x": 0.49167,
+            "baseY": 0.07339,
+            "width": 0.10885,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "safety-knight": {
+          "src": "assets/ceremonies/characters/character-29/ceremony-safety-knight.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 60528,
+          "sha256": "764a75e931e0ff4b175da3fd18ea82e2ae7eb4f198775e73e8e90a23136985b9",
+          "crown": {
+            "x": 0.45937,
+            "baseY": 0.07478,
+            "width": 0.10885,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "decision-back": {
+          "src": "assets/ceremonies/characters/character-29/ceremony-decision-back.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 31518,
+          "sha256": "008b8ed1f1cb4e7ba87fc3efd9fb1c2d499d36127e82f3140f03e9c658b595de",
+          "crown": {
+            "x": 0.33452,
+            "baseY": 0.07438,
+            "width": 0.11988,
+            "angle": 0
+          },
+          "feetY": 0.94603
+        },
+        "exit-back": {
+          "src": "assets/ceremonies/characters/character-29/ceremony-exit-back.webp",
+          "width": 384,
+          "height": 576,
+          "bytes": 25018,
+          "sha256": "b39173b6bd52e39179adcd5354eafb98a5764abc236da3fed884754a5772d165",
+          "crown": {
+            "x": 0.49479,
+            "baseY": 0.07408,
+            "width": 0.10391,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-seated": {
+          "src": "assets/ceremonies/characters/character-29/ceremony-royal-seated.webp",
+          "width": 600,
+          "height": 900,
+          "bytes": 91186,
+          "sha256": "3453eddd3b03593fa7393b3a47307bbca7c8dcbcf0210736750926b0fcae977a",
+          "crown": {
+            "x": 0.48583,
+            "baseY": 0.07422,
+            "width": 0.12033,
+            "angle": 0
+          },
+          "feetY": 0.94556,
+          "throne": {
+            "x": 0,
+            "y": 0.00127,
+            "scale": 0.99715
+          }
+        }
+      }
+    },
+    {
+      "id": "character-30",
+      "name": "Character 30",
+      "poses": {
+        "front": {
+          "src": "assets/ceremonies/characters/character-30/ceremony-front.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 27654,
+          "sha256": "c65f9c2ae634a722fe0c4c27dd6fd5660b6cd0162e8c6e7ddafb29262e41054f",
+          "crown": {
+            "x": 0.51429,
+            "baseY": 0.07438,
+            "width": 0.10631,
+            "angle": 0
+          },
+          "feetY": 0.94603
+        },
+        "royal-standing": {
+          "src": "assets/ceremonies/characters/character-30/ceremony-royal-standing.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 64178,
+          "sha256": "54cf30100ee8ee34d1ad160863b5a9be3be85fb58f16317df429385398b3b901",
+          "crown": {
+            "x": 0.51771,
+            "baseY": 0.072,
+            "width": 0.11083,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "safety-knight": {
+          "src": "assets/ceremonies/characters/character-30/ceremony-safety-knight.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 66596,
+          "sha256": "93356d0e713a0cf6a3f5670c996e08ca849216641326bf0e5595af8d7d1cebc7",
+          "crown": {
+            "x": 0.5375,
+            "baseY": 0.072,
+            "width": 0.10885,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "decision-back": {
+          "src": "assets/ceremonies/characters/character-30/ceremony-decision-back.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 30732,
+          "sha256": "18de48ad0ba12b47b3b003d31683d76b3897b87ad0d60947736c73c652d39973",
+          "crown": {
+            "x": 0.37857,
+            "baseY": 0.07279,
+            "width": 0.12667,
+            "angle": 0
+          },
+          "feetY": 0.94603
+        },
+        "exit-back": {
+          "src": "assets/ceremonies/characters/character-30/ceremony-exit-back.webp",
+          "width": 384,
+          "height": 576,
+          "bytes": 26386,
+          "sha256": "f4f9cb24db9425ececd4c2f1eb84a7424e002b84cce353f5ab73e16e6a6909cd",
+          "crown": {
+            "x": 0.5013,
+            "baseY": 0.07235,
+            "width": 0.11133,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-seated": {
+          "src": "assets/ceremonies/characters/character-30/ceremony-royal-seated.webp",
+          "width": 600,
+          "height": 900,
+          "bytes": 107566,
+          "sha256": "c23affdca8a20d49ab091803b6d5c23aaab8cb79b1af441c8c18ddd4f0e26549",
+          "crown": {
+            "x": 0.52417,
+            "baseY": 0.07311,
+            "width": 0.12033,
+            "angle": 0
+          },
+          "feetY": 0.94667,
+          "throne": {
+            "x": 0,
+            "y": 0.00017,
+            "scale": 0.99963
+          }
+        }
+      }
+    },
+    {
+      "id": "character-31",
+      "name": "Character 31",
+      "poses": {
+        "front": {
+          "src": "assets/ceremonies/characters/character-31/ceremony-front.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 27624,
+          "sha256": "010348b43ba390720b41b41bd4f6a20dee09a6c8aa490513d902e74b2f69f1a2",
+          "crown": {
+            "x": 0.45238,
+            "baseY": 0.07279,
+            "width": 0.11536,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-standing": {
+          "src": "assets/ceremonies/characters/character-31/ceremony-royal-standing.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 53522,
+          "sha256": "6795723284d986291dc877464c2a341d5b61c8d091d84f36fa1d9a7b4364d281",
+          "crown": {
+            "x": 0.46563,
+            "baseY": 0.072,
+            "width": 0.11479,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "safety-knight": {
+          "src": "assets/ceremonies/characters/character-31/ceremony-safety-knight.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 55652,
+          "sha256": "b31d6cfbf86cab58b8f29169c6f40f44c8e0b773955cf5cf4aa0eaf23f710dcd",
+          "crown": {
+            "x": 0.45,
+            "baseY": 0.07339,
+            "width": 0.11479,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "decision-back": {
+          "src": "assets/ceremonies/characters/character-31/ceremony-decision-back.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 30030,
+          "sha256": "9e431850d5f84d21946a5685bbaa804b9b903d0a175ad9be4855cc6feb2d2f3d",
+          "crown": {
+            "x": 0.30833,
+            "baseY": 0.07279,
+            "width": 0.1244,
+            "angle": 0
+          },
+          "feetY": 0.94603
+        },
+        "exit-back": {
+          "src": "assets/ceremonies/characters/character-31/ceremony-exit-back.webp",
+          "width": 384,
+          "height": 576,
+          "bytes": 21672,
+          "sha256": "8d804071c68e306fa632b39255573d80d4520df5fc9539e34dabafa3c4f04443",
+          "crown": {
+            "x": 0.48177,
+            "baseY": 0.07408,
+            "width": 0.11133,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-seated": {
+          "src": "assets/ceremonies/characters/character-31/ceremony-royal-seated.webp",
+          "width": 600,
+          "height": 900,
+          "bytes": 94744,
+          "sha256": "c5c79d2ff7d625f9df4e88f0c531d9618933597bb7c55da8ea1a4751418049e1",
+          "crown": {
+            "x": 0.4975,
+            "baseY": 0.09867,
+            "width": 0.1235,
+            "angle": 0
+          },
+          "feetY": 0.94556,
+          "throne": {
+            "x": 0,
+            "y": 0.01345,
+            "scale": 0.9699
+          }
+        }
+      }
+    },
+    {
+      "id": "character-32",
+      "name": "Character 32",
+      "poses": {
+        "front": {
+          "src": "assets/ceremonies/characters/character-32/ceremony-front.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 28338,
+          "sha256": "82e7774b132fe7f3505db085086b2f6877bc6e16552b7e061cbb71eaf8b3228a",
+          "crown": {
+            "x": 0.51786,
+            "baseY": 0.07438,
+            "width": 0.11536,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-standing": {
+          "src": "assets/ceremonies/characters/character-32/ceremony-royal-standing.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 63200,
+          "sha256": "ab1d990acf1d4989ca4a136573e849fcd9adcb2f1aac03837924abd93a288418",
+          "crown": {
+            "x": 0.53021,
+            "baseY": 0.07339,
+            "width": 0.11677,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "safety-knight": {
+          "src": "assets/ceremonies/characters/character-32/ceremony-safety-knight.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 58604,
+          "sha256": "5040446cc4722a5826f0e6ca9cd92d26e31c9b4eb714e86098ccdf6ef8d24ad8",
+          "crown": {
+            "x": 0.49688,
+            "baseY": 0.07339,
+            "width": 0.11875,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "decision-back": {
+          "src": "assets/ceremonies/characters/character-32/ceremony-decision-back.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 33864,
+          "sha256": "ab7e288900301f82a246c679326a636b261b7926ee2aab7f23092412982574fe",
+          "crown": {
+            "x": 0.40357,
+            "baseY": 0.07438,
+            "width": 0.14024,
+            "angle": 0
+          },
+          "feetY": 0.94603
+        },
+        "exit-back": {
+          "src": "assets/ceremonies/characters/character-32/ceremony-exit-back.webp",
+          "width": 384,
+          "height": 576,
+          "bytes": 26518,
+          "sha256": "f6617ef70c9c4119e6f0c6be00230dddb01dc69915e60b58ca3f8e0967f7c5d8",
+          "crown": {
+            "x": 0.49349,
+            "baseY": 0.07408,
+            "width": 0.10885,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-seated": {
+          "src": "assets/ceremonies/characters/character-32/ceremony-royal-seated.webp",
+          "width": 600,
+          "height": 900,
+          "bytes": 111874,
+          "sha256": "eda482143ffa3c3fec78e268372422f3d03c6b39ba9db4d37b9051601eed6eed",
+          "crown": {
+            "x": 0.52083,
+            "baseY": 0.09422,
+            "width": 0.13142,
+            "angle": 0
+          },
+          "feetY": 0.94444,
+          "throne": {
+            "x": 0,
+            "y": 0.01179,
+            "scale": 0.97362
+          }
+        }
+      }
+    },
+    {
+      "id": "character-33",
+      "name": "Character 33",
+      "poses": {
+        "front": {
+          "src": "assets/ceremonies/characters/character-33/ceremony-front.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 23758,
+          "sha256": "d2f8955a8926464b0b87b740ef2c269bad828447ec47e762e24f54040f3af13f",
+          "crown": {
+            "x": 0.49048,
+            "baseY": 0.07279,
+            "width": 0.11762,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-standing": {
+          "src": "assets/ceremonies/characters/character-33/ceremony-royal-standing.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 65164,
+          "sha256": "b0df98bb26de37d2ec754e01282093e2a9707407d11f9c87bae45c6d99dcba4b",
+          "crown": {
+            "x": 0.48229,
+            "baseY": 0.07339,
+            "width": 0.12073,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "safety-knight": {
+          "src": "assets/ceremonies/characters/character-33/ceremony-safety-knight.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 64758,
+          "sha256": "75477c004fddad9d9d9da318763b15fe4b355f82517cbaf808c4d534f15d891d",
+          "crown": {
+            "x": 0.47708,
+            "baseY": 0.072,
+            "width": 0.12073,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "decision-back": {
+          "src": "assets/ceremonies/characters/character-33/ceremony-decision-back.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 28542,
+          "sha256": "9a7835028c5742875ac1b490dbdc9e787d599e97ed5c48f42cdd37888ee0ea87",
+          "crown": {
+            "x": 0.35119,
+            "baseY": 0.07438,
+            "width": 0.14702,
+            "angle": 0
+          },
+          "feetY": 0.94603
+        },
+        "exit-back": {
+          "src": "assets/ceremonies/characters/character-33/ceremony-exit-back.webp",
+          "width": 384,
+          "height": 576,
+          "bytes": 22408,
+          "sha256": "e072462f31dbdf6cefeb3e0614b327ff18e06a75dd2fe2f088a3153fb3d24bfe",
+          "crown": {
+            "x": 0.50781,
+            "baseY": 0.07235,
+            "width": 0.12122,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-seated": {
+          "src": "assets/ceremonies/characters/character-33/ceremony-royal-seated.webp",
+          "width": 600,
+          "height": 900,
+          "bytes": 102690,
+          "sha256": "3cb3ac31a5ec7e110526c8c1b2bce1c37d987d00bfe7e540f7b39c9d7e34edb1",
+          "crown": {
+            "x": 0.49167,
+            "baseY": 0.09533,
+            "width": 0.12667,
+            "angle": 0
+          },
+          "feetY": 0.94556,
+          "throne": {
+            "x": 0,
+            "y": 0.01179,
+            "scale": 0.97362
+          }
+        }
+      }
+    },
+    {
+      "id": "character-34",
+      "name": "Character 34",
+      "poses": {
+        "front": {
+          "src": "assets/ceremonies/characters/character-34/ceremony-front.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 23564,
+          "sha256": "313a17e05a16eb6d79f80760cd8d6e08b0e9b11e0502c0b6d3e0d011f6edc382",
+          "crown": {
+            "x": 0.52143,
+            "baseY": 0.07279,
+            "width": 0.11536,
+            "angle": 0
+          },
+          "feetY": 0.94286
+        },
+        "royal-standing": {
+          "src": "assets/ceremonies/characters/character-34/ceremony-royal-standing.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 48396,
+          "sha256": "b60bd9b4e49276e84aa1482c938a28bec072f6992b921df4244769c1b4b09a7e",
+          "crown": {
+            "x": 0.4875,
+            "baseY": 0.07478,
+            "width": 0.12073,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "safety-knight": {
+          "src": "assets/ceremonies/characters/character-34/ceremony-safety-knight.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 51898,
+          "sha256": "f8090f2e1c28f674cd8fa40407511472368d3d3027b412a67ccb92b3b34940f6",
+          "crown": {
+            "x": 0.49167,
+            "baseY": 0.07339,
+            "width": 0.12073,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "decision-back": {
+          "src": "assets/ceremonies/characters/character-34/ceremony-decision-back.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 26664,
+          "sha256": "dd7064a6fca63e8fb182667a5011250f73cf8081426933fd68018d2141841f2c",
+          "crown": {
+            "x": 0.3869,
+            "baseY": 0.07438,
+            "width": 0.14476,
+            "angle": 0
+          },
+          "feetY": 0.94603
+        },
+        "exit-back": {
+          "src": "assets/ceremonies/characters/character-34/ceremony-exit-back.webp",
+          "width": 384,
+          "height": 576,
+          "bytes": 20448,
+          "sha256": "3094a65d7b8d57612982f7ac41040706b00adb44dbed5087d25b5f3f2a414185",
+          "crown": {
+            "x": 0.4974,
+            "baseY": 0.07408,
+            "width": 0.11628,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-seated": {
+          "src": "assets/ceremonies/characters/character-34/ceremony-royal-seated.webp",
+          "width": 600,
+          "height": 900,
+          "bytes": 96782,
+          "sha256": "adc9ad4cee6202b7bc9082adbdb5275db7b3e8b0e0ecca7c43a00442659b8a16",
+          "crown": {
+            "x": 0.50333,
+            "baseY": 0.08756,
+            "width": 0.13458,
+            "angle": 0
+          },
+          "feetY": 0.94444,
+          "throne": {
+            "x": 0,
+            "y": 0.00847,
+            "scale": 0.98105
+          }
+        }
+      }
+    },
+    {
+      "id": "character-35",
+      "name": "Character 35",
+      "poses": {
+        "front": {
+          "src": "assets/ceremonies/characters/character-35/ceremony-front.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 25924,
+          "sha256": "4f39997aa0709983de0c5e949b2c522f9c5f5a9cbbf34a8cab4ba9162d16ad8e",
+          "crown": {
+            "x": 0.47262,
+            "baseY": 0.07279,
+            "width": 0.13571,
+            "angle": 0
+          },
+          "feetY": 0.94286
+        },
+        "royal-standing": {
+          "src": "assets/ceremonies/characters/character-35/ceremony-royal-standing.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 58296,
+          "sha256": "381cdcd3b34130613a5e18fa5cad7a6a8138342bdbfb4ad6105459422d85cea9",
+          "crown": {
+            "x": 0.48021,
+            "baseY": 0.07478,
+            "width": 0.14844,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "safety-knight": {
+          "src": "assets/ceremonies/characters/character-35/ceremony-safety-knight.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 59252,
+          "sha256": "f2497419d339474fab9d46689e1cc495e903aa40b081af233cee36143e3ad95a",
+          "crown": {
+            "x": 0.46875,
+            "baseY": 0.07478,
+            "width": 0.14448,
+            "angle": 0
+          },
+          "feetY": 0.94583
+        },
+        "decision-back": {
+          "src": "assets/ceremonies/characters/character-35/ceremony-decision-back.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 28530,
+          "sha256": "e8791d97e6b8399a3b6f012f5c798a355e251e39c5046864bf37de23cbdf447a",
+          "crown": {
+            "x": 0.40476,
+            "baseY": 0.07597,
+            "width": 0.16738,
+            "angle": 0
+          },
+          "feetY": 0.94603
+        },
+        "exit-back": {
+          "src": "assets/ceremonies/characters/character-35/ceremony-exit-back.webp",
+          "width": 384,
+          "height": 576,
+          "bytes": 21828,
+          "sha256": "20a2b5061cca9f9822ea230863f9b42e62736e7ea9a1aa32ba46cf6230dbac3c",
+          "crown": {
+            "x": 0.48958,
+            "baseY": 0.07408,
+            "width": 0.14844,
+            "angle": 0
+          },
+          "feetY": 0.94444
+        },
+        "royal-seated": {
+          "src": "assets/ceremonies/characters/character-35/ceremony-royal-seated.webp",
+          "width": 600,
+          "height": 900,
+          "bytes": 95000,
+          "sha256": "d6f688ffea018739a8cce9889f6f7ac732e792902f8cc53f4aaa9dca8c1c7c70",
+          "crown": {
+            "x": 0.49333,
+            "baseY": 0.07422,
+            "width": 0.15992,
+            "angle": 0
+          },
+          "feetY": 0.94667,
+          "throne": {
+            "x": 0,
+            "y": 0.00072,
+            "scale": 0.99839
+          }
+        }
+      }
     }
   ]
 }

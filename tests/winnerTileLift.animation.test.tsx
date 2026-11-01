@@ -315,6 +315,92 @@ describe('WinnerTileLiftAnimation', () => {
     expect(recentered.every((rect) => rect.top >= 11 && rect.bottom <= 331)).toBe(true)
   })
 
+  it.each([
+    { width: 320, height: 640 },
+    { width: 1366, height: 768 },
+  ])('preserves both Vox portraits through lift and resized return at $width × $height', (size) => {
+    const viewport = { ...size, offsetLeft: 7, offsetTop: 11 }
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport })
+    const capturedRects = [new DOMRect(12, 90, 80, 102), new DOMRect(110, 90, 72, 92)]
+    let currentRects = capturedRects
+    const sources = capturedRects.map((_, index) => {
+      const source = document.createElement('div')
+      source.textContent = index === 0 ? 'Alice' : 'Bob'
+      source.getBoundingClientRect = vi.fn(() => currentRects[index])
+      document.body.append(source)
+      return source
+    })
+    const onDone = vi.fn()
+    render(
+      <WinnerTileLiftAnimation
+        targetIds={['alice', 'bob']}
+        voxLastPlaceId="bob"
+        tiles={[
+          { rect: null, badge: '🛡️', badgeCode: 'immune', badgeLabel: 'Alice wins Immunity' },
+          { rect: null, badge: '❓', badgeCode: 'nominated', badgeLabel: 'Bob finishes last' },
+        ]}
+        caption="Alice wins Immunity! Bob finishes last and is nominated."
+        resolveTarget={(id) => sources[id === 'alice' ? 0 : 1]}
+        onDone={onDone}
+      />
+    )
+    flushAnimationFrame()
+    flushAnimationFrame()
+    flushAnimationFrame()
+
+    const lifted = [...document.querySelectorAll<HTMLElement>('.winner-tile-lift__tile')]
+    expect(lifted).toHaveLength(2)
+    const assertProportions = () => {
+      const rects = lifted.map(renderedRect)
+      rects.forEach((rect, index) => {
+        expect(rect.width / rect.height).toBeCloseTo(
+          capturedRects[index].width / capturedRects[index].height,
+          6
+        )
+        expect(rect.left).toBeGreaterThanOrEqual(viewport.offsetLeft)
+        expect(rect.right).toBeLessThanOrEqual(viewport.offsetLeft + viewport.width)
+        expect(rect.top).toBeGreaterThanOrEqual(viewport.offsetTop)
+        expect(rect.bottom).toBeLessThanOrEqual(viewport.offsetTop + viewport.height)
+      })
+      expect(rects[0].right).toBeLessThanOrEqual(rects[1].left)
+      return rects
+    }
+    assertProportions()
+    act(() => vi.advanceTimersByTime(520))
+    expect(document.querySelector('[data-winner-tile-lift-phase="awarded"]')).not.toBeNull()
+    assertProportions()
+    expect(document.querySelector('[aria-label="Alice wins Immunity"]')).not.toBeNull()
+    expect(document.querySelector('[aria-label="Bob finishes last"]')).not.toBeNull()
+
+    Object.assign(viewport, { width: size.height, height: size.width })
+    act(() => window.dispatchEvent(new Event('resize')))
+    flushAnimationFrame()
+    const recentered = assertProportions()
+    expect(recentered.reduce((sum, rect) => sum + rect.left + rect.width / 2, 0) / 2).toBeCloseTo(
+      viewport.offsetLeft + viewport.width / 2
+    )
+
+    // The responsive roster can change shape while its frozen copies are lifted.
+    currentRects = [new DOMRect(30, 170, 64, 64), new DOMRect(130, 170, 70, 70)]
+    act(() => vi.advanceTimersByTime(1720))
+    expect(document.querySelector('[data-winner-tile-lift-phase="returning"]')).not.toBeNull()
+    assertProportions().forEach((rect, index) => {
+      const anchor = currentRects[index]
+      expect(rect.left).toBeGreaterThanOrEqual(anchor.left)
+      expect(rect.right).toBeLessThanOrEqual(anchor.right)
+      expect(rect.top).toBeGreaterThanOrEqual(anchor.top)
+      expect(rect.bottom).toBeLessThanOrEqual(anchor.bottom)
+      expect(rect.left + rect.width / 2).toBeCloseTo(anchor.left + anchor.width / 2)
+      expect(rect.top + rect.height / 2).toBeCloseTo(anchor.top + anchor.height / 2)
+    })
+    act(() => vi.advanceTimersByTime(560))
+    expect(onDone).toHaveBeenCalledTimes(1)
+    sources.forEach((source) => {
+      expect(source.style.visibility).toBe('')
+      expect(source.dataset.ceremonyTileLifted).toBeUndefined()
+    })
+  })
+
   it('restores the real tile if the animation is interrupted', () => {
     const addListener = vi.spyOn(window, 'addEventListener')
     const removeListener = vi.spyOn(window, 'removeEventListener')
