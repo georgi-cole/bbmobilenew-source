@@ -11,14 +11,16 @@ import { hasCoveredRosterExit, clearRosterExit } from './roster-exit-state'
 function ExitHandoff({ premiumRosterExit, ...props }) {
   return premiumRosterExit ? <RosterExit {...props} /> : <Standard {...props} />
 }
-export default function Exit(props) {
+export default function Exit({ decisionAlreadyPresented = false, ...props }) {
   const store = useStore()
   const game = store.getState().game
   const covered = props.variant !== 'return' && hasCoveredRosterExit(store, game, props.evictee.id)
-  const scene =
-    props.variant === 'return'
-      ? null
-      : adaptCeremonyScene(exitTracker.scene(game, props.evictee.id), props, game)
+  const trackedScene = props.variant === 'return' ? null : exitTracker.scene(game, props.evictee.id)
+  const scene = adaptCeremonyScene(
+    decisionAlreadyPresented && trackedScene === 'final3' ? 'exit' : trackedScene,
+    props,
+    game
+  )
   const cinematic = useCinematicSession(scene ?? (covered ? 'exit' : null))
   useEffect(() => {
     if (covered && !cinematic) clearRosterExit(store)

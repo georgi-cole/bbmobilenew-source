@@ -27,6 +27,7 @@ export interface FinalDecisionCheckpoint {
   pauseReasons: string[]
   decisionCount: number
   completionCount: number
+  isolatedPlayerId: string | null
   run: number
   reducedMotion: boolean
   disposed: boolean
@@ -55,6 +56,7 @@ export interface FinalDecisionSceneConfig {
   onDecision: (outcome: FinalDecisionOutcome) => void
   onComplete: (outcome: FinalDecisionOutcome) => void
   onCheckpoint: (checkpoint: FinalDecisionCheckpoint) => void
+  onCue?: (event: { cue: string; sceneId?: string }) => void
 }
 
 export interface FinalDecisionController {

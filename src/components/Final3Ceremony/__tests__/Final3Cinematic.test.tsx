@@ -1,6 +1,6 @@
 import { configureStore, type Middleware } from '@reduxjs/toolkit'
 import { StrictMode } from 'react'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -13,6 +13,7 @@ import { ceremonyQueue } from '../../../cinematic/ceremonies/runtime.mjs'
 import gameReducer, { createInitialGameState } from '../../../store/gameSlice'
 import settingsReducer, {
   DEFAULT_SETTINGS,
+  setAudio,
   setDisplay,
   setGameUX,
 } from '../../../store/settingsSlice'
@@ -27,6 +28,20 @@ const movie = vi.hoisted(() => ({
   pause: vi.fn(),
   resume: vi.fn(),
   dispose: vi.fn(),
+}))
+const soundtrack = vi.hoisted(() => ({
+  create: vi.fn(),
+  setActive: vi.fn(),
+  setPreferences: vi.fn(),
+  setStage: vi.fn(),
+  cue: vi.fn(),
+  dispose: vi.fn(),
+}))
+vi.mock('../finalDecisionAudio', () => ({
+  createFinalDecisionAudio: (sceneId: string, preferences: unknown) => {
+    soundtrack.create(sceneId, preferences)
+    return soundtrack
+  },
 }))
 vi.mock('../finalDecisionAssets', () => ({ prepareFinalDecisionArtwork: movie.prepare }))
 vi.mock('../finalDecisionScene.mjs', () => ({
@@ -45,8 +60,21 @@ vi.mock('../finalDecisionScene.mjs', () => ({
   },
 }))
 vi.mock('../../../cinematic/ceremonies/exit.jsx', () => ({
-  default: ({ evictee, onDone }: { evictee: Player; onDone: () => void }) => (
-    <button data-testid="bronze-exit" data-player-id={evictee.id} onClick={onDone}>
+  default: ({
+    evictee,
+    onDone,
+    decisionAlreadyPresented,
+  }: {
+    evictee: Player
+    onDone: () => void
+    decisionAlreadyPresented?: boolean
+  }) => (
+    <button
+      data-testid="bronze-exit"
+      data-player-id={evictee.id}
+      data-decision-presented={Boolean(decisionAlreadyPresented)}
+      onClick={onDone}
+    >
       Finish existing bronze exit
     </button>
   ),
@@ -164,6 +192,7 @@ async function openMovie(options: Options = {}, strict = false) {
 }
 
 beforeEach(() => {
+  Object.values(soundtrack).forEach((mock) => mock.mockClear())
   movie.mount.mockClear()
   movie.prepare.mockReset()
   movie.prepare.mockResolvedValue({ assets: {} })
@@ -212,8 +241,10 @@ describe('human Final LOH cinematic integration', () => {
         'data-player-id',
         nominees[index].id
       )
+      expect(screen.getByTestId('bronze-exit')).toHaveAttribute('data-decision-presented', 'true')
       expect(ceremonyQueue.counts.active).toBe(0)
       expect(getPresentationOwner()).toBeNull()
+      expect(soundtrack.dispose).toHaveBeenCalled()
       expect(store.getState().game.finalThree?.evicteeId).toBeNull()
       fireEvent.click(screen.getByTestId('bronze-exit'))
       expect(screen.getByRole('dialog', { name: 'The Final Two' })).toBeInTheDocument()
@@ -275,6 +306,13 @@ describe('human Final LOH cinematic integration', () => {
     expect(screen.queryByRole('button', { name: /^Eliminate .* · Keep/ })).toBeNull()
     expect(movie.dispose).toHaveBeenCalledTimes(1)
     expect(store.getState().game.finalThree?.evicteeId).toBeNull()
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'The Finale elimination announcement' })).getByRole(
+        'button',
+        { name: 'Skip to end' }
+      )
+    )
+    expect(screen.getByTestId('bronze-exit')).toHaveAttribute('data-decision-presented', 'false')
   })
 
   it.each<Options>([
@@ -298,6 +336,7 @@ describe('human Final LOH cinematic integration', () => {
     })
     expect(movie.prepare).not.toHaveBeenCalled()
     expect(movie.mount).not.toHaveBeenCalled()
+    expect(soundtrack.create).not.toHaveBeenCalled()
   })
 
   it('keeps native controls for motion preferences and short landscape viewports', async () => {
@@ -372,12 +411,14 @@ describe('human Final LOH cinematic integration', () => {
       )
     })
     expect(movie.pause).toHaveBeenLastCalledWith('presentation')
+    expect(soundtrack.setActive).toHaveBeenLastCalledWith(false)
     expect(screen.queryByRole('dialog', { name: 'Final Power Decision' })).toBeNull()
     await act(async () => {
       release()
       await Promise.resolve()
     })
     expect(movie.resume).toHaveBeenLastCalledWith('presentation')
+    expect(soundtrack.setActive).toHaveBeenLastCalledWith(true)
     const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
     fireEvent(document, new Event('visibilitychange'))
     expect(movie.pause).toHaveBeenLastCalledWith('presentation')
@@ -385,5 +426,32 @@ describe('human Final LOH cinematic integration', () => {
     fireEvent(document, new Event('visibilitychange'))
     expect(movie.resume).toHaveBeenLastCalledWith('presentation')
     expect(movie.mount).toHaveBeenCalledTimes(1)
+  })
+
+  it('routes scene cues, checkpoints and live audio preferences without remounting', async () => {
+    const { store, config, unmount } = await openMovie()
+    expect(soundtrack.create).toHaveBeenCalledWith(
+      config.sceneId,
+      expect.objectContaining({ musicOn: true, sfxOn: true })
+    )
+    act(() => {
+      config.onCue?.({ cue: 'decision:begin' })
+      config.onCheckpoint({ stage: 'plea-a' } as FinalDecisionCheckpoint)
+      config.onCue?.({ cue: 'presentation:pause' })
+    })
+    expect(soundtrack.cue.mock.calls.map(([cue]) => cue)).toEqual([
+      'decision:begin',
+      'presentation:pause',
+    ])
+    expect(soundtrack.setStage).toHaveBeenLastCalledWith('plea-a')
+    act(() => store.dispatch(setAudio({ musicOn: false, sfxOn: false })))
+    expect(soundtrack.setPreferences).toHaveBeenLastCalledWith(
+      expect.objectContaining({ musicOn: false, sfxOn: false })
+    )
+    expect(movie.mount).toHaveBeenCalledTimes(1)
+    unmount()
+    expect(soundtrack.dispose).toHaveBeenCalled()
+    act(() => config.onCue?.({ cue: 'decision:seal' }))
+    expect(soundtrack.cue).toHaveBeenCalledTimes(2)
   })
 })

@@ -85,6 +85,7 @@ function mountFinalDecision(root, config) {
   const pauses = new Set()
   if (document.hidden) pauses.add('visibility')
   const animations = new Set()
+  const ambientAnimations = new Set()
   const layerNodes = {}
   const layerState = {
     background: true,
@@ -139,9 +140,20 @@ function mountFinalDecision(root, config) {
   layerNodes.background = [backdrop]
   const light = node('div', 'fd-light-layer', world)
   light.setAttribute('aria-hidden', 'true')
-  node('div', 'fd-beam fd-beam--left', light)
-  node('div', 'fd-beam fd-beam--right', light)
-  node('div', 'fd-halo', light)
+  const leftBeam = node('div', 'fd-beam fd-beam--left', light)
+  const rightBeam = node('div', 'fd-beam fd-beam--right', light)
+  const halo = node('div', 'fd-halo', light)
+  node('div', 'fd-speaker-focus', light)
+  const eliminationLight = node('div', 'fd-elimination-light', world)
+  eliminationLight.setAttribute('aria-hidden', 'true')
+  const dustRoot = node('div', 'fd-dust', world)
+  dustRoot.setAttribute('aria-hidden', 'true')
+  const dust = Array.from({ length: 14 }, (_, index) => {
+    const mote = node('i', 'fd-dust-mote', dustRoot)
+    mote.style.left = ((index * 29 + 7) % 94) + '%'
+    mote.style.top = 29 + ((index * 17) % 59) + '%'
+    return mote
+  })
   const actorRoot = node('div', 'fd-actors', world)
   const actors = []
   function actor(person, role, assetKey) {
@@ -152,7 +164,7 @@ function mountFinalDecision(root, config) {
     const pose = node('div', 'fd-pose', el)
     image(assetKey, 'fd-figure', pose, person.name)
     if (role === 'holder') {
-      node('div', 'fd-holder-tag', pose, holder.name)
+      el.setAttribute('aria-label', holder.name + ', Final Power holder')
       if (source('crown')) {
         const crown = image('crown', 'fd-crown', pose, '')
         // Default calibration is the explicitly selected demo pack,
@@ -173,7 +185,7 @@ function mountFinalDecision(root, config) {
     actors.push(el)
     return el
   }
-  actor(holder, 'holder', 'holder')
+  const holderActor = actor(holder, 'holder', 'holder')
   const nomineeActors = nominees.map((person, index) =>
     actor(person, index === 0 ? 'aria' : 'dex', person.assetKey || person.id)
   )
@@ -183,12 +195,15 @@ function mountFinalDecision(root, config) {
   layerNodes.foreground = [foreground]
   const token = node('div', 'fd-token', world)
   token.setAttribute('aria-hidden', 'true')
-  node('div', 'fd-token-aura', token)
-  image('token', '', token, '')
+  const tokenFloat = node('div', 'fd-token-float', token)
+  const tokenAura = node('div', 'fd-token-aura', tokenFloat)
+  image('token', '', tokenFloat, '')
   layerNodes.token = [token]
-  layerNodes.lighting = [light, mist]
+  layerNodes.lighting = [light, mist, dustRoot, eliminationLight]
   node('div', 'fd-grade', scene).setAttribute('aria-hidden', 'true')
   const monitor = createCeremonyMonitor(scene, { ...(cfg.monitor || {}), src: source('monitor') })
+  const monitorSheen = node('div', 'fd-monitor-sheen', monitor.element)
+  monitorSheen.setAttribute('aria-hidden', 'true')
   layerNodes.monitor = [monitor.element]
   const platesRoot = node('div', 'fd-nameplates', scene)
   const plates = nominees.map((person) => {
@@ -275,6 +290,7 @@ function mountFinalDecision(root, config) {
       captionPageCount: captionPages.length,
       reviewing: reviewIndex >= 0,
       reviewIndex,
+      isolatedPlayerId: confirmed,
       disposed,
     }
   }
@@ -300,22 +316,158 @@ function mountFinalDecision(root, config) {
     timer = { remaining: ms, start: performance.now(), fn, id: null }
     armTimer()
   }
-  function animate(el, frames, options) {
+  function animate(el, frames, options, ambient = false) {
     if (reduced || !el || typeof el.animate !== 'function') return null
     const animation = el.animate(frames, options)
-    animations.add(animation)
+    const owned = ambient ? ambientAnimations : animations
+    owned.add(animation)
     // Forward-filled animations still affect the element after finishing.
     // Retain ownership so the next stage, replay or disposal can cancel them.
     animation.onfinish = () => {
-      if (options.fill !== 'forwards' && options.fill !== 'both') animations.delete(animation)
+      if (options.fill !== 'forwards' && options.fill !== 'both') owned.delete(animation)
     }
-    animation.oncancel = () => animations.delete(animation)
+    animation.oncancel = () => owned.delete(animation)
     if (pauses.size) animation.pause()
     return animation
   }
-  function stopAnimations() {
+  function stopAnimations(includeAmbient = false) {
     Array.from(animations).forEach((animation) => animation.cancel())
     animations.clear()
+    if (includeAmbient) {
+      Array.from(ambientAnimations).forEach((animation) => animation.cancel())
+      ambientAnimations.clear()
+    }
+  }
+  function startAmbientMotion() {
+    if (reduced || disposed || ambientAnimations.size) return
+    const loop = (element, frames, duration, delay = 0) =>
+      animate(
+        element,
+        frames,
+        { duration, delay, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' },
+        true
+      )
+    loop(
+      backdrop,
+      [
+        { transform: 'scale(1.015) translate(-.5%,0)' },
+        { transform: 'scale(1.055) translate(.8%,-.6%)' },
+      ],
+      15000
+    )
+    loop(leftBeam, [{ transform: 'rotate(-7deg)' }, { transform: 'rotate(3deg)' }], 8400)
+    loop(rightBeam, [{ transform: 'rotate(7deg)' }, { transform: 'rotate(-3deg)' }], 10200)
+    loop(
+      halo,
+      [
+        { opacity: 0.45, transform: 'scale(.94)' },
+        { opacity: 0.9, transform: 'scale(1.08)' },
+      ],
+      6800
+    )
+    loop(
+      mist,
+      [
+        { transform: 'translateX(-5%) scale(1.05)', opacity: 0.13 },
+        { transform: 'translateX(5%) scale(1.12)', opacity: 0.25 },
+      ],
+      12000
+    )
+    loop(
+      tokenFloat,
+      [
+        { transform: 'translateY(2px) rotate(-2deg)' },
+        { transform: 'translateY(-3px) rotate(2deg)' },
+      ],
+      4300
+    )
+    loop(
+      tokenAura,
+      [
+        { opacity: 0.3, transform: 'scale(.92)' },
+        { opacity: 0.8, transform: 'scale(1.12)' },
+      ],
+      3800
+    )
+    loop(
+      monitorSheen,
+      [
+        { transform: 'translateX(-180%) skewX(-20deg)', opacity: 0.05 },
+        { transform: 'translateX(180%) skewX(-20deg)', opacity: 0.22 },
+      ],
+      13000
+    )
+    actors.forEach((el, index) =>
+      loop(
+        el.querySelector('.fd-pose'),
+        [
+          { transform: 'translateY(0) rotate(-.2deg)' },
+          { transform: 'translateY(-3px) rotate(.2deg)' },
+        ],
+        6100 + index * 900,
+        -index * 1700
+      )
+    )
+    dust.forEach((mote, index) =>
+      loop(
+        mote,
+        [
+          { transform: 'translate3d(-5px,14px,0)', opacity: 0.08 },
+          { transform: 'translate3d(9px,-25px,0)', opacity: 0.55 },
+        ],
+        7800 + index * 570,
+        -index * 1100
+      )
+    )
+  }
+  function layoutComposition() {
+    const width = scene.clientWidth
+    const height = scene.clientHeight
+    if (!width || !height) return
+    scene.classList.toggle('fd-compact', height < 660)
+    const worldRect = world.getBoundingClientRect()
+    const scale = worldRect.width / width || 1
+    const monitorBottom = (monitor.element.getBoundingClientRect().bottom - worldRect.top) / scale
+    if (!confirmed) {
+      const headTop =
+        (holderActor.querySelector('.fd-pose').getBoundingClientRect().top - worldRect.top) / scale
+      const gap = Math.max(0, headTop - monitorBottom - 20)
+      const size = Math.min(width * 0.15, 62, gap)
+      token.style.width = Math.max(18, size) + 'px'
+      token.style.height = Math.max(18, size) + 'px'
+      token.style.top = (monitorBottom + headTop) / 2 + 'px'
+    }
+    const evicteeWidth = Math.min(
+      width * 0.76,
+      Math.max(0, (height * 0.89 - monitorBottom - 26) / 1.5)
+    )
+    scene.style.setProperty('--fd-evictee-width', evicteeWidth + 'px')
+    scene.style.setProperty('--fd-evictee-left', (width - evicteeWidth) / 2 + 'px')
+  }
+  function captureIsolationStart() {
+    return [...actors, foreground, token, platesRoot, eliminationLight].map((element) => {
+      const style = window.getComputedStyle(element)
+      const frame = Object.fromEntries(
+        ['left', 'bottom', 'width', 'height', 'opacity', 'transform', 'filter'].map((key) => [
+          key,
+          style[key],
+        ])
+      )
+      return { element, frame }
+    })
+  }
+  function animateIsolation(start) {
+    start.forEach(({ element, frame }) => {
+      const isEvictee = element.dataset.playerId === confirmed
+      const style = window.getComputedStyle(element)
+      const target = Object.fromEntries(Object.keys(frame).map((key) => [key, style[key]]))
+      animate(element, [frame, target], {
+        duration: isEvictee ? 1600 : 950,
+        delay: isEvictee ? 220 : 0,
+        easing: 'cubic-bezier(.2,.65,.2,1)',
+        fill: 'backwards',
+      })
+    })
   }
   function syncPausedUI() {
     const userPause = pauses.has('user')
@@ -342,7 +494,7 @@ function mountFinalDecision(root, config) {
       if (typeof scene.getAnimations === 'function')
         scene.getAnimations({ subtree: true }).forEach((a) => {
           if (a.playState === 'running') {
-            animations.add(a)
+            if (!ambientAnimations.has(a)) animations.add(a)
             a.pause()
           }
         })
@@ -353,7 +505,7 @@ function mountFinalDecision(root, config) {
   function removePause(reason) {
     if (!pauses.delete(reason) || disposed) return
     if (!pauses.size) {
-      Array.from(animations).forEach((a) => {
+      new Set([...animations, ...ambientAnimations]).forEach((a) => {
         if (a.playState === 'paused') a.play()
       })
       armTimer()
@@ -440,16 +592,12 @@ function mountFinalDecision(root, config) {
   }
   function announcementScreen() {
     const evictee = nominees.find((p) => p.id === confirmed)
-    const kept = nominees.find((p) => p.id !== confirmed)
-    const person = announcementFrame === 0 ? evictee : kept
-    const status = announcementFrame === 0 ? 'Third place' : 'Final Two'
     showFrame(
-      announcementFrame === 0 ? 'third-place' : 'final-two',
+      'third-place',
       (content) => {
-        personStatus(content, person, status)
+        personStatus(content, evictee, 'Third place')
       },
-      person.name +
-        (announcementFrame === 0 ? ' leaves in third place.' : ' joins you in the Final Two.')
+      evictee.name + ' leaves in third place.'
     )
   }
   function splitCaption(text) {
@@ -595,6 +743,7 @@ function mountFinalDecision(root, config) {
   }
   function go(next, shouldFocus) {
     if (disposed) return
+    const isolationStart = next === 'seal' ? captureIsolationStart() : null
     cancelTimer()
     stopAnimations()
     if (next !== stage && next.startsWith('plea')) {
@@ -605,6 +754,8 @@ function mountFinalDecision(root, config) {
     if (stage !== 'choose') reviewIndex = -1
     if (stage === 'announcement') announcementFrame = 0
     render()
+    layoutComposition()
+    startAmbientMotion()
     fire('onCheckpoint', { ...snapshot(), sceneId: cfg.sceneId || 'classic-final-decision' })
     if (shouldFocus)
       queueMicrotask(() => {
@@ -641,48 +792,12 @@ function mountFinalDecision(root, config) {
       }
       schedule(reduced ? 500 : 3000, () => go('plea-a', true))
     } else if (stage === 'seal') {
-      const destination = confirmed === nominees[0].id ? 25 : 75
-      if (!reduced) {
-        const restingTop = window.getComputedStyle(token).top
-        animate(
-          token,
-          [
-            { left: '50%', top: restingTop, transform: 'translate(-50%,-50%) scale(1)' },
-            {
-              left: '50%',
-              top: '52%',
-              transform: 'translate(-50%,-50%) scale(1.25) rotateY(16deg)',
-              offset: 0.4,
-            },
-            {
-              left: destination + '%',
-              top: '64%',
-              transform: 'translate(-50%,-50%) scale(.66) rotateY(0deg)',
-            },
-          ],
-          { duration: 2400, easing: 'cubic-bezier(.4,0,.15,1)', fill: 'forwards' }
-        )
-        animate(
-          world,
-          [
-            { filter: 'brightness(1)' },
-            { filter: 'brightness(.72)', offset: 0.4 },
-            { filter: 'brightness(1)' },
-          ],
-          { duration: 2600 }
-        )
-      }
+      animateIsolation(isolationStart)
       fire('onCue', { cue: 'decision:seal', sceneId: cfg.sceneId || 'classic-final-decision' })
       schedule(reduced ? 550 : 2800, () => go('announcement', true))
     } else if (stage === 'announcement') {
       fire('onCue', { cue: 'decision:reveal', sceneId: cfg.sceneId || 'classic-final-decision' })
-      const frameDuration = reduced ? 600 : 2100
-      schedule(frameDuration, () => {
-        announcementFrame = 1
-        announcementScreen()
-        fire('onCheckpoint', { ...snapshot(), sceneId: cfg.sceneId || 'classic-final-decision' })
-        schedule(frameDuration, () => go('complete', true))
-      })
+      schedule(reduced ? 600 : 3200, () => go('complete', true))
     } else if (stage === 'complete' && !completed) {
       completed = true
       completionCount += 1
@@ -711,7 +826,7 @@ function mountFinalDecision(root, config) {
   function replay() {
     if (disposed) return
     cancelTimer()
-    stopAnimations()
+    stopAnimations(true)
     pauses.delete('user')
     selected = null
     confirmed = null
@@ -732,19 +847,17 @@ function mountFinalDecision(root, config) {
     scene.dataset.stage = stage
     scene.dataset.reviewing = String(reviewIndex >= 0)
     scene.dataset.shot = stage === 'plea-a' ? 'aria' : stage === 'plea-b' ? 'dex' : 'wide'
-    const settled = stage === 'announcement' || stage === 'complete'
+    const isolated = Boolean(confirmed)
+    scene.dataset.isolated = String(isolated)
+    scene.dataset.isolatedPlayer = confirmed || ''
     actors.forEach((el) => {
       delete el.dataset.result
     })
     plates.forEach((plate, index) => {
-      const result = settled ? (nominees[index].id === confirmed ? 'leave' : 'stay') : ''
+      const result = isolated ? (nominees[index].id === confirmed ? 'leave' : 'stay') : ''
       plate.el.dataset.result = result
       nomineeActors[index].dataset.result = result
     })
-    token.classList.toggle('fd-token--sealed', settled)
-    token.style.left = settled ? (confirmed === nominees[0].id ? '25%' : '75%') : ''
-    token.style.top = settled ? '64%' : ''
-    token.style.transform = settled ? 'translate(-50%,-50%) scale(.66)' : ''
     actions.replaceChildren()
     actions.className = 'fd-actions' + (stage === 'confirm' ? ' fd-actions--confirm' : '')
     pauseButton.hidden = stage === 'welcome' || stage === 'complete'
@@ -799,21 +912,7 @@ function mountFinalDecision(root, config) {
     } else if (stage === 'announcement') {
       announcementScreen()
     } else {
-      const evictee = nominees.find((p) => p.id === confirmed)
-      const kept = nominees.find((p) => p.id !== confirmed)
-      showFrame(
-        'summary',
-        (content) => {
-          const wrapper = node('div', 'fd-monitor-pair', content)
-          personStatus(wrapper, evictee, 'Third place').dataset.outcome = 'leave'
-          personStatus(wrapper, kept, 'Final Two').dataset.outcome = 'stay'
-        },
-        'Decision recorded. ' +
-          evictee.name +
-          ' finishes in third place. ' +
-          kept.name +
-          ' joins you in the Final Two.'
-      )
+      if (monitor.element.dataset.frame !== 'third-place') announcementScreen()
       if (isPreview) mainAction('Replay this scene', replay, true)
     }
     syncPausedUI()
@@ -868,12 +967,16 @@ function mountFinalDecision(root, config) {
     })
     observer.observe(monitor.screen)
     cleanups.push(() => observer.disconnect())
+    const compositionObserver = new ResizeObserver(layoutComposition)
+    compositionObserver.observe(scene)
+    cleanups.push(() => compositionObserver.disconnect())
   }
   const onMotion = (event) => {
     if (cfg.reducedMotion !== undefined) return
     reduced = event.matches
     scene.dataset.noMotion = String(reduced)
-    if (reduced) stopAnimations()
+    if (reduced) stopAnimations(true)
+    else startAmbientMotion()
   }
   if (mq && mq.addEventListener) {
     mq.addEventListener('change', onMotion)
@@ -883,7 +986,7 @@ function mountFinalDecision(root, config) {
     if (disposed) return
     disposed = true
     cancelTimer()
-    stopAnimations()
+    stopAnimations(true)
     cleanups.forEach((fn) => fn())
     if (tools) tools.remove()
     scene.replaceChildren()
@@ -891,6 +994,8 @@ function mountFinalDecision(root, config) {
   }
   const api = { pause, resume, skip, replay, dispose, getState: snapshot }
   render()
+  layoutComposition()
+  startAmbientMotion()
   return api
 }
 

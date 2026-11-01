@@ -23,6 +23,7 @@ import { useAppSelector } from '../../store/hooks'
 import { selectIsVipActive } from '../../store/vipSlice'
 import type { Player } from '../../types'
 import { prepareFinalDecisionArtwork } from './finalDecisionAssets'
+import { createFinalDecisionAudio, type FinalDecisionAudioController } from './finalDecisionAudio'
 import type { FinalDecisionController, FinalDecisionOutcome } from './finalDecisionScene.mjs'
 import './FinalDecisionPresentation.css'
 
@@ -62,6 +63,13 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
   const target = useRef<HTMLDivElement>(null)
   const dialog = useRef<HTMLElement>(null)
   const controller = useRef<FinalDecisionController | null>(null)
+  const audio = useRef<FinalDecisionAudioController | null>(null)
+  const audioPreferences = useAppSelector((state) => state.settings.audio)
+  const audioPreferencesRef = useRef(audioPreferences)
+  useLayoutEffect(() => {
+    audioPreferencesRef.current = audioPreferences
+    audio.current?.setPreferences(audioPreferences)
+  }, [audioPreferences])
   const [granted, setGranted] = useState(false)
   const [started, setStarted] = useState(false)
   const [ready, setReady] = useState(false)
@@ -75,6 +83,7 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
   const activeRef = useRef(active)
   useLayoutEffect(() => {
     activeRef.current = active
+    audio.current?.setActive(active)
   }, [active])
 
   useEffect(() => ceremonyQueue.acquire(() => setGranted(true), 1, onFallback), [onFallback])
@@ -107,6 +116,8 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
       .then(([scene, artwork]) => {
         if (cancelled || abort.signal.aborted || !target.current) return
         window.clearTimeout(watchdog)
+        audio.current = createFinalDecisionAudio(initial.sceneId, audioPreferencesRef.current)
+        audio.current.setActive(activeRef.current)
         controller.current = scene.mountFinalDecision(target.current, {
           sceneId: initial.sceneId,
           preview: false,
@@ -127,9 +138,14 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
             screen: { x: 0.071, y: 0.165, width: 0.858, height: 0.642 },
           },
           onCheckpoint: (checkpoint) => {
-            if (cancelled || choiceOpened || checkpoint.stage !== 'choose') return
+            if (cancelled) return
+            audio.current?.setStage(checkpoint.stage)
+            if (choiceOpened || checkpoint.stage !== 'choose') return
             choiceOpened = true
             callbacks.current.onChoiceReady()
+          },
+          onCue: ({ cue }) => {
+            if (!cancelled) audio.current?.cue(cue)
           },
           onDecision: (outcome) => {
             if (cancelled || decision || !validOutcome(outcome)) return
@@ -147,6 +163,7 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
               return
             }
             completed = true
+            audio.current?.dispose()
             callbacks.current.onComplete()
           },
         })
@@ -161,6 +178,8 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
       cancelled = true
       window.clearTimeout(watchdog)
       abort.abort()
+      audio.current?.dispose()
+      audio.current = null
       controller.current?.dispose()
       controller.current = null
     }

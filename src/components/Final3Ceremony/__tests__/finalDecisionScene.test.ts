@@ -77,12 +77,18 @@ describe('final decision presentation contract', () => {
       const { controller, view, onDecision, onComplete, root } = mount()
       controller.skip()
       fireEvent.click(view.getByRole('button', { name: `Choose to eliminate ${name}` }))
+      expect(root.querySelector('.scene')?.getAttribute('data-isolated')).toBe('false')
       const kept = name === 'Aria' ? 'Dex' : 'Aria'
       const confirm = view.getByRole('button', {
         name: `Confirm: eliminate ${name} and keep ${kept}`,
       })
       fireEvent.click(confirm)
       fireEvent.click(confirm)
+      expect(controller.getState().isolatedPlayerId).toBe(name.toLowerCase())
+      expect(root.querySelector('.scene')?.getAttribute('data-isolated')).toBe('true')
+      expect(
+        root.querySelector('.fd-actor[data-result="leave"]')?.getAttribute('data-player-id')
+      ).toBe(name.toLowerCase())
       expect(onDecision).toHaveBeenCalledTimes(1)
       expect(onDecision).toHaveBeenCalledWith({
         sceneId: 'controller-test',
@@ -97,6 +103,9 @@ describe('final decision presentation contract', () => {
       vi.advanceTimersByTime(100_000)
       expect(onComplete).toHaveBeenCalledTimes(1)
       expect(onComplete).toHaveBeenCalledWith(onDecision.mock.calls[0][0])
+      expect(controller.getState().isolatedPlayerId).toBe(name.toLowerCase())
+      expect(root.querySelector('.fd-monitor-content')?.textContent).toContain(name)
+      expect(root.querySelector('.fd-monitor-content')?.textContent).not.toContain(kept)
       expect(root.querySelector('.fd-layer-tools')).toBeNull()
       expect(view.queryByRole('button', { name: /Replay/ })).toBeNull()
     }
@@ -135,11 +144,88 @@ describe('final decision presentation contract', () => {
     controller.skip()
     fireEvent.click(view.getByRole('button', { name: 'Choose to eliminate Aria' }))
     fireEvent.click(view.getByRole('button', { name: 'Confirm: eliminate Aria and keep Dex' }))
-    vi.advanceTimersByTime(6999)
+    vi.advanceTimersByTime(5999)
     expect(onComplete).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
     expect(onComplete).toHaveBeenCalledTimes(1)
     expect(onComplete).toHaveBeenCalledWith(onDecision.mock.calls[0][0])
+  })
+
+  it('keeps the red-light hold paused and does not complete until all pause reasons clear', () => {
+    const { controller, view, onComplete, root } = mount(false)
+    controller.skip()
+    fireEvent.click(view.getByRole('button', { name: 'Choose to eliminate Dex' }))
+    fireEvent.click(view.getByRole('button', { name: 'Confirm: eliminate Dex and keep Aria' }))
+    vi.advanceTimersByTime(3200)
+    expect(controller.getState().stage).toBe('announcement')
+    controller.pause('user')
+    controller.pause('presentation')
+    controller.resume('presentation')
+    vi.advanceTimersByTime(30_000)
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(root.querySelector('.scene')?.getAttribute('data-isolated-player')).toBe('dex')
+    controller.resume('user')
+    vi.advanceTimersByTime(2799)
+    expect(onComplete).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('owns ambient motion through pause, resume and disposal', () => {
+    const nativeAnimations: Array<{
+      playState: string
+      pause: ReturnType<typeof vi.fn>
+      play: ReturnType<typeof vi.fn>
+      cancel: ReturnType<typeof vi.fn>
+    }> = []
+    const originalAnimate = Object.getOwnPropertyDescriptor(Element.prototype, 'animate')
+    const originalGetAnimations = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      'getAnimations'
+    )
+    Object.defineProperty(Element.prototype, 'animate', {
+      configurable: true,
+      value: vi.fn(() => {
+        const animation = {
+          playState: 'running',
+          pause: vi.fn(function () {
+            animation.playState = 'paused'
+          }),
+          play: vi.fn(function () {
+            animation.playState = 'running'
+          }),
+          cancel: vi.fn(function () {
+            animation.playState = 'idle'
+          }),
+        }
+        nativeAnimations.push(animation)
+        return animation
+      }),
+    })
+    Object.defineProperty(Element.prototype, 'getAnimations', {
+      configurable: true,
+      value: () => nativeAnimations.filter((a) => a.playState !== 'idle'),
+    })
+    try {
+      const { controller } = mount(false)
+      expect(nativeAnimations.length).toBeGreaterThan(10)
+      controller.pause('presentation')
+      expect(nativeAnimations.every((a) => a.playState === 'paused')).toBe(true)
+      controller.resume('presentation')
+      expect(nativeAnimations.every((a) => a.playState === 'running')).toBe(true)
+      controller.dispose()
+      expect(nativeAnimations.every((a) => a.playState === 'idle')).toBe(true)
+      const reduced = mount(true)
+      const count = nativeAnimations.length
+      reduced.controller.skip()
+      expect(nativeAnimations).toHaveLength(count)
+    } finally {
+      if (originalAnimate) Object.defineProperty(Element.prototype, 'animate', originalAnimate)
+      else Reflect.deleteProperty(Element.prototype, 'animate')
+      if (originalGetAnimations)
+        Object.defineProperty(Element.prototype, 'getAnimations', originalGetAnimations)
+      else Reflect.deleteProperty(Element.prototype, 'getAnimations')
+    }
   })
 
   it('offers the supplied finalist comparisons without making or changing a choice', () => {

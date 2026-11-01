@@ -223,6 +223,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
   const [evicteeId, setEvicteeId] = useState<string | null>(null)
   const evicteeIdRef = useRef<string | null>(null)
   const announcementCompletedRef = useRef(false)
+  const decisionAlreadyPresentedRef = useRef(false)
   const handledPlayStageRef = useRef<CeremonyStage | null>(null)
 
   const evicteePlayer = evicteeId ? (game.players.find((p) => p.id === evicteeId) ?? null) : null
@@ -369,6 +370,14 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
     setStage('eviction_splash')
   }, [dispatch])
 
+  const handlePremiumDecisionComplete = useCallback(() => {
+    if (!evicteeIdRef.current || announcementCompletedRef.current) return
+    // The interactive scene has already isolated the departing finalist.
+    // Continue with the doorway film instead of replaying its three-person prelude.
+    decisionAlreadyPresentedRef.current = true
+    handleAnnounceComplete()
+  }, [handleAnnounceComplete])
+
   // ── Eviction cinematic complete → Final Two reveal ────────────────────────
 
   const handleEvictionSplashDone = useCallback(() => {
@@ -491,7 +500,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
           )}
           onChoiceReady={handlePleaComplete}
           onDecision={handleHumanDecision}
-          onComplete={handleAnnounceComplete}
+          onComplete={handlePremiumDecisionComplete}
           fallback={nativeDecisionPresentation}
         />
       ) : (
@@ -508,6 +517,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
             layoutId={`avatar-tile-${evicteePlayer.id}`}
             onDone={handleEvictionSplashDone}
             devSkip={DEV_SKIP}
+            decisionAlreadyPresented={decisionAlreadyPresentedRef.current}
           />
         )}
       </AnimatePresence>
