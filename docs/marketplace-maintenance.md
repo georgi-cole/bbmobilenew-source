@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-01: Reviewed Home Hub weather recovery on entry and foreground return,
+  current rain detection, and the deployment-relative embroidered favicon. The
+  background repairs select from the existing artwork and preserve the existing
+  theme access rules. Products, VIP benefits, entitlements, prices, and Store copy
+  are unchanged.
+
 - 2026-11-01: Reviewed ceremony coverage for all 35 existing selectable player
   looks, including six matching poses for Looks 28–35 and resolution from the
   season-owned appearance. Also reviewed immediate first-character selection

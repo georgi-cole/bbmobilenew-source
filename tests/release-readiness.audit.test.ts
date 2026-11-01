@@ -358,10 +358,9 @@ describe('release readiness branding', () => {
     const combined = [indexHtml, manifest, rulesTsx, rulesCss].join('\n')
 
     expect(existsSync(FAVICON)).toBe(true)
-    expect(indexHtml).toContain('href="/favicon.svg"')
+    expect(indexHtml).toContain('href="/favicon.svg?v=embroidered-4d338174"')
     expect(indexHtml).not.toContain('/vite.svg')
     expect(manifest).toContain('"description": "The Big Eye mobile companion app"')
-    expect(manifest).toContain('"src": "/favicon.svg"')
     expect(combined).not.toMatch(/Everwatch/i)
     expect(rulesTsx).not.toMatch(/[\u2014\u2013]/)
     expect(rulesCss).not.toMatch(/[\u2014\u2013]/)
@@ -395,6 +394,46 @@ describe('release readiness branding', () => {
     expect(rulesTsx).not.toContain('twist')
     expect(rulesTsx).not.toContain('shock')
   })
+
+  it.each([
+    [
+      'GitHub Pages',
+      'https://georgi-cole.github.io/bbmobilenew/manifest.json',
+      'https://georgi-cole.github.io/bbmobilenew/favicon.svg?v=embroidered-4d338174',
+    ],
+    [
+      'QA',
+      'https://georgi-cole.github.io/bbmobilenew/qa/manifest.json',
+      'https://georgi-cole.github.io/bbmobilenew/qa/favicon.svg?v=embroidered-4d338174',
+    ],
+    [
+      'root deployment',
+      'https://example.com/manifest.json',
+      'https://example.com/favicon.svg?v=embroidered-4d338174',
+    ],
+    [
+      'iOS',
+      'capacitor://localhost/manifest.json',
+      'capacitor://localhost/favicon.svg?v=embroidered-4d338174',
+    ],
+    [
+      'Android',
+      'https://localhost/manifest.json',
+      'https://localhost/favicon.svg?v=embroidered-4d338174',
+    ],
+  ])(
+    'resolves the manifest favicon inside the %s deployment',
+    (_, manifestUrl, expectedIconUrl) => {
+      const manifest = JSON.parse(readText(MANIFEST_JSON)) as {
+        icons: { src: string; type: string }[]
+      }
+      const icon = manifest.icons.find(({ type }) => type === 'image/svg+xml')
+
+      expect(icon).toBeDefined()
+      expect(new URL(icon!.src, manifestUrl).href).toBe(expectedIconUrl)
+      expect(existsSync(FAVICON)).toBe(true)
+    }
+  )
 })
 
 describe('release readiness metadata', () => {
