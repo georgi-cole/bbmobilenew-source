@@ -6,14 +6,14 @@
  *
  * Sequence:
  *   1. Shared full-screen Final Power holder reveal (skipped if Part 3 spectator already showed it).
- *   2. Plea overlay — nominees make their cases (reuses ChatOverlay).
+ *   2. Nominee pleas — human cinematic session or the native ChatOverlay.
  *   3. LOH decision:
- *      - Human LOH: TvDecisionModal to choose evictee.
- *      - AI LOH: deterministic auto-pick (seeded RNG, same as advance() AI path).
- *   4. Eviction announcement ChatOverlay.
+ *      - Human LOH: explicit evictee selection and confirmation in either presentation.
+ *      - AI LOH: deterministic choice from the actual season record.
+ *   4. Confirmed decision announcement, before any elimination is committed.
  *   5. Eviction cinematic — SpotlightEvictionOverlay plays for the evictee.
- *   6. `finalizeFinal3Decision` is dispatched with { hohWinnerId, evicteeId }.
- *   7. `advance()` is dispatched so the game proceeds to the jury phase.
+ *   6. Final Two reveal waits for Play.
+ *   7. Play dispatches `finalizeFinal3Decision` and `advance()` exactly once.
  *
  * Dev log tag: [Final3Ceremony]
  */
@@ -33,6 +33,7 @@ import TvDecisionModal from '../TvDecisionModal/TvDecisionModal'
 import SpotlightEvictionOverlay from '../../cinematic/ceremonies/exit.jsx'
 import FinalPowerHolderReveal from '../FinalPowerBattle/FinalPowerHolderReveal'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
+import FinalDecisionPresentation from './FinalDecisionPresentation'
 import type { ChatLine } from '../ChatOverlay/ChatOverlay'
 import type { Player } from '../../types'
 import {
@@ -134,7 +135,10 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
 
   const lohId = game.lohId
   const lohPlayer = game.players.find((p) => p.id === lohId) ?? null
-  const nominees = game.players.filter((p) => game.nomineeIds.includes(p.id))
+  const nominees = useMemo(
+    () => game.players.filter((p) => game.nomineeIds.includes(p.id)),
+    [game.nomineeIds, game.players]
+  )
   const humanPlayer = game.players.find((p) => p.isUser) ?? null
   const humanIsLoh = !!humanPlayer && humanPlayer.id === lohId
   const decisionReads = useMemo(
@@ -218,6 +222,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
   const [announceLines, setAnnounceLines] = useState<ChatLine[]>([])
   const [evicteeId, setEvicteeId] = useState<string | null>(null)
   const evicteeIdRef = useRef<string | null>(null)
+  const announcementCompletedRef = useRef(false)
   const handledPlayStageRef = useRef<CeremonyStage | null>(null)
 
   const evicteePlayer = evicteeId ? (game.players.find((p) => p.id === evicteeId) ?? null) : null
@@ -296,7 +301,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
     if (import.meta.env.DEV) {
       console.log('[Final3Ceremony] pleas complete → decision (humanIsLoh:', humanIsLoh, ')')
     }
-    setStage('decision')
+    setStage((current) => (current === 'pleas' ? 'decision' : current))
   }, [humanIsLoh])
 
   // AI Final LOHs use the same visible decision stage, then make a deliberate
@@ -334,8 +339,9 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       if (import.meta.env.DEV) {
         console.log('[Final3Ceremony] human LOH eliminated player chosen', chosenEvicteeId)
       }
-      const evictee = game.players.find((p) => p.id === chosenEvicteeId)
-      if (!evictee) return
+      const evictee = nominees.find((p) => p.id === chosenEvicteeId)
+      if (!evictee || evicteeIdRef.current) return
+      evicteeIdRef.current = chosenEvicteeId
       setEvicteeId(chosenEvicteeId)
       buildAnnounceLines(
         evictee,
@@ -343,21 +349,25 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       )
       setStage('announcement')
     },
-    [buildAnnounceLines, decisionReads, game.players]
+    [buildAnnounceLines, decisionReads, nominees]
   )
 
   // ── Announcement complete → eviction cinematic ───────────────────────────
 
   const handleAnnounceComplete = useCallback(() => {
-    if (!evicteeId) return
+    const chosenEvicteeId = evicteeIdRef.current
+    if (!chosenEvicteeId || announcementCompletedRef.current) return
+    announcementCompletedRef.current = true
     if (import.meta.env.DEV) {
-      console.log('[Final3Ceremony] announcement complete → eviction_splash', { evicteeId })
+      console.log('[Final3Ceremony] announcement complete → eviction_splash', {
+        evicteeId: chosenEvicteeId,
+      })
     }
     // Mark the overlay player so AvatarTile hides itself (isEvicting) and the
     // match-cut doesn't show a duplicate fullscreen tile before the overlay.
-    dispatch(setEvictionOverlay(evicteeId))
+    dispatch(setEvictionOverlay(chosenEvicteeId))
     setStage('eviction_splash')
-  }, [dispatch, evicteeId])
+  }, [dispatch])
 
   // ── Eviction cinematic complete → Final Two reveal ────────────────────────
 
@@ -389,19 +399,8 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (stage === 'done') return null
-
-  return (
+  const nativeDecisionPresentation = (
     <>
-      {/* Coronation animation */}
-      {stage === 'coronation' && lohPlayer && (
-        <FinalPowerHolderReveal
-          player={lohPlayer}
-          mode="classic"
-          continueCopy="Press Play when you are ready to make the Final Two decision."
-        />
-      )}
-
       {/* Plea ChatOverlay */}
       {stage === 'pleas' && pleaLines.length > 0 && (
         <ChatOverlay
@@ -461,6 +460,42 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
           onComplete={handleAnnounceComplete}
           ariaLabel="The Finale elimination announcement"
         />
+      )}
+    </>
+  )
+
+  if (stage === 'done') return null
+
+  return (
+    <>
+      {/* Coronation animation */}
+      {stage === 'coronation' && lohPlayer && (
+        <FinalPowerHolderReveal
+          player={lohPlayer}
+          mode="classic"
+          continueCopy="Press Play when you are ready to make the Final Two decision."
+        />
+      )}
+
+      {humanIsLoh &&
+      lohPlayer &&
+      (stage === 'pleas' || stage === 'decision' || stage === 'announcement') ? (
+        <FinalDecisionPresentation
+          sceneId={`${game.gameId ?? `${game.seed}:${game.season}`}:final-decision:${lohId}`}
+          phase={stage}
+          holder={lohPlayer}
+          nominees={nominees}
+          comparisons={optionDescriptions}
+          pleas={Object.fromEntries(
+            nominees.map((nominee) => [nominee.id, buildPlea(nominee, decisionReads[nominee.id])])
+          )}
+          onChoiceReady={handlePleaComplete}
+          onDecision={handleHumanDecision}
+          onComplete={handleAnnounceComplete}
+          fallback={nativeDecisionPresentation}
+        />
+      ) : (
+        nativeDecisionPresentation
       )}
 
       {/* Eviction cinematic */}

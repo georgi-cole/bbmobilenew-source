@@ -36,11 +36,23 @@ The same glass Skip pill is shared by the ceremony films, roster confirmation an
 
 An unresolved vote tie calls the original tiebreak callback without committing an elimination. A supplied audience-approval tiebreak shows approval values separately from eviction percentages and resolves through the original callback before continuing. Skip uses the same callback contract. Vox's bespoke mode introduction and final-winner sequence stay native.
 
+## Classic: interactive Final Power decision
+
+The human Final LOH has a dedicated presentation for the last decision: establishing shot, the two nominees' season-grounded pleas, an explicit elimination choice, confirmation, the Eye seal, and the announcement. The scene starts after the existing Final Power holder reveal and replaces only the `pleas`, `decision`, and `announcement` presentation in `Final3Ceremony`. AI-held decisions, Vox and the subsequent Bronze Exit retain their existing flows.
+
+An independent broadcast monitor holds one text frame at a time. Each plea displays its speaker and a short caption; longer season dialogue is split into manual caption pages without dropping words. Choice and confirmation share that same screen. Confirmation shows both **Eliminate** and **Keep**. Optional finalist comparisons use the same monitor when requested. After the seal, the monitor presents third place and the remaining finalist in sequence. Architecture, desk, monitor housing, seal, cast, crown and atmosphere remain separate layers; no text or result is baked into the generated artwork. The runtime monitor can host other content without regenerating its housing.
+
+This is an interactive presentation, so pre-confirmation Skip reaches the choice without selecting anyone. The choice and confirmation never expire. The confirmed evictee goes to the existing local decision handler once; announcement completion hands off to the existing Bronze Exit. Only the existing Final Two continuation finalizes the elimination and advances the game. No game reducers or final-day rules are replaced.
+
+The adapter latches existing VIP/Cinematic eligibility and prepares only the actual cast after queue and presentation ownership are granted. Standard, disabled animation, reduced motion, unsupported identity, a short viewport, and failed or timed-out preparation use native UI. A later preference change returns to the current native stage, preserving an already confirmed choice. It never starts a new premium scene on a decision/announcement remount. Ownership loss and page visibility pause the scene independently of the user's own Pause control. Scene disposal releases its resources before the existing departure presentation takes over.
+
+The generated plates are in `public/assets/ceremonies/final-decision/`; prompts and monitor aperture geometry are recorded in `docs/assets/classic-final-decision-art.json`. The scene renderer is dynamically imported with its own scoped stylesheet. Review-only layer controls and replay are disabled in the game. This change does not add persistent presentation checkpoints or a new audio mix.
+
 ## Media and resource lifetime
 
 The release includes six poses for each of 63 character packs: 28 AI houseguests and all 35 selectable player looks. Each pack supplies a front figure, royal standing and seated figures, a Safety knight, and separate decision and exit rear views. The additional Looks 28–35 use their existing casual artwork for the front figure and matching generated variants for the other five poses. Shared props and themed cutouts remain separate resources.
 
-The 378 character WebPs total 20,164,414 bytes. Including shared scenery, props and effects, the ceremony artwork directory contains 406 WebPs totalling 21,546,640 bytes (about 21.55 MB) on disk. These totals describe the complete catalog, not the resources downloaded or decoded for one scene.
+The 378 character WebPs total 20,164,414 bytes. The Final Power decision adds four independent plates totalling 190,632 bytes. Including shared scenery, props and effects, the ceremony artwork directory contains 410 WebPs totalling 21,737,272 bytes (about 21.74 MB) on disk. These totals describe the complete catalog, not the resources downloaded or decoded for one scene.
 
 Artwork is loaded by the active scene and cast, without an eager preload of the catalog. Native, Standard and disabled-animation paths do not prepare cinematic artwork. Uploaded-photo-only players and genuinely missing character art retain the native presentation fallback.
 

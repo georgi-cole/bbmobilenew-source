@@ -209,3 +209,11 @@ store listings or change configured prices.
 - 2026-10-31: Reviewed the Vox immunity film title timing and Finale Ready Faux TV
   state. This is presentation maintenance; VIP eligibility, paid offers, prices,
   Store placement, and marketplace copy are unchanged.
+
+- 2026-11-01: Reviewed the Classic human Final LOH decision scene and its four
+  modular stage assets. The live monitor, paged dialogue and explicit choice
+  improve the existing VIP cinematic-ceremony benefit under the same entitlement
+  and animation preferences. They introduce no separate product or purchase,
+  price change, reward change or new gameplay advantage. Standard and unsupported
+  presentation paths retain the native decision. Existing Store listings and
+  marketplace product descriptions remain accurate.
