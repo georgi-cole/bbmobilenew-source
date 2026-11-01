@@ -189,6 +189,10 @@ export function PremiumBridge({
           const controller = clipModule.createClip()
           clip.current = controller
           const details = modeDetails(scene, props.current, state.game)
+          // The final-day ident belongs after the already-approved doorway zoom.
+          // Ordinary weekly and paired exits retain their existing film and clock.
+          if (state.game.phase?.startsWith('final3') && ['exit', 'final3'].includes(scene))
+            details.closingBrand = true
           const ok = await controller.prepare(scene, cast, shockType, details)
           if (current.cancelled || completed.current || handed.current || !ok) return
           clearTimeout(current.watchdog)

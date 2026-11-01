@@ -662,7 +662,7 @@
     0 1px 6px #000;
 }
 /* The audience broadcast keeps the physical glass housing and uses a cooler
-   light signature. Exact vote values are revealed together, without a live poll. */
+   light signature. A synchronized numeric reveal ends on the committed totals. */
 #final-decision-scene .scene[data-format='vox-populi'] .fd-backlight {
   background: radial-gradient(ellipse, #b7a8f139, #8c80cb0d 48%, transparent 73%);
 }
@@ -704,18 +704,18 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   width: 100%;
-  gap: 16px;
+  gap: 0;
 }
 #final-decision-scene .fd-vote-tally {
   display: flex;
   flex-direction: column;
   align-items: center;
   min-width: 0;
+  padding: 0 8px;
   gap: 2px;
 }
 #final-decision-scene .fd-vote-tally + .fd-vote-tally {
   border-left: 1px solid #9e8fbd44;
-  padding-left: 16px;
 }
 #final-decision-scene .fd-vote-name {
   display: flex;
@@ -731,29 +731,43 @@
   overflow-wrap: anywhere;
   text-wrap: balance;
 }
+#final-decision-scene .fd-vote-number {
+  isolation: isolate;
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 100%;
+  padding: 3px 0;
+  overflow: hidden;
+  border-radius: 7px;
+  background: linear-gradient(145deg, #d9d6f008, #f9e0b304 48%, transparent 76%);
+}
 #final-decision-scene .fd-vote-value {
+  position: relative;
+  z-index: 1;
   color: #f4eee8;
-  font-size: clamp(24px, 7cqi, 29px);
+  font-size: clamp(24px, 7.4cqi, 31px);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 0 18px #b4a6dd26;
 }
-#final-decision-scene .fd-vote-track {
-  width: 90%;
-  height: 3px;
-  margin-top: 3px;
-  border-radius: 2px;
-  background: #a698be2b;
-  overflow: hidden;
+#final-decision-scene .fd-vote-glow,
+#final-decision-scene .fd-vote-gleam {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
 }
-#final-decision-scene .fd-vote-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #9c8caf, #e8d8b8);
-  transform-origin: left center;
+#final-decision-scene .fd-vote-glow {
+  background: radial-gradient(ellipse, #ead6bb7a, #bb9ad92b 52%, transparent 76%);
+}
+#final-decision-scene .fd-vote-gleam {
+  z-index: 2;
+  background: linear-gradient(105deg, transparent 25%, #f5eddd7a 48%, transparent 72%);
+  mix-blend-mode: screen;
 }
 #final-decision-scene .fd-actions--appeal {
   display: grid;

@@ -42,6 +42,7 @@ interface Options {
   initiallyPaused?: boolean
   resolveOnRequest?: boolean
   reducedMotion?: boolean
+  followMotionPreference?: boolean
 }
 
 function mount(options: Options = {}) {
@@ -76,7 +77,7 @@ function mount(options: Options = {}) {
     preview: false,
     viewerId: options.viewerId ?? 'human',
     initiallyPaused: options.initiallyPaused,
-    reducedMotion: options.reducedMotion ?? false,
+    reducedMotion: options.followMotionPreference ? undefined : (options.reducedMotion ?? false),
     audienceVote: {
       result: options.result === null ? undefined : (options.result ?? result()),
       appeal: options.appeal ? { playerId: 'human', choices } : undefined,
@@ -114,7 +115,7 @@ function mount(options: Options = {}) {
 }
 
 function reach(controller: FinalDecisionController, stage: FinalDecisionSceneStage) {
-  for (let index = 0; index < 18 && controller.getState().stage !== stage; index += 1)
+  for (let index = 0; index < 100 && controller.getState().stage !== stage; index += 1)
     vi.advanceTimersToNextTimer()
   expect(controller.getState().stage).toBe(stage)
 }
@@ -158,6 +159,11 @@ describe('Vox Final Three audience broadcast', () => {
       reach(controller, 'vote-results')
       expect(root.querySelector('.fd-vote-heading')).toHaveTextContent('Vote to eliminate')
       expect([...root.querySelectorAll('.fd-vote-value')].map((el) => el.textContent)).toEqual([
+        '0.0%',
+        '0.0%',
+      ])
+      vi.advanceTimersByTime(2440)
+      expect([...root.querySelectorAll('.fd-vote-value')].map((el) => el.textContent)).toEqual([
         '38.4%',
         '61.6%',
       ])
@@ -192,6 +198,184 @@ describe('Vox Final Three audience broadcast', () => {
         'announcement',
         'complete',
       ])
+    }
+  )
+
+  it('reveals synchronized monotonic numbers, announces only settled totals, and holds them to read', () => {
+    const { root, controller, onDecision } = mount()
+    reach(controller, 'vote-results')
+    const values = [...root.querySelectorAll('.fd-vote-value')]
+    const tallies = [...root.querySelectorAll('.fd-vote-tally')]
+    const live = root.querySelector('[aria-live]')!
+    const announcement = live.textContent
+    const read = () => values.map((value) => parseFloat(value.textContent!))
+    expect(read()).toEqual([0, 0])
+    expect(root.querySelector('.fd-vote-track,.fd-vote-fill')).toBeNull()
+    expect(values.every((value) => value.closest('[aria-hidden="true"]'))).toBe(true)
+    expect(
+      tallies.every((tally) => tally.getAttribute('aria-label')?.includes('being revealed'))
+    ).toBe(true)
+    vi.advanceTimersByTime(240)
+    expect(read()).toEqual([0, 0])
+    let previous = read()
+    for (let frame = 1; frame <= 55; frame += 1) {
+      vi.advanceTimersByTime(40)
+      const current = read()
+      current.forEach((value, index) => {
+        expect(value).toBeGreaterThanOrEqual(previous[index])
+        expect(value).toBeLessThanOrEqual(index === 0 ? 38.4 : 61.6)
+      })
+      expect(Math.abs(current[0] / 38.4 - current[1] / 61.6)).toBeLessThan(0.0022)
+      if (frame < 55) expect(live.textContent).toBe(announcement)
+      previous = current
+    }
+    expect(values.map((value) => value.textContent)).toEqual(['38.4%', '61.6%'])
+    expect(root.querySelector('.fd-vote-grid')).toHaveAttribute('data-count-state', 'settled')
+    expect(tallies.map((tally) => tally.getAttribute('aria-label'))).toEqual([
+      'You: 38.4 percent',
+      'Aria: 61.6 percent',
+    ])
+    expect(live).toHaveTextContent('Vote to eliminate. You: 38.4 percent. Aria: 61.6 percent.')
+    expect(onDecision).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(2999)
+    expect(controller.getState().stage).toBe('vote-results')
+    expect(values.map((value) => value.textContent)).toEqual(['38.4%', '61.6%'])
+    vi.advanceTimersByTime(1)
+    expect(controller.getState().stage).toBe('seal')
+    expect(onDecision).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    { human: 0, aria: 100 },
+    { human: 33.333333, aria: 66.666667 },
+  ])(
+    'lands exactly on the supplied one-decimal totals at the numeric boundaries: %j',
+    (percentages) => {
+      const { root, controller } = mount({ result: { evicteeId: 'aria', percentages } })
+      reach(controller, 'vote-results')
+      vi.advanceTimersByTime(2440)
+      expect(
+        [...root.querySelectorAll('.fd-vote-value')].map((value) => value.textContent)
+      ).toEqual([percentages.human.toFixed(1) + '%', percentages.aria.toFixed(1) + '%'])
+    }
+  )
+
+  it('freezes the shared numeric clock and the settled hold until all pause reasons clear', () => {
+    const { root, controller, onDecision } = mount()
+    reach(controller, 'vote-results')
+    const values = [...root.querySelectorAll('.fd-vote-value')]
+    const read = () => values.map((value) => value.textContent)
+    vi.advanceTimersByTime(800)
+    const frozen = read()
+    expect(frozen).not.toEqual(['0.0%', '0.0%'])
+    controller.pause('presentation')
+    controller.pause('visibility')
+    controller.skip()
+    vi.advanceTimersByTime(100_000)
+    expect(read()).toEqual(frozen)
+    controller.resume('presentation')
+    vi.advanceTimersByTime(100_000)
+    expect(read()).toEqual(frozen)
+    expect(onDecision).not.toHaveBeenCalled()
+    controller.resume('visibility')
+    vi.advanceTimersByTime(1640)
+    expect(read()).toEqual(['38.4%', '61.6%'])
+    vi.advanceTimersByTime(1000)
+    controller.pause('presentation')
+    vi.advanceTimersByTime(100_000)
+    expect(controller.getState().stage).toBe('vote-results')
+    controller.resume('presentation')
+    vi.advanceTimersByTime(1999)
+    expect(controller.getState().stage).toBe('vote-results')
+    vi.advanceTimersByTime(1)
+    expect(controller.getState().stage).toBe('seal')
+  })
+
+  it.each([0, 800])(
+    'cancels the numeric reveal on Skip at %sms and uses the actual verdict',
+    (elapsed) => {
+      const { root, controller, onDecision, onComplete } = mount()
+      reach(controller, 'vote-results')
+      vi.advanceTimersByTime(elapsed)
+      const outgoing = [...root.querySelectorAll('.fd-vote-value')]
+      const beforeSkip = outgoing.map((value) => value.textContent)
+      controller.skip()
+      expect(controller.getState().stage).toBe('seal')
+      expect(onDecision.mock.calls[0][0].evicteeId).toBe('aria')
+      reach(controller, 'complete')
+      vi.advanceTimersByTime(100_000)
+      expect(outgoing.map((value) => value.textContent)).toEqual(beforeSkip)
+      expect(root.querySelector('[aria-live]')).toHaveTextContent('Aria leaves in third place.')
+      expect(onDecision).toHaveBeenCalledTimes(1)
+      expect(onComplete).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it('cancels in-progress digits on disposal without writing to detached elements', () => {
+    const { root, controller, onDecision, onComplete } = mount()
+    reach(controller, 'vote-results')
+    vi.advanceTimersByTime(800)
+    const outgoing = [...root.querySelectorAll('.fd-vote-value')]
+    const frozen = outgoing.map((value) => value.textContent)
+    controller.dispose()
+    vi.advanceTimersByTime(100_000)
+    expect(outgoing.map((value) => value.textContent)).toEqual(frozen)
+    expect(onDecision).not.toHaveBeenCalled()
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('restarts a replay at zero without letting the old count update the new result frame', () => {
+    const { root, controller } = mount()
+    reach(controller, 'vote-results')
+    vi.advanceTimersByTime(800)
+    const outgoing = [...root.querySelectorAll('.fd-vote-value')]
+    const frozen = outgoing.map((value) => value.textContent)
+    controller.replay()
+    reach(controller, 'vote-results')
+    expect(outgoing.map((value) => value.textContent)).toEqual(frozen)
+    expect([...root.querySelectorAll('.fd-vote-value')].map((value) => value.textContent)).toEqual([
+      '0.0%',
+      '0.0%',
+    ])
+    vi.advanceTimersByTime(2440)
+    expect([...root.querySelectorAll('.fd-vote-value')].map((value) => value.textContent)).toEqual([
+      '38.4%',
+      '61.6%',
+    ])
+  })
+
+  it.each([false, true])(
+    'settles an active count when reduced motion is enabled (paused: %s)',
+    (paused) => {
+      let changeMotion: (event: { matches: boolean }) => void = () => undefined
+      vi.stubGlobal('matchMedia', () => ({
+        matches: false,
+        addEventListener: (_type: string, callback: typeof changeMotion) => {
+          changeMotion = callback
+        },
+        removeEventListener: () => undefined,
+      }))
+      const { root, controller } = mount({ followMotionPreference: true })
+      reach(controller, 'vote-results')
+      vi.advanceTimersByTime(800)
+      const values = [...root.querySelectorAll('.fd-vote-value')]
+      const partial = values.map((value) => value.textContent)
+      if (paused) controller.pause('presentation')
+      changeMotion({ matches: true })
+      if (paused) {
+        vi.advanceTimersByTime(100_000)
+        expect(values.map((value) => value.textContent)).toEqual(partial)
+        controller.resume('presentation')
+        vi.advanceTimersByTime(40)
+      }
+      expect(controller.getState().reducedMotion).toBe(true)
+      expect(values.map((value) => value.textContent)).toEqual(['38.4%', '61.6%'])
+      expect(root.querySelector('[aria-live]')).toHaveTextContent('Aria: 61.6 percent.')
+      vi.advanceTimersByTime(2999)
+      expect(controller.getState().stage).toBe('vote-results')
+      vi.advanceTimersByTime(1)
+      expect(controller.getState().stage).toBe('seal')
     }
   )
 
@@ -270,6 +454,7 @@ describe('Vox Final Three audience broadcast', () => {
     supplied.percentages.aria = 99
     expect(controller.setAudienceVote(result('human'))).toBe(false)
     reach(controller, 'vote-results')
+    vi.advanceTimersByTime(2440)
     expect([...root.querySelectorAll('.fd-vote-value')].map((el) => el.textContent)).toEqual([
       '50.0%',
       '50.0%',
@@ -392,12 +577,17 @@ describe('Vox Final Three audience broadcast', () => {
     expect({ top: token.style.top, width: token.style.width }).toEqual(anchor)
   })
 
-  it('keeps the entire audience ceremony, including result bars, still with reduced motion', () => {
+  it('shows exact results immediately and keeps the entire ceremony still with reduced motion', () => {
     const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'animate')
     const animate = vi.fn()
     Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate })
     try {
-      const { controller, onDecision, onComplete } = mount({ reducedMotion: true })
+      const { root, controller, onDecision, onComplete } = mount({ reducedMotion: true })
+      reach(controller, 'vote-results')
+      expect(
+        [...root.querySelectorAll('.fd-vote-value')].map((value) => value.textContent)
+      ).toEqual(['38.4%', '61.6%'])
+      expect(root.querySelector('[aria-live]')).toHaveTextContent('Aria: 61.6 percent.')
       reach(controller, 'complete')
       expect(animate).not.toHaveBeenCalled()
       expect(onDecision).toHaveBeenCalledTimes(1)

@@ -144,6 +144,7 @@ function mountFinalDecision(root, config) {
     throw new Error('The final appeal requires the viewing nominee and all three game choices.')
   }
   let audienceResult = cfg.audienceVote?.result ? copyAudienceResult(cfg.audienceVote.result) : null
+  let audienceCount = null
   let appealId = null
   let voteRequested = false
   let voteClosureReady = false
@@ -1013,46 +1014,125 @@ function mountFinalDecision(root, config) {
   function renderAudienceTallies(approval = false) {
     const values = approval ? audienceResult.approvalTiebreak.scores : audienceResult.percentages
     const label = approval ? 'Approval tiebreak' : 'Vote to eliminate'
+    const summary =
+      label +
+      '. ' +
+      nominees
+        .map(
+          (person) =>
+            person.name +
+            ': ' +
+            values[person.id].toFixed(1) +
+            (approval ? ' approval' : ' percent')
+        )
+        .join('. ') +
+      '.'
+    const entries = []
     showFrame(
       approval ? 'approval-tiebreak' : 'vote-results',
       (content) => {
         node('p', 'fd-vote-heading', content, label)
         const grid = node('div', 'fd-vote-grid', content)
+        grid.dataset.countState = approval || reduced ? 'settled' : 'counting'
         nominees.forEach((person) => {
           const tally = node('div', 'fd-vote-tally', grid)
           tally.dataset.playerId = person.id
-          node('p', 'fd-vote-name', tally, person.name)
-          node(
+          tally.setAttribute('role', 'group')
+          const finalLabel =
+            person.name +
+            ': ' +
+            values[person.id].toFixed(1) +
+            (approval ? ' approval' : ' percent')
+          tally.setAttribute(
+            'aria-label',
+            approval || reduced ? finalLabel : person.name + ': final total being revealed'
+          )
+          node('p', 'fd-vote-name', tally, person.name).setAttribute('aria-hidden', 'true')
+          const number = node('div', 'fd-vote-number', tally)
+          // Intermediate reveal values are decorative. Accessible totals change
+          // only once, together, when both committed values have settled.
+          number.setAttribute('aria-hidden', 'true')
+          const glow = node('i', 'fd-vote-glow', number)
+          const value = node(
             'strong',
             'fd-vote-value',
-            tally,
-            values[person.id].toFixed(1) + (approval ? '' : '%')
+            number,
+            approval || reduced ? values[person.id].toFixed(1) + (approval ? '' : '%') : '0.0%'
           )
-          const track = node('div', 'fd-vote-track', tally)
-          track.setAttribute('aria-hidden', 'true')
-          const fill = node('i', 'fd-vote-fill', track)
-          fill.style.width = values[person.id] + '%'
-          // The exact resolved values stay fixed. Only their visual bars reveal.
-          animate(fill, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], {
-            duration: 1600,
-            easing: 'cubic-bezier(.18,.7,.22,1)',
-            fill: 'backwards',
-          })
+          const gleam = node('i', 'fd-vote-gleam', number)
+          entries.push({ tally, value, glow, gleam, finalLabel, target: values[person.id] })
         })
+        if (!approval) audienceCount = { grid, entries, summary, settled: false }
       },
-      label +
-        '. ' +
-        nominees
-          .map(
-            (person) =>
-              person.name +
-              ': ' +
-              values[person.id].toFixed(1) +
-              (approval ? ' approval' : ' percent')
-          )
-          .join('. ') +
-        '.'
+      approval || reduced ? summary : label + '. Revealing the final audience totals.'
     )
+  }
+  function settleAudienceCount() {
+    if (!audienceCount || audienceCount.settled || disposed || stage !== 'vote-results') return
+    audienceCount.settled = true
+    audienceCount.grid.dataset.countState = 'settled'
+    audienceCount.entries.forEach(({ tally, value, glow, finalLabel, target }) => {
+      value.textContent = target.toFixed(1) + '%'
+      tally.setAttribute('aria-label', finalLabel)
+      animate(
+        glow,
+        [
+          { opacity: 0, transform: 'scale(.88)' },
+          { opacity: 0.38, transform: 'scale(1)', offset: 0.3 },
+          { opacity: 0, transform: 'scale(1.08)' },
+        ],
+        { duration: 1000, easing: 'ease-out' }
+      )
+    })
+    if (live.textContent !== audienceCount.summary) live.textContent = audienceCount.summary
+    // Hold the exact, readable totals after both numbers finish together.
+    schedule(3000, () => {
+      if (audienceResult.approvalTiebreak) go('approval-tiebreak', true)
+      else commitAudienceDecision()
+    })
+  }
+  function startAudienceCount() {
+    if (!audienceCount) return
+    if (reduced) {
+      settleAudienceCount()
+      return
+    }
+    audienceCount.entries.forEach(({ value, gleam }) => {
+      animate(
+        value,
+        [
+          { opacity: 0.78, transform: 'translateY(2px) scale(.98)' },
+          { opacity: 1, transform: 'translateY(0) scale(1)' },
+        ],
+        { duration: 720, easing: 'cubic-bezier(.18,.7,.22,1)', fill: 'backwards' }
+      )
+      animate(
+        gleam,
+        [
+          { opacity: 0, transform: 'translateX(-170%) skewX(-18deg)' },
+          { opacity: 0.26, transform: 'translateX(-30%) skewX(-18deg)', offset: 0.42 },
+          { opacity: 0, transform: 'translateX(190%) skewX(-18deg)' },
+        ],
+        { duration: 2200, delay: 240, easing: 'ease-in-out', fill: 'backwards' }
+      )
+    })
+    // Match the existing Vox smoothstep reveal. One scene-owned clock advances
+    // both numbers, then hands over to the reading hold; pause, Skip and disposal
+    // cancel/freeze it through the same scheduler as every other ceremony beat.
+    const step = (index) => {
+      if (!audienceCount || audienceCount.settled || disposed || stage !== 'vote-results') return
+      if (reduced || index >= 55) {
+        settleAudienceCount()
+        return
+      }
+      const progress = index / 55
+      const eased = progress * progress * (3 - 2 * progress)
+      audienceCount.entries.forEach(({ value, target }) => {
+        value.textContent = (target * eased).toFixed(1) + '%'
+      })
+      schedule(40, () => step(index + 1))
+    }
+    schedule(240, () => step(0))
   }
   function audienceVerdictText() {
     const evictee = nominees.find((person) => person.id === confirmed)
@@ -1133,6 +1213,7 @@ function mountFinalDecision(root, config) {
     const cameraStart = window.getComputedStyle(world).transform
     cancelTimer()
     stopAnimations()
+    audienceCount = null
     manualReadingStage = null
     if (next !== stage && next.startsWith('plea')) {
       captionPage = 0
@@ -1216,10 +1297,7 @@ function mountFinalDecision(root, config) {
         fire('onVoteRequested')
       }
     } else if (stage === 'vote-results') {
-      schedule(5200, () => {
-        if (audienceResult.approvalTiebreak) go('approval-tiebreak', true)
-        else commitAudienceDecision()
-      })
+      startAudienceCount()
     } else if (stage === 'approval-tiebreak') {
       schedule(4800, commitAudienceDecision)
     } else if (stage === 'deliberate') {
@@ -1587,8 +1665,10 @@ function mountFinalDecision(root, config) {
     if (cfg.reducedMotion !== undefined) return
     reduced = event.matches
     scene.dataset.noMotion = String(reduced)
-    if (reduced) stopAnimations(true)
-    else startAmbientMotion()
+    if (reduced) {
+      stopAnimations(true)
+      if (!pauses.size) settleAudienceCount()
+    } else startAmbientMotion()
     layoutComposition()
   }
   if (mq && mq.addEventListener) {
@@ -1600,6 +1680,7 @@ function mountFinalDecision(root, config) {
     disposed = true
     cancelTimer()
     stopAnimations(true)
+    audienceCount = null
     cleanups.forEach((fn) => fn())
     if (tools) tools.remove()
     scene.replaceChildren()

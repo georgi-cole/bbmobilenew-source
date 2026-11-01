@@ -105,6 +105,7 @@ export interface FinalDecisionController {
   pause(reason?: string): void
   resume(reason?: string): void
   skip(): void
+  replay(): void
   dispose(): void
   getState(): FinalDecisionCheckpoint
   /** Latches the first valid result without calculating or altering an outcome. */

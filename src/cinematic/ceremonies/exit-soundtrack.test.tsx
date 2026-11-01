@@ -50,16 +50,18 @@ afterEach(async () => {
   })
 })
 
-function openExit() {
+function openExit(
+  options: { phase?: 'final3_decision' | 'eviction_results'; reduced?: boolean } = {}
+) {
   const state = structuredClone(baseline.getState())
   state.vip.isActive = true
   state.settings.gameUX.animations = true
   state.settings.gameUX.animationMode = 'cinematic'
-  state.settings.display.reduceMotion = false
+  state.settings.display.reduceMotion = Boolean(options.reduced)
   state.game.mode = 'classic'
   state.game.voxPopuli = undefined
   state.game.gameId = 'retained-final-decision-music'
-  state.game.phase = 'final3_decision'
+  state.game.phase = options.phase ?? 'final3_decision'
   const evictee = {
     ...state.game.players[0],
     id: 'dex',
@@ -97,6 +99,12 @@ describe('departure soundtrack continuation', () => {
     const { soundtrack, releaseDecision, onDone } = openExit()
     try {
       await waitFor(() => expect(film.handoff).toBeTypeOf('function'))
+      expect(film.prepare).toHaveBeenCalledWith(
+        'exit',
+        expect.anything(),
+        'generic',
+        expect.objectContaining({ closingBrand: true })
+      )
       expect(soundtrack.setActive).toHaveBeenCalledWith(true)
       expect(soundtrack.setActive).not.toHaveBeenCalledWith(false)
       await act(async () => releaseDecision())
@@ -156,6 +164,34 @@ describe('departure soundtrack continuation', () => {
       await screen.findByRole('button', { name: 'Confirm exit' })
       expect(soundtrack.finish).toHaveBeenCalledTimes(1)
       expect(film.handoff).toBeNull()
+    } finally {
+      await act(async () => releaseDecision())
+    }
+  })
+
+  it('does not add the final-day ident to an ordinary weekly exit', async () => {
+    const { releaseDecision } = openExit({ phase: 'eviction_results' })
+    try {
+      await waitFor(() => expect(film.handoff).toBeTypeOf('function'))
+      expect(film.prepare).toHaveBeenCalledWith(
+        'exit',
+        expect.anything(),
+        'generic',
+        expect.not.objectContaining({ closingBrand: true })
+      )
+    } finally {
+      await act(async () => releaseDecision())
+    }
+  })
+
+  it('keeps reduced-motion exits native without preparing the brand and finishes music once', async () => {
+    const { soundtrack, releaseDecision, onDone } = openExit({ reduced: true })
+    try {
+      await screen.findByRole('button', { name: 'Confirm exit' })
+      expect(film.prepare).not.toHaveBeenCalled()
+      expect(soundtrack.finish).toHaveBeenCalledTimes(1)
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm exit' }))
+      expect(onDone).toHaveBeenCalledTimes(1)
     } finally {
       await act(async () => releaseDecision())
     }
