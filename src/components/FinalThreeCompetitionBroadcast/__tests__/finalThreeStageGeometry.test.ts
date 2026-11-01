@@ -1,7 +1,5 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-
-const styles = readFileSync(new URL('../FinalThreeCompetitionBroadcast.css', import.meta.url), 'utf8')
+import styles from '../FinalThreeCompetitionBroadcast.css?raw'
 
 function cssRules() {
   return [...styles.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(([, selector, declarations]) => ({

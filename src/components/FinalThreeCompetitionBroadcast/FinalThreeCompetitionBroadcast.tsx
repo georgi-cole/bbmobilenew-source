@@ -756,11 +756,10 @@ export default function FinalThreeCompetitionBroadcast(props: FinalThreeCompetit
               <div className="f3-broadcast__vignette" />
             </div>
           </div>
-          {/* On-set emblem stays centered and face-on as the live camera tracks contestants. */}
-              <div className="f3-broadcast__eye">
-                <div className="f3-broadcast__eye-halo" />
-                <img src={artwork.eye} alt="" draggable={false} />
-              </div>
+          <div className="f3-broadcast__eye">
+            <div className="f3-broadcast__eye-halo" />
+            <img src={artwork.eye} alt="" draggable={false} />
+          </div>
           <div className="f3-broadcast__network">
             <span />
             THE BIG EYE<span>FINALE NIGHT</span>
