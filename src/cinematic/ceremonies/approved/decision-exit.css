@@ -1,0 +1,124 @@
+/* Final-day closing ident lives on the transition veil, outside the doorway camera. */
+.finale-closing-brand {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.decision-film .exit-brand,
+.finale-closing-brand .exit-brand {
+  position: absolute;
+  inset: 0;
+  z-index: 21;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+}
+.exit-brand-lockup {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: 50% 50%;
+}
+.exit-brand-emblem {
+  position: relative;
+  width: 47%;
+  max-width: 236px;
+  aspect-ratio: 1;
+  perspective: 900px;
+}
+.exit-brand-turn {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.exit-brand-face {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  backface-visibility: hidden;
+  transform: translateZ(1px);
+  filter: drop-shadow(0 6px 10px #1f10284d);
+}
+.exit-brand-back {
+  transform: rotateY(180deg) translateZ(1px);
+}
+.exit-brand-glow {
+  position: absolute;
+  inset: -28%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #fff2c442 0, #f9d99524 34%, transparent 70%);
+  opacity: 0;
+}
+.exit-brand-reflection {
+  position: absolute;
+  top: 101%;
+  left: 8%;
+  width: 84%;
+  height: 36%;
+  overflow: hidden;
+  opacity: 0;
+  mask-image: linear-gradient(#0009, transparent 86%);
+}
+.exit-brand-reflection-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  transform: scaleY(-1);
+}
+.exit-brand-shine {
+  position: absolute;
+  inset: 6% 8%;
+  overflow: hidden;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+.exit-brand-shine i {
+  position: absolute;
+  inset: -25% 25%;
+  background: linear-gradient(90deg, transparent, #fff4d17a 48%, transparent 100%);
+}
+.exit-brand-title {
+  position: relative;
+  margin-top: clamp(19px, 3.4dvh, 36px);
+  padding-left: 0.22em;
+  color: #fff0cb;
+  font:
+    400 clamp(17px, 2.75dvh, 29px) / 1.2 Georgia,
+    'Times New Roman',
+    serif;
+  letter-spacing: 0.22em;
+  white-space: nowrap;
+  text-align: center;
+  text-shadow: 0 2px 12px #24132f80;
+  opacity: 0;
+}
+.exit-brand-rule {
+  display: block;
+  width: 22%;
+  height: 1px;
+  margin-top: clamp(13px, 2.2dvh, 23px);
+  background: linear-gradient(90deg, transparent, #ffe6b9, transparent);
+  opacity: 0;
+}
+
+/* Competition broadcasts opt into a lens-bound Eye fly-through; the
+   established departure hold leaves this blackout layer transparent. */
+.exit-brand-emblem {
+  transform-origin: 50% 50%;
+}
+.exit-brand-blackout {
+  position: absolute;
+  inset: -2px;
+  z-index: 30;
+  background: #050408;
+  opacity: 0;
+  pointer-events: none;
+}

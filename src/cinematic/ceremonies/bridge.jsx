@@ -27,6 +27,7 @@ export function PremiumBridge({
   finishDirect = false,
   rosterExit = false,
   badgeOnlyHandoff = false,
+  soundtrackContinuation,
 }) {
   const store = useStore(),
     target = useRef(null),
@@ -37,8 +38,16 @@ export function PremiumBridge({
     run = useRef(null),
     props = useRef(original),
     skipButton = useRef(null),
-    mountedMovie = useRef(false)
+    mountedMovie = useRef(false),
+    soundtrack = useRef(soundtrackContinuation),
+    soundtrackFinished = useRef(false)
   props.current = original
+  soundtrack.current = soundtrackContinuation
+  const finishSoundtrack = useCallback(() => {
+    if (soundtrackFinished.current) return
+    soundtrackFinished.current = true
+    soundtrack.current?.finish()
+  }, [])
   const vip = useSelector(selectIsVipActive),
     settings = useSelector((s) => s.settings),
     mode = useSelector((s) => s.game.mode)
@@ -67,7 +76,7 @@ export function PremiumBridge({
   const canCoverCurrentPresentation =
     !currentPresentation || currentPresentation.priority <= globalPriority
   const globalOwner = usePresentationOwner(
-    'vip-cinematic',
+    soundtrackContinuation?.presentationGroupId ?? 'vip-cinematic',
     globalPriority,
     managed && owned && !handover && !finished
   )
@@ -96,12 +105,13 @@ export function PremiumBridge({
         battleBackIntroGuard(store).mark(store.getState(), props.current.shockKey)
       }
       emit('complete')
+      finishSoundtrack()
       lease.current?.()
       lease.current = null
       setFinished(true)
       props.current[method]?.()
     },
-    [emit, scene, store]
+    [emit, finishSoundtrack, scene, store]
   )
   const handoff = useCallback(
     (reason = 'natural') => {
@@ -113,9 +123,10 @@ export function PremiumBridge({
       if (scene === 'shock' && run.current?.started)
         battleBackIntroGuard(store).mark(store.getState(), props.current.shockKey)
       emit('handoff', { reason })
+      finishSoundtrack()
       setHandover(true)
     },
-    [emit, scene, store]
+    [emit, finishSoundtrack, scene, store]
   )
   const skip = useCallback(() => {
     if (completed.current || !owned) return
@@ -178,6 +189,10 @@ export function PremiumBridge({
           const controller = clipModule.createClip()
           clip.current = controller
           const details = modeDetails(scene, props.current, state.game)
+          // The final-day ident belongs after the already-approved doorway zoom.
+          // Ordinary weekly and paired exits retain their existing film and clock.
+          if (state.game.phase?.startsWith('final3') && ['exit', 'final3'].includes(scene))
+            details.closingBrand = true
           const ok = await controller.prepare(scene, cast, shockType, details)
           if (current.cancelled || completed.current || handed.current || !ok) return
           clearTimeout(current.watchdog)
@@ -272,6 +287,21 @@ export function PremiumBridge({
       clip.current?.setVisible(false)
     }
   }, [owned, handover, finished, globalOwner.isOwner, foreground])
+  useEffect(() => {
+    if (!soundtrack.current) return
+    if (handover || finished) {
+      // Let the musical tail finish over the native handoff; backgrounding still
+      // stops it immediately. This also handles an initially native fallback.
+      if (!foreground) soundtrack.current.setActive(false)
+      finishSoundtrack()
+      return
+    }
+    // With no owner, the outgoing scene is only between leases. Preserve the
+    // running element until this group acquires, rather than inserting silence.
+    if (globalOwner.hasOwner || !foreground) {
+      soundtrack.current.setActive(globalOwner.isOwner && foreground)
+    }
+  }, [handover, finished, globalOwner.hasOwner, globalOwner.isOwner, foreground, finishSoundtrack])
   useEffect(() => {
     if (!owned || !managed || completed.current) return
     if (!settings.gameUX.animations && (original.onDone || finishDirect)) {
