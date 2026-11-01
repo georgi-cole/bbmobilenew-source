@@ -1,5 +1,11 @@
 /* Final-day closing ident lives on the transition veil, outside the doorway camera. */
-.decision-film .exit-brand {
+.finale-closing-brand {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.decision-film .exit-brand,
+.finale-closing-brand .exit-brand {
   position: absolute;
   inset: 0;
   z-index: 21;

@@ -23,9 +23,9 @@ import vipReducer, { loadVipState } from '../../../store/vipSlice'
 import type { GameState, Player } from '../../../types'
 import FinalThreeCompetitionBroadcast from '../FinalThreeCompetitionBroadcast'
 import type { CompetitionBroadcastArtwork } from '../competitionBroadcastArtwork'
+import { buildCompetitionBroadcastSimulation } from '../competitionBroadcastSimulation'
 import {
-  competitionBroadcastDuration,
-  FINAL_THREE_BROADCAST_TIMINGS,
+  competitionBroadcastTimings,
   type FinalThreeCompetitionPart,
 } from '../competitionBroadcastTimeline'
 
@@ -74,6 +74,12 @@ function fixture(options: FixtureOptions = {}) {
     status: 'active',
     appearance: undefined,
     avatar: `assets/skins/${name}_avatar.webp`,
+    stats: {
+      ...base.stats,
+      lohWins: name === 'Dex' ? 2 : name === 'Aria' ? 1 : 0,
+      posWins: name === 'Aria' ? 3 : name === 'Dex' ? 1 : 0,
+      timesNominated: name === 'Ash' ? 4 : name === 'Dex' ? 3 : 2,
+    },
   }))
   const viewer = options.viewer ?? 'jury'
   players.push({
@@ -84,6 +90,7 @@ function fixture(options: FixtureOptions = {}) {
     status: viewer === 'jury' ? 'jury' : 'active',
     avatar: 'assets/skins/Character3_avatar.webp',
     appearance: { kind: 'catalog', lookId: 'pc-003', revision: 1 },
+    stats: { ...base.stats, lohWins: 0, posWins: 1, timesNominated: 1 },
   })
   if (viewer !== 'jury') players[2].status = 'jury'
   const part1WinnerId = viewer === 'qualified' ? 'user' : 'dex'
@@ -155,7 +162,14 @@ function fixture(options: FixtureOptions = {}) {
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(recording),
   })
-  return { store, game, actions, part, competitorIds, expectedWinnerId }
+  const simulation = buildCompetitionBroadcastSimulation({
+    game,
+    part,
+    competitorIds,
+    expectedWinnerId,
+  })
+  const timings = competitionBroadcastTimings(part, simulation?.durationMs)
+  return { store, game, actions, part, competitorIds, expectedWinnerId, simulation, timings }
 }
 
 type Fixture = ReturnType<typeof fixture>
@@ -187,6 +201,15 @@ async function mountBroadcast(
 
 function stageRoot() {
   return document.querySelector<HTMLElement>('[data-part][data-stage]')!
+}
+
+function shownScores() {
+  return [...document.querySelectorAll<HTMLElement>('[data-score-player]')].map((element) => ({
+    id: element.dataset.scorePlayer,
+    score: Number(element.dataset.score),
+    progress: Number(element.dataset.progress),
+    lives: element.dataset.lives === undefined ? undefined : Number(element.dataset.lives),
+  }))
 }
 
 async function elapse(ms: number) {
@@ -225,8 +248,7 @@ describe('Final Three competition broadcast', () => {
     async (part) => {
       const subject = fixture({ part })
       const { onDone, onPlayAvailabilityChange } = await mountBroadcast(subject)
-      const timings =
-        part === 3 ? FINAL_THREE_BROADCAST_TIMINGS.memory : FINAL_THREE_BROADCAST_TIMINGS.circuit
+      const { timings } = subject
 
       expect(screen.getByRole('dialog')).toBeTruthy()
       expect(stageRoot()).toHaveAttribute('data-part', String(part))
@@ -257,7 +279,7 @@ describe('Final Three competition broadcast', () => {
       expect(subject.store.getState().game.phase).toBe(subject.game.phase)
       expect(subject.actions.filter((type) => type === 'game/advance')).toHaveLength(0)
 
-      await elapse(competitionBroadcastDuration(part) - timings.verdict + 200)
+      await elapse(timings.end - timings.verdict + 200)
       expect(onDone).toHaveBeenCalledTimes(1)
       expect(subject.store.getState().game.spectatorActive).toBeNull()
       await elapse(10_000)
@@ -268,29 +290,121 @@ describe('Final Three competition broadcast', () => {
   it.each([false, true])('describes the actual Part 3 reward in Vox mode=%s', async (vox) => {
     const subject = fixture({ part: 3, vox })
     await mountBroadcast(subject)
-    await elapse(FINAL_THREE_BROADCAST_TIMINGS.memory.verdict + 50)
+    await elapse(subject.timings.verdict + 50)
     const text = screen.getByRole('dialog').textContent ?? ''
     expect(text).toMatch(vox ? /immunity/i : /final power/i)
     if (vox) expect(text).not.toMatch(/final power holder|decides who joins/i)
   })
 
-  it('uses the real Circuit and memory themes without simulated scores or progress bars', async () => {
-    const subject = fixture({ part: 1 })
+  it.each<FinalThreeCompetitionPart>([1, 2, 3])(
+    'shows a distinct live Part %s competition whose final scores support the real winner',
+    async (part) => {
+      const subject = fixture({ part })
+      const simulation = subject.simulation!
+      await mountBroadcast(subject)
+      await elapse(subject.timings.live + 200)
+      expect(stageRoot()).toHaveAttribute('data-stage', 'live')
+      expect(stageRoot()).toHaveAttribute('data-competition', simulation.kind)
+      expect(stageRoot()).toHaveTextContent(simulation.title)
+      const first = shownScores()
+      expect(first.map((entry) => entry.id)).toEqual(subject.competitorIds)
+      expect(first.every((entry) => Number.isFinite(entry.score))).toBe(true)
+
+      await elapse(6500)
+      expect(shownScores()).not.toEqual(first)
+      expect(stageRoot()).toHaveAttribute('data-beat')
+      expect(subject.actions.filter((type) => type === 'game/advance')).toHaveLength(0)
+
+      await elapse(subject.timings.lock - subject.timings.live - 6700 + 50)
+      expect(stageRoot()).toHaveAttribute('data-stage', 'lock')
+      const final = shownScores()
+      const metric = (entry: ReturnType<typeof shownScores>[number]) =>
+        part === 3 ? entry.lives! : entry.score
+      const highest = Math.max(...final.map(metric))
+      expect(final.filter((entry) => metric(entry) === highest).map((entry) => entry.id)).toEqual([
+        subject.expectedWinnerId,
+      ])
+      if (part === 3) {
+        expect(final.find((entry) => entry.id !== subject.expectedWinnerId)?.lives).toBe(0)
+      }
+      expect(document.querySelector('[data-winner-id]')).toBeNull()
+    }
+  )
+
+  it('shows a real season question during the live memory duel', async () => {
+    const subject = fixture({ part: 3 })
+    const first = subject.simulation!.frames[0]
+    expect(first.kind).toBe('memory')
+    if (first.kind !== 'memory') throw new Error('Expected memory replay')
     await mountBroadcast(subject)
-    await elapse(FINAL_THREE_BROADCAST_TIMINGS.circuit.signal + 50)
-    expect(screen.getByRole('dialog')).toHaveTextContent(/Signal Hunt/i)
-    expect(screen.queryByRole('progressbar')).toBeNull()
-    await elapse(
-      FINAL_THREE_BROADCAST_TIMINGS.circuit.sequence - FINAL_THREE_BROADCAST_TIMINGS.circuit.signal
+    await elapse(subject.timings.live + 200)
+    const monitor = document.querySelector('.f3-broadcast__screen')!
+    expect(monitor).toHaveTextContent(first.memory.question.prompt)
+    expect(shownScores().map((entry) => entry.lives)).toEqual([5, 5])
+    await elapse(3600)
+    expect(
+      shownScores()
+        .map((entry) => entry.lives)
+        .sort()
+    ).toEqual([4, 5])
+  })
+
+  it('retains the exact live score and action while backgrounded', async () => {
+    const subject = fixture({ part: 1 })
+    const { onDone } = await mountBroadcast(subject)
+    await elapse(subject.timings.live + 6800)
+    const held = { beat: stageRoot().dataset.beat, scores: shownScores() }
+    act(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await elapse(90_000)
+    expect({ beat: stageRoot().dataset.beat, scores: shownScores() }).toEqual(held)
+    expect(onDone).not.toHaveBeenCalled()
+    act(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await elapse(2000)
+    expect(stageRoot()).toHaveAttribute('data-stage', 'live')
+    expect(stageRoot().dataset.beat).not.toBe(held.beat)
+    expect(onDone).not.toHaveBeenCalled()
+  })
+
+  it('uses the shared exit Eye and title for the closing hold before completing', async () => {
+    const subject = fixture({ part: 2, viewer: 'qualified' })
+    const { onDone } = await mountBroadcast(subject)
+    await elapse(subject.timings.handoff - 100)
+    expect(document.querySelector('.finale-closing-brand .exit-brand')).toBeNull()
+    await elapse(1200)
+    expect(stageRoot()).toHaveAttribute('data-stage', 'handoff')
+    const brand = document.querySelector('.finale-closing-brand .exit-brand')!
+    expect(brand).toBeTruthy()
+    expect(brand.querySelector('.exit-brand-title')).toHaveTextContent('THE BIG EYE')
+    expect(brand.querySelector('.exit-brand-face')).toHaveAttribute('src', '/qa/eye.webp')
+    expect(onDone).not.toHaveBeenCalled()
+    await elapse(subject.timings.end - subject.timings.handoff - 1100 + 100)
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the real result fallback if there are too few season players for memory questions', async () => {
+    const subject = fixture({ part: 3 })
+    act(() =>
+      subject.store.dispatch(
+        hydrateGame({
+          ...subject.game,
+          players: subject.game.players.filter((player) => player.id !== 'ash'),
+          history: [],
+          tvFeed: [],
+        })
+      )
     )
-    expect(screen.getByRole('dialog')).toHaveTextContent(/Sequence Builder/i)
-    await elapse(
-      FINAL_THREE_BROADCAST_TIMINGS.circuit.risk - FINAL_THREE_BROADCAST_TIMINGS.circuit.sequence
-    )
-    expect(screen.getByRole('dialog')).toHaveTextContent(/Risk Run/i)
-    expect(screen.getByRole('dialog')).not.toHaveTextContent(
-      /simulated lead|points scored|correct answer/i
-    )
+    const { onDone } = await mountBroadcast(subject)
+    expect(stageRoot()).toHaveClass('f3-broadcast--static')
+    expect(shownScores()).toEqual([])
+    expect(stageRoot()).toHaveAttribute('data-winner-id', subject.expectedWinnerId)
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onDone).toHaveBeenCalledTimes(1)
   })
 
   it('skips once with the shared control and releases the store blocker before completion', async () => {
@@ -302,7 +416,7 @@ describe('Final Three competition broadcast', () => {
     fireEvent.click(skip)
     fireEvent.click(skip)
     act(() => window.dispatchEvent(new Event('ui:playPressed', { cancelable: true })))
-    await elapse(40_000)
+    await elapse(90_000)
     expect(onDone).toHaveBeenCalledTimes(1)
   })
 
@@ -316,15 +430,15 @@ describe('Final Three competition broadcast', () => {
       document.dispatchEvent(new Event('visibilitychange'))
     })
     expect(stageRoot()).toHaveAttribute('data-active', 'false')
-    await elapse(40_000)
+    await elapse(90_000)
     expect(stageRoot().dataset.stage).toBe(heldStage)
     expect(onDone).not.toHaveBeenCalled()
-    expect(media.audio).toHaveBeenLastCalledWith(expect.any(String), expect.any(String), false)
+    expect(media.audio.mock.calls.at(-1)?.[2]).toBe(false)
     act(() => {
       Object.defineProperty(document, 'hidden', { configurable: true, value: false })
       document.dispatchEvent(new Event('visibilitychange'))
     })
-    await elapse(competitionBroadcastDuration(3) - 6000 + 150)
+    await elapse(subject.timings.end - 6000 + 150)
     expect(onDone).toHaveBeenCalledTimes(1)
   })
 
@@ -343,11 +457,11 @@ describe('Final Three competition broadcast', () => {
     expect(stageRoot()).toHaveAttribute('data-active', 'false')
     releaseExternalOwner = release
     fireEvent.click(document.querySelector<HTMLButtonElement>('.cinematic-skip-button')!)
-    await elapse(40_000)
+    await elapse(90_000)
     expect(onDone).not.toHaveBeenCalled()
     await act(async () => release())
     expect(stageRoot()).toHaveAttribute('data-active', 'true')
-    await elapse(competitionBroadcastDuration(1) - 6000 + 150)
+    await elapse(subject.timings.end - 6000 + 150)
     expect(onDone).toHaveBeenCalledTimes(1)
   })
 
@@ -364,7 +478,7 @@ describe('Final Three competition broadcast', () => {
       subject.expectedWinnerId
     )
     expect(onPlayAvailabilityChange).toHaveBeenLastCalledWith(true)
-    await elapse(40_000)
+    await elapse(90_000)
     expect(onDone).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     expect(onDone).toHaveBeenCalledTimes(1)
@@ -403,7 +517,7 @@ describe('Final Three competition broadcast', () => {
       'data-winner-id',
       subject.expectedWinnerId
     )
-    await elapse(40_000)
+    await elapse(90_000)
     expect(onDone).not.toHaveBeenCalled()
     act(() => window.dispatchEvent(new Event('ui:playPressed', { cancelable: true })))
     expect(onDone).toHaveBeenCalledTimes(1)
@@ -425,7 +539,7 @@ describe('Final Three competition broadcast', () => {
       Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 })
       window.dispatchEvent(new Event('resize'))
     })
-    await elapse(40_000)
+    await elapse(90_000)
     expect(onDone).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))
     expect(onDone).toHaveBeenCalledTimes(1)
@@ -445,7 +559,7 @@ describe('Final Three competition broadcast', () => {
     unmount()
     expect(signal?.aborted).toBe(true)
     await act(async () => resolveArtwork(artwork(subject.game.players)))
-    await elapse(40_000)
+    await elapse(90_000)
     expect(onDone).not.toHaveBeenCalled()
     expect(subject.store.getState().game.spectatorActive).toBeNull()
   })
@@ -477,7 +591,7 @@ describe('Final Three competition broadcast', () => {
     act(() => {
       ;(listener as EventListener)(new Event('ui:playPressed', { cancelable: true }))
     })
-    await elapse(40_000)
+    await elapse(90_000)
     expect(onDone).not.toHaveBeenCalled()
     expect(subject.store.getState().game.spectatorActive).toBeNull()
   })
@@ -491,7 +605,7 @@ describe('Final Three competition broadcast', () => {
         hydrateGame({ ...subject.game, gameId: 'replacement-game', spectatorActive: null })
       )
     )
-    await elapse(40_000)
+    await elapse(90_000)
     expect(onDone).not.toHaveBeenCalled()
     expect(subject.store.getState().game.gameId).toBe('replacement-game')
     expect(subject.store.getState().game.spectatorActive).toBeNull()
@@ -503,7 +617,7 @@ describe('Final Three competition broadcast', () => {
     fireEvent.click(screen.getByRole('button', { name: /skip/i }))
     act(() => subject.store.dispatch(setGameUX({ animations: false })))
     act(() => subject.store.dispatch(setGameUX({ animations: true })))
-    await elapse(40_000)
+    await elapse(90_000)
     expect(onDone).toHaveBeenCalledTimes(1)
     expect(subject.store.getState().game.spectatorActive).toBeNull()
   })

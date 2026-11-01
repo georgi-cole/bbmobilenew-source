@@ -104,4 +104,64 @@ describe('Final Three spectator sound accents', () => {
     expect(sound.play.mock.calls[0][1].signal?.aborted).toBe(true)
     expect(sound.play.mock.calls[1][1].signal?.aborted).toBe(false)
   })
+
+  it('accents each live event once and preserves its receipt across suspension', async () => {
+    type Frame = NonNullable<Parameters<typeof useFinalThreeCompetitionAudio>[3]>
+    const frame: Frame = {
+      kind: 'signal',
+      phase: 'correct',
+      eventId: 'hit-1',
+      activePlayerId: 'aria',
+      players: [{ id: 'aria', score: 18, progress: 1, total: 6, mistakes: 0 }],
+    }
+    const { rerender } = renderHook(
+      ({ live, active }: { live: Frame; active: boolean }) =>
+        useFinalThreeCompetitionAudio('round-1', 'live', active, live),
+      {
+        initialProps: { live: frame, active: true },
+        wrapper: ({ children }) => <StrictMode>{children}</StrictMode>,
+      }
+    )
+    await settle()
+    expect(sound.play.mock.calls.map(([key]) => key)).toEqual(['minigame:quicktap_tap'])
+    rerender({ live: { ...frame }, active: true })
+    await settle()
+    expect(sound.play).toHaveBeenCalledTimes(1)
+    rerender({ live: frame, active: false })
+    expect(sound.play.mock.calls[0][1].signal?.aborted).toBe(true)
+    rerender({ live: frame, active: true })
+    await settle()
+    expect(sound.play).toHaveBeenCalledTimes(1)
+    rerender({ live: { ...frame, eventId: 'miss-2', phase: 'wrong' }, active: true })
+    await settle()
+    expect(sound.play.mock.calls[1][0]).toBe('minigame:risk_wheel_bad')
+  })
+
+  it('uses separate puzzle and memory accents without sounding on thinking frames', async () => {
+    type Frame = NonNullable<Parameters<typeof useFinalThreeCompetitionAudio>[3]>
+    const frame: Frame = {
+      kind: 'sequence',
+      phase: 'thinking',
+      eventId: 'plan-1',
+      activePlayerId: 'aria',
+      players: [{ id: 'aria', score: 18, progress: 1, total: 5, mistakes: 0 }],
+    }
+    const { rerender } = renderHook(
+      ({ live }: { live: Frame }) => useFinalThreeCompetitionAudio('round-2', 'live', true, live),
+      { initialProps: { live: frame } }
+    )
+    await settle()
+    expect(sound.play).not.toHaveBeenCalled()
+    rerender({ live: { ...frame, phase: 'answer', eventId: 'slide-1' } })
+    await settle()
+    rerender({ live: { ...frame, kind: 'memory', phase: 'buzz', eventId: 'buzz-1' } })
+    await settle()
+    rerender({ live: { ...frame, kind: 'memory', phase: 'correct', eventId: 'answer-1' } })
+    await settle()
+    expect(sound.play.mock.calls.map(([key]) => key)).toEqual([
+      'ui:risk_wheel_click',
+      'ui:jury_vote',
+      'ui:confirm',
+    ])
+  })
 })

@@ -1,12 +1,8 @@
 // Shared lab choreography. No game state, routing or ceremony hooks.
 import { ROLE_PACKS, ROLE_CASTS } from './role-contract.js'
 export const DECISION_IDS = ['exit', 'tiebreak', 'final4', 'final3']
-export const FINAL_EXIT_BRAND_RESOURCE = {
-  src: 'assets/ceremonies/final-decision/token.webp',
-  width: 384,
-  height: 384,
-  bytes: 39350,
-}
+export { FINAL_EXIT_BRAND_RESOURCE } from './finale-closing-brand.js'
+import { animateFinaleClosingBrand, makeFinaleClosingBrandMarkup } from './finale-closing-brand.js'
 const BRAND_HOLD_MS = 2600
 const common = [
   'cinema_hall',
@@ -184,14 +180,7 @@ export function makeDecisionScene(
     art('cinema_portal', 'cine-gate gate-left') +
     art('cinema_portal', 'cine-gate gate-right') +
     '</div><div class="exit-light cine-layer" data-layer="light"></div></div><div class="exit-caption cine-layer" data-layer="titles"><span>PLAYER C</span><h3>One last goodbye.</h3><p>LEAVING THE HUB</p></div></div><div class="decision-cut cine-layer" data-layer="light"></div><div class="handoff-veil cine-layer" data-layer="light"></div>' +
-    (branded
-      ? '<div class="exit-brand cine-layer" data-layer="titles"><div class="exit-brand-lockup"><div class="exit-brand-emblem"><div class="exit-brand-glow"></div><div class="exit-brand-reflection">' +
-        art('cinema_closingEye', 'exit-brand-reflection-image') +
-        '</div><div class="exit-brand-turn">' +
-        art('cinema_closingEye', 'exit-brand-face') +
-        art('cinema_closingEye', 'exit-brand-face exit-brand-back') +
-        '</div><div class="exit-brand-shine"><i></i></div></div><div class="exit-brand-title">THE BIG EYE</div><i class="exit-brand-rule"></i></div></div>'
-      : '') +
+    (branded ? makeFinaleClosingBrandMarkup(art) : '') +
     (nativeHandoff
       ? ''
       : '<div class="avatar-sequence"><div class="avatar-stage"><div class="avatar-dim"></div><div class="avatar-hero cine-layer" data-layer="actors">' +
@@ -448,58 +437,7 @@ export function animateDecisionScene(
       [z - 200, 1],
       [brandAt, 0],
     ])
-    hold('.exit-brand', [
-      [0, 0],
-      [brandAt, 0],
-      [brandAt + 380, 1],
-      [v + 170, 1],
-      [v + 470, 0],
-    ])
-    hold('.exit-brand-lockup', [
-      [0, 1, 'translateY(8px) scale(.92)'],
-      [brandAt, 1, 'translateY(8px) scale(.92)', smooth],
-      [brandAt + 700, 1, 'translateY(0) scale(.98)', 'linear'],
-      [v + 170, 1, 'translateY(-2px) scale(1.035)'],
-    ])
-    hold('.exit-brand-turn', [
-      [0, 1, 'rotateY(-58deg) rotateZ(-5deg)'],
-      [brandAt, 1, 'rotateY(-58deg) rotateZ(-5deg)', 'cubic-bezier(.32,.1,.27,1)'],
-      [brandAt + 1650, 1, 'rotateY(342deg) rotateZ(-1deg)', smooth],
-      [brandAt + 2200, 1, 'rotateY(360deg) rotateZ(0deg)'],
-    ])
-    hold('.exit-brand-glow', [
-      [0, 0, 'scale(.7)'],
-      [brandAt, 0, 'scale(.7)'],
-      [brandAt + 450, 0.7, 'scale(.98)'],
-      [brandAt + 1300, 0.95, 'scale(1.06)'],
-      [v + 170, 0.7, 'scale(1.12)'],
-    ])
-    hold('.exit-brand-reflection', [
-      [0, 0, 'scaleX(.55)'],
-      [brandAt + 1500, 0, 'scaleX(.55)'],
-      [brandAt + 2150, 0.16, 'scaleX(1)'],
-    ])
-    hold('.exit-brand-shine', [
-      [0, 0],
-      [brandAt + 1500, 0],
-      [brandAt + 1700, 0.45],
-      [brandAt + 2200, 0],
-    ])
-    hold('.exit-brand-shine i', [
-      [0, 1, 'translateX(-200%) rotate(-24deg)'],
-      [brandAt + 1500, 1, 'translateX(-200%) rotate(-24deg)'],
-      [brandAt + 2200, 1, 'translateX(220%) rotate(-24deg)'],
-    ])
-    hold('.exit-brand-title', [
-      [0, 0, 'translateY(12px)'],
-      [brandAt + 300, 0, 'translateY(12px)', smooth],
-      [brandAt + 780, 1, 'translateY(0)'],
-    ])
-    hold('.exit-brand-rule', [
-      [0, 0, 'scaleX(.15)'],
-      [brandAt + 500, 0, 'scaleX(.15)', smooth],
-      [brandAt + 1150, 0.7, 'scaleX(1)'],
-    ])
+    animateFinaleClosingBrand(hold, { startAt: brandAt, holdUntil: v + 170 })
   }
   if (nativeHandoff) return
   hold('.avatar-sequence', [
