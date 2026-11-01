@@ -358,7 +358,7 @@ describe('release readiness branding', () => {
     const combined = [indexHtml, manifest, rulesTsx, rulesCss].join('\n')
 
     expect(existsSync(FAVICON)).toBe(true)
-    expect(indexHtml).toContain('href="/favicon.svg"')
+    expect(indexHtml).toContain('href="/favicon.svg?v=embroidered-4d338174"')
     expect(indexHtml).not.toContain('/vite.svg')
     expect(manifest).toContain('"description": "The Big Eye mobile companion app"')
     expect(combined).not.toMatch(/Everwatch/i)
@@ -399,16 +399,28 @@ describe('release readiness branding', () => {
     [
       'GitHub Pages',
       'https://georgi-cole.github.io/bbmobilenew/manifest.json',
-      'https://georgi-cole.github.io/bbmobilenew/favicon.svg',
+      'https://georgi-cole.github.io/bbmobilenew/favicon.svg?v=embroidered-4d338174',
     ],
     [
       'QA',
       'https://georgi-cole.github.io/bbmobilenew/qa/manifest.json',
-      'https://georgi-cole.github.io/bbmobilenew/qa/favicon.svg',
+      'https://georgi-cole.github.io/bbmobilenew/qa/favicon.svg?v=embroidered-4d338174',
     ],
-    ['root deployment', 'https://example.com/manifest.json', 'https://example.com/favicon.svg'],
-    ['iOS', 'capacitor://localhost/manifest.json', 'capacitor://localhost/favicon.svg'],
-    ['Android', 'https://localhost/manifest.json', 'https://localhost/favicon.svg'],
+    [
+      'root deployment',
+      'https://example.com/manifest.json',
+      'https://example.com/favicon.svg?v=embroidered-4d338174',
+    ],
+    [
+      'iOS',
+      'capacitor://localhost/manifest.json',
+      'capacitor://localhost/favicon.svg?v=embroidered-4d338174',
+    ],
+    [
+      'Android',
+      'https://localhost/manifest.json',
+      'https://localhost/favicon.svg?v=embroidered-4d338174',
+    ],
   ])(
     'resolves the manifest favicon inside the %s deployment',
     (_, manifestUrl, expectedIconUrl) => {

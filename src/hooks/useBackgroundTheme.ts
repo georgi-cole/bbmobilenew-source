@@ -2,7 +2,7 @@
  * useBackgroundTheme.ts
  *
  * Resolves the dynamic Home Hub background and refreshes it when the app
- * returns to the foreground, weather changes, or local time crosses a theme boundary.
+ * returns to the foreground or local time crosses a theme boundary.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getNextThemeBoundaryDelay, resolveTheme, timeOfDayKey } from '../utils/backgroundTheme'
@@ -14,8 +14,6 @@ interface BackgroundState {
   key: ThemeKey | null
   reason: string | null
 }
-
-const WEATHER_REFRESH_INTERVAL_MS = 10 * 60 * 1000
 
 interface UseBackgroundThemeOptions {
   attachToRoot?: boolean
@@ -129,27 +127,19 @@ export default function useBackgroundTheme(
       if (document.visibilityState === 'visible') void refresh(true)
     }
 
-    const refreshOnReconnect = () => {
-      if (document.visibilityState === 'visible') void refresh()
-    }
-
     void refresh()
     scheduleBoundaryRefresh()
-    const weatherTimer = window.setInterval(refreshOnForeground, WEATHER_REFRESH_INTERVAL_MS)
     document.addEventListener('visibilitychange', refreshOnForeground)
     window.addEventListener('focus', refreshOnForeground)
     window.addEventListener('pageshow', refreshOnForeground)
-    window.addEventListener('online', refreshOnReconnect)
 
     return () => {
       cancelled = true
       requestLocationRef.current = () => Promise.resolve()
       if (boundaryTimer != null) window.clearTimeout(boundaryTimer)
-      window.clearInterval(weatherTimer)
       document.removeEventListener('visibilitychange', refreshOnForeground)
       window.removeEventListener('focus', refreshOnForeground)
       window.removeEventListener('pageshow', refreshOnForeground)
-      window.removeEventListener('online', refreshOnReconnect)
       if (attachToRoot) {
         document.documentElement.style.removeProperty('--intro-bg-image')
       }

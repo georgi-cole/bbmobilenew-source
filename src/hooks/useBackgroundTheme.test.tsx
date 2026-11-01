@@ -86,33 +86,38 @@ describe('useBackgroundTheme', () => {
     })
   })
 
-  it('updates a visible daytime background when rain starts without waiting for a daypart boundary', async () => {
-    const { result } = renderHook(() => useBackgroundTheme())
+  it('refreshes on a Home Hub return without polling or reconnect requests', async () => {
+    const firstVisit = renderHook(() => useBackgroundTheme())
     await act(async () => {})
-    expect(result.current.key).toBe('day')
+    expect(firstVisit.result.current.key).toBe('day')
     mockResolveTheme.mockResolvedValue(rainyTheme)
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(10 * 60 * 1000 - 1)
+      await vi.advanceTimersByTimeAsync(20 * 60 * 1000)
+      window.dispatchEvent(new Event('online'))
     })
     expect(mockResolveTheme).toHaveBeenCalledOnce()
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1)
-    })
+    expect(firstVisit.result.current.key).toBe('day')
 
-    expect(result.current.key).toBe('weather:rain:day')
+    firstVisit.unmount()
+    const returnVisit = renderHook(() => useBackgroundTheme())
+    await act(async () => {})
+
     expect(mockResolveTheme).toHaveBeenCalledTimes(2)
     expect(mockResolveTheme).toHaveBeenLastCalledWith({ requestLocationPermission: false })
+    expect(returnVisit.result.current.key).toBe('weather:rain:day')
   })
 
-  it('skips periodic weather requests while hidden and checks again when the page becomes visible', async () => {
+  it('ignores foreground events while hidden and checks again when the page becomes visible', async () => {
     const { result } = renderHook(() => useBackgroundTheme())
     await act(async () => {})
     vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
     mockResolveTheme.mockResolvedValue(rainyTheme)
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(20 * 60 * 1000)
+      window.dispatchEvent(new Event('focus'))
+      window.dispatchEvent(new Event('pageshow'))
+      document.dispatchEvent(new Event('visibilitychange'))
     })
     expect(mockResolveTheme).toHaveBeenCalledOnce()
     expect(result.current.key).toBe('day')
@@ -123,25 +128,6 @@ describe('useBackgroundTheme', () => {
     })
     expect(result.current.key).toBe('weather:rain:day')
     expect(mockResolveTheme).toHaveBeenLastCalledWith({ requestLocationPermission: false })
-  })
-
-  it('retries after connectivity returns without prompting for location', async () => {
-    mockResolveTheme.mockResolvedValueOnce({ ...theme, reason: 'fallback:weather' })
-    const { result } = renderHook(() => useBackgroundTheme())
-    await act(async () => {})
-    mockResolveTheme.mockResolvedValue(rainyTheme)
-
-    await act(async () => {
-      window.dispatchEvent(new Event('online'))
-    })
-    expect(result.current.key).toBe('weather:rain:day')
-    expect(mockResolveTheme).toHaveBeenLastCalledWith({ requestLocationPermission: false })
-
-    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
-    await act(async () => {
-      window.dispatchEvent(new Event('online'))
-    })
-    expect(mockResolveTheme).toHaveBeenCalledTimes(2)
   })
 
   it('deduplicates foreground events and refreshes again on a later return', async () => {
@@ -162,27 +148,28 @@ describe('useBackgroundTheme', () => {
     expect(mockResolveTheme).toHaveBeenCalledTimes(3)
   })
 
-  it('does not overlap a pending request with periodic, foreground, or reconnect checks', async () => {
+  it('does not overlap a pending request with foreground checks', async () => {
     const initial = pendingTheme()
     mockResolveTheme.mockReturnValueOnce(initial.promise)
     const { result } = renderHook(() => useBackgroundTheme())
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(10 * 60 * 1000)
-      window.dispatchEvent(new Event('online'))
       window.dispatchEvent(new Event('focus'))
+      window.dispatchEvent(new Event('pageshow'))
+      document.dispatchEvent(new Event('visibilitychange'))
     })
     expect(mockResolveTheme).toHaveBeenCalledOnce()
 
     await act(async () => initial.resolve(rainyTheme))
     expect(result.current.key).toBe('weather:rain:day')
     await act(async () => {
-      window.dispatchEvent(new Event('online'))
+      await vi.advanceTimersByTimeAsync(1000)
+      window.dispatchEvent(new Event('focus'))
     })
     expect(mockResolveTheme).toHaveBeenCalledTimes(2)
   })
 
-  it('preserves the exact local theme boundary refresh independently of weather polling', async () => {
+  it('preserves the exact local theme boundary refresh', async () => {
     mockBoundaryDelay.mockReturnValue(60_000)
     const { result } = renderHook(() => useBackgroundTheme())
     await act(async () => {})
@@ -215,7 +202,6 @@ describe('useBackgroundTheme', () => {
       await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
       window.dispatchEvent(new Event('focus'))
       window.dispatchEvent(new Event('pageshow'))
-      window.dispatchEvent(new Event('online'))
       document.dispatchEvent(new Event('visibilitychange'))
     })
 
