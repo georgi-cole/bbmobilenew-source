@@ -59,7 +59,7 @@ export function mapWeatherCodeToTheme(weathercode: number): WeatherThemeKey | nu
   if (weathercode >= 56 && weathercode <= 67) return 'rain'
   if (weathercode === 45 || weathercode === 48) return 'fog'
   if (weathercode >= 71 && weathercode <= 77) return 'snow' // snow
-  if (weathercode >= 80 && weathercode <= 82) return 'rainbow' // daylight showers can produce a rainbow
+  if (weathercode >= 80 && weathercode <= 82) return 'rain' // rain showers
   if (weathercode >= 85 && weathercode <= 86) return 'snow' // snow showers
   if (weathercode >= 95 && weathercode <= 99) return 'storm'
   return null
@@ -67,9 +67,20 @@ export function mapWeatherCodeToTheme(weathercode: number): WeatherThemeKey | nu
 
 export function mapWeatherConditionsToTheme(
   weathercode: number,
-  windspeedKmh?: number
+  windspeedKmh?: number,
+  precipitation: { rain?: number; showers?: number; snowfall?: number } = {}
 ): WeatherThemeKey | null {
   const codedTheme = mapWeatherCodeToTheme(weathercode)
+  if (codedTheme && codedTheme !== 'fog') return codedTheme
+  // Current precipitation can still be present when the model's weather code
+  // describes cloud cover or fog. Keep explicit rain/snow/storm codes above it.
+  if (typeof precipitation.snowfall === 'number' && precipitation.snowfall > 0) return 'snow'
+  if (
+    (typeof precipitation.rain === 'number' && precipitation.rain > 0) ||
+    (typeof precipitation.showers === 'number' && precipitation.showers > 0)
+  ) {
+    return 'rain'
+  }
   if (codedTheme) return codedTheme
   return typeof windspeedKmh === 'number' && windspeedKmh >= 28 ? 'wind' : null
 }
@@ -108,21 +119,49 @@ export interface ResolveOptions {
 interface CurrentWeather {
   weathercode: number
   windspeed?: number
+  rain?: number
+  showers?: number
+  snowfall?: number
 }
 
-/** Queries Open-Meteo for current weather, including wind speed in km/h. */
+/** Queries Open-Meteo for current model conditions, including precipitation. */
 async function fetchCurrentWeather(lat: number, lon: number): Promise<CurrentWeather> {
   const url =
     `https://api.open-meteo.com/v1/forecast` +
-    `?latitude=${lat}&longitude=${lon}&current_weather=true`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`)
-  const data = (await res.json()) as { current_weather?: Partial<CurrentWeather> }
-  const current = data?.current_weather
-  if (typeof current?.weathercode !== 'number') throw new Error('No weathercode in response')
-  return {
-    weathercode: current.weathercode,
-    windspeed: typeof current.windspeed === 'number' ? current.windspeed : undefined,
+    `?latitude=${lat}&longitude=${lon}` +
+    `&current=weather_code,wind_speed_10m,rain,showers,snowfall&wind_speed_unit=kmh`
+  const controller = new AbortController()
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      controller.abort()
+      reject(new Error('Open-Meteo request timed out'))
+    }, 8000)
+  })
+  const readConditions = async (): Promise<CurrentWeather> => {
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`)
+    const data = (await res.json()) as { current?: Record<string, unknown> }
+    const current = data?.current
+    const finiteValue = (value: unknown): number | undefined =>
+      typeof value === 'number' && Number.isFinite(value) ? value : undefined
+    const weathercode = finiteValue(current?.weather_code)
+    if (weathercode == null) throw new Error('No valid weather_code in response')
+    return {
+      weathercode,
+      windspeed: finiteValue(current?.wind_speed_10m),
+      rain: finiteValue(current?.rain),
+      showers: finiteValue(current?.showers),
+      snowfall: finiteValue(current?.snowfall),
+    }
+  }
+
+  try {
+    // The deadline also covers body parsing and releases the caller even if a
+    // platform's fetch implementation does not settle promptly after aborting.
+    return await Promise.race([readConditions(), deadline])
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -273,7 +312,11 @@ export async function resolveTheme({
       const currentWeather = await fetchCurrentWeather(latitude, longitude)
       weatherCode = currentWeather.weathercode
       windSpeedKmh = currentWeather.windspeed ?? null
-      weatherKey = mapWeatherConditionsToTheme(weatherCode, windSpeedKmh ?? undefined)
+      weatherKey = mapWeatherConditionsToTheme(
+        weatherCode,
+        windSpeedKmh ?? undefined,
+        currentWeather
+      )
       selectedKey = selectThemeKey(weatherKey, now)
       reason = weatherKey
         ? `weather:${weatherCode}:${weatherKey}`

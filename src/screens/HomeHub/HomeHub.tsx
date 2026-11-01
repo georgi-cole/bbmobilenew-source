@@ -151,6 +151,9 @@ interface HomeHubAssetLayerProps {
   splashDone: boolean
   backgroundReady: boolean
   showWeatherPermissionRationale: boolean
+  weatherRefreshPending: boolean
+  weatherStatusMessage: string | null
+  onRefreshWeather: () => void
   holidayTheme: ReturnType<typeof getHolidayTheme>
   playSelectionOpen: boolean
   playSelectionButtons: PlaySelectionButton[]
@@ -164,6 +167,9 @@ function HomeHubAssetLayer({
   splashDone,
   backgroundReady,
   showWeatherPermissionRationale,
+  weatherRefreshPending,
+  weatherStatusMessage,
+  onRefreshWeather,
   holidayTheme,
   playSelectionOpen,
   playSelectionButtons,
@@ -251,6 +257,23 @@ function HomeHubAssetLayer({
                     }
                   />
                 ))}
+                <div className="home-hub__weather-control">
+                  <button
+                    type="button"
+                    className="home-hub__weather-refresh"
+                    onClick={onRefreshWeather}
+                    disabled={weatherRefreshPending || showWeatherPermissionRationale}
+                    aria-label="Refresh local weather"
+                    aria-describedby={weatherStatusMessage ? 'home-hub-weather-status' : undefined}
+                  >
+                    {weatherRefreshPending ? 'Checking weather…' : 'Refresh local weather'}
+                  </button>
+                  {weatherStatusMessage && (
+                    <p id="home-hub-weather-status" role="status" aria-live="polite">
+                      {weatherStatusMessage}
+                    </p>
+                  )}
+                </div>
               </>
             )}
           </nav>
@@ -298,7 +321,12 @@ export default function HomeHub() {
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const currentProfile = useAppSelector(selectCurrentProfile)
   const isGuest = useAppSelector(selectIsGuest)
-  const { url: bgUrl, requestWeatherLocation } = useBackgroundTheme()
+  const {
+    url: bgUrl,
+    reason: weatherReason,
+    permissionStatus: weatherPermissionStatus,
+    requestWeatherLocation,
+  } = useBackgroundTheme()
   const playButtonHolidayTheme = getHolidayTheme(new Date())
   const remoteBgUrl = useAppSelector(selectRemoteIntroHubBg)
   const remoteOverlayOpacity = useAppSelector(selectRemoteIntroHubOverlay)
@@ -390,6 +418,8 @@ export default function HomeHub() {
   })
   const splashDone = splashExitRequested && hubAssetState.ready
   const [showWeatherPermissionRationale, setShowWeatherPermissionRationale] = useState(false)
+  const [weatherRefreshPending, setWeatherRefreshPending] = useState(false)
+  const [weatherStatusVisible, setWeatherStatusVisible] = useState(false)
   const [preloading, setPreloading] = useState(autoStartGame)
   const shouldRestorePlayMenu = new URLSearchParams(location.search).get('menu') === 'play'
   const [playSelectionOpen, setPlaySelectionOpen] = useState(shouldRestorePlayMenu)
@@ -420,6 +450,37 @@ export default function HomeHub() {
       window.clearTimeout(requestTimer)
     }
   }, [requestWeatherLocation, splashDone])
+
+  const handleRefreshWeather = async () => {
+    if (weatherRefreshPending) return
+    setWeatherRefreshPending(true)
+    setWeatherStatusVisible(false)
+    try {
+      const resolved = await requestWeatherLocation()
+      if (resolved) setWeatherStatusVisible(true)
+    } finally {
+      setWeatherRefreshPending(false)
+    }
+  }
+
+  // Follow the latest lookup, including automatic recovery after changing device
+  // settings or reconnecting, so an earlier retry error cannot become stale.
+  let weatherStatusMessage: string | null = null
+  if (weatherStatusVisible && !weatherRefreshPending) {
+    if (weatherPermissionStatus === 'denied') {
+      weatherStatusMessage =
+        'Location is blocked. Allow location in your browser or device settings, then retry.'
+    } else if (weatherReason?.startsWith('fallback:location')) {
+      weatherStatusMessage = 'Location was unavailable. Check location access and try again.'
+    } else if (
+      weatherReason?.startsWith('fallback:weather') ||
+      weatherReason?.startsWith('resolveTheme:error')
+    ) {
+      weatherStatusMessage = 'Weather is temporarily unavailable. Try again shortly.'
+    } else if (weatherReason?.startsWith('weather:')) {
+      weatherStatusMessage = 'Local weather updated.'
+    }
+  }
 
   const savedRuns = useMemo(
     () => (!isGuest && activeProfileId ? loadSavedRunProfile(activeProfileId) : null),
@@ -962,6 +1023,9 @@ export default function HomeHub() {
             splashDone={splashDone}
             backgroundReady={backgroundLayers.ready}
             showWeatherPermissionRationale={showWeatherPermissionRationale}
+            weatherRefreshPending={weatherRefreshPending}
+            weatherStatusMessage={weatherStatusMessage}
+            onRefreshWeather={() => void handleRefreshWeather()}
             holidayTheme={playButtonHolidayTheme}
             playSelectionOpen={playSelectionOpen}
             playSelectionButtons={playSelectionButtons}

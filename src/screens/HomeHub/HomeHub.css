@@ -141,6 +141,42 @@ body:has(.homehub-shell) .app-shell {
   animation: hub-nav-enter 240ms ease both;
 }
 
+.home-hub__weather-control {
+  width: min(100%, 320px);
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(247, 249, 255, 0.94);
+}
+
+.home-hub__weather-refresh {
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid rgba(221, 230, 255, 0.24);
+  border-radius: 18px;
+  background: rgba(10, 15, 31, 0.76);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.home-hub__weather-refresh:focus-visible {
+  outline: 2px solid #dce6ff;
+  outline-offset: 3px;
+}
+
+.home-hub__weather-refresh:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.home-hub__weather-control p {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(10, 15, 31, 0.86);
+}
+
 .home-hub__title {
   margin: 0;
   font-size: 2rem;
