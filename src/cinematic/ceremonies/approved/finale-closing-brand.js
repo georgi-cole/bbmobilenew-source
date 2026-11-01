@@ -13,16 +13,20 @@ export function makeFinaleClosingBrandMarkup(art) {
     '</div><div class="exit-brand-turn">' +
     art('cinema_closingEye', 'exit-brand-face') +
     art('cinema_closingEye', 'exit-brand-face exit-brand-back') +
-    '</div><div class="exit-brand-shine"><i></i></div></div><div class="exit-brand-title">THE BIG EYE</div><i class="exit-brand-rule"></i></div></div>'
+    '</div><div class="exit-brand-shine"><i></i></div></div><div class="exit-brand-title">THE BIG EYE</div><i class="exit-brand-rule"></i></div><div class="exit-brand-blackout"></div></div>'
   )
 }
 
 /** Supply the host's animator so ownership, active time and disposal stay with its scene. */
 export function animateFinaleClosingBrand(
   hold,
-  { startAt = 0, holdUntil = startAt + 2460, fadeOut = true } = {}
+  { startAt = 0, holdUntil = startAt + 2460, fadeOut = true, flyToBlack = false } = {}
 ) {
   const smooth = 'cubic-bezier(.16,1,.3,1)'
+  // Spectator competitions fly through the Eye at the end. The approved
+  // Final Three departure keeps its original settled ident by default.
+  const launchAt = Math.max(startAt + 2220, holdUntil - 760)
+  const titleFadeAt = Math.max(launchAt + 120, holdUntil - 360)
   hold('.exit-brand', [
     [0, 0],
     [startAt, 0],
@@ -69,10 +73,33 @@ export function animateFinaleClosingBrand(
     [0, 0, 'translateY(12px)'],
     [startAt + 300, 0, 'translateY(12px)', smooth],
     [startAt + 780, 1, 'translateY(0)'],
+    ...(flyToBlack
+      ? [
+          [launchAt, 1, 'translateY(0)'],
+          [holdUntil - 180, 0, 'translateY(-8px)'],
+        ]
+      : []),
   ])
   hold('.exit-brand-rule', [
     [0, 0, 'scaleX(.15)'],
     [startAt + 500, 0, 'scaleX(.15)', smooth],
     [startAt + 1150, 0.7, 'scaleX(1)'],
+    ...(flyToBlack ? [[titleFadeAt, 0, 'scaleX(1.12)']] : []),
   ])
+  if (flyToBlack) {
+    // Camera-bound rush: the Eye finishes its turn facing forward, then
+    // accelerates through the lens. The last frames resolve to actual black.
+    hold('.exit-brand-emblem', [
+      [0, 1, 'scale(1)'],
+      [launchAt, 1, 'scale(1)', 'cubic-bezier(.6,.02,.92,.3)'],
+      [holdUntil - 150, 1, 'scale(6.3)'],
+      [holdUntil, 1, 'scale(9.4)'],
+    ])
+    hold('.exit-brand-blackout', [
+      [0, 0],
+      [holdUntil - 420, 0, undefined, 'ease-in'],
+      [holdUntil - 140, 0.96],
+      [holdUntil, 1],
+    ])
+  }
 }

@@ -254,6 +254,10 @@ describe('Final Three competition broadcast', () => {
       expect(stageRoot()).toHaveAttribute('data-part', String(part))
       expect(stageRoot()).toHaveAttribute('data-stage', 'establish')
       expect(stageRoot()).toHaveAttribute('data-active', 'true')
+      // The station Eye is a centered set element, not a child of the moving camera.
+      const eye = document.querySelector('.f3-broadcast__eye')!
+      expect(eye.parentElement).toHaveClass('f3-broadcast__frame')
+      expect(eye.closest('.f3-broadcast__camera')).toBeNull()
       expect(screen.queryByRole('button', { name: /begin|start|pause/i })).toBeNull()
       expect(document.querySelector('.cinematic-skip-button')).toBeTruthy()
       expect(document.querySelector('[data-winner-id]')).toBeNull()

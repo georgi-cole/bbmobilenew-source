@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import FinalThreeClosingBrand from '../FinalThreeClosingBrand'
+import { animateFinaleClosingBrand } from '../../../cinematic/ceremonies/approved/finale-closing-brand.js'
 
 type RecordedAnimation = {
   element: Element
@@ -55,7 +56,7 @@ afterEach(() => {
 })
 
 describe('shared Final Three closing ident', () => {
-  it('starts only at handoff and holds the settled Eye and title on the final frame', () => {
+  it('starts at handoff, turns the Eye face-on, then flies toward the lens and fades to black', () => {
     const { container, rerender } = render(
       <FinalThreeClosingBrand eyeSrc={eye} active={false} paused={false} />
     )
@@ -70,10 +71,22 @@ describe('shared Final Three closing ident', () => {
     const brand = recorded.find((animation) => animation.element.matches('.exit-brand'))!
     const title = recorded.find((animation) => animation.element.matches('.exit-brand-title'))!
     const turn = recorded.find((animation) => animation.element.matches('.exit-brand-turn'))!
+    const fly = recorded.find((animation) => animation.element.matches('.exit-brand-emblem'))!
+    const blackout = recorded.find((animation) => animation.element.matches('.exit-brand-blackout'))!
     expect(brand.options.duration).toBe(3000)
     expect(brand.frames.at(-1)).toMatchObject({ offset: 1, opacity: 1 })
-    expect(title.frames.at(-1)).toMatchObject({ offset: 1, opacity: 1 })
+    expect(title.frames.at(-1)).toMatchObject({ offset: 1, opacity: 0 })
     expect(turn.frames.at(-1)?.transform).toBe('rotateY(360deg) rotateZ(0deg)')
+    expect(fly.frames.at(-1)).toMatchObject({ offset: 1, transform: 'scale(9.4)' })
+    expect(blackout.frames.at(-1)).toMatchObject({ offset: 1, opacity: 1 })
+  })
+
+  it('does not change the approved Final Three exit ident unless flight is requested', () => {
+    const animations = new Map<string, unknown>()
+    animateFinaleClosingBrand((selector, frames) => animations.set(selector, frames))
+    expect(animations.has('.exit-brand-emblem')).toBe(false)
+    expect(animations.has('.exit-brand-blackout')).toBe(false)
+    expect(animations.has('.exit-brand-title')).toBe(true)
   })
 
   it('retains the current turn while suspended instead of replaying it on resume', () => {
@@ -140,5 +153,6 @@ describe('shared Final Three closing ident', () => {
     expect(container.querySelector('.exit-brand-turn')).toHaveStyle({
       transform: 'rotateY(360deg) rotateZ(0deg)',
     })
+    expect(container.querySelector('.exit-brand-blackout')).not.toHaveStyle({ opacity: '1' })
   })
 })

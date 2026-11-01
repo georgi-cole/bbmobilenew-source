@@ -15,5 +15,5 @@ export function makeFinaleClosingBrandMarkup(
 ): string
 export function animateFinaleClosingBrand(
   animate: (selector: string, stops: FinaleClosingBrandStop[]) => void,
-  options?: { startAt?: number; holdUntil?: number; fadeOut?: boolean }
+  options?: { startAt?: number; holdUntil?: number; fadeOut?: boolean; flyToBlack?: boolean }
 ): void

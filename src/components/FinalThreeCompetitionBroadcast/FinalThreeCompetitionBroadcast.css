@@ -171,8 +171,8 @@
   left: 50%;
   width: 25%;
   height: 12.5%;
-  transform: translateX(-50%) translateZ(18px);
-  perspective: 700px;
+  /* A fixed broadcast ident: centered independently of camera travel. */
+  transform: translateX(-50%);
 }
 .f3-broadcast__eye img {
   position: absolute;
@@ -181,7 +181,8 @@
   height: 100%;
   object-fit: contain;
   filter: drop-shadow(0 0 15px #eac78b55) drop-shadow(0 9px 10px #0008);
-  animation: f3-broadcast-eye 14s ease-in-out infinite alternate;
+  /* The on-set Eye faces the audience, without yaw or roll. */
+  transform: none;
 }
 .f3-broadcast__eye-halo {
   position: absolute;
@@ -901,7 +902,6 @@
 }
 .f3-broadcast[data-stage='establish'] .f3-broadcast__cast {
   filter: brightness(0.5);
-  transform: translateZ(30px) scale(0.97);
 }
 .f3-broadcast[data-stage='live'] .f3-broadcast__monitor,
 .f3-broadcast[data-stage='lock'] .f3-broadcast__monitor {
@@ -909,11 +909,8 @@
   height: 32%;
   transform: translateZ(34px) rotateX(-0.6deg);
 }
-.f3-broadcast[data-stage='live'] .f3-broadcast__cast,
-.f3-broadcast[data-stage='lock'] .f3-broadcast__cast {
-  height: 39%;
-  transform: translateZ(48px);
-}
+/* The cast's stage rig, feet, and cutout height remain fixed from setup
+   through live play. Only lighting and the independently sized monitor change. */
 .f3-broadcast[data-stage='live'] .f3-broadcast__competition-wash {
   opacity: 0.8;
 }
@@ -1161,17 +1158,6 @@
       57px -104px;
   }
 }
-@keyframes f3-broadcast-eye {
-  from {
-    transform: rotateY(-18deg) rotateZ(-3deg) translateY(0);
-  }
-  50% {
-    transform: rotateY(4deg) rotateZ(1deg) translateY(-3px);
-  }
-  to {
-    transform: rotateY(18deg) rotateZ(3deg) translateY(1px);
-  }
-}
 @keyframes f3-broadcast-halo {
   from {
     opacity: 0.65;
@@ -1331,10 +1317,6 @@
     top: 15.4%;
     height: 39%;
   }
-  .f3-broadcast[data-stage='verdict'] .f3-broadcast__cast,
-  .f3-broadcast[data-stage='handoff'] .f3-broadcast__cast {
-    height: 37%;
-  }
   .f3-broadcast__screen {
     padding: 3% 4%;
   }
@@ -1342,11 +1324,6 @@
   .f3-broadcast[data-stage='lock'] .f3-broadcast__monitor {
     top: 14.8%;
     height: 39%;
-  }
-  .f3-broadcast[data-stage='live'] .f3-broadcast__cast,
-  .f3-broadcast[data-stage='lock'] .f3-broadcast__cast {
-    bottom: 9%;
-    height: 37%;
   }
   .f3-broadcast__live {
     gap: 5px;

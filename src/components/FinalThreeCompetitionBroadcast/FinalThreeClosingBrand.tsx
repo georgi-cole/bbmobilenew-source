@@ -37,6 +37,7 @@ export default function FinalThreeClosingBrand({
       image.draggable = false
     }
     const created: Animation[] = []
+    const canFlyOut = typeof host.querySelector('.exit-brand')?.animate === 'function'
     animateFinaleClosingBrand(
       (selector, stops) => {
         const last = stops.at(-1)!
@@ -61,7 +62,7 @@ export default function FinalThreeClosingBrand({
           created.push(animation)
         }
       },
-      { startAt: 0, holdUntil: BRAND_DURATION_MS, fadeOut: false }
+      { startAt: 0, holdUntil: BRAND_DURATION_MS, fadeOut: false, flyToBlack: canFlyOut }
     )
     animations.current = created
     return () => {
