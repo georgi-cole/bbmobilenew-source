@@ -96,6 +96,7 @@ import Final3Ceremony from '../../components/Final3Ceremony/Final3Ceremony'
 import TribunalCinematicLoading from '../../components/TribunalDecisionCinematic/TribunalCinematicLoading'
 import FinalThreeBlockReveal from '../../components/FinalPowerBattle/FinalThreeBlockReveal'
 import FinalPowerBattleIntro from '../../components/FinalPowerBattle/FinalPowerBattleIntro'
+import FinalThreeCompetitionBroadcast from '../../components/FinalThreeCompetitionBroadcast/FinalThreeCompetitionBroadcast'
 import VoxFinalThreeAppeal from '../../components/VoxFinalThreeAppeal/VoxFinalThreeAppeal'
 import VoxFinalThreeCeremony from '../../components/VoxFinalThreeCeremony/VoxFinalThreeCeremony'
 import { useVoxFinalThreeCeremony } from '../../components/VoxFinalThreeCeremony/useVoxFinalThreeCeremony'
@@ -878,6 +879,7 @@ export default function GameScreen() {
     finalPowerBattleIntroActive,
     handleFinalPowerBattleIntroDone,
     spectatorF3Part1Active,
+    spectatorF3Part1Key,
     spectatorF3Part1CompetitorIds,
     handleSpectatorF3Part1Done,
     finalThreeBlockRevealActive,
@@ -885,9 +887,11 @@ export default function GameScreen() {
     finalThreeBlockCompetitors,
     handleFinalThreeBlockRevealDone,
     spectatorF3Active,
+    spectatorF3Key,
     spectatorF3CompetitorIds,
     handleSpectatorF3Done,
     spectatorF3Part2Active,
+    spectatorF3Part2Key,
     spectatorF3Part2CompetitorIds,
     handleSpectatorF3Part2Done,
     final4Stage,
@@ -1398,6 +1402,7 @@ export default function GameScreen() {
   // after that presentation completes, rather than losing the prompt.
   const deferConditionPromptsForPresentation =
     vipPresentationActive ||
+    finaleOverlayActive ||
     voxFinalThreeCeremony.active ||
     shouldShowNominationCeremony ||
     showWinnerCeremony ||
@@ -1737,7 +1742,14 @@ export default function GameScreen() {
         ) : (
           <TvZone
             key={game.gameId}
-            playOwnedExternally={finalPowerBattleIntroActive || voxFinalThreeCeremony.active}
+            playOwnedExternally={
+              finalPowerBattleIntroActive ||
+              finalThreeBlockRevealActive ||
+              spectatorF3Part1Active ||
+              spectatorF3Part2Active ||
+              spectatorF3Active ||
+              voxFinalThreeCeremony.active
+            }
             viewportMessageOverride={
               showBattleBackOverlay
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'
@@ -2853,45 +2865,33 @@ export default function GameScreen() {
           />
         )}
 
-        {/* ── SpectatorView — Final 3 Part 1 (Tribunal member watches the opening battle) ── */}
+        {/* Every nonplaying Final Three role uses the same result-bound broadcast. */}
         {spectatorF3Part1Active && spectatorReactEnabled && (
-          <SpectatorView
-            key={spectatorF3Part1CompetitorIds.join('-') + '-p1'}
+          <FinalThreeCompetitionBroadcast
+            key={`${presentationRunKey}:${spectatorF3Part1Key}`}
+            part={1}
             competitorIds={spectatorF3Part1CompetitorIds}
-            variant="maze"
             expectedWinnerId={f3Part1PredictedWinnerId ?? undefined}
-            roundLabel="Part 1 · The Advancement"
-            presentation="final-three-part1"
             onPlayAvailabilityChange={setFinaleSpectatorPlayAvailable}
             onDone={handleSpectatorF3Part1Done}
           />
         )}
-
-        {/* ── SpectatorView — Final 3 Part 2 (human won Part 1, sits out Part 2) ── */}
-        {/* expectedWinnerId pre-computes the AI pick so the reveal matches advance(). */}
         {spectatorF3Part2Active && spectatorReactEnabled && (
-          <SpectatorView
-            key={spectatorF3Part2CompetitorIds.join('-') + '-p2'}
+          <FinalThreeCompetitionBroadcast
+            key={`${presentationRunKey}:${spectatorF3Part2Key}`}
+            part={2}
             competitorIds={spectatorF3Part2CompetitorIds}
-            variant="trivia"
             expectedWinnerId={f3Part2PredictedWinnerId ?? undefined}
-            roundLabel="Part 2 · The Qualifier"
-            presentation="final-three-part2"
             onPlayAvailabilityChange={setFinaleSpectatorPlayAvailable}
             onDone={handleSpectatorF3Part2Done}
           />
         )}
-
-        {/* ── SpectatorView — Final 3 Part 3 (human is spectator) ─────────── */}
-        {/* Pass expectedWinnerId so the overlay always reveals the correct winner. */}
         {spectatorF3Active && spectatorReactEnabled && (
-          <SpectatorView
-            key={spectatorF3CompetitorIds.join('-')}
+          <FinalThreeCompetitionBroadcast
+            key={`${presentationRunKey}:${spectatorF3Key}`}
+            part={3}
             competitorIds={spectatorF3CompetitorIds}
-            variant="holdwall"
             expectedWinnerId={f3Part3PredictedWinnerId ?? undefined}
-            roundLabel="The Final Power Battle"
-            presentation="final-three-part3"
             onPlayAvailabilityChange={setFinaleSpectatorPlayAvailable}
             onDone={handleSpectatorF3Done}
           />

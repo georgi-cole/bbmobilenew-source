@@ -66,6 +66,18 @@ The adapter uses existing VIP/Cinematic eligibility and presentation ownership, 
 
 This iteration adds no bitmap plates or character poses. All four viewing roles reuse the approved modular artwork, front figures and existing doorway exit.
 
+## Final Three competition spectators
+
+`FinalThreeCompetitionBroadcast` replaces the three Final Three uses of the generic spectator overlay. Part 1 shows the actual three AI finalists; Part 2 shows the two finalists who did not win Part 1; Part 3 shows the two qualified duelists. It covers an eliminated/Tribunal viewer, the Part 1 winner sitting out Part 2, and the surviving finalist who did not qualify for Part 3. Human competitors keep their existing playable challenges.
+
+The broadcast uses the existing garden background with independently animated front cutouts, illuminated podiums, Eye ornament, glass monitor, beams, reflections, dust and mist. The monitor carries the contestant names and round stakes without separate nameplates. Parts 1 and 2 demonstrate Signal Hunt, Sequence Builder and Risk Run; Part 3 presents Down Memory Lane and can draw a question from the current season's real question bank. AI-only rounds store a winner and seed rather than a scored match transcript, so the film never supplies invented points, answered questions, shifting leaders or depleted lives. Classic's final winner earns final power; Vox's earns final immunity.
+
+Prepared, eligible broadcasts start automatically. Circuit films last 25.6 seconds, and the memory duel lasts 23.4 seconds, with a result-lock beat and a 4.8–5-second winner hold before the soft handoff. They use `CinematicSkipButton`, have no Begin/Pause controls, and suspend their animation and active-time clocks when hidden or superseded. Standard, reduced-motion, disabled-animation, short-viewport and failed/unsupported-art presentations show an accessible static result with Continue. Preferences or resizing cannot restart an abandoned cinematic midway through a result. The centrally resolved `final_three_week` track retains its existing playback position; scene-owned, abortable SFX only accent the opening, lock and reveal.
+
+`useEndgameFlow` derives the current spectator round from the real phase and cast. Existing predicted-winner selectors mirror the reducer's seeded result; the film cannot choose a winner. Completion releases only its own spectator lease, then advances the live matching run once. Identity checks include the game, season, week, phase, seed, mode, participants and prior qualifiers. Reloading Classic's internal `final3_comp1` state resumes with its remaining single advance, while the normal Classic opener retains its two steps. Newly committed result broadcasts already shown by the film are consumed by exact event ID; unrelated and historical events remain. The Classic Part 3 reveal receipt still prevents an extra power-holder reveal before the approved decision ceremony.
+
+The generic spectator overlay and its legacy event listeners remain unchanged. The new broadcast reuses the existing scene plates and catalog front poses and introduces no dependency or bitmap asset.
+
 ## Final-day closing frame
 
 Classic and Vox Final Three departures retain the original walk, door closure and camera zoom. After that zoom lands, the existing soft purple/gold transition frame displays the generated gold Eye ornament, with **THE BIG EYE** centered beneath it. The Eye makes a slow three-dimensional turn, catches a restrained reflection and settles facing forward. The title and ornament remain readable in the frozen handoff frame, while the small ceremony-film footer recedes.

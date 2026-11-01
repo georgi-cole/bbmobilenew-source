@@ -25,7 +25,7 @@ The automatic route adds a holder-focused deliberation between the two speeches 
 
 The human holder and all three AI-holder viewing scenarios are approved. Retain the real royal/front/exit poses, fitted crown anchors, outcome concealment before the verdict, compact phone layouts, guarded Skip, native fallback, foreground suspension and continuous soundtrack as the shared baseline.
 
-## Current iteration: Vox Final Three audience verdict
+## Approved: Vox Final Three audience verdict
 
 Reuse the modular set with cooler violet light, a crownless immunity holder in their normal outfit, and the glass monitor as the source of audience information. The film covers the human being immune, a nominee who stays, a nominee who leaves, and a spectator outside the final cast.
 
@@ -41,9 +41,23 @@ The current-scene identity includes the game, season, week, immunity holder and 
 
 Review all four roles through recordings from the real scene, game appeal/vote calculation and exit renderer. Check compact appeal controls, whole speeches, long names beside percentages, the human in either nominee position, delayed resolution, ties, required-choice Skip behavior and music through departure.
 
-## Next: Final Power Battle
+## Current iteration: Final Three competition spectators
 
-Apply the same visual standard to the opening and the three round transitions, with participant and spectator framing. The monitor can present match progress and actual results. Keep playable competition controls legible at phone sizes; spectator coverage can emphasize the broadcast presentation. Generate additional modular scenery only where the existing assets cannot support the required composition.
+The three AI-only rounds now use an automatic garden broadcast with the approved modular Eye, glass monitor and full-size cast. Moving beams, mist, reflections and continuous camera depth connect each round's introduction, challenge coverage, result lock and solo winner reveal. The shared Skip control advances the existing result; there is no Begin or Pause button.
+
+| Round                           | Competition coverage                                                        | Nonplaying viewer                                     |
+| ------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Part 1 · The Advancement        | Three finalists; Signal Hunt, Sequence Builder and Risk Run                 | Eliminated or Tribunal viewer                         |
+| Part 2 · The Qualifier          | The two remaining Circuit competitors                                       | Part 1 winner already qualified, or eliminated viewer |
+| Part 3 · The Final Power Battle | Down Memory Lane, with a question drawn from the real season when available | Finalist outside the duel, or eliminated viewer       |
+
+Parts 1 and 2 reveal who advances to Part 3. The last round distinguishes Classic's final power from Vox Populi's final immunity. The real player retains the existing interactive challenge whenever they are a competitor.
+
+AI-only rounds record the participant IDs, winner and seed; they do not record points or a question-by-question match. Monitor graphics therefore illustrate the actual challenge mechanics without inventing scores, leaders, answers or lost lives. Existing deterministic selectors supply the winner that the reducer will commit. The broadcast reveals it once, then releases its spectator gate before the existing phase advance. Only newly emitted result cards already represented by the film are consumed.
+
+The normal round films last 25.6 seconds for the Circuit and 23.4 seconds for Down Memory Lane, including a readable winner hold. Backgrounding or losing presentation ownership suspends their active clocks and visual effects. The existing Final Three music remains continuous; brief, abortable accents mark the opening, result lock and reveal. Standard, reduced-motion, short-viewport, unsupported-art and preparation-failure routes offer a static result and shared Continue control. Run, phase, seed and cast checks prevent an old callback from advancing a replacement game; saved internal Classic Part 1 states resume correctly.
+
+The set reuses existing artwork and adds no bitmap assets or dependencies. Review the eliminated viewer, the qualified Part 1 winner, and both final-duel rule sets on compact and tall phones, including Skip, foreground suspension and the actual committed result.
 
 The later Vox Final Two audience ballot uses **VOTE TO WIN** and celebratory emphasis for the winner. Keep those semantics distinct from the Final Three elimination ballot.
 
