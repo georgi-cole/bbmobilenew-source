@@ -1,5 +1,5 @@
 import { getProfilePhotoAvatarId } from '../../utils/avatar'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useAppSelector, useAppDispatch } from '../../store/hooks'
 import {
@@ -21,6 +21,11 @@ import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import { persistCurrentRunSnapshot } from '../../store/store'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import ProfileOptionalDetails from '../../components/ProfileOptionalDetails/ProfileOptionalDetails'
+import ProfileEmailFields from '../../components/ProfileEmailFields/ProfileEmailFields'
+import {
+  createProfileDraftIdentity,
+  useProfileEmailForm,
+} from '../../components/ProfileEmailFields/useProfileEmailForm'
 import { normalizeProfileBio } from '../../components/ProfileOptionalDetails/profileBio'
 import ProfilePhotoPreview from '../../components/ProfilePhotoPreview/ProfilePhotoPreview'
 import { coerceAppearanceSelection, type AppearanceSelection } from '../../appearance/catalog'
@@ -84,6 +89,17 @@ export default function EditProfile() {
 
   const [bio, setBio] = useState<ProfileBio>(() => (creatingProfile ? {} : { ...profile?.bio }))
   const [saving, setSaving] = useState(false)
+  const [draftIdentity] = useState(createProfileDraftIdentity)
+  const emailForm = useProfileEmailForm(creatingProfile ? null : (profile?.id ?? null))
+  const mounted = useRef(false)
+  const currentProfileId = useRef(profile?.id ?? null)
+  useLayoutEffect(() => {
+    mounted.current = true
+    currentProfileId.current = profile?.id ?? null
+    return () => {
+      mounted.current = false
+    }
+  }, [profile?.id])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -141,7 +157,9 @@ export default function EditProfile() {
   }
 
   async function handleSave() {
-    if (saving) return
+    if (saving || !emailForm.validate()) return
+    const profileIdAtSave = profile?.id ?? null
+    const canCommit = () => mounted.current && currentProfileId.current === profileIdAtSave
 
     if (creatingProfile) {
       const parsedAge = Number(bio.age)
@@ -176,16 +194,24 @@ export default function EditProfile() {
 
         const normalizedBio = normalizeProfileBio(bio, { clearEmptyFields: true })
         const profileDetails = {
+          id: draftIdentity.id,
           name: name.trim(),
           avatar: '👤',
           photoId,
           bio: normalizedBio,
           appearanceSelection: creationSelection,
         }
+        if (
+          !canCommit() ||
+          !(await emailForm.save({ ...profileDetails, createdAt: draftIdentity.createdAt }))
+        )
+          return
+        if (!canCommit()) return
         if (routeState?.adoptGuestRun) {
           withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
           persistCurrentRunSnapshot()
           await flushSavePersistence()
+          if (!mounted.current) return
         } else {
           withRunAutosaveSuspended(() => {
             dispatch(createProfile(profileDetails))
@@ -198,47 +224,62 @@ export default function EditProfile() {
           state: { from: '/', fromLookReveal: true },
         })
       } finally {
-        setSaving(false)
+        if (mounted.current) setSaving(false)
       }
       return
     }
 
     if (!profile) return
 
-    let photoId = profile.photoId
+    setSaving(true)
+    try {
+      let photoId = profile.photoId
 
-    // Persist new photos before collecting revisions unreferenced by saved or live runs.
-    // Only update photoId if the write actually succeeds — if IndexedDB is unavailable
-    // (e.g. private browsing, quota exceeded) we keep the existing photoId so the
-    // profile does not reference an image that can never be loaded.
-    if (newPhotoBlob) {
-      const id = `photo-${profile.id}-${Date.now()}`
-      try {
-        await saveImage(id, newPhotoBlob)
-        photoId = id
-      } catch (err) {
-        // saveImage failed (e.g. private browsing, quota exceeded).
-        // Keep the existing photoId so the profile does not reference a missing image.
-        console.error('Failed to save profile photo to IndexedDB', err)
+      // Persist new photos before collecting revisions unreferenced by saved or live runs.
+      // Only update photoId if the write actually succeeds — if IndexedDB is unavailable
+      // (e.g. private browsing, quota exceeded) we keep the existing photoId so the
+      // profile does not reference an image that can never be loaded.
+      if (newPhotoBlob) {
+        const id = `photo-${profile.id}-${Date.now()}`
+        try {
+          await saveImage(id, newPhotoBlob)
+          photoId = id
+        } catch (err) {
+          // saveImage failed (e.g. private browsing, quota exceeded).
+          // Keep the existing photoId so the profile does not reference a missing image.
+          console.error('Failed to save profile photo to IndexedDB', err)
+        }
       }
-    }
 
-    const normalizedBio = normalizeProfileBio(bio, { clearEmptyFields: true })
-
-    dispatch(
-      updateProfile({
+      const normalizedBio = normalizeProfileBio(bio, { clearEmptyFields: true })
+      const profileDetails = {
+        ...profile,
         name: name.trim() || profile.name,
         avatar: profile.avatar,
         photoId,
         bio: normalizedBio,
-      })
-    )
-    const keepPhotoIds = savedProfilePhotoIds(profile.id)
-    if (photoId) keepPhotoIds.push(photoId)
-    if (currentRunPhotoId) keepPhotoIds.push(currentRunPhotoId)
-    if (photoId !== profile.photoId)
-      await pruneProfilePhotos(profile.id, keepPhotoIds, profile.photoId ? [profile.photoId] : [])
-    navigate(editReturnPath, { replace: true, state: { from: editReturnFrom } })
+      }
+      if (!canCommit() || !(await emailForm.save(profileDetails))) return
+      if (!canCommit()) return
+
+      dispatch(
+        updateProfile({
+          name: profileDetails.name,
+          avatar: profile.avatar,
+          photoId,
+          bio: normalizedBio,
+        })
+      )
+      const keepPhotoIds = savedProfilePhotoIds(profile.id)
+      if (photoId) keepPhotoIds.push(photoId)
+      if (currentRunPhotoId) keepPhotoIds.push(currentRunPhotoId)
+      if (photoId !== profile.photoId)
+        await pruneProfilePhotos(profile.id, keepPhotoIds, profile.photoId ? [profile.photoId] : [])
+      if (!canCommit()) return
+      navigate(editReturnPath, { replace: true, state: { from: editReturnFrom } })
+    } finally {
+      if (mounted.current) setSaving(false)
+    }
   }
 
   async function handleDeleteProfile() {
@@ -297,6 +338,7 @@ export default function EditProfile() {
             className="edit-profile__photo-btn"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Upload photo"
+            disabled={saving}
           >
             📷
           </button>
@@ -306,6 +348,7 @@ export default function EditProfile() {
             accept="image/jpeg,image/png,image/webp,image/gif"
             style={{ display: 'none' }}
             onChange={handlePhotoChange}
+            disabled={saving}
           />
         </div>
         <div>
@@ -384,6 +427,7 @@ export default function EditProfile() {
           <option value="Prefer not to say">Prefer not to say</option>
         </select>
       </div>
+      <ProfileEmailFields form={emailForm} idPrefix="ep" disabled={saving} />
       <ProfileOptionalDetails
         value={bio}
         onChange={setBio}
@@ -405,6 +449,7 @@ export default function EditProfile() {
             type="button"
             className="edit-profile__delete-btn"
             onClick={() => setDeleteConfirmationOpen(true)}
+            disabled={saving}
           >
             Delete Profile
           </button>
@@ -416,6 +461,7 @@ export default function EditProfile() {
         <button
           type="button"
           className="edit-profile__btn edit-profile__btn--cancel"
+          disabled={saving}
           onClick={() => {
             if (creatingProfile) {
               navigate('/profile/dressing-room', {

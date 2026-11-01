@@ -24,10 +24,9 @@ const GAME_SCREENS = new Set([
 function screenGroup(screenId: string): string {
   if (screenId === 'store') return 'marketplace'
   if (GAME_SCREENS.has(screenId)) return 'gameplay'
-  if (screenId.includes('profile') || screenId === 'dressing-room' || screenId === 'account')
-    return 'profiles'
+  if (screenId.includes('profile') || screenId === 'dressing-room') return 'profiles'
   if (screenId === 'settings') return 'settings'
-  if (screenId === 'legal' || screenId === 'rules' || screenId === 'credits') return 'information'
+  if (['legal', 'rules', 'credits', 'unsubscribe'].includes(screenId)) return 'information'
   if (screenId === 'home' || screenId === 'not-found') return 'home'
   return 'menu'
 }

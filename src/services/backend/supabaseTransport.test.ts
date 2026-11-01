@@ -19,6 +19,7 @@ type TestSession = { user: { id: string; is_anonymous: boolean } }
 const sessions: Record<BackendPurpose, TestSession | null> = {
   profile_backup: null,
   analytics: null,
+  audience_admin: null,
 }
 
 function fakeClient(purpose: BackendPurpose) {
@@ -36,6 +37,11 @@ function fakeClient(purpose: BackendPurpose) {
         sessions[purpose] = session
         return { data: { session, user: session.user }, error: null }
       }),
+      signInWithPassword: vi.fn(async () => {
+        const session = { user: { id: 'audience-administrator', is_anonymous: false } }
+        sessions[purpose] = session
+        return { data: { session, user: session.user }, error: null }
+      }),
       signOut: vi.fn(async () => {
         sessions[purpose] = null
         return { error: null }
@@ -46,6 +52,7 @@ function fakeClient(purpose: BackendPurpose) {
 
 let profileClient: ReturnType<typeof fakeClient>
 let analyticsClient: ReturnType<typeof fakeClient>
+let adminClient: ReturnType<typeof fakeClient>
 
 beforeEach(() => {
   vi.resetModules()
@@ -53,10 +60,16 @@ beforeEach(() => {
   vi.stubGlobal('navigator', { locks: undefined })
   sessions.profile_backup = null
   sessions.analytics = null
+  sessions.audience_admin = null
   profileClient = fakeClient('profile_backup')
   analyticsClient = fakeClient('analytics')
+  adminClient = fakeClient('audience_admin')
   mocks.createClient.mockImplementation((_url, _key, options: { auth: { storageKey: string } }) =>
-    options.auth.storageKey.includes(':analytics:') ? analyticsClient : profileClient
+    options.auth.storageKey.includes(':analytics:')
+      ? analyticsClient
+      : options.auth.storageKey.includes(':audience_admin:')
+        ? adminClient
+        : profileClient
   )
 })
 
@@ -76,6 +89,26 @@ function holdAnonymousSignIn() {
 }
 
 describe('backend Auth operation coordination', () => {
+  it('keeps administrator credentials and sessions separate from anonymous player backups', async () => {
+    const transport = await import('./supabaseTransport')
+    await transport.authenticatedBackend('profile_backup')
+    await transport.withBackendAuthLock('audience_admin', (client) =>
+      client.auth.signInWithPassword({ email: 'admin@example.test', password: 'password' })
+    )
+    expect(sessions.profile_backup?.user.id).toBe('anonymous-profile_backup')
+    expect(sessions.audience_admin?.user.id).toBe('audience-administrator')
+    expect(profileClient.auth.signInWithPassword).not.toHaveBeenCalled()
+    expect(mocks.createClient).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({
+        auth: expect.objectContaining({
+          storageKey: 'bbmobilenew:supabase:audience_admin:v1',
+        }),
+      })
+    )
+  })
+
   it('finishes pending anonymous creation before OTP verification and retains the verified session', async () => {
     const transport = await import('./supabaseTransport')
     const anonymous = holdAnonymousSignIn()

@@ -10,6 +10,7 @@
 }
 
 .player-audience__header,
+.player-audience__header-actions,
 .player-audience__list-heading {
   display: flex;
   align-items: center;
@@ -40,12 +41,13 @@
 }
 
 .player-audience button,
+.player-audience input,
 .player-audience select,
 .player-audience a {
   min-height: 44px;
 }
 
-.player-audience :is(button, select, a):focus-visible {
+.player-audience :is(button, input, select, a):focus-visible {
   outline: 2px solid var(--game-focus-color);
   outline-offset: 2px;
   box-shadow: var(--game-focus-ring);
@@ -180,9 +182,48 @@
   overflow-wrap: anywhere;
 }
 
-.player-audience__verified {
-  color: var(--game-success);
+.player-audience__unverified {
+  color: var(--game-warning);
   font-size: 0.75rem;
+}
+
+.player-audience__admin-sign-in {
+  max-width: 440px;
+  padding-block: var(--game-space-4);
+}
+
+.player-audience__admin-sign-in fieldset {
+  display: grid;
+  gap: var(--game-space-3);
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  border: 0;
+}
+
+.player-audience__admin-sign-in legend {
+  margin-bottom: var(--game-space-3);
+  font-weight: 700;
+}
+
+.player-audience__admin-sign-in label {
+  color: var(--game-text-secondary);
+  font-size: 0.85rem;
+}
+
+.player-audience__admin-sign-in input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--game-space-3);
+  border: 1px solid var(--game-border-strong);
+  border-radius: var(--game-radius-1);
+  background: var(--game-surface-raised);
+  color: var(--game-text-primary);
+  font: inherit;
+}
+
+.player-audience .player-audience__admin-error {
+  color: var(--game-warning);
 }
 
 .player-audience__activity {

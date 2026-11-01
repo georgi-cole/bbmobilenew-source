@@ -53,6 +53,21 @@ describe('createProfile', () => {
     expect(profiles[0].name).toBe('Alice')
     expect(profiles[0].avatar).toBe('👩')
     expect(activeProfileId).toBe(profiles[0].id)
+    expect(profiles[0].id).toEqual(expect.any(String))
+    expect(profiles[0].id.length).toBeGreaterThan(0)
+  })
+
+  it('keeps a preallocated draft ID and rejects a duplicate without changing the active profile', () => {
+    const store = makeStore()
+    const id = 'c9b687eb-d8e5-46ed-8182-f0324f0c4ca1'
+    store.dispatch(createProfile({ id, name: 'Maya', avatar: '👤' }))
+    expect(store.getState().profiles.activeProfileId).toBe(id)
+    expect(store.getState().profiles.profiles[0].id).toBe(id)
+
+    store.dispatch(createProfile({ id: 'other-profile', name: 'Leo', avatar: '🧑' }))
+    const before = store.getState().profiles
+    store.dispatch(createProfile({ id, name: 'Replacement', avatar: '👽' }))
+    expect(store.getState().profiles).toBe(before)
   })
 
   it('trims name whitespace and defaults to "You" for empty name', () => {

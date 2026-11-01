@@ -51,10 +51,9 @@
         When the online backend is enabled for this version, saved profiles are automatically backed
         up to Supabase. The backup includes the profile identifier, display name, avatar, selected
         appearance, achievements, and unlock progress. Photos, biographies, wallet data, season
-        archives, and saved games remain on the device. The backup initially uses an anonymous
-        account stored by this installation. You can optionally connect a verified email to that
-        account. Connecting an email does not provide restoration of device-only data on another
-        device.
+        archives, and saved games remain on the device. The backup uses an anonymous account stored
+        by this installation. Adding an optional contact email does not change this identity or
+        provide restoration of device-only data on another device.
       </p>
       <p>
         The app automatically sends pseudonymous gameplay events to Supabase, including guest
@@ -76,22 +75,31 @@
         request. For access or deletion requests, email
         <a href="mailto:kolequant@gmail.com">kolequant@gmail.com</a>.
       </p>
-      <h2>Optional account email and contact choices</h2>
+      <h2>Optional profile email and game updates</h2>
       <p>
-        You may connect a verified email in Manage profiles → Account &amp; email. Supabase Auth
-        stores the email for the shared account that owns this device's profile backups.
-        Verification and sign-in emails are used for account access. The email is not copied into
-        profile backups or gameplay event payloads. It can be viewed by authorized administrators
-        together with account preferences and broad activity groups, such as returning or inactive
-        player records.
+        When this feature is enabled, you may add an email while creating or editing a profile.
+        Supabase stores it in a private contact record linked to that profile so the project owner
+        can associate your contact information and communication preference with your player record.
+        The address is unverified and is not used to sign in, recover saves, or automatically
+        combine profiles. It is not copied into local game saves, profile backup snapshots, or
+        gameplay event payloads. Authorized administrators can view it with your preference and
+        broad activity groups, such as returning or inactive player records.
       </p>
       <p>
-        News and test invitations are two separate, optional choices, initially off. We store each
-        choice and when it changed. You can withdraw either choice in Account &amp; email without
-        giving up account access. Disconnecting a device ends its account session; it does not
-        delete the online account, erase its data, or withdraw contact preferences. Account
-        information is retained until the account is deleted. Contact support for account deletion
-        or data access.
+        The optional, initially unchecked subscription box gives consent to receive The Big Eye news
+        and playtest invitations by email. Entering an address or accepting this policy does not
+        subscribe you. We record your choice, the displayed consent version, and when the choice
+        changed. Invitations do not automatically enroll you in a testing program. You can turn off
+        this profile's subscription in Edit Profile. Each campaign email must also include an
+        unsubscribe link that stops these messages for the address, without requiring a game login
+        or deleting your profiles. Changing the address requires a new subscription choice.
+      </p>
+      <p>
+        Your contact address remains linked to the profile until you clear it in Edit Profile or the
+        profile's online record is deleted. Clearing the address also removes its subscription.
+        Deleting a profile requests deletion of its contact record with its backup when the device
+        next connects. Uninstalling alone does not delete online records. For access, correction, or
+        deletion requests, contact <a href="mailto:kolequant@gmail.com">kolequant@gmail.com</a>.
       </p>
       <h2>Optional location</h2>
       <p>

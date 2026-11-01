@@ -54,13 +54,14 @@ export default function Legal() {
           restored on another device. Contact support for data access or deletion requests.
         </p>
         <p>
-          Connecting an email is optional. Supabase Auth stores and verifies the shared account
-          email for this device's profiles. Authentication emails do not subscribe you to news or
-          test invitations: those are separate choices in Account &amp; email, and you can withdraw
-          either choice there. Your email is not added to gameplay event payloads. Authorized
-          administrators can view account contact preferences alongside coarse activity groups.
-          Disconnecting this device keeps its local profiles and does not delete your online account
-          or withdraw contact preferences.
+          Email is optional when creating or editing a profile. It is stored privately in Supabase
+          with that profile's contact preference, separately from game saves and analytics events.
+          It is an unverified contact address, not a login. The optional, initially unchecked box
+          subscribes you to The Big Eye news and playtest invitations. You can change this choice in
+          Edit Profile or use the unsubscribe link in an email. Clearing the field removes the
+          address and turns off this profile's subscription. Authorized administrators can view
+          profile contact preferences alongside broad activity groups. Adding an email never
+          automatically subscribes you or combines profiles that share an address.
         </p>
         <p>
           Location is optional. If you allow it, coordinates are sent to Open-Meteo to request

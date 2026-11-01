@@ -58,7 +58,7 @@ describe('route attribution', () => {
 
   it('records guest screen time without requiring an account', () => {
     const dispose = setupRouteAnalytics({
-      getPathname: () => '/account',
+      getPathname: () => '/profile-edit',
       getProfileId: () => null,
       subscribeRoute: () => () => undefined,
       subscribeProfile: () => () => undefined,
@@ -68,7 +68,7 @@ describe('route attribution', () => {
     expect(trackProductEvent).toHaveBeenCalledWith(
       'screen_time',
       {
-        screen_id: 'account',
+        screen_id: 'profile-edit',
         screen_group: 'profiles',
         duration_seconds: 4,
       },

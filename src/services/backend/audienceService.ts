@@ -7,7 +7,7 @@ export const AUDIENCE_GROUPS = [
   'completed',
   'inactive',
   'tribunal',
-  'tester',
+  'subscribed',
 ] as const
 export type AudienceGroup = (typeof AUDIENCE_GROUPS)[number]
 
@@ -18,8 +18,7 @@ export type AudiencePlayer = {
   isGuest: boolean
   verifiedEmail: boolean
   email: string | null
-  newsOptIn: boolean
-  testerOptIn: boolean
+  updatesOptIn: boolean
   lastActiveAt: string | null
   firstSeenAt: string
   seasonsStarted: number
@@ -67,8 +66,7 @@ function isPlayer(value: unknown): value is AudiencePlayer {
     typeof value.isGuest === 'boolean' &&
     typeof value.verifiedEmail === 'boolean' &&
     (value.email === null || typeof value.email === 'string') &&
-    typeof value.newsOptIn === 'boolean' &&
-    typeof value.testerOptIn === 'boolean' &&
+    typeof value.updatesOptIn === 'boolean' &&
     (value.lastActiveAt === null || isDate(value.lastActiveAt)) &&
     isDate(value.firstSeenAt) &&
     isCount(value.seasonsStarted) &&
@@ -103,10 +101,10 @@ export async function loadPlayerAudience(signal?: AbortSignal): Promise<PlayerAu
   if (!getBackendConfig() || import.meta.env.VITE_PLAYER_ACCOUNTS_ENABLED !== 'true')
     throw new AudienceAccessError('disabled', 'Player audience is not enabled in this build.')
   try {
-    const client = await getBackendClient('profile_backup')
+    const client = await getBackendClient('audience_admin')
     const current = await client.auth.getSession()
     if (current.error) throw current.error
-    if (!current.data.session)
+    if (!current.data.session || current.data.session.user.is_anonymous === true)
       throw new AudienceAccessError(
         'access',
         'Sign in with an approved admin account to view players.'

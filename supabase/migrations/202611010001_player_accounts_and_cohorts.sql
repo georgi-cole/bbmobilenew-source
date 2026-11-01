@@ -1,91 +1,210 @@
 -- Apply after 202610270003_game_mode_analytics.sql.
--- Email addresses stay in auth.users; application tables contain preferences only.
+-- Optional profile contacts are unverified addresses, separate from Auth identity.
 begin;
 
-create table public.player_contact_preferences (
-  owner_id uuid primary key references auth.users(id) on delete cascade,
-  news_opt_in boolean not null default false,
-  tester_opt_in boolean not null default false,
-  news_opted_in_at timestamptz,
-  news_opted_out_at timestamptz,
-  tester_opted_in_at timestamptz,
-  tester_opted_out_at timestamptz,
+create table public.player_profile_contacts (
+  owner_id uuid not null,
+  profile_id text not null,
+  email text check (
+    email is null or (
+      email = lower(btrim(email, E' \t\n\r\f'))
+      and length(email) between 3 and 254
+      and email ~ '^[^[:space:][:cntrl:]@]+@[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+    )
+  ),
+  updates_opt_in boolean not null default false check (not updates_opt_in or email is not null),
+  updates_opted_in_at timestamptz,
+  updates_opted_out_at timestamptz,
   consent_version text not null default '2026-11-01',
+  revision uuid not null default gen_random_uuid(),
+  unsubscribe_token uuid not null unique default gen_random_uuid(),
+  last_unsubscribed_at timestamptz,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  primary key (owner_id, profile_id),
+  foreign key (owner_id, profile_id)
+    references public.player_profiles (owner_id, profile_id) on delete cascade
 );
+create index player_profile_contacts_email_idx on public.player_profile_contacts (email)
+where email is not null;
 
-create function public.player_account_is_verified() returns boolean
-language sql stable security definer set search_path = '' as $$
-  select exists (
-    select 1 from auth.users u
-    where u.id = (select auth.uid())
-      and not coalesce(u.is_anonymous, true)
-      and u.email_confirmed_at is not null
-      and nullif(trim(u.email), '') is not null
-  );
-$$;
-revoke all on function public.player_account_is_verified() from public, anon;
-grant execute on function public.player_account_is_verified() to authenticated;
+alter table public.player_profile_contacts enable row level security;
+revoke all on public.player_profile_contacts from public, anon, authenticated;
+-- Only trusted mail delivery can read unsubscribe tokens; players use scoped RPCs.
+grant select on public.player_profile_contacts to service_role;
 
-create function public.stamp_player_contact_preferences() returns trigger
-language plpgsql set search_path = '' as $$
+comment on table public.player_profile_contacts is
+  'Optional unverified profile contact, with one consent for game news and playtest invitations. Not Auth identity, proof of address ownership, or enrollment as a tester. Application roles have no direct table access.';
+
+create function public.get_player_profile_contact(p_profile_id text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  owner uuid := (select auth.uid());
+  result jsonb;
 begin
-  if tg_op = 'INSERT' then
-    new.created_at := now();
-    new.news_opted_in_at := case when new.news_opt_in then now() else null end;
-    new.news_opted_out_at := null;
-    new.tester_opted_in_at := case when new.tester_opt_in then now() else null end;
-    new.tester_opted_out_at := null;
-  else
-    new.created_at := old.created_at;
-    new.news_opted_in_at := case
-      when new.news_opt_in and not old.news_opt_in then now()
-      else old.news_opted_in_at end;
-    new.news_opted_out_at := case
-      when not new.news_opt_in and old.news_opt_in then now()
-      else old.news_opted_out_at end;
-    new.tester_opted_in_at := case
-      when new.tester_opt_in and not old.tester_opt_in then now()
-      else old.tester_opted_in_at end;
-    new.tester_opted_out_at := case
-      when not new.tester_opt_in and old.tester_opt_in then now()
-      else old.tester_opted_out_at end;
+  if p_profile_id is null or length(p_profile_id) not between 1 and 120 then
+    raise exception 'A valid profile is required.' using errcode = '22023';
   end if;
-  new.updated_at := now();
-  new.consent_version := '2026-11-01';
-  return new;
+  if owner is null then
+    raise exception 'This profile is not available to the current session.' using errcode = '42501';
+  end if;
+  -- A local profile may not have reached automatic backup yet. Missing or
+  -- foreign-owned contacts both return null; the owner predicate never changes.
+  select jsonb_build_object(
+    'email', coalesce(c.email, ''),
+    'updatesOptIn', c.updates_opt_in,
+    'revision', c.revision
+  ) into result
+  from public.player_profile_contacts c
+  where c.owner_id = owner and c.profile_id = p_profile_id;
+  return result;
 end;
 $$;
-create trigger player_contact_preferences_stamped
-before insert or update on public.player_contact_preferences
-for each row execute function public.stamp_player_contact_preferences();
-revoke all on function public.stamp_player_contact_preferences() from public, anon, authenticated;
+revoke all on function public.get_player_profile_contact(text) from public, anon, authenticated;
+grant execute on function public.get_player_profile_contact(text) to authenticated;
 
-alter table public.player_contact_preferences enable row level security;
-revoke all on public.player_contact_preferences from public, anon, authenticated;
-grant select, delete on public.player_contact_preferences to authenticated;
--- PostgREST upsert updates every supplied column, including the unchanged owner_id.
-grant insert (owner_id, news_opt_in, tester_opt_in),
-  update (owner_id, news_opt_in, tester_opt_in)
-  on public.player_contact_preferences to authenticated;
-grant all on public.player_contact_preferences to service_role;
+create function public.save_player_profile_contact(
+  p_profile_id text,
+  p_email text,
+  p_updates_opt_in boolean,
+  p_expected_revision uuid
+) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  owner uuid := (select auth.uid());
+  normalized_email text := nullif(lower(btrim(coalesce(p_email, ''), E' \t\n\r\f')), '');
+  requested_opt_in boolean;
+  existing public.player_profile_contacts%rowtype;
+  saved public.player_profile_contacts%rowtype;
+  lock_email text;
+begin
+  if p_profile_id is null or length(p_profile_id) not between 1 and 120 then
+    raise exception 'A valid profile is required.' using errcode = '22023';
+  end if;
+  if normalized_email is not null and (
+    length(normalized_email) > 254 or normalized_email !~
+      '^[^[:space:][:cntrl:]@]+@[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+  ) then
+    raise exception 'Enter a valid email address.' using errcode = '22023';
+  end if;
+  -- Clearing the address also removes consent, including a stale checked checkbox.
+  requested_opt_in := coalesce(p_updates_opt_in, false) and normalized_email is not null;
+  if owner is null then
+    raise exception 'This profile is not available to the current session.' using errcode = '42501';
+  end if;
+  perform 1 from public.player_profiles p
+  where p.owner_id = owner and p.profile_id = p_profile_id for key share;
+  if not found then
+    raise exception 'This profile is not available to the current session.' using errcode = '42501';
+  end if;
 
-create policy contact_preferences_read_own on public.player_contact_preferences
-for select to authenticated using ((select auth.uid()) = owner_id);
-create policy contact_preferences_create_verified_own on public.player_contact_preferences
-for insert to authenticated with check (
-  (select auth.uid()) = owner_id and (select public.player_account_is_verified())
-);
-create policy contact_preferences_update_verified_own on public.player_contact_preferences
-for update to authenticated
-using ((select auth.uid()) = owner_id and (select public.player_account_is_verified()))
-with check ((select auth.uid()) = owner_id and (select public.player_account_is_verified()));
-create policy contact_preferences_delete_own on public.player_contact_preferences
-for delete to authenticated using ((select auth.uid()) = owner_id);
+  -- Serialize creation/saves for a profile, then take email locks in sorted order.
+  -- Unsubscribe takes the same email lock before row locks, so it cannot race an
+  -- insert/change into that address or leave a stale editor with a valid revision.
+  perform pg_advisory_xact_lock(hashtextextended('profile-contact:' || owner::text || ':' || p_profile_id, 0));
+  select * into existing from public.player_profile_contacts c
+  where c.owner_id = owner and c.profile_id = p_profile_id;
+  for lock_email in
+    select distinct address from unnest(array[existing.email, normalized_email]) as e(address)
+    where address is not null order by address
+  loop
+    perform pg_advisory_xact_lock(hashtextextended('profile-contact-email:' || lock_email, 0));
+  end loop;
+  select * into existing from public.player_profile_contacts c
+  where c.owner_id = owner and c.profile_id = p_profile_id for update;
 
-comment on table public.player_contact_preferences is
-  'Optional account-level news/tester consent. Email remains in Auth. One backup account may own several local profiles; neither checkbox is required to play or connect an account.';
+  if found then
+    if p_expected_revision is null or p_expected_revision <> existing.revision then
+      raise exception 'Contact details changed. Reload them before saving.' using errcode = '40001';
+    end if;
+    if existing.email is not distinct from normalized_email
+      and existing.updates_opt_in = requested_opt_in then
+      saved := existing;
+    else
+      update public.player_profile_contacts c set
+        email = normalized_email,
+        updates_opt_in = requested_opt_in,
+        updates_opted_in_at = case
+          when c.email is distinct from normalized_email
+            then case when requested_opt_in then now() else null end
+          when requested_opt_in and not c.updates_opt_in then now()
+          else c.updates_opted_in_at end,
+        updates_opted_out_at = case
+          when c.email is distinct from normalized_email then null
+          when not requested_opt_in and c.updates_opt_in then now()
+          else c.updates_opted_out_at end,
+        last_unsubscribed_at = case
+          when c.email is distinct from normalized_email then null
+          else c.last_unsubscribed_at end,
+        unsubscribe_token = case
+          when c.email is distinct from normalized_email then gen_random_uuid()
+          else c.unsubscribe_token end,
+        consent_version = '2026-11-01',
+        revision = gen_random_uuid(),
+        updated_at = now()
+      where c.owner_id = owner and c.profile_id = p_profile_id
+      returning * into saved;
+    end if;
+  else
+    if p_expected_revision is not null then
+      raise exception 'Contact details changed. Reload them before saving.' using errcode = '40001';
+    end if;
+    insert into public.player_profile_contacts (
+      owner_id, profile_id, email, updates_opt_in, updates_opted_in_at
+    ) values (
+      owner, p_profile_id, normalized_email, requested_opt_in,
+      case when requested_opt_in then now() else null end
+    ) returning * into saved;
+  end if;
+  return jsonb_build_object(
+    'email', coalesce(saved.email, ''),
+    'updatesOptIn', saved.updates_opt_in,
+    'revision', saved.revision
+  );
+end;
+$$;
+revoke all on function public.save_player_profile_contact(text, text, boolean, uuid)
+from public, anon, authenticated;
+grant execute on function public.save_player_profile_contact(text, text, boolean, uuid)
+to authenticated;
+
+create function public.unsubscribe_player_contact(p_token uuid) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare
+  target_email text;
+begin
+  select c.email into target_email from public.player_profile_contacts c
+  where c.unsubscribe_token = p_token;
+  if not found then return false; end if;
+  if target_email is null then return true; end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('profile-contact-email:' || target_email, 0));
+  -- An address edit rotates the token; recheck after acquiring the shared lock.
+  perform 1 from public.player_profile_contacts c
+  where c.unsubscribe_token = p_token and c.email = target_email;
+  if not found then return false; end if;
+  perform c.owner_id from public.player_profile_contacts c
+  where c.email = target_email order by c.owner_id, c.profile_id for update;
+
+  if exists (
+    select 1 from public.player_profile_contacts c
+    where c.email = target_email and (c.updates_opt_in or c.last_unsubscribed_at is null)
+  ) then
+    -- Invalidate every matching row, including already-unchecked forms. The hidden
+    -- timestamp makes repeated use idempotent unless a new row/consent appeared.
+    update public.player_profile_contacts c set
+      updates_opt_in = false,
+      updates_opted_out_at = now(),
+      last_unsubscribed_at = now(),
+      revision = gen_random_uuid(),
+      updated_at = now()
+    where c.email = target_email;
+  end if;
+  return true;
+end;
+$$;
+revoke all on function public.unsubscribe_player_contact(uuid) from public, anon, authenticated;
+grant execute on function public.unsubscribe_player_contact(uuid) to anon, authenticated;
 
 alter table public.player_events drop constraint if exists player_events_name_check;
 alter table public.player_events add constraint player_events_name_check check (name in (
@@ -201,34 +320,12 @@ begin
       coalesce(a.tribunal_engaged, false) as tribunal_engaged
     from event_activity a
     full join profiles p on p.profile_id = a.profile_id
-    union all
-    -- Verified guests may never save preferences when both choices stay off.
-    -- Keep their account visible, as well as accounts after switching or with
-    -- excluded-only profiles, without assigning ambiguous gameplay to an email.
-    select
-      'account:' || u.id::text, null, 'Connected account', false,
-      u.id,
-      least(u.created_at, u.email_confirmed_at, c.created_at),
-      greatest(u.created_at, u.updated_at, u.email_confirmed_at, c.updated_at),
-      false
-    from auth.users u
-    left join public.player_contact_preferences c on c.owner_id = u.id
-    where not coalesce(u.is_anonymous, true) and u.email_confirmed_at is not null
-      and nullif(trim(u.email), '') is not null
-      and not exists (
-        select 1 from profiles p where p.owner_id = u.id and p.owner_count = 1
-      )
   ), audience as (
     select
       s.*,
-      coalesce(not u.is_anonymous and u.email_confirmed_at is not null
-        and nullif(trim(u.email), '') is not null, false) as verified_email,
-      case when not coalesce(u.is_anonymous, true) and u.email_confirmed_at is not null
-        then nullif(trim(u.email), '') end as email,
-      coalesce(not u.is_anonymous and u.email_confirmed_at is not null
-        and nullif(trim(u.email), '') is not null and c.news_opt_in, false) as news_opt_in,
-      coalesce(not u.is_anonymous and u.email_confirmed_at is not null
-        and nullif(trim(u.email), '') is not null and c.tester_opt_in, false) as tester_opt_in,
+      false as verified_email,
+      c.email,
+      coalesce(c.updates_opt_in, false) as updates_opt_in,
       coalesce(t.seasons_started, 0) as seasons_started,
       coalesce(t.seasons_completed, 0) as seasons_completed,
       l.started_at is not null and not l.completed and not l.abandoned
@@ -249,8 +346,8 @@ begin
             )
         ) as unfinished_season
     from subjects s
-    left join auth.users u on u.id = s.contact_owner_id
-    left join public.player_contact_preferences c on c.owner_id = s.contact_owner_id
+    left join public.player_profile_contacts c
+      on c.owner_id = s.contact_owner_id and c.profile_id = s.profile_id
     left join season_totals t on t.subject_id = s.id
     left join latest_seasons l on l.subject_id = s.id
   ), grouped as (
@@ -261,7 +358,7 @@ begin
       case when a.unfinished_season and a.last_active_at < now() - interval '14 days'
         then 'inactive' end,
       case when a.tribunal_engaged then 'tribunal' end,
-      case when a.tester_opt_in then 'tester' end
+      case when a.updates_opt_in then 'subscribed' end
     ]::text[], null) as groups
     from audience a
   ), summary as (
@@ -274,7 +371,7 @@ begin
         'completed', count(*) filter (where 'completed' = any(g.groups)),
         'inactive', count(*) filter (where 'inactive' = any(g.groups)),
         'tribunal', count(*) filter (where 'tribunal' = any(g.groups)),
-        'tester', count(*) filter (where 'tester' = any(g.groups))
+        'subscribed', count(*) filter (where 'subscribed' = any(g.groups))
       ) as group_counts
     from grouped g
   ), recent as (
@@ -294,8 +391,7 @@ begin
         'isGuest', r.is_guest,
         'verifiedEmail', r.verified_email,
         'email', r.email,
-        'newsOptIn', r.news_opt_in,
-        'testerOptIn', r.tester_opt_in,
+        'updatesOptIn', r.updates_opt_in,
         'firstSeenAt', r.first_seen_at,
         'lastActiveAt', r.last_active_at,
         'seasonsStarted', r.seasons_started,
@@ -311,6 +407,6 @@ $$;
 revoke all on function public.get_player_audience() from public, anon, authenticated;
 grant execute on function public.get_player_audience() to authenticated;
 comment on function public.get_player_audience() is
-  'Admin-only read of observed player records and explicit contact consent. Excludes QA/development events; includes unlabeled legacy events. At most 500 recent rows, with full totals. Guest installations, local profiles, and account-only records are not deduplicated people.';
+  'Admin-only read of observed player records and explicit contact consent. Excludes QA/development events; includes unlabeled legacy events. At most 500 recent rows, with full totals. Guest installations and local profiles are not deduplicated people. Contact emails are unverified; subscription means game updates and playtest invitations, not tester enrollment.';
 
 commit;

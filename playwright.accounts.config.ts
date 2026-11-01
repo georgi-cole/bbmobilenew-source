@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test'
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
 
 /**
- * Isolated real-app account journeys; all Supabase requests use test route handlers.
+ * Isolated real-app profile email journeys; all Supabase requests use test route handlers.
  * Run with: npx playwright test --config playwright.accounts.config.ts
  */
 export default defineConfig({

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
 import {
   AudienceAccessError,
   loadPlayerAudience,
@@ -8,6 +7,8 @@ import {
 } from '../../services/backend/audienceService'
 import './PlayerAudiencePanel.css'
 import { subscribeBackendAuth } from '../../services/backend/supabaseTransport'
+import { signOutAudienceAdmin } from '../../services/backend/audienceAdminAuth'
+import AudienceAdminSignIn from './AudienceAdminSignIn'
 
 const GROUPS: { id: AudienceGroup; label: string; description: string }[] = [
   { id: 'new', label: 'New', description: 'First seen in the last 7 days.' },
@@ -24,9 +25,9 @@ const GROUPS: { id: AudienceGroup; label: string; description: string }[] = [
     description: 'Accepted the Tribunal invitation or cast a human Tribunal vote.',
   },
   {
-    id: 'tester',
-    label: 'Testers',
-    description: 'Verified account with testing invitations enabled.',
+    id: 'subscribed',
+    label: 'Subscribers',
+    description: 'Profiles allowing game news and playtest invitations by email.',
   },
 ]
 
@@ -49,31 +50,34 @@ export default function PlayerAudiencePanel() {
   const [attempt, setAttempt] = useState(0)
   const [group, setGroup] = useState<AudienceGroup | 'all'>('all')
   const [kind, setKind] = useState<'all' | 'guests' | 'profiles'>('all')
+  const [showAdminSignIn, setShowAdminSignIn] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
-    const unsubscribe = subscribeBackendAuth('profile_backup', () => {
-      // Remove contact information immediately if this browser's account changes.
+    const unsubscribe = subscribeBackendAuth('audience_admin', () => {
+      // Remove contact information immediately if this browser's admin session changes.
       controller.abort()
       setView({ status: 'loading' })
       setAttempt((value) => value + 1)
     })
     void loadPlayerAudience(controller.signal).then(
       (audience) => {
-        if (!controller.signal.aborted) setView({ status: 'ready', audience })
+        if (!controller.signal.aborted) {
+          setView({ status: 'ready', audience })
+          setShowAdminSignIn(false)
+        }
       },
       (error: unknown) => {
         if (controller.signal.aborted) return
-        setView({
-          status: 'error',
-          error:
-            error instanceof AudienceAccessError
-              ? error
-              : new AudienceAccessError(
-                  'unavailable',
-                  'The player audience could not be loaded. Try again.'
-                ),
-        })
+        const accessError =
+          error instanceof AudienceAccessError
+            ? error
+            : new AudienceAccessError(
+                'unavailable',
+                'The player audience could not be loaded. Try again.'
+              )
+        setView({ status: 'error', error: accessError })
+        if (accessError.reason === 'access') setShowAdminSignIn(true)
       }
     )
     return () => {
@@ -85,6 +89,22 @@ export default function PlayerAudiencePanel() {
   const refresh = () => {
     setView({ status: 'loading' })
     setAttempt((value) => value + 1)
+  }
+  const signOut = async () => {
+    setView({ status: 'loading' })
+    try {
+      await signOutAudienceAdmin()
+      refresh()
+    } catch {
+      setView({
+        status: 'error',
+        error: new AudienceAccessError(
+          'unavailable',
+          'Administrator sign-out failed. Please try again.'
+        ),
+      })
+      setShowAdminSignIn(true)
+    }
   }
   const audience = view.status === 'ready' ? view.audience : null
   const players = audience?.players.filter(
@@ -102,14 +122,21 @@ export default function PlayerAudiencePanel() {
           <h2 id="player-audience-title">Player audience</h2>
           <p>See who starts, returns and stays for the Tribunal.</p>
         </div>
-        <button
-          type="button"
-          className="game-button player-audience__refresh"
-          disabled={view.status === 'loading'}
-          onClick={refresh}
-        >
-          {view.status === 'loading' ? 'Loading…' : 'Refresh'}
-        </button>
+        <div className="player-audience__header-actions">
+          {audience && (
+            <button type="button" className="game-button" onClick={() => void signOut()}>
+              Sign out admin
+            </button>
+          )}
+          <button
+            type="button"
+            className="game-button player-audience__refresh"
+            disabled={view.status === 'loading'}
+            onClick={refresh}
+          >
+            {view.status === 'loading' ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
       </header>
 
       {view.status === 'loading' && (
@@ -121,15 +148,11 @@ export default function PlayerAudiencePanel() {
         <div className="player-audience__notice">
           <p role="alert">{view.error.message}</p>
           {view.error.reason === 'access' && (
-            <>
-              <p>Player information is available only to approved admin accounts.</p>
-              <Link className="game-button" to="/account">
-                Account &amp; email
-              </Link>
-            </>
+            <p>Player information is available only to approved administrators.</p>
           )}
         </div>
       )}
+      {showAdminSignIn && <AudienceAdminSignIn onSignedIn={refresh} />}
 
       {audience && players && (
         <>
@@ -139,8 +162,8 @@ export default function PlayerAudiencePanel() {
               <span>player records</span>
             </div>
             <p>
-              Guest or unlinked installations, profiles and accounts. One person can have more than
-              one record.
+              Guest or unlinked installations and saved profiles. One person can have more than one
+              record.
             </p>
           </div>
 
@@ -179,7 +202,7 @@ export default function PlayerAudiencePanel() {
               <select value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}>
                 <option value="all">All records</option>
                 <option value="guests">Guests / unlinked</option>
-                <option value="profiles">Profiles / accounts</option>
+                <option value="profiles">Saved profiles</option>
               </select>
             </label>
           </div>
@@ -197,18 +220,12 @@ export default function PlayerAudiencePanel() {
                 <li key={player.id} className="player-audience__player">
                   <div className="player-audience__identity">
                     <span className="game-ui-eyebrow">
-                      {player.isGuest
-                        ? 'Guest / unlinked'
-                        : player.profileId
-                          ? 'Saved profile'
-                          : 'Account'}
+                      {player.isGuest ? 'Guest / unlinked' : 'Saved profile'}
                     </span>
                     <h3>{player.displayName}</h3>
-                    <p>
-                      {player.verifiedEmail && player.email ? player.email : 'No verified email'}
-                    </p>
-                    {player.verifiedEmail && (
-                      <span className="player-audience__verified">Verified account</span>
+                    <p>{player.email || 'No email provided'}</p>
+                    {player.email && (
+                      <span className="player-audience__unverified">Unverified email</span>
                     )}
                   </div>
                   <dl className="player-audience__activity">
@@ -221,11 +238,7 @@ export default function PlayerAudiencePanel() {
                       <dd>{player.seasonsCompleted}</dd>
                     </div>
                     <div>
-                      <dt>
-                        {!player.isGuest && player.profileId === null
-                          ? 'Account updated'
-                          : 'Last activity'}
-                      </dt>
+                      <dt>Last activity</dt>
                       <dd>{displayDate(player.lastActiveAt)}</dd>
                     </div>
                   </dl>
@@ -236,9 +249,7 @@ export default function PlayerAudiencePanel() {
                       ))}
                     </div>
                     <p>
-                      {player.newsOptIn ? 'News enabled' : 'News off'}
-                      {' · '}
-                      {player.testerOptIn ? 'Test invitations enabled' : 'Test invitations off'}
+                      {player.updatesOptIn ? 'News & invitations allowed' : 'Email updates off'}
                     </p>
                   </div>
                 </li>
@@ -250,8 +261,8 @@ export default function PlayerAudiencePanel() {
             <p>
               Production activity and older unlabeled records. Known test activity is excluded.
               Older unlinked records may include guests. Guest history stays separate when a profile
-              is created. Email preferences belong to the connected account and can apply to several
-              profiles.
+              is created. Emails are supplied voluntarily per profile and are not verified.
+              Subscribers permit news and playtest invitations; they are not enrolled as testers.
             </p>
             <p>
               {audience.coverageStart

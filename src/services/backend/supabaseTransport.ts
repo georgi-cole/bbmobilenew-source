@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getBackendConfig } from './config'
 
-export type BackendPurpose = 'profile_backup' | 'analytics'
+export type BackendPurpose = 'profile_backup' | 'analytics' | 'audience_admin'
 const clients = new Map<BackendPurpose, Promise<SupabaseClient>>()
 const authentications = new Map<
   BackendPurpose,
@@ -100,7 +100,7 @@ export function withBackendAuthLock<T>(
   return pending
 }
 
-/** Analytics keeps its anonymous session; only the backup account can link an email. */
+/** Player backup/analytics stay anonymous; audience administration uses a separate explicit session. */
 export async function authenticatedBackend(purpose: BackendPurpose) {
   let pending = authentications.get(purpose)
   if (!pending) {

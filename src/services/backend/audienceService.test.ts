@@ -15,7 +15,7 @@ const audience: PlayerAudience = {
   coverageStart: null,
   totalPlayers: 0,
   truncated: false,
-  groupCounts: { new: 0, returning: 0, completed: 0, inactive: 0, tribunal: 0, tester: 0 },
+  groupCounts: { new: 0, returning: 0, completed: 0, inactive: 0, tribunal: 0, subscribed: 0 },
   players: [],
 }
 
@@ -50,7 +50,7 @@ describe('player audience access', () => {
 
   it('loads only through the server-authorized RPC', async () => {
     await expect(loadPlayerAudience()).resolves.toEqual(audience)
-    expect(mocks.client).toHaveBeenCalledWith('profile_backup')
+    expect(mocks.client).toHaveBeenCalledWith('audience_admin')
     expect(mocks.rpc).toHaveBeenCalledWith('get_player_audience')
   })
 
@@ -63,6 +63,42 @@ describe('player audience access', () => {
       reason: 'access',
       message: 'This account does not have player audience access.',
     })
+  })
+
+  it('rejects anonymous sessions without calling the audience RPC', async () => {
+    mocks.session.mockResolvedValue({
+      data: { session: { user: { is_anonymous: true } } },
+      error: null,
+    })
+    await expect(loadPlayerAudience()).rejects.toMatchObject({ reason: 'access' })
+    expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+
+  it('retains a supplied unverified email and its single updates permission', async () => {
+    const player = {
+      id: 'profile:one',
+      profileId: 'one',
+      displayName: 'Aria',
+      isGuest: false,
+      verifiedEmail: false,
+      email: 'aria@example.test',
+      updatesOptIn: true,
+      firstSeenAt: '2026-11-01T10:00:00Z',
+      lastActiveAt: null,
+      seasonsStarted: 0,
+      seasonsCompleted: 0,
+      groups: ['subscribed'],
+    }
+    mocks.rpc.mockResolvedValue({
+      data: {
+        ...audience,
+        totalPlayers: 1,
+        groupCounts: { ...audience.groupCounts, subscribed: 1 },
+        players: [player],
+      },
+      error: null,
+    })
+    expect((await loadPlayerAudience()).players).toEqual([player])
   })
 
   it('distinguishes a missing migration from an empty audience', async () => {

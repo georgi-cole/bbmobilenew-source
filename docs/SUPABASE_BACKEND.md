@@ -1,109 +1,93 @@
-# Supabase accounts, profile backup, and player groups
+# Supabase profile contacts, backups, and player groups
 
-The app keeps its existing local profiles and game saves. When Supabase is configured, it automatically sends a limited profile backup and coarse gameplay analytics. Playing as a guest and creating a local profile do not require an email address.
+Creating or editing a profile offers an **optional email address** and one initially unchecked choice: **“Send me The Big Eye news and playtest invitations.”** Leaving both empty/off is fully supported. Entering an address does not opt the player in. There is no player email login, OTP, mailbox verification, or SMTP setup required by this feature.
 
-## What is stored
+The address is an **unverified contact**, not an Auth identity, account-recovery credential, or evidence that the player owns the mailbox. The checkbox permits game updates and playtest invitations; it does not enroll someone as a tester.
 
-The profile copy contains the local profile ID, display name, emoji avatar, selected appearance ID, creation date, achievements, and Bella unlock progress. **Photos, biographies, wallets, purchases, season archives, and saved games remain on the device.** Connecting an email does not turn this limited backup into cross-device game-save restoration.
+## Storage and ownership
 
-There are two persistent Supabase sessions:
+Local profiles and saves keep their existing behavior. The limited Supabase profile backup contains profile ID, display name, emoji avatar, selected appearance, creation date, achievements, and Bella progress. Photos, biography, wallet, purchases, season archives, and saved games remain on the device. Adding a contact email does not enable cross-device save recovery.
 
-- `profile_backup` owns the profile copies. Its anonymous Auth user can be upgraded to an email account without replacing its user ID.
-- `analytics` remains a separate anonymous installation identity. Events contain the local profile ID when one exists, allowing administrative analysis alongside the corresponding backup.
+| Supabase session | Purpose                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| `profile_backup` | Anonymous installation identity owning profile backups and their private contact rows.   |
+| `analytics`      | Separate anonymous installation identity for coarse gameplay events.                     |
+| `audience_admin` | Explicit sign-in by a pre-provisioned administrator, isolated from both player sessions. |
 
-The backup account can own several local profiles. An account email and its contact preferences therefore apply to the account, not independently to each local profile. The email is stored in **Supabase Auth only**; it is not copied into the Redux profile, profile snapshots, analytics properties, or gameplay logs.
+`public.player_profile_contacts` is keyed by `(owner_id, profile_id)` and references the same composite key in `player_profiles` with cascading deletion. Two profiles can have different emails and choices even when they share an installation. Contact data is held in the open form and its private backend row; it is not placed in Redux profiles, saved seasons, backup snapshots, analytics, or Auth user metadata/email.
 
-The `player_contact_preferences` table contains two independent choices, `news_opt_in` and `tester_opt_in`, both false by default. Neither is required for email connection or play. Only the owner of a currently verified, non-anonymous email account can write preferences. The database stamps consent version `2026-11-01`, creation/update time, and the most recent opt-in and opt-out timestamps. Re-saving an unchanged choice preserves its original choice timestamp. Application credentials cannot supply or overwrite those audit fields.
+Only an explicit profile-form save writes contact details. Automatic profile backup does not resend contacts or consent. Clearing the email stores `NULL` and disables updates; the API represents the cleared address as an empty string. Changing the normalized address resets its previous consent timestamps and rotates its unsubscribe token. Email addresses are trimmed and lowercased, validated, and limited to 254 characters.
 
-Deleting a local profile requests removal of its backup under the **current backup account** and its linked events under the **current installation's analytics identity**. After an explicit account switch, backup copies owned by an earlier account may remain; local profile deletion does not claim to remove those copies. A shared account and its contact preferences are not implicitly deleted when one of its profiles is removed. Account-level access or deletion requests should be handled through support and trusted administration; deleting the Auth user cascades its preference and owned backup rows.
+Deleting the current owner's server profile backup cascades to its contact row. The existing deletion flow also removes that profile's events under the current installation's analytics identity. An offline/failed deletion is not a claim that remote data has already been removed. Deleting a local profile does not remove copies owned by an inaccessible earlier installation.
 
-## Analytics and audience coverage
+## Private contact API
 
-Analytics records profile and appearance selection; screen visits and visible time; game mode, phase, and numbered game days; minigame starts, duration, placement, completion, and exits; Social module activity and action categories; selected gameplay decisions; elimination and final placement; marketplace actions and purchase outcomes; and session time. No purchase prices, chat text, biography, names in event properties, or other free-form content are sent. Eyeolean spending is not treated as verified monetary revenue.
+Application roles have no direct table read or write grants. The trusted `service_role` can select contact rows for future mail delivery, including their hidden unsubscribe tokens. All player access uses security-definer functions with a fixed search path and explicit `auth.uid()` ownership checks. An authenticated anonymous Supabase session is sufficient; verification of its Auth email is not required.
 
-Guest activity uses a null `profile_id` under the existing anonymous analytics owner. It is grouped by that installation identity. When a guest creates a local profile, subsequent events use that profile ID. Earlier guest events are not retroactively assigned to the profile, and guest sessions are not merged with the email account.
+| RPC                                                                                                                | Result and behavior                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_player_profile_contact(p_profile_id text)`                                                                    | Returns `{ email, updatesOptIn, revision }` for the current owner, or `null` when no owned contact exists. A foreign-owned or not-yet-backed-up profile also returns `null`, never another owner's data. |
+| `save_player_profile_contact(p_profile_id text, p_email text, p_updates_opt_in boolean, p_expected_revision uuid)` | Returns the same object. Requires an existing profile backup owned by the current session. The client ensures that backup exists before saving the contact.                                              |
+| `unsubscribe_player_contact(p_token uuid)`                                                                         | Returns a boolean. Callable by `anon` and `authenticated`, without account creation. No address, profile ID, or other contact data is returned.                                                          |
 
-Some legacy events also have no profile ID. Those cannot reliably be distinguished from guest records, so the audience labels the combined category **Guest / unlinked**. Guest and Tribunal measurement starts with the relevant instrumentation; historical absence is not evidence that no guest played or no eliminated player continued.
+`revision` is a server-generated UUID. Pass `null` only when creating a contact; subsequent writes must supply the last read revision. A stale write raises SQLSTATE `40001` and must be reconciled by reloading the saved contact before another explicit save. This prevents an open form from silently restoring consent after an unsubscribe. Invalid input uses `22023`; missing authentication or an unauthorized save uses `42501`.
 
-`public.get_player_audience()` returns observed **player records**, not a count of distinct people. One person may have several local profiles, and a guest record and a subsequently created profile can both be counted. A verified email can appear against several profiles owned by the same account. The report never treats an email address as the identity key.
+The database maintains `created_at`, `updated_at`, `updates_opted_in_at`, `updates_opted_out_at`, `last_unsubscribed_at`, and consent version `2026-11-01`. An unchanged save preserves the revision and timestamps. Clients cannot supply audit fields or unsubscribe tokens. Saves serialize per profile and acquire shared email locks before row locks; unsubscribe uses the same email lock before updating matching rows.
 
-The report includes production events and unlabeled legacy events, while excluding events explicitly marked `qa` or `development`. The application uses the same `production` environment value for released web and mobile builds. Known QA-only profiles are excluded; a profile backup with no events yet is included because it has no reliable build attribution. If one local profile ID occurs under multiple backup owners, the report suppresses its email and contact flags to avoid assigning an ambiguous identity to a contact address. A verified account with no unambiguous included profile appears as a separate connected-account record, even if it has never saved contact preferences. This includes verified guests who leave both choices off, accounts with no profile, and accounts whose profiles are all ambiguous or excluded. Missing preferences mean both choices are off; existing choices remain visible without attributing disputed gameplay to an email.
+## Unsubscribe and future sending
 
-Groups are calculated at read time and may overlap:
+Every contact row has a random, unique UUID unsubscribe token. A future trusted sender can obtain it through its server-side table access and include a link of this form:
 
-| Group ID    | Rule                                                                                                                                                                            |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `new`       | First observed within the last seven days.                                                                                                                                      |
-| `returning` | At least two distinct observed season starts, deduplicated by stable game ID, with legacy game mode and season index as fallback.                                               |
-| `completed` | At least one observed season completion, deduplicated by stable game ID, with legacy game mode and season index as fallback.                                                    |
-| `inactive`  | The latest observed started season is unfinished and there has been no observed activity for more than 14 days. A later completion or abandonment suppresses this label.        |
-| `tribunal`  | At least one explicit `tribunal_action`, emitted after a successful Tribunal vote or explicit continuation as a Tribunal member. A heartbeat after elimination is insufficient. |
-| `tester`    | The verified account has explicitly enabled tester contact.                                                                                                                     |
-
-The UUID `game_id` is the preferred run key because guest seasons and fresh resets can reuse a season index. Events without a valid game ID fall back to game mode plus season index. Legacy starts without either identifier are not counted as distinct seasons. An older abandonment/completion event without an index can still close the latest same-mode season when it occurs after its start. A terminal event can also bridge a legacy start and the new game-ID instrumentation when the mode/index matches and at least one side lacks a game ID. Different known game IDs never close each other's seasons solely because their season indexes match. The dashboard is an observational product report; it is not authoritative for game results, entitlements, or purchases.
-
-### Audience RPC contract
-
-The no-argument `get_player_audience` RPC returns:
-
-```ts
-type PlayerAudienceReport = {
-  generatedAt: string
-  coverageStart: string | null
-  totalPlayers: number
-  truncated: boolean
-  groupCounts: {
-    new: number
-    returning: number
-    completed: number
-    inactive: number
-    tribunal: number
-    tester: number
-  }
-  players: Array<{
-    id: string
-    profileId: string | null
-    displayName: string
-    isGuest: boolean
-    verifiedEmail: boolean
-    email: string | null
-    newsOptIn: boolean
-    testerOptIn: boolean
-    firstSeenAt: string
-    lastActiveAt: string
-    seasonsStarted: number
-    seasonsCompleted: number
-    groups: string[]
-  }>
-}
+```text
+https://GAME_BASE/#/unsubscribe?token=UUID
 ```
 
-At most 500 recent rows are returned. `totalPlayers` and `groupCounts` are computed over the complete eligible audience, and `truncated` indicates that the list is incomplete. `coverageStart` is the earliest included observation, not the date every event type was introduced. Profile-only records use their first server backup and latest backup update when no gameplay activity is available. Account-only records use Auth creation/confirmation for their first observation and the latest Auth or preference record timestamp for `lastActiveAt`; this is an account-record update, not evidence of gameplay. No preferences row is required to include a verified account.
+Use the game's actual deployed base URL, including its subpath. The page requires a deliberate **Unsubscribe** button press; opening a link or mail preview does not change consent. It works without a profile or login. Collection can be turned off with `VITE_PLAYER_ACCOUNTS_ENABLED=false` while existing unsubscribe links continue to work, provided the base Supabase configuration remains available.
 
-## Deployment setup
+A valid token turns updates off for **all contact rows with that normalized email address** and changes their revisions, including rows that were already unchecked. Repeated use is idempotent while the address remains unsubscribed. Tokens are retained on opt-out; a changed address rotates its token, and deleting its profile removes the contact row. After an explicit new opt-in, a still-valid link can revoke consent again.
 
-1. Keep **Authentication → Sign In / Providers → Anonymous Sign-Ins** enabled. Enable the Email provider, email confirmation, and **Allow manual linking** for anonymous-to-email account upgrades.
-2. Apply only the missing migrations, in order:
-   - `202610270001_profiles_and_analytics.sql`
-   - `202610270002_profile_linked_analytics.sql`
-   - `202610270003_game_mode_analytics.sql`
-   - `202611010001_player_accounts_and_cohorts.sql`
-3. Configure a production SMTP sender and sender identity in Supabase. The bundled development email service is not a production delivery service. Set appropriate Auth email rate limits and verify delivery before enabling the UI for players.
-4. In **Authentication → Email Templates → Change Email Address**, include `{{ .Token }}` as a plainly visible confirmation code. The app requests the new address with `updateUser({ email })` and confirms it using `verifyOtp({ email, token, type: 'email_change' })`.
-5. In the **Magic Link** email template, also include `{{ .Token }}` for passwordless account sign-in using `signInWithOtp` and `verifyOtp` with type `email`. These templates must contain the code; a link-only template does not support the in-app code flow. Retain the appropriate Supabase site/redirect allowlist for any links also present in those templates.
-6. Supply the existing backend build settings from `.env.supabase.example`: `VITE_SUPABASE_ENABLED=true`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_PUBLISHABLE_KEY`. Existing backups and compatible analytics continue with these settings alone.
-7. In a test build/project, enable `VITE_PLAYER_ACCOUNTS_ENABLED=true` and test linking an anonymous backup account, confirming that its Auth user ID remains unchanged and the local active season/profile is preserved. Test expired/wrong codes, delivery errors, and both contact choices independently.
-8. Only after the target database migration, SMTP delivery, and code templates have been verified, set `VITE_PLAYER_ACCOUNTS_ENABLED=true` for the production build. This rollout flag defaults to false; the new account flow and migration-dependent Tribunal upload must not be enabled against the old schema.
+Editing a profile's checkbox changes **only that owned profile**. Knowing or typing an unverified address does not authorize one player to change another player's choices. The email-link token supplies the separate authority for address-wide unsubscribe.
 
-Only a publishable key belongs in the app. A `service_role` JWT or `sb_secret_` key must never be used in a `VITE_` setting. Email addresses and privileged administrator access must not be placed in frontend environment variables.
+This feature records contacts and choices; it does not send campaigns. A future sender must read current consent immediately before sending, skip empty addresses, deduplicate normalized addresses, and include the appropriate token link. The 500-row audience preview is not a mailing export. Treat supplied addresses as unverified and handle invalid or unwanted recipients through the delivery system; do not use them as proof of identity or for restoring an account.
 
-These are deployment instructions, not migration or configuration changes automatically applied by this PR.
+## Audience report
 
-### Grant administrator access
+`public.get_player_audience()` returns observed player records, not unique people. A person can have several profiles; an earlier guest record and a subsequent profile remain separate. Guest events have a null profile ID and are grouped by their anonymous analytics owner. Legacy events without profile IDs share the **Guest / unlinked** category. Earlier guest history is not reassigned to a newly created profile.
 
-Opening special settings or setting a local debug flag does not grant access to the audience. The RPC checks the **current Auth user record** for a confirmed, non-anonymous account and the server-controlled boolean `app_metadata.player_analytics_admin`. It does not trust `user_metadata` or a stale token's copy of the claim. Ordinary accounts cannot read other users' preference rows or invoke the audience query successfully.
+The report includes production events and unlabeled legacy events, excluding explicit `qa` and `development` events. Released web/mobile builds both use `production`. Known QA-only profiles are excluded. Backups with no events yet remain included because they have no reliable build attribution. If a local profile ID appears under multiple backup owners, its contact fields are suppressed to avoid attaching ambiguous gameplay to an address. There are no Auth-only account records.
 
-After identifying the administrator's verified Auth UUID, a trusted project operator can grant access in the Supabase SQL Editor:
+| Group ID     | Rule                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `new`        | First observed within seven days.                                                                                   |
+| `returning`  | At least two distinct observed season starts.                                                                       |
+| `completed`  | At least one observed season completion.                                                                            |
+| `inactive`   | Latest observed started season unfinished, with no observed activity for more than 14 days.                         |
+| `tribunal`   | An explicit successful Tribunal vote or continuation action; a post-elimination heartbeat is insufficient.          |
+| `subscribed` | The unambiguously linked profile permits game news and playtest invitations. This does not imply tester enrollment. |
+
+Season deduplication prefers the valid UUID `game_id`, since guest/fresh-reset runs can reuse season index 1. Older events fall back to game mode plus season index. Terminal events can bridge old/new instrumentation when mode/index matches and one side lacks a game ID; two known different game IDs cannot close each other's seasons. Legacy terminal events with neither identifier can close the latest same-mode season when they occur after its start. Starts without either usable identifier are not counted as distinct seasons.
+
+The RPC returns `generatedAt`, nullable `coverageStart`, `totalPlayers`, `truncated`, `groupCounts`, and `players`. At most 500 recent rows are returned; totals and group counts cover the complete eligible result. Each row includes `id`, nullable `profileId`, `displayName`, `isGuest`, `verifiedEmail: false`, nullable `email`, `updatesOptIn`, observation timestamps, season counts, and group IDs. No contact revision, audit fields, or unsubscribe token is returned. Contact addresses are labeled unverified even if the owner's separate Auth user happens to have a verified email.
+
+Groups can overlap. `coverageStart` is the earliest included observation, not the rollout date of every event type. Profiles without events use their backup timestamps; absent older guest/Tribunal events are not evidence of no activity. Gameplay events and reports are observational, not authoritative purchase records or game results. Eyeolean spending is not verified monetary revenue.
+
+## Setup and rollout
+
+1. Keep Supabase **Anonymous Sign-Ins** enabled for the existing backup/analytics identities.
+2. Apply only missing migrations, in order: `202610270001_profiles_and_analytics.sql`, `202610270002_profile_linked_analytics.sql`, `202610270003_game_mode_analytics.sql`, then `202611010001_player_accounts_and_cohorts.sql`.
+3. Provide `VITE_SUPABASE_ENABLED=true`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_PUBLISHABLE_KEY` as described in `.env.supabase.example`. Existing backups and compatible analytics use these settings.
+4. After the migration is applied and checked, set `VITE_PLAYER_ACCOUNTS_ENABLED=true` for the desired build. It defaults to false and gates the optional contact UI, audience access, and migration-dependent Tribunal upload. The deployment workflow forwards the variable to production and QA builds.
+5. To use the audience panel, separately provision a confirmed, non-anonymous administrator Auth user with an email/password and the server-controlled grant below. Enable password/email authentication for that administrative login. No player email provider flow, OTP template, or production SMTP setup is introduced by contact collection.
+
+Only publishable credentials belong in frontend variables. Never put `service_role` credentials, `sb_secret_` keys, administrator passwords, or unsubscribe tokens in `VITE_` variables. This PR supplies code/migrations and does not apply production SQL, create administrators, or change production settings.
+
+### Administrator authorization
+
+Special-settings visibility or a local debug flag does not authorize contact access. The panel uses the isolated `audience_admin` session and an existing administrator email/password; there is no administrator signup flow. Its login/logout cannot replace the player's backup identity.
+
+The RPC independently checks the live Auth user record for a confirmed, non-anonymous account, a nonempty email, and the JSON boolean `raw_app_meta_data.player_analytics_admin`. Editable `user_metadata` and stale JWT copies cannot grant access.
+
+Grant a known verified administrator UUID through trusted project administration:
 
 ```sql
 update auth.users
@@ -112,7 +96,7 @@ set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
 where id = 'REPLACE_WITH_VERIFIED_ADMIN_UUID'::uuid;
 ```
 
-To revoke it immediately for subsequent queries:
+Revoke access for subsequent queries:
 
 ```sql
 update auth.users
@@ -121,17 +105,24 @@ set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
 where id = 'REPLACE_WITH_VERIFIED_ADMIN_UUID'::uuid;
 ```
 
-The SQL Editor and `supabase/analytics.sql` remain available for deeper trusted analysis. The app does not send newsletters or tester invitations; it records the player's preferences. Any future sending integration must check the current verified email and relevant current opt-in immediately before delivery.
+The existing `supabase/analytics.sql` queries remain available for trusted deeper analysis.
 
-## Local SQL regression check
+## Verification
 
-`scripts/test-player-audience-sql.mjs` executes all four migrations in an isolated in-memory PostgreSQL engine with a minimal Supabase Auth fixture. It checks anonymous/unverified denial, owner-only RLS, independent consent and server timestamps, live administrator revocation, duplicate season events, completion/abandonment handling, guest separation, verified accounts without profiles or saved preferences, ambiguous IDs, QA exclusion, and the 500-row limit with full totals.
+The executable SQL regression runs all migrations against fresh in-memory PostgreSQL with an Auth fixture. It checks anonymous-owner access, foreign-owner isolation, no Auth mutation, consent timestamps, stale revisions, token secrecy, same-address unsubscribe and idempotence, explicit re-opt-in, cascading deletion, live administrator authorization, unverified report labels, season deduplication, and full totals beyond the 500-row cap.
 
-The optional PGlite engine can be installed outside the repository; it is not an app dependency:
+The optional PGlite engine is installed outside the repository and is not an app dependency:
 
 ```bash
 npm install --prefix /tmp/the-big-eye-sql-check --no-save --package-lock=false @electric-sql/pglite@0.5.14
 PLAYER_AUDIENCE_PGLITE_MODULE=/tmp/the-big-eye-sql-check/node_modules/@electric-sql/pglite/dist/index.js node scripts/test-player-audience-sql.mjs
 ```
 
-No production database, production data, or Auth delivery service is used by this regression check. It does not replace a staged end-to-end email-delivery test against the deployment's Supabase settings.
+Run the browser journeys/screenshots and the repository gate with:
+
+```bash
+npx playwright test --config playwright.accounts.config.ts
+npm run check:pr
+```
+
+The Playwright configuration starts an isolated local app; Supabase requests use test route handlers, without production data or outgoing email. No application dependency changes are required by this feature.

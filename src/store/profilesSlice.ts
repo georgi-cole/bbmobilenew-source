@@ -129,7 +129,7 @@ export interface EyeoleanTransaction {
 }
 
 export interface StoredProfile {
-  /** Stable unique identifier (timestamp+random). */
+  /** Stable unique identifier; new profiles use UUIDs when supported. */
   id: string
   /** In-game display name. */
   name: string
@@ -585,11 +585,12 @@ const profilesSlice = createSlice({
 
     /**
      * Create a new profile and make it active.
-     * No-op (slice unchanged) if the profile limit is already reached.
+     * No-op (slice unchanged) if the profile limit is reached or the ID already exists.
      */
     createProfile(
       state,
       action: PayloadAction<{
+        id?: string
         name: string
         avatar: string
         photoId?: string
@@ -598,8 +599,10 @@ const profilesSlice = createSlice({
       }>
     ) {
       if (state.profiles.length >= MAX_PROFILES) return
+      const id = action.payload.id ?? generateId()
+      if (!id.trim() || state.profiles.some((profile) => profile.id === id)) return
       const profile: StoredProfile = {
-        id: generateId(),
+        id,
         name: action.payload.name.trim() || 'You',
         avatar: action.payload.avatar || '👤',
         photoId: action.payload.photoId,
