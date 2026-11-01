@@ -39,6 +39,8 @@ interface Props {
   nominees: Player[]
   pleas: Record<string, string>
   comparisons: Record<string, string>
+  automaticDecision?: { evicteeId: string; reason?: string }
+  viewerId?: string
   onChoiceReady: () => void
   onDecision: (evicteeId: string) => void
   onComplete: (soundtrack: FinalDecisionAudioController) => void
@@ -60,7 +62,10 @@ function viewportTooShort() {
 
 function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
   // Freeze this presentation's cast and event identity while keeping callbacks current.
-  const [initial] = useState(() => props)
+  const [initial] = useState(() => ({
+    ...props,
+    automaticDecision: props.automaticDecision ? { ...props.automaticDecision } : undefined,
+  }))
   const callbacks = useRef(props)
   useLayoutEffect(() => {
     callbacks.current = props
@@ -112,6 +117,7 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
       outcome.sceneId === initial.sceneId &&
       outcome.holderId === initial.holder.id &&
       outcome.evicteeId !== outcome.keptId &&
+      (!initial.automaticDecision || outcome.evicteeId === initial.automaticDecision.evicteeId) &&
       initial.nominees.some((player) => player.id === outcome.evicteeId) &&
       initial.nominees.some((player) => player.id === outcome.keptId)
 
@@ -129,6 +135,8 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
           preview: false,
           reducedMotion: false,
           initiallyPaused: !activeRef.current,
+          automaticDecision: initial.automaticDecision,
+          viewerId: initial.viewerId,
           fixture: {
             holder: { id: initial.holder.id, name: initial.holder.name },
             nominees: initial.nominees.map((player, index) => ({
@@ -148,7 +156,8 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
             if (cancelled) return
             setSceneStage(checkpoint.stage)
             audio.current?.setStage(checkpoint.stage)
-            if (choiceOpened || checkpoint.stage !== 'choose') return
+            const decisionStage = initial.automaticDecision ? 'deliberate' : 'choose'
+            if (choiceOpened || checkpoint.stage !== decisionStage) return
             choiceOpened = true
             callbacks.current.onChoiceReady()
           },
@@ -209,7 +218,9 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
     document.body.style.overflow = 'hidden'
     const focusable = () =>
       Array.from(
-        dialog.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []
+        dialog.current?.querySelectorAll<HTMLElement>(
+          ':is(button, [tabindex="0"]):not(:disabled)'
+        ) ?? []
       ).filter((button) => !button.closest('[hidden]'))
     const first = focusable()[0] ?? dialog.current
     first?.focus({ preventScroll: true })
@@ -252,12 +263,19 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
       data-cinematic-active={active ? 'true' : undefined}
     >
       <div id="final-decision-scene" ref={target} />
-      {ready && ['establish', 'plea-a', 'plea-b', 'seal', 'announcement'].includes(sceneStage) && (
-        <CinematicSkipButton
-          ariaLabel="Skip presentation; no decision will be made for you"
-          onClick={() => controller.current?.skip()}
-        />
-      )}
+      {ready &&
+        ['establish', 'plea-a', 'plea-b', 'deliberate', 'seal', 'announcement'].includes(
+          sceneStage
+        ) && (
+          <CinematicSkipButton
+            ariaLabel={
+              initial.automaticDecision
+                ? "Skip ceremony; the Final Power holder's decision stays the same"
+                : 'Skip presentation; no decision will be made for you'
+            }
+            onClick={() => controller.current?.skip()}
+          />
+        )}
       {!ready && (
         <div className="final-decision-presentation__loading">
           <p role="status">Final Power Decision</p>
@@ -281,10 +299,15 @@ export default function FinalDecisionPresentation(props: Props) {
   const reducedMotion = usePresentationReducedMotion()
   const shortViewport = useSyncExternalStore(subscribeViewport, viewportTooShort, () => false)
   const validCast =
-    props.holder.isUser === true &&
     props.nominees.length === 2 &&
     props.nominees[0].id !== props.nominees[1].id &&
-    props.nominees.every((player) => player.id !== props.holder.id)
+    props.nominees.every((player) => player.id !== props.holder.id) &&
+    (props.holder.isUser === true
+      ? !props.automaticDecision
+      : Boolean(
+          props.automaticDecision &&
+          props.nominees.some((player) => player.id === props.automaticDecision?.evicteeId)
+        ))
   const canPresent = eligible && !reducedMotion && !shortViewport && validCast
   // Never insert a cinematic into an existing native presentation or replay a confirmed choice.
   const [session, setSession] = useState(() => canPresent && props.phase === 'pleas')

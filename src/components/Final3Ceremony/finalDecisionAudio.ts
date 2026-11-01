@@ -92,7 +92,8 @@ export function createFinalDecisionAudio(
   const volume = () => {
     if (stage === 'plea-a' || stage === 'plea-b') return FINAL_DECISION_AUDIO.pleaVolume
     if (stage === 'choose') return FINAL_DECISION_AUDIO.choiceVolume
-    if (stage === 'confirm') return FINAL_DECISION_AUDIO.confirmationVolume
+    if (stage === 'confirm' || stage === 'deliberate')
+      return FINAL_DECISION_AUDIO.confirmationVolume
     if (stage === 'seal') return FINAL_DECISION_AUDIO.sealVolume
     if (stage === 'announcement') return FINAL_DECISION_AUDIO.revealVolume
     if (stage === 'complete') return FINAL_DECISION_AUDIO.exitVolume
@@ -100,7 +101,8 @@ export function createFinalDecisionAudio(
   }
   const transitionMs = () => {
     if (stage === 'seal') return FINAL_DECISION_AUDIO.verdictDropMs
-    if (stage === 'choose' || stage === 'confirm') return FINAL_DECISION_AUDIO.suspenseBuildMs
+    if (stage === 'choose' || stage === 'confirm' || stage === 'deliberate')
+      return FINAL_DECISION_AUDIO.suspenseBuildMs
     return FINAL_DECISION_AUDIO.mixTransitionMs
   }
   const applyMix = (value: number) => {

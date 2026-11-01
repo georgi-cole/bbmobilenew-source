@@ -10,7 +10,10 @@ import {
   PRESENTATION_PRIORITY,
 } from '../../../services/presentation/presentationOwnership'
 import { ceremonyQueue } from '../../../cinematic/ceremonies/runtime.mjs'
-import gameReducer, { createInitialGameState } from '../../../store/gameSlice'
+import gameReducer, {
+  createInitialGameState,
+  syncStrategicRelationships,
+} from '../../../store/gameSlice'
 import settingsReducer, {
   DEFAULT_SETTINGS,
   setAudio,
@@ -20,6 +23,8 @@ import settingsReducer, {
 import vipReducer, { loadVipState } from '../../../store/vipSlice'
 import type { GameState, Player } from '../../../types'
 import Final3Ceremony from '../Final3Ceremony'
+import FinalDecisionPresentation from '../FinalDecisionPresentation'
+import * as finalDecisionLogic from '../../../social/finalThreeDecision'
 import type { FinalDecisionCheckpoint, FinalDecisionSceneConfig } from '../finalDecisionScene.mjs'
 
 const movie = vi.hoisted(() => ({
@@ -90,14 +95,20 @@ interface Options {
   vox?: boolean
   survival?: boolean
   aiHolder?: boolean
+  aiEvictee?: 0 | 1
+  spectator?: boolean
 }
 
 function fixture(options: Options = {}) {
   const initial = createInitialGameState({ seed: 111 })
   const human = initial.players.find((player) => player.isUser)!
-  const others = initial.players.filter((player) => !player.isUser).slice(0, 2)
-  const holder = options.aiHolder ? others[0] : human
-  const nominees = options.aiHolder ? [human, others[1]] : others
+  const others = initial.players.filter((player) => !player.isUser).slice(0, 3)
+  const holder = options.aiHolder || options.spectator ? others[0] : human
+  const nominees = options.spectator
+    ? [others[1], others[2]]
+    : options.aiHolder
+      ? [human, others[1]]
+      : others.slice(0, 2)
   const game: GameState = {
     ...initial,
     gameId: 'final-decision-integration',
@@ -113,15 +124,32 @@ function fixture(options: Options = {}) {
         ? 'active'
         : 'jury',
       stats:
-        player.id === nominees[0].id
-          ? { ...player.stats, lohWins: 2, posWins: 0, timesNominated: 0 }
-          : player.stats,
+        options.aiEvictee !== undefined && nominees.some((nominee) => nominee.id === player.id)
+          ? {
+              ...player.stats,
+              lohWins: player.id === nominees[options.aiEvictee].id ? 6 : 0,
+              posWins: 0,
+              timesNominated: 0,
+            }
+          : player.id === nominees[0].id
+            ? { ...player.stats, lohWins: 2, posWins: 0, timesNominated: 0 }
+            : player.stats,
     })),
     voxPopuli: options.vox ? { ...initial.voxPopuli!, status: 'active' } : initial.voxPopuli,
     strategicRelationships: {
       [holder.id]: {
-        [nominees[0].id]: { affinity: 30, tags: ['alliance'] },
-        [nominees[1].id]: { affinity: -30, tags: ['betrayal'] },
+        [nominees[0].id]:
+          options.aiEvictee === undefined
+            ? { affinity: 30, tags: ['alliance'] }
+            : options.aiEvictee === 0
+              ? { affinity: -90, tags: ['betrayal', 'target'] }
+              : { affinity: 90, tags: ['alliance', 'protection'] },
+        [nominees[1].id]:
+          options.aiEvictee === undefined
+            ? { affinity: -30, tags: ['betrayal'] }
+            : options.aiEvictee === 1
+              ? { affinity: -90, tags: ['betrayal', 'target'] }
+              : { affinity: 90, tags: ['alliance', 'protection'] },
       },
     },
     finalThree: {
@@ -161,7 +189,7 @@ function fixture(options: Options = {}) {
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(recordActions),
   })
-  return { store, holder, nominees, actions }
+  return { store, holder, nominees, human, actions }
 }
 
 function activeConfig(): FinalDecisionSceneConfig {
@@ -347,7 +375,9 @@ describe('human Final LOH cinematic integration', () => {
     { reduced: true },
     { vox: true },
     { survival: true },
-    { aiHolder: true },
+    { aiHolder: true, standard: true },
+    { aiHolder: true, reduced: true },
+    { spectator: true, off: true },
   ])('keeps native controls without preparing media for %j', async (options) => {
     const { store } = fixture(options)
     render(
@@ -544,4 +574,206 @@ describe('human Final LOH cinematic integration', () => {
     expect(soundtrack.dispose).toHaveBeenCalledTimes(1)
     expect(soundtrack.create).toHaveBeenCalledTimes(1)
   })
+})
+
+describe('AI Final LOH cinematic integration', () => {
+  it.each<Options>([
+    { aiHolder: true, aiEvictee: 0 },
+    { aiHolder: true, aiEvictee: 1 },
+    { spectator: true, aiEvictee: 0 },
+  ])(
+    'presents the canonical result for %j and defers finalization to Final Two Play',
+    async (options) => {
+      const { store, holder, nominees, human, actions, config } = await openMovie(options)
+      const game = store.getState().game
+      const pick = finalDecisionLogic.chooseFinalThreeEvictee({
+        holderId: holder.id,
+        holder,
+        nominees: game.players.filter((player) => game.nomineeIds.includes(player.id)),
+        relationships: game.strategicRelationships,
+        alliances: game.strategicAlliances,
+        threatReads: game.strategicThreatReadsByActorId,
+      })!
+      expect(config.automaticDecision).toEqual({ evicteeId: pick.player.id, reason: pick.reason })
+      expect(pick.player.id).toBe(nominees[options.aiEvictee!].id)
+      expect(config.viewerId).toBe(human.id)
+      expect(config.fixture.nominees.some((player) => player.id === human.id)).toBe(
+        !options.spectator
+      )
+      act(() => config.onCheckpoint({ stage: 'deliberate' } as FinalDecisionCheckpoint))
+      expect(movie.mount).toHaveBeenCalledTimes(1)
+      expect(
+        screen.queryByRole('dialog', { name: 'The Finale elimination announcement' })
+      ).toBeNull()
+      const skip = screen.getByRole('button', {
+        name: "Skip ceremony; the Final Power holder's decision stays the same",
+      })
+      expect(skip).toHaveClass('cinematic-skip-button')
+      fireEvent.click(skip)
+      expect(movie.skip).toHaveBeenCalledTimes(1)
+      expect(store.getState().game.finalThree?.evicteeId).toBeNull()
+      const index = config.fixture.nominees.findIndex((player) => player.id === pick.player.id)
+      const outcome = result(config, index)
+      act(() => {
+        config.onDecision(outcome)
+        config.onCheckpoint({ stage: 'complete' } as FinalDecisionCheckpoint)
+        config.onComplete(outcome)
+        config.onComplete(outcome)
+      })
+      expect(screen.getByTestId('bronze-exit')).toHaveAttribute('data-player-id', pick.player.id)
+      expect(screen.getByTestId('bronze-exit')).toHaveAttribute('data-decision-presented', 'true')
+      expect(store.getState().game.finalThree?.evicteeId).toBeNull()
+      expect(soundtrack.create).toHaveBeenCalledTimes(1)
+      expect(soundtrack.dispose).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByTestId('bronze-exit'))
+      expect(screen.getByRole('dialog', { name: 'The Final Two' })).toBeInTheDocument()
+      act(() => {
+        window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
+        window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
+      })
+      expect(store.getState().game.finalThree?.evicteeId).toBe(pick.player.id)
+      expect(
+        store.getState().game.players.find((player) => player.id === pick.player.id)
+          ?.seasonPlacement
+      ).toBe(3)
+      expect(actions.filter((type) => type === 'game/finalizeFinal3Decision')).toHaveLength(1)
+      expect(actions.filter((type) => type === 'game/advance')).toHaveLength(1)
+    }
+  )
+
+  it('rejects a different valid nominee and handles immediate Skip completion before deliberate', async () => {
+    const { config, store, actions } = await openMovie({ aiHolder: true, aiEvictee: 1 })
+    const index = config.fixture.nominees.findIndex(
+      (player) => player.id === config.automaticDecision!.evicteeId
+    )
+    const outcome = result(config, index)
+    act(() => {
+      config.onComplete(outcome)
+      config.onDecision(result(config, 1 - index))
+      config.onComplete(result(config, 1 - index))
+    })
+    expect(screen.queryByTestId('bronze-exit')).toBeNull()
+    act(() => {
+      config.onDecision(outcome)
+      config.onCheckpoint({ stage: 'complete' } as FinalDecisionCheckpoint)
+      config.onComplete(outcome)
+      config.onDecision(outcome)
+      config.onComplete(outcome)
+    })
+    expect(screen.getByTestId('bronze-exit')).toHaveAttribute('data-player-id', outcome.evicteeId)
+    expect(actions.filter((type) => type === 'game/setEvictionOverlay')).toHaveLength(1)
+    expect(store.getState().game.finalThree?.evicteeId).toBeNull()
+    expect(soundtrack.dispose).not.toHaveBeenCalled()
+  })
+
+  it.each(['pleas', 'deliberate', 'verdict'] as const)(
+    'keeps the latched choice and reason when falling back during %s',
+    async (beat) => {
+      const choose = vi.spyOn(finalDecisionLogic, 'chooseFinalThreeEvictee')
+      const { config, store, holder, nominees } = await openMovie({ aiHolder: true, aiEvictee: 1 })
+      const decision = config.automaticDecision!
+      expect(choose).toHaveBeenCalledTimes(1)
+      vi.useFakeTimers()
+      // A later social sync must not change an already-started decision broadcast.
+      act(() =>
+        store.dispatch(
+          syncStrategicRelationships({
+            [holder.id]: {
+              [nominees[0].id]: { affinity: -100, tags: ['betrayal', 'target'] },
+              [nominees[1].id]: { affinity: 100, tags: ['alliance', 'protection'] },
+            },
+          })
+        )
+      )
+      if (beat !== 'pleas')
+        act(() => config.onCheckpoint({ stage: 'deliberate' } as FinalDecisionCheckpoint))
+      if (beat === 'verdict')
+        act(() =>
+          config.onDecision(
+            result(
+              config,
+              config.fixture.nominees.findIndex((player) => player.id === decision.evicteeId)
+            )
+          )
+        )
+      act(() => store.dispatch(setGameUX({ animationMode: 'standard' })))
+      if (beat === 'pleas') {
+        const plea = screen.getByRole('dialog', { name: 'The Finale plea chat' })
+        fireEvent.click(within(plea).getByRole('button', { name: 'Skip to end' }))
+      }
+      const announcement = screen.getByRole('dialog', {
+        name: 'The Finale elimination announcement',
+      })
+      act(() => vi.advanceTimersByTime(12_000))
+      expect(within(announcement).getByRole('log')).toHaveTextContent(decision.reason!)
+      expect(screen.queryByRole('button', { name: /^Eliminate .* · Keep/ })).toBeNull()
+      expect(choose).toHaveBeenCalledTimes(1)
+      expect(movie.mount).toHaveBeenCalledTimes(1)
+      expect(movie.dispose).toHaveBeenCalledTimes(1)
+      expect(store.getState().game.finalThree?.evicteeId).toBeNull()
+      fireEvent.click(within(announcement).getByRole('button', { name: 'Continue →' }))
+      act(() => vi.advanceTimersByTime(400))
+      expect(screen.getByTestId('bronze-exit')).toHaveAttribute(
+        'data-player-id',
+        decision.evicteeId
+      )
+      expect(screen.getByTestId('bronze-exit')).toHaveAttribute('data-decision-presented', 'false')
+      act(() => store.dispatch(setGameUX({ animationMode: 'cinematic' })))
+      expect(movie.mount).toHaveBeenCalledTimes(1)
+      expect(choose).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it('includes a scrollable full-speech region in the keyboard focus loop', async () => {
+    const { config } = await openMovie({ aiHolder: true })
+    act(() => config.onCheckpoint({ stage: 'plea-a' } as FinalDecisionCheckpoint))
+    const transcript = document.createElement('p')
+    transcript.tabIndex = 0
+    transcript.setAttribute('role', 'region')
+    transcript.setAttribute('aria-label', 'Full speech')
+    document.getElementById('final-decision-scene')!.prepend(transcript)
+    const skip = screen.getByRole('button', { name: /^Skip ceremony/ })
+    skip.focus()
+    fireEvent.keyDown(skip, { key: 'Tab' })
+    expect(document.activeElement).toBe(transcript)
+    fireEvent.keyDown(transcript, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(skip)
+  })
+
+  it.each(['missing', 'holder', 'unknown'] as const)(
+    'keeps native UI when the supplied automatic result is %s',
+    async (invalid) => {
+      const { store, holder, nominees, human } = fixture({ aiHolder: true })
+      render(
+        <Provider store={store}>
+          <FinalDecisionPresentation
+            sceneId="invalid-automatic-result"
+            phase="pleas"
+            holder={holder}
+            nominees={nominees}
+            pleas={{}}
+            comparisons={{}}
+            automaticDecision={
+              invalid === 'missing'
+                ? undefined
+                : {
+                    evicteeId: invalid === 'holder' ? holder.id : 'outside-the-final-three',
+                  }
+            }
+            viewerId={human.id}
+            onChoiceReady={vi.fn()}
+            onDecision={vi.fn()}
+            onComplete={vi.fn()}
+            fallback={<div>Native ceremony</div>}
+          />
+        </Provider>
+      )
+      await act(async () => {
+        await Promise.resolve()
+      })
+      expect(screen.getByText('Native ceremony')).toBeInTheDocument()
+      expect(movie.prepare).not.toHaveBeenCalled()
+      expect(movie.mount).not.toHaveBeenCalled()
+    }
+  )
 })

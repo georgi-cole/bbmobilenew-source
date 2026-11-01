@@ -6,7 +6,7 @@
  *
  * Sequence:
  *   1. Shared full-screen Final Power holder reveal (skipped if Part 3 spectator already showed it).
- *   2. Nominee pleas — human cinematic session or the native ChatOverlay.
+ *   2. Nominee pleas — the role-aware cinematic session or native ChatOverlay.
  *   3. LOH decision:
  *      - Human LOH: explicit evictee selection and confirmation in either presentation.
  *      - AI LOH: deterministic choice from the actual season record.
@@ -146,6 +146,20 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
   )
   const humanPlayer = game.players.find((p) => p.isUser) ?? null
   const humanIsLoh = !!humanPlayer && humanPlayer.id === lohId
+  // A presentation can yield to native UI at any beat. Freeze the game's
+  // deliberate choice once so both routes reveal the same nominee and reason.
+  const [automaticDecision] = useState(() => {
+    if (humanIsLoh) return undefined
+    const pick = chooseFinalThreeEvictee({
+      holderId: lohId,
+      holder: lohPlayer ?? undefined,
+      nominees,
+      relationships: game.strategicRelationships,
+      alliances: game.strategicAlliances,
+      threatReads: game.strategicThreatReadsByActorId,
+    })
+    return pick ? { evicteeId: pick.player.id, reason: pick.reason } : undefined
+  })
   const decisionSceneId = `${game.gameId ?? `${game.seed}:${game.season}`}:final-decision:${lohId}`
   const soundtrackContinuation = useMemo(
     () => ({
@@ -332,53 +346,33 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
     setStage((current) => (current === 'pleas' ? 'decision' : current))
   }, [humanIsLoh])
 
-  // AI Final LOHs use the same visible decision stage, then make a deliberate
-  // move from the actual season record instead of a hidden random pick.
-  useEffect(() => {
-    if (stage !== 'decision' || humanIsLoh) return
-    const pick = chooseFinalThreeEvictee({
-      holderId: lohId,
-      holder: lohPlayer ?? undefined,
-      nominees,
-      relationships: game.strategicRelationships,
-      alliances: game.strategicAlliances,
-      threatReads: game.strategicThreatReadsByActorId,
-    })
-    if (!pick) return
-    setEvicteeId(pick.player.id)
-    buildAnnounceLines(pick.player, pick.reason)
-    setStage('announcement')
-  }, [
-    buildAnnounceLines,
-    game.strategicAlliances,
-    game.strategicRelationships,
-    game.strategicThreatReadsByActorId,
-    humanIsLoh,
-    lohId,
-    lohPlayer,
-    nominees,
-    stage,
-  ])
+  // ── Accept the explicit human choice or the latched AI verdict ─────────────
 
-  // ── Human LOH decision ────────────────────────────────────────────────────
-
-  const handleHumanDecision = useCallback(
+  const handleDecision = useCallback(
     (chosenEvicteeId: string) => {
-      if (import.meta.env.DEV) {
-        console.log('[Final3Ceremony] human LOH eliminated player chosen', chosenEvicteeId)
-      }
+      if (!humanIsLoh && chosenEvicteeId !== automaticDecision?.evicteeId) return
       const evictee = nominees.find((p) => p.id === chosenEvicteeId)
       if (!evictee || evicteeIdRef.current) return
+      // Skip can accept and complete the verdict in the same event. Its handoff
+      // must see the result before React's next effect copies local state.
       evicteeIdRef.current = chosenEvicteeId
       setEvicteeId(chosenEvicteeId)
       buildAnnounceLines(
         evictee,
-        decisionReads[chosenEvicteeId]?.reason ?? 'this is the move I can live with'
+        (!humanIsLoh ? automaticDecision?.reason : decisionReads[chosenEvicteeId]?.reason) ??
+          'this is the move I can live with'
       )
       setStage('announcement')
     },
-    [buildAnnounceLines, decisionReads, nominees]
+    [automaticDecision, buildAnnounceLines, decisionReads, humanIsLoh, nominees]
   )
+
+  // Native AI presentation and cinematic fallback consume the same game pick.
+  // The cinematic keeps ownership of its own visible deliberation and reveal.
+  useEffect(() => {
+    if (stage !== 'decision' || humanIsLoh || !automaticDecision) return
+    handleDecision(automaticDecision.evicteeId)
+  }, [automaticDecision, handleDecision, humanIsLoh, stage])
 
   // ── Announcement complete → eviction cinematic ───────────────────────────
 
@@ -470,7 +464,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
           subtitle="Choose who you are eliminating. The other finalist stays and faces you in the Final Two."
           options={nominees}
           optionDescriptions={optionDescriptions}
-          onSelect={handleHumanDecision}
+          onSelect={handleDecision}
           danger
           selectionConsequence={(selectedPlayer, options) => {
             const keptPlayer = options.find((player) => player.id !== selectedPlayer.id)
@@ -517,24 +511,28 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
         <FinalPowerHolderReveal
           player={lohPlayer}
           mode="classic"
-          continueCopy="Press Play when you are ready to make the Final Two decision."
+          continueCopy={
+            humanIsLoh
+              ? 'Press Play when you are ready to make the Final Two decision.'
+              : 'Press Play to hear the final pleas.'
+          }
         />
       )}
 
-      {humanIsLoh &&
-      lohPlayer &&
-      (stage === 'pleas' || stage === 'decision' || stage === 'announcement') ? (
+      {lohPlayer && (stage === 'pleas' || stage === 'decision' || stage === 'announcement') ? (
         <FinalDecisionPresentation
           sceneId={decisionSceneId}
           phase={stage}
           holder={lohPlayer}
           nominees={nominees}
           comparisons={optionDescriptions}
+          automaticDecision={humanIsLoh ? undefined : automaticDecision}
+          viewerId={humanPlayer?.id}
           pleas={Object.fromEntries(
             nominees.map((nominee) => [nominee.id, buildPlea(nominee, decisionReads[nominee.id])])
           )}
           onChoiceReady={handlePleaComplete}
-          onDecision={handleHumanDecision}
+          onDecision={handleDecision}
           onComplete={handlePremiumDecisionComplete}
           fallback={nativeDecisionPresentation}
         />

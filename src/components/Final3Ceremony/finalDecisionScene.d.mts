@@ -5,6 +5,7 @@ export type FinalDecisionSceneStage =
   | 'establish'
   | 'plea-a'
   | 'plea-b'
+  | 'deliberate'
   | 'choose'
   | 'confirm'
   | 'seal'
@@ -20,6 +21,8 @@ export interface FinalDecisionOutcome {
 
 export interface FinalDecisionCheckpoint {
   stage: FinalDecisionSceneStage
+  decisionMode?: 'interactive' | 'automatic'
+  viewerRole?: 'holder' | 'nominee' | 'spectator'
   selectedId: string | null
   confirmedId: string | null
   keptId: string | null
@@ -38,6 +41,10 @@ export interface FinalDecisionSceneConfig {
   preview: boolean
   reducedMotion?: boolean
   initiallyPaused?: boolean
+  /** The game's existing resolved outcome for a non-interactive broadcast. */
+  automaticDecision?: { evicteeId: string; reason?: string }
+  /** The actual user, including a nominee or an off-stage spectator. */
+  viewerId?: string
   fixture: {
     holder: { id: string; name: string }
     nominees: Array<{

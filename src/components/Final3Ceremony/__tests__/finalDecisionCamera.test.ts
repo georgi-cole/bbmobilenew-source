@@ -17,7 +17,7 @@ const mounted: Array<{ root: HTMLElement; controller: FinalDecisionController }>
 const originalAnimate = Object.getOwnPropertyDescriptor(Element.prototype, 'animate')
 const originalGetAnimations = Object.getOwnPropertyDescriptor(Element.prototype, 'getAnimations')
 
-function mount(reducedMotion = false) {
+function mount(reducedMotion = false, automatic = false) {
   const root = document.createElement('div')
   root.id = 'final-decision-scene'
   document.body.appendChild(root)
@@ -25,8 +25,11 @@ function mount(reducedMotion = false) {
     sceneId: 'camera-continuity',
     preview: false,
     reducedMotion,
+    ...(automatic ? { automaticDecision: { evicteeId: 'aria' }, viewerId: 'spectator' } : {}),
     fixture: {
-      holder: { id: 'human', name: 'You' },
+      holder: automatic
+        ? { id: 'ai-holder', name: 'Final Power holder' }
+        : { id: 'human', name: 'You' },
       nominees: [
         { id: 'aria', name: 'Aria', assetKey: 'aria', plea: 'Give me one last chance.' },
         { id: 'dex', name: 'Dex', assetKey: 'dex', plea: 'Let my story continue.' },
@@ -152,5 +155,43 @@ describe('continuous final decision camera', () => {
     vi.advanceTimersByTime(500)
     controller.skip()
     expect(cameraAnimations()).toHaveLength(0)
+  })
+
+  it('carries the same dolly through the automatic holder focus and verdict', () => {
+    const { root, controller } = mount(false, true)
+    const travel = cameraAnimations()
+    travel.forEach((animation) => {
+      animation.currentTime = 7345
+    })
+    for (let index = 0; index < 4; index += 1) {
+      if (controller.getState().stage === 'deliberate') break
+      vi.advanceTimersToNextTimer()
+    }
+    expect(controller.getState().stage).toBe('deliberate')
+    expect(root.querySelector('.scene')?.getAttribute('data-shot')).toBe('holder')
+    expect(root.querySelector('.fd-actor--holder')?.getAttribute('data-player-id')).toBe(
+      'ai-holder'
+    )
+    controller.pause('presentation')
+    expect(travel.every((animation) => animation.currentTime === 7345)).toBe(true)
+    expect(travel.every((animation) => animation.playState === 'paused')).toBe(true)
+    controller.resume('presentation')
+    vi.advanceTimersToNextTimer()
+    expect(controller.getState().stage).toBe('seal')
+    expect(cameraAnimations()).toEqual(travel)
+    expect(travel.every((animation) => animation.currentTime === 7345)).toBe(true)
+    expect(travel.every((animation) => animation.cancel.mock.calls.length === 0)).toBe(true)
+  })
+
+  it('keeps the entire automatic ceremony still with reduced motion', () => {
+    const { controller } = mount(true, true)
+    vi.advanceTimersByTime(40_000)
+    expect(controller.getState()).toMatchObject({
+      stage: 'complete',
+      confirmedId: 'aria',
+      decisionCount: 1,
+      completionCount: 1,
+    })
+    expect(animations).toHaveLength(0)
   })
 })

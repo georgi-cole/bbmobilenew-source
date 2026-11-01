@@ -769,6 +769,26 @@
 #final-decision-scene .scene[data-shot='dex'] .fd-actor--dex {
   filter: brightness(1.12) drop-shadow(0 0 12px #eec16d4a);
 }
+#final-decision-scene .scene[data-shot='holder'] .fd-speaker-focus {
+  opacity: 0.92;
+  left: 17.5%;
+}
+#final-decision-scene .scene[data-shot='holder'] .fd-background {
+  filter: brightness(0.63) saturate(0.78);
+}
+#final-decision-scene .scene[data-shot='holder'] .fd-foreground {
+  filter: brightness(0.58) saturate(0.78);
+}
+#final-decision-scene .scene[data-shot='holder'] .fd-actor--aria,
+#final-decision-scene .scene[data-shot='holder'] .fd-actor--dex {
+  filter: brightness(0.46) saturate(0.67);
+}
+#final-decision-scene .scene[data-shot='holder'] .fd-actor--holder {
+  filter: brightness(1.14) drop-shadow(0 0 15px #eec16d57);
+}
+#final-decision-scene .scene[data-shot='holder'] .fd-beam {
+  opacity: 0.26;
+}
 #final-decision-scene .fd-elimination-light {
   position: absolute;
   z-index: 1;

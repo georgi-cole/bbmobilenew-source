@@ -64,6 +64,18 @@ function mountFinalDecision(root, config) {
     throw new Error('The final decision requires exactly two distinct nominees.')
   }
   const holder = fixture.holder || { id: 'player', name: 'You' }
+  // A broadcast receives the game's resolved decision. It may reveal that
+  // result, but it must never choose a replacement or leak it before the seal.
+  const automaticDecision = cfg.automaticDecision ? { ...cfg.automaticDecision } : null
+  if (
+    automaticDecision &&
+    (typeof automaticDecision.evicteeId !== 'string' ||
+      automaticDecision.evicteeId === holder.id ||
+      !nominees.some((person) => person.id === automaticDecision.evicteeId))
+  ) {
+    throw new Error('The automatic final decision must name one of the two nominees.')
+  }
+  const viewerIsNominee = nominees.some((person) => person.id === cfg.viewerId)
   const scene = root.querySelector('.scene') || root.appendChild(document.createElement('div'))
   scene.classList.add('scene')
   const assets = cfg.assets || {}
@@ -83,6 +95,7 @@ function mountFinalDecision(root, config) {
   let cameraAnimation = null
   let compositionSize = ''
   let reviewIndex = -1
+  let manualReadingStage = null
   let run = 1
   let timer = null
   const pauses = new Set()
@@ -140,7 +153,20 @@ function mountFinalDecision(root, config) {
   }
 
   scene.replaceChildren()
-  scene.setAttribute('aria-label', 'Classic Final Three: your last decision')
+  scene.setAttribute(
+    'aria-label',
+    automaticDecision
+      ? viewerIsNominee
+        ? 'Classic Final Three: your place in the final'
+        : 'Classic Final Three: the final decision'
+      : 'Classic Final Three: your last decision'
+  )
+  scene.dataset.decisionMode = automaticDecision ? 'automatic' : 'interactive'
+  scene.dataset.viewerRole = automaticDecision
+    ? viewerIsNominee
+      ? 'nominee'
+      : 'spectator'
+    : 'holder'
   scene.dataset.noMotion = String(reduced)
   // The slow dolly lives above shot framing so a new speaker never restarts it.
   // Screen copy and controls stay outside the moving camera.
@@ -275,6 +301,8 @@ function mountFinalDecision(root, config) {
   function snapshot() {
     return {
       stage,
+      decisionMode: automaticDecision ? 'automatic' : 'interactive',
+      viewerRole: scene.dataset.viewerRole,
       selectedId: selected,
       confirmedId: confirmed,
       keptId: confirmed ? nominees.find((p) => p.id !== confirmed).id : null,
@@ -477,6 +505,9 @@ function mountFinalDecision(root, config) {
       return { scale: compact ? 1.055 : stage === 'seal' ? 1.055 : 1.085, x: 0, y: 0 }
     }
     if (stage === 'establish') return { scale: 1.08, x: 0, y: 0 }
+    if (stage === 'deliberate') {
+      return { scale: compact ? 1.11 : 1.18, x: 0, y: compact ? 0.007 : 0.01 }
+    }
     if (stage === 'plea-a' || stage === 'plea-b' || (stage === 'confirm' && compact)) {
       const left = stage === 'plea-a' || (stage === 'confirm' && selected === nominees[0].id)
       return {
@@ -733,8 +764,49 @@ function mountFinalDecision(root, config) {
       (content) => {
         personStatus(content, evictee, 'Third place')
       },
-      evictee.name + ' leaves in third place.'
+      automaticDecision && viewerIsNominee && evictee.id === cfg.viewerId
+        ? 'You finish in third place.'
+        : evictee.name + ' leaves in third place.'
     )
+  }
+  function automaticVerdictText() {
+    const evictee = nominees.find((person) => person.id === confirmed)
+    if (!evictee) return ''
+    const address =
+      evictee.id === cfg.viewerId && evictee.name.trim().toLowerCase() === 'you'
+        ? ''
+        : evictee.name + ', '
+    const reason =
+      typeof automaticDecision?.reason === 'string'
+        ? automaticDecision.reason.trim().replace(/[.!?]+$/u, '')
+        : ''
+    return address + "I'm choosing to eliminate you" + (reason ? ' — ' + reason : '') + '.'
+  }
+  function readingHoldMs(text) {
+    const words = String(text).match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu) || []
+    const readingUnits = Math.max(words.length, Math.ceil(Array.from(String(text)).length / 6))
+    return Math.max(4800, 1600 + readingUnits * 280)
+  }
+  function automaticReadingSuccessor() {
+    if (stage === 'plea-a') return 'plea-b'
+    if (stage === 'plea-b') return 'deliberate'
+    if (stage === 'seal') return 'announcement'
+    return null
+  }
+  function preserveAutomaticReading() {
+    if (!automaticDecision || manualReadingStage === stage) return
+    const next = automaticReadingSuccessor()
+    const caption = monitor.content.querySelector('.fd-broadcast-caption')
+    if (!next || caption?.dataset.scrollable !== 'true') return
+    // Unusually long or enlarged copy belongs to the reader. Keep the whole
+    // transcript in place until Continue or the shared Skip is used.
+    manualReadingStage = stage
+    cancelTimer()
+    mainAction('Continue', () => go(next, true)).setAttribute(
+      'aria-label',
+      stage === 'seal' ? 'Continue after the verdict' : 'Continue after the full plea'
+    )
+    syncPausedUI()
   }
   function splitCaption(text) {
     const style = window.getComputedStyle(monitor.content)
@@ -768,11 +840,22 @@ function mountFinalDecision(root, config) {
     showFrame(
       'broadcast',
       (content) => {
-        node('p', 'fd-broadcast-speaker', content, person.name)
+        node(
+          'p',
+          'fd-broadcast-speaker',
+          content,
+          automaticDecision && person.id === cfg.viewerId && person.name.toLowerCase() !== 'you'
+            ? person.name + ' · You'
+            : person.name
+        )
         node('p', 'fd-broadcast-caption', content, caption)
       },
       person.name + ': ' + caption
     )
+    if (automaticDecision) {
+      preserveAutomaticReading()
+      return
+    }
     mainAction(stage === 'plea-a' ? 'Hear ' + nominees[1].name : 'Make your decision', () =>
       go(stage === 'plea-a' ? 'plea-b' : 'choose', true)
     )
@@ -850,6 +933,7 @@ function mountFinalDecision(root, config) {
     const cameraStart = window.getComputedStyle(world).transform
     cancelTimer()
     stopAnimations()
+    manualReadingStage = null
     if (next !== stage && next.startsWith('plea')) {
       captionPage = 0
       captionPages = []
@@ -866,9 +950,11 @@ function mountFinalDecision(root, config) {
         ? 3400
         : stage === 'announcement'
           ? 3200
-          : stage === 'seal'
-            ? 2200
-            : 2000
+          : stage === 'deliberate'
+            ? 2800
+            : stage === 'seal'
+              ? 2200
+              : 2000
     )
     fire('onCheckpoint', { ...snapshot(), sceneId: cfg.sceneId || 'classic-final-decision' })
     if (shouldFocus)
@@ -906,10 +992,23 @@ function mountFinalDecision(root, config) {
         )
       }
       schedule(reduced ? 500 : 3400, () => go('plea-a', true))
+    } else if (automaticDecision && (stage === 'plea-a' || stage === 'plea-b')) {
+      if (manualReadingStage !== stage) {
+        const person = nominees[stage === 'plea-a' ? 0 : 1]
+        const next = automaticReadingSuccessor()
+        schedule(readingHoldMs(person.plea || person.shortPlea || ''), () => go(next, true))
+      }
+    } else if (stage === 'deliberate') {
+      schedule(3600, commitAutomaticDecision)
     } else if (stage === 'seal') {
       animateIsolation(isolationStart)
       fire('onCue', { cue: 'decision:seal', sceneId: cfg.sceneId || 'classic-final-decision' })
-      schedule(reduced ? 550 : 2800, () => go('announcement', true))
+      if (manualReadingStage !== stage) {
+        schedule(
+          automaticDecision ? readingHoldMs(automaticVerdictText()) : reduced ? 550 : 2800,
+          () => go('announcement', true)
+        )
+      }
     } else if (stage === 'announcement') {
       fire('onCue', { cue: 'decision:reveal', sceneId: cfg.sceneId || 'classic-final-decision' })
       animate(
@@ -928,11 +1027,13 @@ function mountFinalDecision(root, config) {
     }
   }
   function choose(id) {
+    if (automaticDecision) return
     if (stage !== 'choose' || reviewIndex >= 0 || !nominees.some((p) => p.id === id)) return
     selected = id
     go('confirm', true)
   }
   function confirm() {
+    if (automaticDecision) return
     if (stage !== 'confirm' || !selected || committed) return
     confirmed = selected
     committed = true
@@ -940,9 +1041,23 @@ function mountFinalDecision(root, config) {
     fire('onDecision', outcome())
     go('seal', false)
   }
+  function commitAutomaticDecision() {
+    if (!automaticDecision || disposed || pauses.size || committed) return
+    selected = automaticDecision.evicteeId
+    confirmed = automaticDecision.evicteeId
+    committed = true
+    decisionCount += 1
+    fire('onDecision', outcome())
+    go('seal', false)
+  }
   function skip() {
     if (disposed || pauses.size) return
-    if (['welcome', 'establish', 'plea-a', 'plea-b'].includes(stage)) go('choose', true)
+    if (
+      automaticDecision &&
+      ['welcome', 'establish', 'plea-a', 'plea-b', 'deliberate'].includes(stage)
+    ) {
+      commitAutomaticDecision()
+    } else if (['welcome', 'establish', 'plea-a', 'plea-b'].includes(stage)) go('choose', true)
     else if (stage === 'seal') go('announcement', true)
     else if (stage === 'announcement') go('complete', true)
   }
@@ -958,6 +1073,7 @@ function mountFinalDecision(root, config) {
     announcementFrame = 0
     captionPage = 0
     captionPages = []
+    manualReadingStage = null
     reviewIndex = -1
     decisionCount = 0
     completionCount = 0
@@ -974,11 +1090,13 @@ function mountFinalDecision(root, config) {
         ? 'aria'
         : stage === 'plea-b'
           ? 'dex'
-          : stage === 'confirm'
-            ? selected === nominees[0].id
-              ? 'aria'
-              : 'dex'
-            : 'wide'
+          : stage === 'deliberate'
+            ? 'holder'
+            : stage === 'confirm'
+              ? selected === nominees[0].id
+                ? 'aria'
+                : 'dex'
+              : 'wide'
     const isolated = Boolean(confirmed)
     scene.dataset.isolated = String(isolated)
     scene.dataset.isolatedPlayer = confirmed || ''
@@ -995,9 +1113,31 @@ function mountFinalDecision(root, config) {
       reviewIndex >= 0 ||
       !nominees.some((person) => Boolean(person.comparison))
     if (stage === 'welcome' || stage === 'establish') {
-      titleFrame('opening', 'One place beside you.')
+      if (automaticDecision) {
+        showFrame(
+          'opening',
+          (content) =>
+            personStatus(
+              content,
+              holder,
+              viewerIsNominee ? 'Your place is on the line' : 'Final Power holder'
+            ),
+          holder.name +
+            ' holds the final decision.' +
+            (viewerIsNominee ? ' Your place is on the line.' : '')
+        )
+      } else titleFrame('opening', 'One place beside you.')
     } else if (stage === 'plea-a' || stage === 'plea-b') {
       renderPlea()
+    } else if (stage === 'deliberate') {
+      showFrame(
+        'deliberation',
+        (content) => {
+          node('p', 'fd-broadcast-speaker', content, holder.name)
+          node('p', 'fd-broadcast-caption', content, "I've heard you both.")
+        },
+        holder.name + ": I've heard you both."
+      )
     } else if (stage === 'choose') {
       if (reviewIndex >= 0) renderReview()
       else {
@@ -1030,7 +1170,18 @@ function mountFinalDecision(root, config) {
         true
       )
     } else if (stage === 'seal') {
-      titleFrame('seal', 'The choice is made.')
+      if (automaticDecision) {
+        const text = automaticVerdictText()
+        showFrame(
+          'verdict',
+          (content) => {
+            node('p', 'fd-broadcast-speaker', content, holder.name)
+            node('p', 'fd-broadcast-caption', content, text)
+          },
+          holder.name + ': ' + text
+        )
+        preserveAutomaticReading()
+      } else titleFrame('seal', 'The choice is made.')
     } else if (stage === 'announcement') {
       announcementScreen()
     } else {
@@ -1066,6 +1217,7 @@ function mountFinalDecision(root, config) {
     if (reviewIndex < 0) {
       fitMonitorNames()
       fitBroadcastCaption()
+      preserveAutomaticReading()
       return
     }
     const cursor = captionPages
