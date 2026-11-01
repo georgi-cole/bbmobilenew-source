@@ -661,6 +661,127 @@
     0 0 24px rgba(239, 68, 68, 0.4),
     0 1px 6px #000;
 }
+/* The audience broadcast keeps the physical glass housing and uses a cooler
+   light signature. Exact vote values are revealed together, without a live poll. */
+#final-decision-scene .scene[data-format='vox-populi'] .fd-backlight {
+  background: radial-gradient(ellipse, #b7a8f139, #8c80cb0d 48%, transparent 73%);
+}
+#final-decision-scene
+  .scene[data-format='vox-populi'][data-isolated='false']
+  .fd-actor--holder
+  .fd-actor-rim {
+  background: radial-gradient(ellipse at 50% 65%, #c0d9e52e, transparent 64%);
+}
+#final-decision-scene .scene[data-format='vox-populi'] .fd-monitor-screen {
+  border-color: rgba(219, 228, 246, 0.37);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 231, 0.24),
+    inset 0 -1px 0 rgba(180, 170, 221, 0.24),
+    inset 0 0 18px rgba(0, 0, 0, 0.28),
+    0 0 12px rgba(180, 188, 235, 0.1);
+}
+#final-decision-scene .fd-monitor[data-frame='immunity'] .fd-monitor-person {
+  gap: 3px;
+}
+#final-decision-scene .fd-monitor[data-frame='immunity'] .fd-monitor-person strong {
+  font-size: clamp(22px, 5.6cqi, 30px);
+}
+#final-decision-scene .fd-monitor[data-frame='immunity'] .fd-monitor-person span {
+  color: #ccdeeb;
+}
+#final-decision-scene .fd-vote-heading {
+  flex: none;
+  margin: 0;
+  color: #cfc5df;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+#final-decision-scene .fd-vote-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  width: 100%;
+  gap: 16px;
+}
+#final-decision-scene .fd-vote-tally {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  gap: 2px;
+}
+#final-decision-scene .fd-vote-tally + .fd-vote-tally {
+  border-left: 1px solid #9e8fbd44;
+  padding-left: 16px;
+}
+#final-decision-scene .fd-vote-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 2.2em;
+  margin: 0;
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+#final-decision-scene .fd-vote-value {
+  color: #f4eee8;
+  font-size: clamp(24px, 7cqi, 29px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px #b4a6dd26;
+}
+#final-decision-scene .fd-vote-track {
+  width: 90%;
+  height: 3px;
+  margin-top: 3px;
+  border-radius: 2px;
+  background: #a698be2b;
+  overflow: hidden;
+}
+#final-decision-scene .fd-vote-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9c8caf, #e8d8b8);
+  transform-origin: left center;
+}
+#final-decision-scene .fd-actions--appeal {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+#final-decision-scene .fd-appeal-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  gap: 6px;
+  padding: 12px 8px;
+  background: linear-gradient(145deg, #262031eb, #100d16ed);
+  border-color: #a18dbd80;
+}
+#final-decision-scene .fd-appeal-choice strong {
+  font-size: 13px;
+  line-height: 1.15;
+  color: #f0e3ce;
+}
+#final-decision-scene .fd-appeal-choice small {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #c8bfd2;
+}
 @container (max-width:390px) {
   #final-decision-scene .fd-monitor {
     width: 94%;

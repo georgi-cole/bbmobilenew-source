@@ -90,9 +90,15 @@ export function createFinalDecisionAudio(
     accents = null
   }
   const volume = () => {
-    if (stage === 'plea-a' || stage === 'plea-b') return FINAL_DECISION_AUDIO.pleaVolume
-    if (stage === 'choose') return FINAL_DECISION_AUDIO.choiceVolume
-    if (stage === 'confirm' || stage === 'deliberate')
+    if (stage === 'plea-a' || stage === 'plea-b' || stage === 'appeal')
+      return FINAL_DECISION_AUDIO.pleaVolume
+    if (stage === 'choose' || stage === 'vote-results') return FINAL_DECISION_AUDIO.choiceVolume
+    if (
+      stage === 'confirm' ||
+      stage === 'deliberate' ||
+      stage === 'vote-closed' ||
+      stage === 'approval-tiebreak'
+    )
       return FINAL_DECISION_AUDIO.confirmationVolume
     if (stage === 'seal') return FINAL_DECISION_AUDIO.sealVolume
     if (stage === 'announcement') return FINAL_DECISION_AUDIO.revealVolume
@@ -101,7 +107,13 @@ export function createFinalDecisionAudio(
   }
   const transitionMs = () => {
     if (stage === 'seal') return FINAL_DECISION_AUDIO.verdictDropMs
-    if (stage === 'choose' || stage === 'confirm' || stage === 'deliberate')
+    if (
+      stage === 'choose' ||
+      stage === 'confirm' ||
+      stage === 'deliberate' ||
+      stage === 'vote-closed' ||
+      stage === 'approval-tiebreak'
+    )
       return FINAL_DECISION_AUDIO.suspenseBuildMs
     return FINAL_DECISION_AUDIO.mixTransitionMs
   }

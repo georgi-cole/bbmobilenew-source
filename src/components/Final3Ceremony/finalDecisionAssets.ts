@@ -14,7 +14,8 @@ interface FinalDecisionArtwork {
 export function resolveFinalDecisionArtwork(
   holder: Player,
   nominees: readonly Player[],
-  catalog: CeremonyCharacterArt[]
+  catalog: CeremonyCharacterArt[],
+  presentation: 'classic' | 'vox' = 'classic'
 ): FinalDecisionArtwork | null {
   if (
     nominees.length !== 2 ||
@@ -24,7 +25,9 @@ export function resolveFinalDecisionArtwork(
     return null
   }
 
-  const holderPose = findArt(holder, catalog)?.poses['royal-standing']
+  const holderPose = findArt(holder, catalog)?.poses[
+    presentation === 'vox' ? 'front' : 'royal-standing'
+  ]
   const firstPose = findArt(nominees[0], catalog)?.poses.front
   const secondPose = findArt(nominees[1], catalog)?.poses.front
   if (!holderPose || !firstPose || !secondPose) return null
@@ -39,11 +42,11 @@ export function resolveFinalDecisionArtwork(
         holder: holderPose.src,
         'nominee-a': firstPose.src,
         'nominee-b': secondPose.src,
-        crown: 'assets/ceremonies/shared/crown.webp',
+        ...(presentation === 'classic' ? { crown: 'assets/ceremonies/shared/crown.webp' } : {}),
         mist: 'assets/ceremonies/vfx/natural-mist-v2.webp',
       }).map(([key, path]) => [key, joinPublicAssetPath(path)])
     ),
-    holderCrownAnchor: holderPose.crown,
+    ...(presentation === 'classic' ? { holderCrownAnchor: holderPose.crown } : {}),
   }
 }
 
@@ -85,11 +88,17 @@ function loadArtwork(src: string, signal: AbortSignal): Promise<void> {
 export async function prepareFinalDecisionArtwork(
   holder: Player,
   nominees: readonly Player[],
-  signal: AbortSignal
+  signal: AbortSignal,
+  presentation: 'classic' | 'vox' = 'classic'
 ): Promise<FinalDecisionArtwork> {
   const catalog = await import('../../cinematic/ceremonies/cast.json')
   if (signal.aborted) throw new Error('Final decision preparation cancelled')
-  const artwork = resolveFinalDecisionArtwork(holder, nominees, catalog.default.characters)
+  const artwork = resolveFinalDecisionArtwork(
+    holder,
+    nominees,
+    catalog.default.characters,
+    presentation
+  )
   if (!artwork) throw new Error('Final decision cast has no complete ceremony artwork')
   await Promise.all(Object.values(artwork.assets).map((src) => loadArtwork(src, signal)))
   return artwork

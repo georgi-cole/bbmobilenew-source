@@ -97,6 +97,8 @@ import TribunalCinematicLoading from '../../components/TribunalDecisionCinematic
 import FinalThreeBlockReveal from '../../components/FinalPowerBattle/FinalThreeBlockReveal'
 import FinalPowerBattleIntro from '../../components/FinalPowerBattle/FinalPowerBattleIntro'
 import VoxFinalThreeAppeal from '../../components/VoxFinalThreeAppeal/VoxFinalThreeAppeal'
+import VoxFinalThreeCeremony from '../../components/VoxFinalThreeCeremony/VoxFinalThreeCeremony'
+import { useVoxFinalThreeCeremony } from '../../components/VoxFinalThreeCeremony/useVoxFinalThreeCeremony'
 import { getProfilePhotoAvatarId, joinPublicAssetPath, resolveAvatar } from '../../utils/avatar'
 import { statusBadgeImageSrc } from '../../utils/statusBadges'
 import type { Player } from '../../types'
@@ -348,7 +350,9 @@ export default function GameScreen() {
     const handlePlay = (event: Event) => {
       if (
         event.defaultPrevented ||
-        document.querySelector('[aria-label="Final appeal to the audience"]')
+        document.querySelector(
+          '[aria-label="Final appeal to the audience"], [data-vox-final-three-presentation]'
+        )
       ) {
         event.preventDefault()
         return
@@ -364,7 +368,9 @@ export default function GameScreen() {
     const handlePlay = (event: Event) => {
       if (
         event.defaultPrevented ||
-        document.querySelector('[aria-label="Final appeal to the audience"]')
+        document.querySelector(
+          '[aria-label="Final appeal to the audience"], [data-vox-final-three-presentation]'
+        )
       ) {
         event.preventDefault()
         return
@@ -1007,6 +1013,7 @@ export default function GameScreen() {
     setAdPending,
     dispatch,
   })
+  const voxFinalThreeCeremony = useVoxFinalThreeCeremony(handleVoteResultsDone)
 
   // Flow-specific orchestration is owned by the dedicated controllers above.
 
@@ -1357,6 +1364,7 @@ export default function GameScreen() {
   // presentations settle. Never steal the screen from a playable Battle Back.
   const showTribunalInvitation =
     !vipPresentationActive &&
+    !voxFinalThreeCeremony.active &&
     game.mode !== 'survival' &&
     humanPlayer?.status === 'jury' &&
     game.tribunalInvitationAcknowledged !== true &&
@@ -1390,6 +1398,7 @@ export default function GameScreen() {
   // after that presentation completes, rather than losing the prompt.
   const deferConditionPromptsForPresentation =
     vipPresentationActive ||
+    voxFinalThreeCeremony.active ||
     shouldShowNominationCeremony ||
     showWinnerCeremony ||
     showAdvanceHohCeremony ||
@@ -1489,6 +1498,7 @@ export default function GameScreen() {
           showFinal4AnnounceChat,
           showFinal3Modal,
           showFinal3Ceremony,
+          voxFinalThreeCeremony.active,
           game.phase === 'jury_announcement',
           game.phase === 'jury_cinematic',
           spectatorF3Active,
@@ -1686,7 +1696,7 @@ export default function GameScreen() {
                 : null
             }
           />
-        ) : showVoteResults ? (
+        ) : showVoteResults && !voxFinalThreeCeremony.active ? (
           <TvZone
             key={game.gameId}
             voteResultsReveal={{
@@ -1727,7 +1737,7 @@ export default function GameScreen() {
         ) : (
           <TvZone
             key={game.gameId}
-            playOwnedExternally={finalPowerBattleIntroActive}
+            playOwnedExternally={finalPowerBattleIntroActive || voxFinalThreeCeremony.active}
             viewportMessageOverride={
               showBattleBackOverlay
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'
@@ -2125,7 +2135,14 @@ export default function GameScreen() {
           <Final3Ceremony onPlayAvailabilityChange={handleFinalThreeCeremonyPlayAvailability} />
         )}
 
-        {showVoxFinalThreeAppeal && humanPlayer && (
+        {voxFinalThreeCeremony.sceneProps && (
+          <VoxFinalThreeCeremony
+            key={voxFinalThreeCeremony.sceneProps.sceneId}
+            {...voxFinalThreeCeremony.sceneProps}
+          />
+        )}
+
+        {showVoxFinalThreeAppeal && humanPlayer && !voxFinalThreeCeremony.active && (
           <VoxFinalThreeAppeal
             player={humanPlayer}
             onSelect={(appeal) => dispatch(submitVoxFinalThreeAppeal(appeal))}
@@ -2473,6 +2490,7 @@ export default function GameScreen() {
                 onDone={handleEvictionSplashDone}
                 layoutId={`avatar-tile-${pendingEvictionPlayer.id}`}
                 devSkip={import.meta.env.DEV || import.meta.env.CI === 'true'}
+                soundtrackContinuation={voxFinalThreeCeremony.soundtrackContinuation}
               />
             ))}
         </AnimatePresence>

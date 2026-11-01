@@ -203,7 +203,7 @@ describe('Final Decision scene audio ownership', () => {
     audio.dispose()
   })
 
-  it.each(['confirm', 'deliberate'] as const)(
+  it.each(['confirm', 'deliberate', 'vote-closed', 'approval-tiebreak'] as const)(
     'autostarts at establishment, builds toward %s and drops the bed beneath the verdict accent',
     async (decisionStage) => {
       const audio = createFinalDecisionAudio('dramatic-mix', enabled)

@@ -67,6 +67,10 @@ function mountFinalDecision(root, config) {
   // A broadcast receives the game's resolved decision. It may reveal that
   // result, but it must never choose a replacement or leak it before the seal.
   const automaticDecision = cfg.automaticDecision ? { ...cfg.automaticDecision } : null
+  const audienceMode = Boolean(cfg.audienceVote)
+  if (audienceMode && automaticDecision) {
+    throw new Error('A final decision cannot be both holder-led and audience-led.')
+  }
   if (
     automaticDecision &&
     (typeof automaticDecision.evicteeId !== 'string' ||
@@ -75,6 +79,74 @@ function mountFinalDecision(root, config) {
   ) {
     throw new Error('The automatic final decision must name one of the two nominees.')
   }
+  function copyAudienceResult(result) {
+    if (
+      !result ||
+      !nominees.some((person) => person.id === result.evicteeId) ||
+      result.evicteeId === holder.id ||
+      !result.percentages ||
+      nominees.some(
+        (person) =>
+          !Number.isFinite(result.percentages[person.id]) ||
+          result.percentages[person.id] < 0 ||
+          result.percentages[person.id] > 100
+      ) ||
+      (result.approvalTiebreak &&
+        (!result.approvalTiebreak.scores ||
+          nominees.some(
+            (person) =>
+              !Number.isFinite(result.approvalTiebreak.scores[person.id]) ||
+              result.approvalTiebreak.scores[person.id] < 0 ||
+              result.approvalTiebreak.scores[person.id] > 100
+          )))
+    ) {
+      throw new Error('The audience verdict requires a valid nominee and actual vote percentages.')
+    }
+    return {
+      evicteeId: result.evicteeId,
+      percentages: Object.fromEntries(
+        nominees.map((person) => [person.id, result.percentages[person.id]])
+      ),
+      ...(result.approvalTiebreak
+        ? {
+            approvalTiebreak: {
+              scores: Object.fromEntries(
+                nominees.map((person) => [person.id, result.approvalTiebreak.scores[person.id]])
+              ),
+            },
+          }
+        : {}),
+    }
+  }
+  const appeal = cfg.audienceVote?.appeal
+    ? {
+        playerId: cfg.audienceVote.appeal.playerId,
+        choices: cfg.audienceVote.appeal.choices.map((choice) => ({ ...choice })),
+      }
+    : null
+  if (audienceMode && (!holder.id || nominees.some((person) => person.id === holder.id))) {
+    throw new Error('Final immunity belongs to a player outside the nominee ballot.')
+  }
+  if (
+    appeal &&
+    (appeal.playerId !== cfg.viewerId ||
+      !nominees.some((person) => person.id === appeal.playerId) ||
+      appeal.choices.length !== 3 ||
+      new Set(appeal.choices.map((choice) => choice.id)).size !== 3 ||
+      appeal.choices.some(
+        (choice) =>
+          !['underdog', 'loyalty', 'resume'].includes(choice.id) ||
+          ['title', 'copy', 'speech'].some(
+            (field) => typeof choice[field] !== 'string' || !choice[field].trim()
+          )
+      ))
+  ) {
+    throw new Error('The final appeal requires the viewing nominee and all three game choices.')
+  }
+  let audienceResult = cfg.audienceVote?.result ? copyAudienceResult(cfg.audienceVote.result) : null
+  let appealId = null
+  let voteRequested = false
+  let voteClosureReady = false
   const viewerIsNominee = nominees.some((person) => person.id === cfg.viewerId)
   const scene = root.querySelector('.scene') || root.appendChild(document.createElement('div'))
   scene.classList.add('scene')
@@ -155,18 +227,28 @@ function mountFinalDecision(root, config) {
   scene.replaceChildren()
   scene.setAttribute(
     'aria-label',
-    automaticDecision
-      ? viewerIsNominee
-        ? 'Classic Final Three: your place in the final'
-        : 'Classic Final Three: the final decision'
-      : 'Classic Final Three: your last decision'
+    audienceMode
+      ? 'Vox Populi Final Three: the audience verdict'
+      : automaticDecision
+        ? viewerIsNominee
+          ? 'Classic Final Three: your place in the final'
+          : 'Classic Final Three: the final decision'
+        : 'Classic Final Three: your last decision'
   )
-  scene.dataset.decisionMode = automaticDecision ? 'automatic' : 'interactive'
-  scene.dataset.viewerRole = automaticDecision
-    ? viewerIsNominee
-      ? 'nominee'
-      : 'spectator'
-    : 'holder'
+  scene.dataset.decisionMode = audienceMode
+    ? 'audience'
+    : automaticDecision
+      ? 'automatic'
+      : 'interactive'
+  scene.dataset.viewerRole =
+    audienceMode && holder.id === cfg.viewerId
+      ? 'immune'
+      : audienceMode || automaticDecision
+        ? viewerIsNominee
+          ? 'nominee'
+          : 'spectator'
+        : 'holder'
+  scene.dataset.format = audienceMode ? 'vox-populi' : 'classic'
   scene.dataset.noMotion = String(reduced)
   // The slow dolly lives above shot framing so a new speaker never restarts it.
   // Screen copy and controls stay outside the moving camera.
@@ -205,7 +287,10 @@ function mountFinalDecision(root, config) {
     const pose = node('div', 'fd-pose', el)
     image(assetKey, 'fd-figure', pose, person.name)
     if (role === 'holder') {
-      el.setAttribute('aria-label', holder.name + ', Final Power holder')
+      el.setAttribute(
+        'aria-label',
+        holder.name + (audienceMode ? ', final immunity holder' : ', Final Power holder')
+      )
       if (source('crown')) {
         const crown = image('crown', 'fd-crown', pose, '')
         // Default calibration is the explicitly selected demo pack,
@@ -301,8 +386,11 @@ function mountFinalDecision(root, config) {
   function snapshot() {
     return {
       stage,
-      decisionMode: automaticDecision ? 'automatic' : 'interactive',
+      decisionMode: audienceMode ? 'audience' : automaticDecision ? 'automatic' : 'interactive',
       viewerRole: scene.dataset.viewerRole,
+      canSkip: canSkipPresentation(),
+      awaitingVote: audienceMode && stage === 'vote-closed' && !audienceResult,
+      appealId,
       selectedId: selected,
       confirmedId: confirmed,
       keptId: confirmed ? nominees.find((p) => p.id !== confirmed).id : null,
@@ -508,8 +596,16 @@ function mountFinalDecision(root, config) {
     if (stage === 'deliberate') {
       return { scale: compact ? 1.11 : 1.18, x: 0, y: compact ? 0.007 : 0.01 }
     }
-    if (stage === 'plea-a' || stage === 'plea-b' || (stage === 'confirm' && compact)) {
-      const left = stage === 'plea-a' || (stage === 'confirm' && selected === nominees[0].id)
+    if (
+      stage === 'plea-a' ||
+      stage === 'plea-b' ||
+      stage === 'appeal' ||
+      (stage === 'confirm' && compact)
+    ) {
+      const left =
+        stage === 'plea-a' ||
+        (stage === 'appeal' && appeal.playerId === nominees[0].id) ||
+        (stage === 'confirm' && selected === nominees[0].id)
       return {
         scale: compact ? 1.11 : 1.17,
         x: (left ? 1 : -1) * (compact ? 0.045 : 0.052),
@@ -548,16 +644,29 @@ function mountFinalDecision(root, config) {
     )
     scene.style.setProperty('--fd-nominee-width', nomineeWidth + 'px')
     scene.style.setProperty('--fd-holder-width', holderWidth + 'px')
-    // Use the destination camera, not an intermediate animation matrix. A late
-    // font load or resize must never move the ornament into the monitor/head.
-    const worldTop = height * 0.63 * (1 - camera.scale) + height * camera.y * camera.scale
     // Reserve clearance for the entire dolly, not only its current phase. The
     // ornament must remain below the fixed monitor at the closest camera point.
     const dollyScale = reduced ? 1 : 1 + Math.max(...cameraDollyPath.map((pose) => pose.zoom))
     const dollyY = reduced ? 0 : Math.min(...cameraDollyPath.map((pose) => pose.y)) / 100
     const dollyTop = height * 0.63 * (1 - dollyScale) + height * dollyY
     const monitorCameraBottom = (monitorBottom - dollyTop) / dollyScale
-    const monitorWorldBottom = (monitorCameraBottom - worldTop) / camera.scale
+    // The audience broadcast returns from close speaker shots to the results.
+    // Its ornament keeps one safe world anchor across those transitions; using
+    // only the destination pose would move it before the camera had pulled back.
+    const eyeCameras =
+      audienceMode && !reduced
+        ? [
+            { scale: 1.08, y: 0 },
+            { scale: compact ? 1.11 : 1.17, y: compact ? 0.007 : 0.01 },
+            { scale: 1.055, y: 0 },
+          ]
+        : [camera]
+    const monitorWorldBottom = Math.max(
+      ...eyeCameras.map((pose) => {
+        const worldTop = height * 0.63 * (1 - pose.scale) + height * pose.y * pose.scale
+        return (monitorCameraBottom - worldTop) / pose.scale
+      })
+    )
     if (!confirmed) {
       const headTop = height * holderFloor - holderWidth * 1.5 * 1.006
       const gap = Math.max(0, headTop - monitorWorldBottom - 16)
@@ -645,6 +754,7 @@ function mountFinalDecision(root, config) {
         cue: 'presentation:resume',
         sceneId: cfg.sceneId || 'classic-final-decision',
       })
+      revealAudienceResultWhenReady()
     }
     syncPausedUI()
   }
@@ -665,9 +775,16 @@ function mountFinalDecision(root, config) {
       const status = item.querySelector('span')
       name.style.fontSize = ''
       const itemStyle = window.getComputedStyle(item)
+      const heading = monitor.content.querySelector('.fd-broadcast-speaker')
+      const headingHeight = heading
+        ? heading.getBoundingClientRect().height + (parseFloat(contentStyle.gap) || 0)
+        : 0
       const available = Math.max(
         16,
-        height - status.getBoundingClientRect().height - (parseFloat(itemStyle.gap) || 0)
+        height -
+          headingHeight -
+          status.getBoundingClientRect().height -
+          (parseFloat(itemStyle.gap) || 0)
       )
       let size = parseFloat(window.getComputedStyle(name).fontSize)
       const minimum = item.parentElement.classList.contains('fd-monitor-pair') ? 14 : 18
@@ -764,7 +881,7 @@ function mountFinalDecision(root, config) {
       (content) => {
         personStatus(content, evictee, 'Third place')
       },
-      automaticDecision && viewerIsNominee && evictee.id === cfg.viewerId
+      (automaticDecision || audienceMode) && viewerIsNominee && evictee.id === cfg.viewerId
         ? 'You finish in third place.'
         : evictee.name + ' leaves in third place.'
     )
@@ -787,14 +904,22 @@ function mountFinalDecision(root, config) {
     const readingUnits = Math.max(words.length, Math.ceil(Array.from(String(text)).length / 6))
     return Math.max(4800, 1600 + readingUnits * 280)
   }
+  function requiredAppealFor(person) {
+    return Boolean(audienceMode && appeal && !appealId && person.id === appeal.playerId)
+  }
+  function pleaText(person) {
+    return person.id === appeal?.playerId && appealId
+      ? appeal.choices.find((choice) => choice.id === appealId).speech
+      : person.plea || person.shortPlea || ''
+  }
   function automaticReadingSuccessor() {
-    if (stage === 'plea-a') return 'plea-b'
-    if (stage === 'plea-b') return 'deliberate'
+    if (stage === 'plea-a') return requiredAppealFor(nominees[1]) ? 'appeal' : 'plea-b'
+    if (stage === 'plea-b') return audienceMode ? 'vote-closed' : 'deliberate'
     if (stage === 'seal') return 'announcement'
     return null
   }
   function preserveAutomaticReading() {
-    if (!automaticDecision || manualReadingStage === stage) return
+    if ((!automaticDecision && !audienceMode) || manualReadingStage === stage) return
     const next = automaticReadingSuccessor()
     const caption = monitor.content.querySelector('.fd-broadcast-caption')
     if (!next || caption?.dataset.scrollable !== 'true') return
@@ -834,7 +959,7 @@ function mountFinalDecision(root, config) {
   }
   function renderPlea() {
     const person = nominees[stage === 'plea-a' ? 0 : 1]
-    const caption = person.plea || person.shortPlea || ''
+    const caption = pleaText(person)
     captionPages = [caption]
     captionPage = 0
     showFrame(
@@ -844,7 +969,9 @@ function mountFinalDecision(root, config) {
           'p',
           'fd-broadcast-speaker',
           content,
-          automaticDecision && person.id === cfg.viewerId && person.name.toLowerCase() !== 'you'
+          (automaticDecision || audienceMode) &&
+            person.id === cfg.viewerId &&
+            person.name.toLowerCase() !== 'you'
             ? person.name + ' · You'
             : person.name
         )
@@ -852,13 +979,86 @@ function mountFinalDecision(root, config) {
       },
       person.name + ': ' + caption
     )
-    if (automaticDecision) {
+    if (automaticDecision || audienceMode) {
       preserveAutomaticReading()
       return
     }
     mainAction(stage === 'plea-a' ? 'Hear ' + nominees[1].name : 'Make your decision', () =>
       go(stage === 'plea-a' ? 'plea-b' : 'choose', true)
     )
+  }
+  function renderAppeal() {
+    showFrame(
+      'appeal',
+      (content) => {
+        node('p', 'fd-broadcast-speaker', content, 'Your final appeal')
+        node('p', 'fd-broadcast-caption', content, 'How should the audience remember you?')
+      },
+      'Choose your final appeal. Your appeal can move a close vote.'
+    )
+    actions.classList.add('fd-actions--appeal')
+    appeal.choices.forEach((choice) => {
+      const action = mainAction('', () => {
+        if (appealId || stage !== 'appeal') return
+        appealId = choice.id
+        fire('onAppeal', choice.id)
+        go(appeal.playerId === nominees[0].id ? 'plea-a' : 'plea-b', true)
+      })
+      action.classList.add('fd-appeal-choice')
+      action.setAttribute('aria-label', choice.title + '. ' + choice.copy)
+      node('strong', '', action, choice.title)
+      node('small', '', action, choice.copy)
+    })
+  }
+  function renderAudienceTallies(approval = false) {
+    const values = approval ? audienceResult.approvalTiebreak.scores : audienceResult.percentages
+    const label = approval ? 'Approval tiebreak' : 'Vote to eliminate'
+    showFrame(
+      approval ? 'approval-tiebreak' : 'vote-results',
+      (content) => {
+        node('p', 'fd-vote-heading', content, label)
+        const grid = node('div', 'fd-vote-grid', content)
+        nominees.forEach((person) => {
+          const tally = node('div', 'fd-vote-tally', grid)
+          tally.dataset.playerId = person.id
+          node('p', 'fd-vote-name', tally, person.name)
+          node(
+            'strong',
+            'fd-vote-value',
+            tally,
+            values[person.id].toFixed(1) + (approval ? '' : '%')
+          )
+          const track = node('div', 'fd-vote-track', tally)
+          track.setAttribute('aria-hidden', 'true')
+          const fill = node('i', 'fd-vote-fill', track)
+          fill.style.width = values[person.id] + '%'
+          // The exact resolved values stay fixed. Only their visual bars reveal.
+          animate(fill, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], {
+            duration: 1600,
+            easing: 'cubic-bezier(.18,.7,.22,1)',
+            fill: 'backwards',
+          })
+        })
+      },
+      label +
+        '. ' +
+        nominees
+          .map(
+            (person) =>
+              person.name +
+              ': ' +
+              values[person.id].toFixed(1) +
+              (approval ? ' approval' : ' percent')
+          )
+          .join('. ') +
+        '.'
+    )
+  }
+  function audienceVerdictText() {
+    const evictee = nominees.find((person) => person.id === confirmed)
+    return evictee.id === cfg.viewerId && evictee.name.trim().toLowerCase() === 'you'
+      ? 'The audience has decided. You leave tonight.'
+      : 'The audience has decided. ' + evictee.name + ' leaves tonight.'
   }
   function focusAction() {
     const first = actions.querySelector('button:not(:disabled)')
@@ -985,19 +1185,43 @@ function mountFinalDecision(root, config) {
         animate(
           token,
           [
-            { opacity: 0, transform: 'translate(-50%,-30%) scale(.9)' },
+            {
+              opacity: 0,
+              transform: audienceMode
+                ? 'translate(-50%,-50%) scale(.9)'
+                : 'translate(-50%,-30%) scale(.9)',
+            },
             { opacity: 0.92, transform: 'translate(-50%,-50%) scale(1)' },
           ],
           { duration: 1000, delay: 800, fill: 'backwards' }
         )
       }
-      schedule(reduced ? 500 : 3400, () => go('plea-a', true))
-    } else if (automaticDecision && (stage === 'plea-a' || stage === 'plea-b')) {
+      schedule(reduced ? 500 : 3400, () =>
+        go(requiredAppealFor(nominees[0]) ? 'appeal' : 'plea-a', true)
+      )
+    } else if ((automaticDecision || audienceMode) && (stage === 'plea-a' || stage === 'plea-b')) {
       if (manualReadingStage !== stage) {
         const person = nominees[stage === 'plea-a' ? 0 : 1]
         const next = automaticReadingSuccessor()
-        schedule(readingHoldMs(person.plea || person.shortPlea || ''), () => go(next, true))
+        schedule(readingHoldMs(pleaText(person)), () => go(next, true))
       }
+    } else if (stage === 'vote-closed') {
+      voteClosureReady = false
+      schedule(reduced ? 500 : 2600, () => {
+        voteClosureReady = true
+        revealAudienceResultWhenReady()
+      })
+      if (!voteRequested) {
+        voteRequested = true
+        fire('onVoteRequested')
+      }
+    } else if (stage === 'vote-results') {
+      schedule(5200, () => {
+        if (audienceResult.approvalTiebreak) go('approval-tiebreak', true)
+        else commitAudienceDecision()
+      })
+    } else if (stage === 'approval-tiebreak') {
+      schedule(4800, commitAudienceDecision)
     } else if (stage === 'deliberate') {
       schedule(3600, commitAutomaticDecision)
     } else if (stage === 'seal') {
@@ -1005,7 +1229,13 @@ function mountFinalDecision(root, config) {
       fire('onCue', { cue: 'decision:seal', sceneId: cfg.sceneId || 'classic-final-decision' })
       if (manualReadingStage !== stage) {
         schedule(
-          automaticDecision ? readingHoldMs(automaticVerdictText()) : reduced ? 550 : 2800,
+          audienceMode
+            ? readingHoldMs(audienceVerdictText())
+            : automaticDecision
+              ? readingHoldMs(automaticVerdictText())
+              : reduced
+                ? 550
+                : 2800,
           () => go('announcement', true)
         )
       }
@@ -1027,13 +1257,13 @@ function mountFinalDecision(root, config) {
     }
   }
   function choose(id) {
-    if (automaticDecision) return
+    if (automaticDecision || audienceMode) return
     if (stage !== 'choose' || reviewIndex >= 0 || !nominees.some((p) => p.id === id)) return
     selected = id
     go('confirm', true)
   }
   function confirm() {
-    if (automaticDecision) return
+    if (automaticDecision || audienceMode) return
     if (stage !== 'confirm' || !selected || committed) return
     confirmed = selected
     committed = true
@@ -1050,8 +1280,69 @@ function mountFinalDecision(root, config) {
     fire('onDecision', outcome())
     go('seal', false)
   }
+  function revealAudienceResultWhenReady() {
+    if (
+      !audienceMode ||
+      !audienceResult ||
+      stage !== 'vote-closed' ||
+      !voteClosureReady ||
+      pauses.size ||
+      disposed
+    )
+      return
+    go('vote-results', true)
+  }
+  function setAudienceVote(result) {
+    if (!audienceMode || disposed || audienceResult || committed) return false
+    audienceResult = copyAudienceResult(result)
+    if (stage === 'vote-closed' && voteClosureReady && !pauses.size) {
+      revealAudienceResultWhenReady()
+    } else {
+      fire('onCheckpoint', { ...snapshot(), sceneId: cfg.sceneId || 'vox-final-three' })
+    }
+    return true
+  }
+  function commitAudienceDecision() {
+    if (
+      !audienceMode ||
+      !audienceResult ||
+      disposed ||
+      pauses.size ||
+      committed ||
+      (appeal && !appealId)
+    )
+      return
+    selected = audienceResult.evicteeId
+    confirmed = audienceResult.evicteeId
+    committed = true
+    decisionCount += 1
+    fire('onDecision', outcome())
+    go('seal', false)
+  }
+  function canSkipPresentation() {
+    if (audienceMode) {
+      return (
+        stage !== 'appeal' && stage !== 'complete' && !(stage === 'vote-closed' && !audienceResult)
+      )
+    }
+    return !['choose', 'confirm', 'complete'].includes(stage)
+  }
   function skip() {
     if (disposed || pauses.size) return
+    if (audienceMode) {
+      if (stage === 'appeal' || stage === 'complete') return
+      if (['welcome', 'establish', 'plea-a', 'plea-b'].includes(stage)) {
+        go(appeal && !appealId ? 'appeal' : 'vote-closed', true)
+      } else if (stage === 'vote-closed' && audienceResult) {
+        go('vote-results', true)
+      } else if (stage === 'vote-results') {
+        if (audienceResult.approvalTiebreak) go('approval-tiebreak', true)
+        else commitAudienceDecision()
+      } else if (stage === 'approval-tiebreak') commitAudienceDecision()
+      else if (stage === 'seal') go('announcement', true)
+      else if (stage === 'announcement') go('complete', true)
+      return
+    }
     if (
       automaticDecision &&
       ['welcome', 'establish', 'plea-a', 'plea-b', 'deliberate'].includes(stage)
@@ -1077,6 +1368,7 @@ function mountFinalDecision(root, config) {
     reviewIndex = -1
     decisionCount = 0
     completionCount = 0
+    voteClosureReady = false
     run += 1
     fire('onReplay', { run })
     go('establish', true)
@@ -1086,9 +1378,9 @@ function mountFinalDecision(root, config) {
     scene.dataset.stage = stage
     scene.dataset.reviewing = String(reviewIndex >= 0)
     scene.dataset.shot =
-      stage === 'plea-a'
+      stage === 'plea-a' || (stage === 'appeal' && appeal.playerId === nominees[0].id)
         ? 'aria'
-        : stage === 'plea-b'
+        : stage === 'plea-b' || stage === 'appeal'
           ? 'dex'
           : stage === 'deliberate'
             ? 'holder'
@@ -1113,7 +1405,19 @@ function mountFinalDecision(root, config) {
       reviewIndex >= 0 ||
       !nominees.some((person) => Boolean(person.comparison))
     if (stage === 'welcome' || stage === 'establish') {
-      if (automaticDecision) {
+      if (audienceMode) {
+        showFrame(
+          'immunity',
+          (content) => {
+            node('p', 'fd-broadcast-speaker', content, 'Final immunity')
+            personStatus(content, holder, holder.id === cfg.viewerId ? 'You are immune' : 'Immune')
+          },
+          holder.id === cfg.viewerId
+            ? 'You hold final immunity. The audience decides the other place in the final.'
+            : holder.name +
+                ' holds final immunity. The audience decides the other place in the final.'
+        )
+      } else if (automaticDecision) {
         showFrame(
           'opening',
           (content) =>
@@ -1129,6 +1433,19 @@ function mountFinalDecision(root, config) {
       } else titleFrame('opening', 'One place beside you.')
     } else if (stage === 'plea-a' || stage === 'plea-b') {
       renderPlea()
+    } else if (stage === 'appeal') {
+      renderAppeal()
+    } else if (stage === 'vote-closed') {
+      showFrame(
+        'vote-closed',
+        (content) => {
+          node('p', 'fd-broadcast-speaker', content, 'Vox Populi')
+          node('h2', 'fd-monitor-title', content, 'Vote closed')
+        },
+        'The audience vote is closed. The result is being revealed.'
+      )
+    } else if (stage === 'vote-results' || stage === 'approval-tiebreak') {
+      renderAudienceTallies(stage === 'approval-tiebreak')
     } else if (stage === 'deliberate') {
       showFrame(
         'deliberation',
@@ -1170,7 +1487,18 @@ function mountFinalDecision(root, config) {
         true
       )
     } else if (stage === 'seal') {
-      if (automaticDecision) {
+      if (audienceMode) {
+        const text = audienceVerdictText()
+        showFrame(
+          'verdict',
+          (content) => {
+            node('p', 'fd-broadcast-speaker', content, 'The audience verdict')
+            node('p', 'fd-broadcast-caption', content, text)
+          },
+          text
+        )
+        preserveAutomaticReading()
+      } else if (automaticDecision) {
         const text = automaticVerdictText()
         showFrame(
           'verdict',
@@ -1277,7 +1605,7 @@ function mountFinalDecision(root, config) {
     scene.replaceChildren()
     fire('onCue', { cue: 'presentation:dispose' })
   }
-  const api = { pause, resume, skip, replay, dispose, getState: snapshot }
+  const api = { pause, resume, skip, replay, dispose, getState: snapshot, setAudienceVote }
   go('establish', false)
   return api
 }
