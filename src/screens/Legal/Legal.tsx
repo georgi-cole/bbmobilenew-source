@@ -48,9 +48,20 @@ export default function Legal() {
           and browser; an exact device model is included only when the browser provides it. A full
           browser user-agent string is not sent. Events carry a build label (QA, production, or
           development) so test activity can be distinguished. Purchase prices are not collected.
-          Photos, biographies, and conversation text are not sent. The anonymous backup is tied to
-          this installation and cannot yet be restored on another device. Contact support for data
-          access or deletion requests.
+          Photos, biographies, and conversation text are not sent. Guest activity uses a separate
+          installation identifier without a profile ID; it is not retroactively merged into a
+          profile when you create one. Saved seasons and other device-only data cannot yet be
+          restored on another device. Contact support for data access or deletion requests.
+        </p>
+        <p>
+          Email is optional when creating or editing a profile. It is stored privately in Supabase
+          with that profile's contact preference, separately from game saves and analytics events.
+          It is an unverified contact address, not a login. The optional, initially unchecked box
+          subscribes you to The Big Eye news and playtest invitations. You can change this choice in
+          Edit Profile or use the unsubscribe link in an email. Clearing the field removes the
+          address and turns off this profile's subscription. Authorized administrators can view
+          profile contact preferences alongside broad activity groups. Adding an email never
+          automatically subscribes you or combines profiles that share an address.
         </p>
         <p>
           Location is optional. If you allow it, coordinates are sent to Open-Meteo to request
@@ -97,7 +108,7 @@ export default function Legal() {
         )}
       </section>
 
-      <p className="legal-screen__version">The Big Eye 1.0.0 · Updated October 27, 2026</p>
+      <p className="legal-screen__version">The Big Eye 1.0.0 · Updated November 1, 2026</p>
     </main>
   )
 }

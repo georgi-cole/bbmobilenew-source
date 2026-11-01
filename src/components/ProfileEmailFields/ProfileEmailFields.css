@@ -1,0 +1,107 @@
+.profile-email {
+  margin: var(--game-space-4) 0;
+  min-width: 0;
+}
+
+.profile-email__label {
+  display: block;
+  margin-bottom: var(--game-space-2);
+  color: var(--game-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.profile-email__label span {
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.profile-email__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--game-space-2) var(--game-space-3);
+  border: 1px solid var(--game-border-subtle);
+  border-radius: var(--game-radius-1);
+  background: var(--game-surface-interactive);
+  color: var(--game-text-primary);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.profile-email__input:disabled {
+  opacity: 0.6;
+}
+
+.profile-email__choice {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--game-space-2);
+  margin-top: var(--game-space-1);
+  color: var(--game-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.profile-email__choice input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  accent-color: var(--game-accent);
+}
+
+.profile-email__hint,
+.profile-email__message,
+.profile-email__error {
+  margin: 0;
+  color: var(--game-text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.profile-email__hint a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--game-accent);
+  text-underline-offset: 3px;
+}
+
+.profile-email__error {
+  margin-top: var(--game-space-2);
+  color: var(--game-danger);
+}
+
+.profile-email__retry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--game-space-2);
+  color: var(--game-text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.profile-email__retry button {
+  min-height: 44px;
+  padding: var(--game-space-2);
+  border: 0;
+  background: transparent;
+  color: var(--game-accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-email :is(input, button, a):focus-visible {
+  outline: 2px solid var(--game-focus-color);
+  outline-offset: 2px;
+  box-shadow: var(--game-focus-ring);
+}

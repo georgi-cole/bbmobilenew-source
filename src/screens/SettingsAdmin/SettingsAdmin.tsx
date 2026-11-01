@@ -15,6 +15,7 @@ import {
 import CompSelection from '../../components/CompSelection'
 import MusicManagerPanel from './MusicManagerPanel'
 import SocialManagerPanel from './SocialManagerPanel'
+import PlayerAudiencePanel from './PlayerAudiencePanel'
 import type { CompGame, CompSelectionPayload } from '../../components/compSelectionUtils'
 import { getAllGames, type GameCategory } from '../../minigames/registry'
 import { restartApp } from '../../utils/restartApp'
@@ -63,12 +64,13 @@ function buildCompGamesFromRegistry(): CompGame[] {
     }))
 }
 
-type Tab = 'audio' | 'music' | 'social' | 'display' | 'gameux' | 'about'
+type Tab = 'audio' | 'music' | 'social' | 'players' | 'display' | 'gameux' | 'about'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'audio', label: '🔊 Audio' },
   { id: 'music', label: '🎵 Music Manager' },
   { id: 'social', label: '🤝 Social Manager' },
+  { id: 'players', label: '👥 Players' },
   { id: 'display', label: '🎨 Display' },
   { id: 'gameux', label: '🎮 Game UX' },
   { id: 'about', label: 'ℹ️ About' },
@@ -188,7 +190,7 @@ export default function SettingsAdmin() {
             key={tab.id}
             role="tab"
             aria-selected={activeTab === tab.id}
-            className={`settings-tab ${activeTab === tab.id ? 'settings-tab--active' : ''}`}
+            className={`settings-tab ${activeTab === tab.id ? 'settings-tab--active' : ''} ${tab.id === 'players' ? 'settings-tab--players game-ui-focusable' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}
@@ -264,6 +266,8 @@ export default function SettingsAdmin() {
 
         {/* ── Social Manager ─────────────────────────────────────────────── */}
         {activeTab === 'social' && <SocialManagerPanel />}
+
+        {activeTab === 'players' && <PlayerAudiencePanel />}
 
         {/* ── Display ───────────────────────────────────────────────────── */}
         {activeTab === 'display' && (

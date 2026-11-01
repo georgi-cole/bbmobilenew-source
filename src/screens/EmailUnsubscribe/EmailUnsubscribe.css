@@ -1,0 +1,44 @@
+.email-unsubscribe {
+  box-sizing: border-box;
+  width: min(480px, calc(100% - 32px));
+  margin: max(32px, env(safe-area-inset-top, 0px)) auto;
+  padding: 24px;
+  border: 1px solid rgba(196, 181, 253, 0.24);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(47, 30, 64, 0.97), rgba(20, 12, 31, 0.97));
+  color: var(--color-text, #f5f1ff);
+}
+
+.email-unsubscribe__brand {
+  margin: 0 0 12px;
+  color: #c5b3f3;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.email-unsubscribe h1 {
+  font-size: 1.45rem;
+}
+
+.email-unsubscribe p {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.email-unsubscribe .game-button {
+  width: 100%;
+  min-height: 44px;
+  margin: 12px 0;
+}
+
+.email-unsubscribe__home {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: #d5c4ff;
+}
+
+.email-unsubscribe [role='alert'] {
+  color: #fecaca;
+}

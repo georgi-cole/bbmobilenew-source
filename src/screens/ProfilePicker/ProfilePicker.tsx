@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ChangeEvent } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, type ChangeEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useAppSelector, useAppDispatch } from '../../store/hooks'
 import {
@@ -36,6 +36,11 @@ import { savedProfilePhotoIds } from '../../appearance/profilePhotos'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import ProfileSeasonStatus from '../../components/ProfileSeasonStatus/ProfileSeasonStatus'
 import ProfileOptionalDetails from '../../components/ProfileOptionalDetails/ProfileOptionalDetails'
+import ProfileEmailFields from '../../components/ProfileEmailFields/ProfileEmailFields'
+import {
+  createProfileDraftIdentity,
+  useProfileEmailForm,
+} from '../../components/ProfileEmailFields/useProfileEmailForm'
 import { normalizeProfileBio } from '../../components/ProfileOptionalDetails/profileBio'
 import ProfilePhotoPreview from '../../components/ProfilePhotoPreview/ProfilePhotoPreview'
 import AppearanceCarousel from '../../appearance/AppearanceCarousel'
@@ -93,6 +98,18 @@ export default function ProfilePicker() {
   const [newAge, setNewAge] = useState('')
   const [newSex, setNewSex] = useState('')
   const [newBio, setNewBio] = useState<ProfileBio>({})
+  const [draftIdentity, setDraftIdentity] = useState(createProfileDraftIdentity)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const emailForm = useProfileEmailForm(null)
+  const mounted = useRef(false)
+  const currentProfileId = useRef(activeProfileId)
+  useLayoutEffect(() => {
+    mounted.current = true
+    currentProfileId.current = activeProfileId
+    return () => {
+      mounted.current = false
+    }
+  }, [activeProfileId])
   const [newPhotoPreview, setNewPhotoPreview] = useState<string | null>(null)
   const [newPhotoBlob, setNewPhotoBlob] = useState<Blob | null>(null)
   const [processingPhoto, setProcessingPhoto] = useState(false)
@@ -260,10 +277,13 @@ export default function ProfilePicker() {
   }
 
   async function handleCreate() {
-    if (!canCreateProfile || atLimit || creatingRef.current) return
+    if (!canCreateProfile || atLimit || creatingRef.current || !emailForm.validate()) return
     const selectedLook = getAppearanceLook(newLookId, 1)
     if (!selectedLook?.selectable) return
     creatingRef.current = true
+    setSavingProfile(true)
+    const profileIdAtSave = activeProfileId
+    const canCommit = () => mounted.current && currentProfileId.current === profileIdAtSave
     try {
       const parsedAge = parsedNewAge
       let photoId: string | undefined
@@ -285,6 +305,7 @@ export default function ProfilePicker() {
       }
       const adoptGuestRun = isGuest && hasGuestRunProgress
       const profileDetails = {
+        id: draftIdentity.id,
         name: newName.trim(),
         avatar: '👤',
         photoId,
@@ -295,11 +316,18 @@ export default function ProfilePicker() {
           revision: selectedLook.revision,
         },
       }
+      if (
+        !canCommit() ||
+        !(await emailForm.save({ ...profileDetails, createdAt: draftIdentity.createdAt }))
+      )
+        return
+      if (!canCommit()) return
       if (adoptGuestRun) {
         withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
         // Capture the guest run after its first selected look has been applied.
         persistCurrentRunSnapshot()
         await flushSavePersistence()
+        if (!mounted.current) return
       } else {
         withRunAutosaveSuspended(() => {
           dispatch(createProfile(profileDetails))
@@ -313,10 +341,13 @@ export default function ProfilePicker() {
       setNewAge('')
       setNewSex('')
       setNewBio({})
+      emailForm.reset()
+      setDraftIdentity(createProfileDraftIdentity())
       clearNewPhoto()
       navigate(adoptGuestRun ? '/game' : '/profile', { replace: true, state: { from: returnTo } })
     } finally {
       creatingRef.current = false
+      if (mounted.current) setSavingProfile(false)
     }
   }
 
@@ -338,6 +369,8 @@ export default function ProfilePicker() {
     setNewAge('')
     setNewSex('')
     setNewBio({})
+    emailForm.reset()
+    setDraftIdentity(createProfileDraftIdentity())
     clearNewPhoto()
   }
 
@@ -416,6 +449,7 @@ export default function ProfilePicker() {
       <div className="profile-picker__topbar">
         <GameBackButton
           onClick={handleHome}
+          disabled={savingProfile}
           label={
             returnTo === '/profile'
               ? 'Back to profile'
@@ -595,6 +629,7 @@ export default function ProfilePicker() {
                         className="profile-picker__create-photo-btn"
                         onClick={() => fileInputRef.current?.click()}
                         aria-label="Upload profile photo"
+                        disabled={savingProfile}
                       >
                         📷
                       </button>
@@ -604,6 +639,7 @@ export default function ProfilePicker() {
                         accept="image/jpeg,image/png,image/webp,image/gif"
                         style={{ display: 'none' }}
                         onChange={handleNewPhotoChange}
+                        disabled={savingProfile}
                       />
                     </div>
                     <div className="profile-picker__create-photo-copy">
@@ -665,11 +701,17 @@ export default function ProfilePicker() {
                     <option value="Other">Other</option>
                     <option value="Prefer not to say">Prefer not to say</option>
                   </select>
+                  <ProfileEmailFields
+                    form={emailForm}
+                    idPrefix="profile-create"
+                    disabled={savingProfile}
+                  />
                   <ProfileOptionalDetails value={newBio} onChange={setNewBio} />
                   <div className="profile-picker__create-actions">
                     <button
                       type="button"
                       className="profile-picker__btn--cancel"
+                      disabled={savingProfile}
                       onClick={() => {
                         setCreateStep('look')
                       }}
@@ -679,10 +721,10 @@ export default function ProfilePicker() {
                     <button
                       type="button"
                       className="profile-picker__btn profile-picker__btn--create"
-                      disabled={!canCreateProfile || processingPhoto}
+                      disabled={!canCreateProfile || processingPhoto || savingProfile}
                       onClick={() => void handleCreate()}
                     >
-                      Create Profile
+                      {savingProfile ? 'Saving…' : 'Create Profile'}
                     </button>
                   </div>
                 </>

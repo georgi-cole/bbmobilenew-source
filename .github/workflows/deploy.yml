@@ -9,6 +9,8 @@ on:
       - 'scripts/generate-after-the-eye-config.mjs'
       - 'scripts/generate-audio-manifest.mjs'
       - 'scripts/check-production-debug-globals.mjs'
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
       - 'index.html'
       - 'package.json'
       - 'package-lock.json'
@@ -22,7 +24,8 @@ permissions:
 
 concurrency:
   group: public-pages-deploy
-  cancel-in-progress: true
+  # Never interrupt a database migration when a newer deployment is queued.
+  cancel-in-progress: false
 
 jobs:
   release-quality:
@@ -48,7 +51,11 @@ jobs:
 
   build-and-deploy:
     name: Build and publish public site
-    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip-public-deploy]')
+    # Manual runs on other branches and fork workflows cannot reach production credentials.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event.repository.fork == false &&
+      (github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip-public-deploy]'))
     needs: [release-quality]
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -74,6 +81,7 @@ jobs:
           VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_ENABLED }}
         run: |
           test "$VITE_SUPABASE_ENABLED" = "true"
           case "$VITE_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "VITE_SUPABASE_URL must be a Supabase HTTPS project URL" >&2; exit 1;; esac
@@ -93,6 +101,7 @@ jobs:
           VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_ENABLED }}
         run: |
           test "$VITE_SUPABASE_ENABLED" = "true"
           case "$VITE_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "VITE_SUPABASE_URL must be a Supabase HTTPS project URL" >&2; exit 1;; esac
@@ -105,6 +114,59 @@ jobs:
           mkdir -p dist/qa
           cp -R dist-production/. dist/
           cp -R dist-qa/. dist/qa/
+
+      - name: Validate automatic Supabase migration settings
+        shell: bash
+        env:
+          SUPABASE_MIGRATIONS_ENABLED: ${{ vars.SUPABASE_MIGRATIONS_ENABLED }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+        run: |
+          case "$SUPABASE_MIGRATIONS_ENABLED" in
+            ''|false) echo "Automatic Supabase migrations are disabled."; exit 0 ;;
+            true) ;;
+            *) echo "::error::SUPABASE_MIGRATIONS_ENABLED must be true, false, or unset."; exit 1 ;;
+          esac
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_REF; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is required when automatic Supabase migrations are enabled."
+              exit 1
+            fi
+          done
+          if [[ ! "$SUPABASE_PROJECT_REF" =~ ^[a-z0-9]+$ ]] || [ "$VITE_SUPABASE_URL" != "https://${SUPABASE_PROJECT_REF}.supabase.co" ]; then
+            echo "::error::SUPABASE_PROJECT_REF must match the production VITE_SUPABASE_URL project."
+            exit 1
+          fi
+
+      - name: Set up pinned Supabase CLI
+        if: vars.SUPABASE_MIGRATIONS_ENABLED == 'true'
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.0
+
+      - name: Apply pending Supabase migrations before publish
+        if: vars.SUPABASE_MIGRATIONS_ENABLED == 'true'
+        timeout-minutes: 10
+        shell: bash
+        env:
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          # Both sites share this project. Apply only this commit's reviewed migrations once.
+          git diff --exit-code HEAD -- supabase/migrations supabase/config.toml
+          untracked_migrations="$(git ls-files --others -- supabase/migrations supabase/config.toml)"
+          if [ -n "$untracked_migrations" ]; then
+            echo "::error::Untracked Supabase migration files or configuration cannot be deployed."
+            exit 1
+          fi
+          if [ ! -f supabase/config.toml ]; then
+            supabase init
+          fi
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase db push --linked --yes
 
       - name: Check out the public deployment repository
         env:
