@@ -1,14 +1,14 @@
 import { baseScene } from './mode-routing.mjs'
 
 export const MODE_SCENES = {
-  cupidLoh: { label: 'Cupid · shared LOH', duration: 4400 },
+  cupidLoh: { label: 'Cupid · shared LOH', duration: 3200 },
   cupidPower: { label: 'Cupid · all the power', duration: 4400 },
   cupidSafety: { label: 'Cupid · shared Safety', duration: 4200 },
   cupidNominations: { label: 'Cupid · nominated pairs', duration: 4800 },
   cupidSave: { label: 'Cupid · pair saved', duration: 4500 },
   cupidExit: { label: 'Cupid · paired departure', duration: 10200 },
   cupidAmbush: { label: 'Cupid · pair ambush', duration: 4800 },
-  voxImmunity: { label: 'Vox · immunity and last place', duration: 6400 },
+  voxImmunity: { label: 'Vox · immunity and last place', duration: 7900 },
   voxFinal4: { label: 'Vox · Final 4 competition', duration: 4400 },
   voxNominations: { label: 'Vox · secret nominations', duration: 4800 },
   voxResults: { label: 'Vox · public verdict', duration: 10000 },
@@ -24,7 +24,7 @@ export function modeResources(scene, cast, shared, vfx) {
     if (['cupidLoh', 'cupidPower'].includes(scene)) {
       resources.pairWinner = actor('b', 'front')
       resources.pairRoyal = actor('b', 'royal-standing')
-      resources.pairSeated = actor('b', 'royal-seated')
+      if (scene === 'cupidPower') resources.pairSeated = actor('b', 'royal-seated')
       if (scene === 'cupidPower') resources.pairShield = prop('shield')
     }
     if (scene === 'cupidSafety') {
@@ -79,21 +79,24 @@ export function adaptModeFilm(scene, root, images, resources, cast, details, fit
     const figure = root.querySelector('.loh-figure'),
       seated = root.querySelector('.loh-seated')
     figure.classList.add('pair-first')
-    seated.classList.add('pair-first')
-    const other = figure.cloneNode(true),
-      otherSeat = seated.cloneNode(true)
+    if (seated) seated.classList.add('pair-first')
+    const other = figure.cloneNode(true)
     other.classList.replace('pair-first', 'pair-second')
-    otherSeat.classList.replace('pair-first', 'pair-second')
     swap(other, '.loh-before .loh-person', images, 'pairWinner')
     swap(other, '.loh-royal .loh-person', images, 'pairRoyal')
-    swap(otherSeat, '.loh-seated-image', images, 'pairSeated')
     fitCrown(other.querySelector('.loh-before .loh-crown'), resources.pairWinner)
     fitCrown(other.querySelector('.loh-royal .loh-crown'), resources.pairRoyal)
-    fitCrown(otherSeat.querySelector('.loh-seated-crown'), resources.pairSeated)
-    const t = resources.pairSeated.throne
-    otherSeat.querySelector('.loh-seat-throne').style.transform =
-      `translate(${t.x * 100}%,${t.y * 100}%) scale(${t.scale})`
-    root.append(other, otherSeat)
+    root.append(other)
+    if (seated) {
+      const otherSeat = seated.cloneNode(true)
+      otherSeat.classList.replace('pair-first', 'pair-second')
+      swap(otherSeat, '.loh-seated-image', images, 'pairSeated')
+      fitCrown(otherSeat.querySelector('.loh-seated-crown'), resources.pairSeated)
+      const t = resources.pairSeated.throne
+      otherSeat.querySelector('.loh-seat-throne').style.transform =
+        `translate(${t.x * 100}%,${t.y * 100}%) scale(${t.scale})`
+      root.append(otherSeat)
+    }
     setText(
       root,
       '.loh-kicker',
@@ -173,7 +176,7 @@ export function makeVoxFilm(scene, images, cast, details) {
     (result
       ? ''
       : immunity
-        ? '<div class="vox-heading"><span>VOX POPULI · IMMUNITY CHALLENGE</span><h2>The result is in.</h2><p>FIRST PLACE IS SAFE · LAST PLACE IS NOMINATED</p></div>'
+        ? '<div class="vox-heading"><span>VOX POPULI · IMMUNITY CHALLENGE</span><h2>Two places. Two fates.</h2><p>FIRST PLACE IS SAFE · LAST PLACE IS NOMINATED</p></div>'
         : '<div class="vox-heading"><span>VOX POPULI · FINAL FOUR</span><h2>Competition won.</h2><p>NO IMMUNITY IS AWARDED.</p></div><div class="vox-verdict"><span>THE FINAL FOUR CONTINUE</span><h3></h3><p>The audience still decides who leaves.</p></div>')
   root.querySelector('.vox-set').append(copy(images, 'voxStudio', 'vox-backdrop'))
   root.querySelector('.vox-haze').append(copy(images, 'voxMist', 'vox-smoke'))
@@ -202,9 +205,14 @@ export function makeVoxFilm(scene, images, cast, details) {
     if (result) count.dataset.finalValue = String(Number(entry.value))
     if (immunity) {
       card.classList.add(index === 0 ? 'vox-immunity-winner' : 'vox-last-place-nominee')
+      const light = document.createElement('div')
+      light.className = 'vox-immunity-spot'
+      const floor = document.createElement('div')
+      floor.className = 'vox-immunity-floor'
+      card.append(light, floor)
       count.className = 'vox-count vox-role-label'
       count.textContent = entry.role
-      if (index === 0) identity.append(copy(images, 'voxShield', 'vox-immunity-emblem'))
+      if (index === 0) card.append(copy(images, 'voxShield', 'vox-immunity-emblem'))
     }
     identity.append(name)
     if (result) {
@@ -268,11 +276,22 @@ export function animateVoxFilm(scene, root, a, duration, later) {
           [6700, 1, 'scale(1.025) translateY(0)', settle],
           [duration, 1, 'scale(1.075) translateY(-.8%)'],
         ]
-      : [
-          [0, 1, 'scale(1.12) translateY(1%)'],
-          [1400, 1, 'scale(1.03) translateY(0)'],
-          [duration, 1, 'scale(1.065) translateY(-1%)'],
-        ]
+      : immunity
+        ? [
+            [0, 1, 'scale(1.12) translateY(1%)'],
+            [1400, 1, 'scale(1.06) translateX(0)'],
+            [2300, 1, 'scale(1.14) translateX(4%)', glide],
+            [3900, 1, 'scale(1.14) translateX(4%)'],
+            [4520, 1, 'scale(1.14) translateX(-4%)', glide],
+            [5850, 1, 'scale(1.14) translateX(-4%)'],
+            [6900, 1, 'scale(1.035) translateX(0)', settle],
+            [duration, 1, 'scale(1.035) translateX(0)'],
+          ]
+        : [
+            [0, 1, 'scale(1.12) translateY(1%)'],
+            [1400, 1, 'scale(1.03) translateY(0)'],
+            [duration, 1, 'scale(1.065) translateY(-1%)'],
+          ]
   )
   a('.vox-haze', [
     [0, 0.22, 'translateX(-8%) scale(1.1)'],
@@ -289,8 +308,8 @@ export function animateVoxFilm(scene, root, a, duration, later) {
     const finalTransform = `translateX(${focusX}px) scale(1.035)`
     a(card, [
       [0, 0, 'translateY(22px)', glide],
-      [350 + i * 150, 0, 'translateY(22px)', glide],
-      [1100 + i * 150, 1, 'translateY(0)'],
+      [immunity ? 1450 + i * 2900 : 350 + i * 150, 0, 'translateY(22px)', glide],
+      [immunity ? 2150 + i * 2900 : 1100 + i * 150, 1, 'translateY(0)'],
       ...(result && safe
         ? [
             [6400, 1, 'translateX(0)', settle],
@@ -348,14 +367,26 @@ export function animateVoxFilm(scene, root, a, duration, later) {
           [duration, 0.72],
         ])
       }
-    } else if (immunity)
+    } else if (immunity) {
       a(count, [
         [0, 0, 'translateY(12px)'],
-        [1450 + i * 650, 0, 'translateY(12px)', glide],
-        [1950 + i * 650, 1, 'translateY(0)'],
+        [2250 + i * 2850, 0, 'translateY(12px)', glide],
+        [2750 + i * 2850, 1, 'translateY(0)'],
         [duration, 1],
       ])
-    else
+      a(card.querySelector('.vox-immunity-spot'), [
+        [0, 0, 'scale(.75)'],
+        [1200 + i * 2900, 0, 'scale(.75)'],
+        [1900 + i * 2900, 0.88, 'scale(1)'],
+        [duration, i === 0 ? 0.48 : 0.72, 'scale(1.04)'],
+      ])
+      a(card.querySelector('.vox-immunity-floor'), [
+        [0, 0, 'scaleX(.55)'],
+        [1450 + i * 2900, 0, 'scaleX(.55)'],
+        [2150 + i * 2900, 1, 'scaleX(1)'],
+        [duration, 0.7, 'scaleX(1)'],
+      ])
+    } else
       a(count, [
         [0, 0],
         [1100, 0],
@@ -405,16 +436,27 @@ export function animateVoxFilm(scene, root, a, duration, later) {
         [duration, 1],
       ])
   } else {
-    a('.vox-heading', [
-      [0, 0, 'translateY(-12px) scale(.985)'],
-      [immunity ? 650 : 450, 1, 'translateY(0) scale(1)'],
-      [duration, 1],
-    ])
+    a(
+      '.vox-heading',
+      immunity
+        ? [
+            [0, 0, 'translateY(-12px) scale(.985)'],
+            [450, 1, 'translateY(0) scale(1)'],
+            [1450, 1, 'translateY(0) scale(1)'],
+            [2100, 0, 'translateY(-14px) scale(.985)'],
+            [duration, 0],
+          ]
+        : [
+            [0, 0, 'translateY(-12px) scale(.985)'],
+            [450, 1, 'translateY(0) scale(1)'],
+            [duration, 1],
+          ]
+    )
     if (immunity)
       a('.vox-immunity-emblem', [
         [0, 0, 'translateY(12px) scale(.72)'],
-        [1800, 0, 'translateY(12px) scale(.72)', glide],
-        [2350, 1, 'translateY(0) scale(1)'],
+        [2200, 0, 'translateY(12px) scale(.72)', glide],
+        [2750, 1, 'translateY(0) scale(1)'],
         [duration, 1, 'translateY(-2px) scale(1.03)'],
       ])
     else
@@ -425,11 +467,36 @@ export function animateVoxFilm(scene, root, a, duration, later) {
         [duration, 1],
       ])
   }
+  if (immunity) {
+    a('.vox-room-dim', [
+      [0, 0],
+      [3400, 0],
+      [4250, 0.52],
+      [5400, 0.38],
+      [duration, 0.3],
+    ])
+    a('.vox-danger-tint', [
+      [0, 0],
+      [4500, 0],
+      [5550, 0.58],
+      [duration, 0.46],
+    ])
+    a('.vox-reveal-sweep', [
+      [0, 0, 'translateX(-110%)'],
+      [1570, 0, 'translateX(-110%)'],
+      [1820, 0.65, 'translateX(-30%)', glide],
+      [2200, 0, 'translateX(100%)'],
+      [4300, 0, 'translateX(-110%)'],
+      [4730, 0.8, 'translateX(-20%)', glide],
+      [5300, 0, 'translateX(100%)'],
+      [duration, 0, 'translateX(100%)'],
+    ])
+  }
   a('.vox-cut', [
     [0, 0],
-    [result ? 6150 : 1700, 0],
-    [result ? 6420 : 1900, result ? 0.22 : 0.45],
-    [result ? 6900 : 2200, 0],
+    [result ? 6150 : immunity ? 3990 : 1700, 0],
+    [result ? 6420 : immunity ? 4250 : 1900, result ? 0.22 : 0.45],
+    [result ? 6900 : immunity ? 4580 : 2200, 0],
     [duration, 0],
   ])
 }

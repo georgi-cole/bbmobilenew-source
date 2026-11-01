@@ -195,32 +195,34 @@ export const BROADCAST_PRESENTATION_REGISTRY: Readonly<Record<string, BroadcastP
     },
     vox_populi: {
       eventMajor: true,
-      shock: true,
-      playThrough: true,
       announcement: liveCard(
         'VOX POPULI',
         'Players nominate in secret. The audience decides who leaves; Public Mode reveals the pulse.'
       ),
     },
     vox_immunity_comp: {
+      eventMajor: true,
       announcement: liveCard(
         'Immunity Competition',
         'The winner is safe today. The last-place finisher goes straight onto the block.'
       ),
     },
     vox_final4_immunity_comp: {
+      eventMajor: true,
       announcement: liveCard(
         'Final 4 Competition',
         'No immunity is awarded today. Last place begins on the block; the other three each cast one secret vote.'
       ),
     },
     vox_nominations: {
+      eventMajor: true,
       announcement: liveCard(
         'Secret Nominations',
         'Every player privately names two people. Cutoff ties expand the block.'
       ),
     },
     vox_safety_ceremony: {
+      eventMajor: true,
       announcement: liveCard(
         'Power of Safety',
         'The holder may save a nominee. The original secret-ballot ranking decides whether a backup is needed.'

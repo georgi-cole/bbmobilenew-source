@@ -256,6 +256,7 @@ export function ceremonyCast(scene, props, game, catalog) {
     return art ? { ...art, name: player.name, playerId: player.id } : null
   }
   const cast = { a: artFor(a), b: artFor(b), c: artFor(c) }
+  if (scene === 'nominations') cast.d = artFor(get(game.lohId))
   const required =
     scene === 'shock'
       ? []

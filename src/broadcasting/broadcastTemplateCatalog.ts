@@ -234,7 +234,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'card.vox-immunity',
     'loh_comp_announcement',
     'Immunity Competition',
-    'One hubmate can earn safety from the public vote.',
+    'First place earns immunity. Last place goes straight onto the block.',
     'vox_immunity_comp',
     'Vox Populi branch',
     'major',

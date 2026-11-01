@@ -193,3 +193,12 @@ store listings or change configured prices.
   Power presentation from Vox. Also consolidated Skip styling across cinematic
   films and the season archive. VIP access, products, prices, benefits, and Store
   copy are unchanged.
+
+- 2026-10-31: Reviewed the VIP ceremony polish for nominations, LOH crowning,
+  and Vox immunity results. The film sequence, preloader, and broadcast timing
+  change presentation only. VIP eligibility, Standard animations, paid offers,
+  prices, Store placement, and marketplace copy are unchanged.
+
+- 2026-10-31: Reviewed the Vox immunity film title timing and Finale Ready Faux TV
+  state. This is presentation maintenance; VIP eligibility, paid offers, prices,
+  Store placement, and marketplace copy are unchanged.

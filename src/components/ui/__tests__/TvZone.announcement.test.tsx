@@ -1949,6 +1949,33 @@ describe('TvZone — phase-based announcement triggers', () => {
     expect(screen.getByRole('dialog', { name: /Announcement: LOH Competition/i })).toBeDefined()
   })
 
+  it('shows the Vox immunity title card before competition rules', () => {
+    const store = makeStore()
+    act(() => {
+      store.dispatch(activateVoxPopuliNow())
+      for (const id of store.getState().game.broadcastQueue ?? []) {
+        store.dispatch(consumeBroadcastEvent(id))
+      }
+    })
+    renderTvZone(store)
+
+    act(() => store.dispatch(setPhase('loh_comp_announcement')))
+
+    expect(
+      screen.getByRole('dialog', { name: /Announcement: Immunity Competition/i })
+    ).toHaveTextContent('First place earns immunity. Last place goes straight onto the block.')
+    expect(screen.queryByTestId('shock-intro-overlay')).toBeNull()
+  })
+
+  it('opens Vox on the faux TV without a fullscreen intro', () => {
+    const store = makeStore()
+    act(() => store.dispatch(activateVoxPopuliNow()))
+    renderTvZone(store)
+
+    expect(screen.getByRole('dialog', { name: /Announcement: VOX POPULI/i })).toBeDefined()
+    expect(screen.queryByTestId('shock-intro-overlay')).toBeNull()
+  })
+
   it('shows the guest save reminder as a minor TV segment before the LOH title card', () => {
     const store = makeStore()
     act(() => store.dispatch(enterGuestMode()))

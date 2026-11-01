@@ -123,7 +123,7 @@ it('covers asset preparation with the cinematic entrance and lets Skip continue 
   )
 
   await waitFor(() => expect(film.prepare).toHaveBeenCalled())
-  expect(screen.getByText('Public vote reveal')).toBeInTheDocument()
+  expect(document.querySelector('.vip-film-prelude__eye')).not.toBeNull()
   fireEvent.click(screen.getByLabelText('Skip cinematic'))
   expect(done).toHaveBeenCalledTimes(1)
   film.resolvePrepare?.({})
