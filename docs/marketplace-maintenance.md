@@ -44,7 +44,7 @@ store listings or change configured prices.
 
 ## Review log
 
-- 2026-11-01: Reviewed Home Hub weather refresh, explicit location retry, current
+- 2026-11-01: Reviewed automatic Home Hub weather and location recovery, current
   rain detection, and the deployment-relative manifest icon. These repairs select
   from the existing background artwork and preserve the existing theme access
   rules. Products, VIP benefits, entitlements, prices, and Store copy are unchanged.

@@ -65,7 +65,6 @@ describe('useBackgroundTheme', () => {
     mockResolveTheme.mockReturnValueOnce(initial.promise).mockResolvedValue(rainyTheme)
     const { result } = renderHook(() => useBackgroundTheme())
     expect(mockResolveTheme).toHaveBeenCalledOnce()
-    expect(result.current.permissionStatus).toBe('unknown')
 
     const firstRequest = result.current.requestWeatherLocation()
     const secondRequest = result.current.requestWeatherLocation()
@@ -74,8 +73,8 @@ describe('useBackgroundTheme', () => {
 
     await act(async () => {
       initial.resolve(theme)
-      expect(await firstRequest).toEqual(rainyTheme)
-      expect(await secondRequest).toEqual(rainyTheme)
+      await firstRequest
+      await secondRequest
     })
 
     expect(mockResolveTheme).toHaveBeenCalledTimes(2)
@@ -84,7 +83,6 @@ describe('useBackgroundTheme', () => {
     expect(result.current).toMatchObject({
       url: rainyTheme.url,
       reason: rainyTheme.reason,
-      permissionStatus: 'granted',
     })
   })
 
@@ -225,22 +223,22 @@ describe('useBackgroundTheme', () => {
     expect(document.documentElement.style.getPropertyValue('--intro-bg-image')).toBe('')
   })
 
-  it('returns a safe fallback for an unexpected resolver error and permits a later retry', async () => {
+  it('applies a safe fallback for an unexpected resolver error and permits a later retry', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { result } = renderHook(() => useBackgroundTheme())
     await act(async () => {})
     mockResolveTheme.mockRejectedValueOnce(new Error('temporary failure'))
 
     await act(async () => {
-      expect(await result.current.requestWeatherLocation()).toMatchObject({
-        key: 'day',
-        reason: 'resolveTheme:error:temporary failure',
-        permissionStatus: 'unknown',
-      })
+      await result.current.requestWeatherLocation()
+    })
+    expect(result.current).toMatchObject({
+      key: 'day',
+      reason: 'resolveTheme:error:temporary failure',
     })
     mockResolveTheme.mockResolvedValue(rainyTheme)
     await act(async () => {
-      expect(await result.current.requestWeatherLocation()).toEqual(rainyTheme)
+      await result.current.requestWeatherLocation()
     })
     expect(result.current.key).toBe('weather:rain:day')
   })

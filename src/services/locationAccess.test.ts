@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const locationMocks = vi.hoisted(() => ({
   isNative: false,
@@ -19,7 +19,14 @@ vi.mock('@capacitor/geolocation', () => ({
   },
 }))
 
-import { getWeatherLocation, shouldShowWeatherPermissionRationale } from './locationAccess'
+let getWeatherLocation: typeof import('./locationAccess').getWeatherLocation
+let shouldShowWeatherPermissionRationale: typeof import('./locationAccess').shouldShowWeatherPermissionRationale
+
+async function loadLocationService(): Promise<void> {
+  const service = await import('./locationAccess')
+  getWeatherLocation = service.getWeatherLocation
+  shouldShowWeatherPermissionRationale = service.shouldShowWeatherPermissionRationale
+}
 
 const coordinates = { latitude: 42.6977, longitude: 23.3219 }
 
@@ -44,15 +51,21 @@ function setBrowserGeolocation(): ReturnType<typeof vi.fn> {
 }
 
 describe('weather location access', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.resetModules()
     localStorage.clear()
     locationMocks.isNative = false
     locationMocks.checkPermissions.mockReset()
     locationMocks.requestPermissions.mockReset()
     locationMocks.getCurrentPosition.mockReset()
+    await loadLocationService()
   })
 
-  it('uses the browser position request as the single permission prompt', async () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('uses one browser position request after the existing first-launch rationale', async () => {
     setBrowserPermission('prompt')
     const getCurrentPosition = setBrowserGeolocation()
 
@@ -61,75 +74,108 @@ describe('weather location access', () => {
 
     expect(result.coordinates).toEqual(coordinates)
     expect(result.permissionStatus).toBe('granted')
-    expect(getCurrentPosition).toHaveBeenCalledTimes(1)
+    expect(getCurrentPosition).toHaveBeenCalledOnce()
     expect(localStorage.getItem('bb:locationPermissionRequested')).toBe('true')
     expect(localStorage.getItem('bb:allowLocation')).toBe('granted')
     expect(shouldShowWeatherPermissionRationale()).toBe(false)
   })
 
-  it('keeps ordinary background refreshes from prompting before the player chooses', async () => {
+  it('waits for the first-launch rationale before asking a new player', async () => {
     setBrowserPermission('prompt')
     const getCurrentPosition = setBrowserGeolocation()
 
-    const result = await getWeatherLocation(100)
-
-    expect(result.coordinates).toBeNull()
+    expect((await getWeatherLocation(100)).coordinates).toBeNull()
     expect(getCurrentPosition).not.toHaveBeenCalled()
     expect(shouldShowWeatherPermissionRationale()).toBe(true)
   })
 
-  it('allows an explicit retry after an earlier attempt while passive refreshes stay prompt-free', async () => {
+  it('automatically recovers an old interrupted attempt instead of treating it as a lifetime block', async () => {
     setBrowserPermission('prompt')
     const getCurrentPosition = setBrowserGeolocation()
     localStorage.setItem('bb:locationPermissionRequested', 'true')
 
-    const passiveResult = await getWeatherLocation(100)
-
-    expect(passiveResult.coordinates).toBeNull()
-    expect(getCurrentPosition).not.toHaveBeenCalled()
-
-    const retryResult = await getWeatherLocation(100, true)
-
-    expect(retryResult.coordinates).toEqual(coordinates)
+    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
     expect(getCurrentPosition).toHaveBeenCalledOnce()
   })
 
-  it('lets the player renew an expired one-time permission without prompting automatically', async () => {
+  it('automatically renews an expired one-time grant and keeps granted refreshes working', async () => {
     setBrowserPermission('prompt')
     const getCurrentPosition = setBrowserGeolocation()
     localStorage.setItem('bb:allowLocation', 'granted')
     localStorage.setItem('bb:locationPermissionRequested', 'true')
 
     expect(shouldShowWeatherPermissionRationale()).toBe(false)
-    expect((await getWeatherLocation(100)).coordinates).toBeNull()
-    expect(getCurrentPosition).not.toHaveBeenCalled()
+    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
 
-    expect((await getWeatherLocation(100, true)).coordinates).toEqual(coordinates)
+    setBrowserPermission('granted')
+    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
+
+    // A newly confirmed grant may later expire again without reloading the app.
+    setBrowserPermission('prompt')
+    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
+    expect(getCurrentPosition).toHaveBeenCalledTimes(3)
+  })
+
+  it('renews a later one-time expiry when coordinates were the only confirmation of the prior grant', async () => {
+    setBrowserPermission('prompt')
+    const getCurrentPosition = setBrowserGeolocation()
+    localStorage.setItem('bb:allowLocation', 'granted')
+
+    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
+
+    // The next refresh encounters a new expiry without observing granted in between.
+    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
+    expect(getCurrentPosition).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not reopen a dismissed prompt on every foreground event in the same app session', async () => {
+    setBrowserPermission('prompt')
+    const getCurrentPosition = setBrowserGeolocation()
+    localStorage.setItem('bb:allowLocation', 'granted')
+    getCurrentPosition.mockImplementationOnce(
+      (_success: PositionCallback, error: PositionErrorCallback) => {
+        error({ code: 1, message: 'Location prompt dismissed' } as GeolocationPositionError)
+      }
+    )
+
+    expect((await getWeatherLocation(100)).permissionStatus).toBe('denied')
+    expect((await getWeatherLocation(100)).coordinates).toBeNull()
+    expect((await getWeatherLocation(100, true)).coordinates).toBeNull()
     expect(getCurrentPosition).toHaveBeenCalledOnce()
   })
 
-  it('preserves a remembered app opt-out until the player explicitly re-enables local weather', async () => {
-    setBrowserPermission('granted')
+  it.each([false, true])(
+    'uses a live browser grant despite a stale denial (attempt flag: %s)',
+    async (requested) => {
+      setBrowserPermission('granted')
+      const getCurrentPosition = setBrowserGeolocation()
+      localStorage.setItem('bb:allowLocation', 'denied')
+      if (requested) localStorage.setItem('bb:locationPermissionRequested', 'true')
+
+      expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
+      expect(localStorage.getItem('bb:allowLocation')).toBe('granted')
+      expect(getCurrentPosition).toHaveBeenCalledOnce()
+    }
+  )
+
+  it('does not turn an old remembered decline into a new prompt without a live grant', async () => {
+    setBrowserPermission('prompt')
     const getCurrentPosition = setBrowserGeolocation()
     localStorage.setItem('bb:allowLocation', 'denied')
 
-    expect((await getWeatherLocation(100)).permissionStatus).toBe('denied')
+    expect((await getWeatherLocation(100)).coordinates).toBeNull()
     expect(getCurrentPosition).not.toHaveBeenCalled()
-
-    expect((await getWeatherLocation(100, true)).coordinates).toEqual(coordinates)
-    expect(localStorage.getItem('bb:allowLocation')).toBe('granted')
-    expect(getCurrentPosition).toHaveBeenCalledOnce()
   })
 
-  it('recovers when browser settings change after a provider denial', async () => {
+  it('respects a current browser denial and automatically recovers after permission changes', async () => {
     setBrowserPermission('denied')
     const getCurrentPosition = setBrowserGeolocation()
+    localStorage.setItem('bb:allowLocation', 'granted')
 
     expect((await getWeatherLocation(100)).permissionStatus).toBe('denied')
+    expect((await getWeatherLocation(100, true)).permissionStatus).toBe('denied')
     expect(getCurrentPosition).not.toHaveBeenCalled()
-    expect(localStorage.getItem('bb:allowLocation')).toBeNull()
     expect(localStorage.getItem('bb:locationPermissionDenied')).toBe('true')
-    expect(shouldShowWeatherPermissionRationale()).toBe(false)
 
     setBrowserPermission('granted')
 
@@ -138,40 +184,59 @@ describe('weather location access', () => {
     expect(getCurrentPosition).toHaveBeenCalledOnce()
   })
 
-  it('does not try to bypass a browser denial during an explicit retry', async () => {
-    setBrowserPermission('denied')
-    const getCurrentPosition = setBrowserGeolocation()
-    localStorage.setItem('bb:allowLocation', 'denied')
-
-    expect((await getWeatherLocation(100, true)).permissionStatus).toBe('denied')
-    expect(getCurrentPosition).not.toHaveBeenCalled()
-    expect(localStorage.getItem('bb:allowLocation')).toBeNull()
-
-    setBrowserPermission('granted')
-
-    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
-  })
-
-  it('allows retry after a transient position timeout without storing a permanent denial', async () => {
+  it('bounds unsuccessful retries across reloads without permanently disabling location', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const startedAt = Date.now()
     setBrowserPermission('prompt')
     const getCurrentPosition = setBrowserGeolocation()
+    localStorage.setItem('bb:locationPermissionRequested', 'true')
     getCurrentPosition.mockImplementationOnce(
       (_success: PositionCallback, error: PositionErrorCallback) => {
         error({ code: 3, message: 'Position timed out' } as GeolocationPositionError)
       }
     )
 
-    const firstResult = await getWeatherLocation(100, true)
+    const firstResult = await getWeatherLocation(100)
 
     expect(firstResult.coordinates).toBeNull()
     expect(firstResult.error).toBe('Position timed out')
     expect(localStorage.getItem('bb:allowLocation')).toBeNull()
-    expect(localStorage.getItem('bb:locationPermissionDenied')).toBeNull()
-    expect((await getWeatherLocation(100, true)).coordinates).toEqual(coordinates)
+    expect((await getWeatherLocation(100)).coordinates).toBeNull()
+
+    vi.resetModules()
+    await loadLocationService()
+    expect((await getWeatherLocation(100)).coordinates).toBeNull()
+    expect(getCurrentPosition).toHaveBeenCalledOnce()
+
+    vi.setSystemTime(startedAt + 61 * 60 * 1000)
+
+    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
+    expect(getCurrentPosition).toHaveBeenCalledTimes(2)
+    expect(localStorage.getItem('bb:locationPermissionFailedAt')).toBeNull()
+  })
+
+  it('does not let a retry cooldown suppress an actual permission grant', async () => {
+    setBrowserPermission('granted')
+    const getCurrentPosition = setBrowserGeolocation()
+    localStorage.setItem('bb:locationPermissionFailedAt', String(Date.now()))
+    localStorage.setItem('bb:locationPermissionDenied', 'true')
+
+    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
+    expect(getCurrentPosition).toHaveBeenCalledOnce()
+    expect(localStorage.getItem('bb:locationPermissionFailedAt')).toBeNull()
+  })
+
+  it('continues using a successful grant when the Permissions API is unavailable', async () => {
+    Object.defineProperty(navigator, 'permissions', { configurable: true, value: undefined })
+    const getCurrentPosition = setBrowserGeolocation()
+    localStorage.setItem('bb:allowLocation', 'granted')
+
+    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
+    expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
     expect(getCurrentPosition).toHaveBeenCalledTimes(2)
   })
 
-  it('stops silent retries after a denial in a browser without a Permissions API', async () => {
+  it('stops repeated prompt attempts after a denial without a Permissions API', async () => {
     Object.defineProperty(navigator, 'permissions', { configurable: true, value: undefined })
     const getCurrentPosition = setBrowserGeolocation()
     localStorage.setItem('bb:allowLocation', 'granted')
@@ -184,13 +249,9 @@ describe('weather location access', () => {
     expect((await getWeatherLocation(100)).permissionStatus).toBe('denied')
     expect((await getWeatherLocation(100)).coordinates).toBeNull()
     expect(getCurrentPosition).toHaveBeenCalledOnce()
-
-    expect((await getWeatherLocation(100, true)).coordinates).toEqual(coordinates)
-    expect(getCurrentPosition).toHaveBeenCalledTimes(2)
-    expect(localStorage.getItem('bb:locationPermissionDenied')).toBe('false')
   })
 
-  it('preserves and deduplicates explicit requests queued behind a passive permission check', async () => {
+  it('deduplicates initial rationale requests queued behind a passive permission check', async () => {
     const query = setBrowserPermission('prompt')
     const getCurrentPosition = setBrowserGeolocation()
     let resolvePermission: (value: { state: PermissionState }) => void = () => undefined
@@ -202,14 +263,14 @@ describe('weather location access', () => {
     )
 
     const passive = getWeatherLocation(100)
-    const firstRetry = getWeatherLocation(100, true)
-    const secondRetry = getWeatherLocation(100, true)
+    const firstRequest = getWeatherLocation(100, true)
+    const secondRequest = getWeatherLocation(100, true)
     resolvePermission({ state: 'prompt' })
 
     const [passiveResult, firstResult, secondResult] = await Promise.all([
       passive,
-      firstRetry,
-      secondRetry,
+      firstRequest,
+      secondRequest,
     ])
 
     expect(passiveResult.coordinates).toBeNull()
@@ -219,76 +280,55 @@ describe('weather location access', () => {
     expect(getCurrentPosition).toHaveBeenCalledOnce()
   })
 
-  it('requests only approximate native location and uses the Capacitor provider', async () => {
-    locationMocks.isNative = true
-    locationMocks.checkPermissions.mockResolvedValue({
-      location: 'prompt',
-      coarseLocation: 'prompt',
-    })
-    locationMocks.requestPermissions.mockResolvedValue({
-      location: 'prompt',
-      coarseLocation: 'granted',
-    })
-    locationMocks.getCurrentPosition.mockResolvedValue({ coords: coordinates })
-    const browserPosition = setBrowserGeolocation()
+  it.each([false, true])(
+    'requests approximate native location for initial/recovery access (prior grant: %s)',
+    async (priorGrant) => {
+      locationMocks.isNative = true
+      locationMocks.checkPermissions.mockResolvedValue({
+        location: 'prompt',
+        coarseLocation: 'prompt',
+      })
+      locationMocks.requestPermissions.mockResolvedValue({
+        location: 'prompt',
+        coarseLocation: 'granted',
+      })
+      locationMocks.getCurrentPosition.mockResolvedValue({ coords: coordinates })
+      const browserPosition = setBrowserGeolocation()
+      if (priorGrant) localStorage.setItem('bb:allowLocation', 'granted')
 
-    const result = await getWeatherLocation(100, true)
+      expect((await getWeatherLocation(100, !priorGrant)).coordinates).toEqual(coordinates)
+      expect(locationMocks.requestPermissions).toHaveBeenCalledWith({
+        permissions: ['coarseLocation'],
+      })
+      expect(locationMocks.getCurrentPosition).toHaveBeenCalledOnce()
+      expect(browserPosition).not.toHaveBeenCalled()
+    }
+  )
 
-    expect(result.coordinates).toEqual(coordinates)
-    expect(locationMocks.requestPermissions).toHaveBeenCalledWith({
-      permissions: ['coarseLocation'],
-    })
-    expect(locationMocks.getCurrentPosition).toHaveBeenCalledOnce()
-    expect(browserPosition).not.toHaveBeenCalled()
-  })
-
-  it('accepts an existing precise native grant without another permission prompt', async () => {
+  it('accepts an existing precise native grant without another prompt or stale cache block', async () => {
     locationMocks.isNative = true
     locationMocks.checkPermissions.mockResolvedValue({
       location: 'granted',
       coarseLocation: 'prompt',
     })
     locationMocks.getCurrentPosition.mockResolvedValue({ coords: coordinates })
+    localStorage.setItem('bb:allowLocation', 'denied')
 
     expect((await getWeatherLocation(100)).coordinates).toEqual(coordinates)
     expect(locationMocks.requestPermissions).not.toHaveBeenCalled()
   })
 
-  it('records a native decline and never requests permission again automatically', async () => {
-    locationMocks.isNative = true
-    locationMocks.checkPermissions
-      .mockResolvedValueOnce({ location: 'prompt', coarseLocation: 'prompt' })
-      .mockResolvedValue({ location: 'denied', coarseLocation: 'denied' })
-    locationMocks.requestPermissions.mockResolvedValue({
-      location: 'prompt',
-      coarseLocation: 'denied',
-    })
-
-    const firstResult = await getWeatherLocation(100, true)
-    const nextResult = await getWeatherLocation(100)
-
-    expect(firstResult.permissionStatus).toBe('denied')
-    expect(nextResult.permissionStatus).toBe('denied')
-    expect(locationMocks.requestPermissions).toHaveBeenCalledOnce()
-    expect(localStorage.getItem('bb:allowLocation')).toBeNull()
-    expect(localStorage.getItem('bb:locationPermissionDenied')).toBe('true')
-    expect(shouldShowWeatherPermissionRationale()).toBe(false)
-  })
-
-  it('lets the native provider handle a deliberate retry after a denial', async () => {
+  it('never requests native permission while the OS currently reports denied', async () => {
     locationMocks.isNative = true
     locationMocks.checkPermissions.mockResolvedValue({
       location: 'denied',
       coarseLocation: 'denied',
     })
-    locationMocks.requestPermissions.mockResolvedValue({
-      location: 'prompt',
-      coarseLocation: 'granted',
-    })
-    locationMocks.getCurrentPosition.mockResolvedValue({ coords: coordinates })
-    localStorage.setItem('bb:locationPermissionRequested', 'true')
+    localStorage.setItem('bb:allowLocation', 'granted')
 
-    expect((await getWeatherLocation(100, true)).coordinates).toEqual(coordinates)
-    expect(locationMocks.requestPermissions).toHaveBeenCalledOnce()
+    expect((await getWeatherLocation(100)).permissionStatus).toBe('denied')
+    expect((await getWeatherLocation(100, true)).permissionStatus).toBe('denied')
+    expect(locationMocks.requestPermissions).not.toHaveBeenCalled()
+    expect(locationMocks.getCurrentPosition).not.toHaveBeenCalled()
   })
 })

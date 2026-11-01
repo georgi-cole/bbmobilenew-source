@@ -5,16 +5,11 @@ import HomeHub from '../HomeHub'
 import { preloadImage } from '../../../utils/preload'
 import { shouldShowWeatherPermissionRationale } from '../../../services/locationAccess'
 import type { RemoteConfig } from '../../../remoteConfig/remoteConfigTypes'
-import type { ResolvedTheme } from '../../../utils/backgroundTheme'
 
 const mockNavigate = vi.fn()
 const mockDispatch = vi.fn()
-const mockRequestWeatherLocation = vi.hoisted(() =>
-  vi.fn<() => Promise<ResolvedTheme | undefined>>(() => Promise.resolve(undefined))
-)
+const mockRequestWeatherLocation = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 let mockBackgroundUrl = '/assets/background.jpg'
-let mockWeatherReason = 'fallback:location'
-let mockWeatherPermission: ResolvedTheme['permissionStatus'] = 'unknown'
 const mockState: {
   game: {
     gameId: string
@@ -67,12 +62,7 @@ vi.mock('../../../store/hooks', () => ({
 }))
 
 vi.mock('../../../hooks/useBackgroundTheme', () => ({
-  default: () => ({
-    url: mockBackgroundUrl,
-    reason: mockWeatherReason,
-    permissionStatus: mockWeatherPermission,
-    requestWeatherLocation: mockRequestWeatherLocation,
-  }),
+  default: () => ({ url: mockBackgroundUrl, requestWeatherLocation: mockRequestWeatherLocation }),
 }))
 
 vi.mock('../../../hooks/useLoadIntroHub', async () => {
@@ -209,15 +199,13 @@ describe('HomeHub', () => {
     }
     mockState.remoteConfig.config = null
     mockBackgroundUrl = '/assets/background.jpg'
-    mockWeatherReason = 'fallback:location'
-    mockWeatherPermission = 'unknown'
     mockState.vip.isActive = false
     mockState.vip.entitlements.survivalMode = false
     mockDispatch.mockReset()
     mockNavigate.mockReset()
     mockRequestWeatherLocation.mockReset().mockImplementation(() => {
       localStorage.setItem('bb:locationPermissionRequested', 'true')
-      return Promise.resolve(undefined)
+      return Promise.resolve()
     })
     preloadImageMock.mockReset()
     preloadImageMock.mockImplementation(async (url: string) => ({ url, status: 'loaded' as const }))
@@ -278,86 +266,6 @@ describe('HomeHub', () => {
     )
     expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
   })
-
-  it('offers an explicit weather retry after an earlier permission attempt', async () => {
-    localStorage.setItem('bb:allowLocation', 'denied')
-    renderHomeHub()
-    fireEvent.click(screen.getByTestId('kolequant-splash'))
-    await waitForMenuReady()
-    expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
-
-    let finishRequest: (theme: ResolvedTheme) => void = () => undefined
-    mockRequestWeatherLocation.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finishRequest = resolve
-        })
-    )
-    const refreshButton = screen.getByRole('button', { name: 'Refresh local weather' })
-    fireEvent.click(refreshButton)
-    expect(refreshButton).toBeDisabled()
-    expect(refreshButton).toHaveTextContent('Checking weather…')
-    fireEvent.click(refreshButton)
-    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
-
-    await act(async () => {
-      mockWeatherReason = 'weather:61:rain'
-      mockWeatherPermission = 'granted'
-      finishRequest({
-        key: 'weather:rain:day',
-        url: '/assets/rain.webp',
-        reason: 'weather:61:rain',
-        assetFile: 'rain.webp',
-        assetSource: 'bundled',
-        platform: 'web',
-        permissionStatus: 'granted',
-      })
-    })
-    expect(refreshButton).toBeEnabled()
-    expect(screen.getByRole('status')).toHaveTextContent('Local weather updated.')
-  })
-
-  it.each([
-    [
-      'denied',
-      'fallback:location',
-      'Allow location in your browser or device settings, then retry.',
-    ],
-    ['prompt', 'fallback:location', 'Location was unavailable.'],
-    ['granted', 'fallback:weather', 'Weather is temporarily unavailable.'],
-  ] as const)(
-    'explains a %s weather retry result without reporting success',
-    async (permissionStatus, reason, message) => {
-      mockWeatherReason = reason
-      mockWeatherPermission = permissionStatus
-      mockRequestWeatherLocation.mockResolvedValueOnce({
-        key: 'day',
-        url: '/assets/day.webp',
-        reason,
-        assetFile: 'day.webp',
-        assetSource: 'bundled',
-        platform: 'web',
-        permissionStatus,
-      })
-      const view = renderHomeHub()
-      fireEvent.click(screen.getByTestId('kolequant-splash'))
-      await waitForMenuReady()
-      fireEvent.click(screen.getByRole('button', { name: 'Refresh local weather' }))
-      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(message))
-      expect(screen.getByRole('button', { name: 'Refresh local weather' })).toBeEnabled()
-      expect(screen.queryByText('Local weather updated.')).toBeNull()
-
-      mockWeatherReason = 'weather:61:rain'
-      mockWeatherPermission = 'granted'
-      view.rerender(
-        <MemoryRouter>
-          <HomeHub />
-        </MemoryRouter>
-      )
-      expect(screen.getByRole('status')).toHaveTextContent('Local weather updated.')
-      expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
-    }
-  )
 
   it('opens a later season menu without repeating launch artwork', async () => {
     const firstRender = renderHomeHub()

@@ -13,11 +13,9 @@ interface BackgroundState {
   url: string | null
   key: ThemeKey | null
   reason: string | null
-  permissionStatus: ResolvedTheme['permissionStatus']
 }
 
 const WEATHER_REFRESH_INTERVAL_MS = 10 * 60 * 1000
-type RefreshResult = ResolvedTheme | undefined
 
 interface UseBackgroundThemeOptions {
   attachToRoot?: boolean
@@ -31,49 +29,39 @@ function resolveInitialBackground(): BackgroundState {
     url: fallbackAsset.url,
     key: fallbackAsset.key,
     reason: 'fallback:initial-render',
-    permissionStatus: 'unknown',
   }
 }
 
 export default function useBackgroundTheme(
   opts: UseBackgroundThemeOptions = {}
-): BackgroundState & { requestWeatherLocation: () => Promise<RefreshResult> } {
+): BackgroundState & { requestWeatherLocation: () => Promise<void> } {
   const [state, setState] = useState<BackgroundState>(() => resolveInitialBackground())
-  const requestLocationRef = useRef<() => Promise<RefreshResult>>(() => Promise.resolve(undefined))
+  const requestLocationRef = useRef<() => Promise<void>>(() => Promise.resolve())
   const requestWeatherLocation = useCallback(() => requestLocationRef.current(), [])
   const { attachToRoot } = opts
 
   useEffect(() => {
     let cancelled = false
-    let activeRefresh: Promise<RefreshResult> | null = null
-    let locationPermissionRefresh: Promise<RefreshResult> | null = null
+    let activeRefresh: Promise<void> | null = null
+    let locationPermissionRefresh: Promise<void> | null = null
     let lastForegroundRefreshAt = 0
     let boundaryTimer: number | undefined
 
-    const applyTheme = (resolved: ResolvedTheme): RefreshResult => {
+    const applyTheme = (resolved: ResolvedTheme) => {
       if (cancelled) return
-      setState({
-        url: resolved.url,
-        key: resolved.key,
-        reason: resolved.reason,
-        permissionStatus: resolved.permissionStatus,
-      })
+      setState({ url: resolved.url, key: resolved.key, reason: resolved.reason })
       if (attachToRoot) {
         document.documentElement.style.setProperty('--intro-bg-image', `url("${resolved.url}")`)
       }
-      return resolved
     }
 
-    const refresh = (
-      foreground = false,
-      requestLocationPermission = false
-    ): Promise<RefreshResult> => {
-      if (cancelled) return Promise.resolve(undefined)
+    const refresh = (foreground = false, requestLocationPermission = false): Promise<void> => {
+      if (cancelled) return Promise.resolve()
       if (requestLocationPermission && locationPermissionRefresh) {
         return locationPermissionRefresh
       }
       const now = Date.now()
-      if (foreground && now - lastForegroundRefreshAt < 1000) return Promise.resolve(undefined)
+      if (foreground && now - lastForegroundRefreshAt < 1000) return Promise.resolve()
       if (foreground) lastForegroundRefreshAt = now
 
       if (activeRefresh) {
@@ -92,7 +80,7 @@ export default function useBackgroundTheme(
 
       const run = async () => {
         try {
-          return applyTheme(await resolveTheme({ requestLocationPermission }))
+          applyTheme(await resolveTheme({ requestLocationPermission }))
         } catch (error) {
           if (cancelled) return
           const fallbackKey = timeOfDayKey(new Date())
@@ -103,7 +91,7 @@ export default function useBackgroundTheme(
             fallbackKey,
             fallbackAsset,
           })
-          return applyTheme({
+          applyTheme({
             key: fallbackAsset.key,
             url: fallbackAsset.url,
             reason: fallbackReason,
@@ -155,7 +143,7 @@ export default function useBackgroundTheme(
 
     return () => {
       cancelled = true
-      requestLocationRef.current = () => Promise.resolve(undefined)
+      requestLocationRef.current = () => Promise.resolve()
       if (boundaryTimer != null) window.clearTimeout(boundaryTimer)
       window.clearInterval(weatherTimer)
       document.removeEventListener('visibilitychange', refreshOnForeground)
