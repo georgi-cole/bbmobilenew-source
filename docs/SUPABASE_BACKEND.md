@@ -76,10 +76,81 @@ Groups can overlap. `coverageStart` is the earliest included observation, not th
 1. Keep Supabase **Anonymous Sign-Ins** enabled for the existing backup/analytics identities.
 2. Apply only missing migrations, in order: `202610270001_profiles_and_analytics.sql`, `202610270002_profile_linked_analytics.sql`, `202610270003_game_mode_analytics.sql`, then `202611010001_player_accounts_and_cohorts.sql`.
 3. Provide `VITE_SUPABASE_ENABLED=true`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_PUBLISHABLE_KEY` as described in `.env.supabase.example`. Existing backups and compatible analytics use these settings.
-4. After the migration is applied and checked, set `VITE_PLAYER_ACCOUNTS_ENABLED=true` for the desired build. It defaults to false and gates the optional contact UI, audience access, and migration-dependent Tribunal upload. The deployment workflow forwards the variable to production and QA builds.
+4. Set `VITE_PLAYER_ACCOUNTS_ENABLED=true` for a deployment whose enabled migration step will apply this migration before publishing, or after the migration has already been applied and checked manually. It defaults to false and gates the optional contact UI, audience access, and migration-dependent Tribunal upload. The deployment workflow forwards the variable to production and QA builds.
 5. To use the audience panel, separately provision a confirmed, non-anonymous administrator Auth user with an email/password and the server-controlled grant below. Enable password/email authentication for that administrative login. No player email provider flow, OTP template, or production SMTP setup is introduced by contact collection.
 
 Only publishable credentials belong in frontend variables. Never put `service_role` credentials, `sb_secret_` keys, administrator passwords, or unsubscribe tokens in `VITE_` variables. This PR supplies code/migrations and does not apply production SQL, create administrators, or change production settings.
+
+### Automatic migrations during deployment
+
+The public deployment workflow can apply pending SQL migrations automatically. This is opt-in through `SUPABASE_MIGRATIONS_ENABLED=true`; it is disabled when the variable is absent. Configure the following once under GitHub **Settings → Secrets and variables → Actions**:
+
+| Kind     | Name                           | Value                                                                                         |
+| -------- | ------------------------------ | --------------------------------------------------------------------------------------------- |
+| Secret   | `SUPABASE_ACCESS_TOKEN`        | A Supabase personal access token permitted to access the existing project.                    |
+| Secret   | `SUPABASE_DB_PASSWORD`         | That project's database password, not the publishable key or the Supabase account password.   |
+| Variable | `SUPABASE_PROJECT_REF`         | The project reference from its Dashboard or the hostname prefix in the existing Supabase URL. |
+| Variable | `SUPABASE_MIGRATIONS_ENABLED`  | `true` after the one-time migration-history check below.                                      |
+| Variable | `VITE_PLAYER_ACCOUNTS_ENABLED` | `true` to publish the optional email feature after successful migration.                      |
+
+The existing `VITE_SUPABASE_URL`, publishable key, and enabled setting remain the frontend configuration. Database credentials are used only by the migration step, never by Vite or the browser. The migration target must match the existing frontend Supabase project URL.
+
+For a trusted `main` deployment, release checks and both production/QA builds run first. The migration step then links the selected project and runs the official CLI's pending-migration deployment before publishing the public files. Production and QA currently share one Supabase project, so the database is migrated once for both builds. A missing credential, invalid project setting, or SQL failure stops the deployment before publication. Other branches and fork deployments do not run the production migration path.
+
+Deployment runs are serialized without cancelling the active run when a newer push arrives. A successful database migration stays applied if a later public-site publication fails; a rerun skips recorded migrations. Keep future database changes compatible with the currently published application during that interval.
+
+#### One-time check for the existing database
+
+Before enabling automatic migrations, compare the existing database with `supabase migration list`. The prerequisites are `202610270001`, `202610270002`, and `202610270003`. If their SQL was previously pasted into the Dashboard, those changes may exist without entries in the CLI's migration history.
+
+Verify those installed changes against the repository files, then reconcile only the versions proven to be applied using `supabase migration repair --status applied VERIFIED_APPLIED_VERSION`. That command changes history only; it does not execute SQL. Do not mark an unverified or missing migration as applied. The workflow deliberately does not repair history, reset the database, seed data, or retry a failed migration automatically.
+
+When the baseline is correct, the first deployment should list `202611010001_player_accounts_and_cohorts.sql` as pending. If this same contact schema has already been applied manually, verify it and reconcile its history too; a different earlier version of this PR requires a separate forward migration. Supabase explains the history mechanism and reconciliation in [Deploy database migrations](https://supabase.com/docs/guides/deployment/database-migrations).
+
+The new contact migration leaves transaction ownership to the CLI so its schema changes and migration-history entry can commit together. The previously released prerequisite files are unchanged. See Supabase's [embedded-transaction guidance](https://supabase.com/kb/troubleshooting/partial-migrations-and-schema-inconsistencies-from-embedded-transactions) when diagnosing a failed older migration.
+
+### Applying or checking the migration manually
+
+Use the same Supabase project as the game's existing backend configuration. Manual execution is an alternative to the enabled automatic deployment step; do not run both concurrently.
+
+For a project managed with the Supabase CLI, run these commands from the repository with the reviewed migration files and an installed Supabase CLI. Initialize local CLI configuration with `supabase init` first if `supabase/config.toml` is absent; the repository's SQL files already exist.
+
+```bash
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+supabase migration list
+supabase db push --linked --dry-run
+```
+
+Confirm that the pending list matches the changes you intend to apply. If all three prerequisites are already recorded, only `202611010001_player_accounts_and_cohorts.sql` should be pending. Then apply and confirm the recorded history:
+
+```bash
+supabase db push --linked
+supabase migration list
+```
+
+If earlier SQL was applied manually, the existing schema may not match the CLI history. Reconcile that history against the actual database before pushing; do not mark a migration applied without verifying that its changes exist. Supabase documents this process in [Deploy database migrations](https://supabase.com/docs/guides/deployment/database-migrations).
+
+For an existing project maintained manually rather than through CLI migration history, the Dashboard's **SQL Editor** can execute the reviewed file. Confirm which prerequisites have already been applied, open a new query in the correct project, put `begin;` before the **entire** `202611010001_player_accounts_and_cohorts.sql` contents and `commit;` after them, then run that query once. The file itself omits outer transaction statements for compatibility with the CLI runner. Reconcile the migration history before later enabling automatic deployment.
+
+The new migration intentionally creates its objects once. If its contact table or functions already exist, inspect the installed version instead of dropping them or repeatedly running the same file. An earlier applied version of this PR requires a separate forward migration.
+
+After either deployment method, this read-only check should return four `true` values:
+
+```sql
+select
+  exists (
+    select 1 from pg_catalog.pg_tables
+    where schemaname = 'public'
+      and tablename = 'player_profile_contacts'
+      and rowsecurity
+  ) as contacts_table_protected,
+  to_regprocedure('public.get_player_profile_contact(text)') is not null as read_ready,
+  to_regprocedure('public.save_player_profile_contact(text,text,boolean,uuid)') is not null as save_ready,
+  to_regprocedure('public.unsubscribe_player_contact(uuid)') is not null as unsubscribe_ready;
+```
+
+This checks deployment objects, not a complete end-to-end test. Finally, set the GitHub repository variable `VITE_PLAYER_ACCOUNTS_ENABLED` to `true` under **Settings → Secrets and variables → Actions → Variables**, then deploy the updated game. On the deployed build, verify optional profile creation, saving an explicit choice, and switching it off again. No outgoing email service is required for these checks.
 
 ### Administrator authorization
 

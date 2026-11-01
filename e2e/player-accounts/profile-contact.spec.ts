@@ -1,6 +1,7 @@
 import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { test, type Page, type TestInfo } from '@playwright/test'
+import { getAppearanceAsset, SELECTABLE_LOOKS } from '../../src/appearance/catalog'
 import type { PlayerAudience } from '../../src/services/backend/audienceService'
 import type { ProfileContact } from '../../src/services/backend/profileContact'
 import { openProfileCreationForm } from '../playwright/support/profile'
@@ -439,8 +440,28 @@ test('guest season is adopted with an explicit email choice and no authenticatio
   expect(after.game.runId).toBe(before.game.runId)
   expect(after.game.gameId).toBe(before.game.gameId)
   expect(after.game.phase).toBe(before.game.phase)
-  expect(after.game.players).toEqual(before.game.players)
-  expect(after.game.seasonContestant).toEqual(before.game.seasonContestant)
+  // Registration fills the unselected guest silhouette once. Every other
+  // contestant and gameplay field remains part of the same ongoing season.
+  const appearance = {
+    kind: 'catalog' as const,
+    lookId: SELECTABLE_LOOKS[0].id,
+    revision: SELECTABLE_LOOKS[0].revision,
+  }
+  const avatar = `${new URL(APP_URL).pathname}${getAppearanceAsset(appearance, 'main')}`
+  expect(after.profiles.profiles.find((profile) => profile.id === createdId)).toMatchObject({
+    appearanceSelection: appearance,
+    initialAppearanceSelection: appearance,
+  })
+  expect(after.game.players).toEqual(
+    before.game.players.map((player) =>
+      player.isUser ? { ...player, avatar, appearance } : player
+    )
+  )
+  expect(after.game.seasonContestant).toEqual({
+    ...before.game.seasonContestant,
+    avatar,
+    appearanceSelection: appearance,
+  })
   expect(JSON.stringify(after)).not.toContain('maya@example.com')
   expect(await page.evaluate(() => localStorage.getItem('bbmobilenew:profiles:v1'))).not.toContain(
     'maya@example.com'

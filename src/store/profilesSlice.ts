@@ -139,6 +139,8 @@ export interface StoredProfile {
   photoId?: string
   /** Default visual identity for newly started seasons. */
   appearanceSelection?: AppearanceSelection
+  /** First chosen look, retained when repairing an adopted guest's unselected silhouette. */
+  initialAppearanceSelection?: AppearanceSelection
   /** Extended biography fields. */
   bio?: ProfileBio
   /** Optional next-season choice; existing saves own independent snapshots. */
@@ -424,6 +426,9 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
     storedEyeoleanBalance == null
       ? forecastRewardEventIds.length * PUBLIC_FAVORITE_FORECAST_EYEOLEANS
       : storedEyeoleanBalance
+  const initialAppearance = coerceAppearanceSelection(
+    r.initialAppearanceSelection ?? r.appearanceSelection
+  )
 
   return {
     id: r.id,
@@ -431,6 +436,9 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
     avatar: typeof r.avatar === 'string' && r.avatar ? r.avatar : '👤',
     photoId: typeof r.photoId === 'string' && r.photoId ? r.photoId : undefined,
     appearanceSelection: coerceAppearanceSelection(r.appearanceSelection),
+    ...(initialAppearance.kind === 'catalog'
+      ? { initialAppearanceSelection: initialAppearance }
+      : {}),
     bio: r.bio && typeof r.bio === 'object' ? (r.bio as ProfileBio) : undefined,
     contestantDefaults: coerceContestantDefaults(r.contestantDefaults),
     createdAt: r.createdAt,
@@ -601,12 +609,14 @@ const profilesSlice = createSlice({
       if (state.profiles.length >= MAX_PROFILES) return
       const id = action.payload.id ?? generateId()
       if (!id.trim() || state.profiles.some((profile) => profile.id === id)) return
+      const appearance = coerceAppearanceSelection(action.payload.appearanceSelection)
       const profile: StoredProfile = {
         id,
         name: action.payload.name.trim() || 'You',
         avatar: action.payload.avatar || '👤',
         photoId: action.payload.photoId,
-        appearanceSelection: coerceAppearanceSelection(action.payload.appearanceSelection),
+        appearanceSelection: appearance,
+        ...(appearance.kind === 'catalog' ? { initialAppearanceSelection: appearance } : {}),
         createdAt: new Date().toISOString(),
         bio: action.payload.bio,
         eyeoleans: 0,
@@ -655,6 +665,12 @@ const profilesSlice = createSlice({
           normalized.kind === 'legacy' ||
           getAppearanceLook(normalized.lookId, normalized.revision)?.selectable
         ) {
+          if (normalized.kind === 'catalog' && !profile.initialAppearanceSelection) {
+            profile.initialAppearanceSelection =
+              profile.appearanceSelection?.kind === 'catalog'
+                ? { ...profile.appearanceSelection }
+                : { ...normalized }
+          }
           profile.appearanceSelection = normalized
         }
       }

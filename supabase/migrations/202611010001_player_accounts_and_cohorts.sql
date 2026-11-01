@@ -1,6 +1,6 @@
 -- Apply after 202610270003_game_mode_analytics.sql.
 -- Optional profile contacts are unverified addresses, separate from Auth identity.
-begin;
+-- The migration runner owns the transaction and migration-history write.
 
 create table public.player_profile_contacts (
   owner_id uuid not null,
@@ -408,5 +408,3 @@ revoke all on function public.get_player_audience() from public, anon, authentic
 grant execute on function public.get_player_audience() to authenticated;
 comment on function public.get_player_audience() is
   'Admin-only read of observed player records and explicit contact consent. Excludes QA/development events; includes unlabeled legacy events. At most 500 recent rows, with full totals. Guest installations and local profiles are not deduplicated people. Contact emails are unverified; subscription means game updates and playtest invitations, not tester enrollment.';
-
-commit;

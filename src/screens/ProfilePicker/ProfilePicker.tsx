@@ -46,6 +46,7 @@ import ProfilePhotoPreview from '../../components/ProfilePhotoPreview/ProfilePho
 import AppearanceCarousel from '../../appearance/AppearanceCarousel'
 import { warmSelectedAppearance } from '../../appearance/preloadAppearance'
 import { getAppearanceLook, SELECTABLE_LOOKS } from '../../appearance/catalog'
+import { gameWithInitialProfileAppearance } from '../../appearance/initialSeasonAppearance'
 import './ProfilePicker.css'
 
 const PROFILE_SEX_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const
@@ -207,14 +208,19 @@ export default function ProfilePicker() {
     }
 
     try {
+      const resumedGame = gameWithInitialProfileAppearance(
+        snapshot,
+        profiles.find((profile) => profile.id === id)
+      )
       withRunAutosaveSuspended(() => {
         dispatch(selectActiveProfile(id))
-        dispatch(hydrateGame(snapshot.game))
+        dispatch(hydrateGame(resumedGame))
         dispatch(hydrateFinale(snapshot.finale))
         dispatch(hydrateSocial(snapshot.social))
         if (snapshot.publicOpinion) dispatch(hydratePublicOpinion(snapshot.publicOpinion))
         if (snapshot.challenge) dispatch(hydrateChallenge(snapshot.challenge))
       })
+      if (resumedGame !== snapshot.game) persistCurrentRunSnapshot()
       navigate('/game', { replace: true })
     } catch {
       // Preserve the durable save if hydration fails. The player can still
@@ -318,7 +324,7 @@ export default function ProfilePicker() {
       if (!canCommit()) return
       if (adoptGuestRun) {
         withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
-        // Capture the intact guest contestant under its new owner.
+        // Capture the guest run after its first selected look has been applied.
         persistCurrentRunSnapshot()
         await flushSavePersistence()
         if (!mounted.current) return

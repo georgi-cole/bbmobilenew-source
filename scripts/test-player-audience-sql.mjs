@@ -121,12 +121,69 @@ try {
     '202610270001_profiles_and_analytics.sql',
     '202610270002_profile_linked_analytics.sql',
     '202610270003_game_mode_analytics.sql',
-    '202611010001_player_accounts_and_cohorts.sql',
   ]) {
     await db.exec(
       await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8')
     )
   }
+
+  const contactMigrationSql = await readFile(
+    new URL('../supabase/migrations/202611010001_player_accounts_and_cohorts.sql', import.meta.url),
+    'utf8'
+  )
+  await db.exec(`
+    create schema supabase_migrations;
+    create table supabase_migrations.schema_migrations (version text primary key);
+    insert into supabase_migrations.schema_migrations values ('202611010001');
+  `)
+  const originalEventConstraint = (
+    await db.query(`select pg_get_constraintdef(oid) as definition from pg_constraint
+      where conrelid = 'public.player_events'::regclass and conname = 'player_events_name_check'`)
+  ).rows[0].definition
+
+  // Match the CLI boundary: schema changes and its history insert must commit together.
+  // An embedded COMMIT in the migration would leak all new DDL on this failed insert.
+  await db.exec('begin')
+  try {
+    await db.exec(contactMigrationSql)
+    await rejectsCode(
+      () => db.query("insert into supabase_migrations.schema_migrations values ('202611010001')"),
+      '23505'
+    )
+  } finally {
+    await db.exec('rollback')
+  }
+  const rolledBackObjects = (
+    await db.query(`select
+      to_regclass('public.player_profile_contacts') as contacts,
+      to_regprocedure('public.get_player_profile_contact(text)') as get_contact,
+      to_regprocedure('public.save_player_profile_contact(text,text,boolean,uuid)') as save_contact,
+      to_regprocedure('public.unsubscribe_player_contact(uuid)') as unsubscribe,
+      to_regprocedure('public.get_player_audience()') as audience`)
+  ).rows[0]
+  assert.ok(
+    Object.values(rolledBackObjects).every((value) => value === null),
+    'A failed migration-history write must roll back every new table and function.'
+  )
+  assert.equal(
+    (
+      await db.query(`select pg_get_constraintdef(oid) as definition from pg_constraint
+        where conrelid = 'public.player_events'::regclass and conname = 'player_events_name_check'`)
+    ).rows[0].definition,
+    originalEventConstraint,
+    'A failed migration must also restore the previous event constraint.'
+  )
+
+  await db.exec("delete from supabase_migrations.schema_migrations where version = '202611010001'")
+  await db.exec('begin')
+  await db.exec(contactMigrationSql)
+  await db.query("insert into supabase_migrations.schema_migrations values ('202611010001')")
+  await db.exec('commit')
+  assert.deepEqual(
+    (await db.query('select version from supabase_migrations.schema_migrations')).rows,
+    [{ version: '202611010001' }]
+  )
+
   for (const [id, email, verified, anonymous] of [
     [ADMIN, 'admin-auth@example.invalid', true, false],
     [PLAYER, 'player-auth@example.invalid', true, false],

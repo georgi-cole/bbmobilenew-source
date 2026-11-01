@@ -60,9 +60,14 @@ describe('createProfile', () => {
   it('keeps a preallocated draft ID and rejects a duplicate without changing the active profile', () => {
     const store = makeStore()
     const id = 'c9b687eb-d8e5-46ed-8182-f0324f0c4ca1'
-    store.dispatch(createProfile({ id, name: 'Maya', avatar: '👤' }))
+    const appearanceSelection = { kind: 'catalog' as const, lookId: 'pc-002', revision: 1 as const }
+    store.dispatch(createProfile({ id, name: 'Maya', avatar: '👤', appearanceSelection }))
     expect(store.getState().profiles.activeProfileId).toBe(id)
-    expect(store.getState().profiles.profiles[0].id).toBe(id)
+    expect(store.getState().profiles.profiles[0]).toMatchObject({
+      id,
+      appearanceSelection,
+      initialAppearanceSelection: appearanceSelection,
+    })
 
     store.dispatch(createProfile({ id: 'other-profile', name: 'Leo', avatar: '🧑' }))
     const before = store.getState().profiles
