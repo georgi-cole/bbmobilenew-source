@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Player } from '../../types'
-import Exit from './exit.jsx'
+import Exit, { type ExitSoundtrackContinuation } from './exit.jsx'
 
 const presentation = vi.hoisted(() => ({
   cinematic: true,
@@ -39,10 +39,12 @@ function renderExit({
   phase = 'final3_decision',
   decisionAlreadyPresented,
   variant,
+  soundtrackContinuation,
 }: {
   phase?: string
   decisionAlreadyPresented?: boolean
   variant?: 'return'
+  soundtrackContinuation?: ExitSoundtrackContinuation
 } = {}) {
   const evictee = { id: 'dex', name: 'Dex' } as Player
   const store = configureStore({
@@ -57,6 +59,7 @@ function renderExit({
         onDone={vi.fn()}
         decisionAlreadyPresented={decisionAlreadyPresented}
         variant={variant}
+        soundtrackContinuation={soundtrackContinuation}
       />
     </Provider>
   )
@@ -87,5 +90,24 @@ describe('Final Three departure handoff', () => {
     expect(screen.getByTestId('native-exit')).toHaveAttribute('data-player-id', 'dex')
     expect(presentation.bridge).not.toHaveBeenCalled()
     expect(presentation.standard.mock.calls[0][0]).not.toHaveProperty('decisionAlreadyPresented')
+  })
+
+  it('routes retained music to the bridge only and finishes it when the exit uses native fallback', () => {
+    const soundtrackContinuation = {
+      presentationGroupId: 'final-three-decision:fixture',
+      setActive: vi.fn(),
+      finish: vi.fn(),
+    }
+    renderExit({ decisionAlreadyPresented: true, soundtrackContinuation })
+    expect(presentation.bridge.mock.calls[0][0].soundtrackContinuation).toBe(soundtrackContinuation)
+    expect(presentation.bridge.mock.calls[0][0].original).not.toHaveProperty(
+      'soundtrackContinuation'
+    )
+    expect(soundtrackContinuation.finish).not.toHaveBeenCalled()
+    cleanup()
+    presentation.cinematic = false
+    renderExit({ decisionAlreadyPresented: true, soundtrackContinuation })
+    expect(soundtrackContinuation.finish).toHaveBeenCalledTimes(1)
+    expect(presentation.standard.mock.calls[0][0]).not.toHaveProperty('soundtrackContinuation')
   })
 })

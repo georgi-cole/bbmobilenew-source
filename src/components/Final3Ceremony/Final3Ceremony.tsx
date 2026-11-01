@@ -34,6 +34,8 @@ import SpotlightEvictionOverlay from '../../cinematic/ceremonies/exit.jsx'
 import FinalPowerHolderReveal from '../FinalPowerBattle/FinalPowerHolderReveal'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import FinalDecisionPresentation from './FinalDecisionPresentation'
+import type { FinalDecisionAudioController } from './finalDecisionAudio'
+import { usePresentationForeground } from '../../services/presentation/presentationOwnership'
 import type { ChatLine } from '../ChatOverlay/ChatOverlay'
 import type { Player } from '../../types'
 import {
@@ -132,6 +134,9 @@ interface Props {
 export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
   const dispatch = useAppDispatch()
   const game = useAppSelector((s) => s.game)
+  const audioPreferences = useAppSelector((s) => s.settings.audio)
+  const foreground = usePresentationForeground()
+  const decisionSoundtrack = useRef<FinalDecisionAudioController | null>(null)
 
   const lohId = game.lohId
   const lohPlayer = game.players.find((p) => p.id === lohId) ?? null
@@ -141,6 +146,28 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
   )
   const humanPlayer = game.players.find((p) => p.isUser) ?? null
   const humanIsLoh = !!humanPlayer && humanPlayer.id === lohId
+  const decisionSceneId = `${game.gameId ?? `${game.seed}:${game.season}`}:final-decision:${lohId}`
+  const soundtrackContinuation = useMemo(
+    () => ({
+      presentationGroupId: `final-three-decision:${decisionSceneId}`,
+      setActive: (active: boolean) => decisionSoundtrack.current?.setActive(active),
+      finish: () => decisionSoundtrack.current?.finish(),
+    }),
+    [decisionSceneId]
+  )
+  useEffect(() => {
+    decisionSoundtrack.current?.setPreferences(audioPreferences)
+  }, [audioPreferences])
+  useEffect(() => {
+    if (!foreground) decisionSoundtrack.current?.setActive(false)
+  }, [foreground])
+  useEffect(
+    () => () => {
+      decisionSoundtrack.current?.dispose()
+      decisionSoundtrack.current = null
+    },
+    []
+  )
   const decisionReads = useMemo(
     () =>
       Object.fromEntries(
@@ -370,18 +397,26 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
     setStage('eviction_splash')
   }, [dispatch])
 
-  const handlePremiumDecisionComplete = useCallback(() => {
-    if (!evicteeIdRef.current || announcementCompletedRef.current) return
-    // The interactive scene has already isolated the departing finalist.
-    // Continue with the doorway film instead of replaying its three-person prelude.
-    decisionAlreadyPresentedRef.current = true
-    handleAnnounceComplete()
-  }, [handleAnnounceComplete])
+  const handlePremiumDecisionComplete = useCallback(
+    (soundtrack: FinalDecisionAudioController) => {
+      if (!evicteeIdRef.current || announcementCompletedRef.current) {
+        soundtrack.dispose()
+        return
+      }
+      // Retain the playing element while the doorway film acquires the same
+      // presentation group. The music ends after its departure handoff.
+      decisionSoundtrack.current = soundtrack
+      decisionAlreadyPresentedRef.current = true
+      handleAnnounceComplete()
+    },
+    [handleAnnounceComplete]
+  )
 
   // ── Eviction cinematic complete → Final Two reveal ────────────────────────
 
   const handleEvictionSplashDone = useCallback(() => {
     if (!lohId || !evicteeId) return
+    decisionSoundtrack.current?.finish()
     if (import.meta.env.DEV) {
       console.log('[Final3Ceremony] elimination splash done → final two reveal', {
         lohId,
@@ -490,7 +525,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       lohPlayer &&
       (stage === 'pleas' || stage === 'decision' || stage === 'announcement') ? (
         <FinalDecisionPresentation
-          sceneId={`${game.gameId ?? `${game.seed}:${game.season}`}:final-decision:${lohId}`}
+          sceneId={decisionSceneId}
           phase={stage}
           holder={lohPlayer}
           nominees={nominees}
@@ -518,6 +553,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
             onDone={handleEvictionSplashDone}
             devSkip={DEV_SKIP}
             decisionAlreadyPresented={decisionAlreadyPresentedRef.current}
+            soundtrackContinuation={decisionSoundtrack.current ? soundtrackContinuation : undefined}
           />
         )}
       </AnimatePresence>

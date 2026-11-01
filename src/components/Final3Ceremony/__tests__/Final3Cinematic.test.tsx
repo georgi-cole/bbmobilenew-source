@@ -36,6 +36,7 @@ const soundtrack = vi.hoisted(() => ({
   setPreferences: vi.fn(),
   setStage: vi.fn(),
   cue: vi.fn(),
+  finish: vi.fn(),
   dispose: vi.fn(),
 }))
 vi.mock('../finalDecisionAudio', () => ({
@@ -266,9 +267,11 @@ describe('human Final LOH cinematic integration', () => {
       expect(screen.getByTestId('bronze-exit')).toHaveAttribute('data-decision-presented', 'true')
       expect(ceremonyQueue.counts.active).toBe(0)
       expect(getPresentationOwner()).toBeNull()
-      expect(soundtrack.dispose).toHaveBeenCalled()
+      expect(soundtrack.dispose).not.toHaveBeenCalled()
+      expect(soundtrack.create).toHaveBeenCalledTimes(1)
       expect(store.getState().game.finalThree?.evicteeId).toBeNull()
       fireEvent.click(screen.getByTestId('bronze-exit'))
+      expect(soundtrack.finish).toHaveBeenCalledTimes(1)
       expect(screen.getByRole('dialog', { name: 'The Final Two' })).toBeInTheDocument()
       act(() => {
         window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
@@ -514,5 +517,31 @@ describe('human Final LOH cinematic integration', () => {
     expect(soundtrack.dispose).toHaveBeenCalled()
     act(() => config.onCue?.({ cue: 'decision:seal' }))
     expect(soundtrack.cue).toHaveBeenCalledTimes(2)
+  })
+
+  it('retains audio preferences and unmount cleanup after the decision adapter transfers its music', async () => {
+    const { config, store, unmount } = await openMovie()
+    reachChoice(config)
+    act(() => {
+      config.onDecision(result(config))
+      config.onCheckpoint({ stage: 'complete' } as FinalDecisionCheckpoint)
+      config.onComplete(result(config))
+    })
+    expect(screen.getByTestId('bronze-exit')).toBeInTheDocument()
+    expect(soundtrack.dispose).not.toHaveBeenCalled()
+    const cuesBeforeCleanup = soundtrack.cue.mock.calls.length
+    act(() => config.onCue?.({ cue: 'presentation:dispose' }))
+    expect(soundtrack.cue).toHaveBeenCalledTimes(cuesBeforeCleanup)
+    act(() => store.dispatch(setAudio({ musicOn: false, sfxOn: true })))
+    expect(soundtrack.setPreferences).toHaveBeenLastCalledWith(
+      expect.objectContaining({ musicOn: false, sfxOn: true })
+    )
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
+    fireEvent(document, new Event('visibilitychange'))
+    expect(soundtrack.setActive).toHaveBeenLastCalledWith(false)
+    hidden.mockReturnValue(false)
+    unmount()
+    expect(soundtrack.dispose).toHaveBeenCalledTimes(1)
+    expect(soundtrack.create).toHaveBeenCalledTimes(1)
   })
 })

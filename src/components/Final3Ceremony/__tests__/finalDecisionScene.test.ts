@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountFinalDecision, type FinalDecisionController } from '../finalDecisionScene.mjs'
 
 const mounted: Array<{ root: HTMLElement; controller: FinalDecisionController }> = []
-function mount(reducedMotion = true, initiallyPaused = false) {
+function mount(
+  reducedMotion = true,
+  initiallyPaused = false,
+  firstPlea = 'Give me one last chance.'
+) {
   const root = document.createElement('div')
   root.id = 'final-decision-scene'
   document.body.appendChild(root)
@@ -22,7 +26,7 @@ function mount(reducedMotion = true, initiallyPaused = false) {
           id: 'aria',
           name: 'Aria',
           assetKey: 'nominee-a',
-          plea: 'Give me one last chance.',
+          plea: firstPlea,
           comparison: 'An alliance was part of your season.',
         },
         {
@@ -78,6 +82,31 @@ describe('final decision presentation contract', () => {
     controller.resume('presentation')
     vi.advanceTimersByTime(500)
     expect(controller.getState().stage).toBe('plea-a')
+  })
+
+  it('shows a complete production plea on one screen and advances to the next speaker', () => {
+    const plea =
+      "I know there's no perfect argument for this choice. I kept showing up for this game, and I want one last chance to prove I belong beside you."
+    const { controller, view, root, onDecision } = mount(true, false, plea)
+    vi.advanceTimersByTime(500)
+    expect(root.querySelector('.fd-broadcast-caption')?.textContent).toBe(plea)
+    expect(view.queryByRole('button', { name: /Next part|^Next$/ })).toBeNull()
+    expect(root.querySelector('[aria-live="polite"]')?.textContent).toBe('Aria: ' + plea)
+    fireEvent.click(view.getByRole('button', { name: 'Hear Dex' }))
+    expect(controller.getState().stage).toBe('plea-b')
+    expect(root.querySelector('.fd-broadcast-caption')?.textContent).toBe('Let my story continue.')
+    expect(view.getByRole('button', { name: 'Make your decision' })).toBeDefined()
+    expect(onDecision).not.toHaveBeenCalled()
+  })
+
+  it('keeps an unusually long speech intact instead of silently truncating or paging it', () => {
+    const plea = 'I want the chance to finish the story we started together. '.repeat(12).trim()
+    const { root, view } = mount(true, false, plea)
+    vi.advanceTimersByTime(500)
+    expect(root.querySelectorAll('.fd-broadcast-caption')).toHaveLength(1)
+    expect(root.querySelector('.fd-broadcast-caption')?.textContent).toBe(plea)
+    expect(view.queryByRole('button', { name: /Next part|^Next$/ })).toBeNull()
+    expect(view.getByRole('button', { name: 'Hear Dex' })).toBeDefined()
   })
 
   it('skips to an explicit choice without inventing an outcome', () => {

@@ -41,7 +41,7 @@ interface Props {
   comparisons: Record<string, string>
   onChoiceReady: () => void
   onDecision: (evicteeId: string) => void
-  onComplete: () => void
+  onComplete: (soundtrack: FinalDecisionAudioController) => void
   fallback: ReactNode
 }
 
@@ -170,9 +170,13 @@ function PremiumFinalDecision({ onFallback, ...props }: PremiumProps) {
             ) {
               return
             }
+            const soundtrack = audio.current
+            if (!soundtrack) return
             completed = true
-            audio.current?.dispose()
-            callbacks.current.onComplete()
+            // The ceremony owns this same element through the departure. Clear
+            // our reference before renderer cleanup emits presentation:dispose.
+            audio.current = null
+            callbacks.current.onComplete(soundtrack)
           },
         })
         if (!activeRef.current) controller.current.pause('presentation')

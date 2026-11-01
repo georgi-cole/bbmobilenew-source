@@ -90,6 +90,11 @@ function mountFinalDecision(root, config) {
   if (cfg.initiallyPaused) pauses.add('presentation')
   const animations = new Set()
   const ambientAnimations = new Set()
+  const cameraDollyPath = [
+    { offset: 0, x: -0.3, y: 0.18, zoom: 0 },
+    { offset: 0.5, x: 0.08, y: 0.03, zoom: 0.012 },
+    { offset: 1, x: 0.45, y: -0.12, zoom: 0.02 },
+  ]
   const layerNodes = {}
   const layerState = {
     background: true,
@@ -137,7 +142,10 @@ function mountFinalDecision(root, config) {
   scene.replaceChildren()
   scene.setAttribute('aria-label', 'Classic Final Three: your last decision')
   scene.dataset.noMotion = String(reduced)
-  const world = node('div', 'fd-world', scene)
+  // The slow dolly lives above shot framing so a new speaker never restarts it.
+  // Screen copy and controls stay outside the moving camera.
+  const cameraDrift = node('div', 'fd-camera-drift', scene)
+  const world = node('div', 'fd-world', cameraDrift)
   const backdrop = image('background', 'fd-background', world, '')
   backdrop.setAttribute('aria-hidden', 'true')
   node('div', 'fd-architecture-shade', world).setAttribute('aria-hidden', 'true')
@@ -198,7 +206,8 @@ function mountFinalDecision(root, config) {
   )
   layerNodes.cast = [actorRoot]
   const mist = image('mist', 'fd-mist', world, '')
-  const foreground = image('foreground', 'fd-foreground', world, '')
+  const foregroundDepth = node('div', 'fd-foreground-depth', world)
+  const foreground = image('foreground', 'fd-foreground', foregroundDepth, '')
   layerNodes.foreground = [foreground]
   const token = node('div', 'fd-token', world)
   token.setAttribute('aria-hidden', 'true')
@@ -346,14 +355,34 @@ function mountFinalDecision(root, config) {
         { duration, delay, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' },
         true
       )
-    loop(
-      backdrop,
-      [
-        { transform: 'scale(1.015) translate(-.5%,0)' },
-        { transform: 'scale(1.055) translate(.8%,-.6%)' },
-      ],
-      15000
-    )
+    // One shared camera path gives the architecture, cast and near desk a
+    // coherent sense of depth. Its long travel survives every story beat;
+    // different depths amplify the same move rather than bob independently.
+    const dolly = (element, depth, baseScale = 1) =>
+      animate(
+        element,
+        cameraDollyPath.map(({ offset, x, y, zoom }) => ({
+          offset,
+          transform:
+            'translate3d(' +
+            x * depth +
+            '%,' +
+            y * depth +
+            '%,0) scale(' +
+            (baseScale + zoom * depth) +
+            ')',
+        })),
+        {
+          duration: 24000,
+          iterations: Infinity,
+          direction: 'alternate',
+          easing: 'cubic-bezier(.45,0,.55,1)',
+        },
+        true
+      )
+    dolly(cameraDrift, 1)
+    dolly(backdrop, -0.35, 1.035)
+    dolly(foregroundDepth, 0.55)
     loop(leftBeam, [{ transform: 'rotate(-18deg)' }, { transform: 'rotate(12deg)' }], 6700)
     loop(rightBeam, [{ transform: 'rotate(18deg)' }, { transform: 'rotate(-12deg)' }], 7900)
     loop(
@@ -491,7 +520,13 @@ function mountFinalDecision(root, config) {
     // Use the destination camera, not an intermediate animation matrix. A late
     // font load or resize must never move the ornament into the monitor/head.
     const worldTop = height * 0.63 * (1 - camera.scale) + height * camera.y * camera.scale
-    const monitorWorldBottom = (monitorBottom - worldTop) / camera.scale
+    // Reserve clearance for the entire dolly, not only its current phase. The
+    // ornament must remain below the fixed monitor at the closest camera point.
+    const dollyScale = reduced ? 1 : 1 + Math.max(...cameraDollyPath.map((pose) => pose.zoom))
+    const dollyY = reduced ? 0 : Math.min(...cameraDollyPath.map((pose) => pose.y)) / 100
+    const dollyTop = height * 0.63 * (1 - dollyScale) + height * dollyY
+    const monitorCameraBottom = (monitorBottom - dollyTop) / dollyScale
+    const monitorWorldBottom = (monitorCameraBottom - worldTop) / camera.scale
     if (!confirmed) {
       const headTop = height * holderFloor - holderWidth * 1.5 * 1.006
       const gap = Math.max(0, headTop - monitorWorldBottom - 16)
@@ -511,7 +546,7 @@ function mountFinalDecision(root, config) {
     const target = world.style.transform || window.getComputedStyle(world).transform
     cameraAnimation = animate(world, [{ transform: from }, { transform: target }], {
       duration,
-      easing: 'cubic-bezier(.18,.64,.25,1)',
+      easing: 'cubic-bezier(.32,.08,.2,1)',
       fill: 'backwards',
     })
   }
@@ -615,19 +650,38 @@ function mountFinalDecision(root, config) {
     const caption = monitor.content.querySelector('.fd-broadcast-caption')
     const speaker = monitor.content.querySelector('.fd-broadcast-speaker')
     if (!caption || !speaker || !monitor.content.clientHeight) return
+    // Refit from the designed size after a resize or late font load. A plea is
+    // one complete thought, so its layout adapts without changing its words.
+    caption.style.fontSize = ''
+    caption.style.maxHeight = ''
+    caption.style.overflowY = ''
+    caption.removeAttribute('tabindex')
+    caption.removeAttribute('role')
+    caption.removeAttribute('aria-label')
     const style = window.getComputedStyle(monitor.content)
-    const available =
+    const available = Math.max(
+      0,
       monitor.content.clientHeight -
-      parseFloat(style.paddingTop) -
-      parseFloat(style.paddingBottom) -
-      speaker.getBoundingClientRect().height -
-      (parseFloat(style.gap) || 0)
+        parseFloat(style.paddingTop) -
+        parseFloat(style.paddingBottom) -
+        speaker.getBoundingClientRect().height -
+        (parseFloat(style.gap) || 0)
+    )
     let size = parseFloat(window.getComputedStyle(caption).fontSize)
-    // A genuinely long unbroken word stays intact; the live screen can use a
-    // smaller caption instead of creating a final page containing punctuation.
     while (size > 12 && caption.getBoundingClientRect().height > available + 0.5) {
       size = Math.max(12, size - 0.5)
       caption.style.fontSize = size + 'px'
+    }
+    // Production pleas fit in full at the readable minimum. Keep unusually
+    // long custom/localized copy accessible on the same screen as a transcript.
+    const scrollable = caption.getBoundingClientRect().height > available + 0.5
+    caption.dataset.scrollable = String(scrollable)
+    if (scrollable) {
+      caption.style.maxHeight = available + 'px'
+      caption.style.overflowY = 'auto'
+      caption.tabIndex = 0
+      caption.setAttribute('role', 'region')
+      caption.setAttribute('aria-label', speaker.textContent + ': full message')
     }
   }
   function showFrame(kind, renderFrame, accessibleText) {
@@ -708,9 +762,9 @@ function mountFinalDecision(root, config) {
   }
   function renderPlea() {
     const person = nominees[stage === 'plea-a' ? 0 : 1]
-    captionPages = splitCaption(person.shortPlea || person.plea)
-    captionPage = Math.min(captionPage, captionPages.length - 1)
-    const caption = captionPages[captionPage]
+    const caption = person.plea || person.shortPlea || ''
+    captionPages = [caption]
+    captionPage = 0
     showFrame(
       'broadcast',
       (content) => {
@@ -719,18 +773,9 @@ function mountFinalDecision(root, config) {
       },
       person.name + ': ' + caption
     )
-    if (captionPage < captionPages.length - 1) {
-      mainAction('Next', () => {
-        captionPage += 1
-        render()
-        const next = actions.querySelector('button')
-        if (next) next.focus({ preventScroll: true })
-      }).setAttribute('aria-label', 'Next part of ' + person.name + "'s plea")
-    } else {
-      mainAction(stage === 'plea-a' ? 'Hear ' + nominees[1].name : 'Make your decision', () =>
-        go(stage === 'plea-a' ? 'plea-b' : 'choose', true)
-      )
-    }
+    mainAction(stage === 'plea-a' ? 'Hear ' + nominees[1].name : 'Make your decision', () =>
+      go(stage === 'plea-a' ? 'plea-b' : 'choose', true)
+    )
   }
   function focusAction() {
     const first = actions.querySelector('button:not(:disabled)')
@@ -817,7 +862,13 @@ function mountFinalDecision(root, config) {
     startAmbientMotion()
     directCamera(
       stage === 'establish' ? 'scale(1.005) translateY(1.8%)' : cameraStart,
-      stage === 'establish' ? 3400 : stage === 'announcement' ? 2800 : 1300
+      stage === 'establish'
+        ? 3400
+        : stage === 'announcement'
+          ? 3200
+          : stage === 'seal'
+            ? 2200
+            : 2000
     )
     fire('onCheckpoint', { ...snapshot(), sceneId: cfg.sceneId || 'classic-final-decision' })
     if (shouldFocus)
@@ -1012,17 +1063,16 @@ function mountFinalDecision(root, config) {
   cleanups.push(() => root.removeEventListener('keydown', onKey))
   function refreshCaptionLayout() {
     if (disposed) return
-    if (!stage.startsWith('plea') && reviewIndex < 0) {
+    if (reviewIndex < 0) {
       fitMonitorNames()
+      fitBroadcastCaption()
       return
     }
     const cursor = captionPages
       .slice(0, captionPage)
       .reduce((sum, value) => sum + value.length + 1, 0)
-    const person = nominees[reviewIndex >= 0 ? reviewIndex : stage === 'plea-a' ? 0 : 1]
-    const repaged = splitCaption(
-      reviewIndex >= 0 ? person.comparison : person.shortPlea || person.plea
-    )
+    const person = nominees[reviewIndex]
+    const repaged = splitCaption(person.comparison)
     let consumed = 0
     let page = 0
     while (page < repaged.length - 1 && consumed + repaged[page].length < cursor) {

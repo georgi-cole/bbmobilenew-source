@@ -254,7 +254,58 @@ describe('Final Decision scene audio ownership', () => {
     audio.dispose()
   })
 
-  it('cleans up before the next exit scene and ignores late playback promises and events', async () => {
+  it('continues the same musical phrase through departure and fades only after its handoff', async () => {
+    const audio = createFinalDecisionAudio('continuous-exit', enabled)
+    audio.setActive(true)
+    audio.setStage('announcement')
+    await settle()
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.fadeInMs + 50)
+    const element = FakeAudio.instances[0]
+    element.currentTime = 27.5
+    audio.setStage('complete')
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.mixTransitionMs + 50)
+    expect(element.volume).toBeCloseTo(FINAL_DECISION_AUDIO.exitVolume)
+    expect(element.currentTime).toBe(27.5)
+    expect(element.paused).toBe(false)
+    expect(element.play).toHaveBeenCalledTimes(1)
+    expect(FakeAudio.instances).toHaveLength(1)
+    expect(sound.releaseExternalMusic).not.toHaveBeenCalled()
+    audio.finish()
+    audio.finish()
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.exitFadeOutMs / 2)
+    expect(element.volume).toBeGreaterThan(0)
+    expect(element.volume).toBeLessThan(FINAL_DECISION_AUDIO.exitVolume)
+    expect(element.paused).toBe(false)
+    await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.exitFadeOutMs)
+    expect(element.paused).toBe(true)
+    expect(sound.releaseExternalMusic).toHaveBeenCalledTimes(1)
+    expect(element.load).toHaveBeenCalledTimes(1)
+    audio.dispose()
+    expect(element.load).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('ends a fading tail immediately when its foreground ownership or music preference is lost', async () => {
+    for (const suspend of ['ownership', 'preference'] as const) {
+      const audio = createFinalDecisionAudio(suspend, enabled)
+      audio.setActive(true)
+      audio.setStage('complete')
+      await settle()
+      await vi.advanceTimersByTimeAsync(FINAL_DECISION_AUDIO.fadeInMs + 50)
+      const element = FakeAudio.instances.at(-1)!
+      audio.finish()
+      if (suspend === 'ownership') audio.setActive(false)
+      else audio.setPreferences({ musicOn: false, sfxOn: true })
+      expect(element.paused).toBe(true)
+      expect(element.load).toHaveBeenCalledTimes(1)
+      audio.setActive(true)
+      audio.setPreferences(enabled)
+      expect(element.play).toHaveBeenCalledTimes(1)
+      expect(vi.getTimerCount()).toBe(0)
+    }
+  })
+
+  it('cleans up an interrupted departure and ignores late playback promises and events', async () => {
     let resolvePlay = () => {}
     FakeAudio.nextPlay = () =>
       new Promise<void>((resolve) => {

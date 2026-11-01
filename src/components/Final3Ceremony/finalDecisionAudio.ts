@@ -11,6 +11,8 @@ export const FINAL_DECISION_AUDIO = {
   confirmationVolume: 0.34,
   sealVolume: 0.045,
   revealVolume: 0.12,
+  exitVolume: 0.25,
+  exitFadeOutMs: 1000,
   fadeInMs: 900,
   mixTransitionMs: 600,
   suspenseBuildMs: 1400,
@@ -43,6 +45,8 @@ export interface FinalDecisionAudioController {
   setPreferences(preferences: AudioPreferences): void
   setStage(stage: FinalDecisionSceneStage): void
   cue(cue: string): void
+  /** Finish the retained soundtrack after the departure film has handed off. */
+  finish(): void
   dispose(): void
 }
 
@@ -57,6 +61,7 @@ export function createFinalDecisionAudio(
   let paused = false
   let begun = false
   let disposed = false
+  let finishing = false
   let failed = false
   let stage: FinalDecisionSceneStage = 'welcome'
   let music: HTMLAudioElement | null = null
@@ -90,6 +95,7 @@ export function createFinalDecisionAudio(
     if (stage === 'confirm') return FINAL_DECISION_AUDIO.confirmationVolume
     if (stage === 'seal') return FINAL_DECISION_AUDIO.sealVolume
     if (stage === 'announcement') return FINAL_DECISION_AUDIO.revealVolume
+    if (stage === 'complete') return FINAL_DECISION_AUDIO.exitVolume
     return FINAL_DECISION_AUDIO.musicVolume
   }
   const transitionMs = () => {
@@ -101,9 +107,12 @@ export function createFinalDecisionAudio(
     currentMix = value
     if (music && claimed) SoundManager.setExternalMusicVolume(owner, music, value)
   }
-  const fadeTo = (target: number, duration: number) => {
+  const fadeTo = (target: number, duration: number, onFinish?: () => void) => {
     cancelFade()
-    if (!music || !claimed || currentMix === target) return
+    if (!music || !claimed || currentMix === target) {
+      onFinish?.()
+      return
+    }
     const from = currentMix
     const start = performance.now()
     const step = (now: number) => {
@@ -111,6 +120,7 @@ export function createFinalDecisionAudio(
       const progress = Math.min(1, Math.max(0, (now - start) / duration))
       applyMix(from + (target - from) * progress)
       fadeFrame = progress < 1 ? window.requestAnimationFrame(step) : null
+      if (progress === 1) onFinish?.()
     }
     fadeFrame = window.requestAnimationFrame(step)
   }
@@ -150,6 +160,10 @@ export function createFinalDecisionAudio(
 
   const sync = () => {
     if (disposed) return
+    if (finishing) {
+      if (!active || paused || !preferences.musicOn) dispose()
+      return
+    }
     if (!active || !begun) {
       cancelAccents()
       relinquishMusic()
@@ -221,6 +235,20 @@ export function createFinalDecisionAudio(
     }
   }
 
+  const finish = () => {
+    if (disposed || finishing) return
+    finishing = true
+    generation += 1
+    pendingPlay = false
+    cancelAccents()
+    cancelRetry()
+    if (!active || paused || !preferences.musicOn || !music || music.paused || !claimed) {
+      dispose()
+      return
+    }
+    fadeTo(0, FINAL_DECISION_AUDIO.exitFadeOutMs, dispose)
+  }
+
   return {
     setActive(value) {
       active = value
@@ -231,16 +259,18 @@ export function createFinalDecisionAudio(
       sync()
     },
     setStage(value) {
+      if (disposed || finishing) return
       stage = value
       if (value === 'complete') {
-        dispose()
-        return
+        // The same element continues under the departure. Its new owner calls
+        // finish only when that film hands off, keeping the musical phrase intact.
+        cancelAccents()
       }
       if (value !== 'welcome') begun = true
       sync()
     },
     cue(cue) {
-      if (disposed) return
+      if (disposed || finishing) return
       if (cue === 'presentation:dispose') {
         dispose()
         return
@@ -260,6 +290,7 @@ export function createFinalDecisionAudio(
       const { key, ...options } = accent
       void SoundManager.play(key, { ...options, signal: accents.signal }).catch(() => {})
     },
+    finish,
     dispose,
   }
 }
