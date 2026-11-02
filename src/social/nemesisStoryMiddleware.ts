@@ -29,9 +29,12 @@ export const nemesisStoryMiddleware: Middleware = (api) => (next) => (action) =>
   // A juror can still watch the season. The narrative reducer will close the
   // antagonist only at a valid end-of-day/endgame transition, never inject
   // ordinary social scenes after the player has left.
-  if (!after.social.reality || !Object.values(after.social.reality.relationshipAutonomy.nemeses).some(
-    (nemesis) => nemesis.status === 'ACTIVE' && nemesis.targetId === human.id
-  )) {
+  if (
+    !after.social.reality ||
+    !Object.values(after.social.reality.relationshipAutonomy.nemeses).some(
+      (nemesis) => nemesis.status === 'ACTIVE' && nemesis.targetId === human.id
+    )
+  ) {
     return result
   }
 
