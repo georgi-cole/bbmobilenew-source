@@ -101,10 +101,11 @@ function ReadSheet({
   const alliance = allianceRecord && allianceRecord.status !== 'DISSOLVED'
     ? getRealityAllianceKnowledgeView(social.reality, allianceRecord.id, humanId)
     : null
+  const knownConflict =
+    relationship.isNemesis || ['RIVAL', 'ENEMY', 'ESTRANGED'].includes(edge?.perceivedLabel ?? '')
   const allianceCaption =
-    allianceRecord &&
-    (relationship.isNemesis || allianceRecord.status === 'FRACTURED')
-      ? `${allianceDisplayLabel(allianceRecord, relationship.isNemesis)}${alliance?.displayName ? ` · ${alliance.displayName}` : ''}`
+    allianceRecord && (knownConflict || allianceRecord.status === 'FRACTURED')
+      ? `${allianceDisplayLabel(allianceRecord, knownConflict)}${alliance?.displayName ? ` · ${alliance.displayName}` : ''}`
       : (alliance?.displayName ?? 'Shared alliance')
   const intel = realityMode
     ? getIntelLeadViews(social.reality, humanId, game.players, game.week).filter((lead) =>
