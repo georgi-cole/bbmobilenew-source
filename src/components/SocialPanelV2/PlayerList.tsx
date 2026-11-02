@@ -229,7 +229,10 @@ export default function PlayerList({
                 getCurrentAlliancesBetween(reality, humanPlayerId, player.id).map((alliance) =>
                   allianceDisplayLabel(
                     alliance,
-                    isNemesisDisclosedTo(reality, humanPlayerId, player.id)
+                    isNemesisDisclosedTo(reality, humanPlayerId, player.id) ||
+                      ['RIVAL', 'ENEMY', 'ESTRANGED'].includes(
+                        reality.relationships[humanPlayerId]?.[player.id]?.perceivedLabel ?? ''
+                      )
                   )
                 )
               )
