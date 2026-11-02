@@ -213,7 +213,7 @@ function createReveal(
   domain: RealityDomainState,
   objective: RealityNemesisObjective,
   context: NemesisStoryContext,
-  postExit: boolean
+  exitWho: 'owner' | 'target' | null
 ): NemesisStoryBeat {
   const at = { day: context.day, phase: context.phase }
   const name = context.playerNames[objective.ownerId] ?? 'A hubmate'
@@ -224,9 +224,12 @@ function createReveal(
       alliance.memberIds.includes(objective.ownerId) &&
       alliance.memberIds.includes(objective.targetId)
   )
-  const text = postExit
-    ? `THE BIG EYE — REVEALED: After ${name}'s departure, their private campaign against you comes to light. Why? ${motive}`
-    : `THE BIG EYE — NEMESIS REVEALED: ${name} has been working against you. Why? ${motive}`
+  const text =
+    exitWho === 'owner'
+      ? `THE BIG EYE — REVEALED: After ${name}'s departure, their private campaign against you comes to light. Why? ${motive}`
+      : exitWho === 'target'
+        ? `THE BIG EYE — REVEALED: After your elimination, the reason ${name} opposed you comes to light. Why? ${motive}`
+        : `THE BIG EYE — NEMESIS REVEALED: ${name} has been working against you. Why? ${motive}`
   const event = appendRealityEvent(domain, {
     ...at,
     type: 'NEMESIS_REVEALED',
@@ -247,9 +250,9 @@ function createReveal(
   objective.revealedAt = at
   objective.revealEventId = event.id
 
-  if (postExit) {
-    // The opponent has already left. Preserve the reveal in history without
-    // creating an opponent that can keep influencing the Hub from outside.
+  if (exitWho) {
+    // The rivalry has ended through an elimination. Preserve the reveal in
+    // history without keeping an executable anti-player objective.
     objective.status = 'ENDED'
     const intent = domain.relationshipAutonomy.intents[
       `relationship-intent:${objective.ownerId}:${objective.targetId}:UNDERMINE`
@@ -311,22 +314,27 @@ export function advanceNemesisNarrative(
     }
 
     const ownerActive = context.activePlayerIds.has(objective.ownerId)
+    const humanActive = context.activePlayerIds.has(objective.targetId)
+    if (!humanActive && (leavingWindow || closing)) {
+      beats.push(createReveal(domain, objective, context, 'target'))
+      continue
+    }
     if (!ownerActive && (leavingWindow || closing || activeWindow)) {
-      beats.push(createReveal(domain, objective, context, true))
+      beats.push(createReveal(domain, objective, context, 'owner'))
       continue
     }
     if (closing) {
-      beats.push(createReveal(domain, objective, context, false))
+      beats.push(createReveal(domain, objective, context, null))
       continue
     }
     if (!activeWindow) continue
 
     if (objective.clueEventId || objective.clueAt) {
       if (objective.clueAt && context.day > objective.clueAt.day) {
-        beats.push(createReveal(domain, objective, context, false))
+        beats.push(createReveal(domain, objective, context, null))
       }
     } else if (hasWitnessedConflict(domain, objective)) {
-      beats.push(createReveal(domain, objective, context, false))
+      beats.push(createReveal(domain, objective, context, null))
     } else {
       beats.push(createClue(domain, objective, context))
     }
