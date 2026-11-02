@@ -118,7 +118,22 @@ export function registerProvocateurConflict(
   const activeNemesisForTarget = Object.values(domain.relationshipAutonomy.nemeses).some(
     (nemesis) => nemesis.targetId === input.targetId && nemesis.status === 'ACTIVE'
   )
-  const nemesis = activeNemesisForTarget
+  // One public disagreement with a genuine ally is a rivalry, not yet a
+  // season-long Nemesis. Betrayal can escalate a shared pact into that role.
+  const sharesGenuineAlliance = Object.values(domain.alliances).some(
+    (alliance) =>
+      alliance.status !== 'DISSOLVED' &&
+      alliance.genuine &&
+      alliance.memberIds.includes(input.actorId) &&
+      alliance.memberIds.includes(input.targetId)
+  )
+  const hasBetrayal = domain.events.some(
+    (event) =>
+      event.type === 'ALLIANCE_BETRAYAL' &&
+      ((event.actorId === input.actorId && event.targetIds.includes(input.targetId)) ||
+        (event.actorId === input.targetId && event.targetIds.includes(input.actorId)))
+  )
+  const nemesis = activeNemesisForTarget || (sharesGenuineAlliance && !hasBetrayal)
     ? null
     : createRealityNemesisObjective(domain, {
         ownerId: input.actorId,
