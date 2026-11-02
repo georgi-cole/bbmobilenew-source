@@ -661,6 +661,35 @@ function pactDecision(
   const respect = relationship?.respect ?? 0
   const strategicValue = relationship?.strategicValue ?? 0
 
+  const privateNemesis = Object.values(state.relationshipAutonomy.nemeses).some(
+    (nemesis) =>
+      nemesis.status === 'ACTIVE' &&
+      nemesis.ownerId === actorId &&
+      nemesis.targetId === proposerId
+  )
+  if (privateNemesis) {
+    // Nemeses don't sincerely commit on an ordinary trust roll. A strategically
+    // useful minority can play along, but the signed pact is flagged as false
+    // pretense when the Reality alliance is created.
+    const deceptiveOffer =
+      strategicValue >= 35 && allianceDecisionRoll(request, actorId, seed) < 0.18
+    return deceptiveOffer
+      ? {
+          accepted: true,
+          response: {
+            style: 'LIMITED',
+            reason: 'I can cooperate for now, but I will not promise blind loyalty.',
+          },
+        }
+      : {
+          accepted: false,
+          response: {
+            style: 'DECLINED',
+            reason: 'We have unresolved conflict. I cannot commit to this pact yet.',
+          },
+        }
+  }
+
   const proposerNetwork = new Set<string>()
   for (const alliance of Object.values(state.alliances)) {
     if (!isCurrentAlliance(alliance) || !alliance.memberIds.includes(proposerId)) continue
