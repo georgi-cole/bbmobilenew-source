@@ -5,6 +5,7 @@ import {
 } from '../../cinematic/ceremonies/runtime.mjs'
 import type { Player } from '../../types'
 import { joinPublicAssetPath } from '../../utils/avatar'
+import { FINAL_THREE_SET_PUBLIC_ASSETS } from '../FinalThreeStage/finalThreeSetAssets'
 
 interface FinalDecisionArtwork {
   assets: Record<string, string>
@@ -37,13 +38,13 @@ export function resolveFinalDecisionArtwork(
       Object.entries({
         background: 'assets/ceremonies/final-decision/background.webp',
         foreground: 'assets/ceremonies/final-decision/foreground.webp',
-        token: 'assets/ceremonies/final-decision/token.webp',
-        monitor: 'assets/ceremonies/final-decision/monitor.webp',
+        token: FINAL_THREE_SET_PUBLIC_ASSETS.eye,
+        monitor: FINAL_THREE_SET_PUBLIC_ASSETS.monitor,
         holder: holderPose.src,
         'nominee-a': firstPose.src,
         'nominee-b': secondPose.src,
         ...(presentation === 'classic' ? { crown: 'assets/ceremonies/shared/crown.webp' } : {}),
-        mist: 'assets/ceremonies/vfx/natural-mist-v2.webp',
+        mist: FINAL_THREE_SET_PUBLIC_ASSETS.mist,
       }).map(([key, path]) => [key, joinPublicAssetPath(path)])
     ),
     ...(presentation === 'classic' ? { holderCrownAnchor: holderPose.crown } : {}),
