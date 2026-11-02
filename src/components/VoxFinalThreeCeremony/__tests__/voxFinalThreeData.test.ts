@@ -216,9 +216,7 @@ describe('Vox Final Three presentation data', () => {
     }
     const pleas = buildVoxFinalThreePleas(game, cast)
     expect(pleas.ash).not.toBe(pleas.aria)
-    expect(Object.values(pleas).filter((text) => text.includes('those bonds'))).toHaveLength(
-      1
-    )
+    expect(Object.values(pleas).filter((text) => text.includes('those bonds'))).toHaveLength(1)
     expect(Object.values(pleas).every((text) => !/\d/.test(text))).toBe(true)
   })
 
