@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createInitialGameState } from '../../store/gameSlice'
 import ChampionFinaleStage from './ChampionFinaleStage'
-import styles from './ChampionFinaleStage.css?raw'
+const styles = readFileSync(resolve('src/components/SeasonFinale/ChampionFinaleStage.css'), 'utf8')
 
 const [winner, runnerUp] = createInitialGameState({ seed: 514 }).players.slice(0, 2)
 
