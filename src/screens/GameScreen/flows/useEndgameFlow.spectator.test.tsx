@@ -3,7 +3,7 @@ import { act, render, renderHook, screen } from '@testing-library/react'
 import { configureStore, type Middleware, type UnknownAction } from '@reduxjs/toolkit'
 import { Provider } from 'react-redux'
 import { MemoryRouter } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import gameReducer, {
   createInitialGameState,
   hydrateGame,
@@ -349,7 +349,8 @@ describe('Final Three spectator broadcast integration', () => {
     (mode) => {
       const game = makeGame(1, mode, 'competitor')
       game.finalThree!.openingSeen = false
-      const { result, store } = mountFlow(game)
+      const { result, store, actions } = mountFlow(game)
+      const onFinalePlay = vi.fn(() => result.current.handleFinalPowerBattleIntroDone())
       const globalPlay = vi.fn((event: Event) => {
         event.preventDefault()
         event.stopImmediatePropagation()
@@ -369,7 +370,7 @@ describe('Final Three spectator broadcast integration', () => {
                 finaleOverlayActive
                 finaleInlinePlayActive
                 finalePlayAvailable
-                onFinalePlay={() => result.current.handleFinalPowerBattleIntroDone()}
+                onFinalePlay={onFinalePlay}
               />
             </Provider>
           </MemoryRouter>
@@ -380,6 +381,16 @@ describe('Final Three spectator broadcast integration', () => {
         act(() => button.click())
 
         expect(globalPlay).not.toHaveBeenCalled()
+        expect(onFinalePlay).toHaveBeenCalledTimes(1)
+        // Temporarily print relevant lifecycle signals if this integration
+        // gate disagrees with the standalone reducer and dock tests.
+        console.info('finale-play-integration-diagnostic', {
+          beforePhase: game.phase,
+          currentPhase: store.getState().game.phase,
+          currentOpening: store.getState().game.finalThree?.openingSeen,
+          active: result.current.finalPowerBattleIntroActive,
+          actions: actions.slice(-12).map((action) => action.type),
+        })
         expect(store.getState().game.finalThree?.openingSeen).toBe(true)
         expect(store.getState().game.phase).toBe('final3_comp1_minigame')
         expect(store.getState().game.minigameContext?.participants).toContain(
