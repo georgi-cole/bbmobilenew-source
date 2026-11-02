@@ -5,6 +5,7 @@ import gameReducer, {
   completeFinalThreeBlockReveal,
   completeFinalThreeOpening,
   createInitialGameState,
+  debugActivateWeekendInterlude,
   finalizeFinal3Decision,
   hydrateGame,
   selectF3Part1PredictedWinnerId,
@@ -129,6 +130,43 @@ describe('Classic Final Three ceremony routing', () => {
 })
 
 describe('Final Three durable controller', () => {
+  it('recovers an inconsistent saved weekend gate without resetting a Final Three phase', () => {
+    const { state } = createClassicFinalThreeState()
+    state.phase = 'final3_comp3'
+    state.finaleWeekendCompleted = false
+    const staged = gameReducer(state, debugActivateWeekendInterlude('finale'))
+    expect(staged.weekendInterlude?.active).toBe(true)
+    const saved = {
+      ...staged,
+      weekendInterlude: { ...staged.weekendInterlude!, debug: false },
+    }
+    const restored = gameReducer(createInitialGameState({ seed: 812 }), hydrateGame(saved))
+    expect(restored.weekendInterlude).toBeNull()
+    expect(restored.finaleWeekendCompleted).toBe(true)
+    expect(restored.phase).toBe('final3_comp3')
+  })
+
+  it('does not discard an intentional debug-weekend preview on restore or advance', () => {
+    const { state } = createClassicFinalThreeState()
+    state.phase = 'final3_comp3'
+    const preview = gameReducer(state, debugActivateWeekendInterlude('finale'))
+    expect(preview.weekendInterlude?.debug).toBe(true)
+    const restored = gameReducer(createInitialGameState({ seed: 813 }), hydrateGame(preview))
+    expect(restored.weekendInterlude?.active).toBe(true)
+    expect(gameReducer(restored, advance()).phase).toBe('final3_comp3')
+  })
+
+  it('does not silently block a valid Final Three advance on an orphaned weekend flag', () => {
+    const { state } = createClassicFinalThreeState()
+    state.phase = 'final3'
+    const staged = gameReducer(state, debugActivateWeekendInterlude('finale'))
+    const corrupted = { ...staged, weekendInterlude: { ...staged.weekendInterlude!, debug: false } }
+    const next = gameReducer(corrupted, advance())
+    expect(next.weekendInterlude).toBeNull()
+    expect(next.finaleWeekendCompleted).toBe(true)
+    expect(next.phase).toBe('final3_comp1')
+  })
+
   it('routes Play after the Classic opening through the internal setup phase to Part 1', () => {
     const { state, finalists } = createClassicFinalThreeState()
     state.phase = 'final3'

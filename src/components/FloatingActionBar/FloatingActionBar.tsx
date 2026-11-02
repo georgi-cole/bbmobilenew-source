@@ -413,30 +413,30 @@ export default function FloatingActionBar({
   const confessionalPromptActivated =
     activeConfessionalDecisionKey !== null &&
     triggeredConfessionalDecisionKey === activeConfessionalDecisionKey
-  const primaryDisabled = weekend?.active
-    ? !weekendPlayReady || reunionDepartureInProgress
-    : finaleOverlayActive
-      ? !finalePlayAvailable
-      : finaleInlinePlayActive
-        ? !finalePlayAvailable
-        : survivorTerminalActive ||
-          survivorReplacementTransitionActive ||
-          (survivorReplacementPending
-            ? false
-            : hasPendingConfessionalDecision
-              ? confessionalPromptActivated
-              : isWaiting)
-  const primaryPulse = finaleOverlayActive
-    ? finalePlayAvailable
-    : finaleInlinePlayActive
-      ? finalePlayAvailable
-      : survivorTerminalActive
-        ? false
-        : weekend?.active
-          ? weekendPlayReady && !reunionDepartureInProgress
+  // A visible finale scene owns Play even if a restored run still carries
+  // an active weekend, vote, or waiting-for-input flag. Those states must not
+  // steal or disable the central button while the scene is on screen.
+  const finaleOwnsPlay = finaleOverlayActive || finaleInlinePlayActive
+  const primaryDisabled = finaleOwnsPlay
+    ? !finalePlayAvailable
+    : weekend?.active
+      ? !weekendPlayReady || reunionDepartureInProgress
+      : survivorTerminalActive ||
+        survivorReplacementTransitionActive ||
+        (survivorReplacementPending
+          ? false
           : hasPendingConfessionalDecision
-            ? !confessionalPromptActivated
-            : survivorReplacementPending || (canAdvance && !isWaiting)
+            ? confessionalPromptActivated
+            : isWaiting)
+  const primaryPulse = finaleOwnsPlay
+    ? finalePlayAvailable
+    : survivorTerminalActive
+      ? false
+      : weekend?.active
+        ? weekendPlayReady && !reunionDepartureInProgress
+        : hasPendingConfessionalDecision
+          ? !confessionalPromptActivated
+          : survivorReplacementPending || (canAdvance && !isWaiting)
   const confessionalPersistentFlash = hasPendingConfessionalDecision && confessionalPromptActivated
   const confessionalSpotlightEligible =
     hasPendingConfessionalDecision && confessionalPromptActivated && !hasSeenConfessionalSpotlight
@@ -523,6 +523,12 @@ export default function FloatingActionBar({
 
   const handlePrimaryActionClick = useCallback(() => {
     setBlockedAnnouncement(null)
+    // Ownership is explicit: no legacy weekend or gameplay action may run
+    // instead of the currently visible Final Three presentation's Play beat.
+    if (finaleOwnsPlay) {
+      if (finalePlayAvailable) dispatchPlayPressedEvent()
+      return
+    }
     if (weekend?.active) {
       if (weekend.stage === 'hub_says') {
         if (hubSaysBeat !== 'result') {
@@ -619,16 +625,8 @@ export default function FloatingActionBar({
       onDemocraciaResultsDone?.()
       return
     }
-    if (finaleInlinePlayActive) {
-      dispatchPlayPressedEvent()
-      return
-    }
     if (survivorReplacementPending) {
       dispatch(revealSurvivorReplacement())
-      return
-    }
-    if (finaleOverlayActive) {
-      dispatchPlayPressedEvent()
       return
     }
     if (hasPendingConfessionalDecision) {
@@ -674,8 +672,8 @@ export default function FloatingActionBar({
     democraciaVoteRecorded,
     game.democracia?.resultDisplay,
     hasReunionGuests,
-    finaleInlinePlayActive,
-    finaleOverlayActive,
+    finaleOwnsPlay,
+    finalePlayAvailable,
     hasPendingConfessionalDecision,
     hasSeenConfessionalSpotlight,
     onDemocraciaResultsDone,

@@ -1,9 +1,13 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
+import { usePresentationForeground } from '../../services/presentation/presentationOwnership'
 import type { Player } from '../../types'
 import duelBackdrop from '../../assets/finale/final-power-battle-duel.webp'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import './FinalPowerBattle.css'
+
+/** Informational only: never gate the actual duel indefinitely. */
+export const FINAL_THREE_BLOCK_REVEAL_MS = 5200
 
 interface Props {
   blockPlayer: Player
@@ -19,18 +23,36 @@ export default function FinalThreeBlockReveal({
   onComplete,
 }: Props) {
   const completedRef = useRef(false)
+  const onCompleteRef = useRef(onComplete)
+  const foreground = usePresentationForeground()
+
+  useLayoutEffect(() => {
+    onCompleteRef.current = onComplete
+  }, [onComplete])
 
   useEffect(() => {
+    if (!foreground) return undefined
+    const completeOnce = () => {
+      if (completedRef.current) return
+      completedRef.current = true
+      onCompleteRef.current()
+    }
     const handlePlay = (event: Event) => {
       if (completedRef.current) return
       event.preventDefault()
       event.stopImmediatePropagation()
-      completedRef.current = true
-      onComplete()
+      completeOnce()
     }
-    window.addEventListener('ui:playPressed', handlePlay)
-    return () => window.removeEventListener('ui:playPressed', handlePlay)
-  }, [onComplete])
+
+    // Capture before old bubble-phase handlers. The underlying game reducer
+    // still determines whether the actual final duel may begin.
+    window.addEventListener('ui:playPressed', handlePlay, { capture: true })
+    const timeout = window.setTimeout(completeOnce, FINAL_THREE_BLOCK_REVEAL_MS)
+    return () => {
+      window.removeEventListener('ui:playPressed', handlePlay, { capture: true })
+      window.clearTimeout(timeout)
+    }
+  }, [foreground])
 
   const battleRule =
     mode === 'vox_populi'

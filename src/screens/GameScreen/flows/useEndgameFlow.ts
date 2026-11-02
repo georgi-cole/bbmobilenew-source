@@ -171,6 +171,7 @@ export function useEndgameFlow({
     game.voxPopuli?.status !== 'active' &&
     game.phase === 'final3_comp3' &&
     game.finalThree?.blockRevealSeen !== true &&
+    !debugFinaleWeekendPreviewActive &&
     Boolean(finalThreeBlockPlayer) &&
     finalThreeBlockCompetitors.length === 2
   const handleFinalThreeBlockRevealDone = useCallback(() => {

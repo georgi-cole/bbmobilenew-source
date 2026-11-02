@@ -39,6 +39,8 @@ import challengeReducer from '../../../store/challengeSlice'
 import publicOpinionReducer, { addDirection } from '../../../publicOpinion/publicOpinionSlice'
 import FloatingActionBar from '../FloatingActionBar'
 import WeekendInterludeOverlay from '../../WeekendInterludeOverlay/WeekendInterludeOverlay'
+import FinalThreeBlockReveal from '../../FinalPowerBattle/FinalThreeBlockReveal'
+import FinalPowerBattleIntro from '../../FinalPowerBattle/FinalPowerBattleIntro'
 import { resolveBalancedDockBottom } from '../floatingActionBarLayout'
 import type { RootState } from '../../../store/store'
 import type { PublicDirection } from '../../../publicOpinion/types'
@@ -1101,5 +1103,101 @@ describe('FloatingActionBar – confessional alert animation', () => {
     })
 
     expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
+  })
+})
+
+
+describe('Final Three P0 Play ownership', () => {
+  it('gives the visible Part 3 setup priority over a stale active finale weekend', () => {
+    const original = createInitialGameState({ seed: 981 })
+    const weekend = gameReducer(original, debugActivateWeekendInterlude('finale')).weekendInterlude
+    const store = makeStore(true, {
+      phase: 'final3_comp3',
+      weekendInterlude: weekend,
+    })
+    const participants = store.getState().game.players.slice(0, 3)
+    const onComplete = vi.fn()
+    const beforeWeekend = structuredClone(store.getState().game.weekendInterlude)
+    renderFAB(store, '/game', {
+      finaleOverlayActive: true,
+      finalePlayAvailable: true,
+      finaleDockOnTop: true,
+    })
+    render(
+      <Provider store={store}>
+        <FinalThreeBlockReveal
+          blockPlayer={participants[0]}
+          competitors={participants.slice(1)}
+          mode="classic"
+          onComplete={onComplete}
+        />
+      </Provider>
+    )
+    const play = screen.getByRole('button', { name: 'Play finale scene' })
+    expect(play).toBeEnabled()
+    act(() => fireEvent.click(play))
+    expect(onComplete).toHaveBeenCalledOnce()
+    expect(store.getState().game.weekendInterlude).toEqual(beforeWeekend)
+    expect(store.getState().game.phase).toBe('final3_comp3')
+    act(() => fireEvent.click(play))
+    expect(onComplete).toHaveBeenCalledOnce()
+  })
+
+  it('keeps Play enabled even if an unrelated Hub Says question was never answered', () => {
+    const original = createInitialGameState({ seed: 982 })
+    let withWeekend = gameReducer(original, debugActivateWeekendInterlude(5))
+    withWeekend = gameReducer(withWeekend, continueWeekendFeature())
+    withWeekend = gameReducer(withWeekend, continueWeekendFeature())
+    expect(withWeekend.weekendInterlude?.stage).toBe('hub_says')
+    const store = makeStore(true, {
+      phase: 'final3_comp3',
+      weekendInterlude: withWeekend.weekendInterlude,
+    })
+    const beforeWeekend = structuredClone(store.getState().game.weekendInterlude)
+    renderFAB(store, '/game', { finaleOverlayActive: true, finalePlayAvailable: true })
+    const playEvents = vi.fn()
+    window.addEventListener('ui:playPressed', playEvents)
+    try {
+      const play = screen.getByRole('button', { name: 'Play finale scene' })
+      expect(play).toBeEnabled()
+      act(() => fireEvent.click(play))
+      expect(playEvents).toHaveBeenCalledOnce()
+      expect(store.getState().game.weekendInterlude).toEqual(beforeWeekend)
+    } finally {
+      window.removeEventListener('ui:playPressed', playEvents)
+    }
+  })
+
+  it('does not enable Play while a premium spectator film owns the finale', () => {
+    const original = createInitialGameState({ seed: 983 })
+    const weekend = gameReducer(original, debugActivateWeekendInterlude('finale')).weekendInterlude
+    const store = makeStore(true, { phase: 'final3_comp3', weekendInterlude: weekend })
+    renderFAB(store, '/game', { finaleOverlayActive: true, finalePlayAvailable: false })
+    expect(screen.getByRole('button', { name: 'Play finale scene' })).toBeDisabled()
+  })
+
+  it('lets the actual Final Three opening consume each Play beat despite an old weekend', () => {
+    const original = createInitialGameState({ seed: 984 })
+    const weekend = gameReducer(original, debugActivateWeekendInterlude('finale')).weekendInterlude
+    const store = makeStore(true, { phase: 'final3', weekendInterlude: weekend })
+    const onComplete = vi.fn()
+    const beforeWeekend = structuredClone(store.getState().game.weekendInterlude)
+    renderFAB(store, '/game', {
+      finaleInlinePlayActive: true,
+      finalePlayAvailable: true,
+    })
+    render(
+      <Provider store={store}>
+        <FinalPowerBattleIntro
+          finalists={store.getState().game.players.slice(0, 3)}
+          mode="classic"
+          onComplete={onComplete}
+        />
+      </Provider>
+    )
+    const play = screen.getByRole('button', { name: 'Advance to next phase' })
+    for (let i = 0; i < 5; i += 1) act(() => fireEvent.click(play))
+    expect(onComplete).toHaveBeenCalledOnce()
+    expect(store.getState().game.weekendInterlude).toEqual(beforeWeekend)
   })
 })

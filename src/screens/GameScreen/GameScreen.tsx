@@ -2070,6 +2070,7 @@ export default function GameScreen() {
         {/* ── Final 4 plea chat overlay (all players) ─────────────────────── */}
         {finalThreeBlockRevealActive && finalThreeBlockPlayer && (
           <FinalThreeBlockReveal
+            key={`${presentationRunKey}:final-three-block`}
             blockPlayer={finalThreeBlockPlayer}
             competitors={finalThreeBlockCompetitors}
             mode={isVoxPopuli ? 'vox_populi' : 'classic'}
@@ -2079,6 +2080,7 @@ export default function GameScreen() {
 
         {finalPowerBattleIntroActive && (
           <FinalPowerBattleIntro
+            key={`${presentationRunKey}:final-three-opening`}
             finalists={alivePlayers}
             mode={isVoxPopuli ? 'vox_populi' : 'classic'}
             onComplete={handleFinalPowerBattleIntroDone}
