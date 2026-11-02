@@ -7,9 +7,7 @@ const finalists = createInitialGameState({ seed: 315 }).players.slice(0, 3)
 
 describe('FinalPowerBattleIntro', () => {
   it('shows one concise, ready-to-start scene instead of five Play-controlled beats', () => {
-    const { container } = render(
-      <FinalPowerBattleIntro finalists={finalists} mode="classic" />
-    )
+    const { container } = render(<FinalPowerBattleIntro finalists={finalists} mode="classic" />)
     expect(screen.getByRole('region', { name: 'Final Power Battle introduction' })).toBeTruthy()
     expect(screen.getByRole('list', { name: 'Finalists' }).children).toHaveLength(3)
     expect(container.querySelectorAll('.fpb-intro__cutout')).toHaveLength(3)

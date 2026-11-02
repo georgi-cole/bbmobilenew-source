@@ -418,17 +418,18 @@ export default function FloatingActionBar({
     triggeredConfessionalDecisionKey === activeConfessionalDecisionKey
   // A visible finale gate owns Play even if a stale weekend or required
   // confessional decision still exists. Those routes cannot disable this action.
-  const primaryDisabled = finaleOverlayActive || finaleInlinePlayActive
-    ? !finalePlayAvailable
-    : weekend?.active
-      ? !weekendPlayReady || reunionDepartureInProgress
-      : survivorTerminalActive ||
-        survivorReplacementTransitionActive ||
-        (survivorReplacementPending
-          ? false
-          : hasPendingConfessionalDecision
-            ? confessionalPromptActivated
-            : isWaiting)
+  const primaryDisabled =
+    finaleOverlayActive || finaleInlinePlayActive
+      ? !finalePlayAvailable
+      : weekend?.active
+        ? !weekendPlayReady || reunionDepartureInProgress
+        : survivorTerminalActive ||
+          survivorReplacementTransitionActive ||
+          (survivorReplacementPending
+            ? false
+            : hasPendingConfessionalDecision
+              ? confessionalPromptActivated
+              : isWaiting)
   const primaryPulse = finaleOverlayActive
     ? finalePlayAvailable
     : finaleInlinePlayActive

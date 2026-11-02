@@ -693,8 +693,7 @@ describe('FloatingActionBar – layout', () => {
 
   it('routes Finale setup Play directly even when weekend and Confessional handlers compete', () => {
     const initial = makeStore().getState().game
-    const weekend = gameReducer(initial, debugActivateWeekendInterlude('finale'))
-      .weekendInterlude
+    const weekend = gameReducer(initial, debugActivateWeekendInterlude('finale')).weekendInterlude
     if (!weekend) throw new Error('Expected a test weekend')
     const store = makeStore(true, {
       phase: 'final3',
