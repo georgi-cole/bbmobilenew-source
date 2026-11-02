@@ -15,20 +15,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Install and build the exact PR source
+      - name: Build self-contained review component
         run: |
           npm ci
-          npm run build:release
-      - name: Collect runnable site and source reference
-        run: |
-          mkdir -p preview-export/site preview-export/reference
-          cp -a dist/. preview-export/site/
-          tar czf preview-export/reference/relevant-source.tar.gz src tests scripts package.json package-lock.json index.html vite.config.ts tsconfig*.json
-          printf 'Built from commit %s\n' "$GITHUB_SHA" > preview-export/reference/SOURCE_COMMIT.txt
-          du -sh preview-export/site preview-export/reference
+          node scripts/build-f3-preview.mjs
       - uses: actions/upload-artifact@v4
         with:
-          name: f3-preview-runtime-20261102
-          path: preview-export/
+          name: f3-preview-component-20261102
+          path: preview-export/preview/
           retention-days: 1
           compression-level: 6
