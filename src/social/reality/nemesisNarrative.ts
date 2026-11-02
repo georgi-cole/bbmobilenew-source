@@ -44,15 +44,15 @@ function isVisibleTo(event: RealitySocialEvent, viewerId: string): boolean {
 }
 
 /** An already witnessed confrontation is the first clue; there is no need to fabricate another. */
-function hasWitnessedOrigin(
+function hasWitnessedConflict(
   domain: RealityDomainState,
   objective: RealityNemesisObjective
 ): boolean {
-  const event = knownCauseEvent(domain, objective)
-  return Boolean(
-    event &&
+  return domain.events.some(
+    (event) =>
       event.actorId === objective.ownerId &&
       event.targetIds.includes(objective.targetId) &&
+      event.day >= objective.createdAt.day - 2 &&
       isVisibleTo(event, objective.targetId) &&
       (event.tags.includes('CONFLICT') ||
         event.type === 'PROVOCATEUR_CONFLICT_STARTED' ||
@@ -267,7 +267,7 @@ export function advanceNemesisNarrative(
       if (objective.clueAt && context.day > objective.clueAt.day) {
         beats.push(createReveal(domain, objective, context, false))
       }
-    } else if (hasWitnessedOrigin(domain, objective)) {
+    } else if (hasWitnessedConflict(domain, objective)) {
       beats.push(createReveal(domain, objective, context, false))
     } else {
       beats.push(createClue(domain, objective, context))
