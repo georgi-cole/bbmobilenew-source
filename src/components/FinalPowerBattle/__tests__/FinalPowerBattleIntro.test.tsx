@@ -19,9 +19,9 @@ describe('FinalPowerBattleIntro', () => {
     expect(container.querySelector('.f3-venue__eye img')).toBeTruthy()
     expect(container.querySelectorAll('.fpb-intro__podium')).toHaveLength(3)
     expect(
-      container.querySelector('.f3-venue__screen')?.contains(
-        screen.getByRole('heading', { name: 'The Final Power Battle' })
-      )
+      container
+        .querySelector('.f3-venue__screen')
+        ?.contains(screen.getByRole('heading', { name: 'The Final Power Battle' }))
     ).toBe(true)
     expect(container.querySelector('.fpb-intro')?.getAttribute('data-beat')).toBe('0')
     expect(screen.getAllByRole('heading', { name: 'The Final Power Battle' })).toHaveLength(1)
