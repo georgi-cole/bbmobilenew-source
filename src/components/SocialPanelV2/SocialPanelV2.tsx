@@ -2020,6 +2020,9 @@ export default function SocialPanelV2() {
   const focusedAlliances = focusedPlayer
     ? getCurrentAlliancesBetween(socialState.reality, humanPlayer.id, focusedPlayer.id)
     : []
+  const focusedKnownConflict =
+    focusedCanonical?.isNemesis === true ||
+    ['RIVAL', 'ENEMY', 'ESTRANGED'].includes(focusedRealityEdge?.perceivedLabel ?? '')
   const focusedDisplayLabels = [
     ...(focusedAlliances.length > 0
       ? focusedTags.filter(
@@ -2028,13 +2031,13 @@ export default function SocialPanelV2() {
       : focusedTags
     ).map((tag) => RELATIONSHIP_TAG_LABELS[tag]),
     ...focusedAlliances.map((alliance) =>
-      allianceDisplayLabel(alliance, focusedCanonical?.isNemesis === true)
+      allianceDisplayLabel(alliance, focusedKnownConflict)
     ),
   ].filter((label, index, labels) => labels.indexOf(label) === index)
   const focusedCommitments = focusedPlayer
     ? focusedAlliances.map((alliance) =>
         allianceKind(alliance) === 'PACT'
-          ? `${allianceDisplayLabel(alliance, focusedCanonical?.isNemesis === true)} · ${focusedPlayer.name}`
+          ? `${allianceDisplayLabel(alliance, focusedKnownConflict)} · ${focusedPlayer.name}`
           : (alliance.name ?? 'Alliance group')
       )
     : []
