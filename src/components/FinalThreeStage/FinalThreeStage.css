@@ -298,3 +298,28 @@
     animation: none;
   }
 }
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .f3-venue__frame {
+    width: min(100%, 960px);
+  }
+
+  .f3-venue__eye {
+    top: 4%;
+    left: 25%;
+    width: 14%;
+    height: 17%;
+  }
+
+  .f3-venue__monitor {
+    top: 22%;
+    left: 2%;
+    width: 47%;
+    height: 52%;
+  }
+
+  .f3-venue__network {
+    top: max(8px, env(safe-area-inset-top, 0px));
+    left: 3%;
+  }
+}
