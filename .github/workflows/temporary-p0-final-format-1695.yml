@@ -1,0 +1,29 @@
+name: Temporary P0 Format Finale Test
+on:
+  push:
+    branches:
+      - codex/p0-final-format-1695-20261102
+    paths:
+      - .github/workflows/temporary-p0-final-format-1695.yml
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/p0-final-format-1695-20261102
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Format one integration test and save to scratch branch
+        run: |
+          npx prettier --write src/screens/GameScreen/flows/useEndgameFlow.spectator.test.tsx
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/screens/GameScreen/flows/useEndgameFlow.spectator.test.tsx
+          git diff --cached --quiet || git commit -m "style: format Final Three P0 integration test"
+          git -c core.hooksPath=/dev/null push origin HEAD:codex/p0-final-format-1695-20261102
