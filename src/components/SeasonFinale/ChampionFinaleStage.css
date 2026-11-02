@@ -1,6 +1,6 @@
 /* Phase 5: coronation is the climax of the existing garden production,
    not another modal/card with unrelated styling. */
-.season-finale--champion {
+.season-finale--winner.season-finale--champion {
   position: fixed;
   inset: 0;
   z-index: 7050;
