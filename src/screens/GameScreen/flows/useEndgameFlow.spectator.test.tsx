@@ -358,9 +358,7 @@ describe('Final Three spectator broadcast integration', () => {
       expect(result.current.finalPowerBattleIntroActive).toBe(false)
       act(() => result.current.handleFinalPowerBattleIntroDone())
       expect(store.getState().game.phase).toBe('final3')
-      expect(
-        actions.some((action) => action.type === 'game/completeFinalThreeOpening')
-      ).toBe(false)
+      expect(actions.some((action) => action.type === 'game/completeFinalThreeOpening')).toBe(false)
 
       act(() => store.dispatch(completeWeekendInterlude()))
       expect(store.getState().game.weekendInterlude).toBeNull()
