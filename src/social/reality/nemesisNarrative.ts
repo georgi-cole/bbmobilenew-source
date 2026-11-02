@@ -132,6 +132,19 @@ function createClue(
   context: NemesisStoryContext
 ): NemesisStoryBeat {
   const at = { day: context.day, phase: context.phase }
+  // Choose a real recipient for the covert pressure. A conversation without a
+  // counterpart must not quietly mutate some unspecified housemate's opinion.
+  const availableListeners = [...context.activePlayerIds]
+    .filter((id) => id !== objective.ownerId && id !== objective.targetId)
+    .sort()
+  const selector = `${objective.id}:${context.day}`
+    .split('')
+    .reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619), 2166136261)
+  const listenerId =
+    availableListeners.length > 0
+      ? availableListeners[(selector >>> 0) % availableListeners.length]
+      : undefined
+
   // The antagonist makes a real private move. The player receives an anonymous
   // production clue, not a disclosure of that actor's private intention.
   const pressure = appendRealityEvent(domain, {
@@ -139,11 +152,13 @@ function createClue(
     type: 'NEMESIS_PRIVATE_PRESSURE',
     actorId: objective.ownerId,
     targetIds: [objective.targetId],
-    participantIds: [objective.ownerId],
-    witnessIds: [],
+    participantIds: listenerId ? [objective.ownerId, listenerId] : [objective.ownerId],
+    witnessIds: listenerId ? [listenerId] : [],
     visibility: 'PRIVATE',
     outcome: 'SYSTEM',
-    reason: 'Privately challenged the target’s position with another housemate.',
+    reason: listenerId
+      ? 'Privately challenged the target’s position with a specific housemate.'
+      : 'Privately planned to undermine the target’s position.',
     tags: ['NEMESIS', 'UNDERMINE'],
     relatedFactIds: [],
     relatedPromiseIds: [],
@@ -160,8 +175,19 @@ function createClue(
     phase: context.phase,
     eventId: pressure.id,
   })
-  const text =
-    'THE BIG EYE: Someone in the Hub has begun quietly questioning your game behind your back. The source is still unknown.'
+  if (listenerId) {
+    applyRealityRelationshipChange(domain, {
+      sourceId: listenerId,
+      targetId: objective.targetId,
+      deltas: { trust: -2, suspicion: 4 },
+      day: context.day,
+      phase: context.phase,
+      eventId: pressure.id,
+    })
+  }
+  const text = listenerId
+    ? 'THE BIG EYE: Someone in the Hub has begun quietly questioning your game behind your back. The source is still unknown.'
+    : 'THE BIG EYE: Someone in the Hub is privately planning to undermine your game. Their identity is still unknown.'
   const clue = appendRealityEvent(domain, {
     ...at,
     type: 'NEMESIS_ANONYMOUS_CLUE',
