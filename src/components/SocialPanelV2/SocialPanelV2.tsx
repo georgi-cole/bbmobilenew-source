@@ -2030,9 +2030,7 @@ export default function SocialPanelV2() {
         )
       : focusedTags
     ).map((tag) => RELATIONSHIP_TAG_LABELS[tag]),
-    ...focusedAlliances.map((alliance) =>
-      allianceDisplayLabel(alliance, focusedKnownConflict)
-    ),
+    ...focusedAlliances.map((alliance) => allianceDisplayLabel(alliance, focusedKnownConflict)),
   ].filter((label, index, labels) => labels.indexOf(label) === index)
   const focusedCommitments = focusedPlayer
     ? focusedAlliances.map((alliance) =>
