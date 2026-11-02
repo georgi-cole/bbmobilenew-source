@@ -294,14 +294,14 @@ export function isNemesisDisclosedTo(
     const source = reality.events.find((event) => event.id === nemesis.sourceEventId)
     return Boolean(
       source &&
-        source.type === 'PROVOCATEUR_CONFLICT_STARTED' &&
-        source.actorId === otherId &&
-        source.targetIds.includes(viewerId) &&
-        source.visibility !== 'PRIVATE' &&
-        (source.participantIds.includes(viewerId) ||
-          source.witnessIds.includes(viewerId) ||
-          source.visibility === 'HOUSE_PUBLIC' ||
-          source.visibility === 'CEREMONY_PUBLIC')
+      source.type === 'PROVOCATEUR_CONFLICT_STARTED' &&
+      source.actorId === otherId &&
+      source.targetIds.includes(viewerId) &&
+      source.visibility !== 'PRIVATE' &&
+      (source.participantIds.includes(viewerId) ||
+        source.witnessIds.includes(viewerId) ||
+        source.visibility === 'HOUSE_PUBLIC' ||
+        source.visibility === 'CEREMONY_PUBLIC')
     )
   })
 }
