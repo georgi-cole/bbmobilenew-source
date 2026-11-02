@@ -133,6 +133,29 @@ export function registerProvocateurConflict(
       ((event.actorId === input.actorId && event.targetIds.includes(input.targetId)) ||
         (event.actorId === input.targetId && event.targetIds.includes(input.actorId)))
   )
+  if (sharesGenuineAlliance && !hasBetrayal) {
+    // An open argument should visibly strain the commitment and reduce the
+    // provocateur's protection bias, without inventing a lifelong enemy yet.
+    for (const alliance of Object.values(domain.alliances)) {
+      if (
+        alliance.status === 'DISSOLVED' ||
+        !alliance.memberIds.includes(input.actorId) ||
+        !alliance.memberIds.includes(input.targetId)
+      ) {
+        continue
+      }
+      alliance.memberCommitment[input.actorId] = Math.max(
+        0,
+        (alliance.memberCommitment[input.actorId] ?? 0.5) - 0.14
+      )
+      alliance.memberCommitment[input.targetId] = Math.max(
+        0,
+        (alliance.memberCommitment[input.targetId] ?? 0.5) - 0.06
+      )
+      alliance.fractureRisk = Math.max(alliance.fractureRisk, 0.45)
+      if (alliance.memberIds.length === 2) alliance.status = 'FRACTURED'
+    }
+  }
   const nemesis = activeNemesisForTarget || (sharesGenuineAlliance && !hasBetrayal)
     ? null
     : createRealityNemesisObjective(domain, {
