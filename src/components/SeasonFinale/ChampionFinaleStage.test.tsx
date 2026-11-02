@@ -29,7 +29,9 @@ describe('shared champion coronation', () => {
     expect(root).toHaveAttribute('data-champion-revealed', 'false')
     expect(root).toHaveAttribute('data-final-vote', 'tribunal')
     expect(root).not.toHaveAttribute('data-winner-id')
-    expect(container.querySelector('[data-finale-set="garden"][data-scene="champion"]')).toBeTruthy()
+    expect(
+      container.querySelector('[data-finale-set="garden"][data-scene="champion"]')
+    ).toBeTruthy()
     expect(container.querySelectorAll('.season-finale__champion-podium')).toHaveLength(2)
     expect(screen.getByText('One season. One champion.')).toBeTruthy()
     expect(screen.queryByText(winner.name)).toBeNull()
