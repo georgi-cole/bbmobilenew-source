@@ -18,6 +18,7 @@ import {
 import socialReducer, { replaceRealityDomain } from '../socialSlice'
 import { appendRealityEvent } from '../reality/events'
 import { allianceDisplayLabel } from '../reality/allianceIdentity'
+import { advanceNemesisNarrative } from '../reality/nemesisNarrative'
 
 function addAlliance(
   reality: ReturnType<typeof createInitialRealityDomainState>,
@@ -278,6 +279,24 @@ describe('canonical relationship presentation', () => {
       publicEligible: false,
       juryEligible: false,
     })
+    // A visible argument is evidence of rivalry, not automatic proof of a
+    // privately assigned Nemesis. The named objective is disclosed only when
+    // the corresponding story reveal is actually delivered.
+    expect(
+      selectCanonicalRelationshipView({
+        reality,
+        actorId: 'human',
+        targetId: 'echo',
+      }).isNemesis
+    ).toBe(false)
+    const reveal = advanceNemesisNarrative(reality, {
+      humanId: 'human',
+      day: 4,
+      phase: 'social_2',
+      playerNames: { human: 'You', echo: 'Echo' },
+      activePlayerIds: new Set(['human', 'echo']),
+    })
+    expect(reveal[0]?.kind).toBe('reveal')
     const revealedView = selectCanonicalRelationshipView({
       reality,
       actorId: 'human',
