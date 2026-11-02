@@ -2,6 +2,38 @@ import type { GameState } from '../../types'
 export const exitTracker: { update(game: GameState): void }
 export function requestAmbush(effect: () => void): boolean
 
+interface CeremonyPlayer {
+  id: string
+  name?: string
+  avatar?: string
+  isUser?: boolean
+}
+interface CeremonyGame {
+  players: CeremonyPlayer[]
+  mode?: string
+  lohId?: string | null
+  posWinnerId?: string | null
+  nomineeIds?: string[]
+  cupidArrow?: { status?: string; pendingPartnerEvictionId?: string | null }
+  voxPopuli?: { status?: string }
+}
+interface CeremonyCharacter {
+  id: string
+  name: string
+  [key: string]: unknown
+}
+export function ceremonyCast(
+  scene: string,
+  props: Record<string, unknown>,
+  game: CeremonyGame,
+  catalog: CeremonyCharacter[]
+): Record<string, (CeremonyCharacter & { playerId: string }) | null> | null
+export function modeDetails(
+  scene: string,
+  props: Record<string, unknown>,
+  game: CeremonyGame
+): Record<string, unknown>
+
 interface IntroState {
   game: {
     gameId?: string

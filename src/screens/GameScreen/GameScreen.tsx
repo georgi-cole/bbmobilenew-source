@@ -22,7 +22,6 @@ import {
   selectF3Part3PredictedWinnerId,
   selectF3Part2PredictedWinnerId,
   submitPovDecision,
-  submitCoupReplacement,
   submitVipSecondUseDecision,
   submitDemocraciaVote,
   submitCoLohNomination,
@@ -79,6 +78,7 @@ import SpotlightEvictionOverlay from '../../cinematic/ceremonies/exit.jsx'
 import SurveyevalTileEvictionEffect from '../../components/Eviction/SurveyevalTileEvictionEffect'
 import DayStartShockPopup from '../../cinematic/ceremonies/day-shock.jsx'
 import CeremonyOverlay from '../../cinematic/ceremonies/ceremony.jsx'
+import BackupNominationCeremony from '../../cinematic/ceremonies/backup-nomination.jsx'
 import WinnerTileLiftAnimation from '../../cinematic/ceremonies/winner.jsx'
 import ChatOverlay from '../../components/ChatOverlay/ChatOverlay'
 import Final4PublicVotePanel from './Final4PublicVotePanel'
@@ -853,11 +853,15 @@ export default function GameScreen() {
     handleReplacementCeremonyDone,
     handleReplacementNominee,
     handleDiamondReplacementNominee,
+    handleCoupReplacementNominee,
     showReplacementModal,
     holderReplacementOptions,
     coupReplacementOptions,
     showAiReplacementAnim,
     activeReplacementAnimationTargetIds,
+    activeReplacementChooserId,
+    activeReplacementChooserRole,
+    activeReplacementContinuingNomineeId,
     handleAiReplacementDone,
   } = useSafetyFlow({
     game,
@@ -2016,7 +2020,7 @@ export default function GameScreen() {
                 : `${humanPlayer?.name}, choose the second backup nominee.`
             }
             options={coupReplacementOptions}
-            onSelect={(id) => dispatch(submitCoupReplacement(id))}
+            onSelect={handleCoupReplacementNominee}
             stingerMessage="DETOX"
           />
         )}
@@ -2300,7 +2304,8 @@ export default function GameScreen() {
 
         {/* ── CeremonyOverlay — Replacement nominee (human LOH deferred) ──── */}
         {pendingReplacementCeremony && (
-          <CeremonyOverlay
+          <BackupNominationCeremony
+            key={pendingReplacementCeremony.replacementId}
             tiles={[]}
             layoutSignal={responsiveGameLayout.revision}
             resolveTiles={pendingReplacementCeremony.resolveTiles}
@@ -2308,74 +2313,109 @@ export default function GameScreen() {
             subtitle={pendingReplacementCeremony.subtitle}
             onDone={handleReplacementCeremonyDone}
             ariaLabel={pendingReplacementCeremony.caption}
+            backupChooserId={pendingReplacementCeremony.backupChooserId}
+            backupChooserRole={pendingReplacementCeremony.backupChooserRole}
+            backupNomineeId={pendingReplacementCeremony.replacementId}
+            continuingNomineeId={pendingReplacementCeremony.continuingNomineeId}
           />
         )}
 
         {/* ── CeremonyOverlay — AI replacement nominee animation ─────────── */}
         {/* Only the replacement nominee (last in nomineeIds, pushed by store) gets */}
         {/* a badge. The badge flies from the LOH tile → replacement tile.          */}
-        {showAiReplacementAnim && activeReplacementAnimationTargetIds.length > 0 && (
-          <CeremonyOverlay
-            tiles={[]}
-            layoutSignal={responsiveGameLayout.revision}
-            resolveTiles={() => {
-              const replacementId = activeReplacementAnimationTargetIds[0]
-              const sourceId = isVoxPopuli
-                ? null
-                : game.specialVeto?.activeType === 'diamond'
-                  ? game.posWinnerId
-                  : game.lohId
-              const sourceRect = sourceId ? getTileRect(sourceId) : null
-              const replacementIds = isVoxPopuli
-                ? activeReplacementAnimationTargetIds
-                : expandCupidIds(game, [replacementId])
-              const sourceIsDistinct =
-                sourceRect != null && sourceId != null && sourceId !== replacementId
-              return [
-                ...(sourceIsDistinct
-                  ? [
-                      {
-                        rect: sourceRect,
-                        glowTone: 'gold' as const,
-                      },
-                    ]
-                  : []),
-                ...replacementIds.map((id) => ({
-                  rect: getTileRect(id),
-                  badge: '❓',
-                  badgeImageSrc: NOMINATION_BADGE_SRC,
-                  badgeStart: sourceIsDistinct ? sourceRect : ('center' as const),
-                  badgeLabel: isVoxPopuli
-                    ? `${game.players.find((player) => player.id === id)?.name ?? id}, next-highest secret ballot with ${game.voxPopuli?.nominationVoteCounts[id] ?? 0} votes`
-                    : `${game.players.find((player) => player.id === id)?.name ?? id} named backup nominee`,
-                  glowTone: 'danger' as const,
-                })),
-              ]
-            }}
-            caption={
-              isVoxPopuli
-                ? `${activeReplacementAnimationTargetIds
-                    .map((id) => {
-                      const name = game.players.find((player) => player.id === id)?.name ?? id
-                      const votes = game.voxPopuli?.nominationVoteCounts[id] ?? 0
-                      return `${name} (${votes} vote${votes === 1 ? '' : 's'})`
-                    })
-                    .join(' & ')} ${
-                    activeReplacementAnimationTargetIds.length === 1 ? 'joins' : 'join'
-                  } the block`
-                : 'Backup nominee named'
-            }
-            subtitle={
-              isVoxPopuli
-                ? 'Next-highest secret-ballot rank'
-                : game.specialVeto?.activeType === 'diamond'
-                  ? '😇 Halo Exchange names the backup nominee'
-                  : '🎯 Nominations are set'
-            }
-            onDone={handleAiReplacementDone}
-            ariaLabel="Backup nominee ceremony"
-          />
-        )}
+        {showAiReplacementAnim &&
+          activeReplacementAnimationTargetIds.length > 0 &&
+          (isVoxPopuli ? (
+            <CeremonyOverlay
+              tiles={[]}
+              layoutSignal={responsiveGameLayout.revision}
+              resolveTiles={() => {
+                const replacementId = activeReplacementAnimationTargetIds[0]
+                const sourceId = null
+                const sourceRect = sourceId ? getTileRect(sourceId) : null
+                const replacementIds = isVoxPopuli
+                  ? activeReplacementAnimationTargetIds
+                  : expandCupidIds(game, [replacementId])
+                const sourceIsDistinct =
+                  sourceRect != null && sourceId != null && sourceId !== replacementId
+                return [
+                  ...(sourceIsDistinct
+                    ? [
+                        {
+                          rect: sourceRect,
+                          glowTone: 'gold' as const,
+                        },
+                      ]
+                    : []),
+                  ...replacementIds.map((id) => ({
+                    rect: getTileRect(id),
+                    badge: '❓',
+                    badgeImageSrc: NOMINATION_BADGE_SRC,
+                    badgeStart: sourceIsDistinct ? sourceRect : ('center' as const),
+                    badgeLabel: isVoxPopuli
+                      ? `${game.players.find((player) => player.id === id)?.name ?? id}, next-highest secret ballot with ${game.voxPopuli?.nominationVoteCounts[id] ?? 0} votes`
+                      : `${game.players.find((player) => player.id === id)?.name ?? id} named backup nominee`,
+                    glowTone: 'danger' as const,
+                  })),
+                ]
+              }}
+              caption={
+                isVoxPopuli
+                  ? `${activeReplacementAnimationTargetIds
+                      .map((id) => {
+                        const name = game.players.find((player) => player.id === id)?.name ?? id
+                        const votes = game.voxPopuli?.nominationVoteCounts[id] ?? 0
+                        return `${name} (${votes} vote${votes === 1 ? '' : 's'})`
+                      })
+                      .join(' & ')} ${
+                      activeReplacementAnimationTargetIds.length === 1 ? 'joins' : 'join'
+                    } the block`
+                  : 'Backup nominee named'
+              }
+              subtitle={
+                isVoxPopuli
+                  ? 'Next-highest secret-ballot rank'
+                  : game.specialVeto?.activeType === 'diamond'
+                    ? '😇 Halo Exchange names the backup nominee'
+                    : '🎯 Nominations are set'
+              }
+              onDone={handleAiReplacementDone}
+              ariaLabel="Backup nominee ceremony"
+            />
+          ) : (
+            <BackupNominationCeremony
+              key={activeReplacementAnimationTargetIds[0]}
+              tiles={[]}
+              layoutSignal={responsiveGameLayout.revision}
+              resolveTiles={() => {
+                const nomineeId = activeReplacementAnimationTargetIds[0]
+                const chooserRect = activeReplacementChooserId
+                  ? getTileRect(activeReplacementChooserId)
+                  : null
+                const sourceIsDistinct =
+                  chooserRect != null && activeReplacementChooserId !== nomineeId
+                return [
+                  ...(sourceIsDistinct ? [{ rect: chooserRect, glowTone: 'gold' as const }] : []),
+                  ...expandCupidIds(game, [nomineeId]).map((id) => ({
+                    rect: getTileRect(id),
+                    badge: '❓',
+                    badgeImageSrc: NOMINATION_BADGE_SRC,
+                    badgeStart: sourceIsDistinct ? chooserRect : ('center' as const),
+                    badgeLabel: `${game.players.find((player) => player.id === id)?.name ?? id} named backup nominee`,
+                    glowTone: 'danger' as const,
+                  })),
+                ]
+              }}
+              caption="Backup nominee named"
+              subtitle="The block is set"
+              onDone={handleAiReplacementDone}
+              ariaLabel="Backup nominee ceremony"
+              backupChooserId={activeReplacementChooserId}
+              backupChooserRole={activeReplacementChooserRole}
+              backupNomineeId={activeReplacementAnimationTargetIds[0]}
+              continuingNomineeId={activeReplacementContinuingNomineeId}
+            />
+          ))}
 
         {showPublicSaveCeremony && pendingPublicSaveResult && (
           <CeremonyOverlay

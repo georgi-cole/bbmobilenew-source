@@ -1,5 +1,8 @@
 // Presentation data only. Outcomes and paired follow-up evictions remain owned by the game.
 export const MODE_BASE = {
+  // Reuse the nomination chamber, while giving the replacement reveal its own
+  // cast and beat sequence.
+  backupNomination: 'nominations',
   cupidLoh: 'loh',
   cupidPower: 'loh',
   cupidSafety: 'safety',
@@ -64,6 +67,11 @@ export function adaptCeremonyScene(scene, props, game) {
   )
 }
 export function modeActors(scene, props, game) {
+  if (scene === 'backupNomination') {
+    const replacementId = props.backupNomineeId
+    const continuingId = props.continuingNomineeId ?? replacementId
+    return [continuingId, replacementId, props.backupChooserId].filter(Boolean)
+  }
   if (scene === 'voxResults') return props.nominees?.map((t) => t.nominee.id) ?? []
   if (scene === 'voxImmunity') {
     const winnerId = props.targetIds?.[0]
@@ -84,6 +92,16 @@ export function publicResult(props) {
   return { kind: 'result', ids: evicteeIds.length ? evicteeIds : tied }
 }
 export function modeDetails(scene, props, game) {
+  if (scene === 'backupNomination') {
+    const find = (id) => game.players.find((player) => player.id === id)
+    return {
+      names: modeActors(scene, props, game).map((id) => find(id)?.name ?? id),
+      chooserName: find(props.backupChooserId)?.name ?? '',
+      chooserRole: props.backupChooserRole ?? 'THE LEADER OF THE HUB',
+      nomineeName: find(props.backupNomineeId)?.name ?? '',
+      hasContinuingNominee: Boolean(props.continuingNomineeId),
+    }
+  }
   if (scene !== 'voxResults')
     return {
       pairColors: modeActors(scene, props, game).map((id) => pairFor(game, id)?.color),

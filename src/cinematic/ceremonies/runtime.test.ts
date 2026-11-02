@@ -1,7 +1,55 @@
 import { describe, expect, it } from 'vitest'
-import { createBattleBackIntroGuard, createCeremonyQueue, shouldPlayCinematic } from './runtime.mjs'
+import {
+  ceremonyCast,
+  createBattleBackIntroGuard,
+  createCeremonyQueue,
+  isCinematicSceneAllowed,
+  modeDetails,
+  shouldPlayCinematic,
+} from './runtime.mjs'
 
 describe('cinematic ceremony routing', () => {
+  it('routes a backup nomination with the actual chooser and both block positions', () => {
+    const game = {
+      mode: 'classic',
+      players: [
+        { id: 'loh', name: 'Aria', avatar: 'character-1' },
+        { id: 'holder', name: 'Ash', avatar: 'character-2' },
+        { id: 'remaining', name: 'Nova', avatar: 'character-3' },
+        { id: 'backup', name: 'Rune', avatar: 'character-4' },
+      ],
+    }
+    const props = {
+      backupChooserId: 'holder',
+      backupChooserRole: 'HALO EXCHANGE HOLDER',
+      continuingNomineeId: 'remaining',
+      backupNomineeId: 'backup',
+    }
+    const catalog = game.players.map(({ id, name }) => ({ id, name }))
+    const cast = ceremonyCast('backupNomination', props, game, catalog)
+
+    expect(cast).toMatchObject({
+      a: { playerId: 'remaining', name: 'Nova' },
+      b: { playerId: 'backup', name: 'Rune' },
+      c: { playerId: 'holder', name: 'Ash' },
+    })
+    expect(modeDetails('backupNomination', props, game)).toMatchObject({
+      chooserName: 'Ash',
+      chooserRole: 'HALO EXCHANGE HOLDER',
+      nomineeName: 'Rune',
+      hasContinuingNominee: true,
+    })
+  })
+
+  it('keeps backup nominee art optional when a mode has no individual chooser', () => {
+    const game = {
+      mode: 'classic',
+      voxPopuli: { status: 'active' },
+      players: [{ id: 'candidate', name: 'Nova', avatar: 'character-1' }],
+    }
+    expect(isCinematicSceneAllowed(game, 'backupNomination')).toBe(false)
+  })
+
   it('requires VIP, animations and motion; explicit Standard wins over the automatic VIP style', () => {
     const state = {
       settings: {
