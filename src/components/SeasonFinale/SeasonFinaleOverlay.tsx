@@ -13,7 +13,6 @@ import {
   startWinnerInterview,
 } from '../../store/gameSlice'
 import type { Player } from '../../types'
-import { resolveAvatar } from '../../utils/avatar'
 import { selectSettings } from '../../store/settingsSlice'
 import { setMusicScene } from '../../store/uiSlice'
 import {
@@ -24,6 +23,8 @@ import {
 import { usePresentationTimeline } from '../../services/presentation/usePresentationTimeline'
 import { usePresentationSound } from '../../services/presentation/usePresentationSound'
 import FinalLightsOutSequence from '../FinalLightsOutSequence/FinalLightsOutSequence'
+import ChampionFinaleStage from './ChampionFinaleStage'
+import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
 import Credits from '../../screens/Credits/Credits'
 import { buildFinalGoodbyeMessages } from './finaleGoodbyes'
 import './SeasonFinaleOverlay.css'
@@ -143,6 +144,10 @@ export default function SeasonFinaleOverlay() {
   )
   const foreground = usePresentationForeground()
   const presentationActive = isOwner && foreground
+  const reducedMotion = usePresentationReducedMotion()
+  const [championRevealed, setChampionRevealed] = useState(reducedMotion)
+  const runnerUp =
+    game.players.find((player) => player.finalRank === 2 && player.id !== winner?.id) ?? null
   const { play: playPresentationSound } = usePresentationSound(
     presentationActive,
     finale?.phase ?? 'inactive'
@@ -209,6 +214,7 @@ export default function SeasonFinaleOverlay() {
       {
         atMs: 1500,
         run: () => {
+          setChampionRevealed(true)
           playPresentationSound('tv:finale_winner_stinger')
         },
       },
@@ -233,61 +239,15 @@ export default function SeasonFinaleOverlay() {
   return (
     <>
       {finale.phase === 'winnerCinematic' && (
-        <div
-          className="season-finale season-finale--winner"
-          data-presentation-root="season-winner"
-          data-presentation-suspended={!presentationActive || undefined}
-          aria-hidden={!presentationActive || undefined}
-          inert={!presentationActive || undefined}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Season ${game.season} winner reveal`}
-        >
-          <div className="season-finale__confetti" aria-hidden="true" />
-          <div
-            className="season-finale__confetti season-finale__confetti--reverse"
-            aria-hidden="true"
-          />
-          <div className="season-finale__winner-card">
-            <p className="season-finale__eyebrow">Season {game.season} Winner</p>
-            <div className="season-finale__winner-spotlight" aria-hidden="true" />
-            <div className="season-finale__winner-portrait">
-              <img src={resolveAvatar(winner)} alt={winner.name} />
-            </div>
-            <div className="season-finale__winner-copy">
-              <div className="season-finale__trophy-wrap" aria-hidden="true">
-                <svg className="season-finale__trophy" viewBox="0 0 64 64" focusable="false">
-                  <defs>
-                    <linearGradient id="winner-trophy-gold" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0" stopColor="#fff3a7" />
-                      <stop offset="0.42" stopColor="#f3c851" />
-                      <stop offset="0.78" stopColor="#ba7620" />
-                      <stop offset="1" stopColor="#ffe28a" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    fill="url(#winner-trophy-gold)"
-                    d="M18 9h28v9h8c0 12-7 19-17 20l-1 8h8v7H20v-7h8l-1-8C17 37 10 30 10 18h8V9Zm-1 15c1 4 4 7 9 8l-1-8h-8Zm22 8c5-1 8-4 9-8h-8l-1 8Z"
-                  />
-                  <path fill="rgba(82, 45, 8, .34)" d="M20 53h24v4H20z" />
-                </svg>
-              </div>
-              <h2>{winner.name}</h2>
-              <p>
-                {game.voxPopuli?.winnerId === winner.id
-                  ? 'The audience has spoken. A new champion is crowned.'
-                  : 'The Tribunal has spoken. A new champion is crowned.'}
-              </p>
-            </div>
-            <button
-              className="season-finale__button"
-              type="button"
-              onClick={() => dispatch(startWinnerInterview())}
-            >
-              Continue
-            </button>
-          </div>
-        </div>
+        <ChampionFinaleStage
+          winner={winner}
+          runnerUp={runnerUp}
+          season={game.season}
+          decidedBy={game.voxPopuli?.winnerId === winner.id ? 'audience' : 'tribunal'}
+          revealed={championRevealed}
+          active={presentationActive}
+          onContinue={() => dispatch(startWinnerInterview())}
+        />
       )}
 
       {finale.phase === 'winnerInterview' && finale.isChatOpen && (
