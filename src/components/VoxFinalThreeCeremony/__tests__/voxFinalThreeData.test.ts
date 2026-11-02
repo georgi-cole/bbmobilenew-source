@@ -174,6 +174,52 @@ describe('Vox Final Three presentation data', () => {
     expect(Object.keys(pleas)).toEqual(['ash', 'aria'])
   })
 
+  it('gives matching AI finalists distinct speeches without changing real ballot order', () => {
+    const game = fixture('spectator')
+    const cast = getVoxFinalThreeCast(game)!
+    for (const player of cast.nominees) {
+      player.stats = { lohWins: 3, posWins: 0, timesNominated: 0 }
+    }
+    game.strategicRelationships = {}
+    const pleas = buildVoxFinalThreePleas(game, cast)
+    expect(Object.keys(pleas)).toEqual(['ash', 'aria'])
+    expect(pleas.ash).not.toBe(pleas.aria)
+    expect(Object.values(pleas).filter((text) => text.includes('3 competition wins'))).toHaveLength(
+      1
+    )
+    const swapped = buildVoxFinalThreePleas(game, {
+      ...cast,
+      nominees: [cast.nominees[1], cast.nominees[0]],
+    })
+    expect(swapped.ash).toBe(pleas.ash)
+    expect(swapped.aria).toBe(pleas.aria)
+  })
+
+  it('never overrides a chosen human appeal to solve a duplicated AI speech', () => {
+    const game = fixture('nominee')
+    const cast = getVoxFinalThreeCast(game)!
+    cast.nominees[1].stats = { lohWins: 2, posWins: 1, timesNominated: 0 }
+    const chosen = buildVoxFinalThreeAppealChoices(cast.nominees[0])[2].speech
+    const pleas = buildVoxFinalThreePleas(game, cast, 'resume')
+    expect(pleas.human).toBe(chosen)
+    expect(pleas.aria).not.toBe(chosen)
+    expect(pleas.aria).not.toContain('3 competition wins')
+  })
+
+  it('separates identical bond-led appeals even with no achievements to distinguish them', () => {
+    const game = fixture('spectator')
+    const cast = getVoxFinalThreeCast(game)!
+    for (const player of cast.nominees) player.stats = undefined
+    game.strategicRelationships = {
+      ash: { dex: { affinity: 60, tags: ['alliance'] } },
+      aria: { dex: { affinity: 60, tags: ['alliance'] } },
+    }
+    const pleas = buildVoxFinalThreePleas(game, cast)
+    expect(pleas.ash).not.toBe(pleas.aria)
+    expect(Object.values(pleas).filter((text) => text.includes('those bonds'))).toHaveLength(1)
+    expect(Object.values(pleas).every((text) => !/\d/.test(text))).toBe(true)
+  })
+
   it('reads the committed result without mutating or re-ranking it', () => {
     const game = resolvedGame()
     const result = getVoxFinalThreeResult(game, game.nomineeIds)!

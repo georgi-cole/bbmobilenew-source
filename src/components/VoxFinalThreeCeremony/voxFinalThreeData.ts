@@ -116,27 +116,89 @@ export function buildVoxFinalThreeAppealChoices(player: Player): VoxFinalThreeAp
   }))
 }
 
+type PleaAngle = VoxFinalThreeAppeal | 'presence' | 'stakes'
+
+interface PleaOption {
+  angle: PleaAngle
+  priority: number
+  speech: string
+}
+
+function nomineePleaOptions(game: AppealSource, player: Player): PleaOption[] {
+  const wins = seasonCount(player.stats?.lohWins) + seasonCount(player.stats?.posWins)
+  const nominations = seasonCount(player.stats?.timesNominated)
+  const hasBond = Object.values(game.strategicRelationships?.[player.id] ?? {}).some(
+    (relationship) => relationship.affinity >= 35 || relationship.tags.includes('alliance')
+  )
+  const choices: PleaOption[] = []
+  if (wins > 0) {
+    choices.push({
+      angle: 'resume',
+      priority: wins >= 2 ? 80 + Math.min(wins, 5) : 55,
+      speech: appealSpeech(player, 'resume'),
+    })
+  }
+  if (nominations > 0) {
+    choices.push({
+      angle: 'underdog',
+      priority: nominations >= 2 ? 75 + Math.min(nominations, 5) : 53,
+      speech: appealSpeech(player, 'underdog'),
+    })
+  }
+  if (hasBond) {
+    choices.push({ angle: 'loyalty', priority: 70, speech: appealSpeech(player, 'loyalty') })
+  }
+  choices.push(
+    {
+      angle: 'presence',
+      priority: 12,
+      speech:
+        "I kept showing up for this game. I'm asking you for one last chance to prove I belong in the Final Two.",
+    },
+    {
+      angle: 'stakes',
+      priority: 11,
+      speech:
+        'One place remains, and I know the audience must make a difficult call. I want the chance to stand in the final and answer for my season.',
+    }
+  )
+  return choices.sort((a, b) => b.priority - a.priority)
+}
+
+/**
+ * Plan both appeals together. A human's chosen appeal is immutable; the other
+ * nominee gets a different honest angle even when their statistics match.
+ * The assignment is ID-stable, while the result retains real ballot order.
+ */
 export function buildVoxFinalThreePleas(
   game: AppealSource,
   cast: VoxFinalThreeCast,
   appeal: VoxFinalThreeAppeal | null | undefined = game.voxPopuli?.finalThreeAppeal
 ): Record<string, string> {
+  const sorted = [...cast.nominees].sort((a, b) => a.id.localeCompare(b.id))
+  const options = sorted.map((player) =>
+    player.id === cast.viewerId && appeal
+      ? [{ angle: appeal, priority: 1000, speech: appealSpeech(player, appeal) }]
+      : nomineePleaOptions(game, player)
+  )
+  let selected: [PleaOption, PleaOption] | undefined
+  let bestScore = -Infinity
+  for (const first of options[0]) {
+    for (const second of options[1]) {
+      if (first.angle === second.angle) continue
+      const score = first.priority + second.priority
+      if (score > bestScore) {
+        bestScore = score
+        selected = [first, second]
+      }
+    }
+  }
+  // Every AI option list has two different fact-neutral alternatives, so a
+  // complete, valid two-person cast always has a complementary pair.
+  if (!selected) return {}
+  const selectedById = new Map(sorted.map((player, i) => [player.id, selected[i].speech]))
   return Object.fromEntries(
-    cast.nominees.map((player) => {
-      if (player.id === cast.viewerId && appeal) return [player.id, appealSpeech(player, appeal)]
-      const wins = seasonCount(player.stats?.lohWins) + seasonCount(player.stats?.posWins)
-      const nominations = seasonCount(player.stats?.timesNominated)
-      if (wins >= 2) return [player.id, appealSpeech(player, 'resume')]
-      if (nominations >= 2) return [player.id, appealSpeech(player, 'underdog')]
-      const hasBond = Object.values(game.strategicRelationships?.[player.id] ?? {}).some(
-        (relationship) => relationship.affinity >= 35 || relationship.tags.includes('alliance')
-      )
-      if (hasBond) return [player.id, appealSpeech(player, 'loyalty')]
-      return [
-        player.id,
-        "I kept showing up for this game. I'm asking you for one last chance to prove I belong in the Final Two.",
-      ]
-    })
+    cast.nominees.map((player) => [player.id, selectedById.get(player.id)!])
   )
 }
 

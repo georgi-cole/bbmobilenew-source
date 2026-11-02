@@ -43,6 +43,7 @@ import {
   readFinalThreeDecision,
   type FinalThreeDecisionRead,
 } from '../../social/finalThreeDecision'
+import { buildFinalThreePleaExchanges } from './finalThreePleaScript'
 import './Final3Ceremony.css'
 import { FINAL_TWO_HUB_BACKDROP_STYLE } from './final3CeremonyAssets'
 
@@ -60,38 +61,6 @@ type CeremonyStage =
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const DEV_SKIP = import.meta.env.DEV || import.meta.env.CI === 'true'
-
-function buildPlea(nominee: Player, read: FinalThreeDecisionRead): string {
-  const wins = (nominee.stats?.lohWins ?? 0) + (nominee.stats?.posWins ?? 0)
-  const timesNominated = nominee.stats?.timesNominated ?? 0
-  if (read.affinity >= 35)
-    return `We got here because we trusted each other. I hope that still means something.`
-  if (wins >= 2)
-    return `I've earned ${wins} competition wins. Taking me to the Final Two would let me finish what I came here to do.`
-  if (timesNominated >= 2)
-    return `I've been nominated ${timesNominated} times. I kept finding a way forward, and I'm not ready for my story to end in third.`
-  if (read.tags.includes('alliance'))
-    return `We made it this far together. I want to finish this with the person who knows the whole story.`
-  return `I know there's no perfect argument for this choice. I kept showing up for this game, and I want one last chance to prove I belong beside you.`
-}
-
-function buildPleaResponse(nominee: Player, read: FinalThreeDecisionRead): string {
-  const wins = (nominee.stats?.lohWins ?? 0) + (nominee.stats?.posWins ?? 0)
-  const timesNominated = nominee.stats?.timesNominated ?? 0
-  if (read.affinity >= 35)
-    return `I haven't forgotten the bond we built. That's part of why this is so hard.`
-  if (
-    read.tags.includes('betrayal') ||
-    read.tags.includes('target') ||
-    read.tags.includes('rivalry')
-  )
-    return `We haven't always seen the game the same way. I hear you, and I won't pretend those moments didn't matter.`
-  if (wins > 0)
-    return `You've earned ${wins} competition win${wins === 1 ? '' : 's'}. I know what it took to get here.`
-  if (timesNominated > 1)
-    return `You've stood on the block ${timesNominated} times. That's a lot of pressure to carry this far.`
-  return `I know how much this chance means to you. I'll keep that with me when I make the call.`
-}
 
 function thirdPlaceExitLine(player: Player, read: FinalThreeDecisionRead): string {
   const wins = (player.stats?.lohWins ?? 0) + (player.stats?.posWins ?? 0)
@@ -215,6 +184,15 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       ),
     [decisionReads, nominees]
   )
+  const pleaExchanges = useMemo(
+    () => buildFinalThreePleaExchanges(nominees, decisionReads),
+    [nominees, decisionReads]
+  )
+  const pleaTexts = useMemo(
+    () =>
+      Object.fromEntries(Object.entries(pleaExchanges).map(([id, script]) => [id, script.plea])),
+    [pleaExchanges]
+  )
   const pleaDialogueLines = useMemo<ChatLine[]>(() => {
     if (!lohPlayer) return []
     const lines: ChatLine[] = [
@@ -226,19 +204,18 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       },
     ]
     nominees.forEach((nominee) => {
-      const read = decisionReads[nominee.id]
       lines.push(
         {
           id: `f3c-plea-${nominee.id}`,
           role: 'nominee',
           player: nominee,
-          text: buildPlea(nominee, read),
+          text: pleaExchanges[nominee.id].plea,
         },
         {
           id: `f3c-plea-response-${nominee.id}`,
           role: 'loh',
           player: lohPlayer,
-          text: buildPleaResponse(nominee, read),
+          text: pleaExchanges[nominee.id].response,
         }
       )
     })
@@ -249,7 +226,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       text: `I've heard you both. Give me a moment to make the call.`,
     })
     return lines
-  }, [decisionReads, lohPlayer, nominees])
+  }, [lohPlayer, nominees, pleaExchanges])
 
   const spectatorAlreadyRevealedPower = game.finalThree?.spectatorFinalPowerRevealSeen === true
   const [stage, setStage] = useState<CeremonyStage>(() =>
@@ -528,9 +505,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
           comparisons={optionDescriptions}
           automaticDecision={humanIsLoh ? undefined : automaticDecision}
           viewerId={humanPlayer?.id}
-          pleas={Object.fromEntries(
-            nominees.map((nominee) => [nominee.id, buildPlea(nominee, decisionReads[nominee.id])])
-          )}
+          pleas={pleaTexts}
           onChoiceReady={handlePleaComplete}
           onDecision={handleDecision}
           onComplete={handlePremiumDecisionComplete}
