@@ -1,0 +1,34 @@
+name: Temporary Final Three Preview Export
+on:
+  push:
+    branches:
+      - codex/f3-preview-export-20261102
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install and build the exact PR source
+        run: |
+          npm ci
+          npm run build:release
+      - name: Collect runnable site and source reference
+        run: |
+          mkdir -p preview-export/site preview-export/reference
+          cp -a dist/. preview-export/site/
+          tar czf preview-export/reference/relevant-source.tar.gz src tests scripts package.json package-lock.json index.html vite.config.ts tsconfig*.json
+          printf 'Built from commit %s\n' "$GITHUB_SHA" > preview-export/reference/SOURCE_COMMIT.txt
+          du -sh preview-export/site preview-export/reference
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f3-preview-runtime-20261102
+          path: preview-export/
+          retention-days: 1
+          compression-level: 6
