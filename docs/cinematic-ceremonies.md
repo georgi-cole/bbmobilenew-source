@@ -82,6 +82,12 @@ Prepared, eligible films start automatically. Their active contests last 22, 24 
 
 The generic spectator overlay and its legacy event listeners remain unchanged. The new broadcast reuses the existing scene plates and catalog front poses and introduces no dependency or bitmap asset.
 
+## Unified Final Three presentation set
+
+The opening, Part 3 block reveal, holder reveal and Final Two now reuse `FinalThreeStage`, with the same garden backdrop, independent gold Eye, framed Faux TV, podium lighting, moving beams and mist used by Parts 1–3 spectator broadcasts. The monitor is an independent readable layer: live text, current nominees and rules are not baked into scenic imagery. Only the cast, camera emphasis, and lighting mood vary by beat; the Classic/Vox rules and game callbacks remain authoritative.
+
+The final decision's approved close-camera architectural set stays intact to preserve its cast/crown positioning, pleas, monitor geometry and choreography; its gold Eye, glass monitor and mist share the new single-source asset registry. The Final Two no longer displays a separate living-room decor. The now-obsolete duel and living-room images are not preloaded. Character cutouts retain natural proportions and their platform-anchored nameplates can wrap on narrow screens.
+
 ## Final-day closing frame
 
 Classic and Vox Final Three departures retain the original walk, door closure and camera zoom. After that zoom lands, the existing soft purple/gold transition frame displays the generated gold Eye ornament, with **THE BIG EYE** centered beneath it. The Eye makes a slow three-dimensional turn and catches a restrained reflection. Once it faces forward, the title fades and the ornament accelerates straight toward the camera until the scene resolves to black. The small ceremony-film footer recedes before the flight; the completed blackout is held through the native handoff.
