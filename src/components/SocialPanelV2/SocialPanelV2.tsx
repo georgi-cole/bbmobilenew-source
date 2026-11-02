@@ -2027,12 +2027,14 @@ export default function SocialPanelV2() {
         )
       : focusedTags
     ).map((tag) => RELATIONSHIP_TAG_LABELS[tag]),
-    ...focusedAlliances.map(allianceDisplayLabel),
+    ...focusedAlliances.map((alliance) =>
+      allianceDisplayLabel(alliance, focusedCanonical?.isNemesis === true)
+    ),
   ].filter((label, index, labels) => labels.indexOf(label) === index)
   const focusedCommitments = focusedPlayer
     ? focusedAlliances.map((alliance) =>
         allianceKind(alliance) === 'PACT'
-          ? `Personal pact · ${focusedPlayer.name}`
+          ? `${allianceDisplayLabel(alliance, focusedCanonical?.isNemesis === true)} · ${focusedPlayer.name}`
           : (alliance.name ?? 'Alliance group')
       )
     : []
