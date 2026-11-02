@@ -3605,6 +3605,18 @@ function isFinalThreePhase(phase: Phase): boolean {
   return phase.startsWith('final3')
 }
 
+/** A legacy save can retain a *real* weekend lock after the season has already
+ * advanced into Final Three. That impossible combination blocks advance() and
+ * prevents the spectator scene from starting. Preserve genuine debug previews
+ * and every other phase; never change a competition result or phase here. */
+function clearStaleFinalThreeWeekend(state: GameState): void {
+  if (!isFinalThreePhase(state.phase)) return
+  const weekend = state.weekendInterlude
+  if (!weekend?.active || weekend.debug) return
+  if (weekend.finaleWeekend) state.finaleWeekendCompleted = true
+  state.weekendInterlude = null
+}
+
 function beginFinalThreeController(state: GameState): void {
   state.finalThree = {
     mode: isVoxPopuliActive(state) ? 'vox_populi' : 'classic',
@@ -6476,6 +6488,7 @@ const gameSlice = createSlice({
     /** Acknowledges the narrated opening without allowing a reload to replay it. */
     completeFinalThreeOpening(state) {
       if (state.phase !== 'final3') return
+      clearStaleFinalThreeWeekend(state)
       ensureFinalThreeController(state)
       if (state.finalThree) state.finalThree.openingSeen = true
     },
@@ -6483,6 +6496,7 @@ const gameSlice = createSlice({
     /** Acknowledges the Part 3 block setup before the final competition launches. */
     completeFinalThreeBlockReveal(state) {
       if (state.phase !== 'final3_comp3') return
+      clearStaleFinalThreeWeekend(state)
       ensureFinalThreeController(state)
       if (state.finalThree) state.finalThree.blockRevealSeen = true
     },
@@ -9945,6 +9959,7 @@ const gameSlice = createSlice({
           action.payload.liaForcedUntilTwinShockResolved ??
           !(action.payload.twinShockConsumed ?? false),
       }
+      clearStaleFinalThreeWeekend(hydrated)
       ensureFinalThreeController(hydrated)
       if (hydrated.secretMission) {
         hydrated.secretMission = {
@@ -10611,6 +10626,7 @@ const gameSlice = createSlice({
 
     /** Advance to the next phase, computing outcomes deterministically via RNG. */
     advance(state) {
+      clearStaleFinalThreeWeekend(state)
       // Guard: if any human-decision flag is set, advance() must not proceed.
       // This protects against programmatic dispatches (debug tools, fastForward)
       // bypassing mandatory decision steps and leaving state inconsistent.

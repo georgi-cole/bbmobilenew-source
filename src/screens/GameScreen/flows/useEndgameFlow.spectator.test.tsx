@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import gameReducer, {
   createInitialGameState,
   hydrateGame,
+  debugActivateWeekendInterlude,
   prepareClassicFinalThreeTest,
   selectF3Part1PredictedWinnerId,
   selectF3Part2PredictedWinnerId,
@@ -277,6 +278,54 @@ describe('Final Three spectator broadcast integration', () => {
     expect(store.getState().game.phase).toBe('final3_comp3')
     expect(result.current.finalThreeBlockRevealActive).toBe(false)
     expect(result.current.spectatorF3Active).toBe(true)
+    expect(actions.filter((action) => action.type === 'game/advance')).toHaveLength(0)
+  })
+
+  it('recovers a saved finale weekend lock without skipping the Part 3 spectator duel', () => {
+    const game = makeGame(3, 'classic', 'loser')
+    const human = game.players.find((player) => player.isUser)!
+    human.status = 'nominated'
+    game.nomineeIds = [human.id]
+    game.finalThree!.blockRevealSeen = false
+
+    // A legacy save could contain both a Final Three phase and the previous
+    // *real* weekend gate. Previously the Play click left advance() blocked.
+    const staged = gameReducer(game, debugActivateWeekendInterlude('finale'))
+    expect(staged.weekendInterlude?.active).toBe(true)
+    const staleWeekend = { ...staged.weekendInterlude! }
+    delete staleWeekend.debug
+    game.weekendInterlude = staleWeekend
+    game.finaleWeekendCompleted = false
+
+    const { result, store, actions } = mountFlow(game)
+    expect(result.current.finalThreeBlockRevealActive).toBe(true)
+    expect(result.current.spectatorF3Active).toBe(false)
+
+    act(() => result.current.handleFinalThreeBlockRevealDone())
+    expect(store.getState().game.weekendInterlude).toBeNull()
+    expect(store.getState().game.finaleWeekendCompleted).toBe(true)
+    expect(store.getState().game.phase).toBe('final3_comp3')
+    expect(result.current.finalThreeBlockRevealActive).toBe(false)
+    expect(result.current.spectatorF3Active).toBe(true)
+    expect(actions.filter((action) => action.type === 'game/advance')).toHaveLength(0)
+
+    act(() => result.current.handleSpectatorF3Done())
+    expect(store.getState().game.phase).toBe('final3_decision')
+    expect(actions.filter((action) => action.type === 'game/advance')).toHaveLength(1)
+  })
+
+  it('does not interrupt a legitimate QA finale weekend preview', () => {
+    const game = makeGame(3, 'classic', 'loser')
+    const human = game.players.find((player) => player.isUser)!
+    human.status = 'nominated'
+    game.nomineeIds = [human.id]
+    game.finalThree!.blockRevealSeen = false
+    const staged = gameReducer(game, debugActivateWeekendInterlude('finale'))
+    expect(staged.weekendInterlude?.debug).toBe(true)
+    const { result, store, actions } = mountFlow(staged)
+    expect(result.current.finalThreeBlockRevealActive).toBe(false)
+    expect(result.current.spectatorF3Active).toBe(false)
+    expect(store.getState().game.weekendInterlude?.active).toBe(true)
     expect(actions.filter((action) => action.type === 'game/advance')).toHaveLength(0)
   })
 

@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createInitialGameState } from '../../../store/gameSlice'
-import FinalThreeBlockReveal from '../FinalThreeBlockReveal'
+import FinalThreeBlockReveal, { FINAL_THREE_BLOCK_REVEAL_MS } from '../FinalThreeBlockReveal'
 
 const finalists = createInitialGameState({ seed: 731 }).players.slice(0, 3)
 
@@ -55,5 +55,91 @@ describe('FinalThreeBlockReveal', () => {
     act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
 
     expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('cannot stall indefinitely: auto-hands off once when Play is not pressed', () => {
+    vi.useFakeTimers()
+    const onComplete = vi.fn()
+    try {
+      render(
+        <FinalThreeBlockReveal
+          blockPlayer={finalists[0]}
+          competitors={finalists.slice(1)}
+          mode="classic"
+          onComplete={onComplete}
+        />
+      )
+      act(() => vi.advanceTimersByTime(FINAL_THREE_BLOCK_REVEAL_MS - 1))
+      expect(onComplete).not.toHaveBeenCalled()
+      act(() => vi.advanceTimersByTime(1))
+      expect(onComplete).toHaveBeenCalledOnce()
+      act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
+      expect(onComplete).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('suspends the automatic handoff in the background and resumes on return', () => {
+    vi.useFakeTimers()
+    const hidden = Object.getOwnPropertyDescriptor(document, 'hidden')
+    const onComplete = vi.fn()
+    try {
+      render(
+        <FinalThreeBlockReveal
+          blockPlayer={finalists[0]}
+          competitors={finalists.slice(1)}
+          mode="classic"
+          onComplete={onComplete}
+        />
+      )
+      act(() => vi.advanceTimersByTime(2000))
+      act(() => {
+        Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+      act(() => vi.advanceTimersByTime(60_000))
+      expect(onComplete).not.toHaveBeenCalled()
+      act(() => {
+        Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+      act(() => vi.advanceTimersByTime(FINAL_THREE_BLOCK_REVEAL_MS))
+      expect(onComplete).toHaveBeenCalledOnce()
+    } finally {
+      if (hidden) Object.defineProperty(document, 'hidden', hidden)
+      else Reflect.deleteProperty(document, 'hidden')
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not reset the auto-handoff clock when the parent recreates its callback', () => {
+    vi.useFakeTimers()
+    const oldCallback = vi.fn()
+    const newCallback = vi.fn()
+    try {
+      const { rerender } = render(
+        <FinalThreeBlockReveal
+          blockPlayer={finalists[0]}
+          competitors={finalists.slice(1)}
+          mode="classic"
+          onComplete={oldCallback}
+        />
+      )
+      act(() => vi.advanceTimersByTime(3000))
+      rerender(
+        <FinalThreeBlockReveal
+          blockPlayer={finalists[0]}
+          competitors={finalists.slice(1)}
+          mode="classic"
+          onComplete={newCallback}
+        />
+      )
+      act(() => vi.advanceTimersByTime(FINAL_THREE_BLOCK_REVEAL_MS - 3000))
+      expect(oldCallback).not.toHaveBeenCalled()
+      expect(newCallback).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
