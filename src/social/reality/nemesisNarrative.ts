@@ -24,12 +24,7 @@ export interface NemesisStoryContext extends RealityClock {
 
 /** Only social windows carry a normal new beat; endgame and departures close an unfinished arc. */
 const STORY_PHASES = new Set(['social_1', 'social_2'])
-const CLOSING_PHASES = new Set([
-  'final3',
-  'jury_announcement',
-  'jury_cinematic',
-  'jury',
-])
+const CLOSING_PHASES = new Set(['final3', 'jury_announcement', 'jury_cinematic', 'jury'])
 
 function isClosingPhase(phase: string): boolean {
   return CLOSING_PHASES.has(phase) || phase.startsWith('final3_')
