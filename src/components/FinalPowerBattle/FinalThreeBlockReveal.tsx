@@ -29,7 +29,7 @@ export default function FinalThreeBlockReveal({ blockPlayer, competitors, mode }
           role="group"
           aria-label={`${blockPlayer.name} is nominated; awaiting one more nominee`}
         >
-          <p className="fpb-block__monitor-kicker">One place on the block</p>
+          <h2 className="fpb-block__monitor-kicker">Part 3 · Final Power Battle</h2>
           <div className="fpb-block__monitor-slots">
             <div className="fpb-block__monitor-player">
               <PlayerAvatar
@@ -48,6 +48,7 @@ export default function FinalThreeBlockReveal({ blockPlayer, competitors, mode }
               <strong>Next</strong>
             </div>
           </div>
+          <p className="fpb-block__monitor-rule">{battleRule}</p>
         </div>
       </FinalThreeStage>
       <div
@@ -77,11 +78,6 @@ export default function FinalThreeBlockReveal({ blockPlayer, competitors, mode }
           ))}
           {competitors.length > 1 && <span className="fpb-block__vs">VS</span>}
         </div>
-      </div>
-      <div className="fpb-block__copy">
-        <p className="fpb-block__eyebrow">PART 3</p>
-        <h2>The Final Power Battle</h2>
-        <p>{battleRule}</p>
       </div>
     </section>
   )
