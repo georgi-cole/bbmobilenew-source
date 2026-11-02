@@ -200,6 +200,22 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(advanceNemesisNarrative(reality, context(4, 'social_1', false))).toEqual([])
   })
 
+  it('lets an eliminated human juror learn who targeted them and why', () => {
+    const reality = createInitialRealityDomainState()
+    const objective = secretObjective(reality)
+    const truth = advanceNemesisNarrative(reality, {
+      ...context(3, 'week_end'),
+      activePlayerIds: new Set(['echo', 'a']),
+    })
+    expect(truth).toHaveLength(1)
+    expect(truth[0].kind).toBe('reveal')
+    expect(truth[0].text).toContain('After your elimination')
+    expect(truth[0].text).toContain('Echo')
+    expect(objective.status).toBe('ENDED')
+    expect(reality.threads['nemesis-thread:echo:human'].status).toBe('RESOLVED')
+    expect(advanceNemesisNarrative(reality, context(4, 'social_1'))).toEqual([])
+  })
+
   it('reveals a late active Nemesis before the endgame even when normal social phases stop', () => {
     const reality = createInitialRealityDomainState()
     secretObjective(reality)
