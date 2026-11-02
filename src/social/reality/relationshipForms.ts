@@ -9,7 +9,7 @@ import { appendRealityEvent } from './events'
 import { reconcileConvergedAllianceRosters } from './allianceRosterConvergence'
 import { remember } from './memory'
 import { applyRealityRelationshipChange, getRealityRelationship } from './relationships'
-import { recordGroundedJealousy } from './relationshipAutonomy'
+import { enforceNemesisAllianceConsistency, recordGroundedJealousy } from './relationshipAutonomy'
 import {
   allianceKind,
   getCurrentPact,
@@ -1343,6 +1343,9 @@ export function createRealityAlliance(
     juryEligible: true,
   })
   strengthenRealityAllianceBonds(state, memberIds, input.at, event.id)
+  // A newly signed pact can be false pretense when one signatory secretly
+  // intends to undermine the other. Do not clear that private objective.
+  enforceNemesisAllianceConsistency(state)
   refreshRealityAllianceDynamics(alliance)
   rememberAllianceRoster(alliance)
   refreshRealityAllianceOverlaps(state)
