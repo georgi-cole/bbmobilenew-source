@@ -448,7 +448,6 @@ export default function FinalFaceoff() {
     ? game.players.find((player) => player.id === focusedReveal.finalistId)
     : null
 
-  const winner = game.players.find((p) => p.id === finale.winnerId)
   const allRevealed =
     finale.revealOrder.length === 0 || finale.revealedCount >= finale.revealOrder.length
   const awaitingHuman = finale.awaitingHumanJurorId
@@ -483,10 +482,12 @@ export default function FinalFaceoff() {
     dispatch(castVote({ jurorId: awaitingHuman, finalistId }))
   }
 
-  function handleDismiss() {
+  function handleRevealChampion() {
+    if (!finale.isComplete || !finale.winnerId || !finale.runnerUpId) return
     cancelPresentationSound()
-    dispatch(setMusicScene('none'))
-    dispatch(dismissFinale())
+    // Continue and the automatic cue must enter the same winner scene.
+    // Dismissing the Tribunal alone could strand the player on the jury phase.
+    persistWinnerToSeasonFinale()
   }
 
   // ── ACT 1 header text ─────────────────────────────────────────────────
@@ -525,7 +526,7 @@ export default function FinalFaceoff() {
               ? `The Tribunal deliberates… (${finale.revealedCount} / ${finale.revealOrder.length})`
               : 'All members have spoken'
             : finale.isComplete
-              ? `${winner ? `${winner.name} wins The Big Eye!` : 'Winner declared!'} 🏆`
+              ? 'The Tribunal verdict is sealed. One champion awaits.'
               : `${visibleVoteCount} / ${revealed.length} votes revealed`}
         </p>
         <div className="fo-header__progress" aria-hidden="true">
@@ -578,9 +579,8 @@ export default function FinalFaceoff() {
             {finalists.map((f) => (
               <div
                 key={f.id}
-                className={`fo-finalist${finale.winnerId === f.id ? ' fo-finalist--winner' : ''}`}
+                className="fo-finalist"
               >
-                {finale.winnerId === f.id && <span className="fo-winner-badge">Champion</span>}
                 <div className="fo-finalist__portrait-frame">
                   <PlayerAvatar
                     player={f}
@@ -661,7 +661,7 @@ export default function FinalFaceoff() {
         allRevealed={allRevealed}
         isComplete={finale.isComplete}
         onSkipAll={handleSkipAll}
-        onDismiss={handleDismiss}
+        onDismiss={handleRevealChampion}
         opening={isCluesPhase && !tribunalOpeningReady && finale.revealedCount === 0}
         onPlay={handleBeginTribunal}
       />
