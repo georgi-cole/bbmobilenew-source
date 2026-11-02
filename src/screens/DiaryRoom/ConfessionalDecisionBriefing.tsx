@@ -98,9 +98,10 @@ function ReadSheet({
   const allianceRecord = relationship.alliance
     ? social.reality.alliances[relationship.alliance.id]
     : undefined
-  const alliance = allianceRecord && allianceRecord.status !== 'DISSOLVED'
-    ? getRealityAllianceKnowledgeView(social.reality, allianceRecord.id, humanId)
-    : null
+  const alliance =
+    allianceRecord && allianceRecord.status !== 'DISSOLVED'
+      ? getRealityAllianceKnowledgeView(social.reality, allianceRecord.id, humanId)
+      : null
   const knownConflict =
     relationship.isNemesis || ['RIVAL', 'ENEMY', 'ESTRANGED'].includes(edge?.perceivedLabel ?? '')
   const allianceCaption =
@@ -192,9 +193,7 @@ function ReadSheet({
             <h3>{target.name}</h3>
             <p>{label}</p>
             {alliance && alliance.level === 'MEMBER' && (
-              <span className="rcd-read-sheet__alliance">
-                {allianceCaption}
-              </span>
+              <span className="rcd-read-sheet__alliance">{allianceCaption}</span>
             )}
           </div>
         </div>
