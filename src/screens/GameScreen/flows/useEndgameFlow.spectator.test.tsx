@@ -382,16 +382,11 @@ describe('Final Three spectator broadcast integration', () => {
 
         expect(globalPlay).not.toHaveBeenCalled()
         expect(onFinalePlay).toHaveBeenCalledTimes(1)
-        // Temporarily print relevant lifecycle signals if this integration
-        // gate disagrees with the standalone reducer and dock tests.
-        console.info('finale-play-integration-diagnostic', {
-          beforePhase: game.phase,
-          currentPhase: store.getState().game.phase,
-          currentOpening: store.getState().game.finalThree?.openingSeen,
-          active: result.current.finalPowerBattleIntroActive,
-          actions: actions.slice(-12).map((action) => action.type),
-        })
-        expect(store.getState().game.finalThree?.openingSeen).toBe(true)
+        expect(actions.filter((action) => action.type === 'game/completeFinalThreeOpening'))
+          .toHaveLength(1)
+        expect(actions.filter((action) => action.type === 'game/advance')).toHaveLength(
+          mode === 'classic' ? 2 : 1
+        )
         expect(store.getState().game.phase).toBe('final3_comp1_minigame')
         expect(store.getState().game.minigameContext?.participants).toContain(
           game.players.find((player) => player.isUser)!.id
@@ -400,6 +395,12 @@ describe('Final Three spectator broadcast integration', () => {
         // Double presses must not advance beyond the one authoritative handoff.
         act(() => button.click())
         expect(store.getState().game.phase).toBe('final3_comp1_minigame')
+        expect(
+          actions.filter((action) => action.type === 'game/completeFinalThreeOpening')
+        ).toHaveLength(1)
+        expect(actions.filter((action) => action.type === 'game/advance')).toHaveLength(
+          mode === 'classic' ? 2 : 1
+        )
       } finally {
         window.removeEventListener('ui:playPressed', globalPlay, { capture: true })
       }
