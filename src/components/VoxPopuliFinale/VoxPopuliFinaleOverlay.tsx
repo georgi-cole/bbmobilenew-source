@@ -99,6 +99,7 @@ export default function VoxPopuliFinaleOverlay() {
         players={game.players}
         history={game.history}
         publicOpinion={publicOpinion}
+        finalVoteMode="audience"
         onComplete={() => dispatch(vox.winnerId ? completeVoxSeasonRecap() : startVoxFinalVote())}
       />
     )
