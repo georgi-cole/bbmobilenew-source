@@ -262,6 +262,15 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(advanceNemesisNarrative(reality, context(3, 'final3_comp1'))).toEqual([])
   })
 
+  it('also closes the storyline when a finale skips directly to the jury', () => {
+    const reality = createInitialRealityDomainState()
+    secretObjective(reality)
+    const closure = advanceNemesisNarrative(reality, context(4, 'jury_announcement'))
+    expect(closure).toHaveLength(1)
+    expect(closure[0].kind).toBe('reveal')
+    expect(advanceNemesisNarrative(reality, context(4, 'jury_cinematic'))).toEqual([])
+  })
+
   it('does not disclose a Nemesis who was genuinely reconciled before the next beat', () => {
     const reality = createInitialRealityDomainState()
     secretObjective(reality)
