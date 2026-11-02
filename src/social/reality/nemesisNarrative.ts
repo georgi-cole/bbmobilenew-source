@@ -67,17 +67,49 @@ export function explainNemesisMotive(
 ): string {
   const source = knownCauseEvent(domain, objective)
   const trigger = source?.reason?.toLowerCase() ?? ''
-  if (trigger.includes('provocateur_nomination')) {
-    return `Being nominated on Day ${source?.day ?? objective.createdAt.day} left them angry about your decision.`
+  // Only cite a real, recorded action on its actual day. A later provocation
+  // can reflect an earlier nomination or betrayal, not necessarily a new one.
+  const pairEvents = domain.events
+    .filter(
+      (event) =>
+        event.day <= objective.createdAt.day &&
+        (event.participantIds.includes(objective.ownerId) ||
+          event.targetIds.includes(objective.ownerId)) &&
+        (event.participantIds.includes(objective.targetId) ||
+          event.targetIds.includes(objective.targetId))
+    )
+    .sort((a, b) => b.sequence - a.sequence)
+  const nomination = pairEvents.find(
+    (event) =>
+      event.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
+      event.actorId === objective.targetId &&
+      event.targetIds.includes(objective.ownerId)
+  )
+  const betrayal = pairEvents.find(
+    (event) =>
+      event.type === 'ALLIANCE_BETRAYAL' &&
+      (event.actorId === objective.ownerId || event.actorId === objective.targetId)
+  )
+  const planDefied = pairEvents.find((event) => event.type === 'ALLIANCE_PLAN_DEFIED')
+
+  if (trigger.includes('provocateur_nomination') || nomination) {
+    return nomination
+      ? `You nominated them on Day ${nomination.day}, and they decided not to forgive that choice.`
+      : 'They blamed you for a nomination decision that put their place in the game at risk.'
   }
-  if (trigger.includes('provocateur_betrayal')) {
-    return `A recorded betrayal on Day ${source?.day ?? objective.createdAt.day} made them stop trusting your partnership.`
+  if (trigger.includes('provocateur_betrayal') || betrayal) {
+    if (betrayal?.actorId === objective.targetId) {
+      return `They felt betrayed after you broke an alliance commitment on Day ${betrayal.day}.`
+    }
+    if (betrayal?.actorId === objective.ownerId) {
+      return `They broke an alliance commitment on Day ${betrayal.day} and continued treating you as an opponent.`
+    }
+    return 'They felt a shared commitment had been broken, and their distrust hardened into hostility.'
   }
-  if (trigger.includes('provocateur_plan_defied')) {
-    return `A shared plan was defied on Day ${source?.day ?? objective.createdAt.day}, and they blamed you for it.`
-  }
-  if (source?.type === 'ALLIANCE_BETRAYAL') {
-    return `The broken alliance commitment on Day ${source.day} turned the relationship into a conflict.`
+  if (trigger.includes('provocateur_plan_defied') || planDefied) {
+    return planDefied
+      ? `A shared plan was defied on Day ${planDefied.day}, and they blamed you for the fallout.`
+      : 'They believed you had abandoned a shared game plan.'
   }
 
   switch (objective.reason) {
