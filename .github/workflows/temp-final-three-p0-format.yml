@@ -1,0 +1,29 @@
+name: Temporary Format Final Three P0
+on:
+  push:
+    branches:
+      - codex/final-three-p0-format-20261102
+    paths:
+      - .github/workflows/temp-final-three-p0-format.yml
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/final-three-p0-format-20261102
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Normalize changed source and regression files
+        run: |
+          npx prettier --write src/components/FloatingActionBar/FloatingActionBar.tsx src/screens/GameScreen/GameScreen.tsx src/components/FinalPowerBattle/FinalPowerBattleIntro.tsx src/components/FinalPowerBattle/FinalThreeBlockReveal.tsx src/components/FloatingActionBar/__tests__/FloatingActionBar.test.tsx src/components/FinalPowerBattle/__tests__/FinalPowerBattleIntro.test.tsx src/components/FinalPowerBattle/__tests__/FinalThreeBlockReveal.test.tsx src/screens/GameScreen/flows/useEndgameFlow.spectator.test.tsx
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src
+          git diff --cached --quiet || git commit -m "chore: exact prettier formatting for Final Three P0"
+          git push origin HEAD:codex/final-three-p0-format-20261102
