@@ -663,9 +663,7 @@ function pactDecision(
 
   const privateNemesis = Object.values(state.relationshipAutonomy.nemeses).some(
     (nemesis) =>
-      nemesis.status === 'ACTIVE' &&
-      nemesis.ownerId === actorId &&
-      nemesis.targetId === proposerId
+      nemesis.status === 'ACTIVE' && nemesis.ownerId === actorId && nemesis.targetId === proposerId
   )
   if (privateNemesis) {
     // Nemeses don't sincerely commit on an ordinary trust roll. A strategically
