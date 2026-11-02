@@ -83,6 +83,24 @@ describe('Nemesis storyline — reliable discovery', () => {
 
   it('does not show an anonymous clue after an actually witnessed confrontation', () => {
     const reality = createInitialRealityDomainState()
+    appendRealityEvent(reality, {
+      day: 2,
+      phase: 'nominations',
+      type: 'CEREMONY_NOMINATIONS_LOCKED',
+      actorId: 'human',
+      targetIds: ['echo'],
+      participantIds: ['human', 'echo'],
+      witnessIds: [],
+      visibility: 'HOUSE_PUBLIC',
+      outcome: 'SYSTEM',
+      reason: 'You nominated Echo.',
+      tags: ['NOMINATION'],
+      relatedFactIds: [],
+      relatedPromiseIds: [],
+      relatedThreadIds: [],
+      publicEligible: true,
+      juryEligible: true,
+    })
     const conflict = appendRealityEvent(reality, {
       day: 3,
       phase: 'social_1',
@@ -108,11 +126,11 @@ describe('Nemesis storyline — reliable discovery', () => {
       reason: 'PERSONAL_FRICTION',
       at: { day: 3, phase: 'social_1' },
     })
-    expect(explainNemesisMotive(reality, nemesis)).toContain('nominated on Day 3')
+    expect(explainNemesisMotive(reality, nemesis)).toContain('nominated them on Day 2')
     const beats = advanceNemesisNarrative(reality, context(3, 'social_2'))
     expect(beats).toHaveLength(1)
     expect(beats[0].kind).toBe('reveal')
-    expect(beats[0].text).toContain('nominated on Day 3')
+    expect(beats[0].text).toContain('nominated them on Day 2')
     expect(reality.events.some((event) => event.type === 'NEMESIS_ANONYMOUS_CLUE')).toBe(false)
   })
 
