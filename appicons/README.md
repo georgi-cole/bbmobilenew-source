@@ -14,7 +14,8 @@ Original SHA-256: `4d338174b2f75853a63551d231912c71db3becb9f75ca478d153574df71f8
 
 The favicon export is embedded in [`public/favicon.svg`](../public/favicon.svg),
 so it works without another image request. The original artwork stays in this
-folder and is not copied into the web build. The export preserves the complete
-composition without cropping or redesigning it.
+folder and is not copied into the web build. For browser tabs, the SVG clips away
+the pale outer canvas and shadow at the navy stitched edge, adds a subtle
+navy perimeter, and enlarges the visible design. The source PNGs are unchanged.
 
 ![Embroidered Big Eye icon](big-eye-embroidered-256.png)
