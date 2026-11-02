@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { FINAL_THREE_SET_ASSETS } from './finalThreeSetAssets'
 import './FinalThreeStage.css'
 
-type FinaleScene = 'opening' | 'block' | 'holder' | 'final-two'
+type FinaleScene = 'opening' | 'block' | 'holder' | 'final-two' | 'champion'
 
 interface Props {
   scene: FinaleScene
