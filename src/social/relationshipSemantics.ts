@@ -238,7 +238,7 @@ export function selectCanonicalRelationshipView(input: {
   const inward = input.relationships?.[input.targetId]?.[input.actorId]
   const formalAlliance = selectCanonicalAlliance(input.reality, input.actorId, input.targetId)
   const visibleTags = getCanonicalRelationshipTags(input)
-  const isNemesis = hasActiveNemesisBetween(input.reality, input.actorId, input.targetId)
+  const isNemesis = isNemesisDisclosedTo(input.reality, input.actorId, input.targetId)
 
   if (formalAlliance?.status === 'PROBATIONARY') {
     visibleTags.delete('strained_alliance')
@@ -269,17 +269,46 @@ export function selectCanonicalRelationshipView(input: {
   }
 }
 
-function hasActiveNemesisBetween(
+/**
+ * Nemesis is a private AI objective, not automatically a player-facing fact.
+ * It becomes an earned relationship read only after hostility the viewer
+ * actually experienced or witnessed. This cannot leak a PRIVATE objective.
+ */
+export function isNemesisDisclosedTo(
   reality: RealityDomainState | undefined,
-  actorId: string,
-  targetId: string
+  viewerId: string,
+  otherId: string
 ): boolean {
-  return Object.values(reality?.relationshipAutonomy.nemeses ?? {}).some(
-    (nemesis) =>
-      nemesis.status === 'ACTIVE' &&
-      ((nemesis.ownerId === actorId && nemesis.targetId === targetId) ||
-        (nemesis.ownerId === targetId && nemesis.targetId === actorId))
-  )
+  if (!reality) return false
+  return Object.values(reality.relationshipAutonomy.nemeses).some((nemesis) => {
+    if (nemesis.status !== 'ACTIVE') return false
+    if (nemesis.ownerId === viewerId && nemesis.targetId === otherId) return true
+    if (nemesis.ownerId !== otherId || nemesis.targetId !== viewerId) return false
+    const source = reality.events.find((event) => event.id === nemesis.sourceEventId)
+    return reality.events.some((event) => {
+      if (
+        event.actorId !== otherId ||
+        !event.targetIds.includes(viewerId) ||
+        event.day < nemesis.createdAt.day ||
+        (source && event.sequence < source.sequence)
+      ) {
+        return false
+      }
+      const directlyKnown =
+        event.visibility === 'HOUSE_PUBLIC' ||
+        event.visibility === 'CEREMONY_PUBLIC' ||
+        (event.visibility !== 'PRIVATE' &&
+          event.visibility !== 'JURY_ONLY' &&
+          (event.participantIds.includes(viewerId) || event.witnessIds.includes(viewerId)))
+      return (
+        directlyKnown &&
+        (event.tags.includes('CONFLICT') ||
+          event.tags.includes('BETRAYAL') ||
+          event.type === 'PROVOCATEUR_CONFLICT_STARTED' ||
+          event.type === 'ALLIANCE_BETRAYAL')
+      )
+    })
+  })
 }
 
 /**
@@ -317,11 +346,18 @@ function readCanonicalRelationshipTags(input: {
 }): Set<string> {
   const tags = pairLegacyTags(input.relationships, input.actorId, input.targetId)
   const edge = input.reality?.relationships[input.actorId]?.[input.targetId]
-  const reverseEdge = input.reality?.relationships[input.targetId]?.[input.actorId]
   const hasLiveAlliance = hasCanonicalLiveAlliance(input.reality, input.actorId, input.targetId)
-  const hasActiveNemesis = hasActiveNemesisBetween(input.reality, input.actorId, input.targetId)
+  const hasDisclosedNemesis = isNemesisDisclosedTo(
+    input.reality,
+    input.actorId,
+    input.targetId
+  )
 
   if (input.reality) {
+    // Legacy projection includes the other person's private rivalry and
+    // targeting tags. A player-limited read must not turn them into a spoiler.
+    tags.delete('rivalry')
+    tags.delete('target')
     tags.delete('alliance')
     if (hasLiveAlliance) tags.add('alliance')
     // A hostile read or an ordinary grievance is not proof that trust was broken.
@@ -333,9 +369,10 @@ function readCanonicalRelationshipTags(input: {
     }
   }
 
-  if (hasActiveNemesis) tags.add('rivalry')
+  if (hasDisclosedNemesis) tags.add('rivalry')
 
-  for (const relationship of [edge, reverseEdge]) {
+  // Never infer this player's opinion from the other character's hidden edge.
+  for (const relationship of [edge]) {
     if (!relationship) continue
     if (relationship.perceivedLabel === 'RIVAL' || relationship.perceivedLabel === 'ENEMY') {
       tags.add('rivalry')
@@ -413,12 +450,7 @@ export function isRepairableRelationship(input: {
     )
   )
     return true
-  if (
-    Object.values(reality?.relationshipAutonomy.nemeses ?? {}).some(
-      (nemesis) => nemesis.status === 'ACTIVE' && isPair(nemesis.ownerId, nemesis.targetId)
-    )
-  )
-    return true
+  if (isNemesisDisclosedTo(reality, actorId, targetId)) return true
 
   const edges = [
     reality?.relationships[actorId]?.[targetId],
