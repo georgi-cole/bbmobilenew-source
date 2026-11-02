@@ -119,6 +119,7 @@ try {
       console.error(errors)
       failed = true
       await context.close().catch(() => {})
+      break
     }
   }
 } finally {

@@ -7,6 +7,7 @@ await build({
   bundle:true,
   platform:'browser',
   format:'iife',
+  jsx:'automatic',
   target:'es2022',
   minify:false,
   sourcemap:false,
