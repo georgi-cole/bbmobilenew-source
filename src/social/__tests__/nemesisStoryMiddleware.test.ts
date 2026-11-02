@@ -83,7 +83,9 @@ describe('Nemesis phase-driven delivery', () => {
     store.dispatch(advance())
     expect(store.getState().game.week).toBe(4)
     store.dispatch(setPhase('social_1'))
-    const reveal = store.getState().game.tvFeed.find((event) => event.meta?.nemesisStory === 'reveal')
+    const reveal = store
+      .getState()
+      .game.tvFeed.find((event) => event.meta?.nemesisStory === 'reveal')
     expect(reveal).toBeDefined()
     expect(reveal?.text).toContain('Echo')
     expect(reveal?.text).toContain('win power')
@@ -92,7 +94,9 @@ describe('Nemesis phase-driven delivery', () => {
     expect(reveal && isVisibleOnTv(reveal)).toBe(true)
 
     const social = store.getState().social
-    expect(social.reality.events.filter((event) => event.type === 'NEMESIS_REVEALED')).toHaveLength(1)
+    expect(social.reality.events.filter((event) => event.type === 'NEMESIS_REVEALED')).toHaveLength(
+      1
+    )
     expect(
       selectCanonicalRelationshipView({
         reality: social.reality,
@@ -111,10 +115,10 @@ describe('Nemesis phase-driven delivery', () => {
     const store = makeStore(false)
     store.dispatch(setPhase('social_2'))
     expect(
-      store.getState().social.reality.events.some((event) => event.type === 'NEMESIS_ANONYMOUS_CLUE')
+      store
+        .getState()
+        .social.reality.events.some((event) => event.type === 'NEMESIS_ANONYMOUS_CLUE')
     ).toBe(false)
-    expect(
-      store.getState().game.tvFeed.some((event) => event.meta?.nemesisStory)
-    ).toBe(false)
+    expect(store.getState().game.tvFeed.some((event) => event.meta?.nemesisStory)).toBe(false)
   })
 })
