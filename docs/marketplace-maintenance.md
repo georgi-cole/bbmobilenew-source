@@ -49,11 +49,6 @@ store listings or change configured prices.
   choreography, and handoff remain shared; VIP eligibility, animation settings,
   products, prices, benefits, entitlements, and Store copy are unchanged.
 
-- 2026-11-02: Reviewed the VIP Cinematic backup-nomination presentation. It reuses
-  the existing nomination chamber and character-pack poses, and follows the
-  actual chooser for LOH/co-LOH, Halo Exchange, and Detox. Vox ballot backups,
-  Standard presentation, and the VIP offer, access, benefits, prices, and Store
-  copy remain unchanged.
 - 2026-11-01: Reviewed Home Hub weather recovery on entry and foreground return,
   current rain detection, and the deployment-relative embroidered favicon. The
   background repairs select from the existing artwork and preserve the existing

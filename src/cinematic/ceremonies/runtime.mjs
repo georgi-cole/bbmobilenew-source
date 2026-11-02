@@ -3,12 +3,10 @@ import {
   baseScene,
   isCupidActive,
   isVoxActive,
-  modeDetails,
   MODE_BASE,
   modeActors,
 } from './mode-routing.mjs'
 export { adaptCeremonyScene, baseScene } from './mode-routing.mjs'
-export { modeDetails }
 export function shouldPlayCinematic(state, vip) {
   return Boolean(
     vip &&
@@ -34,9 +32,6 @@ export function isCinematicSceneAllowed(game, scene, shockKey) {
     ].includes(scene)
   }
   if (scene.startsWith('vox')) return false
-  // Cupid nominations are pair-based; retain their existing paired badge flow
-  // until the replacement film can show both members of each pair together.
-  if (isCupidActive(game) && scene === 'backupNomination') return false
   if (scene.startsWith('cupid')) return isCupidActive(game)
   if (isCupidActive(game) && scene === 'ambush') return false
   if (isCupidActive(game) && ['loh', 'safety', 'allPower', 'nominations', 'save'].includes(scene))
@@ -209,18 +204,6 @@ export function findArt(player, catalog) {
 }
 export function ceremonyCast(scene, props, game, catalog) {
   const get = (id) => game.players.find((p) => p.id === id)
-  if (scene === 'backupNomination') {
-    const replacement = get(props.backupNomineeId)
-    const chooser = get(props.backupChooserId)
-    const continuing = props.continuingNomineeId ? get(props.continuingNomineeId) : replacement
-    if (!replacement || !chooser || !continuing) return null
-    const artFor = (player) => {
-      const art = findArt(player, catalog)
-      return art ? { ...art, name: player.name, playerId: player.id } : null
-    }
-    const cast = { a: artFor(continuing), b: artFor(replacement), c: artFor(chooser) }
-    return Object.values(cast).some((actor) => !actor) ? null : cast
-  }
   if (scene in MODE_BASE) {
     const ids = modeActors(scene, props, game)
     if (!ids.length || ids.length > 6) return null
