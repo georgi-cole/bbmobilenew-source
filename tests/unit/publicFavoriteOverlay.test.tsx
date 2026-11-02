@@ -227,6 +227,39 @@ describe('PublicFavoriteOverlay', () => {
     expect(onComplete).toHaveBeenCalledWith('p2')
   })
 
+  it('presents the final public ballot as a verdict, then hands off to the coronation once', () => {
+    const onComplete = vi.fn()
+    mockedUseBattleBackVoting.mockReturnValue(
+      votingState({
+        votes: { p1: 39, p2: 61 },
+        eliminated: ['p1'],
+        winnerId: 'p2',
+        isComplete: true,
+      })
+    )
+
+    render(
+      <PublicFavoriteOverlay
+        candidates={PLAYERS.slice(0, 2)}
+        seed={41}
+        mode="season_winner"
+        onComplete={onComplete}
+      />
+    )
+
+    expect(screen.getByText('AUDIENCE VERDICT')).toBeInTheDocument()
+    expect(screen.getByText('Final Public Vote')).toBeInTheDocument()
+    expect(screen.getByText('Taylor')).toBeInTheDocument()
+    expect(screen.getByText('Jordan finishes as runner-up.')).toBeInTheDocument()
+    expect(screen.queryByText('Wins 25,000 Eyeoleans!')).toBeNull()
+
+    const next = screen.getByRole('button', { name: 'Continue to coronation' })
+    fireEvent.click(next)
+    fireEvent.click(next)
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(onComplete).toHaveBeenCalledWith('p2')
+  })
+
   it('falls through directly to the reveal when one candidate is already complete', () => {
     mockedUseBattleBackVoting.mockReturnValue({
       votes: { p2: 100 },
