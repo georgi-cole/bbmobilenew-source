@@ -1,6 +1,12 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import gameReducer, { addTvEvent, setBroadcastOverride } from '../src/store/gameSlice'
+import gameReducer, {
+  addTvEvent,
+  replaceBroadcastConfig,
+  setBroadcastOverride,
+} from '../src/store/gameSlice'
 import { isVisibleInMainLog, isVisibleOnTv } from '../src/services/activityService'
+import type { BroadcastOverride } from '../src/types'
 
 const CASES = [
   [
@@ -38,6 +44,53 @@ describe('Faux TV P0 mechanical cleanup', () => {
       expect(isVisibleInMainLog(emitted!)).toBe(true)
     })
   }
+
+  it('keeps the bundled LOH competition-start receipt in the log, not on Faux TV', () => {
+    const liveConfig = JSON.parse(readFileSync('public/config/live-config.json', 'utf8')) as {
+      broadcastManager?: {
+        enabled?: boolean
+        overrides?: Record<string, BroadcastOverride>
+      }
+    }
+    const manager = liveConfig.broadcastManager
+    expect(manager?.enabled).toBe(true)
+    expect(manager?.overrides?.['loh.competition-start']).toMatchObject({
+      level: 'minor',
+      major: null,
+      forceOnTv: false,
+    })
+
+    let state = gameReducer(undefined, { type: 'init' })
+    state = { ...state, phase: 'loh_comp', week: 4, tvFeed: [], broadcastQueue: [] }
+    state = gameReducer(
+      state,
+      replaceBroadcastConfig({ overrides: manager?.overrides ?? {}, customMessages: [] })
+    )
+    state = gameReducer(
+      state,
+      addTvEvent({
+        text: 'The Leader of the Hub competition has begun! 🏆 Who will win power today?',
+        type: 'game',
+        meta: {
+          phase: 'loh_comp',
+          week: 4,
+          broadcastTemplateId: 'loh.competition-start',
+        },
+      })
+    )
+
+    const events = state.tvFeed.filter(
+      (event) => event.meta?.broadcastTemplateId === 'loh.competition-start'
+    )
+    expect(events.length).toBeGreaterThan(0)
+    for (const event of events) {
+      expect(event.meta?.forceOnTv).not.toBe(true)
+      expect(event.meta?.editorial?.presentationMode).toBe('log_only')
+      expect(isVisibleOnTv(event)).toBe(false)
+      expect(isVisibleInMainLog(event)).toBe(true)
+      expect(state.broadcastQueue).not.toContain(event.id)
+    }
+  })
 
   it('explicit producer Force-to-TV promotes a freshly emitted log-only source', () => {
     let state = gameReducer(undefined, { type: 'init' })
