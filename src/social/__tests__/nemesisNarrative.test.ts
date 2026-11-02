@@ -18,7 +18,7 @@ function context(day: number, phase: string, echoActive = true) {
     phase,
     humanId: 'human',
     playerNames: players,
-    activePlayerIds: new Set(echoActive ? ['human', 'echo'] : ['human']),
+    activePlayerIds: new Set(echoActive ? ['human', 'echo', 'a'] : ['human', 'a']),
   }
 }
 
@@ -64,6 +64,10 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(visible.some((event) => event.type === 'NEMESIS_ANONYMOUS_CLUE')).toBe(true)
     expect(visible.some((event) => event.type === 'NEMESIS_PRIVATE_PRESSURE')).toBe(false)
     expect(visible.some((event) => event.type === 'NEMESIS_OBJECTIVE_FORMED')).toBe(false)
+    const privateMove = reality.events.find((event) => event.type === 'NEMESIS_PRIVATE_PRESSURE')
+    expect(privateMove?.witnessIds).toEqual(['a'])
+    expect(visibleRealityEvents(reality, { actorId: 'a' })).toContain(privateMove)
+    expect(reality.relationships.a?.human?.suspicion).toBeGreaterThan(0)
 
     const reveal = advanceNemesisNarrative(reality, context(4, 'social_1'))
     expect(reveal).toHaveLength(1)
@@ -79,6 +83,19 @@ describe('Nemesis storyline — reliable discovery', () => {
     }).isNemesis).toBe(true)
     expect(advanceNemesisNarrative(reality, context(4, 'social_2'))).toEqual([])
     expect(reality.events.filter((event) => event.type === 'NEMESIS_REVEALED')).toHaveLength(1)
+  })
+
+  it('does not invent a conversation with a nonexistent third contestant', () => {
+    const reality = createInitialRealityDomainState()
+    secretObjective(reality)
+    const clue = advanceNemesisNarrative(reality, {
+      ...context(3, 'social_2'),
+      activePlayerIds: new Set(['human', 'echo']),
+    })
+    expect(clue[0]?.text).toContain('privately planning')
+    const privateMove = reality.events.find((event) => event.type === 'NEMESIS_PRIVATE_PRESSURE')
+    expect(privateMove?.participantIds).toEqual(['echo'])
+    expect(privateMove?.witnessIds).toEqual([])
   })
 
   it('does not show an anonymous clue after an actually witnessed confrontation', () => {
