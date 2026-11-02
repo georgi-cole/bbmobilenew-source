@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
-import { act, renderHook } from '@testing-library/react'
+import { act, render, renderHook, screen } from '@testing-library/react'
 import { configureStore, type Middleware, type UnknownAction } from '@reduxjs/toolkit'
 import { Provider } from 'react-redux'
+import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import gameReducer, {
   createInitialGameState,
@@ -15,6 +16,8 @@ import { useAppSelector } from '../../../store/hooks'
 import { store as baseline, type RootState } from '../../../store/store'
 import type { GameState } from '../../../types'
 import { useEndgameFlow } from './useEndgameFlow'
+import FloatingActionBar from '../../../components/FloatingActionBar/FloatingActionBar'
+import FinalPowerBattleIntro from '../../../components/FinalPowerBattle/FinalPowerBattleIntro'
 import type { FinalThreeCompetitionPart } from './finalThreeSpectatorFlow'
 
 type Mode = 'classic' | 'vox_populi'
@@ -338,6 +341,57 @@ describe('Final Three spectator broadcast integration', () => {
       expect(result.current.finalPowerBattleIntroActive).toBe(false)
       expect(result.current.spectatorF3Part1Active).toBe(true)
       expect(actions.filter((action) => action.type === 'game/advance')).toHaveLength(0)
+    }
+  )
+
+  it.each(['classic', 'vox_populi'] as const)(
+    'one real dock press launches the human %s Part 1 despite unrelated global Play capture',
+    (mode) => {
+      const game = makeGame(1, mode, 'competitor')
+      game.finalThree!.openingSeen = false
+      const { result, store } = mountFlow(game)
+      const globalPlay = vi.fn((event: Event) => {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+      })
+      window.addEventListener('ui:playPressed', globalPlay, { capture: true })
+      try {
+        render(
+          <MemoryRouter initialEntries={['/game']}>
+            <Provider store={store}>
+              <FinalPowerBattleIntro
+                finalists={game.players.filter(
+                  (player) => player.status !== 'evicted' && player.status !== 'jury'
+                )}
+                mode={mode}
+              />
+              <FloatingActionBar
+                finaleOverlayActive
+                finaleInlinePlayActive
+                finalePlayAvailable
+                onFinalePlay={() => result.current.handleFinalPowerBattleIntroDone()}
+              />
+            </Provider>
+          </MemoryRouter>
+        )
+
+        const button = screen.getByRole('button', { name: 'Play finale scene' })
+        expect(button).toBeEnabled()
+        act(() => button.click())
+
+        expect(globalPlay).not.toHaveBeenCalled()
+        expect(store.getState().game.finalThree?.openingSeen).toBe(true)
+        expect(store.getState().game.phase).toBe('final3_comp1_minigame')
+        expect(store.getState().game.minigameContext?.participants).toContain(
+          game.players.find((player) => player.isUser)!.id
+        )
+
+        // Double presses must not advance beyond the one authoritative handoff.
+        act(() => button.click())
+        expect(store.getState().game.phase).toBe('final3_comp1_minigame')
+      } finally {
+        window.removeEventListener('ui:playPressed', globalPlay, { capture: true })
+      }
     }
   )
 

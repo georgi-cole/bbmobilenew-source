@@ -2073,7 +2073,6 @@ export default function GameScreen() {
             blockPlayer={finalThreeBlockPlayer}
             competitors={finalThreeBlockCompetitors}
             mode={isVoxPopuli ? 'vox_populi' : 'classic'}
-            onComplete={handleFinalThreeBlockRevealDone}
           />
         )}
 
@@ -2081,7 +2080,6 @@ export default function GameScreen() {
           <FinalPowerBattleIntro
             finalists={alivePlayers}
             mode={isVoxPopuli ? 'vox_populi' : 'classic'}
-            onComplete={handleFinalPowerBattleIntroDone}
           />
         )}
 
@@ -2930,7 +2928,14 @@ export default function GameScreen() {
             onPublicMeterBlocked={handlePublicMeterBlocked}
             onSocialModuleBlocked={handleSocialModuleBlocked}
             finaleOverlayActive={finaleOverlayActive}
-            finaleInlinePlayActive={finalPowerBattleIntroActive}
+            finaleInlinePlayActive={finalPowerBattleIntroActive || finalThreeBlockRevealActive}
+            onFinalePlay={
+              finalPowerBattleIntroActive
+                ? handleFinalPowerBattleIntroDone
+                : finalThreeBlockRevealActive
+                  ? handleFinalThreeBlockRevealDone
+                  : undefined
+            }
             finalePlayAvailable={finalePlayAvailable}
             finaleDockOnTop={finaleOverlayActive && finalePlayAvailable}
             democraciaVoteRecorded={democraciaVoteRecorded}

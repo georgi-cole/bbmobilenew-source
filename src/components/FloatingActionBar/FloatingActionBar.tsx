@@ -98,6 +98,8 @@ type FloatingActionBarProps = {
   finaleOverlayActive?: boolean
   /** Route the shared Play control to a faux-TV story beat while leaving dock navigation enabled. */
   finaleInlinePlayActive?: boolean
+  /** Direct progression for Final Three setup. Bypasses unrelated global Play consumers. */
+  onFinalePlay?: () => void
   finalePlayAvailable?: boolean
   /** Show the shared dock above spectator broadcasts that wait for Play input. */
   finaleDockOnTop?: boolean
@@ -124,6 +126,7 @@ export default function FloatingActionBar({
   onSocialModuleBlocked,
   finaleOverlayActive = false,
   finaleInlinePlayActive = false,
+  onFinalePlay,
   finalePlayAvailable = false,
   finaleDockOnTop = false,
   democraciaVoteRecorded = false,
@@ -413,19 +416,19 @@ export default function FloatingActionBar({
   const confessionalPromptActivated =
     activeConfessionalDecisionKey !== null &&
     triggeredConfessionalDecisionKey === activeConfessionalDecisionKey
-  const primaryDisabled = weekend?.active
-    ? !weekendPlayReady || reunionDepartureInProgress
-    : finaleOverlayActive
-      ? !finalePlayAvailable
-      : finaleInlinePlayActive
-        ? !finalePlayAvailable
-        : survivorTerminalActive ||
-          survivorReplacementTransitionActive ||
-          (survivorReplacementPending
-            ? false
-            : hasPendingConfessionalDecision
-              ? confessionalPromptActivated
-              : isWaiting)
+  // A visible finale gate owns Play even if a stale weekend or required
+  // confessional decision still exists. Those routes cannot disable this action.
+  const primaryDisabled = finaleOverlayActive || finaleInlinePlayActive
+    ? !finalePlayAvailable
+    : weekend?.active
+      ? !weekendPlayReady || reunionDepartureInProgress
+      : survivorTerminalActive ||
+        survivorReplacementTransitionActive ||
+        (survivorReplacementPending
+          ? false
+          : hasPendingConfessionalDecision
+            ? confessionalPromptActivated
+            : isWaiting)
   const primaryPulse = finaleOverlayActive
     ? finalePlayAvailable
     : finaleInlinePlayActive
@@ -523,6 +526,14 @@ export default function FloatingActionBar({
 
   const handlePrimaryActionClick = useCallback(() => {
     setBlockedAnnouncement(null)
+    // The finale opening and Part 3 setup use an explicit, guarded callback.
+    // They must not depend on a globally broadcast Play event, which a pending
+    // Confessional or old TV presentation can intercept before the finale.
+    if (finaleInlinePlayActive) {
+      if (onFinalePlay) onFinalePlay()
+      else dispatchPlayPressedEvent()
+      return
+    }
     if (weekend?.active) {
       if (weekend.stage === 'hub_says') {
         if (hubSaysBeat !== 'result') {
@@ -619,10 +630,6 @@ export default function FloatingActionBar({
       onDemocraciaResultsDone?.()
       return
     }
-    if (finaleInlinePlayActive) {
-      dispatchPlayPressedEvent()
-      return
-    }
     if (survivorReplacementPending) {
       dispatch(revealSurvivorReplacement())
       return
@@ -679,6 +686,7 @@ export default function FloatingActionBar({
     hasPendingConfessionalDecision,
     hasSeenConfessionalSpotlight,
     onDemocraciaResultsDone,
+    onFinalePlay,
     survivorReplacementPending,
     survivorTerminalActive,
     voxPopuliActive,

@@ -1,70 +1,32 @@
-import { act, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 import { createInitialGameState } from '../../../store/gameSlice'
 import FinalPowerBattleIntro from '../FinalPowerBattleIntro'
 
 const finalists = createInitialGameState({ seed: 315 }).players.slice(0, 3)
 
 describe('FinalPowerBattleIntro', () => {
-  it('shows one separate beat at a time and advances only when Play is pressed', () => {
-    const onComplete = vi.fn()
+  it('shows one concise, ready-to-start scene instead of five Play-controlled beats', () => {
     const { container } = render(
-      <FinalPowerBattleIntro finalists={finalists} mode="classic" onComplete={onComplete} />
+      <FinalPowerBattleIntro finalists={finalists} mode="classic" />
     )
-
     expect(screen.getByRole('region', { name: 'Final Power Battle introduction' })).toBeTruthy()
     expect(screen.getByRole('list', { name: 'Finalists' }).children).toHaveLength(3)
     expect(container.querySelectorAll('.fpb-intro__cutout')).toHaveLength(3)
     expect(container.querySelector('.fpb-intro__backdrop')?.getAttribute('style')).toContain(
       'background-image'
     )
-    expect(container.querySelector('.fpb-intro__progress')).toBeNull()
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'The Final Power Battle' })).toBeTruthy()
-    expect(container.querySelector('.fpb-intro__play-cue')).toBeNull()
-    expect(screen.queryByText(/Press Play/i)).toBeNull()
-
-    expect(screen.queryByRole('heading', { name: 'One advances' })).toBeNull()
-    expect(onComplete).not.toHaveBeenCalled()
-
-    act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
-    expect(screen.getByRole('heading', { name: 'One advances' })).toBeTruthy()
-    expect(screen.queryByRole('heading', { name: 'The Final Power Battle' })).toBeNull()
-
-    act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
-    expect(screen.getByRole('heading', { name: 'One last place' })).toBeTruthy()
-
-    act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
-    expect(screen.getByRole('heading', { name: 'Power changes everything' })).toBeTruthy()
-
-    act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
-    expect(screen.queryByText(/Press Play/i)).toBeNull()
-    expect(onComplete).not.toHaveBeenCalled()
-
-    act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
-    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(container.querySelector('.fpb-intro')?.getAttribute('data-beat')).toBe('0')
+    expect(screen.getAllByRole('heading', { name: 'The Final Power Battle' })).toHaveLength(1)
+    expect(screen.getByText(/Press Play to begin/i)).toBeTruthy()
+    expect(screen.getByText(/winner earns final power/i)).toBeTruthy()
+    expect(screen.queryByText('The finale begins here')).toBeNull()
+    expect(screen.queryByText('Ready when you are')).toBeNull()
   })
 
-  it('advances only one beat per Play press without starting the game early', () => {
-    const onComplete = vi.fn()
-    render(
-      <FinalPowerBattleIntro finalists={finalists} mode="vox_populi" onComplete={onComplete} />
-    )
-
-    act(() => {
-      window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
-    })
-
-    expect(screen.getByRole('heading', { name: 'One advances' })).toBeTruthy()
-    expect(onComplete).not.toHaveBeenCalled()
-  })
-
-  it('describes the audience-led Part 3 correctly in Vox Populi', () => {
-    render(<FinalPowerBattleIntro finalists={finalists} mode="vox_populi" onComplete={vi.fn()} />)
-
-    for (let beat = 0; beat < 3; beat += 1) {
-      act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
-    }
-    expect(screen.getByText(/audience decides the last final two place/i)).toBeTruthy()
+  it('correctly describes final immunity in Vox, without implying the holder chooses the Final Two', () => {
+    render(<FinalPowerBattleIntro finalists={finalists} mode="vox_populi" />)
+    expect(screen.getByText(/winner earns final immunity/i)).toBeTruthy()
+    expect(screen.queryByText(/winner earns final power/i)).toBeNull()
   })
 })

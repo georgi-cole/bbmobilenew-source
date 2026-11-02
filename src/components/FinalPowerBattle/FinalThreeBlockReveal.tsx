@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react'
 import type { Player } from '../../types'
 import duelBackdrop from '../../assets/finale/final-power-battle-duel.webp'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
@@ -9,29 +8,13 @@ interface Props {
   blockPlayer: Player
   competitors: Player[]
   mode: 'classic' | 'vox_populi'
-  onComplete: () => void
 }
 
 export default function FinalThreeBlockReveal({
   blockPlayer,
   competitors,
   mode,
-  onComplete,
 }: Props) {
-  const completedRef = useRef(false)
-
-  useEffect(() => {
-    const handlePlay = (event: Event) => {
-      if (completedRef.current) return
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      completedRef.current = true
-      onComplete()
-    }
-    window.addEventListener('ui:playPressed', handlePlay)
-    return () => window.removeEventListener('ui:playPressed', handlePlay)
-  }, [onComplete])
-
   const battleRule =
     mode === 'vox_populi'
       ? 'Winner earns immunity. The audience decides the final place.'
