@@ -271,17 +271,26 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(advanceNemesisNarrative(reality, context(4, 'jury_cinematic'))).toEqual([])
   })
 
-  it('does not disclose a Nemesis who was genuinely reconciled before the next beat', () => {
+  it('explains an undisclosed Nemesis after a real reconciliation without reviving hostility', () => {
     const reality = createInitialRealityDomainState()
-    secretObjective(reality)
+    const objective = secretObjective(reality)
     reconcileNemesisWithVoluntarySafety(reality, {
       actorId: 'human',
       savedIds: ['echo'],
       eventId: 'real-safety-rescue',
       at: { day: 3, phase: 'pos_ceremony_results' },
     })
-    expect(advanceNemesisNarrative(reality, context(4, 'social_1'))).toEqual([])
+    const epilogue = advanceNemesisNarrative(reality, context(4, 'social_1'))
+    expect(epilogue).toHaveLength(1)
+    expect(epilogue[0].text).toContain('HIDDEN RIVALRY RESOLVED')
+    expect(epilogue[0].text).toContain('Echo')
+    expect(epilogue[0].text).toContain('Safety rescue changed their mind')
+    expect(objective.status).toBe('RECONCILED')
     expect(reality.events.some((event) => event.type === 'NEMESIS_REVEALED')).toBe(false)
+    expect(
+      reality.events.filter((event) => event.type === 'NEMESIS_RECONCILIATION_REVEALED')
+    ).toHaveLength(1)
+    expect(advanceNemesisNarrative(reality, context(5, 'social_1'))).toEqual([])
   })
 
   it('preserves the clue and revelation checkpoints across save hydration without replay', () => {
