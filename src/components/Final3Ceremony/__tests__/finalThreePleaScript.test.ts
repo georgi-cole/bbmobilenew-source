@@ -77,9 +77,9 @@ describe('Classic Final Three pair-authored pleas', () => {
     })
     expect(scripts.ash.plea).not.toBe(scripts.bea.plea)
     expect(scripts.ash.response).not.toBe(scripts.bea.response)
-    expect(
-      Object.values(scripts).some(({ plea }) => plea.includes('trusted each other'))
-    ).toBe(true)
+    expect(Object.values(scripts).some(({ plea }) => plea.includes('trusted each other'))).toBe(
+      true
+    )
   })
 
   it('recognizes distinct actual season records, without mixing the two finalists up', () => {
