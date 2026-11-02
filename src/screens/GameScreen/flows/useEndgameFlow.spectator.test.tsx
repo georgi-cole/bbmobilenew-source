@@ -292,7 +292,9 @@ describe('Final Three spectator broadcast integration', () => {
     // *real* weekend gate. Previously the Play click left advance() blocked.
     const staged = gameReducer(game, debugActivateWeekendInterlude('finale'))
     expect(staged.weekendInterlude?.active).toBe(true)
-    game.weekendInterlude = { ...staged.weekendInterlude!, debug: false }
+    const staleWeekend = { ...staged.weekendInterlude! }
+    delete staleWeekend.debug
+    game.weekendInterlude = staleWeekend
     game.finaleWeekendCompleted = false
 
     const { result, store, actions } = mountFlow(game)

@@ -1006,7 +1006,7 @@ export default function FloatingActionBar({
         primaryLabel={
           tribunalDecisionPending
             ? 'Choose Agree or Exit in the Faux TV'
-            : finaleOverlayActive
+            : finaleOwnsPlay
               ? 'Play finale scene'
               : game.democracia?.resultDisplay
                 ? 'Continue'

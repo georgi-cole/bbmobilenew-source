@@ -1106,7 +1106,6 @@ describe('FloatingActionBar – confessional alert animation', () => {
   })
 })
 
-
 describe('Final Three P0 Play ownership', () => {
   it('gives the visible Part 3 setup priority over a stale active finale weekend', () => {
     const original = createInitialGameState({ seed: 981 })
@@ -1195,7 +1194,7 @@ describe('Final Three P0 Play ownership', () => {
         />
       </Provider>
     )
-    const play = screen.getByRole('button', { name: 'Advance to next phase' })
+    const play = screen.getByRole('button', { name: 'Play finale scene' })
     for (let i = 0; i < 5; i += 1) act(() => fireEvent.click(play))
     expect(onComplete).toHaveBeenCalledOnce()
     expect(store.getState().game.weekendInterlude).toEqual(beforeWeekend)

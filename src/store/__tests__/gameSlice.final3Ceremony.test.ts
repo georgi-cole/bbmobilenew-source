@@ -136,10 +136,9 @@ describe('Final Three durable controller', () => {
     state.finaleWeekendCompleted = false
     const staged = gameReducer(state, debugActivateWeekendInterlude('finale'))
     expect(staged.weekendInterlude?.active).toBe(true)
-    const saved = {
-      ...staged,
-      weekendInterlude: { ...staged.weekendInterlude!, debug: false },
-    }
+    const staleWeekend = { ...staged.weekendInterlude! }
+    delete staleWeekend.debug
+    const saved = { ...staged, weekendInterlude: staleWeekend }
     const restored = gameReducer(createInitialGameState({ seed: 812 }), hydrateGame(saved))
     expect(restored.weekendInterlude).toBeNull()
     expect(restored.finaleWeekendCompleted).toBe(true)
@@ -160,7 +159,9 @@ describe('Final Three durable controller', () => {
     const { state } = createClassicFinalThreeState()
     state.phase = 'final3'
     const staged = gameReducer(state, debugActivateWeekendInterlude('finale'))
-    const corrupted = { ...staged, weekendInterlude: { ...staged.weekendInterlude!, debug: false } }
+    const staleWeekend = { ...staged.weekendInterlude! }
+    delete staleWeekend.debug
+    const corrupted = { ...staged, weekendInterlude: staleWeekend }
     const next = gameReducer(corrupted, advance())
     expect(next.weekendInterlude).toBeNull()
     expect(next.finaleWeekendCompleted).toBe(true)
