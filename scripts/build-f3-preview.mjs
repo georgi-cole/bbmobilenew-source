@@ -20,11 +20,17 @@ await build({
       })
     }
   }],
-  define:{
-    'import.meta.env.BASE_URL':'"/bbmobilenew/"',
-    'import.meta.env.DEV':'false',
-    'import.meta.env.PROD':'true',
-    'import.meta.env.MODE':'"release"',
+  // Vite normally injects this object. The standalone review bundle must
+  // define it explicitly; otherwise the production modules crash on launch.
+  define: {
+    'import.meta.env': JSON.stringify({
+      BASE_URL: '/bbmobilenew/',
+      DEV: false,
+      PROD: true,
+      MODE: 'release',
+      VITE_BUILD_TARGET: 'web',
+      VITE_AUDIO_DEBUG: 'false',
+    }),
   },
   loader:{
     '.webp':'dataurl','.png':'dataurl','.jpg':'dataurl',
