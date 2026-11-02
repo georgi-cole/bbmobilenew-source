@@ -313,8 +313,8 @@ function createReconciledEpilogue(
   const thread = domain.threads[`nemesis-thread:${objective.ownerId}:${objective.targetId}`]
   const resolution =
     thread?.stage === 'RECONCILED_BY_SAFETY'
-      ? 'Your voluntary Safety rescue changed their mind before the rivalry became public.'
-      : 'Sustained efforts to repair the relationship changed their mind before the rivalry became public.'
+      ? 'Your voluntary Safety rescue changed their mind before the conflict escalated further.'
+      : 'Sustained efforts to repair the relationship changed their mind before the conflict escalated further.'
   const text = `THE BIG EYE — A HIDDEN RIVALRY RESOLVED: ${name} once regarded you as an opponent. Why? ${motive} ${resolution}`
   const event = appendRealityEvent(domain, {
     ...at,
