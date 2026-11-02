@@ -259,17 +259,29 @@ export default function RealityLedger({
         .map((entry) => `${entry.ownerId}:${entry.targetId}`)
     )
     return Object.values(reality.relationshipAutonomy.intents)
-      .filter(
-        (intent) =>
-          intent.status !== 'CLOSED' &&
-          (intent.ownerId === humanId || intent.targetId === humanId) &&
-          directEvidence.has(`${intent.ownerId}:${intent.targetId}`)
-      )
+      .filter((intent) => {
+        if (intent.status === 'CLOSED') return false
+        if (intent.ownerId !== humanId && intent.targetId !== humanId) return false
+        const revealed =
+          intent.kind === 'UNDERMINE' &&
+          intent.ownerId !== humanId &&
+          (isNemesisDisclosedTo(reality, humanId, intent.ownerId) ||
+            reality.events.some(
+              (event) =>
+                event.type === 'NEMESIS_REVEALED' &&
+                event.actorId === intent.ownerId &&
+                event.targetIds.includes(humanId)
+            ))
+        // Ordinary relationship evidence must never reveal an antagonist's
+        // private UNDERMINE objective before their actual story discovery.
+        if (intent.kind === 'UNDERMINE' && intent.ownerId !== humanId) return revealed
+        return directEvidence.has(`${intent.ownerId}:${intent.targetId}`)
+      })
       .sort(
         (left, right) =>
           right.lastAdvancedAt.day - left.lastAdvancedAt.day || right.importance - left.importance
       )
-  }, [humanId, reality.relationshipAutonomy])
+  }, [humanId, reality])
   const alliances = useMemo(
     () =>
       Object.values(reality.alliances)
