@@ -739,8 +739,10 @@ export function FinaleCalendarFocus({
             label: 'Final result',
             value:
               player.isWinner || player.finalRank === 1
-                ? `${player.name} was crowned the season winner after the final audience decision.`
-                : `${player.name} reached the Final 2 and finished ${placement}.`,
+                ? `${player.name} was crowned the season winner after the final decision.`
+                : player.finalRank === 2 || player.seasonPlacement === 2
+                  ? `${player.name} reached the Final 2 and finished ${placement}.`
+                  : `${player.name} reached the Final Two. The deciding vote is still ahead.`,
           },
           {
             label: 'Season record',
@@ -748,7 +750,10 @@ export function FinaleCalendarFocus({
           },
           {
             label: 'The last word',
-            value: 'The audience closed the season and completed the final finishing order.',
+            value:
+              player.isWinner || player.finalRank === 1 || player.finalRank === 2
+                ? 'The final vote completed the season finishing order.'
+                : 'The season is ready for its deciding vote.',
           },
         ]
       : []
