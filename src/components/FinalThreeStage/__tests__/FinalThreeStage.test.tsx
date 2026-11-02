@@ -35,9 +35,11 @@ describe('unified Final Three garden', () => {
       expect(venue?.querySelector('.f3-venue__mist')?.getAttribute('style')).toContain(
         'natural-mist-v2.webp'
       )
-      expect(venue?.querySelector('.f3-venue__screen')?.contains(
-        screen.getByRole('heading', { name: 'Scene-specific broadcast' })
-      )).toBe(true)
+      expect(
+        venue
+          ?.querySelector('.f3-venue__screen')
+          ?.contains(screen.getByRole('heading', { name: 'Scene-specific broadcast' }))
+      ).toBe(true)
       expect(venue?.querySelectorAll('.f3-venue__eye')).toHaveLength(1)
     }
   )
@@ -46,9 +48,7 @@ describe('unified Final Three garden', () => {
     const intro = render(<FinalPowerBattleIntro finalists={cast} mode="classic" />)
     expect(intro.container.querySelectorAll('.f3-venue__eye')).toHaveLength(1)
     expect(intro.container.querySelectorAll('.fpb-intro__podium')).toHaveLength(3)
-    expect(intro.container.querySelector('.f3-venue__screen')?.textContent).toContain(
-      'final power'
-    )
+    expect(intro.container.querySelector('.f3-venue__screen')?.textContent).toContain('final power')
     intro.unmount()
 
     const block = render(
