@@ -358,9 +358,9 @@ describe('Final Three spectator broadcast integration', () => {
       expect(result.current.finalPowerBattleIntroActive).toBe(false)
       act(() => result.current.handleFinalPowerBattleIntroDone())
       expect(store.getState().game.phase).toBe('final3')
-      expect(actions.some((action) => action.type === 'game/completeFinalThreeOpening')).toBe(
-        false
-      )
+      expect(
+        actions.some((action) => action.type === 'game/completeFinalThreeOpening')
+      ).toBe(false)
 
       act(() => store.dispatch(completeWeekendInterlude()))
       expect(store.getState().game.weekendInterlude).toBeNull()
@@ -368,8 +368,9 @@ describe('Final Three spectator broadcast integration', () => {
 
       act(() => result.current.handleFinalPowerBattleIntroDone())
       expect(store.getState().game.phase).toBe('final3_comp1_minigame')
-      expect(actions.filter((action) => action.type === 'game/completeFinalThreeOpening'))
-        .toHaveLength(1)
+      expect(
+        actions.filter((action) => action.type === 'game/completeFinalThreeOpening')
+      ).toHaveLength(1)
     }
   )
 
@@ -411,8 +412,9 @@ describe('Final Three spectator broadcast integration', () => {
 
         expect(globalPlay).not.toHaveBeenCalled()
         expect(onFinalePlay).toHaveBeenCalledTimes(1)
-        expect(actions.filter((action) => action.type === 'game/completeFinalThreeOpening'))
-          .toHaveLength(1)
+        expect(
+          actions.filter((action) => action.type === 'game/completeFinalThreeOpening')
+        ).toHaveLength(1)
         expect(actions.filter((action) => action.type === 'game/advance')).toHaveLength(
           mode === 'classic' ? 2 : 1
         )
