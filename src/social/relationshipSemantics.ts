@@ -347,11 +347,7 @@ function readCanonicalRelationshipTags(input: {
   const tags = pairLegacyTags(input.relationships, input.actorId, input.targetId)
   const edge = input.reality?.relationships[input.actorId]?.[input.targetId]
   const hasLiveAlliance = hasCanonicalLiveAlliance(input.reality, input.actorId, input.targetId)
-  const hasDisclosedNemesis = isNemesisDisclosedTo(
-    input.reality,
-    input.actorId,
-    input.targetId
-  )
+  const hasDisclosedNemesis = isNemesisDisclosedTo(input.reality, input.actorId, input.targetId)
 
   if (input.reality) {
     // Legacy projection includes the other person's private rivalry and
