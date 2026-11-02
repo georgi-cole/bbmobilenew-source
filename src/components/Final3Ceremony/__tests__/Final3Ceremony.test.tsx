@@ -153,7 +153,9 @@ describe('Final3Ceremony plea dialogue', () => {
     })
     const finalTwo = screen.getByRole('dialog', { name: 'The Final Two' })
     expect(finalTwo).toBeInTheDocument()
-    expect(finalTwo.querySelector('[data-finale-set="garden"][data-scene="final-two"]')).toBeTruthy()
+    expect(
+      finalTwo.querySelector('[data-finale-set="garden"][data-scene="final-two"]')
+    ).toBeTruthy()
     expect(finalTwo.querySelectorAll('.f3c-final-two__podium')).toHaveLength(2)
     expect(finalTwo.querySelectorAll('.f3c-final-two__name')).toHaveLength(2)
     expect(finalTwo.querySelector('.f3-venue__screen')?.textContent).toContain('THE FINAL TWO')
