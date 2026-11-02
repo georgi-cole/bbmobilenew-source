@@ -1,9 +1,6 @@
 import { useEffect } from 'react'
 import confessionalEvictionBackdrop from '../../assets/finale/elimination-living-room.webp'
-import finalPowerBattleBackyard from '../../assets/finale/final-power-battle-backyard.webp'
-import finalPowerBattleDuel from '../../assets/finale/final-power-battle-duel.webp'
-import finalPowerBattleSpectator from '../../assets/finale/final-power-battle-spectator.webp'
-import { FINAL_TWO_HUB_BACKDROP_SRC } from '../../components/Final3Ceremony/final3CeremonyAssets'
+import { FINAL_THREE_SET_ASSETS } from '../../components/FinalThreeStage/finalThreeSetAssets'
 import {
   CONFESSIONAL_DOOR_SRC,
   CONFESSIONAL_PAINTING_SRC,
@@ -51,10 +48,10 @@ export function useGameScreenImagePreloads({
         [
           CONFESSIONAL_PAINTING_SRC,
           CONFESSIONAL_DOOR_SRC,
-          finalPowerBattleBackyard,
-          finalPowerBattleDuel,
-          finalPowerBattleSpectator,
-          FINAL_TWO_HUB_BACKDROP_SRC,
+          FINAL_THREE_SET_ASSETS.background,
+          FINAL_THREE_SET_ASSETS.eye,
+          FINAL_THREE_SET_ASSETS.monitor,
+          FINAL_THREE_SET_ASSETS.mist,
         ],
         'low'
       )

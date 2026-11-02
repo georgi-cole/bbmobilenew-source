@@ -45,7 +45,7 @@ import {
 } from '../../social/finalThreeDecision'
 import { buildFinalThreePleaExchanges } from './finalThreePleaScript'
 import './Final3Ceremony.css'
-import { FINAL_TWO_HUB_BACKDROP_STYLE } from './final3CeremonyAssets'
+import FinalThreeStage from '../FinalThreeStage/FinalThreeStage'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -532,17 +532,17 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       </AnimatePresence>
 
       {stage === 'final_two_reveal' && (
-        <div
-          className="f3c-final-two"
-          role="dialog"
-          aria-modal="true"
-          aria-label="The Final Two"
-          style={FINAL_TWO_HUB_BACKDROP_STYLE}
-        >
-          <p className="f3c-final-two__eyebrow">THE FINAL TWO</p>
+        <div className="f3c-final-two" role="dialog" aria-modal="true" aria-label="The Final Two">
+          <FinalThreeStage scene="final-two">
+            <div className="f3c-final-two__monitor-copy">
+              <p className="f3c-final-two__eyebrow">THE FINAL TWO</p>
+              <p className="f3c-final-two__copy">The Tribunal chooses the winner.</p>
+            </div>
+          </FinalThreeStage>
           <div className="f3c-final-two__players">
             {finalTwo.map((player) => (
               <div key={player.id} className="f3c-final-two__player">
+                <span className="f3c-final-two__podium" aria-hidden="true" />
                 <div className="f3c-final-two__figure">
                   <FullSizeCutoutImage
                     player={player}
@@ -552,10 +552,10 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
                     draggable={false}
                   />
                 </div>
+                <span className="f3c-final-two__name">{player.name}</span>
               </div>
             ))}
           </div>
-          <p className="f3c-final-two__copy">The Tribunal chooses the winner.</p>
         </div>
       )}
     </>

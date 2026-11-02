@@ -1,6 +1,6 @@
 import type { Player } from '../../types'
-import duelBackdrop from '../../assets/finale/final-power-battle-duel.webp'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
+import FinalThreeStage from '../FinalThreeStage/FinalThreeStage'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import './FinalPowerBattle.css'
 
@@ -23,20 +23,13 @@ export default function FinalThreeBlockReveal({ blockPlayer, competitors, mode }
       aria-modal="true"
       aria-label="Final Power Battle setup"
     >
-      <div className="fpb-block__backdrop" aria-hidden="true">
-        <div
-          className="fpb-block__backdrop-image"
-          style={{ backgroundImage: `url("${duelBackdrop}")` }}
-        />
-      </div>
-      <div className="fpb-block__atmosphere" aria-hidden="true" />
-      <p className="fpb-block__network">LIVE FROM THE BACKYARD · THE BIG EYE</p>
-      <div className="fpb-block__scene-plane">
+      <FinalThreeStage scene="block">
         <div
           className="fpb-block__nominee-monitor"
           role="group"
           aria-label={`${blockPlayer.name} is nominated; awaiting one more nominee`}
         >
+          <h2 className="fpb-block__monitor-kicker">Part 3 · Final Power Battle</h2>
           <div className="fpb-block__monitor-slots">
             <div className="fpb-block__monitor-player">
               <PlayerAvatar
@@ -46,21 +39,18 @@ export default function FinalThreeBlockReveal({ blockPlayer, competitors, mode }
                 showRelationshipOutline={false}
                 showEvictedStyle={false}
               />
-              <div>
-                <strong>{blockPlayer.name}</strong>
-              </div>
+              <strong>{blockPlayer.name}</strong>
             </div>
             <div className="fpb-block__monitor-player fpb-block__monitor-player--pending">
               <span className="fpb-block__wildcard-avatar" aria-hidden="true">
                 ?
               </span>
-              <div>
-                <strong>Next</strong>
-              </div>
+              <strong>Next</strong>
             </div>
           </div>
+          <p className="fpb-block__monitor-rule">{battleRule}</p>
         </div>
-      </div>
+      </FinalThreeStage>
       <div
         className="fpb-block__stage"
         role="group"
@@ -75,6 +65,7 @@ export default function FinalThreeBlockReveal({ blockPlayer, competitors, mode }
               aria-label={`${player.name}, competitor ${index + 1}`}
             >
               <span className="fpb-block__competitor-light" aria-hidden="true" />
+              <span className="fpb-block__podium" aria-hidden="true" />
               <FullSizeCutoutImage
                 player={player}
                 attire="informal"
@@ -82,25 +73,11 @@ export default function FinalThreeBlockReveal({ blockPlayer, competitors, mode }
                 alt=""
                 draggable={false}
               />
+              <span className="fpb-block__platform-name">{player.name}</span>
             </div>
           ))}
           {competitors.length > 1 && <span className="fpb-block__vs">VS</span>}
         </div>
-      </div>
-      <div className="fpb-block__platform-names" aria-hidden="true">
-        {competitors.slice(0, 2).map((player, index) => (
-          <span
-            className={`fpb-block__platform-name fpb-block__platform-name--${index + 1}`}
-            key={player.id}
-          >
-            {player.name}
-          </span>
-        ))}
-      </div>
-      <div className="fpb-block__copy">
-        <p className="fpb-block__eyebrow">PART 3</p>
-        <h2>The Final Power Battle</h2>
-        <p>{battleRule}</p>
       </div>
     </section>
   )

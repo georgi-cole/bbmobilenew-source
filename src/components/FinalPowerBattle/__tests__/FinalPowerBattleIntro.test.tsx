@@ -11,9 +11,18 @@ describe('FinalPowerBattleIntro', () => {
     expect(screen.getByRole('region', { name: 'Final Power Battle introduction' })).toBeTruthy()
     expect(screen.getByRole('list', { name: 'Finalists' }).children).toHaveLength(3)
     expect(container.querySelectorAll('.fpb-intro__cutout')).toHaveLength(3)
-    expect(container.querySelector('.fpb-intro__backdrop')?.getAttribute('style')).toContain(
-      'background-image'
+    expect(container.querySelector('[data-finale-set="garden"][data-scene="opening"]')).toBeTruthy()
+    expect(container.querySelector('.f3-venue__background')?.getAttribute('style')).toContain(
+      'final-power-battle-backyard'
     )
+    expect(container.querySelector('.f3-venue__monitor-frame')).toBeTruthy()
+    expect(container.querySelector('.f3-venue__eye img')).toBeTruthy()
+    expect(container.querySelectorAll('.fpb-intro__podium')).toHaveLength(3)
+    expect(
+      container
+        .querySelector('.f3-venue__screen')
+        ?.contains(screen.getByRole('heading', { name: 'The Final Power Battle' }))
+    ).toBe(true)
     expect(container.querySelector('.fpb-intro')?.getAttribute('data-beat')).toBe('0')
     expect(screen.getAllByRole('heading', { name: 'The Final Power Battle' })).toHaveLength(1)
     expect(screen.getByText(/Press Play to begin/i)).toBeTruthy()

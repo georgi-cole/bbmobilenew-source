@@ -10,6 +10,18 @@ A continuous slow dolly connects the beats, with coordinated depth movement acro
 
 Automatic entry and the existing shared Skip are part of the approved direction. Human choices remain explicit. Presentation controls never choose an outcome or change game rules.
 
+## Shared finale venue — Phase 4
+
+Opening, Part 1, Part 2, Part 3, the Final Power/Immunity holder reveal and Final Two are now different camera and cast states of the same garden stage. The stage shares the approved backyard architecture, illuminated platforms, independent gold Eye ornament, framed smoked-glass broadcast monitor, mist and gold/violet lighting. Scene-specific text stays live inside the monitor rather than being baked into a background.
+
+The Part 3 block reveal no longer introduces its older duel-room set; the Final Two likewise no longer cuts to the unrelated living room, and the holder reveal no longer uses an empty gradient. The approved Classic and Vox close-camera decision production retains its purpose-built architectural foreground and shot choreography, while importing the exact same Eye, monitor and mist asset identifiers. These are deliberate coverage changes, not different show sets.
+
+Keep three-line cast labels readable above their platforms and inside the monitor, without truncating long names. The shared Play dock, spectator competition outcomes, the Classic Final Power versus Vox immunity distinction, the Phase 2 pleas and the Phase 3 exit flight do not change.
+
+### Visual QA
+
+Check a real Classic and Vox game through opening, spectator Parts 1–3, block setup, holder reveal, decision, exit and Final Two. Compare all stage plates at mobile portrait, short-height landscape and desktop sizes. Confirm consistent gold/violet atmosphere, figures grounded on podiums, full monitor copy, no overlapping cast/name labels, reduced-motion presentation, and unaltered Play/Skip behavior.
+
 ## Approved: Classic human and AI-held decisions
 
 Reuse the approved set for an AI Final Power holder. Resolve and retain the outcome and reason through the existing season-based decision function. The presentation reveals that result exactly once and hands off to the existing exit and Final Two continuation.

@@ -151,7 +151,15 @@ describe('Final3Ceremony plea dialogue', () => {
     await act(async () => {
       fireEvent.click(film)
     })
-    expect(screen.getByRole('dialog', { name: 'The Final Two' })).toBeInTheDocument()
+    const finalTwo = screen.getByRole('dialog', { name: 'The Final Two' })
+    expect(finalTwo).toBeInTheDocument()
+    expect(
+      finalTwo.querySelector('[data-finale-set="garden"][data-scene="final-two"]')
+    ).toBeTruthy()
+    expect(finalTwo.querySelectorAll('.f3c-final-two__podium')).toHaveLength(2)
+    expect(finalTwo.querySelectorAll('.f3c-final-two__name')).toHaveLength(2)
+    expect(finalTwo.querySelector('.f3-venue__screen')?.textContent).toContain('THE FINAL TWO')
+    expect(finalTwo.querySelector('.f3-venue__screen')?.textContent).toContain('Tribunal chooses')
     act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
     expect(
       store.getState().game.players.find((player) => player.id === nominees[0].id)?.seasonPlacement
