@@ -577,10 +577,7 @@ export default function FinalFaceoff() {
           {/* Phase 2 (revealVotes): finalists row with vote counters ─────── */}
           <div className="fo-finalists">
             {finalists.map((f) => (
-              <div
-                key={f.id}
-                className="fo-finalist"
-              >
+              <div key={f.id} className="fo-finalist">
                 <div className="fo-finalist__portrait-frame">
                   <PlayerAvatar
                     player={f}
