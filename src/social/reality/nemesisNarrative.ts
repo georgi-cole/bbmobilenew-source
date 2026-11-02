@@ -254,9 +254,10 @@ function createReveal(
     // The rivalry has ended through an elimination. Preserve the reveal in
     // history without keeping an executable anti-player objective.
     objective.status = 'ENDED'
-    const intent = domain.relationshipAutonomy.intents[
-      `relationship-intent:${objective.ownerId}:${objective.targetId}:UNDERMINE`
-    ]
+    const intent =
+      domain.relationshipAutonomy.intents[
+        `relationship-intent:${objective.ownerId}:${objective.targetId}:UNDERMINE`
+      ]
     if (intent) {
       intent.status = 'CLOSED'
       intent.continuationPressure = 0
@@ -307,8 +308,7 @@ export function advanceNemesisNarrative(
     if (objective.revealEventId || objective.revealedAt) continue
     if (
       context.day < objective.createdAt.day ||
-      (context.day === objective.createdAt.day &&
-        context.phase === objective.createdAt.phase)
+      (context.day === objective.createdAt.day && context.phase === objective.createdAt.phase)
     ) {
       continue
     }
