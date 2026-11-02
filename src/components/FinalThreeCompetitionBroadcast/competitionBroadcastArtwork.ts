@@ -1,7 +1,7 @@
 import { findArt, type CeremonyCharacterArt } from '../../cinematic/ceremonies/runtime.mjs'
 import type { Player } from '../../types'
 import { joinPublicAssetPath } from '../../utils/avatar'
-import backyard from '../../assets/finale/final-power-battle-backyard.webp'
+import { FINAL_THREE_SET_ASSETS } from '../FinalThreeStage/finalThreeSetAssets'
 
 export interface CompetitionBroadcastArtwork {
   background: string
@@ -23,10 +23,10 @@ export function resolveCompetitionBroadcastArtwork(
     contestants[player.id] = joinPublicAssetPath(pose.src)
   }
   return {
-    background: backyard,
-    eye: joinPublicAssetPath('assets/ceremonies/final-decision/token.webp'),
-    monitor: joinPublicAssetPath('assets/ceremonies/final-decision/monitor.webp'),
-    mist: joinPublicAssetPath('assets/ceremonies/vfx/natural-mist-v2.webp'),
+    background: FINAL_THREE_SET_ASSETS.background,
+    eye: FINAL_THREE_SET_ASSETS.eye,
+    monitor: FINAL_THREE_SET_ASSETS.monitor,
+    mist: FINAL_THREE_SET_ASSETS.mist,
     contestants,
   }
 }
