@@ -532,12 +532,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       </AnimatePresence>
 
       {stage === 'final_two_reveal' && (
-        <div
-          className="f3c-final-two"
-          role="dialog"
-          aria-modal="true"
-          aria-label="The Final Two"
-        >
+        <div className="f3c-final-two" role="dialog" aria-modal="true" aria-label="The Final Two">
           <FinalThreeStage scene="final-two">
             <div className="f3c-final-two__monitor-copy">
               <p className="f3c-final-two__eyebrow">THE FINAL TWO</p>
