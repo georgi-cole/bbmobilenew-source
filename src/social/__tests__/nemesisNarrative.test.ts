@@ -105,6 +105,32 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(privateMove?.witnessIds).toEqual([])
   })
 
+  it('does not falsely blame a historical nomination when the recorded motive is social reach', () => {
+    const reality = createInitialRealityDomainState()
+    appendRealityEvent(reality, {
+      day: 2,
+      phase: 'nomination_results',
+      type: 'CEREMONY_NOMINATIONS_LOCKED',
+      actorId: 'human',
+      targetIds: ['echo'],
+      participantIds: ['human', 'echo'],
+      witnessIds: [],
+      visibility: 'HOUSE_PUBLIC',
+      outcome: 'SYSTEM',
+      reason: 'Quartz nominated Echo.',
+      tags: ['NOMINATION'],
+      relatedFactIds: [],
+      relatedPromiseIds: [],
+      relatedThreadIds: [],
+      publicEligible: true,
+      juryEligible: true,
+    })
+    const objective = secretObjective(reality, 'SOCIAL_REACH')
+    const motive = explainNemesisMotive(reality, objective)
+    expect(motive).toContain('growing influence')
+    expect(motive).not.toContain('nominated')
+  })
+
   it('does not show an anonymous clue after an actually witnessed confrontation', () => {
     const reality = createInitialRealityDomainState()
     appendRealityEvent(reality, {
