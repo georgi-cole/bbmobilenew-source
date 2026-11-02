@@ -4,6 +4,8 @@ import { Provider } from 'react-redux'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Final3Ceremony from '../Final3Ceremony'
 import gameReducer, { createInitialGameState } from '../../../store/gameSlice'
+import settingsReducer, { DEFAULT_SETTINGS } from '../../../store/settingsSlice'
+import vipReducer, { loadVipState } from '../../../store/vipSlice'
 import type { Player } from '../../../types'
 
 vi.mock('../../Eviction/SpotlightEvictionOverlay', () => ({
@@ -97,7 +99,17 @@ function renderPleaCeremony(onPlayAvailabilityChange = vi.fn()) {
       evicteeId: null,
     },
   }
-  const store = configureStore({ reducer: { game: gameReducer }, preloadedState: { game } })
+  const store = configureStore({
+    reducer: { game: gameReducer, settings: settingsReducer, vip: vipReducer },
+    preloadedState: {
+      game,
+      settings: {
+        ...DEFAULT_SETTINGS,
+        gameUX: { ...DEFAULT_SETTINGS.gameUX, animationMode: 'standard' as const },
+      },
+      vip: { ...loadVipState(), isActive: false, debugUnlocked: false },
+    },
+  })
 
   render(
     <Provider store={store}>

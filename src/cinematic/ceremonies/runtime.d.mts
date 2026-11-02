@@ -1,4 +1,4 @@
-import type { GameState } from '../../types'
+import type { GameState, Player } from '../../types'
 export const exitTracker: { update(game: GameState): void }
 export function requestAmbush(effect: () => void): boolean
 
@@ -36,6 +36,34 @@ export function createCeremonyQueue(): {
   subscribe(listener: () => void): () => void
   counts: { active: number; queued: number }
 }
+export const ceremonyQueue: ReturnType<typeof createCeremonyQueue>
+
+export interface CeremonyCrownAnchor {
+  x: number
+  baseY: number
+  width: number
+  angle: number
+}
+
+export interface CeremonyCharacterArt {
+  id: string
+  name: string
+  poses: Record<
+    string,
+    {
+      src: string
+      width: number
+      height: number
+      feetY: number
+      crown?: CeremonyCrownAnchor
+    }
+  >
+}
+
+export function findArt(
+  player: Player,
+  catalog: CeremonyCharacterArt[]
+): CeremonyCharacterArt | null
 
 export function isCinematicSceneAllowed(
   game: {

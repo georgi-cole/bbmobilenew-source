@@ -1,6 +1,9 @@
 // Shared lab choreography. No game state, routing or ceremony hooks.
 import { ROLE_PACKS, ROLE_CASTS } from './role-contract.js'
 export const DECISION_IDS = ['exit', 'tiebreak', 'final4', 'final3']
+export { FINAL_EXIT_BRAND_RESOURCE } from './finale-closing-brand.js'
+import { animateFinaleClosingBrand, makeFinaleClosingBrandMarkup } from './finale-closing-brand.js'
+const BRAND_HOLD_MS = 2600
 const common = [
   'cinema_hall',
   'cinema_portal',
@@ -73,6 +76,20 @@ export const DECISION_CONFIG = Object.fromEntries(
     ]
   })
 )
+/** Keep the original doorway clock; only the final transition gains a brand hold. */
+export function getDecisionTiming(id, { closingBrand = false } = {}) {
+  const config = DECISION_CONFIG[id]
+  const branded = closingBrand && ['exit', 'final3'].includes(id)
+  const extension = branded ? BRAND_HOLD_MS : 0
+  return {
+    duration: config.duration + extension,
+    exitAt: config.exitAt,
+    zoomAt: config.avatarAt,
+    avatarAt: config.avatarAt + extension,
+    handoffAt: config.avatarAt + extension + 140,
+    closingBrand: branded,
+  }
+}
 const art = (key, cls, layer = 'props') =>
   '<img data-resource="' +
   key +
@@ -89,7 +106,13 @@ const person = (key, cls, label) =>
   '<span class="decision-badge">' +
   label +
   '</span></div>'
-export function makeDecisionScene(id, images, cast = 0, { nativeHandoff = false } = {}) {
+export function makeDecisionScene(
+  id,
+  images,
+  cast = 0,
+  { nativeHandoff = false, closingBrand = false } = {}
+) {
+  const branded = getDecisionTiming(id, { closingBrand }).closingBrand
   const suspense = id === 'final4' || id === 'final3',
     order = ROLE_CASTS[cast] || ROLE_CASTS[0],
     holder = id === 'final4' ? order[1] : order[0],
@@ -101,6 +124,7 @@ export function makeDecisionScene(id, images, cast = 0, { nativeHandoff = false 
   root.dataset.cast = cast
   root.dataset.evictee = 'c'
   if (suspense) root.classList.add('suspense-decision')
+  if (branded) root.classList.add('has-exit-brand')
   root.setAttribute('aria-hidden', 'true')
   const role = id === 'final4' ? 'SAFETY HOLDER · SOLE VOTE' : 'LEADER OF THE HUB'
   const departing = (cls) =>
@@ -156,6 +180,7 @@ export function makeDecisionScene(id, images, cast = 0, { nativeHandoff = false 
     art('cinema_portal', 'cine-gate gate-left') +
     art('cinema_portal', 'cine-gate gate-right') +
     '</div><div class="exit-light cine-layer" data-layer="light"></div></div><div class="exit-caption cine-layer" data-layer="titles"><span>PLAYER C</span><h3>One last goodbye.</h3><p>LEAVING THE HUB</p></div></div><div class="decision-cut cine-layer" data-layer="light"></div><div class="handoff-veil cine-layer" data-layer="light"></div>' +
+    (branded ? makeFinaleClosingBrandMarkup(art) : '') +
     (nativeHandoff
       ? ''
       : '<div class="avatar-sequence"><div class="avatar-stage"><div class="avatar-dim"></div><div class="avatar-hero cine-layer" data-layer="actors">' +
@@ -190,10 +215,21 @@ export function makeDecisionScene(id, images, cast = 0, { nativeHandoff = false 
   }
   return root
 }
-export function animateDecisionScene(id, root, a, { nativeHandoff = false } = {}) {
+export function animateDecisionScene(
+  id,
+  root,
+  a,
+  { nativeHandoff = false, closingBrand = false } = {}
+) {
   const suspense = id === 'final4' || id === 'final3'
   const pairedExit = root.classList.contains('paired-film')
-  const { duration: d, exitAt: e, avatarAt: v } = DECISION_CONFIG[id],
+  const {
+      duration: d,
+      exitAt: e,
+      avatarAt: v,
+      zoomAt: z,
+      closingBrand: branded,
+    } = getDecisionTiming(id, { closingBrand }),
     smooth = 'cubic-bezier(.16,1,.3,1)'
   const hold = (sel, frames) => a(sel, [...frames, [d, frames.at(-1)[1], frames.at(-1)[2]]])
   a(root, [
@@ -308,8 +344,8 @@ export function animateDecisionScene(id, root, a, { nativeHandoff = false } = {}
   hold('.exit-shot', [
     [0, e ? 0 : 1, undefined, 'steps(1,end)'],
     ...(e ? [[e, 1]] : []),
-    [v + 120, 1, undefined, 'steps(1,end)'],
-    [v + 121, 0],
+    [z + 120, 1, undefined, 'steps(1,end)'],
+    [z + 121, 0],
   ])
   const path = [
     [e, 1, 'translateY(7%) scale(1)'],
@@ -373,7 +409,7 @@ export function animateDecisionScene(id, root, a, { nativeHandoff = false } = {}
     [0, 1, 'scale(1.02)'],
     [e + 3300, 1, 'scale(1.02)'],
     [e + 3900, 1, 'scale(1.05)', 'cubic-bezier(.6,.05,.55,1)'],
-    [v + 140, 1, 'scale(4.8)'],
+    [z + 140, 1, 'scale(4.8)'],
   ])
   hold('.exit-light', [
     [0, 0.5],
@@ -389,11 +425,20 @@ export function animateDecisionScene(id, root, a, { nativeHandoff = false } = {}
   ])
   hold('.handoff-veil', [
     [0, 0],
-    [v - 200, 0],
-    [v + 40, 0.96],
+    [z - 200, 0],
+    [z + 40, 0.96],
     [v + 170, 0.96],
     [v + 470, 0],
   ])
+  if (branded) {
+    const brandAt = z + 140
+    hold('.cine-sequence', [
+      [0, 1],
+      [z - 200, 1],
+      [brandAt, 0],
+    ])
+    animateFinaleClosingBrand(hold, { startAt: brandAt, holdUntil: v + 170 })
+  }
   if (nativeHandoff) return
   hold('.avatar-sequence', [
     [0, 0, undefined, 'steps(1,end)'],

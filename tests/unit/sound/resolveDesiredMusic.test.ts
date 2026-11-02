@@ -101,6 +101,31 @@ describe('resolveDesiredMusic', () => {
     expect(resolveDesiredMusic(state, '#/game')).not.toBe('final_three_week')
   })
 
+  it('preserves the same Final 3 cue when each competition enters and leaves spectator mode', () => {
+    const state = makeState({ game: { phase: 'final3' } })
+    const uninterruptedCue = resolveDesiredMusicCue(state, '#/game').playbackCue
+
+    for (const phase of ['final3', 'final3_comp2', 'final3_comp3'] as const) {
+      state.game.phase = phase
+      state.game.spectatorActive = {
+        competitorIds: phase === 'final3' ? ['dex', 'aria', 'ash'] : ['dex', 'aria'],
+        minigameId: phase === 'final3_comp3' ? 'downMemoryLane' : 'finalThreeCircuit',
+        expectedWinnerId: 'dex',
+        placement: 'fullscreen',
+        startedAt: 0,
+      }
+
+      const watching = resolveDesiredMusicCue(state, '#/game')
+      expect(watching.source).toBe('final-three')
+      expect(watching.track).toBe('final_three_week')
+      expect(watching.playbackCue).toEqual(uninterruptedCue)
+      expect(watching.playbackCue?.restartPolicy).toBe('continue')
+
+      state.game.spectatorActive = null
+      expect(resolveDesiredMusicCue(state, '#/game').playbackCue).toEqual(uninterruptedCue)
+    }
+  })
+
   it('prefers a cinematic UI scene over every other source', () => {
     const state = makeState({
       ui: { musicScene: 'season_recap' },

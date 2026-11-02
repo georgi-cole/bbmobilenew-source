@@ -4,12 +4,15 @@ import sheet2 from './approved/cinema-scenes.css?raw'
 import sheet3 from './approved/cinema-depth.css?raw'
 import sheet4 from './approved/cinema-refinement.css?raw'
 import sheet5 from './approved/cinema-finesse.css?raw'
+import decisionExitStyles from './approved/decision-exit.css?raw'
 import fittingStyles from './fitting.css?raw'
 import { decorateShock, animateShockTheme } from './shock-themes.js'
 import { CEREMONIES, SHOCK_VARIANTS } from './approved/ceremony-player.js'
 import { makeScene, animateScene } from './approved/ceremony-storyboards.js'
 import {
   DECISION_CONFIG,
+  FINAL_EXIT_BRAND_RESOURCE,
+  getDecisionTiming,
   makeDecisionScene,
   animateDecisionScene,
 } from './approved/decision-exit.js'
@@ -58,7 +61,7 @@ const props = {
 let stylePromise
 const percent = (n) => (n * 100).toFixed(4) + '%'
 
-export function sceneResources(id, cast, shockType = 'doubleEviction') {
+export function sceneResources(id, cast, shockType = 'doubleEviction', details = {}) {
   const mode = id
   const extra = modeResources(mode, cast, shared, premiumVfx)
   id = baseScene(id)
@@ -119,6 +122,9 @@ export function sceneResources(id, cast, shockType = 'doubleEviction') {
       })
     ),
     ...extra,
+    ...(details.closingBrand === true && ['exit', 'final3'].includes(mode)
+      ? { cinema_closingEye: FINAL_EXIT_BRAND_RESOURCE }
+      : {}),
   }
 }
 
@@ -519,10 +525,20 @@ export function createClip() {
     },
     async prepare(id, cast, shockType = 'doubleEviction', details = {}) {
       sceneId = id
-      const resources = sceneResources(id, cast, shockType),
+      const resources = sceneResources(id, cast, shockType, details),
         start = performance.now()
       stylePromise ??= Promise.resolve(
-        [sheet0, sheet1, sheet2, sheet3, sheet4, sheet5, fittingStyles, modeStyles].join('\n')
+        [
+          sheet0,
+          sheet1,
+          sheet2,
+          sheet3,
+          sheet4,
+          sheet5,
+          decisionExitStyles,
+          fittingStyles,
+          modeStyles,
+        ].join('\n')
       )
       const entries = await Promise.all(
         Object.entries(resources).map(async ([key, resource]) => {
@@ -555,6 +571,11 @@ export function createClip() {
       const id = baseScene(sceneId),
         decision = Boolean(DECISION_CONFIG[id]),
         { images, resources, css, cast, details } = prepared
+      const decisionOptions = {
+        nativeHandoff: true,
+        closingBrand: details.closingBrand === true && ['exit', 'final3'].includes(sceneId),
+      }
+      const decisionTiming = decision ? getDecisionTiming(id, decisionOptions) : null
       host = document.createElement('div')
       host.className = 'game-sample-film'
       parent.append(host)
@@ -568,7 +589,7 @@ export function createClip() {
         : id === 'loh'
           ? makeLoh(images)
           : decision
-            ? makeDecisionScene(id, images, 0, { nativeHandoff: true })
+            ? makeDecisionScene(id, images, 0, decisionOptions)
             : makeScene(id, images, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic, 0)
       if (id === 'nominations' && images.cinema_standC && sceneId !== 'cupidNominations') {
         root.classList.add('nom-three')
@@ -602,7 +623,7 @@ export function createClip() {
       if (sceneId !== id) adaptModeFilm(sceneId, root, images, resources, cast, details, fitCrown)
       stage.append(root)
       shadow.append(style, stage)
-      const duration = SCENES[sceneId].duration
+      const duration = decisionTiming?.duration ?? SCENES[sceneId].duration
       startTime = document.timeline.currentTime
       if (id === 'nominations' && options.matchHandoff) {
         const rect = options.origin
@@ -646,7 +667,7 @@ export function createClip() {
       }
       if (!id) animateVoxFilm(sceneId, root, a, duration, later)
       else if (id === 'loh') animateLoh(root, a)
-      else if (decision) animateDecisionScene(id, root, a, { nativeHandoff: true })
+      else if (decision) animateDecisionScene(id, root, a, decisionOptions)
       else if (root.classList.contains('nom-royal')) animateRoyalNomination(root, a)
       else if (id === 'nominations' && sceneId === id)
         animateScene(id, root, (selector, stops) =>
@@ -684,7 +705,7 @@ export function createClip() {
           [1810, 1],
           [4200, 1],
         ])
-      const endAt = decision ? DECISION_CONFIG[id].avatarAt + 140 : duration
+      const endAt = decisionTiming?.handoffAt ?? duration
       later(() => {
         if (dead) return
         if (decision) {

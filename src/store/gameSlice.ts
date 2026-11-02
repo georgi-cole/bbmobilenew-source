@@ -9858,6 +9858,11 @@ const gameSlice = createSlice({
         seasonContestant,
         players: action.payload.players,
         gameId: action.payload.gameId ?? crypto.randomUUID(),
+        // A restored Final Three round remounts its broadcast from durable
+        // phase/cast data. Its former view lease cannot survive a reload.
+        spectatorActive: isFinalThreePhase(action.payload.phase)
+          ? null
+          : action.payload.spectatorActive,
         hasSeenConfessionalSpotlight: action.payload.hasSeenConfessionalSpotlight ?? false,
         status: action.payload.status ?? 'active',
         // Saves created before weekends existed keep the original uninterrupted calendar.
@@ -14159,7 +14164,7 @@ export const selectF3Part3PredictedWinnerId = (state: RootState): string | null 
  */
 export const selectF3Part1PredictedWinnerId = (state: RootState): string | null => {
   const { phase, seed, players } = state.game
-  if (phase !== 'final3') return null
+  if (phase !== 'final3' && phase !== 'final3_comp1') return null
   const alive = players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
   if (alive.length === 0 || alive.some((player) => player.isUser)) return null
   const seedRng = mulberry32(seed)

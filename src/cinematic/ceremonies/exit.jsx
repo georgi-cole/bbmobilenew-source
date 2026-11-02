@@ -11,18 +11,28 @@ import { hasCoveredRosterExit, clearRosterExit } from './roster-exit-state'
 function ExitHandoff({ premiumRosterExit, ...props }) {
   return premiumRosterExit ? <RosterExit {...props} /> : <Standard {...props} />
 }
-export default function Exit(props) {
+export default function Exit({
+  decisionAlreadyPresented = false,
+  soundtrackContinuation,
+  ...props
+}) {
   const store = useStore()
   const game = store.getState().game
   const covered = props.variant !== 'return' && hasCoveredRosterExit(store, game, props.evictee.id)
-  const scene =
-    props.variant === 'return'
-      ? null
-      : adaptCeremonyScene(exitTracker.scene(game, props.evictee.id), props, game)
+  const trackedScene = props.variant === 'return' ? null : exitTracker.scene(game, props.evictee.id)
+  const scene = adaptCeremonyScene(
+    decisionAlreadyPresented && trackedScene === 'final3' ? 'exit' : trackedScene,
+    props,
+    game
+  )
   const cinematic = useCinematicSession(scene ?? (covered ? 'exit' : null))
   useEffect(() => {
     if (covered && !cinematic) clearRosterExit(store)
   }, [cinematic, covered, store])
+  useEffect(() => {
+    // No film will consume the continuation on a native or already-covered exit.
+    if (!cinematic || covered) soundtrackContinuation?.finish()
+  }, [cinematic, covered, soundtrackContinuation])
   if (!cinematic) return <Standard {...props} />
   if (covered) return <RosterExit {...props} />
   return (
@@ -36,6 +46,7 @@ export default function Exit(props) {
           scene === 'cupidExit' ? expandPair(game, [props.evictee.id]) : [props.evictee.id],
       }}
       rosterExit
+      soundtrackContinuation={soundtrackContinuation}
     />
   )
 }

@@ -180,6 +180,18 @@
   z-index: 4;
   opacity: 0;
 }
+/* The walk and doorway mask use the chamber plate's 2:3 coordinate space.
+   Crop that whole space on a narrow phone: squeezing only the actors leaves
+   their feet below the landing when the depth mask takes over. */
+.decision-film .exit-camera {
+  width: auto;
+  height: 100%;
+  aspect-ratio: 2/3;
+  min-width: 100%;
+  left: 50%;
+  right: auto;
+  translate: -50% 0;
+}
 /* Occlusion is a binary depth transfer at the real doorway, not a dissolve. */
 .decision-film .departure-near,
 .decision-film .departure-far {
