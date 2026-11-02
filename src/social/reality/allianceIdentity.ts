@@ -22,11 +22,11 @@ export function allianceKind(alliance: RealityAlliance): 'PACT' | 'GROUP' {
   return alliance.kind ?? (alliance.memberIds.length > 2 ? 'GROUP' : 'PACT')
 }
 
-export function allianceDisplayLabel(alliance: RealityAlliance): string {
+export function allianceDisplayLabel(alliance: RealityAlliance, knownHostility = false): string {
   const isPact = allianceKind(alliance) === 'PACT'
   const noun = isPact ? 'pact' : 'alliance'
+  if (knownHostility || alliance.status === 'FRACTURED') return `Strained ${noun}`
   if (alliance.status === 'PROBATIONARY') return `New ${noun}`
-  if (alliance.status === 'FRACTURED') return `Strained ${noun}`
   return isPact ? 'Pact' : 'Alliance'
 }
 
