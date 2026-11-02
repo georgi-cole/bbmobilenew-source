@@ -79,9 +79,7 @@ export default function ChampionFinaleStage({
           <div className="season-finale__champion-confetti" aria-hidden="true" />
           <div className="season-finale__champion-footer">
             {runnerUp && (
-              <p className="season-finale__champion-runner-label">
-                Runner-up · {runnerUp.name}
-              </p>
+              <p className="season-finale__champion-runner-label">Runner-up · {runnerUp.name}</p>
             )}
             <button className="season-finale__champion-continue" type="button" onClick={onContinue}>
               Continue to winner interview
