@@ -337,6 +337,8 @@ export interface RealityNemesisObjective {
   status: 'ACTIVE' | 'RECONCILED'
   reconciledAt?: RealityClock
   reconciliationEventId?: string
+  /** Alliances whose false-pretense state was introduced by this objective. */
+  compromisedAllianceIds?: string[]
 }
 
 export interface RealityRelationshipAutonomyState {
