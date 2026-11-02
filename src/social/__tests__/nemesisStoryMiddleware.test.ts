@@ -3,11 +3,14 @@ import { describe, expect, it } from 'vitest'
 import gameReducer, { advance, setPhase } from '../../store/gameSlice'
 import { isVisibleOnTv } from '../../services/activityService'
 import type { GameState, Player } from '../../types'
-import { createRealityNemesisObjective } from '../reality/relationshipAutonomy'
+import {
+  createRealityNemesisObjective,
+  reconcileNemesisWithVoluntarySafety,
+} from '../reality/relationshipAutonomy'
 import { createInitialRealityDomainState } from '../reality/state'
 import { selectCanonicalRelationshipView } from '../relationshipSemantics'
 import { nemesisStoryMiddleware } from '../nemesisStoryMiddleware'
-import socialReducer from '../socialSlice'
+import socialReducer, { commitRealityDomainUpdate } from '../socialSlice'
 
 function makeStore(drama = true) {
   const players: Player[] = [
@@ -108,6 +111,34 @@ describe('Nemesis phase-driven delivery', () => {
     store.dispatch(setPhase('social_2'))
     expect(
       store.getState().game.tvFeed.filter((event) => event.meta?.nemesisStory === 'reveal')
+    ).toHaveLength(1)
+  })
+
+  it('delivers a resolved-rivalry epilogue to the same Faux TV without reviving the objective', () => {
+    const store = makeStore()
+    const reality = structuredClone(store.getState().social.reality)
+    reconcileNemesisWithVoluntarySafety(reality, {
+      actorId: 'human',
+      savedIds: ['echo'],
+      eventId: 'real-safety-rescue',
+      at: { day: 3, phase: 'pos_ceremony_results' },
+    })
+    store.dispatch(commitRealityDomainUpdate({ domain: reality, projectAllRelationships: true }))
+    store.dispatch(setPhase('social_2'))
+    const epilogue = store.getState().game.tvFeed.find((event) =>
+      event.text.includes('HIDDEN RIVALRY RESOLVED')
+    )
+    expect(epilogue).toBeDefined()
+    expect(epilogue?.text).toContain('Echo')
+    expect(epilogue?.meta?.forceOnTv).toBe(true)
+    expect(epilogue && isVisibleOnTv(epilogue)).toBe(true)
+    expect(store.getState().social.reality.relationshipAutonomy.nemeses['nemesis:echo:human'].status)
+      .toBe('RECONCILED')
+    store.dispatch(setPhase('week_end'))
+    expect(
+      store.getState().game.tvFeed.filter((event) =>
+        event.text.includes('HIDDEN RIVALRY RESOLVED')
+      )
     ).toHaveLength(1)
   })
 
