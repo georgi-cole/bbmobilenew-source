@@ -156,20 +156,21 @@ export function registerProvocateurConflict(
       if (alliance.memberIds.length === 2) alliance.status = 'FRACTURED'
     }
   }
-  const nemesis = activeNemesisForTarget || (sharesGenuineAlliance && !hasBetrayal)
-    ? null
-    : createRealityNemesisObjective(domain, {
-        ownerId: input.actorId,
-        targetId: input.targetId,
-        sourceEventId,
-        at: input.at,
-        reason:
-          input.cause === 'COMPETITION_THREAT'
-            ? 'COMPETITION_THREAT'
-            : input.cause === 'SOCIAL_REACH'
-              ? 'SOCIAL_REACH'
-              : 'PERSONAL_FRICTION',
-      })
+  const nemesis =
+    activeNemesisForTarget || (sharesGenuineAlliance && !hasBetrayal)
+      ? null
+      : createRealityNemesisObjective(domain, {
+          ownerId: input.actorId,
+          targetId: input.targetId,
+          sourceEventId,
+          at: input.at,
+          reason:
+            input.cause === 'COMPETITION_THREAT'
+              ? 'COMPETITION_THREAT'
+              : input.cause === 'SOCIAL_REACH'
+                ? 'SOCIAL_REACH'
+                : 'PERSONAL_FRICTION',
+        })
 
   return {
     eventId: sourceEventId,
