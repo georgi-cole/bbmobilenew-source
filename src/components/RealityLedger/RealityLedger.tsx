@@ -245,7 +245,7 @@ export default function RealityLedger({
             ) ||
             reality.events.some(
               (event) =>
-                event.type === 'NEMESIS_REVEALED' &&
+                ['NEMESIS_REVEALED', 'NEMESIS_RECONCILIATION_REVEALED'].includes(event.type) &&
                 event.participantIds.includes(humanId) &&
                 thread.participantIds.every((id) => event.participantIds.includes(id))
             ))
@@ -268,7 +268,7 @@ export default function RealityLedger({
           (isNemesisDisclosedTo(reality, humanId, intent.ownerId) ||
             reality.events.some(
               (event) =>
-                event.type === 'NEMESIS_REVEALED' &&
+                ['NEMESIS_REVEALED', 'NEMESIS_RECONCILIATION_REVEALED'].includes(event.type) &&
                 event.actorId === intent.ownerId &&
                 event.targetIds.includes(humanId)
             ))
