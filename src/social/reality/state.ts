@@ -4,6 +4,7 @@ import { importLegacyPairMemberships, normalizeAllianceManagement } from './alli
 import { allianceForEvent } from './allianceHistory'
 import { reconcileConvergedAllianceRosters } from './allianceRosterConvergence'
 import { retainAllianceHistory, retainAllianceRequestHistory } from './events'
+import { enforceNemesisAllianceConsistency } from './relationshipAutonomy'
 import type {
   DirectedRelationship,
   RealityContestantState,
