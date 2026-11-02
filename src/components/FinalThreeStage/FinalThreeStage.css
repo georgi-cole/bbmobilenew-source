@@ -1,0 +1,274 @@
+/* The same modular garden, gold Eye, broadcast monitor and stage lighting as
+   FinalThreeCompetitionBroadcast. No visual identity is baked into the artwork. */
+.f3-venue {
+  --f3-venue-gold: #dfc28b;
+  --f3-venue-ink: #fcf4e6;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #080811;
+  color: var(--f3-venue-ink);
+  font-family: Montserrat, Inter, ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.f3-venue *,
+.f3-venue *::before,
+.f3-venue *::after {
+  box-sizing: border-box;
+}
+
+.f3-venue__frame {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: min(100%, calc(100dvh * 0.74));
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  transform: translateX(-50%);
+}
+
+.f3-venue__background,
+.f3-venue__night,
+.f3-venue__beams,
+.f3-venue__dust,
+.f3-venue__floor,
+.f3-venue__mist,
+.f3-venue__vignette {
+  position: absolute;
+  inset: 0;
+}
+
+.f3-venue__background {
+  z-index: -2;
+  inset: -4%;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  filter: brightness(0.61) saturate(0.76);
+  transform: scale(1.055);
+  animation: f3-venue-camera 18s ease-in-out infinite alternate;
+}
+
+.f3-venue__night {
+  z-index: -1;
+  background:
+    linear-gradient(180deg, #060712bf, #0a071055 32%, #07081255 67%, #070810b3),
+    radial-gradient(ellipse at 50% 30%, #a887c518, transparent 67%);
+}
+
+.f3-venue__beams {
+  z-index: 1;
+  background:
+    linear-gradient(104deg, transparent 24%, #b997ef1c 36%, transparent 55%),
+    linear-gradient(256deg, transparent 25%, #f0c57b22 37%, transparent 58%);
+  opacity: 0.75;
+  transform-origin: 50% 0;
+  animation: f3-venue-light 9s ease-in-out infinite alternate;
+}
+
+.f3-venue__dust {
+  z-index: 2;
+  inset: 10% 0 0;
+  opacity: 0.35;
+  background-image:
+    radial-gradient(circle, #f1cf9180 0 0.7px, transparent 1.6px),
+    radial-gradient(circle, #bc8fe66b 0 0.8px, transparent 1.8px);
+  background-size:
+    97px 137px,
+    149px 187px;
+  mask-image: linear-gradient(transparent, #000 20%, #000 70%, transparent);
+  animation: f3-venue-dust 24s linear infinite;
+}
+
+.f3-venue__eye {
+  position: absolute;
+  z-index: 5;
+  top: 7.8%;
+  left: 50%;
+  width: 25%;
+  height: 12.5%;
+  transform: translateX(-50%);
+}
+
+.f3-venue__eye img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 15px #eac78b55) drop-shadow(0 9px 10px #0008);
+}
+
+.f3-venue__eye-halo {
+  position: absolute;
+  inset: -20% -45%;
+  background: radial-gradient(ellipse, #d9b5792b, #a275c518 30%, transparent 70%);
+  animation: f3-venue-halo 6s ease-in-out infinite alternate;
+}
+
+.f3-venue__monitor {
+  position: absolute;
+  z-index: 8;
+  top: 20.3%;
+  left: 4%;
+  width: 92%;
+  height: 27%;
+  filter: drop-shadow(0 16px 22px #0009);
+}
+
+.f3-venue__monitor-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+.f3-venue__screen {
+  position: absolute;
+  top: 16.5%;
+  left: 7.1%;
+  width: 85.8%;
+  height: 64.2%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 2% 3.5%;
+  overflow: hidden;
+  container-type: inline-size;
+  color: #fff6e7;
+  text-align: center;
+  background:
+    radial-gradient(ellipse at 25% 0, #53425c80, transparent 67%),
+    linear-gradient(130deg, #181420, #0b0c13 48%, #211b2c);
+  box-shadow:
+    inset 0 0 26px #08070db3,
+    inset 0 1px 0 #fff2,
+    0 0 35px #b39beb12;
+}
+
+.f3-venue__glass {
+  position: absolute;
+  z-index: 4;
+  top: 16.5%;
+  left: 7.1%;
+  width: 85.8%;
+  height: 64.2%;
+  pointer-events: none;
+  background:
+    linear-gradient(155deg, #fff1, transparent 29%, transparent 72%, #f0d5a10c),
+    linear-gradient(0deg, #ffffff05, transparent 55%);
+  box-shadow: inset 0 0 0 1px #fcf1db0b;
+}
+
+.f3-venue__floor {
+  inset: auto 0 5%;
+  z-index: 1;
+  height: 17%;
+  background: radial-gradient(ellipse at 50% 50%, #be8ce21a, transparent 63%);
+  animation: f3-venue-halo 8s ease-in-out infinite alternate;
+}
+
+.f3-venue__mist {
+  inset: auto -20% -7%;
+  z-index: 6;
+  height: 26%;
+  background-size: 100% 100%;
+  background-position: center;
+  opacity: 0.12;
+  mix-blend-mode: screen;
+  mask-image: linear-gradient(transparent, #000 45%, transparent);
+  animation: f3-venue-mist 17s ease-in-out infinite alternate;
+}
+
+.f3-venue__vignette {
+  z-index: 7;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 30%, #05060d42 75%, #05060da1),
+    linear-gradient(0deg, #080811 0, transparent 20%);
+}
+
+.f3-venue__network {
+  position: absolute;
+  z-index: 9;
+  top: max(14px, calc(env(safe-area-inset-top, 0px) + 8px));
+  left: 7%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #ebdac39c;
+  font-size: clamp(7px, 1.9cqw, 11px);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+
+.f3-venue__network > span:first-child {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #d6b07b;
+  box-shadow: 0 0 9px #d7b782;
+}
+
+.f3-venue__network > span:last-child {
+  margin-left: 6px;
+  color: #ddc6e86b;
+  font-size: 0.8em;
+}
+
+@keyframes f3-venue-camera {
+  from { transform: scale(1.055) translateX(0.5%); }
+  to { transform: scale(1.08) translateX(-0.5%); }
+}
+
+@keyframes f3-venue-light {
+  from { transform: translateX(-3%); opacity: 0.58; }
+  to { transform: translateX(3%); opacity: 0.9; }
+}
+
+@keyframes f3-venue-halo {
+  from { opacity: 0.5; }
+  to { opacity: 0.95; }
+}
+
+@keyframes f3-venue-dust {
+  from { background-position: 16px 29px, 77px 83px; }
+  to { background-position: 36px -108px, 57px -104px; }
+}
+
+@keyframes f3-venue-mist {
+  from { transform: translateX(-5%) scale(1); }
+  to { transform: translateX(5%) scale(1.04); }
+}
+
+@media (max-height: 680px) {
+  .f3-venue__eye {
+    top: 7.5%;
+    width: 21%;
+    height: 10%;
+  }
+  .f3-venue__monitor {
+    top: 16.7%;
+    height: 31%;
+  }
+  .f3-venue__network > span:last-child {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .f3-venue__background,
+  .f3-venue__beams,
+  .f3-venue__dust,
+  .f3-venue__eye-halo,
+  .f3-venue__floor,
+  .f3-venue__mist {
+    animation: none;
+  }
+}
