@@ -299,6 +299,56 @@ function createReveal(
 }
 
 /**
+ * When kindness ends a private feud before its identity was exposed, preserve
+ * the story as a retrospective discovery — never announce an active Nemesis.
+ */
+function createReconciledEpilogue(
+  domain: RealityDomainState,
+  objective: RealityNemesisObjective,
+  context: NemesisStoryContext
+): NemesisStoryBeat {
+  const at = { day: context.day, phase: context.phase }
+  const name = context.playerNames[objective.ownerId] ?? 'A hubmate'
+  const motive = explainNemesisMotive(domain, objective)
+  const thread = domain.threads[`nemesis-thread:${objective.ownerId}:${objective.targetId}`]
+  const resolution =
+    thread?.stage === 'RECONCILED_BY_SAFETY'
+      ? 'Your voluntary Safety rescue changed their mind before the rivalry became public.'
+      : 'Sustained efforts to repair the relationship changed their mind before the rivalry became public.'
+  const text = `THE BIG EYE — A HIDDEN RIVALRY RESOLVED: ${name} once regarded you as an opponent. Why? ${motive} ${resolution}`
+  const event = appendRealityEvent(domain, {
+    ...at,
+    type: 'NEMESIS_RECONCILIATION_REVEALED',
+    actorId: objective.ownerId,
+    targetIds: [objective.targetId],
+    participantIds: [objective.ownerId, objective.targetId],
+    witnessIds: [],
+    visibility: 'PAIR_ONLY',
+    outcome: 'SYSTEM',
+    reason: text,
+    tags: ['NEMESIS_REVEALED', 'RECONCILED'],
+    relatedFactIds: [],
+    relatedPromiseIds: [],
+    relatedThreadIds: [`nemesis-thread:${objective.ownerId}:${objective.targetId}`],
+    publicEligible: false,
+    juryEligible: true,
+  })
+  objective.revealedAt = at
+  objective.revealEventId = event.id
+  recordRelationshipEvidence(domain, {
+    id: `relationship-evidence:${event.id}:nemesis-reconciled-reveal`,
+    ownerId: objective.ownerId,
+    targetId: objective.targetId,
+    family: 'REPAIR',
+    eventId: event.id,
+    day: at.day,
+    reciprocal: true,
+    significance: 1,
+  })
+  return { objectiveId: objective.id, eventId: event.id, kind: 'reveal', text }
+}
+
+/**
  * Persistent story progression. The ordinary arc is one anonymized, observable
  * pressure beat followed by a cause-specific reveal on a later game day.
  * A witnessed feud already supplies the clue, while eviction/endgame forces
@@ -316,8 +366,21 @@ export function advanceNemesisNarrative(
   const leavingWindow = context.phase === 'week_end' || context.phase === 'week_start'
 
   for (const objective of Object.values(domain.relationshipAutonomy.nemeses)) {
-    if (objective.status !== 'ACTIVE' || objective.targetId !== context.humanId) continue
+    if (objective.targetId !== context.humanId) continue
     if (objective.revealEventId || objective.revealedAt) continue
+    if (objective.status === 'RECONCILED') {
+      // A completed private feud deserves a truthful epilogue, not an active
+      // antagonist label. It needs a real reconciliation checkpoint.
+      if (
+        objective.reconciledAt &&
+        context.day >= objective.reconciledAt.day &&
+        (activeWindow || leavingWindow || closing)
+      ) {
+        beats.push(createReconciledEpilogue(domain, objective, context))
+      }
+      continue
+    }
+    if (objective.status !== 'ACTIVE') continue
     if (
       context.day < objective.createdAt.day ||
       (context.day === objective.createdAt.day && context.phase === objective.createdAt.phase)
