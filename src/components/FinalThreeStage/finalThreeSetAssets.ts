@@ -2,13 +2,19 @@ import gardenBackdrop from '../../assets/finale/final-power-battle-backyard.webp
 import { joinPublicAssetPath } from '../../utils/avatar'
 
 /**
- * One set of source assets for the finale opening, Part 1–3 broadcast, block
- * reveal, power holder and Final Two. The close-camera decision renderer keeps
- * its approved bespoke architecture, but shares this exact Eye, monitor and mist.
+ * Source-of-truth for the Final Three garden, Eye, glass monitor and mist.
+ * Public paths are kept raw as well as resolved for the approved close-camera
+ * decision loader, which resolves every public asset exactly once.
  */
+export const FINAL_THREE_SET_PUBLIC_ASSETS = {
+  eye: 'assets/ceremonies/final-decision/token.webp',
+  monitor: 'assets/ceremonies/final-decision/monitor.webp',
+  mist: 'assets/ceremonies/vfx/natural-mist-v2.webp',
+} as const
+
 export const FINAL_THREE_SET_ASSETS = {
   background: gardenBackdrop,
-  eye: joinPublicAssetPath('assets/ceremonies/final-decision/token.webp'),
-  monitor: joinPublicAssetPath('assets/ceremonies/final-decision/monitor.webp'),
-  mist: joinPublicAssetPath('assets/ceremonies/vfx/natural-mist-v2.webp'),
+  eye: joinPublicAssetPath(FINAL_THREE_SET_PUBLIC_ASSETS.eye),
+  monitor: joinPublicAssetPath(FINAL_THREE_SET_PUBLIC_ASSETS.monitor),
+  mist: joinPublicAssetPath(FINAL_THREE_SET_PUBLIC_ASSETS.mist),
 } as const
