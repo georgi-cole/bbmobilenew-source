@@ -36,7 +36,6 @@ export const SCENES = {
   ...CEREMONIES,
   ...MODE_SCENES,
   nominations: { ...CEREMONIES.nominations, duration: 7600 },
-  backupNomination: { ...CEREMONIES.nominations, label: 'Backup nomination', duration: 7600 },
 }
 export const OPTIONS = Object.keys(SCENES)
 const props = {
@@ -78,7 +77,6 @@ export function sceneResources(id, cast, shockType = 'doubleEviction', details =
     cinema_standC: pose('c', 'front'),
     cinema_decisionA: pose('a', 'decision-back'),
     cinema_decisionB: pose('b', 'decision-back'),
-    cinema_decisionC: pose('c', 'decision-back'),
     cinema_exitC: pose('c', 'exit-back'),
     cinema_seatedA: pose('a', 'royal-seated'),
     winner: pose('a', 'front'),
@@ -96,7 +94,6 @@ export function sceneResources(id, cast, shockType = 'doubleEviction', details =
           ...(mode === 'cupidPower' ? ['seated', 'throne'] : []),
         ]
       : SCENES[id].art.filter((key) => !['cinema_avatarC', 'cinema_eliminatedStamp'].includes(key))
-  if (mode === 'backupNomination') keys.push('cinema_decisionC')
   if (id === 'nominations' && mode === 'nominations' && cast.d) {
     keys.push('nomination_seated', 'throne', 'crown', 'cinema_royalRoom')
     actors.nomination_seated = pose('d', 'royal-seated')
@@ -244,141 +241,6 @@ function addRoyalNomination(root, images, resources, cast) {
   shot.querySelector('.nom-decision-caption strong').textContent = cast.d.name
   root.append(shot)
   root.classList.add('nom-royal')
-}
-
-export function makeBackupNomination(root, images, cast, details) {
-  root.classList.add('backup-nomination-film')
-  const chooser = document.createElement('div')
-  chooser.className = 'backup-chooser'
-  const portrait = images.cinema_decisionC.cloneNode()
-  portrait.className = 'backup-chooser-person'
-  chooser.append(portrait)
-  const card = document.createElement('div')
-  card.className = 'backup-chooser-caption'
-  const role = document.createElement('span')
-  role.textContent = details.chooserRole || 'THE LEADER OF THE HUB'
-  const name = document.createElement('strong')
-  name.textContent = details.chooserName || cast.c.name
-  const status = document.createElement('em')
-  status.textContent = 'DECISION IN PROGRESS'
-  const progress = document.createElement('i')
-  progress.className = 'backup-chooser-progress'
-  card.append(role, name, status, progress)
-  chooser.append(card)
-  root.append(chooser)
-
-  const first = root.querySelector('.nom-first')
-  const second = root.querySelector('.nom-second')
-  first.querySelector('.nom-label').textContent = details.hasContinuingNominee
-    ? '01  NOMINATED'
-    : '01  OPEN'
-  second.querySelector('.nom-label').textContent = '02  OPEN SLOT'
-  if (!details.hasContinuingNominee) first.querySelector('.nom-person').style.opacity = '0'
-  second.querySelector('.nom-person').style.opacity = '0'
-  const aura = document.createElement('div')
-  aura.className = 'backup-slot-aura'
-  second.append(aura)
-
-  root.querySelector('.nom-warning').textContent = 'THE BLOCK IS ABOUT TO CHANGE'
-  root.querySelector('.c-caption > span').textContent = 'A BACKUP NOMINATION'
-  root.querySelector('.c-caption > strong').textContent = 'One seat is still open.'
-  root.querySelector('.c-caption > em').textContent = 'A decision is being made.'
-}
-
-export function animateBackupNomination(root, a, duration, later, details) {
-  a(root, [
-    [0, 0],
-    [280, 1],
-    [duration - 300, 1],
-    [duration, 0],
-  ])
-  a('.ceremony-backdrop', [
-    [0, 0.4, 'translateY(1%) scale(1.075)'],
-    [duration, 0.62, 'translateY(-1%) scale(1.015)'],
-  ])
-  a('.nom-chasm', [
-    [0, 0],
-    [500, 0.76],
-    [1250, 0.92],
-    [duration, 1],
-  ])
-  a('.nom-warning', [
-    [0, 0, 'translateY(-8px)'],
-    [480, 0, 'translateY(-8px)'],
-    [920, 1, 'translateY(0)'],
-    [duration, 0.78],
-  ])
-  a('.nom-first', [
-    [0, 0, 'translateX(42px) translateY(16px) scale(1.05)'],
-    [650, 0, 'translateX(42px) translateY(16px) scale(1.05)'],
-    [1380, 1, 'translateX(0) translateY(0) scale(1)'],
-    [duration, 1],
-  ])
-  a('.nom-second', [
-    [0, 0, 'translateX(-34px) translateY(14px) scale(.97)'],
-    [820, 0, 'translateX(-34px) translateY(14px) scale(.97)'],
-    [1540, 1, 'translateX(0) translateY(0) scale(1)'],
-    [duration, 1],
-  ])
-  a('.backup-slot-aura', [
-    [0, 0, 'scale(.72)'],
-    [1450, 0.12, 'scale(.82)'],
-    [2260, 0.34, 'scale(1)'],
-    [3900, 0.28, 'scale(1.06)'],
-    [4650, 0.08, 'scale(1.16)'],
-    [4900, 0.82, 'scale(.95)'],
-    [5600, 0.68, 'scale(1.06)'],
-    [duration, 0.46, 'scale(1.1)'],
-  ])
-  a('.backup-chooser', [
-    [0, 0, 'translateY(16px) scale(.97)'],
-    [2380, 0, 'translateY(16px) scale(.97)'],
-    [2920, 1, 'translateY(0) scale(1)'],
-    [4180, 1, 'translateY(0) scale(1)'],
-    [4780, 0, 'translateY(-8px) scale(1.025)'],
-    [duration, 0],
-  ])
-  a('.backup-chooser-caption', [
-    [0, 0, 'translateY(10px)'],
-    [2880, 0, 'translateY(10px)'],
-    [3300, 1, 'translateY(0)'],
-    [4150, 1, 'translateY(0)'],
-    [4550, 0, 'translateY(-4px)'],
-    [duration, 0],
-  ])
-  a('.backup-chooser-progress', [
-    [0, 1, 'scaleX(0)'],
-    [3200, 1, 'scaleX(0)'],
-    [4250, 1, 'scaleX(1)'],
-    [duration, 1, 'scaleX(1)'],
-  ])
-  if (details.hasContinuingNominee)
-    a('.nom-first .nom-aura', [
-      [0, 0],
-      [1250, 0],
-      [1550, 0.56],
-      [duration, 0.34],
-    ])
-  a('.nom-second .nom-person', [
-    [0, 0, 'translateY(30px) scale(.95)'],
-    [4650, 0, 'translateY(30px) scale(.95)'],
-    [5180, 1, 'translateY(0) scale(1)'],
-    [5650, 1, 'translateY(-4px) scale(1.015)'],
-    [duration, 1, 'translateY(0) scale(1)'],
-  ])
-  a('.c-caption', [
-    [0, 0, 'translateY(12px)'],
-    [5000, 0, 'translateY(12px)'],
-    [5480, 1, 'translateY(0)'],
-    [duration, 1, 'translateY(0)'],
-  ])
-  later(() => {
-    root.querySelector('.nom-second .nom-label').textContent = '02  NOMINATED'
-    root.querySelector('.c-caption > strong').textContent = 'The block is set.'
-    root.querySelector('.c-caption > em').textContent = details.nomineeName
-      ? `${details.nomineeName} joins the block.`
-      : 'The replacement is confirmed.'
-  }, 5480)
 }
 
 function animateRoyalNomination(root, a) {
@@ -742,7 +604,6 @@ export function createClip() {
       }
       if (sceneId === 'nominations' && images.nomination_seated)
         addRoyalNomination(root, images, resources, cast)
-      if (sceneId === 'backupNomination') makeBackupNomination(root, images, cast, details)
       if (id === 'shock') decorateShock(root, shockType, images)
       if (id) fitScene(root, id, images, resources, cast)
       if (id === 'loh') {
@@ -806,8 +667,6 @@ export function createClip() {
       }
       if (!id) animateVoxFilm(sceneId, root, a, duration, later)
       else if (id === 'loh') animateLoh(root, a)
-      else if (sceneId === 'backupNomination')
-        animateBackupNomination(root, a, duration, later, details)
       else if (decision) animateDecisionScene(id, root, a, decisionOptions)
       else if (root.classList.contains('nom-royal')) animateRoyalNomination(root, a)
       else if (id === 'nominations' && sceneId === id)

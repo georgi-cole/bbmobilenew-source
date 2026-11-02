@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   aiReplacementRendered,
   getEligibleReplacementNominees,
-  submitCoupReplacement,
   setReplacementNominee,
   submitDiamondReplacement,
   submitPovSaveTarget,
@@ -66,25 +65,6 @@ export function useSafetyFlow({
       getCupidPartnerId(game, game.posWinnerId) === humanPlayer.id)
   )
   const activeSpecialVeto = game.specialVeto?.activeType ?? null
-  const replacementChooserId =
-    activeSpecialVeto === 'diamond' || activeSpecialVeto === 'coup'
-      ? game.posWinnerId
-      : (game.coLohReplacementOwnerId ?? game.lohId)
-  const replacementChooserRole = useCallback(
-    (chooserId: string | null | undefined) =>
-      chooserId && chooserId === game.posWinnerId && activeSpecialVeto === 'diamond'
-        ? 'HALO EXCHANGE HOLDER'
-        : chooserId && chooserId === game.posWinnerId && activeSpecialVeto === 'coup'
-          ? 'DETOX HOLDER'
-          : chooserId && chooserId !== game.lohId && (game.coLohIds ?? []).includes(chooserId)
-            ? 'CO-LEADER OF THE HUB'
-            : chooserId && chooserId === game.lohId
-              ? 'LEADER OF THE HUB'
-              : chooserId && chooserId === game.posWinnerId
-                ? 'POWER OF SAFETY HOLDER'
-                : 'THE HUB’S DESIGNATED SELECTOR',
-    [activeSpecialVeto, game.coLohIds, game.lohId, game.posWinnerId]
-  )
   const specialVetoName =
     activeSpecialVeto === 'vip'
       ? 'Double Trouble'
@@ -359,9 +339,6 @@ export function useSafetyFlow({
     caption: string
     subtitle?: string
     replacementId: string
-    backupChooserId: string | null
-    backupChooserRole: string
-    continuingNomineeId: string | null
   } | null>(null)
   const pendingReplacementDispatchRef = useRef<(() => void) | null>(null)
   const [aiReplacementConsumedKey, setAiReplacementConsumedKey] = usePersistedGameScreenKey(
@@ -381,21 +358,14 @@ export function useSafetyFlow({
   }, [])
 
   const startReplacementCeremony = useCallback(
-    (
-      id: string,
-      onCommit: () => void,
-      chooserId: string | null = replacementChooserId,
-      continuingNomineeId: string | null = game.nomineeIds.find(
-        (nomineeId) => nomineeId !== game.povSavedId && nomineeId !== id
-      ) ?? null
-    ) => {
+    (id: string, onCommit: () => void) => {
       const replacementPlayers = expandCupidIds(game, [id])
         .map((replacementId) => game.players.find((player) => player.id === replacementId))
         .filter((player): player is Player => Boolean(player))
       const replacementPlayer =
         replacementPlayers.find((player) => player.id === id) ?? replacementPlayers[0]
       const replacementRect = getTileRect(id)
-      const sourceId = chooserId
+      const sourceId = game.specialVeto?.activeType === 'diamond' ? game.posWinnerId : game.lohId
       const sourceRect = sourceId ? getTileRect(sourceId) : null
       const sourceIsDistinct = sourceRect != null && sourceId != null && sourceId !== id
       const replacementSubtitle =
@@ -476,20 +446,9 @@ export function useSafetyFlow({
         caption: `${replacementNames} ${replacementPlayers.length > 1 ? 'are' : 'is'} the backup nominee${replacementPlayers.length > 1 ? 's' : ''}!`,
         subtitle: replacementSubtitle,
         replacementId: id,
-        backupChooserId: chooserId,
-        backupChooserRole: replacementChooserRole(chooserId),
-        continuingNomineeId,
       })
     },
-    [
-      activeSpecialVeto,
-      game,
-      getReplacementCeremonyKey,
-      getTileRect,
-      replacementChooserId,
-      replacementChooserRole,
-      setAiReplacementConsumedKey,
-    ]
+    [activeSpecialVeto, game, getReplacementCeremonyKey, getTileRect, setAiReplacementConsumedKey]
   )
 
   const handleReplacementNominee = useCallback(
@@ -510,20 +469,6 @@ export function useSafetyFlow({
       startReplacementCeremony(id, () => dispatch(submitDiamondReplacement(id)))
     },
     [dispatch, startReplacementCeremony]
-  )
-  const handleCoupReplacementNominee = useCallback(
-    (id: string) => {
-      const continuingId = game.specialVeto?.awaitingCoupReplacement2
-        ? (game.specialVeto.coupReplacement1Id ?? null)
-        : (game.nomineeIds.find((nomineeId) => nomineeId !== game.povSavedId) ?? null)
-      startReplacementCeremony(
-        id,
-        () => dispatch(submitCoupReplacement(id)),
-        game.posWinnerId,
-        continuingId
-      )
-    },
-    [dispatch, game, startReplacementCeremony]
   )
 
   // Hide the replacement modal while the replacement animation is playing.
@@ -569,21 +514,6 @@ export function useSafetyFlow({
         ? [game.nomineeIds[game.nomineeIds.length - 1]]
         : []
     : []
-  const activeReplacementChooserId = replacementChooserId
-  const replacementNomineeIds = game.replacementNomineeIds ?? []
-  const activeReplacementContinuingNomineeId = showAiReplacementAnim
-    ? game.specialVeto?.activeType === 'coup' && replacementNomineeIds.length > 1
-      ? (replacementNomineeIds.find(
-          (nomineeId) => nomineeId !== activeReplacementAnimationTargetIds[0]
-        ) ?? null)
-      : (game.nomineeIds.find(
-          (nomineeId) =>
-            nomineeId !== activeReplacementAnimationTargetIds[0] &&
-            nomineeId !== game.povSavedId &&
-            !game.voxPopuli?.lastReplacementNomineeIds?.includes(nomineeId)
-        ) ?? null)
-    : null
-  const activeReplacementChooserRole = replacementChooserRole(activeReplacementChooserId)
 
   // Acknowledge the step-1 "LOH must name a replacement" announcement so advance() can
   // proceed to step 2. Fires when the step-1 handler has run (aiReplacementStep reaches 2).
@@ -615,15 +545,11 @@ export function useSafetyFlow({
     handleReplacementCeremonyDone,
     handleReplacementNominee,
     handleDiamondReplacementNominee,
-    handleCoupReplacementNominee,
     showReplacementModal,
     holderReplacementOptions,
     coupReplacementOptions,
     showAiReplacementAnim,
     activeReplacementAnimationTargetIds,
-    activeReplacementChooserId,
-    activeReplacementChooserRole,
-    activeReplacementContinuingNomineeId,
     handleAiReplacementDone,
   }
 }
