@@ -28,7 +28,7 @@ export default function FinaleControls({
     return (
       <div className="fo-controls">
         <button className="fo-btn" onClick={onDismiss}>
-          Continue 🎉
+          Reveal the Champion
         </button>
       </div>
     )
