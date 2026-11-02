@@ -19,15 +19,17 @@ describe('FinalThreeBlockReveal', () => {
     expect(
       screen.getByRole('group', { name: 'The two Final Power Battle competitors' })
     ).toBeTruthy()
-    expect(container.querySelector('.fpb-block__backdrop-image')?.getAttribute('style')).toContain(
-      'background-image'
+    expect(container.querySelector('[data-finale-set="garden"][data-scene="block"]')).toBeTruthy()
+    expect(container.querySelector('.f3-venue__background')?.getAttribute('style')).toContain(
+      'final-power-battle-backyard'
     )
+    expect(container.querySelectorAll('.fpb-block__podium')).toHaveLength(2)
     expect(container.querySelectorAll('.fpb-block__competitor-cutout')).toHaveLength(2)
     expect(container.querySelector('.fpb-block__nominee-monitor')).toBeTruthy()
     expect(container.querySelector('.fpb-block__nominee-avatar')).toBeTruthy()
     expect(
       container
-        .querySelector('.fpb-block__scene-plane')
+        .querySelector('.f3-venue__screen')
         ?.contains(container.querySelector('.fpb-block__nominee-monitor'))
     ).toBe(true)
     expect(screen.queryByText('NOMINATION WALL')).toBeNull()
