@@ -25,15 +25,15 @@ export default function FinalPowerHolderReveal({
     >
       <FinalThreeStage scene="holder">
         <div className="fp-holder-reveal__copy">
-        <p className="fp-holder-reveal__eyebrow">
-          {mode === 'vox_populi' ? 'FINAL IMMUNITY' : 'FINAL POWER HOLDER'}
-        </p>
-        <h2>{player.name}</h2>
-        <p>
-          {mode === 'vox_populi'
-            ? 'The audience will now decide the last place in the Final Two.'
-            : 'The power to decide the Final Two is now theirs.'}
-        </p>
+          <p className="fp-holder-reveal__eyebrow">
+            {mode === 'vox_populi' ? 'FINAL IMMUNITY' : 'FINAL POWER HOLDER'}
+          </p>
+          <h2>{player.name}</h2>
+          <p>
+            {mode === 'vox_populi'
+              ? 'The audience will now decide the last place in the Final Two.'
+              : 'The power to decide the Final Two is now theirs.'}
+          </p>
         </div>
       </FinalThreeStage>
       <div className="fp-holder-reveal__portrait" aria-hidden="true">
