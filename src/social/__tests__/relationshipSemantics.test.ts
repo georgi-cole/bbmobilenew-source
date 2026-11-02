@@ -321,9 +321,9 @@ describe('canonical relationship presentation', () => {
     const normalized = normalizeRealityDomainState(oldReality)
     expect(normalized.alliances['old-echo-pact'].genuine).toBe(false)
     expect(normalized.alliances['old-echo-pact'].infiltratorIds).toContain('echo')
-    expect(normalized.relationshipAutonomy.nemeses['nemesis:echo:human'].compromisedAllianceIds).toContain(
-      'old-echo-pact'
-    )
+    expect(
+      normalized.relationshipAutonomy.nemeses['nemesis:echo:human'].compromisedAllianceIds
+    ).toContain('old-echo-pact')
     expect(pact.genuine).toBe(true) // Recovery snapshot was not mutated.
   })
 
