@@ -32,7 +32,11 @@ export const nemesisStoryMiddleware: Middleware = (api) => (next) => (action) =>
   if (
     !after.social.reality ||
     !Object.values(after.social.reality.relationshipAutonomy.nemeses).some(
-      (nemesis) => nemesis.status === 'ACTIVE' && nemesis.targetId === human.id
+      (nemesis) =>
+        nemesis.targetId === human.id &&
+        !nemesis.revealEventId &&
+        (nemesis.status === 'ACTIVE' ||
+          (nemesis.status === 'RECONCILED' && nemesis.reconciledAt !== undefined))
     )
   ) {
     return result
