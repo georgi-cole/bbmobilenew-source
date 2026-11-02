@@ -68,8 +68,9 @@ export function explainNemesisMotive(
 ): string {
   const source = knownCauseEvent(domain, objective)
   const trigger = source?.reason?.toLowerCase() ?? ''
-  // Only cite a real, recorded action on its actual day. A later provocation
-  // can reflect an earlier nomination or betrayal, not necessarily a new one.
+  // Only cite an incident if it actually triggered this Nemesis. Unrelated
+  // prior nominations/betrayals must not override the motive selected from
+  // the character's relationship state. Dates come from real source events.
   const pairEvents = domain.events
     .filter(
       (event) =>
@@ -93,12 +94,12 @@ export function explainNemesisMotive(
   )
   const planDefied = pairEvents.find((event) => event.type === 'ALLIANCE_PLAN_DEFIED')
 
-  if (trigger.includes('provocateur_nomination') || nomination) {
+  if (trigger.includes('provocateur_nomination')) {
     return nomination
       ? `You nominated them on Day ${nomination.day}, and they decided not to forgive that choice.`
       : 'They blamed you for a nomination decision that put their place in the game at risk.'
   }
-  if (trigger.includes('provocateur_betrayal') || betrayal) {
+  if (trigger.includes('provocateur_betrayal') || source?.type === 'ALLIANCE_BETRAYAL') {
     if (betrayal?.actorId === objective.targetId) {
       return `They felt betrayed after you broke an alliance commitment on Day ${betrayal.day}.`
     }
@@ -107,7 +108,7 @@ export function explainNemesisMotive(
     }
     return 'They felt a shared commitment had been broken, and their distrust hardened into hostility.'
   }
-  if (trigger.includes('provocateur_plan_defied') || planDefied) {
+  if (trigger.includes('provocateur_plan_defied')) {
     return planDefied
       ? `A shared plan was defied on Day ${planDefied.day}, and they blamed you for the fallout.`
       : 'They believed you had abandoned a shared game plan.'
