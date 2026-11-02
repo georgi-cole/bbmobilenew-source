@@ -136,16 +136,22 @@
   transform: translateY(-3%) scale(1.06);
 }
 
-.season-finale--champion[data-champion-revealed='true'] .season-finale__champion-player--winner img {
+.season-finale--champion[data-champion-revealed='true']
+  .season-finale__champion-player--winner
+  img {
   filter: brightness(1) saturate(1) drop-shadow(0 16px 25px #000b);
 }
 
-.season-finale--champion[data-champion-revealed='true'] .season-finale__champion-player--winner .season-finale__champion-light {
+.season-finale--champion[data-champion-revealed='true']
+  .season-finale__champion-player--winner
+  .season-finale__champion-light {
   opacity: 1;
   animation: season-finale-champion-halo 2.5s ease-in-out infinite alternate;
 }
 
-.season-finale--champion[data-champion-revealed='true'] .season-finale__champion-player--runner img {
+.season-finale--champion[data-champion-revealed='true']
+  .season-finale__champion-player--runner
+  img {
   filter: brightness(0.46) saturate(0.55) drop-shadow(0 12px 18px #0009);
 }
 
@@ -180,7 +186,9 @@
   border-radius: 999px;
   color: #1c1023;
   background: linear-gradient(110deg, #b77a24, #f4d77e 48%, #cfa8e3);
-  box-shadow: 0 12px 30px #0008, 0 0 22px #b58dd42b;
+  box-shadow:
+    0 12px 30px #0008,
+    0 0 22px #b58dd42b;
   font: inherit;
   font-size: clamp(12px, 3vw, 15px);
   font-weight: 750;
@@ -202,8 +210,14 @@
     radial-gradient(circle, #efd08d 0 2px, transparent 3px),
     radial-gradient(circle, #cba1dc 0 2px, transparent 3px),
     radial-gradient(circle, #f0c688 0 1.5px, transparent 2.5px);
-  background-size: 91px 123px, 133px 107px, 169px 149px;
-  background-position: 4% 14%, 61% 4%, 22% 29%;
+  background-size:
+    91px 123px,
+    133px 107px,
+    169px 149px;
+  background-position:
+    4% 14%,
+    61% 4%,
+    22% 29%;
   mask-image: linear-gradient(#000 0, #000 45%, transparent 85%);
   animation: season-finale-champion-fall 9s ease-in-out both;
 }
@@ -215,19 +229,37 @@
 }
 
 @keyframes season-finale-champion-appear {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes season-finale-champion-halo {
-  from { opacity: 0.65; }
-  to { opacity: 1; }
+  from {
+    opacity: 0.65;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes season-finale-champion-fall {
-  from { transform: translateY(-5%); opacity: 0; }
-  15% { opacity: 0.85; }
-  to { transform: translateY(10%); opacity: 0.5; }
+  from {
+    transform: translateY(-5%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  to {
+    transform: translateY(10%);
+    opacity: 0.5;
+  }
 }
 
 @media (orientation: landscape) and (max-height: 620px) {
