@@ -96,6 +96,12 @@ This is an opt-in final-day presentation: the bridge supplies `closingBrand` for
 
 The closing frame reuses `assets/ceremonies/final-decision/token.webp`. It is loaded only when that final-day exit needs it; no new bitmap or dependency is added.
 
+## Phase 5 — winner production continuity
+
+The Classic Tribunal retains its official vote and vote-by-vote reveal. Its completion button now invokes the same idempotent finalize-and-coronate path as the automatic delay, rather than just dismissing the Tribunal; the winner is not named or spotlighted in the final tally before the dedicated winner beat. Vox retains its audience-first winner calculation, but the finalist season recap now plays before that ballot instead of immediately after the winner is declared. The ballot's existing result display is the public verdict, and its continuation leads straight into the shared winner stage. Resumed historical Vox saves that already reached a post-result recap can still complete safely.
+
+`ChampionFinaleStage` uses the Phase 4 modular garden, independent Eye and glass monitor, full-height cast cutouts, platforms, gold/violet light and a delayed champion reveal. The active winner is the authoritative `seasonFinale.winnerId`, with the runner-up derived from final rank; neither decision nor placement is recalculated for presentation. Once the winner cue plays, Continue starts the existing interview, goodbye, lights-out, credits and completion flow. Both styles of winner vote share this final presentation, while retaining Classic's Tribunal versus Vox's audience labels and rules. Motion preferences and temporary presentation suspension are honored.
+
 ## Media and resource lifetime
 
 The release includes six poses for each of 63 character packs: 28 AI houseguests and all 35 selectable player looks. Each pack supplies a front figure, royal standing and seated figures, a Safety knight, and separate decision and exit rear views. The additional Looks 28–35 use their existing casual artwork for the front figure and matching generated variants for the other five poses. Shared props and themed cutouts remain separate resources.

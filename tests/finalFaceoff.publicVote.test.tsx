@@ -292,7 +292,7 @@ describe('FinalFaceoff public vote pacing', () => {
 
     expect(store.getState().ui.musicScene).toBe('jury_voting')
     expect(screen.getByText('0 / 2 votes revealed')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Continue 🎉' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reveal the Champion' })).toBeNull()
     expect(screen.queryByLabelText('Current Tribunal vote')).toBeNull()
     expect(screen.getAllByText('0', { selector: '.fo-finalist__votes' })).toHaveLength(2)
 
@@ -310,15 +310,51 @@ describe('FinalFaceoff public vote pacing', () => {
     expect(screen.getByText('1 / 2 votes revealed')).toBeTruthy()
     expect(screen.getByLabelText('Current Tribunal vote')).toBeTruthy()
     expect(store.getState().finale.isComplete).toBe(false)
-    expect(screen.queryByRole('button', { name: 'Continue 🎉' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reveal the Champion' })).toBeNull()
 
     await act(async () => {
       vi.advanceTimersByTime(VOTE_REVEAL_STAGGER_MS)
     })
 
     expect(store.getState().finale.isComplete).toBe(true)
-    expect(screen.getByRole('button', { name: 'Continue 🎉' })).toBeTruthy()
-    expect(screen.getByText(/wins The Big Eye!/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Reveal the Champion' })).toBeTruthy()
+    expect(screen.getByText('The Tribunal verdict is sealed. One champion awaits.')).toBeTruthy()
+    expect(screen.queryByText(/wins The Big Eye!/)).toBeNull()
+    expect(document.querySelector('.fo-finalist--winner')).toBeNull()
+  })
+
+  it('hands the completed Tribunal directly to the winner cinematic when Reveal is pressed', async () => {
+    const store = makeStore()
+    render(
+      <Provider store={store}>
+        <FinalFaceoff />
+      </Provider>
+    )
+
+    beginTribunal()
+    await advanceToRecap(store)
+    await act(async () => {
+      screen.getByRole('button', { name: 'Finish recap' }).click()
+    })
+
+    await act(async () => {
+      vi.advanceTimersByTime(VOTE_REVEAL_INITIAL_DELAY_MS + VOTE_REVEAL_STAGGER_MS)
+    })
+
+    expect(store.getState().finale.isComplete).toBe(true)
+    expect(store.getState().game.seasonFinale).toBeNull()
+    expect(document.querySelector('.fo-finalist--winner')).toBeNull()
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Reveal the Champion' }).click()
+    })
+
+    const state = store.getState()
+    expect(state.game.seasonFinale?.phase).toBe('winnerCinematic')
+    expect(state.game.seasonFinale?.winnerId).toBe(state.finale.winnerId)
+    expect(state.finale.isActive).toBe(false)
+    expect(state.game.players.filter((player) => player.isWinner)).toHaveLength(1)
+    expect(state.game.players.filter((player) => player.finalRank === 2)).toHaveLength(1)
   })
 
   it('suspends clue advancement and phrase typing while gameplay owns the screen', async () => {

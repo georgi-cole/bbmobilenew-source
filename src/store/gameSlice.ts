@@ -9403,13 +9403,16 @@ const gameSlice = createSlice({
       })
     },
     startVoxFinalVote(state) {
-      if (
-        !isVoxPopuliActive(state) ||
-        !state.voxPopuli ||
-        !['ready', 'recap'].includes(state.voxPopuli.finaleStage ?? '')
-      ) {
+      if (!isVoxPopuliActive(state) || !state.voxPopuli || state.voxPopuli.winnerId) return
+
+      // Play the season recap before the final public ballot so the actual
+      // verdict leads immediately to the champion's cinematic coronation.
+      if (state.voxPopuli.finaleStage === 'ready') {
+        state.voxPopuli.finaleStage = 'recap'
         return
       }
+      if (state.voxPopuli.finaleStage !== 'recap') return
+
       state.voxPopuli.finaleStage = 'final_vote'
       pushEvent(
         state,
@@ -9435,9 +9438,20 @@ const gameSlice = createSlice({
         }
       })
       state.voxPopuli.winnerId = winnerId
-      // The public-vote overlay has announced the champion. Build the recap
-      // with final winner data before continuing to the interview and close.
-      state.voxPopuli.finaleStage = 'recap'
+      // The recap has already aired; the audience verdict now hands off to
+      // the shared coronation instead of replaying the season recap.
+      state.voxPopuli.finaleStage = null
+      state.voxPopuli.status = 'complete'
+      state.twistActive = false
+      state.seasonFinale = {
+        phase: 'winnerCinematic',
+        winnerId,
+        interviewIndex: state.seed % FINALE_INTERVIEW_VARIANT_COUNT,
+        goodbyeIndex: 0,
+        isChatOpen: false,
+        isLightsOffAnimating: false,
+        publicFavoriteEnabled: false,
+      }
       state.history = [
         ...(state.history ?? []),
         {
@@ -9466,11 +9480,11 @@ const gameSlice = createSlice({
       state.voxPopuli.status = 'complete'
       state.twistActive = false
       state.seasonFinale = {
-        phase: 'winnerInterview',
+        phase: 'winnerCinematic',
         winnerId: state.voxPopuli.winnerId,
         interviewIndex: state.seed % FINALE_INTERVIEW_VARIANT_COUNT,
         goodbyeIndex: 0,
-        isChatOpen: true,
+        isChatOpen: false,
         isLightsOffAnimating: false,
         publicFavoriteEnabled: false,
       }

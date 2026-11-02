@@ -815,9 +815,11 @@ function FinalReveal({
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
     >
-      <span className="pf-overlay__winner-badge">FINAL REVEAL</span>
+      <span className="pf-overlay__winner-badge">
+        {mode === 'season_winner' ? 'AUDIENCE VERDICT' : 'FINAL REVEAL'}
+      </span>
       <p className="pf-overlay__eyebrow">
-        {mode === 'season_winner' ? 'Season Winner' : `Public's Favorite Player`}
+        {mode === 'season_winner' ? 'Final Public Vote' : `Public's Favorite Player`}
       </p>
       <div className="pf-overlay__winner-avatar-wrap">
         <div className="pf-overlay__winner-glow" aria-hidden="true" />
@@ -850,11 +852,11 @@ function FinalReveal({
       )}
       <p className="pf-overlay__sub">
         {mode === 'season_winner'
-          ? 'The audience has spoken. The season belongs to its champion.'
+          ? 'The public has chosen. The champion now takes the finale stage.'
           : 'The season-long audience record has spoken.'}
       </p>
       <button type="button" className="pf-overlay__winner-cta" onClick={onClose} disabled={!winner}>
-        Continue
+        {mode === 'season_winner' ? 'Continue to coronation' : 'Continue'}
       </button>
     </motion.div>
   )

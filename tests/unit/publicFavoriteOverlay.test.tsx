@@ -150,7 +150,7 @@ describe('PublicFavoriteOverlay', () => {
     render(<PublicFavoriteOverlay candidates={PLAYERS} seed={41} onComplete={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: /^Lock / }))
-    const spotlight = screen.getByRole('region', { name: 'Houseguest Spotlight' })
+    const spotlight = screen.getByRole('region', { name: 'Hubmate Spotlight' })
     expect(within(spotlight).queryByLabelText(/Final reveal in 0:\d{2}/i)).not.toBeInTheDocument()
   })
 
@@ -172,16 +172,17 @@ describe('PublicFavoriteOverlay', () => {
 
     const board = screen.getByRole('region', { name: 'Top three live audience vote' })
     fireEvent.click(within(board).getByRole('button', { name: /Taylor, rank 1, 44%/i }))
-    expect(screen.getByText(/This does not change the official result/i)).toBeInTheDocument()
+    // A viewer spotlight is presentational: no control is passed to the outcome simulator.
+    expect(mockedUseBattleBackVoting.mock.calls.at(-1)?.[0]).not.toHaveProperty('surgeTargetId')
 
-    const cta = screen.getByRole('button', { name: /Watch to boost Taylor/i })
+    const cta = screen.getByRole('button', { name: 'Spotlight Taylor' })
     await act(async () => {
       fireEvent.click(cta)
       fireEvent.click(cta)
     })
 
     expect(onAudienceSurgeRequest).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: /Viewer Spotlight Active/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Spotlight active' })).toBeDisabled()
     expect(mockedUseBattleBackVoting.mock.calls.at(-1)?.[0]).not.toHaveProperty('surgeTargetId')
   })
 
@@ -223,6 +224,39 @@ describe('PublicFavoriteOverlay', () => {
     const continueButton = screen.getByRole('button', { name: 'Continue' })
     fireEvent.click(continueButton)
     fireEvent.click(continueButton)
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(onComplete).toHaveBeenCalledWith('p2')
+  })
+
+  it('presents the final public ballot as a verdict, then hands off to the coronation once', () => {
+    const onComplete = vi.fn()
+    mockedUseBattleBackVoting.mockReturnValue(
+      votingState({
+        votes: { p1: 39, p2: 61 },
+        eliminated: ['p1'],
+        winnerId: 'p2',
+        isComplete: true,
+      })
+    )
+
+    render(
+      <PublicFavoriteOverlay
+        candidates={PLAYERS.slice(0, 2)}
+        seed={41}
+        mode="season_winner"
+        onComplete={onComplete}
+      />
+    )
+
+    expect(screen.getByText('AUDIENCE VERDICT')).toBeInTheDocument()
+    expect(screen.getByText('Final Public Vote')).toBeInTheDocument()
+    expect(screen.getByText('Taylor')).toBeInTheDocument()
+    expect(screen.getByText('Jordan finishes as runner-up.')).toBeInTheDocument()
+    expect(screen.queryByText('Wins 25,000 Eyeoleans!')).toBeNull()
+
+    const next = screen.getByRole('button', { name: 'Continue to coronation' })
+    fireEvent.click(next)
+    fireEvent.click(next)
     expect(onComplete).toHaveBeenCalledTimes(1)
     expect(onComplete).toHaveBeenCalledWith('p2')
   })

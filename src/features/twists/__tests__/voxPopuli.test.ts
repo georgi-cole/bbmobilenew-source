@@ -569,7 +569,7 @@ describe('Vox Populi rules', () => {
     expect(state.voxPopuli?.finalistIds).toEqual([finalists[0].id, finalists[2].id])
   })
 
-  it('announces the winner before building the complete season recap', () => {
+  it('recaps before the final public vote and hands straight to the champion cinematic', () => {
     let state = createInitialGameState({ seed: 708 })
     const finalists = state.players.slice(0, 2)
     state.players.forEach((player) => {
@@ -589,18 +589,55 @@ describe('Vox Populi rules', () => {
     expect(state.voxPopuli?.finaleStage).toBe('ready')
 
     state = gameReducer(state, startVoxFinalVote())
+    expect(state.voxPopuli?.finaleStage).toBe('recap')
+    expect(state.voxPopuli?.winnerId).toBeNull()
+
+    // The pre-vote recap cannot prematurely announce a winner or exit the finale.
+    const prematureRecap = gameReducer(state, completeVoxSeasonRecap())
+    expect(prematureRecap.voxPopuli?.finaleStage).toBe('recap')
+    expect(prematureRecap.seasonFinale).toBeNull()
+
+    state = gameReducer(state, startVoxFinalVote())
     expect(state.voxPopuli?.finaleStage).toBe('final_vote')
 
-    state = gameReducer(state, resolveVoxSeasonWinner(finalists[0].id))
-    expect(state.voxPopuli?.winnerId).toBe(finalists[0].id)
-    expect(state.voxPopuli?.finaleStage).toBe('recap')
-    expect(state.players.find((player) => player.id === finalists[0].id)?.isWinner).toBe(true)
-    expect(state.seasonFinale).toBeNull()
+    const actualWinner = finalists[0].id
+    state = gameReducer(state, resolveVoxSeasonWinner(actualWinner))
+    expect(state.voxPopuli?.winnerId).toBe(actualWinner)
+    expect(state.voxPopuli?.finaleStage).toBeNull()
+    expect(state.voxPopuli?.status).toBe('complete')
+    expect(state.players.find((player) => player.id === actualWinner)?.isWinner).toBe(true)
+    expect(state.players.find((player) => player.id === finalists[1].id)?.finalRank).toBe(2)
+    expect(state.seasonFinale?.phase).toBe('winnerCinematic')
+    expect(state.seasonFinale?.isChatOpen).toBe(false)
+    expect((state.history ?? []).filter((entry) => entry.type === 'voxPopuli:winner')).toHaveLength(
+      1
+    )
+
+    const completed = gameReducer(state, resolveVoxSeasonWinner(finalists[1].id))
+    expect(completed.seasonFinale?.winnerId).toBe(actualWinner)
+    expect(
+      (completed.history ?? []).filter((entry) => entry.type === 'voxPopuli:winner')
+    ).toHaveLength(1)
+  })
+
+  it('recovers a legacy Vox save that was already recapping after the public verdict', () => {
+    let state = createInitialGameState({ seed: 719 })
+    const winnerId = state.players[0].id
+    state.voxPopuli = {
+      ...createInitialVoxPopuliState(state.season),
+      status: 'active',
+      activatedSeason: state.season,
+      finaleStage: 'recap',
+      finalistIds: [winnerId, state.players[1].id],
+      winnerId,
+    }
 
     state = gameReducer(state, completeVoxSeasonRecap())
     expect(state.voxPopuli?.finaleStage).toBeNull()
-    expect(state.seasonFinale?.phase).toBe('winnerInterview')
-    expect(state.seasonFinale?.isChatOpen).toBe(true)
+    expect(state.voxPopuli?.status).toBe('complete')
+    expect(state.seasonFinale?.phase).toBe('winnerCinematic')
+    expect(state.seasonFinale?.winnerId).toBe(winnerId)
+    expect(state.seasonFinale?.isChatOpen).toBe(false)
   })
 
   it('creates a clean Final Three ceremony without Final Four roles or stale broadcasts', () => {

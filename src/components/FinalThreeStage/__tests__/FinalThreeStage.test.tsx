@@ -13,7 +13,7 @@ afterEach(cleanup)
 const cast = createInitialGameState({ seed: 400 }).players.slice(0, 3)
 
 describe('unified Final Three garden', () => {
-  it.each(['opening', 'block', 'holder', 'final-two'] as const)(
+  it.each(['opening', 'block', 'holder', 'final-two', 'champion'] as const)(
     'uses the exact shared architecture and live monitor for %s',
     (scene) => {
       const { container } = render(
