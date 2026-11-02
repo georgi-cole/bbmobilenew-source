@@ -26,7 +26,7 @@ function screenGroup(screenId: string): string {
   if (GAME_SCREENS.has(screenId)) return 'gameplay'
   if (screenId.includes('profile') || screenId === 'dressing-room') return 'profiles'
   if (screenId === 'settings') return 'settings'
-  if (screenId === 'legal' || screenId === 'rules' || screenId === 'credits') return 'information'
+  if (['legal', 'rules', 'credits', 'unsubscribe'].includes(screenId)) return 'information'
   if (screenId === 'home' || screenId === 'not-found') return 'home'
   return 'menu'
 }
@@ -36,7 +36,7 @@ function resolveScreenId(pathname: string): string {
   return /^[a-z0-9-]{1,60}$/i.test(segment) ? segment.toLowerCase() : 'other'
 }
 
-/** Track visits and visible time on static app screens, linked to the selected profile. */
+/** Keep guest activity explicit when a profile is selected during a visit. */
 export function setupRouteAnalytics(source: AnalyticsRouteSource): () => void {
   let screenId = resolveScreenId(source.getPathname())
   let profileId = source.getProfileId()
@@ -49,7 +49,7 @@ export function setupRouteAnalytics(source: AnalyticsRouteSource): () => void {
       visibleSince = null
     }
     const durationSeconds = Math.floor(visibleMilliseconds / 1000)
-    if (profileId && durationSeconds > 0)
+    if (durationSeconds > 0)
       trackProductEvent(
         'screen_time',
         {
@@ -68,12 +68,11 @@ export function setupRouteAnalytics(source: AnalyticsRouteSource): () => void {
 
   const emitScreenView = () => {
     setAnalyticsRouteScreen(screenId)
-    if (profileId)
-      trackProductEvent(
-        'screen_view',
-        { screen_id: screenId, screen_group: screenGroup(screenId) },
-        profileId
-      )
+    trackProductEvent(
+      'screen_view',
+      { screen_id: screenId, screen_group: screenGroup(screenId) },
+      profileId
+    )
     startVisibleTime()
   }
 

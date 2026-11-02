@@ -9,7 +9,7 @@
   "theme_color": "#000000",
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "./favicon.svg?v=embroidered-clean-20261102",
       "sizes": "any",
       "type": "image/svg+xml"
     }

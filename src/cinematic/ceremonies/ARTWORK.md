@@ -1,4 +1,6 @@
-# Premium announcement effects, revision 2
+# Cinematic ceremony artwork
+
+## Premium announcement effects, revision 2
 
 Generated with the built-in imagegen tool on 2026-10-31. Runtime WebP exports ship in `public/assets/ceremonies/vfx/`; original alpha PNGs are retained in the authoring workspace and are not downloaded by the game.
 
@@ -75,3 +77,38 @@ Use case: product-mockup. Asset type: isolated premium Detox game-ceremony cutou
 ### force
 
 Use case: stylized-concept. Asset type: reusable cinematic VFX compositing layer, square composition. One organic luminous pressure wave of fine champagne-gold and muted violet volumetric light, a turbulent semi-transparent vapor shell curling inward toward an empty center, physically photographed optical plasma and thin smoky sheets, convincing depth, very soft irregular fading edges, subtle amber bright filaments and tiny refractive dust. The wave must feel like an inevitable force gathering around a central object, with a clear transparent central opening. Soft asymmetrical elliptical shell, not a perfectly geometric circle. Genuine transparent background. Keep entire faint glow inside the frame with broad padding. No shield, no object, no person, no text, no icons, no UI, no flat vector ring, no solid black rectangle, no sharp spikes, no white flash, no cartoon, no watermark. Sophisticated film VFX in a dark fantasy luxury aesthetic.
+
+## Player ceremony packs 28–35
+
+Added on 2026-11-01 to complete ceremony coverage for all 35 selectable player looks. Together with the 28 AI houseguests, the runtime catalog contains 63 packs. Each additional character has all six existing pose slots; the ceremony choreography and shared props use the same resource contract as the earlier packs.
+
+The front figure reuses the character's original `public/assets/player_characters/character N/casual.webp`, normalized for ceremony framing. The remaining five slots use matching costume and pose variants generated individually with the built-in imagegen tool, using that same character as the identity reference. All 40 added variants have separate 1024 × 1536 source PNGs with genuine alpha, one complete figure per image. No final pose is extracted from a multi-character sheet. Only the normalized WebP exports are loaded by the game; the larger authoring sources are not runtime dependencies.
+
+The eight added packs contain 48 WebPs totalling 2,370,676 bytes. Every generated pose is downsampled for its runtime export, at a scale between 0.345 and 0.613 of the source pixels; no generated figure is upscaled.
+
+| Pose             | Source                           | Runtime dimensions |
+| ---------------- | -------------------------------- | ------------------ |
+| `front`          | Original casual figure           | 420 × 630          |
+| `royal-standing` | Matching royal costume, standing | 480 × 720          |
+| `safety-knight`  | Matching Safety armor, standing  | 480 × 720          |
+| `decision-back`  | Separate rear decision pose      | 420 × 630          |
+| `exit-back`      | Separate rear departure pose     | 384 × 576          |
+| `royal-seated`   | Matching royal costume, seated   | 600 × 900          |
+
+Exports live under `public/assets/ceremonies/characters/character-N/ceremony-POSE.webp`. Normalization preserves alpha and aspect ratio, centers each isolated figure within a 2:3 frame, and aligns visible feet near the existing ceremony floor. Standing figures fit within the available width and height with transparent edge clearance; wide seated poses retain their proportions. Export validation rejects generated figures with opaque pixels touching the source edge or insufficient resolution for their final size. Crown anchors and foot positions are measured per pose from visible alpha bounds. Seated figures also carry individual throne translation and scale metadata so the shared throne fits the character. Crowns, thrones and shields are composited separately by the renderer.
+
+The per-pose dimensions, encoded byte lengths, SHA-256 hashes, crown anchors, `feetY` and seated `throne` fitting values are recorded in `cast.json`. Assets are still selected and decoded for the current scene rather than preloaded for every look. A valid season catalog appearance is authoritative when resolving the matching pack. Players whose appearance consists only of an uploaded photo continue to use the native ceremony fallback.
+
+### Generation brief
+
+Use case: identity-preserve. Asset type: one transparent game-character figure for an existing cinematic ceremony system, portrait 2:3 at 1024 × 1536. The original casual figure is the identity reference. Preserve its recognizable face, hair, skin tone, body proportions and realistic render style. Generate only the requested pose with the entire head, hair, hands, clothing and feet inside the frame and transparent padding around the subject. Keep genuine alpha and soft neutral studio lighting. No scenery, floor, text, labels or watermark.
+
+Apply the following pose-specific instructions to that common brief:
+
+| Pose             | Costume and pose requirements                                                                                                                                                                                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `royal-standing` | Face front in a deep-plum royal coat with gold trim and a burgundy cape. Keep both arms relaxed and hands visible; no crown.                                                                                                                                                                          |
+| `safety-knight`  | Face front in silver armor with gold trim and a navy cape. Keep the head uncovered and hands empty; no helmet, shield or weapon.                                                                                                                                                                      |
+| `decision-back`  | Preserve the original casual outfit. Show the back in rear three-quarter view, with an empty open hand gesturing toward the viewer's right.                                                                                                                                                           |
+| `exit-back`      | Preserve the recognizable casual wardrobe and hairstyle. Show a rear departure pose, with the complete body and both shoes visible; the renderer supplies the movement away from the scene.                                                                                                           |
+| `royal-seated`   | Match the character's royal-standing costume, using that generated figure as a secondary costume reference. Face front with bent knees and hands in natural armrest positions, suitable for compositing on the shared throne. Render only the figure and clothing; no chair, throne, crown or shield. |

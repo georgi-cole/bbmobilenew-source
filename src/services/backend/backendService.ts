@@ -9,7 +9,7 @@ import { resolveAppEnvironment } from './appEnvironment'
 import { sanitizeAnalyticsEvent } from './analyticsSchema'
 import { readDeviceAnalyticsContext } from './deviceContext'
 import { serializeProfileBackup } from './profileBackup'
-import { authenticatedBackend } from './supabaseTransport'
+import { authenticatedBackend, subscribeBackendAuth } from './supabaseTransport'
 
 const PREFERENCES_KEY = 'bbmobilenew:supabase-profiles:v1'
 const EVENTS_KEY = 'bbmobilenew:supabase-events:v1'
@@ -21,11 +21,17 @@ const APP_ENVIRONMENT = resolveAppEnvironment(
   import.meta.env.VITE_BUILD_TARGET
 )
 type Preferences = { deletedProfiles: string[]; knownProfiles: string[] }
-type QueuedEvent = ProductEvent & { id: string; profileId?: string }
+type QueuedEvent = ProductEvent & { id: string; profileId?: string | null }
 export type BackupStatus = 'disabled' | 'pending' | 'syncing' | 'synced' | 'error'
 let status: BackupStatus = 'disabled'
 let lastSynced: string | null = null
 const listeners = new Set<() => void>()
+
+function eventIsDeployed(name: string): boolean {
+  // The new event name needs the same migration as player accounts. Keep old
+  // analytics batches valid until that deployment is explicitly enabled.
+  return name !== 'tribunal_action' || import.meta.env.VITE_PLAYER_ACCOUNTS_ENABLED === 'true'
+}
 
 function readPreferences(): Preferences {
   try {
@@ -70,7 +76,9 @@ function loadEvents(): QueuedEvent[] {
           event.properties &&
           typeof event.properties === 'object' &&
           typeof event.name === 'string' &&
+          eventIsDeployed(event.name) &&
           (event.profileId === undefined ||
+            event.profileId === null ||
             (typeof event.profileId === 'string' && event.profileId.length <= 120))
         )
       )
@@ -78,7 +86,8 @@ function loadEvents(): QueuedEvent[] {
         const safe = sanitizeAnalyticsEvent(event)
         if (!safe) return null
         const queued: QueuedEvent = { ...safe, id: event.id }
-        if (typeof event.profileId === 'string') queued.profileId = event.profileId
+        if (event.profileId === null || typeof event.profileId === 'string')
+          queued.profileId = event.profileId
         return queued
       })
       .filter((event): event is QueuedEvent => event !== null)
@@ -88,7 +97,7 @@ function loadEvents(): QueuedEvent[] {
   }
 }
 
-/** With Supabase configured, locally saved profiles and opted-in gameplay events sync automatically. */
+/** Configured builds sync local profile backups and bounded pseudonymous gameplay events. */
 export function initializeCloudBackend(store: typeof appStore): () => void {
   if (!getBackendConfig()) return () => undefined
   let events = loadEvents()
@@ -138,6 +147,8 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
   let measuredSession = false
   let activeSince = Date.now()
   const uploaded = new Map<string, string>()
+  let backupOwnerId: string | null | undefined
+  let resyncAfterFlush = false
 
   const currentProfile = () => {
     const state = store.getState().profiles
@@ -145,7 +156,8 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
       ? undefined
       : state.profiles.find((profile) => profile.id === state.activeProfileId)
   }
-  const analyticsAllowed = () => Boolean(currentProfile())
+  const currentSubjectId = () => currentProfile()?.id ?? null
+  const analyticsAllowed = () => !stopped
   function setStatus(next: BackupStatus) {
     status = next
     notify()
@@ -177,6 +189,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
           setStatus('syncing')
         const { client, ownerId } = await authenticatedBackend('profile_backup')
         if (signal.aborted || stopped) return
+        backupOwnerId = ownerId
         const { client: analyticsClient, ownerId: analyticsOwnerId } =
           await authenticatedBackend('analytics')
         if (signal.aborted || stopped) return
@@ -254,6 +267,10 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
       if (!signal.aborted && !stopped) setStatus('error')
     } finally {
       busy = false
+      if (resyncAfterFlush) {
+        resyncAfterFlush = false
+        schedule()
+      }
     }
   }
 
@@ -291,14 +308,12 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     }
     previousProfiles = profiles
     const profile = currentProfile()
-    if (!profile) {
-      measuredSession = false
-    } else if (!measuredSession) {
+    if (!measuredSession) {
       measuredSession = true
       activeSince = Date.now()
-      const sessionProfileId = profile.id
+      const sessionProfileId = currentSubjectId()
       void readDeviceAnalyticsContext().then((deviceContext) => {
-        if (stopped || !analyticsAllowed() || currentProfile()?.id !== sessionProfileId) return
+        if (stopped || !analyticsAllowed() || currentSubjectId() !== sessionProfileId) return
         trackProductEvent(
           'session_started',
           {
@@ -321,16 +336,38 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
 
   const unsubscribeEvents = subscribeProductEvents((event, profileId) => {
     if (!analyticsAllowed()) return
+    if (!eventIsDeployed(event.name)) return
     const safe = sanitizeAnalyticsEvent(event)
     if (!safe) return
     writeEvents([
       ...readEvents(),
-      { ...safe, id: crypto.randomUUID(), profileId: profileId ?? currentProfile()?.id },
+      {
+        ...safe,
+        id: crypto.randomUUID(),
+        // Explicit null is a guest event, even if a profile was selected while
+        // the originating screen or game action was finishing.
+        profileId: profileId === undefined ? currentSubjectId() : profileId,
+      },
     ])
     schedule()
   })
   const unsubscribeStore = store.subscribe(() => {
     if (store.getState().profiles !== previousProfiles) contextChanged()
+  })
+  const unsubscribeAccount = subscribeBackendAuth('profile_backup', (ownerId) => {
+    if (backupOwnerId === ownerId) return
+    const hadOwner = backupOwnerId !== undefined
+    backupOwnerId = ownerId
+    if (!hadOwner) return
+    // Signing into an existing account is explicit in the account UI. Local
+    // profiles survive; their backup cache must not claim the new owner has them.
+    uploaded.clear()
+    lastSynced = null
+    controller.abort()
+    controller = new AbortController()
+    setStatus(currentProfile() ? 'pending' : 'disabled')
+    if (busy) resyncAfterFlush = true
+    schedule()
   })
   const onStorage = (event: StorageEvent) => {
     if (event.key === PREFERENCES_KEY || event.key === null) {
@@ -346,7 +383,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
         {
           active_seconds: Math.min(60, Math.max(0, Math.round((Date.now() - activeSince) / 1000))),
         },
-        currentProfile()?.id
+        currentSubjectId()
       )
     activeSince = Date.now()
     if (document.visibilityState === 'hidden') persistEvents()
@@ -354,7 +391,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
   }
   const interval = setInterval(() => {
     if (document.visibilityState === 'visible' && analyticsAllowed()) {
-      trackProductEvent('session_active', { active_seconds: 60 }, currentProfile()?.id)
+      trackProductEvent('session_active', { active_seconds: 60 }, currentSubjectId())
       activeSince = Date.now()
     }
     schedule()
@@ -373,6 +410,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     clearInterval(interval)
     unsubscribeEvents()
     unsubscribeStore()
+    unsubscribeAccount()
     window.removeEventListener('online', schedule)
     window.removeEventListener('pagehide', persistEvents)
     window.removeEventListener('storage', onStorage)

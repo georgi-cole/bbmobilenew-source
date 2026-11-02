@@ -23,6 +23,8 @@ export interface SeasonRecapProps {
   history?: GameHistoryEvent[]
   completedWeekendDays?: number[]
   publicOpinion?: PublicOpinionState | null
+  /** The finale recap runs before Vox's audience ballot, not after a Tribunal vote. */
+  finalVoteMode?: 'tribunal' | 'audience'
   onComplete: () => void
 }
 
@@ -737,8 +739,10 @@ export function FinaleCalendarFocus({
             label: 'Final result',
             value:
               player.isWinner || player.finalRank === 1
-                ? `${player.name} was crowned the season winner after the final audience decision.`
-                : `${player.name} reached the Final 2 and finished ${placement}.`,
+                ? `${player.name} was crowned the season winner after the final decision.`
+                : player.finalRank === 2 || player.seasonPlacement === 2
+                  ? `${player.name} reached the Final 2 and finished ${placement}.`
+                  : `${player.name} reached the Final Two. The deciding vote is still ahead.`,
           },
           {
             label: 'Season record',
@@ -746,7 +750,10 @@ export function FinaleCalendarFocus({
           },
           {
             label: 'The last word',
-            value: 'The audience closed the season and completed the final finishing order.',
+            value:
+              player.isWinner || player.finalRank === 1 || player.finalRank === 2
+                ? 'The final vote completed the season finishing order.'
+                : 'The season is ready for its deciding vote.',
           },
         ]
       : []
@@ -1189,6 +1196,7 @@ export default function SeasonRecapCinematic({
   history = [],
   completedWeekendDays = [],
   publicOpinion,
+  finalVoteMode = 'tribunal',
   onComplete,
 }: SeasonRecapProps) {
   const reducedMotion = usePresentationReducedMotion()
@@ -1199,8 +1207,8 @@ export default function SeasonRecapCinematic({
   const foreground = usePresentationForeground()
   const isOwner = ownsPresentation && foreground
   const recapData = useMemo(
-    () => buildSeasonRecapData(players, week, publicOpinion),
-    [players, publicOpinion, week]
+    () => buildSeasonRecapData(players, week, publicOpinion, finalVoteMode),
+    [players, publicOpinion, week, finalVoteMode]
   )
   const [view, setView] = useState<RecapView>('intro')
   const [selectedHonorIndex, setSelectedHonorIndex] = useState(0)

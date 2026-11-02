@@ -1,96 +1,36 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Player } from '../../types'
-import backyardPlayfield from '../../assets/finale/final-power-battle-backyard.webp'
+import FinalThreeStage from '../FinalThreeStage/FinalThreeStage'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import './FinalPowerBattle.css'
 
 interface Props {
   finalists: Player[]
   mode: 'classic' | 'vox_populi'
-  onComplete: () => void
 }
 
-const READY_BEAT = 4
-
-const BEATS = [
-  {
-    label: 'Finale night',
-    title: 'The Final Power Battle',
-    copy: 'Three finalists. Three parts. Two places in the Final Two.',
-  },
-  {
-    label: 'Part 1 · The opening',
-    title: 'One advances',
-    copy: 'All three compete. The winner advances directly to Part 3.',
-  },
-  {
-    label: 'Part 2 · The qualifier',
-    title: 'One last place',
-    copy: 'The other two compete for the remaining seat in Part 3.',
-  },
-  {
-    label: 'Part 3 · The decision',
-    title: 'Power changes everything',
-    copy: 'The winner earns the final say on who joins them in the Final Two.',
-  },
-  {
-    label: 'Ready when you are',
-    title: 'The finale begins here',
-    copy: 'Three finalists are ready to make their first move.',
-  },
-] as const
-
-export default function FinalPowerBattleIntro({ finalists, mode, onComplete }: Props) {
-  const [beat, setBeat] = useState(0)
-  const beatRef = useRef(0)
-  const completedRef = useRef(false)
-
-  useLayoutEffect(() => {
-    beatRef.current = beat
-  }, [beat])
-
-  useEffect(() => {
-    const handlePlay = (event: Event) => {
-      if (completedRef.current) return
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      if (beatRef.current < READY_BEAT) {
-        setBeat((current) => Math.min(READY_BEAT, current + 1))
-        return
-      }
-      completedRef.current = true
-      onComplete()
-    }
-    window.addEventListener('ui:playPressed', handlePlay, { capture: true })
-    return () => window.removeEventListener('ui:playPressed', handlePlay, { capture: true })
-  }, [onComplete])
-
-  const currentBeat = BEATS[beat]
-
+/** One concise scene: the shared dock owns the single Play-to-start action. */
+export default function FinalPowerBattleIntro({ finalists, mode }: Props) {
   return (
     <section
       className="fpb-intro"
       role="region"
       aria-label="Final Power Battle introduction"
       aria-live="polite"
-      data-beat={beat}
+      data-beat={0}
     >
-      <div
-        className="fpb-intro__backdrop"
-        style={{ backgroundImage: `url("${backyardPlayfield}")` }}
-        aria-hidden="true"
-      />
-      <div className="fpb-intro__atmosphere" aria-hidden="true" />
-      <p className="fpb-intro__network">LIVE FROM THE BACKYARD · THE BIG EYE</p>
-      <div className="fpb-intro__copy" key={`beat-${beat}`}>
-        <p className="fpb-intro__eyebrow">{currentBeat.label}</p>
-        <h2>{currentBeat.title}</h2>
-        <p className="fpb-intro__lead">
-          {beat === 3 && mode === 'vox_populi'
-            ? 'The winner earns final immunity. The audience decides the last Final Two place.'
-            : currentBeat.copy}
-        </p>
-      </div>
+      <FinalThreeStage scene="opening">
+        <div className="fpb-intro__copy">
+          <p className="fpb-intro__eyebrow">Final Three · One final battle</p>
+          <h2>The Final Power Battle</h2>
+          <p className="fpb-intro__lead">
+            Three finalists. Two qualifiers. One final duel.{' '}
+            {mode === 'vox_populi'
+              ? 'The winner earns final immunity.'
+              : 'The winner earns final power.'}{' '}
+            Press Play to begin.
+          </p>
+        </div>
+      </FinalThreeStage>
 
       <div className="fpb-intro__stage" role="list" aria-label="Finalists">
         {finalists.slice(0, 3).map((player, index) => (
@@ -101,6 +41,7 @@ export default function FinalPowerBattleIntro({ finalists, mode, onComplete }: P
             role="listitem"
           >
             <span className="fpb-intro__panel-light" aria-hidden="true" />
+            <span className="fpb-intro__podium" aria-hidden="true" />
             <FullSizeCutoutImage
               player={player}
               attire="informal"

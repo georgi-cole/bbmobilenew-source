@@ -4,6 +4,10 @@ import { Geolocation } from '@capacitor/geolocation'
 
 const LOCATION_CHOICE_KEY = 'bb:allowLocation'
 const LOCATION_REQUESTED_KEY = 'bb:locationPermissionRequested'
+// Keep provider denials separate from the legacy, explicit in-app opt-out.
+const LOCATION_PROVIDER_DENIED_KEY = 'bb:locationPermissionDenied'
+const LOCATION_FAILED_ATTEMPT_KEY = 'bb:locationPermissionFailedAt'
+const PERMISSION_RETRY_COOLDOWN_MS = 60 * 60 * 1000
 
 export interface WeatherCoordinates {
   latitude: number
@@ -16,7 +20,11 @@ export interface WeatherLocationResult {
   error: string | null
 }
 
-let pendingLocationRequest: Promise<WeatherLocationResult> | null = null
+let pendingLocationRequest: {
+  promise: Promise<WeatherLocationResult>
+  requestsPermission: boolean
+} | null = null
+let permissionPromptAttemptedThisSession = false
 
 /** Whether the first-launch location rationale should be shown before asking the OS. */
 export function shouldShowWeatherPermissionRationale(): boolean {
@@ -41,10 +49,59 @@ function writePreference(key: string, value: string): void {
   }
 }
 
+function clearPreference(key: string): void {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    // Cached permission hints are optional; the provider remains authoritative.
+  }
+}
+
+function recordProviderDenial(): void {
+  writePreference(LOCATION_PROVIDER_DENIED_KEY, 'true')
+  writePreference(LOCATION_REQUESTED_KEY, 'true')
+}
+
+function recordFailedPermissionAttempt(): void {
+  permissionPromptAttemptedThisSession = true
+  writePreference(LOCATION_FAILED_ATTEMPT_KEY, String(Date.now()))
+}
+
+function canAttemptPermission(): boolean {
+  if (permissionPromptAttemptedThisSession) return false
+  const failedAt = Number(readPreference(LOCATION_FAILED_ATTEMPT_KEY))
+  return (
+    !Number.isFinite(failedAt) ||
+    failedAt <= 0 ||
+    Date.now() - failedAt >= PERMISSION_RETRY_COOLDOWN_MS
+  )
+}
+
+function describeError(error: unknown): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message
+  }
+  return String(error)
+}
+
+function nativePermissionStatus(permissions: {
+  location: PermissionState
+  coarseLocation?: PermissionState
+}): PermissionState {
+  if (permissions.location === 'granted' || permissions.coarseLocation === 'granted') {
+    return 'granted'
+  }
+  return permissions.coarseLocation ?? permissions.location
+}
+
 async function checkPermission(): Promise<WeatherLocationResult['permissionStatus']> {
   if (Capacitor.isNativePlatform()) {
-    const permissions = await Geolocation.checkPermissions()
-    return permissions.coarseLocation ?? permissions.location
+    return nativePermissionStatus(await Geolocation.checkPermissions())
   }
 
   if (typeof navigator === 'undefined' || !navigator.permissions?.query) return 'unsupported'
@@ -75,10 +132,7 @@ async function resolveWeatherLocation(
   requestPermission: boolean
 ): Promise<WeatherLocationResult> {
   const savedChoice = readPreference(LOCATION_CHOICE_KEY)
-  if (savedChoice === 'denied') {
-    return { coordinates: null, permissionStatus: 'denied', error: 'permission denied by player' }
-  }
-
+  const isNative = Capacitor.isNativePlatform()
   let permissionStatus: WeatherLocationResult['permissionStatus']
   try {
     permissionStatus = await checkPermission()
@@ -86,98 +140,105 @@ async function resolveWeatherLocation(
     return {
       coordinates: null,
       permissionStatus: 'unknown',
-      error: error instanceof Error ? error.message : String(error),
+      error: describeError(error),
     }
   }
 
   if (permissionStatus === 'denied') {
-    writePreference(LOCATION_CHOICE_KEY, 'denied')
+    recordProviderDenial()
     return { coordinates: null, permissionStatus, error: 'permission denied' }
   }
 
-  const needsPrompt = permissionStatus === 'prompt' || permissionStatus === 'prompt-with-rationale'
   const permissionUnknown = permissionStatus === 'unknown' || permissionStatus === 'unsupported'
-  const requestedBefore = readPreference(LOCATION_REQUESTED_KEY) === 'true'
+  // A live grant must win over old cached denials, including those written by
+  // the previous permission service. The old attempted flag is not a denial.
+  if (permissionStatus === 'granted') {
+    permissionPromptAttemptedThisSession = false
+    writePreference(LOCATION_CHOICE_KEY, 'granted')
+    writePreference(LOCATION_PROVIDER_DENIED_KEY, 'false')
+    clearPreference(LOCATION_FAILED_ATTEMPT_KEY)
+  }
 
-  if (needsPrompt || permissionUnknown) {
-    if (!requestPermission || requestedBefore) {
-      // A previously granted app choice can cover browsers without a permissions API.
-      if (!(permissionUnknown && savedChoice === 'granted')) {
-        return { coordinates: null, permissionStatus, error: null }
+  // Browsers without a Permissions API can continue using a successful grant.
+  const canUseSavedGrant =
+    permissionUnknown &&
+    savedChoice === 'granted' &&
+    readPreference(LOCATION_PROVIDER_DENIED_KEY) !== 'true'
+
+  if (permissionStatus !== 'granted' && !canUseSavedGrant) {
+    if (savedChoice === 'denied') {
+      return { coordinates: null, permissionStatus, error: 'permission denied by player' }
+    }
+    const requestedBefore = readPreference(LOCATION_REQUESTED_KEY) === 'true'
+    const canRecoverAutomatically = savedChoice === 'granted' || requestedBefore
+    if ((!requestPermission && !canRecoverAutomatically) || !canAttemptPermission()) {
+      return { coordinates: null, permissionStatus, error: null }
+    }
+
+    // Renew an expired one-time grant, or recover an old interrupted attempt.
+    // Ask once while permission remains ungranted, rather than on every refresh.
+    permissionPromptAttemptedThisSession = true
+    writePreference(LOCATION_REQUESTED_KEY, 'true')
+    if (isNative) {
+      try {
+        permissionStatus = nativePermissionStatus(
+          await Geolocation.requestPermissions({ permissions: ['coarseLocation'] })
+        )
+      } catch (error) {
+        recordFailedPermissionAttempt()
+        return { coordinates: null, permissionStatus: 'unknown', error: describeError(error) }
       }
-    } else {
-      writePreference(LOCATION_REQUESTED_KEY, 'true')
-      if (Capacitor.isNativePlatform()) {
-        try {
-          const requested = await Geolocation.requestPermissions({
-            permissions: ['coarseLocation'],
-          })
-          permissionStatus = requested.coarseLocation ?? requested.location
-        } catch (error) {
-          return {
-            coordinates: null,
-            permissionStatus: 'unknown',
-            error: error instanceof Error ? error.message : String(error),
-          }
-        }
-        if (permissionStatus !== 'granted') {
-          writePreference(LOCATION_CHOICE_KEY, 'denied')
-          return { coordinates: null, permissionStatus, error: 'permission denied' }
-        }
-      } else {
-        // This one position request both opens the browser prompt and returns coordinates.
-        try {
-          const coordinates = await getBrowserPosition(timeoutMs)
-          writePreference(LOCATION_CHOICE_KEY, 'granted')
-          return { coordinates, permissionStatus: 'granted', error: null }
-        } catch (error) {
-          const denied = (error as GeolocationPositionError)?.code === 1
-          if (denied) writePreference(LOCATION_CHOICE_KEY, 'denied')
-          return {
-            coordinates: null,
-            permissionStatus: denied ? 'denied' : permissionStatus,
-            error: error instanceof Error ? error.message : String(error),
-          }
-        }
+      if (permissionStatus !== 'granted') {
+        if (permissionStatus === 'denied') recordProviderDenial()
+        recordFailedPermissionAttempt()
+        return { coordinates: null, permissionStatus, error: 'location permission not granted' }
       }
     }
   }
 
-  if (permissionStatus !== 'granted' && !(permissionUnknown && savedChoice === 'granted')) {
-    return { coordinates: null, permissionStatus, error: null }
-  }
-
   try {
-    const coordinates = Capacitor.isNativePlatform()
+    // On the web, one call both obtains coordinates and handles any needed prompt.
+    const coordinates = isNative
       ? await Geolocation.getCurrentPosition({
           enableHighAccuracy: false,
           timeout: timeoutMs,
           maximumAge: 10 * 60 * 1000,
         }).then(({ coords }) => ({ latitude: coords.latitude, longitude: coords.longitude }))
       : await getBrowserPosition(timeoutMs)
+    permissionPromptAttemptedThisSession = false
     writePreference(LOCATION_CHOICE_KEY, 'granted')
+    writePreference(LOCATION_PROVIDER_DENIED_KEY, 'false')
+    clearPreference(LOCATION_FAILED_ATTEMPT_KEY)
     return { coordinates, permissionStatus: 'granted', error: null }
   } catch (error) {
     const denied =
       (error as GeolocationPositionError)?.code === 1 ||
       (error as { code?: string })?.code === 'OS-PLUG-GLOC-0003'
-    if (denied) writePreference(LOCATION_CHOICE_KEY, 'denied')
+    if (denied) recordProviderDenial()
+    if (permissionStatus !== 'granted') recordFailedPermissionAttempt()
     return {
       coordinates: null,
       permissionStatus: denied ? 'denied' : permissionStatus,
-      error: error instanceof Error ? error.message : String(error),
+      error: describeError(error),
     }
   }
 }
 
-/** Requests location at most once during onboarding and shares concurrent callers. */
+/** Shares concurrent lookups without dropping the initial post-rationale request. */
 export function getWeatherLocation(
   timeoutMs: number,
   requestPermission = false
 ): Promise<WeatherLocationResult> {
-  if (pendingLocationRequest) return pendingLocationRequest
-  pendingLocationRequest = resolveWeatherLocation(timeoutMs, requestPermission).finally(() => {
-    pendingLocationRequest = null
+  if (pendingLocationRequest) {
+    const pending = pendingLocationRequest
+    if (!requestPermission || pending.requestsPermission) return pending.promise
+    return pending.promise.then((result) =>
+      result.coordinates ? result : getWeatherLocation(timeoutMs, true)
+    )
+  }
+  const promise = resolveWeatherLocation(timeoutMs, requestPermission).finally(() => {
+    if (pendingLocationRequest?.promise === promise) pendingLocationRequest = null
   })
-  return pendingLocationRequest
+  pendingLocationRequest = { promise, requestsPermission: requestPermission }
+  return promise
 }

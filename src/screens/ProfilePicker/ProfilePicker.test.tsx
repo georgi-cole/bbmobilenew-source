@@ -1,6 +1,12 @@
 import { persistCurrentRunSnapshot } from '../../store/store'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  isProfileContactConfigured,
+  readProfileContact,
+  saveProfileContact,
+  type ProfileContact,
+} from '../../services/backend/profileContact'
 import ProfilePicker from './ProfilePicker'
 import Profile from '../Profile/Profile'
 
@@ -96,6 +102,27 @@ vi.mock('../../utils/imageUtils', () => ({
 vi.mock('../../components/ConfirmExitModal/ConfirmExitModal', () => ({
   default: () => null,
 }))
+vi.mock('../../services/backend/profileContact', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/backend/profileContact')>()),
+  isProfileContactConfigured: vi.fn(),
+  readProfileContact: vi.fn(),
+  saveProfileContact: vi.fn(),
+}))
+
+function openLegacyCreation() {
+  vi.mocked(isProfileContactConfigured).mockReturnValue(true)
+  const view = render(<ProfilePicker />)
+  fireEvent.click(screen.getByRole('button', { name: /create new profile/i }))
+  fireEvent.click(screen.getByRole('button', { name: /choose this look/i }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'Display name' }), {
+    target: { value: 'Jordan' },
+  })
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Age' }), { target: { value: '28' } })
+  fireEvent.change(screen.getByRole('combobox', { name: 'Sex (Reality storylines)' }), {
+    target: { value: 'Other' },
+  })
+  return view
+}
 
 describe('ProfilePicker', () => {
   beforeEach(() => {
@@ -103,6 +130,15 @@ describe('ProfilePicker', () => {
     mockDispatch.mockReset()
     mockLoadSavedRunProfile.mockReset()
     mockLoadSavedRunProfile.mockImplementation((id: string) => emptySavedProfile(id))
+    vi.mocked(isProfileContactConfigured).mockReturnValue(false)
+    vi.mocked(readProfileContact).mockReset().mockResolvedValue(null)
+    vi.mocked(saveProfileContact)
+      .mockReset()
+      .mockImplementation(async (_profile, input) => ({
+        email: input.email,
+        updatesOptIn: input.updatesOptIn,
+        revision: '732ce7bc-24b4-4057-b99e-ff0a5787590b',
+      }))
     mockLocationState = null
     mockState.profiles = {
       profiles: [],
@@ -137,6 +173,81 @@ describe('ProfilePicker', () => {
         state: { from: '/game' },
       })
     })
+  })
+
+  it('keeps optional email inside the fallback creation form with no separate account entry', async () => {
+    openLegacyCreation()
+    expect(screen.queryByRole('button', { name: /Account & email/ })).toBeNull()
+    expect(screen.getByLabelText('Email (optional)')).toHaveValue('')
+    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Profile' }))
+    await waitFor(() => expect(mockDispatch).toHaveBeenCalled())
+    expect(readProfileContact).not.toHaveBeenCalled()
+    expect(saveProfileContact).not.toHaveBeenCalled()
+  })
+
+  it('saves one explicit email choice with the same ID as the local fallback profile', async () => {
+    openLegacyCreation()
+    fireEvent.change(screen.getByLabelText('Email (optional)'), {
+      target: { value: 'jordan@example.com' },
+    })
+    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Profile' }))
+    await waitFor(() => expect(mockDispatch).toHaveBeenCalled())
+    expect(saveProfileContact).toHaveBeenCalledWith(expect.objectContaining({ name: 'Jordan' }), {
+      email: 'jordan@example.com',
+      updatesOptIn: true,
+      expectedRevision: null,
+    })
+    const create = mockDispatch.mock.calls.find(
+      ([action]) => action.type === 'profiles/createProfile'
+    )![0]
+    expect(create.payload.id).toBe(vi.mocked(saveProfileContact).mock.calls[0][0].id)
+    expect(JSON.stringify(create)).not.toContain('jordan@example.com')
+  })
+
+  it('retains a failed email draft and allows creation after clearing the optional address', async () => {
+    vi.mocked(saveProfileContact).mockRejectedValueOnce(new Error('Check your connection.'))
+    openLegacyCreation()
+    fireEvent.change(screen.getByLabelText('Email (optional)'), {
+      target: { value: 'jordan@example.com' },
+    })
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Profile' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Check your connection.')
+    expect(mockDispatch).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText('Email (optional)'), { target: { value: '' } })
+    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Profile' }))
+    await waitFor(() => expect(mockDispatch).toHaveBeenCalled())
+    expect(saveProfileContact).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not create or reset a season after a pending fallback save has unmounted', async () => {
+    let finishSave: (contact: ProfileContact) => void = () => undefined
+    const pendingSave = new Promise<ProfileContact>((resolve) => {
+      finishSave = resolve
+    })
+    vi.mocked(saveProfileContact).mockReturnValueOnce(pendingSave)
+    const view = openLegacyCreation()
+    fireEvent.change(screen.getByLabelText('Email (optional)'), {
+      target: { value: 'jordan@example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create Profile' }))
+    expect(screen.getByRole('button', { name: 'Back to looks' })).toBeDisabled()
+    mockNavigate.mockClear()
+    view.unmount()
+    await act(async () => {
+      finishSave({
+        email: 'jordan@example.com',
+        updatesOptIn: false,
+        revision: '732ce7bc-24b4-4057-b99e-ff0a5787590b',
+      })
+      await pendingSave
+    })
+    expect(mockDispatch).not.toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
   it('saves the swiped-to look and resets a cancelled creation draft', async () => {

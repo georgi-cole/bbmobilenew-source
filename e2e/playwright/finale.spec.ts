@@ -322,9 +322,10 @@ test.describe('Finale / Jury flow @release', () => {
     await tribunal
       .getByRole('button', { name: /Skip All/ })
       .evaluate((button) => (button as HTMLButtonElement).click())
-    await expect(tribunal).toContainText(/wins The Big Eye|Winner declared/, {
+    await expect(tribunal).toContainText('The Tribunal verdict is sealed. One champion awaits.', {
       timeout: 10_000,
     })
+    await expect(tribunal.locator('.fo-finalist--winner')).toHaveCount(0)
 
     const resolvedFinale = await readAppState(page)
     const winnerId = resolvedFinale.finale.winnerId
@@ -335,13 +336,13 @@ test.describe('Finale / Jury flow @release', () => {
     expect(roster.finalists.map((player) => player.id)).toContain(winnerId)
     expect(roster.finalists.map((player) => player.id)).toContain(runnerUpId)
 
-    await tribunal.getByRole('button', { name: /Continue/ }).evaluate((element) => {
+    await tribunal.getByRole('button', { name: 'Reveal the Champion' }).evaluate((element) => {
       const button = element as HTMLButtonElement
       button.click()
       button.click()
     })
 
-    const winnerReveal = page.getByRole('dialog', { name: /Season \d+ winner reveal/ })
+    const winnerReveal = page.getByRole('dialog', { name: /Season \d+ champion coronation/ })
     await expect(winnerReveal).toBeVisible({ timeout: 10_000 })
     const persistedWinner = await readAppState(page)
     const winner = persistedWinner.game.players.find((player) => player.id === winnerId)
@@ -357,7 +358,7 @@ test.describe('Finale / Jury flow @release', () => {
     await expect(winnerReveal).toContainText(winner.name)
 
     await dismissPermissionPromptIfPresent(page)
-    await winnerReveal.getByRole('button', { name: 'Continue' }).click()
+    await winnerReveal.getByRole('button', { name: 'Continue to winner interview' }).click()
     const interview = page.getByRole('dialog', { name: 'Winner interview' })
     await expect(interview).toBeVisible()
     await interview.getByRole('button', { name: 'Skip to end' }).click()

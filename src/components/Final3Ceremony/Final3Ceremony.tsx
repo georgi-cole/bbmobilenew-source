@@ -6,14 +6,14 @@
  *
  * Sequence:
  *   1. Shared full-screen Final Power holder reveal (skipped if Part 3 spectator already showed it).
- *   2. Plea overlay — nominees make their cases (reuses ChatOverlay).
+ *   2. Nominee pleas — the role-aware cinematic session or native ChatOverlay.
  *   3. LOH decision:
- *      - Human LOH: TvDecisionModal to choose evictee.
- *      - AI LOH: deterministic auto-pick (seeded RNG, same as advance() AI path).
- *   4. Eviction announcement ChatOverlay.
+ *      - Human LOH: explicit evictee selection and confirmation in either presentation.
+ *      - AI LOH: deterministic choice from the actual season record.
+ *   4. Confirmed decision announcement, before any elimination is committed.
  *   5. Eviction cinematic — SpotlightEvictionOverlay plays for the evictee.
- *   6. `finalizeFinal3Decision` is dispatched with { hohWinnerId, evicteeId }.
- *   7. `advance()` is dispatched so the game proceeds to the jury phase.
+ *   6. Final Two reveal waits for Play.
+ *   7. Play dispatches `finalizeFinal3Decision` and `advance()` exactly once.
  *
  * Dev log tag: [Final3Ceremony]
  */
@@ -33,6 +33,9 @@ import TvDecisionModal from '../TvDecisionModal/TvDecisionModal'
 import SpotlightEvictionOverlay from '../../cinematic/ceremonies/exit.jsx'
 import FinalPowerHolderReveal from '../FinalPowerBattle/FinalPowerHolderReveal'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
+import FinalDecisionPresentation from './FinalDecisionPresentation'
+import type { FinalDecisionAudioController } from './finalDecisionAudio'
+import { usePresentationForeground } from '../../services/presentation/presentationOwnership'
 import type { ChatLine } from '../ChatOverlay/ChatOverlay'
 import type { Player } from '../../types'
 import {
@@ -40,8 +43,9 @@ import {
   readFinalThreeDecision,
   type FinalThreeDecisionRead,
 } from '../../social/finalThreeDecision'
+import { buildFinalThreePleaExchanges } from './finalThreePleaScript'
 import './Final3Ceremony.css'
-import { FINAL_TWO_HUB_BACKDROP_STYLE } from './final3CeremonyAssets'
+import FinalThreeStage from '../FinalThreeStage/FinalThreeStage'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,38 +61,6 @@ type CeremonyStage =
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const DEV_SKIP = import.meta.env.DEV || import.meta.env.CI === 'true'
-
-function buildPlea(nominee: Player, read: FinalThreeDecisionRead): string {
-  const wins = (nominee.stats?.lohWins ?? 0) + (nominee.stats?.posWins ?? 0)
-  const timesNominated = nominee.stats?.timesNominated ?? 0
-  if (read.affinity >= 35)
-    return `We got here because we trusted each other. I hope that still means something.`
-  if (wins >= 2)
-    return `I've earned ${wins} competition wins. Taking me to the Final Two would let me finish what I came here to do.`
-  if (timesNominated >= 2)
-    return `I've been nominated ${timesNominated} times. I kept finding a way forward, and I'm not ready for my story to end in third.`
-  if (read.tags.includes('alliance'))
-    return `We made it this far together. I want to finish this with the person who knows the whole story.`
-  return `I know there's no perfect argument for this choice. I kept showing up for this game, and I want one last chance to prove I belong beside you.`
-}
-
-function buildPleaResponse(nominee: Player, read: FinalThreeDecisionRead): string {
-  const wins = (nominee.stats?.lohWins ?? 0) + (nominee.stats?.posWins ?? 0)
-  const timesNominated = nominee.stats?.timesNominated ?? 0
-  if (read.affinity >= 35)
-    return `I haven't forgotten the bond we built. That's part of why this is so hard.`
-  if (
-    read.tags.includes('betrayal') ||
-    read.tags.includes('target') ||
-    read.tags.includes('rivalry')
-  )
-    return `We haven't always seen the game the same way. I hear you, and I won't pretend those moments didn't matter.`
-  if (wins > 0)
-    return `You've earned ${wins} competition win${wins === 1 ? '' : 's'}. I know what it took to get here.`
-  if (timesNominated > 1)
-    return `You've stood on the block ${timesNominated} times. That's a lot of pressure to carry this far.`
-  return `I know how much this chance means to you. I'll keep that with me when I make the call.`
-}
 
 function thirdPlaceExitLine(player: Player, read: FinalThreeDecisionRead): string {
   const wins = (player.stats?.lohWins ?? 0) + (player.stats?.posWins ?? 0)
@@ -131,12 +103,54 @@ interface Props {
 export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
   const dispatch = useAppDispatch()
   const game = useAppSelector((s) => s.game)
+  const audioPreferences = useAppSelector((s) => s.settings.audio)
+  const foreground = usePresentationForeground()
+  const decisionSoundtrack = useRef<FinalDecisionAudioController | null>(null)
 
   const lohId = game.lohId
   const lohPlayer = game.players.find((p) => p.id === lohId) ?? null
-  const nominees = game.players.filter((p) => game.nomineeIds.includes(p.id))
+  const nominees = useMemo(
+    () => game.players.filter((p) => game.nomineeIds.includes(p.id)),
+    [game.nomineeIds, game.players]
+  )
   const humanPlayer = game.players.find((p) => p.isUser) ?? null
   const humanIsLoh = !!humanPlayer && humanPlayer.id === lohId
+  // A presentation can yield to native UI at any beat. Freeze the game's
+  // deliberate choice once so both routes reveal the same nominee and reason.
+  const [automaticDecision] = useState(() => {
+    if (humanIsLoh) return undefined
+    const pick = chooseFinalThreeEvictee({
+      holderId: lohId,
+      holder: lohPlayer ?? undefined,
+      nominees,
+      relationships: game.strategicRelationships,
+      alliances: game.strategicAlliances,
+      threatReads: game.strategicThreatReadsByActorId,
+    })
+    return pick ? { evicteeId: pick.player.id, reason: pick.reason } : undefined
+  })
+  const decisionSceneId = `${game.gameId ?? `${game.seed}:${game.season}`}:final-decision:${lohId}`
+  const soundtrackContinuation = useMemo(
+    () => ({
+      presentationGroupId: `final-three-decision:${decisionSceneId}`,
+      setActive: (active: boolean) => decisionSoundtrack.current?.setActive(active),
+      finish: () => decisionSoundtrack.current?.finish(),
+    }),
+    [decisionSceneId]
+  )
+  useEffect(() => {
+    decisionSoundtrack.current?.setPreferences(audioPreferences)
+  }, [audioPreferences])
+  useEffect(() => {
+    if (!foreground) decisionSoundtrack.current?.setActive(false)
+  }, [foreground])
+  useEffect(
+    () => () => {
+      decisionSoundtrack.current?.dispose()
+      decisionSoundtrack.current = null
+    },
+    []
+  )
   const decisionReads = useMemo(
     () =>
       Object.fromEntries(
@@ -170,6 +184,15 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       ),
     [decisionReads, nominees]
   )
+  const pleaExchanges = useMemo(
+    () => buildFinalThreePleaExchanges(nominees, decisionReads),
+    [nominees, decisionReads]
+  )
+  const pleaTexts = useMemo(
+    () =>
+      Object.fromEntries(Object.entries(pleaExchanges).map(([id, script]) => [id, script.plea])),
+    [pleaExchanges]
+  )
   const pleaDialogueLines = useMemo<ChatLine[]>(() => {
     if (!lohPlayer) return []
     const lines: ChatLine[] = [
@@ -181,19 +204,18 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       },
     ]
     nominees.forEach((nominee) => {
-      const read = decisionReads[nominee.id]
       lines.push(
         {
           id: `f3c-plea-${nominee.id}`,
           role: 'nominee',
           player: nominee,
-          text: buildPlea(nominee, read),
+          text: pleaExchanges[nominee.id].plea,
         },
         {
           id: `f3c-plea-response-${nominee.id}`,
           role: 'loh',
           player: lohPlayer,
-          text: buildPleaResponse(nominee, read),
+          text: pleaExchanges[nominee.id].response,
         }
       )
     })
@@ -204,7 +226,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       text: `I've heard you both. Give me a moment to make the call.`,
     })
     return lines
-  }, [decisionReads, lohPlayer, nominees])
+  }, [lohPlayer, nominees, pleaExchanges])
 
   const spectatorAlreadyRevealedPower = game.finalThree?.spectatorFinalPowerRevealSeen === true
   const [stage, setStage] = useState<CeremonyStage>(() =>
@@ -218,6 +240,8 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
   const [announceLines, setAnnounceLines] = useState<ChatLine[]>([])
   const [evicteeId, setEvicteeId] = useState<string | null>(null)
   const evicteeIdRef = useRef<string | null>(null)
+  const announcementCompletedRef = useRef(false)
+  const decisionAlreadyPresentedRef = useRef(false)
   const handledPlayStageRef = useRef<CeremonyStage | null>(null)
 
   const evicteePlayer = evicteeId ? (game.players.find((p) => p.id === evicteeId) ?? null) : null
@@ -296,73 +320,74 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
     if (import.meta.env.DEV) {
       console.log('[Final3Ceremony] pleas complete → decision (humanIsLoh:', humanIsLoh, ')')
     }
-    setStage('decision')
+    setStage((current) => (current === 'pleas' ? 'decision' : current))
   }, [humanIsLoh])
 
-  // AI Final LOHs use the same visible decision stage, then make a deliberate
-  // move from the actual season record instead of a hidden random pick.
-  useEffect(() => {
-    if (stage !== 'decision' || humanIsLoh) return
-    const pick = chooseFinalThreeEvictee({
-      holderId: lohId,
-      holder: lohPlayer ?? undefined,
-      nominees,
-      relationships: game.strategicRelationships,
-      alliances: game.strategicAlliances,
-      threatReads: game.strategicThreatReadsByActorId,
-    })
-    if (!pick) return
-    setEvicteeId(pick.player.id)
-    buildAnnounceLines(pick.player, pick.reason)
-    setStage('announcement')
-  }, [
-    buildAnnounceLines,
-    game.strategicAlliances,
-    game.strategicRelationships,
-    game.strategicThreatReadsByActorId,
-    humanIsLoh,
-    lohId,
-    lohPlayer,
-    nominees,
-    stage,
-  ])
+  // ── Accept the explicit human choice or the latched AI verdict ─────────────
 
-  // ── Human LOH decision ────────────────────────────────────────────────────
-
-  const handleHumanDecision = useCallback(
+  const handleDecision = useCallback(
     (chosenEvicteeId: string) => {
-      if (import.meta.env.DEV) {
-        console.log('[Final3Ceremony] human LOH eliminated player chosen', chosenEvicteeId)
-      }
-      const evictee = game.players.find((p) => p.id === chosenEvicteeId)
-      if (!evictee) return
+      if (!humanIsLoh && chosenEvicteeId !== automaticDecision?.evicteeId) return
+      const evictee = nominees.find((p) => p.id === chosenEvicteeId)
+      if (!evictee || evicteeIdRef.current) return
+      // Skip can accept and complete the verdict in the same event. Its handoff
+      // must see the result before React's next effect copies local state.
+      evicteeIdRef.current = chosenEvicteeId
       setEvicteeId(chosenEvicteeId)
       buildAnnounceLines(
         evictee,
-        decisionReads[chosenEvicteeId]?.reason ?? 'this is the move I can live with'
+        (!humanIsLoh ? automaticDecision?.reason : decisionReads[chosenEvicteeId]?.reason) ??
+          'this is the move I can live with'
       )
       setStage('announcement')
     },
-    [buildAnnounceLines, decisionReads, game.players]
+    [automaticDecision, buildAnnounceLines, decisionReads, humanIsLoh, nominees]
   )
+
+  // Native AI presentation and cinematic fallback consume the same game pick.
+  // The cinematic keeps ownership of its own visible deliberation and reveal.
+  useEffect(() => {
+    if (stage !== 'decision' || humanIsLoh || !automaticDecision) return
+    handleDecision(automaticDecision.evicteeId)
+  }, [automaticDecision, handleDecision, humanIsLoh, stage])
 
   // ── Announcement complete → eviction cinematic ───────────────────────────
 
   const handleAnnounceComplete = useCallback(() => {
-    if (!evicteeId) return
+    const chosenEvicteeId = evicteeIdRef.current
+    if (!chosenEvicteeId || announcementCompletedRef.current) return
+    announcementCompletedRef.current = true
     if (import.meta.env.DEV) {
-      console.log('[Final3Ceremony] announcement complete → eviction_splash', { evicteeId })
+      console.log('[Final3Ceremony] announcement complete → eviction_splash', {
+        evicteeId: chosenEvicteeId,
+      })
     }
     // Mark the overlay player so AvatarTile hides itself (isEvicting) and the
     // match-cut doesn't show a duplicate fullscreen tile before the overlay.
-    dispatch(setEvictionOverlay(evicteeId))
+    dispatch(setEvictionOverlay(chosenEvicteeId))
     setStage('eviction_splash')
-  }, [dispatch, evicteeId])
+  }, [dispatch])
+
+  const handlePremiumDecisionComplete = useCallback(
+    (soundtrack: FinalDecisionAudioController) => {
+      if (!evicteeIdRef.current || announcementCompletedRef.current) {
+        soundtrack.dispose()
+        return
+      }
+      // Retain the playing element while the doorway film acquires the same
+      // presentation group. The music ends after its departure handoff.
+      decisionSoundtrack.current = soundtrack
+      decisionAlreadyPresentedRef.current = true
+      handleAnnounceComplete()
+    },
+    [handleAnnounceComplete]
+  )
 
   // ── Eviction cinematic complete → Final Two reveal ────────────────────────
 
   const handleEvictionSplashDone = useCallback(() => {
     if (!lohId || !evicteeId) return
+    decisionSoundtrack.current?.finish()
     if (import.meta.env.DEV) {
       console.log('[Final3Ceremony] elimination splash done → final two reveal', {
         lohId,
@@ -389,19 +414,8 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (stage === 'done') return null
-
-  return (
+  const nativeDecisionPresentation = (
     <>
-      {/* Coronation animation */}
-      {stage === 'coronation' && lohPlayer && (
-        <FinalPowerHolderReveal
-          player={lohPlayer}
-          mode="classic"
-          continueCopy="Press Play when you are ready to make the Final Two decision."
-        />
-      )}
-
       {/* Plea ChatOverlay */}
       {stage === 'pleas' && pleaLines.length > 0 && (
         <ChatOverlay
@@ -427,7 +441,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
           subtitle="Choose who you are eliminating. The other finalist stays and faces you in the Final Two."
           options={nominees}
           optionDescriptions={optionDescriptions}
-          onSelect={handleHumanDecision}
+          onSelect={handleDecision}
           danger
           selectionConsequence={(selectedPlayer, options) => {
             const keptPlayer = options.find((player) => player.id !== selectedPlayer.id)
@@ -462,6 +476,44 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
           ariaLabel="The Finale elimination announcement"
         />
       )}
+    </>
+  )
+
+  if (stage === 'done') return null
+
+  return (
+    <>
+      {/* Coronation animation */}
+      {stage === 'coronation' && lohPlayer && (
+        <FinalPowerHolderReveal
+          player={lohPlayer}
+          mode="classic"
+          continueCopy={
+            humanIsLoh
+              ? 'Press Play when you are ready to make the Final Two decision.'
+              : 'Press Play to hear the final pleas.'
+          }
+        />
+      )}
+
+      {lohPlayer && (stage === 'pleas' || stage === 'decision' || stage === 'announcement') ? (
+        <FinalDecisionPresentation
+          sceneId={decisionSceneId}
+          phase={stage}
+          holder={lohPlayer}
+          nominees={nominees}
+          comparisons={optionDescriptions}
+          automaticDecision={humanIsLoh ? undefined : automaticDecision}
+          viewerId={humanPlayer?.id}
+          pleas={pleaTexts}
+          onChoiceReady={handlePleaComplete}
+          onDecision={handleDecision}
+          onComplete={handlePremiumDecisionComplete}
+          fallback={nativeDecisionPresentation}
+        />
+      ) : (
+        nativeDecisionPresentation
+      )}
 
       {/* Eviction cinematic */}
       <AnimatePresence>
@@ -473,22 +525,24 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
             layoutId={`avatar-tile-${evicteePlayer.id}`}
             onDone={handleEvictionSplashDone}
             devSkip={DEV_SKIP}
+            decisionAlreadyPresented={decisionAlreadyPresentedRef.current}
+            soundtrackContinuation={decisionSoundtrack.current ? soundtrackContinuation : undefined}
           />
         )}
       </AnimatePresence>
 
       {stage === 'final_two_reveal' && (
-        <div
-          className="f3c-final-two"
-          role="dialog"
-          aria-modal="true"
-          aria-label="The Final Two"
-          style={FINAL_TWO_HUB_BACKDROP_STYLE}
-        >
-          <p className="f3c-final-two__eyebrow">THE FINAL TWO</p>
+        <div className="f3c-final-two" role="dialog" aria-modal="true" aria-label="The Final Two">
+          <FinalThreeStage scene="final-two">
+            <div className="f3c-final-two__monitor-copy">
+              <p className="f3c-final-two__eyebrow">THE FINAL TWO</p>
+              <p className="f3c-final-two__copy">The Tribunal chooses the winner.</p>
+            </div>
+          </FinalThreeStage>
           <div className="f3c-final-two__players">
             {finalTwo.map((player) => (
               <div key={player.id} className="f3c-final-two__player">
+                <span className="f3c-final-two__podium" aria-hidden="true" />
                 <div className="f3c-final-two__figure">
                   <FullSizeCutoutImage
                     player={player}
@@ -498,10 +552,10 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
                     draggable={false}
                   />
                 </div>
+                <span className="f3c-final-two__name">{player.name}</span>
               </div>
             ))}
           </div>
-          <p className="f3c-final-two__copy">The Tribunal chooses the winner.</p>
         </div>
       )}
     </>

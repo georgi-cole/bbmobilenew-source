@@ -4,6 +4,8 @@ import { Provider } from 'react-redux'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Final3Ceremony from '../Final3Ceremony'
 import gameReducer, { createInitialGameState } from '../../../store/gameSlice'
+import settingsReducer, { DEFAULT_SETTINGS } from '../../../store/settingsSlice'
+import vipReducer, { loadVipState } from '../../../store/vipSlice'
 import type { Player } from '../../../types'
 
 vi.mock('../../Eviction/SpotlightEvictionOverlay', () => ({
@@ -97,7 +99,17 @@ function renderPleaCeremony(onPlayAvailabilityChange = vi.fn()) {
       evicteeId: null,
     },
   }
-  const store = configureStore({ reducer: { game: gameReducer }, preloadedState: { game } })
+  const store = configureStore({
+    reducer: { game: gameReducer, settings: settingsReducer, vip: vipReducer },
+    preloadedState: {
+      game,
+      settings: {
+        ...DEFAULT_SETTINGS,
+        gameUX: { ...DEFAULT_SETTINGS.gameUX, animationMode: 'standard' as const },
+      },
+      vip: { ...loadVipState(), isActive: false, debugUnlocked: false },
+    },
+  })
 
   render(
     <Provider store={store}>
@@ -139,7 +151,15 @@ describe('Final3Ceremony plea dialogue', () => {
     await act(async () => {
       fireEvent.click(film)
     })
-    expect(screen.getByRole('dialog', { name: 'The Final Two' })).toBeInTheDocument()
+    const finalTwo = screen.getByRole('dialog', { name: 'The Final Two' })
+    expect(finalTwo).toBeInTheDocument()
+    expect(
+      finalTwo.querySelector('[data-finale-set="garden"][data-scene="final-two"]')
+    ).toBeTruthy()
+    expect(finalTwo.querySelectorAll('.f3c-final-two__podium')).toHaveLength(2)
+    expect(finalTwo.querySelectorAll('.f3c-final-two__name')).toHaveLength(2)
+    expect(finalTwo.querySelector('.f3-venue__screen')?.textContent).toContain('THE FINAL TWO')
+    expect(finalTwo.querySelector('.f3-venue__screen')?.textContent).toContain('Tribunal chooses')
     act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
     expect(
       store.getState().game.players.find((player) => player.id === nominees[0].id)?.seasonPlacement

@@ -190,7 +190,9 @@ function getVisibleViewport() {
 function calculateStageRects(targets: LiftTarget[], viewport = getVisibleViewport()): DOMRect[] {
   const availableWidth = Math.max(1, viewport.width - 32 - STAGE_GAP * (targets.length - 1))
   const maxPerTile = availableWidth / Math.max(1, targets.length)
-  const largestSource = Math.max(...targets.map((target) => target.sourceRect.width))
+  const largestSource = Math.max(
+    ...targets.map((target) => Math.max(target.sourceRect.width, target.sourceRect.height))
+  )
   const size = Math.min(
     maxPerTile,
     MAX_STAGE_TILE_SIZE,
@@ -212,13 +214,24 @@ function rectStyle(rect: DOMRect): CSSProperties {
   }
 }
 
+function fitRectPreservingAspect(source: DOMRect, bounds: DOMRect): DOMRect {
+  const scale = Math.min(bounds.width / source.width, bounds.height / source.height)
+  const width = source.width * scale
+  const height = source.height * scale
+  return new DOMRect(
+    bounds.left + (bounds.width - width) / 2,
+    bounds.top + (bounds.height - height) / 2,
+    width,
+    height
+  )
+}
+
 function transformBetweenRects(source: DOMRect, destination: DOMRect): string {
   if (source.width <= 0 || source.height <= 0) return 'none'
   const translateX = destination.left - source.left
   const translateY = destination.top - source.top
-  const scaleX = destination.width / source.width
-  const scaleY = destination.height / source.height
-  return `translate3d(${translateX}px, ${translateY}px, 0) scale(${scaleX}, ${scaleY})`
+  const scale = destination.width / source.width
+  return `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale}, ${scale})`
 }
 
 export default function WinnerTileLiftAnimation({
@@ -424,12 +437,15 @@ export default function WinnerTileLiftAnimation({
     >
       <div className="winner-tile-lift__backdrop" aria-hidden="true" />
       {targets.map((target, index) => {
-        const destination =
+        const bounds =
           phase === 'captured'
             ? target.sourceRect
             : phase === 'returning'
               ? target.returnRect
               : stageRects[index]
+        // Responsive roster portraits can be taller than wide. Preserve the
+        // frozen tile's shape in its stage slot and after a resized return.
+        const destination = fitRectPreservingAspect(target.sourceRect, bounds)
         const tileStyle: CSSProperties = {
           ...rectStyle(target.sourceRect),
           transform: transformBetweenRects(target.sourceRect, destination),

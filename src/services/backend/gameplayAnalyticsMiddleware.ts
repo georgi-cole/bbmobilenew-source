@@ -12,10 +12,12 @@ type AnalyticsContext = {
   week: number
   day: number
   phase: string
+  season_index: number
+  game_id: string
 }
 
 type MinigameSession = {
-  profileId: string
+  profileId: string | null
   minigameId: string
   gameKey: string
   source: 'challenge' | 'native'
@@ -66,7 +68,7 @@ const USER_ACTION_IDS: Record<string, string> = {
 /** Record coarse gameplay actions; no chat text, player names, or free-form content is sent. */
 export const gameplayAnalyticsMiddleware: Middleware = (api) => {
   let socialSession: {
-    profileId: string
+    profileId: string | null
     id: string
     elapsedMilliseconds: number
     visibleSince: number | null
@@ -121,7 +123,7 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
 
   const startMinigame = (
     key: string,
-    profileId: string,
+    profileId: string | null,
     minigameId: string,
     gameKey: string,
     source: MinigameSession['source'],
@@ -241,12 +243,14 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
       day: after.game.week,
       ...selectedGameMode,
       phase: after.game.phase,
+      season_index: after.game.season,
+      game_id: after.game.gameId,
     }
 
     if (socialSession && socialSession.profileId !== profileId)
       closeSocialSession(profileId ? 'profile_changed' : 'guest_mode')
     if (socialSession && !after.social.panelOpen) closeSocialSession('closed')
-    if (!socialSession && profileId && after.social.panelOpen) {
+    if (!socialSession && after.social.panelOpen) {
       socialSession = {
         profileId,
         id: makeSessionId(),
@@ -267,7 +271,6 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
     const previousChallenge = before.challenge.pending
     const currentChallenge = after.challenge.pending
     if (
-      profileId &&
       currentChallenge &&
       !minigameSessions.has(`challenge:${currentChallenge.id}`) &&
       after.game.players.some(
@@ -325,7 +328,6 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
     const nativeKey = (session: NonNullable<typeof previousNative>) =>
       `native:${session.key}:${session.seed}`
     if (
-      profileId &&
       currentNative &&
       !minigameSessions.has(nativeKey(currentNative)) &&
       human &&
@@ -401,101 +403,123 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
           { character_id: characterId, character_label: characterLabel },
           profileId
         )
-
-      if (
-        action.type === 'game/resetGame' &&
-        shouldTrackSeasonReset(launchIntent, after.game.players.length > 0)
-      ) {
-        if (before.game.status === 'active' && before.game.players.length)
-          trackProductEvent(
-            'season_abandoned',
-            {
-              week: before.game.week,
-              day: before.game.week,
-              ...getAnalyticsGameMode(before.game.mode, before.game.expansionMode),
-            },
-            profileId
-          )
-        if (after.game.players.length) {
-          trackProductEvent('game_mode_selected', selectedGameMode, profileId)
-          trackProductEvent(
-            'season_started',
-            { ...context, season_index: after.game.season },
-            profileId
-          )
-        }
-      }
-
-      const gameActionId = USER_ACTION_IDS[action.type]
-      if (gameActionId)
-        trackProductEvent('game_action', { ...context, action_id: gameActionId }, profileId)
-
-      if (
-        before.game.week > 0 &&
-        after.game.week > before.game.week &&
-        after.game.players.length > 0
-      )
-        trackProductEvent('season_day_reached', context, profileId)
-
-      const beforeHuman = before.game.players.find((player) => player.isUser)
-      const afterHuman = after.game.players.find((player) => player.isUser)
-      const eliminationContext: AnalyticsContext = {
-        ...getAnalyticsGameMode(before.game.mode, before.game.expansionMode),
-        week: before.game.week,
-        day: before.game.week,
-        phase: before.game.phase,
-      }
-      if (!isOut(beforeHuman) && isOut(afterHuman))
-        trackProductEvent(
-          'player_eliminated',
-          {
-            ...eliminationContext,
-            placement: afterHuman?.finalRank ?? afterHuman?.seasonPlacement,
-            player_status: afterHuman?.status,
-            elimination_type:
-              action.type === 'game/selfEvict' ? 'self_eviction' : 'game_elimination',
-          },
-          profileId
-        )
-      if (action.type === 'game/selfEvict' && afterHuman?.status === 'evicted')
-        trackProductEvent(
-          'self_eviction',
-          {
-            ...eliminationContext,
-            placement: afterHuman.finalRank ?? afterHuman.seasonPlacement,
-          },
-          profileId
-        )
-
-      if (after.game.seasonArchives !== before.game.seasonArchives) {
-        const previousSeasonIds = new Set(
-          (before.game.seasonArchives ?? []).map((archive) => archive.seasonId)
-        )
-        const archive = (after.game.seasonArchives ?? []).find(
-          (entry) => !previousSeasonIds.has(entry.seasonId)
-        )
-        const humanSummary = archive?.playerSummaries.find(
-          (summary) => summary.playerId === afterHuman?.id
-        )
-        if (archive && humanSummary)
-          trackProductEvent(
-            'season_completed',
-            {
-              ...context,
-              season_index: archive.seasonIndex,
-              placement: humanSummary.finalPlacement,
-              total_players: archive.playerSummaries.length,
-              days_alive: humanSummary.daysAlive,
-              made_jury: humanSummary.madeJury,
-              was_evicted: humanSummary.isEvicted,
-            },
-            profileId
-          )
-      }
     }
 
     if (
-      profileId &&
+      action.type === 'game/resetGame' &&
+      shouldTrackSeasonReset(launchIntent, after.game.players.length > 0)
+    ) {
+      if (before.game.status === 'active' && before.game.players.length)
+        trackProductEvent(
+          'season_abandoned',
+          {
+            week: before.game.week,
+            day: before.game.week,
+            season_index: before.game.season,
+            game_id: before.game.gameId,
+            ...getAnalyticsGameMode(before.game.mode, before.game.expansionMode),
+          },
+          profileId
+        )
+      if (after.game.players.length) {
+        trackProductEvent('game_mode_selected', selectedGameMode, profileId)
+        trackProductEvent(
+          'season_started',
+          { ...context, season_index: after.game.season },
+          profileId
+        )
+      }
+    }
+
+    const gameActionId = USER_ACTION_IDS[action.type]
+    if (gameActionId)
+      trackProductEvent('game_action', { ...context, action_id: gameActionId }, profileId)
+
+    if (before.game.week > 0 && after.game.week > before.game.week && after.game.players.length > 0)
+      trackProductEvent('season_day_reached', context, profileId)
+
+    const beforeHuman = before.game.players.find((player) => player.isUser)
+    const afterHuman = after.game.players.find((player) => player.isUser)
+    const eliminationContext: AnalyticsContext = {
+      ...getAnalyticsGameMode(before.game.mode, before.game.expansionMode),
+      week: before.game.week,
+      day: before.game.week,
+      phase: before.game.phase,
+      season_index: before.game.season,
+      game_id: before.game.gameId,
+    }
+    if (!isOut(beforeHuman) && isOut(afterHuman))
+      trackProductEvent(
+        'player_eliminated',
+        {
+          ...eliminationContext,
+          placement: afterHuman?.finalRank ?? afterHuman?.seasonPlacement,
+          player_status: afterHuman?.status,
+          elimination_type: action.type === 'game/selfEvict' ? 'self_eviction' : 'game_elimination',
+        },
+        profileId
+      )
+    if (action.type === 'game/selfEvict' && afterHuman?.status === 'evicted')
+      trackProductEvent(
+        'self_eviction',
+        {
+          ...eliminationContext,
+          placement: afterHuman.finalRank ?? afterHuman.seasonPlacement,
+        },
+        profileId
+      )
+
+    if (
+      action.type === 'game/archiveSeason' &&
+      after.game.seasonArchives !== before.game.seasonArchives
+    ) {
+      const previousSeasonIds = new Set(
+        (before.game.seasonArchives ?? []).map((archive) => archive.seasonId)
+      )
+      const archive = (after.game.seasonArchives ?? []).find(
+        (entry) => !previousSeasonIds.has(entry.seasonId)
+      )
+      const humanSummary = archive?.playerSummaries.find(
+        (summary) => summary.playerId === afterHuman?.id
+      )
+      if (archive && humanSummary && archive.seasonIndex === after.game.season)
+        trackProductEvent(
+          'season_completed',
+          {
+            ...context,
+            season_index: archive.seasonIndex,
+            placement: humanSummary.finalPlacement,
+            total_players: archive.playerSummaries.length,
+            days_alive: humanSummary.daysAlive,
+            made_jury: humanSummary.madeJury,
+            was_evicted: humanSummary.isEvicted,
+          },
+          profileId
+        )
+    }
+
+    // Only accepted human choices count as Tribunal engagement; background
+    // progression, AI ballots, invalid votes, and repeated acknowledgements do not.
+    if (import.meta.env.VITE_PLAYER_ACCOUNTS_ENABLED === 'true' && beforeHuman?.status === 'jury') {
+      const joinedTribunal =
+        action.type === 'game/chooseTribunalInvitation' &&
+        !before.game.tribunalInvitationAcknowledged &&
+        after.game.tribunalInvitationAcknowledged &&
+        after.game.tribunalInvitationTransition === 'sequester'
+      const voted =
+        action.type === 'finale/castVote' &&
+        before.finale.awaitingHumanJurorId === beforeHuman.id &&
+        !before.finale.votes[beforeHuman.id] &&
+        Boolean(after.finale.votes[beforeHuman.id])
+      if (joinedTribunal || voted)
+        trackProductEvent(
+          'tribunal_action',
+          { ...context, action_id: voted ? 'finale_vote_cast' : 'invitation_accepted' },
+          profileId
+        )
+    }
+
+    if (
       action.type === 'social/recordSocialAction' &&
       after.social.actionHistory !== before.social.actionHistory
     ) {

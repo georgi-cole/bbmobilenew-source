@@ -948,3 +948,402 @@
     animation: none;
   }
 }
+
+/* Phase 4: all finale handoff screens use the same modular garden as the
+   spectator broadcast. These layout rules supersede the legacy duel image and
+   gradient-only power reveal without changing the existing Play ownership. */
+.fpb-intro,
+.fpb-block,
+.fp-holder-reveal {
+  display: block;
+  padding: 0;
+  background: #080811;
+  font-family: Montserrat, Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.fpb-intro__stage,
+.fpb-block__stage,
+.fp-holder-reveal__portrait {
+  position: absolute;
+  top: 49%;
+  bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 35px);
+  left: 50%;
+  width: min(94%, calc(100dvh * 0.7));
+  height: auto;
+  max-height: none;
+  transform: translateX(-50%);
+  margin: 0;
+}
+
+.fpb-intro__stage {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0;
+}
+
+.fpb-intro__panel {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+}
+
+.fpb-intro__cutout {
+  z-index: 2;
+  bottom: 14px;
+  height: 100%;
+  width: min(54vw, 23rem);
+  max-width: none;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.fpb-intro__podium,
+.fpb-block__podium,
+.fp-holder-reveal__podium {
+  position: absolute;
+  z-index: 1;
+  right: 9%;
+  bottom: 5px;
+  left: 9%;
+  height: clamp(17px, 3.4vh, 29px);
+  border: 1px solid #d8b37587;
+  border-top-color: #f0d5a1b0;
+  border-bottom-color: #3e2c1a;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 15%, #7770893d, #1b1520 55%, #090a10);
+  box-shadow:
+    0 3px 0 #443526,
+    0 5px 0 #171219,
+    0 6px 9px #000b,
+    0 -3px 15px #d1ae6229,
+    inset 0 1px 0 #ffe6be80;
+}
+
+.fpb-intro__name {
+  z-index: 3;
+  right: -5%;
+  bottom: -7px;
+  left: -5%;
+  font-size: clamp(10px, 2.6cqw, 15px);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  text-shadow:
+    0 2px 5px #080811,
+    0 0 14px #000;
+}
+
+.f3-venue__screen .fpb-intro__copy,
+.f3-venue__screen .fp-holder-reveal__copy {
+  position: relative;
+  inset: auto;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  gap: 3px;
+  padding: 0;
+  margin: 0;
+  color: #fff6e7;
+  text-shadow: none;
+  animation: none;
+}
+
+.f3-venue__screen .fpb-intro__eyebrow,
+.f3-venue__screen .fp-holder-reveal__eyebrow {
+  margin: 0;
+  color: #d4bd94;
+  font-size: clamp(8px, 2.2cqw, 11px);
+  font-weight: 600;
+  letter-spacing: 0.13em;
+}
+
+.f3-venue__screen .fpb-intro__copy h2 {
+  max-width: 100%;
+  margin: 0;
+  font-size: clamp(17px, 5.9cqw, 28px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.f3-venue__screen .fpb-intro__lead {
+  max-width: 100%;
+  margin: 0;
+  color: #d4c7d3;
+  font-size: clamp(10px, 2.75cqw, 14px);
+  line-height: 1.28;
+  text-wrap: balance;
+}
+
+.fpb-block__stage {
+  z-index: 2;
+  width: min(90%, calc(100dvh * 0.69));
+  bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 35px);
+}
+
+.fpb-block__competitor {
+  position: absolute;
+  bottom: 0;
+  width: 47%;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.fpb-block__competitor--1 {
+  left: 1%;
+}
+
+.fpb-block__competitor--2 {
+  right: 1%;
+}
+
+.fpb-block__competitor-cutout {
+  z-index: 2;
+  right: 0;
+  bottom: 16px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 16px);
+  object-fit: contain;
+}
+
+.fpb-block__platform-name {
+  position: absolute;
+  top: auto;
+  right: 0;
+  bottom: -7px;
+  left: 0;
+  z-index: 3;
+  display: block;
+  max-width: 100%;
+  padding-inline: 3px;
+  color: #fff6e7;
+  font-size: clamp(10px, 2.7cqw, 14px);
+  font-weight: 600;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  transform: none;
+}
+
+.fpb-block__vs {
+  top: 50%;
+  font-size: clamp(10px, 2.8cqw, 15px);
+  font-weight: 700;
+}
+
+.f3-venue__screen .fpb-block__nominee-monitor {
+  position: relative;
+  inset: auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-items: center;
+  justify-items: stretch;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  animation: none;
+}
+
+.fpb-block__monitor-rule {
+  margin: 0;
+  color: #d4c7d3;
+  font-size: clamp(9px, 2.3cqw, 12px);
+  line-height: 1.16;
+  text-wrap: balance;
+}
+
+.fpb-block__monitor-kicker {
+  margin: 0;
+  color: #d4bd94;
+  font-size: clamp(8px, 2.2cqw, 11px);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.f3-venue__screen .fpb-block__monitor-slots {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  gap: 6px;
+}
+
+.f3-venue__screen .fpb-block__monitor-player {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
+  gap: 2px;
+  height: 100%;
+}
+
+.f3-venue__screen .fpb-block__nominee-avatar.pa--md,
+.f3-venue__screen .fpb-block__wildcard-avatar {
+  width: clamp(23px, 8cqw, 43px);
+  height: clamp(23px, 8cqw, 43px);
+  align-self: center;
+}
+
+.f3-venue__screen .fpb-block__monitor-player strong {
+  max-width: 100%;
+  color: #fff6e7;
+  font-size: clamp(10px, 2.9cqw, 14px);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+  font-weight: 600;
+}
+
+.fpb-block__copy {
+  position: absolute;
+  top: auto;
+  bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 7px);
+  left: 50%;
+  z-index: 3;
+  width: min(88%, calc(100dvh * 0.63));
+  padding: 0.4rem 0.7rem;
+  margin: 0;
+  border: 1px solid #d8b37538;
+  background: #130e20d9;
+  transform: translateX(-50%);
+  animation: none;
+}
+
+.fpb-block__copy h2 {
+  margin: 0.1rem 0;
+  font-size: clamp(14px, 3.5vw, 22px);
+}
+
+.fpb-block__copy p:not(.fpb-block__eyebrow) {
+  color: #d4c7d3;
+  font-size: clamp(10px, 2.45vw, 13px);
+  line-height: 1.2;
+}
+
+.fp-holder-reveal__portrait {
+  z-index: 2;
+  top: 48%;
+  bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 47px);
+  width: min(74%, calc(100dvh * 0.5));
+  animation: f3-venue-holder-arrive 850ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+
+.fp-holder-reveal__portrait img {
+  z-index: 2;
+  bottom: 13px;
+  height: calc(100% - 13px);
+}
+
+.fp-holder-reveal__spotlight {
+  inset: -12% -30%;
+  z-index: 0;
+  background: radial-gradient(ellipse at 50% 75%, #f1cc8135, transparent 58%);
+}
+
+.f3-venue__screen .fp-holder-reveal__copy h2 {
+  max-width: 100%;
+  margin: 0;
+  color: #fff6e7;
+  font-size: clamp(18px, 6.5cqw, 32px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+
+.f3-venue__screen .fp-holder-reveal__copy > p:last-child {
+  margin: 0;
+  color: #d4c7d3;
+  font-size: clamp(10px, 2.8cqw, 14px);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.fp-holder-reveal__continue {
+  position: absolute;
+  right: 5%;
+  bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 10px);
+  left: 5%;
+  z-index: 3;
+  width: min(90%, 24rem);
+  margin: 0 auto;
+  color: #e7d3ae;
+  font-size: clamp(10px, 2.6vw, 13px);
+  line-height: 1.25;
+}
+
+@keyframes f3-venue-holder-arrive {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 22px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@media (max-height: 680px) {
+  .fpb-intro__stage,
+  .fpb-block__stage {
+    top: 48%;
+  }
+  .fpb-block__stage {
+    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 28px);
+  }
+  .fp-holder-reveal__portrait {
+    top: 47%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-holder-reveal__portrait {
+    animation: none;
+    transform: translateX(-50%);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .fpb-intro__stage,
+  .fpb-block__stage {
+    top: 17%;
+    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 13px);
+    left: 73%;
+    width: 46%;
+    height: auto;
+  }
+
+  .fp-holder-reveal__portrait {
+    top: 16%;
+    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 12px);
+    left: 73%;
+    width: 34%;
+    height: auto;
+  }
+
+  .fp-holder-reveal__continue {
+    display: none;
+  }
+
+  .fpb-intro__cutout {
+    width: min(30vw, 13rem);
+  }
+
+  .fpb-block__competitor {
+    height: 100%;
+  }
+}

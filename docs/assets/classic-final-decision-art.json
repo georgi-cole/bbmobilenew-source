@@ -1,0 +1,42 @@
+{
+  "generator": "built-in imagegen",
+  "prompts": {
+    "decision-background": "Use case: stylized-concept. Asset type: production background plate for a modular mobile game cinematic, portrait 2:3 composition. Create ONLY the empty architectural shell of an expensive contemporary reality-show final-decision chamber. Photoreal cinematic set design, grounded physically plausible materials. A tall central burgundy-veined obsidian wall recessed within a restrained champagne-brass arch, dark wine velvet inset wall panels on left and right, two slim warm architectural sconces. Wide open stage floor in polished dark stone with soft restrained reflection, floor occupies lower 45 percent of frame, shallow central dais at back. Symmetrical frontal camera at human chest height, 50mm lens, no extreme wide angle. Empty central and left/right foreground spaces for separately composited full-body contestants. Deep wine, black marble, aged champagne brass. Soft dark neutral cinematic illumination, light sources subdued; spotlights and dramatic changes will be separate animated layers. Material detail, photographic realism, calm solemn prestige, not a fantasy castle. Full image has no furniture, no tables, no chairs, no people, no silhouettes, no statues, no trophies, no crowns, no eye logos, no floating props, no haze or smoke, no particles, no text, no labels, no UI. This is a clean background plate, not a complete screen or finished ceremony. Maintain dark empty space in the upper 15 percent for live typography.",
+    "decision-desk": "Use case: product-mockup. Asset type: isolated foreground scenic prop for a modular cinematic game, landscape 3:2 composition. One low freestanding curved decision desk / ceremonial console, contemporary high-end television stage furnishing. Dark burgundy-black onyx polished stone top, deep black subtly fluted front face, slim champagne-brass frame at outer edges and one very understated horizontal gold inlay. Front symmetrical view with a little of the empty tabletop visible, camera human chest height, 50mm lens. Wide and low proportions, three times wider than tall. Physical credible premium craftsmanship. The entire object visible with broad transparent padding around every edge. Realistic studio lighting from upper left and right, restrained reflections, dark luxurious materials. Genuine transparent background including outside/under the object, no opaque floor, no room, no rectangle, no checkerboard. No people, no hands, no throne, no trophy, no token, no symbols, no writing, no numbers, no labels. Do not add a second object. Keep the top surface completely empty because a separate animated medallion will be placed over it.",
+    "decision-seal": "Use case: product-mockup. Asset type: one isolated ceremonial decision medallion cutout for a modular game cinematic, square image. A single elegant palm-sized round thick coin of brushed champagne gold and dark obsidian, viewed almost face-on with a subtle 12-degree three-quarter angle so its physical thickness is visible. A sculpted stylized eye emblem centered on the face: an almond-shaped gold eye outline with one circular obsidian pupil. Minimal, bold, expensive, memorable. Finely bevelled rim, restrained engraved radial surface detail, real precious-metal imperfections, photographed like fine luxury hardware under soft studio lighting, warm specular highlights. Entire medallion centered with generous transparent padding. Genuine transparent background, no floor, no shadows outside the object, no hand, no pedestal, no chain, no extra coins, no smoke, no glow, no particles. No words, no letters, no numbers, no interface. This independent alpha object will move between stage positions; do not bake a background or animation trail into it.",
+    "broadcast-monitor": "Use case: product-mockup. Asset type: one modular scenic broadcast-monitor housing cutout for a premium mobile reality-show finale. Create a realistic physically built wide rectangular monitor, perfectly frontal and symmetrical, no perspective skew, no stand or legs. The entire monitor object has an approximately 2.35:1 width-to-height ratio with a large clean 2.5:1 blank display aperture. Thin brushed champagne-brass inner bezel, restrained charcoal-black anodized outer body, subtle burgundy-black onyx side accents, elegant minimal beveled corners. High-end contemporary television-stage hardware matching black marble, wine velvet and champagne brass ceremonial furniture. The display is flat uniform near-black glass, no reflections crossing the central screen, no gradients or visual content inside; live typography and gameplay will be rendered separately over this aperture. Subtle realistic edge highlights only on the housing. Tight composition around the complete object, equal small transparent margins on all sides, landscape panoramic framing. The outside background must be genuinely transparent. No wall, no room, no floor, no cast shadow outside the object, no glow halo, no cables, no remote, no characters, no people, no eye symbol, no logo, no text, no lettering, no numbers, no interface graphics. This is only one independent monitor hardware layer, not a full scene or screen mockup."
+  },
+  "settings": {
+    "decision-background": {
+      "transparent_background": false,
+      "composition": "portrait 2:3",
+      "output": "public/assets/ceremonies/final-decision/background.webp"
+    },
+    "decision-desk": {
+      "transparent_background": true,
+      "composition": "landscape 3:2",
+      "output": "public/assets/ceremonies/final-decision/foreground.webp"
+    },
+    "decision-seal": {
+      "transparent_background": true,
+      "composition": "square",
+      "output": "public/assets/ceremonies/final-decision/token.webp"
+    },
+    "broadcast-monitor": {
+      "transparent_background": true,
+      "composition": "panoramic frontal monitor",
+      "output": "public/assets/ceremonies/final-decision/monitor.webp"
+    }
+  },
+  "notes": "Three independently generated images. No character, text or game UI is baked into these images. Runtime WebP files are resized exports; full-resolution source PNG files are retained.",
+  "implementation": "Architecture, desk, seal and monitor are independent raster layers. Display content, labels, controls and lighting are rendered at runtime. Character art, mist and crown reuse the game catalog.",
+  "monitorScreen": {
+    "aspectRatio": 2.3508557457212715,
+    "screen": {
+      "x": 0.071,
+      "y": 0.165,
+      "width": 0.858,
+      "height": 0.642
+    }
+  }
+}

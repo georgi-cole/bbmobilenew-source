@@ -15,11 +15,11 @@ function ceremonySources() {
 }
 
 describe('GameScreen ceremony animation contracts', () => {
-  it('re-measures LOH/POS winner, nomination, replacement, save, and public-save targets', () => {
+  it('keeps live target resolvers for LOH/POS winners, nominations, replacements, and saves', () => {
     const source = ceremonySources()
 
     expect(source).toContain('resolveTarget={getCeremonyTileElement}')
-    expect(source).toContain('const rect = target.source.getBoundingClientRect()')
+    // Return measurements are exercised by winnerTileLift.animation.test.tsx.
     expect(source).toContain('layoutSignal={responsiveGameLayout.revision}')
     expect(source).toContain('resolveTiles={pendingReplacementCeremony.resolveTiles}')
     expect(source).toContain('resolveTiles={pendingSaveCeremony.resolveTiles}')

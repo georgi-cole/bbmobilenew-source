@@ -218,3 +218,187 @@
     animation: none;
   }
 }
+
+/* Phase 4: Final Two returns to the same garden architecture and live monitor
+   as the preceding rounds. Only the cast and monitor script have changed. */
+.f3c-final-two {
+  background: #080811;
+  font-family: Montserrat, Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.f3c-final-two::after {
+  display: none;
+}
+
+.f3c-final-two__monitor-copy {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: clamp(5px, 1.5cqw, 9px);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.f3-venue__screen .f3c-final-two__eyebrow {
+  position: static;
+  top: auto;
+  left: auto;
+  width: 100%;
+  margin: 0;
+  color: #ffe6b8;
+  font-size: clamp(16px, 5.7cqw, 28px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  transform: none;
+}
+
+.f3-venue__screen .f3c-final-two__copy {
+  position: static;
+  inset: auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  color: #d4c7d3;
+  font-size: clamp(11px, 3cqw, 15px);
+  font-weight: 400;
+  line-height: 1.28;
+}
+
+.f3c-final-two__players {
+  position: absolute;
+  top: 49%;
+  right: auto;
+  bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 40px);
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2%;
+  width: min(91%, calc(100dvh * 0.69));
+  height: auto;
+  min-height: 0;
+  transform: translateX(-50%);
+}
+
+.f3c-final-two__player {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  flex: 1 1 0;
+  width: 48%;
+  min-width: 0;
+  height: 100%;
+  animation: f3c-slide-up 0.5s ease both;
+}
+
+.f3c-final-two__figure {
+  position: absolute;
+  z-index: 2;
+  inset: 0 0 18px;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.f3c-final-two__cutout {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-position: center bottom;
+  transform: scale(1.04);
+  transform-origin: center bottom;
+  filter: drop-shadow(0 13px 21px #000b);
+}
+
+.f3c-final-two__podium {
+  position: absolute;
+  z-index: 1;
+  right: 9%;
+  bottom: 6px;
+  left: 9%;
+  height: clamp(17px, 3.4vh, 29px);
+  border: 1px solid #d8b37587;
+  border-top-color: #f0d5a1b0;
+  border-bottom-color: #3e2c1a;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 15%, #7770893d, #1b1520 55%, #090a10);
+  box-shadow:
+    0 3px 0 #443526,
+    0 5px 0 #171219,
+    0 6px 9px #000b,
+    0 -3px 15px #d1ae6229,
+    inset 0 1px 0 #ffe6be80;
+}
+
+.f3c-final-two__name {
+  position: absolute;
+  z-index: 3;
+  right: -4%;
+  bottom: -6px;
+  left: -4%;
+  display: block;
+  padding-inline: 3px;
+  color: #fff6e7;
+  font-size: clamp(10px, 2.8cqw, 15px);
+  font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  text-shadow:
+    0 2px 5px #080811,
+    0 0 14px #000;
+}
+
+@media (max-width: 620px) {
+  .f3c-final-two__players {
+    top: 49%;
+    right: auto;
+    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 40px);
+    left: 50%;
+    width: min(94%, calc(100dvh * 0.7));
+    gap: 1%;
+  }
+}
+
+@media (max-height: 720px) and (orientation: portrait) {
+  .f3c-final-two__players {
+    top: 48%;
+    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 32px);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .f3c-final-two {
+    background: #080811;
+  }
+  .f3c-final-two__players {
+    top: 49%;
+    right: auto;
+    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 26px);
+    left: 50%;
+    width: min(94%, calc(100dvh * 0.7));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .f3c-final-two__player {
+    animation: none;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .f3c-final-two__players {
+    top: 17%;
+    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 13px);
+    left: 73%;
+    width: 46%;
+    height: auto;
+  }
+
+  .f3c-final-two__cutout {
+    transform: scale(1);
+  }
+}

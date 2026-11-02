@@ -98,6 +98,7 @@ import { backdoorPresentationMiddleware } from '../broadcasting/backdoorPresenta
 import { setRuntimeSocialActionOverrides } from '../social/socialActionManager'
 import { gameplayAnalyticsMiddleware } from '../services/backend/gameplayAnalyticsMiddleware'
 import { initializeCloudBackend } from '../services/backend/backendService'
+import { profileAppearanceMiddleware } from './profileAppearanceMiddleware'
 
 const strategicGameReducer = withImmediateVoxPublicMode(
   withLohNominationPlanning(gameReducer, getNominationTargetScore)
@@ -165,6 +166,7 @@ export const store = configureStore({
     })
       .prepend(gamePerformanceMiddleware)
       .concat(
+        profileAppearanceMiddleware,
         weekendSettingsMiddleware,
         missionPowerMiddleware,
         survivorMiddleware,

@@ -8,7 +8,8 @@ export type ProductEvent = {
   sessionId: string
   properties: EventProperties
 }
-type ProductEventListener = (event: ProductEvent, profileId?: string) => void
+// null is an explicit guest attribution; undefined lets the receiver use the current profile.
+type ProductEventListener = (event: ProductEvent, profileId?: string | null) => void
 
 let telemetry: NonNullable<RemoteOperations['telemetry']> | undefined
 let sampled = false
@@ -48,7 +49,7 @@ function bufferEvent(event: ProductEvent): void {
 export function trackProductEvent(
   name: string,
   properties: EventProperties = {},
-  profileId?: string
+  profileId?: string | null
 ): void {
   const event: ProductEvent = { name, occurredAt: new Date().toISOString(), sessionId, properties }
   eventListeners.forEach((listener) => {

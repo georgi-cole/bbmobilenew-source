@@ -1,5 +1,5 @@
-import { act, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 import { createInitialGameState } from '../../../store/gameSlice'
 import FinalThreeBlockReveal from '../FinalThreeBlockReveal'
 
@@ -12,7 +12,6 @@ describe('FinalThreeBlockReveal', () => {
         blockPlayer={finalists[0]}
         competitors={finalists.slice(1)}
         mode="classic"
-        onComplete={vi.fn()}
       />
     )
 
@@ -20,15 +19,17 @@ describe('FinalThreeBlockReveal', () => {
     expect(
       screen.getByRole('group', { name: 'The two Final Power Battle competitors' })
     ).toBeTruthy()
-    expect(container.querySelector('.fpb-block__backdrop-image')?.getAttribute('style')).toContain(
-      'background-image'
+    expect(container.querySelector('[data-finale-set="garden"][data-scene="block"]')).toBeTruthy()
+    expect(container.querySelector('.f3-venue__background')?.getAttribute('style')).toContain(
+      'final-power-battle-backyard'
     )
+    expect(container.querySelectorAll('.fpb-block__podium')).toHaveLength(2)
     expect(container.querySelectorAll('.fpb-block__competitor-cutout')).toHaveLength(2)
     expect(container.querySelector('.fpb-block__nominee-monitor')).toBeTruthy()
     expect(container.querySelector('.fpb-block__nominee-avatar')).toBeTruthy()
     expect(
       container
-        .querySelector('.fpb-block__scene-plane')
+        .querySelector('.f3-venue__screen')
         ?.contains(container.querySelector('.fpb-block__nominee-monitor'))
     ).toBe(true)
     expect(screen.queryByText('NOMINATION WALL')).toBeNull()
@@ -41,19 +42,14 @@ describe('FinalThreeBlockReveal', () => {
     expect(screen.getByText(finalists[0].name)).toBeTruthy()
   })
 
-  it('keeps the existing Play-to-enter flow', () => {
-    const onComplete = vi.fn()
+  it('keeps setup presentational: the shared dock owns the actual Play callback', () => {
     render(
       <FinalThreeBlockReveal
         blockPlayer={finalists[0]}
         competitors={finalists.slice(1)}
         mode="classic"
-        onComplete={onComplete}
       />
     )
-
-    act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
-
-    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('dialog', { name: 'Final Power Battle setup' })).toBeTruthy()
   })
 })

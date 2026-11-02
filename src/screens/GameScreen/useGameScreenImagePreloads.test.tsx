@@ -50,9 +50,11 @@ describe('useGameScreenImagePreloads', () => {
     expect(urls.some((url) => url.includes('confessional-painting.webp'))).toBe(true)
     expect(urls.some((url) => url.includes('confessional-locked-door.webp'))).toBe(true)
     expect(urls.some((url) => url.includes('final-power-battle-backyard.webp'))).toBe(true)
-    expect(urls.some((url) => url.includes('final-power-battle-duel.webp'))).toBe(true)
-    expect(urls.some((url) => url.includes('final-power-battle-spectator.webp'))).toBe(true)
-    expect(urls.some((url) => url.includes('final-two-hub-living-room.webp'))).toBe(true)
+    expect(urls.some((url) => url.includes('final-decision/token.webp'))).toBe(true)
+    expect(urls.some((url) => url.includes('final-decision/monitor.webp'))).toBe(true)
+    expect(urls.some((url) => url.includes('natural-mist-v2.webp'))).toBe(true)
+    expect(urls.some((url) => url.includes('final-power-battle-duel.webp'))).toBe(false)
+    expect(urls.some((url) => url.includes('final-two-hub-living-room.webp'))).toBe(false)
   })
 
   it('warms the Tribunal backdrop when a finale weekend begins', () => {

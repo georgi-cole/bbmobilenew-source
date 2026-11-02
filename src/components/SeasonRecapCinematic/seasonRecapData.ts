@@ -297,12 +297,12 @@ function pickTabloidPhoto(
   return unusedFallback.source;
 }
 
-function buildMontageFragments(players: Player[], week: number): string[] {
+function buildMontageFragments(players: Player[], week: number, finalVoteMode: 'tribunal' | 'audience'): string[] {
   const fragments = players.flatMap((player) => [
     `${player.name.toUpperCase()} • ${totalCompWins(player)} wins`,
     `${player.name.toUpperCase()} • ${nominations(player)} noms`,
   ]);
-  fragments.push(`WEEK ${week}`, 'TRIBUNAL LOCKED', 'FINAL TWO');
+  fragments.push(`WEEK ${week}`, finalVoteMode === 'audience' ? 'PUBLIC VOTE NEXT' : 'TRIBUNAL LOCKED', 'FINAL TWO');
   return fragments;
 }
 
@@ -524,6 +524,7 @@ export function buildSeasonRecapData(
   players: Player[],
   week: number,
   publicOpinion?: PublicOpinionState | null,
+  finalVoteMode: 'tribunal' | 'audience' = 'tribunal',
 ): RecapData {
   const safePlayers = players.length > 0
     ? players
@@ -545,7 +546,7 @@ export function buildSeasonRecapData(
 
   return {
     montageBeats: buildMontageBeats(safePlayers),
-    montageFragments: buildMontageFragments(safePlayers, week),
+    montageFragments: buildMontageFragments(safePlayers, week, finalVoteMode),
     categories: buildCategories(safePlayers, publicOpinion),
     tabloidCards: buildTabloidCards(safePlayers, publicOpinion, tabloidPhotoEntries),
     evictionWaves: buildEvictionWaves(evictionLadder),

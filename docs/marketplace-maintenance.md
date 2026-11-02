@@ -49,6 +49,27 @@ store listings or change configured prices.
   actual chooser for LOH/co-LOH, Halo Exchange, and Detox. Vox ballot backups,
   Standard presentation, and the VIP offer, access, benefits, prices, and Store
   copy remain unchanged.
+- 2026-11-01: Reviewed Home Hub weather recovery on entry and foreground return,
+  current rain detection, and the deployment-relative embroidered favicon. The
+  background repairs select from the existing artwork and preserve the existing
+  theme access rules. Products, VIP benefits, entitlements, prices, and Store copy
+  are unchanged.
+
+- 2026-11-01: Reviewed ceremony coverage for all 35 existing selectable player
+  looks, including six matching poses for Looks 28–35 and resolution from the
+  season-owned appearance. Also reviewed immediate first-character selection
+  when registering during a guest season and owner-checked repair of adopted
+  silhouette saves. These fixes fulfill existing character and VIP cinematic
+  behavior; they add no product, paid look, entitlement, price or Store-copy
+  change. VIP access and animation preferences remain the existing gates, and
+  photo-only characters retain native animations.
+
+- 2026-11-01: Reviewed optional profile email, inline updates consent, and the
+  separate administrator sign-in for player audience reporting. Stable draft
+  profile IDs preserve the existing profile creation and wallet ownership rules;
+  administrator authentication grants no gameplay purchases or entitlements.
+  Products, prices, premium access, rewards, and Store copy are unchanged, so the
+  existing marketplace catalog remains accurate.
 
 - 2026-10-31: Reviewed Cinematic-only badge handoffs for competition wins and
   nominations, plus suppression of the redundant Vox pre-vote card. Existing
@@ -199,3 +220,13 @@ store listings or change configured prices.
 - 2026-10-31: Reviewed the Vox immunity film title timing and Finale Ready Faux TV
   state. This is presentation maintenance; VIP eligibility, paid offers, prices,
   Store placement, and marketplace copy are unchanged.
+
+- 2026-11-01: Reviewed the Classic human Final LOH decision scene and its four
+  modular stage assets. The live monitor, paged dialogue, explicit choice,
+  sentence-aware captions, automatic entry, shared Skip control, closer staging,
+  directed camera/light/audio cues and corrected elimination-to-exit handoff improve the
+  existing VIP cinematic-ceremony benefit under the same entitlement
+  and animation preferences. They introduce no separate product or purchase,
+  price change, reward change or new gameplay advantage. Standard and unsupported
+  presentation paths retain the native decision. Existing Store listings and
+  marketplace product descriptions remain accurate.

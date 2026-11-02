@@ -18,6 +18,7 @@ import {
   getLaunchContestant,
   type SeasonContestant,
 } from '../appearance/seasonContestant'
+import { withInitialSeasonAppearance } from '../appearance/initialSeasonAppearance'
 import type { RootState, AppDispatch } from './store'
 import {
   getAlliancePowerHolderPriority,
@@ -9402,13 +9403,16 @@ const gameSlice = createSlice({
       })
     },
     startVoxFinalVote(state) {
-      if (
-        !isVoxPopuliActive(state) ||
-        !state.voxPopuli ||
-        !['ready', 'recap'].includes(state.voxPopuli.finaleStage ?? '')
-      ) {
+      if (!isVoxPopuliActive(state) || !state.voxPopuli || state.voxPopuli.winnerId) return
+
+      // Play the season recap before the final public ballot so the actual
+      // verdict leads immediately to the champion's cinematic coronation.
+      if (state.voxPopuli.finaleStage === 'ready') {
+        state.voxPopuli.finaleStage = 'recap'
         return
       }
+      if (state.voxPopuli.finaleStage !== 'recap') return
+
       state.voxPopuli.finaleStage = 'final_vote'
       pushEvent(
         state,
@@ -9434,9 +9438,20 @@ const gameSlice = createSlice({
         }
       })
       state.voxPopuli.winnerId = winnerId
-      // The public-vote overlay has announced the champion. Build the recap
-      // with final winner data before continuing to the interview and close.
-      state.voxPopuli.finaleStage = 'recap'
+      // The recap has already aired; the audience verdict now hands off to
+      // the shared coronation instead of replaying the season recap.
+      state.voxPopuli.finaleStage = null
+      state.voxPopuli.status = 'complete'
+      state.twistActive = false
+      state.seasonFinale = {
+        phase: 'winnerCinematic',
+        winnerId,
+        interviewIndex: state.seed % FINALE_INTERVIEW_VARIANT_COUNT,
+        goodbyeIndex: 0,
+        isChatOpen: false,
+        isLightsOffAnimating: false,
+        publicFavoriteEnabled: false,
+      }
       state.history = [
         ...(state.history ?? []),
         {
@@ -9465,11 +9480,11 @@ const gameSlice = createSlice({
       state.voxPopuli.status = 'complete'
       state.twistActive = false
       state.seasonFinale = {
-        phase: 'winnerInterview',
+        phase: 'winnerCinematic',
         winnerId: state.voxPopuli.winnerId,
         interviewIndex: state.seed % FINALE_INTERVIEW_VARIANT_COUNT,
         goodbyeIndex: 0,
-        isChatOpen: true,
+        isChatOpen: false,
         isLightsOffAnimating: false,
         publicFavoriteEnabled: false,
       }
@@ -9616,6 +9631,16 @@ const gameSlice = createSlice({
     replacePlayers(state, action: PayloadAction<Player[]>) {
       state.players = action.payload
       state.competitionSeasonStateByPlayerId = buildInitialCompetitionSeasonState(action.payload)
+    },
+    applyFirstSeasonAppearance(
+      state,
+      action: PayloadAction<{
+        gameId: string
+        appearance: import('../appearance/catalog').AppearanceSelection
+      }>
+    ) {
+      if (state.gameId !== action.payload.gameId) return
+      return withInitialSeasonAppearance(state, action.payload.appearance)
     },
     updateUserPlayerIdentity(
       state,
@@ -9847,6 +9872,11 @@ const gameSlice = createSlice({
         seasonContestant,
         players: action.payload.players,
         gameId: action.payload.gameId ?? crypto.randomUUID(),
+        // A restored Final Three round remounts its broadcast from durable
+        // phase/cast data. Its former view lease cannot survive a reload.
+        spectatorActive: isFinalThreePhase(action.payload.phase)
+          ? null
+          : action.payload.spectatorActive,
         hasSeenConfessionalSpotlight: action.payload.hasSeenConfessionalSpotlight ?? false,
         status: action.payload.status ?? 'active',
         // Saves created before weekends existed keep the original uninterrupted calendar.
@@ -13900,6 +13930,7 @@ export const {
   clearBlockingFlags,
   archiveSeason,
   replacePlayers,
+  applyFirstSeasonAppearance,
   updateUserPlayerIdentity,
   resolveUnfillableReplacement,
   debugForceBellaIntoCast,
@@ -14147,7 +14178,7 @@ export const selectF3Part3PredictedWinnerId = (state: RootState): string | null 
  */
 export const selectF3Part1PredictedWinnerId = (state: RootState): string | null => {
   const { phase, seed, players } = state.game
-  if (phase !== 'final3') return null
+  if (phase !== 'final3' && phase !== 'final3_comp1') return null
   const alive = players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
   if (alive.length === 0 || alive.some((player) => player.isUser)) return null
   const seedRng = mulberry32(seed)
