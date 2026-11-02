@@ -610,13 +610,13 @@ describe('Vox Populi rules', () => {
     expect(state.seasonFinale?.phase).toBe('winnerCinematic')
     expect(state.seasonFinale?.isChatOpen).toBe(false)
     expect(
-      state.history.filter((entry) => entry.type === 'voxPopuli:winner')
+      (state.history ?? []).filter((entry) => entry.type === 'voxPopuli:winner')
     ).toHaveLength(1)
 
     const completed = gameReducer(state, resolveVoxSeasonWinner(finalists[1].id))
     expect(completed.seasonFinale?.winnerId).toBe(actualWinner)
     expect(
-      completed.history.filter((entry) => entry.type === 'voxPopuli:winner')
+      (completed.history ?? []).filter((entry) => entry.type === 'voxPopuli:winner')
     ).toHaveLength(1)
   })
 
