@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import type { Player } from '../../types'
 import type { RelationshipsMap } from '../../social/types'
 import type { RealityDomainState } from '../../social/reality/types'
-import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
+import { isNemesisDisclosedTo, selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
 import { projectRealityAffinity } from '../../social/reality/relationships'
 import { isBetrayalBetween } from '../../social/relationshipSemantics'
 import { canReadAllianceEvent } from '../../social/reality/allianceHistory'
@@ -226,8 +226,11 @@ export default function PlayerList({
           if (reality) {
             relationshipBondLabels = Array.from(
               new Set(
-                getCurrentAlliancesBetween(reality, humanPlayerId, player.id).map(
-                  allianceDisplayLabel
+                getCurrentAlliancesBetween(reality, humanPlayerId, player.id).map((alliance) =>
+                  allianceDisplayLabel(
+                    alliance,
+                    isNemesisDisclosedTo(reality, humanPlayerId, player.id)
+                  )
                 )
               )
             )
