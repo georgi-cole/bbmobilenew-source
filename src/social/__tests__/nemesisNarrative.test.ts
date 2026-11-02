@@ -22,7 +22,10 @@ function context(day: number, phase: string, echoActive = true) {
   }
 }
 
-function secretObjective(domain: RealityDomainState, reason: 'SOCIAL_REACH' | 'PERSONAL_FRICTION' = 'SOCIAL_REACH') {
+function secretObjective(
+  domain: RealityDomainState,
+  reason: 'SOCIAL_REACH' | 'PERSONAL_FRICTION' = 'SOCIAL_REACH'
+) {
   return createRealityNemesisObjective(domain, {
     ownerId: 'echo',
     targetId: 'human',
@@ -54,11 +57,13 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(objective.clueEventId).toBe(first[0].eventId)
     expect(advanceNemesisNarrative(reality, context(3, 'social_2'))).toEqual([])
     expect(advanceNemesisNarrative(reality, context(3, 'week_end'))).toEqual([])
-    expect(selectCanonicalRelationshipView({
-      reality,
-      actorId: 'human',
-      targetId: 'echo',
-    }).isNemesis).toBe(false)
+    expect(
+      selectCanonicalRelationshipView({
+        reality,
+        actorId: 'human',
+        targetId: 'echo',
+      }).isNemesis
+    ).toBe(false)
 
     const visible = visibleRealityEvents(reality, { actorId: 'human' })
     expect(visible.some((event) => event.type === 'NEMESIS_ANONYMOUS_CLUE')).toBe(true)
@@ -76,11 +81,13 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(reveal[0].text).toContain('growing influence')
     expect(objective.revealEventId).toBe(reveal[0].eventId)
     expect(pact.status).toBe('FRACTURED')
-    expect(selectCanonicalRelationshipView({
-      reality,
-      actorId: 'human',
-      targetId: 'echo',
-    }).isNemesis).toBe(true)
+    expect(
+      selectCanonicalRelationshipView({
+        reality,
+        actorId: 'human',
+        targetId: 'echo',
+      }).isNemesis
+    ).toBe(true)
     expect(advanceNemesisNarrative(reality, context(4, 'social_2'))).toEqual([])
     expect(reality.events.filter((event) => event.type === 'NEMESIS_REVEALED')).toHaveLength(1)
   })
@@ -172,18 +179,22 @@ describe('Nemesis storyline — reliable discovery', () => {
       publicEligible: false,
       juryEligible: false,
     })
-    expect(selectCanonicalRelationshipView({
-      reality,
-      actorId: 'human',
-      targetId: 'echo',
-    }).isNemesis).toBe(false)
+    expect(
+      selectCanonicalRelationshipView({
+        reality,
+        actorId: 'human',
+        targetId: 'echo',
+      }).isNemesis
+    ).toBe(false)
     const reveal = advanceNemesisNarrative(reality, context(4, 'social_1'))
     expect(reveal[0]?.kind).toBe('reveal')
-    expect(selectCanonicalRelationshipView({
-      reality,
-      actorId: 'human',
-      targetId: 'echo',
-    }).isNemesis).toBe(true)
+    expect(
+      selectCanonicalRelationshipView({
+        reality,
+        actorId: 'human',
+        targetId: 'echo',
+      }).isNemesis
+    ).toBe(true)
   })
 
   it('closes the unresolved story as a retrospective reveal when Echo exits', () => {
@@ -247,6 +258,8 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(advanceNemesisNarrative(reloaded, context(4, 'social_1'))[0].kind).toBe('reveal')
     const reloadedAgain = normalizeRealityDomainState(reloaded)
     expect(advanceNemesisNarrative(reloadedAgain, context(5, 'social_1'))).toEqual([])
-    expect(reloadedAgain.events.filter((event) => event.type === 'NEMESIS_REVEALED')).toHaveLength(1)
+    expect(reloadedAgain.events.filter((event) => event.type === 'NEMESIS_REVEALED')).toHaveLength(
+      1
+    )
   })
 })
