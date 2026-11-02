@@ -24,6 +24,7 @@ import {
 } from './relationshipRead'
 import {
   RELATIONSHIP_FORMING_GRACE_DAYS,
+  isNemesisDisclosedTo,
   selectCanonicalRelationshipView,
 } from '../../social/relationshipSemantics'
 import { getRealityRelationshipLabel } from '../SocialPanelV2/relationshipUtils'
@@ -237,13 +238,19 @@ export default function RealityLedger({
           !thread.type.startsWith('RELATIONSHIP_') &&
           (thread.participantIds.includes(humanId) || thread.observerIds.includes(humanId)) &&
           (thread.type !== 'PLAYER_NEMESIS' ||
-            Object.values(reality.relationshipAutonomy.evidence).some(
-              (evidence) =>
-                evidence.ownerId === thread.participantIds[0] &&
-                evidence.targetId === thread.participantIds[1]
+            isNemesisDisclosedTo(
+              reality,
+              humanId,
+              thread.participantIds.find((id) => id !== humanId) ?? ''
+            ) ||
+            reality.events.some(
+              (event) =>
+                event.type === 'NEMESIS_REVEALED' &&
+                event.participantIds.includes(humanId) &&
+                thread.participantIds.every((id) => event.participantIds.includes(id))
             ))
       ),
-    [humanId, reality.relationshipAutonomy.evidence, reality.threads]
+    [humanId, reality]
   )
   const knownRelationshipStories = useMemo(() => {
     const directEvidence = new Set(
