@@ -9,6 +9,7 @@ import {
   PRESENTATION_PRIORITY,
 } from '../../services/presentation/presentationOwnership'
 import Exit from './exit.jsx'
+import { createInitialVoxPopuliState } from '../../features/twists/voxPopuli'
 
 const film = vi.hoisted(() => ({
   prepare: vi.fn(async () => ({})),
@@ -51,7 +52,7 @@ afterEach(async () => {
 })
 
 function openExit(
-  options: { phase?: 'final3_decision' | 'eviction_results'; reduced?: boolean } = {}
+  options: { phase?: 'final3_decision' | 'eviction_results'; reduced?: boolean; vox?: boolean } = {}
 ) {
   const state = structuredClone(baseline.getState())
   state.vip.isActive = true
@@ -59,7 +60,13 @@ function openExit(
   state.settings.gameUX.animationMode = 'cinematic'
   state.settings.display.reduceMotion = Boolean(options.reduced)
   state.game.mode = 'classic'
-  state.game.voxPopuli = undefined
+  state.game.voxPopuli = options.vox
+    ? {
+        ...createInitialVoxPopuliState(state.game.season),
+        status: 'active',
+        publicVoteContext: 'final3',
+      }
+    : undefined
   state.game.gameId = 'retained-final-decision-music'
   state.game.phase = options.phase ?? 'final3_decision'
   const evictee = {
@@ -164,6 +171,21 @@ describe('departure soundtrack continuation', () => {
       await screen.findByRole('button', { name: 'Confirm exit' })
       expect(soundtrack.finish).toHaveBeenCalledTimes(1)
       expect(film.handoff).toBeNull()
+    } finally {
+      await act(async () => releaseDecision())
+    }
+  })
+
+  it('enables the production final-day Eye sequence for Vox Populi as well as Classic', async () => {
+    const { releaseDecision } = openExit({ vox: true })
+    try {
+      await waitFor(() => expect(film.handoff).toBeTypeOf('function'))
+      expect(film.prepare).toHaveBeenCalledWith(
+        'exit',
+        expect.anything(),
+        'generic',
+        expect.objectContaining({ closingBrand: true })
+      )
     } finally {
       await act(async () => releaseDecision())
     }

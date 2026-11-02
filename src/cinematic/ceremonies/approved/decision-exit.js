@@ -3,7 +3,9 @@ import { ROLE_PACKS, ROLE_CASTS } from './role-contract.js'
 export const DECISION_IDS = ['exit', 'tiebreak', 'final4', 'final3']
 export { FINAL_EXIT_BRAND_RESOURCE } from './finale-closing-brand.js'
 import { animateFinaleClosingBrand, makeFinaleClosingBrandMarkup } from './finale-closing-brand.js'
-const BRAND_HOLD_MS = 2600
+// Allow the complete Eye turn, a readable title, then a lens-bound flight and a black hold.
+// Only opted-in Final Three exits receive this extension; ordinary door timings do not move.
+const BRAND_HOLD_MS = 3400
 const common = [
   'cinema_hall',
   'cinema_portal',
@@ -437,7 +439,15 @@ export function animateDecisionScene(
       [z - 200, 1],
       [brandAt, 0],
     ])
-    animateFinaleClosingBrand(hold, { startAt: brandAt, holdUntil: v + 170 })
+    // The live departure used to omit flyToBlack even though the spectator films
+    // already used it. Complete the Eye rush before the native roster handoff
+    // (v + 140) so the camera reaches black while this scene still owns the film.
+    animateFinaleClosingBrand(hold, {
+      startAt: brandAt,
+      holdUntil: v - 220,
+      fadeOut: false,
+      flyToBlack: true,
+    })
   }
   if (nativeHandoff) return
   hold('.avatar-sequence', [

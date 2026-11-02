@@ -23,8 +23,8 @@ export function animateFinaleClosingBrand(
   { startAt = 0, holdUntil = startAt + 2460, fadeOut = true, flyToBlack = false } = {}
 ) {
   const smooth = 'cubic-bezier(.16,1,.3,1)'
-  // Spectator competitions fly through the Eye at the end. The approved
-  // Final Three departure keeps its original settled ident by default.
+  // Both the spectator competition close and opted-in Final Three departures
+  // fly through the Eye; the reusable default remains a static, settled ident.
   const launchAt = Math.max(startAt + 2220, holdUntil - 760)
   const titleFadeAt = Math.max(launchAt + 120, holdUntil - 360)
   hold('.exit-brand', [

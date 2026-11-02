@@ -73,10 +73,10 @@ function opacityAt(animation: RecordedAnimation, ms: number) {
   const progress = (fraction - previous.offset) / (next.offset - previous.offset)
   return previous.opacity + (next.opacity - previous.opacity) * progress
 }
-async function mountClip() {
+async function mountClip(scene: 'exit' | 'final3' = 'exit') {
   const clip = createClip()
   clips.push(clip)
-  await clip.prepare('exit', cast, 'generic', { closingBrand: true })
+  await clip.prepare(scene, cast, 'generic', { closingBrand: true })
   const handoff = vi.fn()
   const complete = vi.fn()
   clip.mount(document.body, handoff, complete)
@@ -185,47 +185,86 @@ describe('final-day exit closing brand', () => {
       const timing = getDecisionTiming(id, branded)
       const originalTiming = getDecisionTiming(id)
       expect(timing.zoomAt).toBe(originalTiming.zoomAt)
-      expect(timing.handoffAt - originalTiming.handoffAt).toBe(2600)
+      expect(timing.handoffAt - originalTiming.handoffAt).toBe(3400)
       expect(closing.tracks.get('.exit-brand')!.find((frame) => frame[1] > 0)![0]).toBeGreaterThan(
         originalTiming.handoffAt
       )
+      const frontFaceAt = closing.tracks
+        .get('.exit-brand-turn')!
+        .find((frame) => frame[2] === 'rotateY(360deg) rotateZ(0deg)')![0]
+      const flyAt = closing.tracks
+        .get('.exit-brand-emblem')!
+        .find((frame) => frame[2] === 'scale(1)' && frame[3])![0]
+      const fullLensAt = closing.tracks
+        .get('.exit-brand-emblem')!
+        .find((frame) => frame[2] === 'scale(9.4)')![0]
+      const blackAt = closing.tracks
+        .get('.exit-brand-blackout')!
+        .find((frame) => frame[1] === 1)![0]
+      expect(flyAt).toBeGreaterThan(frontFaceAt)
+      expect(fullLensAt).toBeLessThan(timing.handoffAt - 250)
+      expect(blackAt).toBe(fullLensAt)
+      expect(
+        closing.tracks.get('.exit-brand-title')!.some((frame) => frame[1] === 0 && frame[0] > flyAt)
+      ).toBe(true)
+      expect(closing.tracks.get('.exit-brand')!.at(-1)![1]).toBe(1)
     }
   )
 
-  it('keeps the full brand visible at the one native handoff, then disposes with the existing fade', async () => {
-    const { clip, handoff, complete } = await mountClip()
-    const endAt = getDecisionTiming('exit', branded).handoffAt
-    vi.advanceTimersByTime(getDecisionTiming('exit').handoffAt)
-    expect(handoff).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(endAt - getDecisionTiming('exit').handoffAt - 1)
-    expect(handoff).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(1)
-    expect(handoff).toHaveBeenCalledTimes(1)
-    expect(complete).not.toHaveBeenCalled()
-    for (const selector of ['.exit-brand', '.exit-brand-title']) {
-      const track = animations.find((animation) => animation.element.matches(selector))!
-      expect(opacityAt(track, endAt)).toBe(1)
-      expect(track.currentTime).toBe(endAt)
-      expect(track.playState).toBe('paused')
+  it.each(['exit', 'final3'] as const)(
+    'finishes the %s Eye rush and reaches solid black before the single native handoff',
+    async (scene) => {
+      const { clip, handoff, complete } = await mountClip(scene)
+      const endAt = getDecisionTiming(scene, branded).handoffAt
+      vi.advanceTimersByTime(getDecisionTiming(scene).handoffAt)
+      expect(handoff).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(endAt - getDecisionTiming(scene).handoffAt - 1)
+      expect(handoff).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(1)
+      expect(handoff).toHaveBeenCalledTimes(1)
+      expect(complete).not.toHaveBeenCalled()
+      const brand = animations.find((animation) => animation.element.matches('.exit-brand'))!
+      const title = animations.find((animation) => animation.element.matches('.exit-brand-title'))!
+      const blackout = animations.find((animation) =>
+        animation.element.matches('.exit-brand-blackout')
+      )!
+      const rush = animations.find((animation) => animation.element.matches('.exit-brand-emblem'))!
+      for (const track of [brand, title, blackout, rush]) {
+        expect(track.currentTime).toBe(endAt)
+        expect(track.playState).toBe('paused')
+      }
+      expect(opacityAt(brand, endAt)).toBe(1)
+      expect(opacityAt(title, endAt)).toBe(0)
+      expect(opacityAt(blackout, endAt)).toBe(1)
+      expect(rush.frames.at(-1)!.transform).toBe('scale(9.4)')
+      expect(blackout.frames.find((frame) => frame.opacity === 1)!.offset).toBeLessThan(
+        (endAt - 250) / blackout.options.duration
+      )
+      expect(
+        opacityAt(
+          animations.find((animation) => animation.element.matches('.handoff-veil'))!,
+          endAt
+        )
+      ).toBe(0.96)
+      expect(
+        opacityAt(
+          animations.find((animation) => animation.element.matches('.cine-sequence'))!,
+          endAt
+        )
+      ).toBe(0)
+      const turn = animations.find((animation) => animation.element.matches('.exit-brand-turn'))!
+      expect(turn.frames.at(-1)!.transform).toBe('rotateY(360deg) rotateZ(0deg)')
+      const images = [...clip.root.querySelectorAll('img')]
+      clip.nativeReady(true)
+      vi.advanceTimersByTime(149)
+      expect(clip.counts.mounted).toBe(true)
+      vi.advanceTimersByTime(1)
+      expect(clip.counts).toEqual({ animations: 0, timers: 0, mounted: false, retainedImages: 0 })
+      expect(images.every((image) => !image.hasAttribute('src'))).toBe(true)
+      expect(animations.every((animation) => animation.effect === null)).toBe(true)
+      expect(handoff).toHaveBeenCalledTimes(1)
     }
-    expect(
-      opacityAt(animations.find((animation) => animation.element.matches('.handoff-veil'))!, endAt)
-    ).toBe(0.96)
-    expect(
-      opacityAt(animations.find((animation) => animation.element.matches('.cine-sequence'))!, endAt)
-    ).toBe(0)
-    const turn = animations.find((animation) => animation.element.matches('.exit-brand-turn'))!
-    expect(turn.frames.at(-1)!.transform).toBe('rotateY(360deg) rotateZ(0deg)')
-    const images = [...clip.root.querySelectorAll('img')]
-    clip.nativeReady(true)
-    vi.advanceTimersByTime(149)
-    expect(clip.counts.mounted).toBe(true)
-    vi.advanceTimersByTime(1)
-    expect(clip.counts).toEqual({ animations: 0, timers: 0, mounted: false, retainedImages: 0 })
-    expect(images.every((image) => !image.hasAttribute('src'))).toBe(true)
-    expect(animations.every((animation) => animation.effect === null)).toBe(true)
-    expect(handoff).toHaveBeenCalledTimes(1)
-  })
+  )
 
   it('pauses every brand layer and its handoff clock together while backgrounded', async () => {
     const { clip, handoff } = await mountClip()

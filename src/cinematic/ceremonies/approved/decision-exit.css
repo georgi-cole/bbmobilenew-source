@@ -109,8 +109,8 @@
   opacity: 0;
 }
 
-/* Competition broadcasts opt into a lens-bound Eye fly-through; the
-   established departure hold leaves this blackout layer transparent. */
+/* The spectator competition and live final-day departure share the same
+   lens-bound Eye fly-through and opaque final black frame. */
 .exit-brand-emblem {
   transform-origin: 50% 50%;
 }
