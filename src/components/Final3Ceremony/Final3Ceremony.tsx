@@ -189,7 +189,8 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
     [nominees, decisionReads]
   )
   const pleaTexts = useMemo(
-    () => Object.fromEntries(Object.entries(pleaExchanges).map(([id, script]) => [id, script.plea])),
+    () =>
+      Object.fromEntries(Object.entries(pleaExchanges).map(([id, script]) => [id, script.plea])),
     [pleaExchanges]
   )
   const pleaDialogueLines = useMemo<ChatLine[]>(() => {
