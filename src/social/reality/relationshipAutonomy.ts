@@ -411,10 +411,10 @@ export function startAutonomousNemesisIfReady(
         grievance ||
         Boolean(
           edge &&
-            edge.negativeAnchorEventIds.length > 0 &&
-            ((edge.resentment >= 42 && edge.perceivedThreat >= 25) ||
-              (edge.suspicion >= 45 && edge.trust <= 0) ||
-              (['RIVAL', 'ENEMY'].includes(edge.perceivedLabel) && edge.resentment >= 25))
+          edge.negativeAnchorEventIds.length > 0 &&
+          ((edge.resentment >= 42 && edge.perceivedThreat >= 25) ||
+            (edge.suspicion >= 45 && edge.trust <= 0) ||
+            (['RIVAL', 'ENEMY'].includes(edge.perceivedLabel) && edge.resentment >= 25))
         )
       if (!groundedConflict) return false
       // A genuine working ally can feel threatened, but rivalry must first be
@@ -606,10 +606,8 @@ export function reconcileNemesisAfterSustainedRepair(
             evidence.family === 'REPAIR' &&
             evidence.reciprocal &&
             evidence.day >= nemesis.createdAt.day &&
-            ((evidence.ownerId === nemesis.ownerId &&
-              evidence.targetId === nemesis.targetId) ||
-              (evidence.ownerId === nemesis.targetId &&
-                evidence.targetId === nemesis.ownerId))
+            ((evidence.ownerId === nemesis.ownerId && evidence.targetId === nemesis.targetId) ||
+              (evidence.ownerId === nemesis.targetId && evidence.targetId === nemesis.ownerId))
         )
         .map((evidence) => evidence.day)
     )
