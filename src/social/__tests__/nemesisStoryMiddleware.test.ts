@@ -125,20 +125,19 @@ describe('Nemesis phase-driven delivery', () => {
     })
     store.dispatch(commitRealityDomainUpdate({ domain: reality, projectAllRelationships: true }))
     store.dispatch(setPhase('social_2'))
-    const epilogue = store.getState().game.tvFeed.find((event) =>
-      event.text.includes('HIDDEN RIVALRY RESOLVED')
-    )
+    const epilogue = store
+      .getState()
+      .game.tvFeed.find((event) => event.text.includes('HIDDEN RIVALRY RESOLVED'))
     expect(epilogue).toBeDefined()
     expect(epilogue?.text).toContain('Echo')
     expect(epilogue?.meta?.forceOnTv).toBe(true)
     expect(epilogue && isVisibleOnTv(epilogue)).toBe(true)
-    expect(store.getState().social.reality.relationshipAutonomy.nemeses['nemesis:echo:human'].status)
-      .toBe('RECONCILED')
+    expect(
+      store.getState().social.reality.relationshipAutonomy.nemeses['nemesis:echo:human'].status
+    ).toBe('RECONCILED')
     store.dispatch(setPhase('week_end'))
     expect(
-      store.getState().game.tvFeed.filter((event) =>
-        event.text.includes('HIDDEN RIVALRY RESOLVED')
-      )
+      store.getState().game.tvFeed.filter((event) => event.text.includes('HIDDEN RIVALRY RESOLVED'))
     ).toHaveLength(1)
   })
 
