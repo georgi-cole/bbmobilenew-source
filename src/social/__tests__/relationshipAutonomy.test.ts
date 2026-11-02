@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createRealityAlliance,
+  createDirectedRelationship,
   createRealityNemesisObjective,
   createInitialRealityDomainState,
   createRelationshipBoundary,
@@ -8,6 +9,7 @@ import {
   holdRealityAllianceMeeting,
   recordGroundedJealousy,
   planRelationshipStoryBeat,
+  resolveRelationshipStoryResponse,
   recordRealityCeremonyOutcome,
   resolveRelationshipStoryResponse,
   signalRealityRomance,
@@ -110,6 +112,12 @@ describe('persistent relationship autonomy', () => {
       fatigue: 0,
       sourceEventIds: [],
     }
+    const hostileEdge = createDirectedRelationship('rae', 'player')
+    hostileEdge.resentment = 67
+    hostileEdge.perceivedThreat = 56
+    hostileEdge.perceivedLabel = 'RIVAL'
+    hostileEdge.negativeAnchorEventIds = ['real-conflict-event']
+    domain.relationships.rae = { player: hostileEdge }
     const objective = startAutonomousNemesisIfReady(domain, {
       targetId: 'player',
       candidateIds: ['rae', 'ivy'],
@@ -128,6 +136,139 @@ describe('persistent relationship autonomy', () => {
         at: { day: 5, phase: 'social_1' },
       })
     ).toBeNull()
+  })
+
+  it('never invents a Nemesis solely from player popularity, power or seeded volatility', () => {
+    const domain = createInitialRealityDomainState()
+    domain.publicPerception.player = {
+      competitionRespect: 95,
+      strategicRespect: 95,
+      likability: 0,
+      controversy: 0,
+      authenticity: 0,
+      entertainment: 0,
+      underdog: 0,
+      loyalty: 0,
+      fatigue: 0,
+      sourceEventIds: [],
+    }
+    expect(
+      startAutonomousNemesisIfReady(domain, {
+        targetId: 'player',
+        candidateIds: ['rae'],
+        seed: 17,
+        at: { day: 4, phase: 'social_1' },
+        humanHasPower: true,
+      })
+    ).toBeNull()
+    expect(Object.values(domain.relationshipAutonomy.nemeses)).toHaveLength(0)
+  })
+
+  it('requires a genuine ally to betray the pact before autonomous nemesis escalation', () => {
+    const domain = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(domain, {
+      id: 'trusted-pact',
+      founderIds: ['player', 'rae'],
+      memberIds: [],
+      purpose: 'Mutual safety',
+      at: { day: 1, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    const edge = domain.relationships.rae.player
+    edge.negativeAnchorEventIds = ['hostile-read']
+    edge.resentment = 80
+    edge.suspicion = 70
+    edge.trust = -40
+    edge.perceivedThreat = 70
+    expect(
+      startAutonomousNemesisIfReady(domain, {
+        targetId: 'player',
+        candidateIds: ['rae'],
+        seed: 11,
+        at: { day: 3, phase: 'social_1' },
+      })
+    ).toBeNull()
+    expect(alliance.genuine).toBe(true)
+  })
+
+  it('keeps a signed pact as a covert infiltrated pact, then restores truthful state on a Safety rescue', () => {
+    const domain = createInitialRealityDomainState()
+    createRealityNemesisObjective(domain, {
+      ownerId: 'rae',
+      targetId: 'player',
+      sourceEventId: 'private-resentment',
+      at: { day: 3, phase: 'social_1' },
+    })
+    const pact = createRealityAlliance(domain, {
+      id: 'covert-pact',
+      founderIds: ['player', 'rae'],
+      memberIds: [],
+      purpose: 'Keep one another safe',
+      at: { day: 3, phase: 'social_2' },
+    })
+    expect(pact.genuine).toBe(false)
+    expect(pact.infiltratorIds).toContain('rae')
+    expect(pact.memberCommitment.rae).toBeLessThanOrEqual(0.28)
+
+    recordRealityCeremonyOutcome(domain, {
+      kind: 'SAFETY_USED',
+      day: 4,
+      phase: 'pos_ceremony_results',
+      actorId: 'player',
+      targetIds: ['rae'],
+      witnessIds: ['player', 'rae'],
+      publicEligible: true,
+    })
+    expect(getActiveRealityNemesis(domain, 'rae', 'player')).toBeNull()
+    expect(pact.infiltratorIds).not.toContain('rae')
+    expect(pact.genuine).toBe(true)
+  })
+
+  it('resolves Nemesis only after repair across separate days and improved trust', () => {
+    const domain = createInitialRealityDomainState()
+    createRealityNemesisObjective(domain, {
+      ownerId: 'rae',
+      targetId: 'player',
+      sourceEventId: 'direct-feud',
+      at: { day: 3, phase: 'social_1' },
+    })
+    const edge = createDirectedRelationship('rae', 'player')
+    edge.trust = 24
+    edge.resentment = 16
+    edge.suspicion = 20
+    edge.positiveAnchorEventIds = ['genuine-help']
+    edge.perceivedLabel = 'RIVAL'
+    domain.relationships.rae = { player: edge }
+
+    resolveRelationshipStoryResponse(domain, {
+      ownerId: 'rae',
+      targetId: 'player',
+      intent: 'REPAIR',
+      responseType: 'positive',
+      eventId: 'repair-first',
+      at: { day: 4, phase: 'social_1' },
+    })
+    expect(getActiveRealityNemesis(domain, 'rae', 'player')).not.toBeNull()
+    resolveRelationshipStoryResponse(domain, {
+      ownerId: 'rae',
+      targetId: 'player',
+      intent: 'REPAIR',
+      responseType: 'positive',
+      eventId: 'repair-same-day',
+      at: { day: 4, phase: 'social_2' },
+    })
+    expect(getActiveRealityNemesis(domain, 'rae', 'player')).not.toBeNull()
+    resolveRelationshipStoryResponse(domain, {
+      ownerId: 'rae',
+      targetId: 'player',
+      intent: 'REPAIR',
+      responseType: 'positive',
+      eventId: 'repair-second-day',
+      at: { day: 6, phase: 'social_1' },
+    })
+    expect(getActiveRealityNemesis(domain, 'rae', 'player')).toBeNull()
+    expect(edge.perceivedLabel).toBe('UNEASY_TRUCE')
+    expect(domain.threads['nemesis-thread:rae:player'].status).toBe('RESOLVED')
   })
 
   it('keeps the objective through a contact boundary and reconciles it only when the player saves that Nemesis with Safety', () => {
