@@ -1,5 +1,5 @@
-import { act, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 import { createInitialGameState } from '../../../store/gameSlice'
 import FinalThreeBlockReveal from '../FinalThreeBlockReveal'
 
@@ -12,7 +12,6 @@ describe('FinalThreeBlockReveal', () => {
         blockPlayer={finalists[0]}
         competitors={finalists.slice(1)}
         mode="classic"
-        onComplete={vi.fn()}
       />
     )
 
@@ -41,19 +40,14 @@ describe('FinalThreeBlockReveal', () => {
     expect(screen.getByText(finalists[0].name)).toBeTruthy()
   })
 
-  it('keeps the existing Play-to-enter flow', () => {
-    const onComplete = vi.fn()
+  it('keeps setup presentational: the shared dock owns the actual Play callback', () => {
     render(
       <FinalThreeBlockReveal
         blockPlayer={finalists[0]}
         competitors={finalists.slice(1)}
         mode="classic"
-        onComplete={onComplete}
       />
     )
-
-    act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
-
-    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('dialog', { name: 'Final Power Battle setup' })).toBeTruthy()
   })
 })

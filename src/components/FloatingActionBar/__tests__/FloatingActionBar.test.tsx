@@ -691,6 +691,60 @@ describe('FloatingActionBar – layout', () => {
     expect(store.getState().game.week).toBe(2)
   })
 
+  it('routes Finale setup Play directly even when weekend and Confessional handlers compete', () => {
+    const initial = makeStore().getState().game
+    const weekend = gameReducer(initial, debugActivateWeekendInterlude('finale')).weekendInterlude
+    if (!weekend) throw new Error('Expected a test weekend')
+    const store = makeStore(true, {
+      phase: 'final3',
+      weekendInterlude: { ...weekend, stage: 'hub_says' },
+    })
+    const onFinalePlay = vi.fn()
+    const unrelatedPlay = vi.fn((event: Event) => {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+    })
+    window.addEventListener('ui:playPressed', unrelatedPlay, { capture: true })
+    try {
+      renderFAB(store, '/game', {
+        finaleOverlayActive: true,
+        finaleInlinePlayActive: true,
+        finalePlayAvailable: true,
+        onFinalePlay,
+      })
+      const button = screen.getByRole('button', { name: 'Play finale scene' })
+      // A stale hub_says weekend would previously disable Play, or consume it.
+      expect(button).toBeEnabled()
+      act(() => button.click())
+      expect(onFinalePlay).toHaveBeenCalledTimes(1)
+      expect(unrelatedPlay).not.toHaveBeenCalled()
+      expect(store.getState().game.phase).toBe('final3')
+      expect(store.getState().game.weekendInterlude?.stage).toBe('hub_says')
+    } finally {
+      window.removeEventListener('ui:playPressed', unrelatedPlay, { capture: true })
+    }
+  })
+
+  it('routes the Part 3 setup directly without an unrelated global Play event', () => {
+    const store = makeStore(true, { phase: 'final3_comp3' })
+    const onFinalePlay = vi.fn()
+    const globalPlay = vi.fn()
+    window.addEventListener('ui:playPressed', globalPlay, { capture: true })
+    try {
+      renderFAB(store, '/game', {
+        finaleOverlayActive: true,
+        finaleInlinePlayActive: true,
+        finalePlayAvailable: true,
+        onFinalePlay,
+      })
+      act(() => screen.getByRole('button', { name: 'Play finale scene' }).click())
+      expect(onFinalePlay).toHaveBeenCalledTimes(1)
+      expect(globalPlay).not.toHaveBeenCalled()
+    } finally {
+      window.removeEventListener('ui:playPressed', globalPlay, { capture: true })
+    }
+  })
+
   it('keeps the shared dock navigation enabled while inline finale beats own Play', () => {
     const store = makeStore(true, {
       phase: 'final3_decision',

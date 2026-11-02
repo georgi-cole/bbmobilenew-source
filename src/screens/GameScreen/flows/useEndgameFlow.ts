@@ -46,15 +46,12 @@ export function useEndgameFlow({
 
   // The opening and block setup are presentation gates only. Their completion
   // is persisted before advance() so a reload resumes the next real game beat.
-  const debugFinaleWeekendPreviewActive = Boolean(
-    game.weekendInterlude?.active &&
-    game.weekendInterlude.debug &&
-    game.weekendInterlude.finaleWeekend
-  )
+  // The reducer deliberately refuses advance() during an active weekend.
+  // Never show the Final Three Play gate before the weekend is fully closed.
   const finalPowerBattleIntroActive =
     game.phase === 'final3' &&
     game.finalThree?.openingSeen !== true &&
-    !debugFinaleWeekendPreviewActive
+    !game.weekendInterlude?.active
 
   const phaseIdentity = finalThreePhaseIdentity(game)
   const completedPresentations = useRef(new Set<string>())
@@ -77,6 +74,7 @@ export function useEndgameFlow({
       const current = getState().game
       if (
         current.phase !== 'final3' ||
+        current.weekendInterlude?.active ||
         finalThreePhaseIdentity(current) !== phaseIdentity ||
         completedPresentations.current.has(completionKey)
       )
@@ -170,6 +168,7 @@ export function useEndgameFlow({
   const finalThreeBlockRevealActive =
     game.voxPopuli?.status !== 'active' &&
     game.phase === 'final3_comp3' &&
+    !game.weekendInterlude?.active &&
     game.finalThree?.blockRevealSeen !== true &&
     Boolean(finalThreeBlockPlayer) &&
     finalThreeBlockCompetitors.length === 2
@@ -179,6 +178,7 @@ export function useEndgameFlow({
       const current = getState().game
       if (
         current.phase !== 'final3_comp3' ||
+        current.weekendInterlude?.active ||
         finalThreePhaseIdentity(current) !== phaseIdentity ||
         completedPresentations.current.has(completionKey)
       )
