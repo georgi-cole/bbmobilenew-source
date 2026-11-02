@@ -75,6 +75,23 @@ The set reuses existing artwork and adds no bitmap assets or dependencies. Revie
 
 The later Vox Final Two audience ballot uses **VOTE TO WIN** and celebratory emphasis for the winner. Keep those semantics distinct from the Final Three elimination ballot.
 
-## Later handoffs
+## Phase 5 — Grand Finale: vote to champion
 
-Review the surrounding Final Two, Classic Tribunal, Vox final vote and winner handoffs against the approved visual direction. Upgrade the remaining older sections one scenario at a time while preserving the newer sequences that already meet the standard.
+The last part of the finale is a continuous production with distinct **results** and **celebration** beats. The voting mechanisms remain authoritative and separate; the champion reveal uses one shared live set.
+
+**Classic:** The Tribunal plays its existing juror statements, season recap and sequential vote reveal. The finishing tally stays anonymous as to the champion until the coronation cue. “Reveal the Champion” and the automatic handoff both call the same guarded outcome-persistence routine; neither can merely dismiss the completed Tribunal and leave the game on the jury phase. The official winner and runner-up are committed exactly once.
+
+**Vox Populi:** The finalist showcase leads to the season recap *before* the final public ballot. The recap can now say “Public vote next” instead of “Tribunal locked,” and must not imply the final finishing order was determined already. The existing audience vote continues to show live percentages, identity reveal and the true committed result. Its result card is the **audience verdict**, after which the player enters the same winner coronation instead of replaying the recap or bypassing the champion stage. A saved run previously paused on a post-result recap still recovers into the coronation.
+
+**Shared coronation:** The opening begins with both finalists under subdued light, on the Phase 4 garden set with the independent Eye, live smoked-glass monitor and lit podiums. The 1.5-second winner cue reveals only the real winner, sends the official winner stinger and brightens their full-size figure. The runner-up is retained visibly with a clear acknowledgement; no award, vote, point or placement is manufactured by this presentation. The scene is responsive and observes reduced motion, presentation ownership and page suspension.
+
+**Conclusion:** The explicit Continue action proceeds into the existing winner interview, optional Public Favorite (Classic), farewell messages, lights-out, credits and saved season-completion route. Never add a second compulsory “Begin” step or introduce a handoff that can dismiss the finale without committing the winner.
+
+### Phase 5 acceptance and QA
+
+- Classic human finalist, eliminated/Tribunal viewer and spectator: juror reveal → recap → actual vote tally → crowned winner, without spoilers or duplicate callbacks
+- Vox human finalist and spectator: showcase → pre-verdict recap → audience percentages/identity reveal → winner ceremony, with the public deciding the actual winner
+- Long contestant names, missing player art and photo-only identities preserve reasonable fallback and no stretched figures
+- Portrait and short-height landscape remain readable, including the real winner/runner-up podiums and monitor; Skip/fast-forward never change the winner
+- Reload, background/foreground, reduced motion, retry and old saved Vox recap must not replay awards, invent votes or block progression
+- Existing interview, optional Classic Public Favorite, goodbyes, lights-out and credits still complete the season and archive once
