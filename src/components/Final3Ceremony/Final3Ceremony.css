@@ -388,3 +388,17 @@
     animation: none;
   }
 }
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .f3c-final-two__players {
+    top: 17%;
+    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 13px);
+    left: 73%;
+    width: 46%;
+    height: auto;
+  }
+
+  .f3c-final-two__cutout {
+    transform: scale(1);
+  }
+}
