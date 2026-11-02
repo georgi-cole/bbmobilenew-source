@@ -358,6 +358,9 @@ function readCanonicalRelationshipTags(input: {
     // targeting tags. A player-limited read must not turn them into a spoiler.
     tags.delete('rivalry')
     tags.delete('target')
+    if (input.relationships?.[input.actorId]?.[input.targetId]?.tags.includes('rivalry')) {
+      tags.add('rivalry')
+    }
     tags.delete('alliance')
     if (hasLiveAlliance) tags.add('alliance')
     // A hostile read or an ordinary grievance is not proof that trust was broken.
