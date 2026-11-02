@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getRealityRelationshipLabel } from '../../components/SocialPanelV2/relationshipUtils'
-import { createInitialRealityDomainState } from '../reality'
+import { createInitialRealityDomainState, createRealityAlliance } from '../reality'
 import { selectCanonicalRelationshipView } from '../relationshipSemantics'
 import { registerProvocateurConflict } from '../seasonProvocateurs'
 
@@ -37,6 +37,36 @@ describe('season provocateur conflict relationships', () => {
         view.isNemesis
       )
     ).toEqual({ label: 'Nemesis', key: 'enemies' })
+  })
+
+  it('strains a genuine pact on a first confrontation without inventing a Nemesis', () => {
+    const reality = createInitialRealityDomainState()
+    const pact = createRealityAlliance(reality, {
+      id: 'first-conflict-pact',
+      founderIds: ['human', 'provocateur'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: 2, phase: 'social_1' },
+    })
+    pact.status = 'ACTIVE'
+    const loyaltyBefore = pact.memberCommitment.provocateur
+    const registration = registerProvocateurConflict(reality, {
+      actorId: 'provocateur',
+      targetId: 'human',
+      at: { day: 3, phase: 'social_1' },
+      cause: 'PERSONALITY_CLASH',
+    })
+    expect(registration?.nemesis).toBeNull()
+    expect(pact.status).toBe('FRACTURED')
+    expect(pact.memberCommitment.provocateur).toBeLessThan(loyaltyBefore)
+    expect(pact.genuine).toBe(true)
+    expect(
+      selectCanonicalRelationshipView({
+        reality,
+        actorId: 'human',
+        targetId: 'provocateur',
+      }).isNemesis
+    ).toBe(false)
   })
 
   it('records a rival label for another AI target without replacing their existing nemesis', () => {
