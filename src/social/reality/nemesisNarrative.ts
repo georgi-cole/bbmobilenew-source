@@ -1,5 +1,6 @@
 import { allianceKind, isCurrentAlliance } from './allianceIdentity'
 import { appendRealityEvent } from './events'
+import { recordRelationshipEvidence } from './relationshipAutonomy'
 import { applyRealityRelationshipChange } from './relationships'
 import type {
   RealityClock,
@@ -249,6 +250,16 @@ function createReveal(
   })
   objective.revealedAt = at
   objective.revealEventId = event.id
+  recordRelationshipEvidence(domain, {
+    id: `relationship-evidence:${event.id}:nemesis-revealed`,
+    ownerId: objective.ownerId,
+    targetId: objective.targetId,
+    family: 'CONFLICT',
+    eventId: event.id,
+    day: at.day,
+    reciprocal: false,
+    significance: 1,
+  })
 
   if (exitWho) {
     // The rivalry has ended through an elimination. Preserve the reveal in
@@ -301,7 +312,7 @@ export function advanceNemesisNarrative(
   const beats: NemesisStoryBeat[] = []
   const activeWindow = STORY_PHASES.has(context.phase)
   const closing = isClosingPhase(context.phase)
-  const leavingWindow = context.phase === 'week_end'
+  const leavingWindow = context.phase === 'week_end' || context.phase === 'week_start'
 
   for (const objective of Object.values(domain.relationshipAutonomy.nemeses)) {
     if (objective.status !== 'ACTIVE' || objective.targetId !== context.humanId) continue
