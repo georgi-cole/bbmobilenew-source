@@ -159,7 +159,7 @@ function nomineePleaOptions(game: AppealSource, player: Player): PleaOption[] {
       angle: 'stakes',
       priority: 11,
       speech:
-        "One place remains, and I know the audience must make a difficult call. I want the chance to stand in the final and answer for my season.",
+        'One place remains, and I know the audience must make a difficult call. I want the chance to stand in the final and answer for my season.',
     }
   )
   return choices.sort((a, b) => b.priority - a.priority)
@@ -197,7 +197,9 @@ export function buildVoxFinalThreePleas(
   // complete, valid two-person cast always has a complementary pair.
   if (!selected) return {}
   const selectedById = new Map(sorted.map((player, i) => [player.id, selected[i].speech]))
-  return Object.fromEntries(cast.nominees.map((player) => [player.id, selectedById.get(player.id)!]))
+  return Object.fromEntries(
+    cast.nominees.map((player) => [player.id, selectedById.get(player.id)!])
+  )
 }
 
 function validPercentages(
