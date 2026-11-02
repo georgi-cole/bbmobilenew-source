@@ -10,11 +10,7 @@ interface Props {
   mode: 'classic' | 'vox_populi'
 }
 
-export default function FinalThreeBlockReveal({
-  blockPlayer,
-  competitors,
-  mode,
-}: Props) {
+export default function FinalThreeBlockReveal({ blockPlayer, competitors, mode }: Props) {
   const battleRule =
     mode === 'vox_populi'
       ? 'Winner earns immunity. The audience decides the final place.'

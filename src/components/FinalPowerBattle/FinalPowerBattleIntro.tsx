@@ -30,8 +30,10 @@ export default function FinalPowerBattleIntro({ finalists, mode }: Props) {
         <h2>The Final Power Battle</h2>
         <p className="fpb-intro__lead">
           Three finalists. Two qualifiers. One final duel.{' '}
-          {mode === 'vox_populi' ? 'The winner earns final immunity.' : 'The winner earns final power.'}
-          {' '}Press Play to begin.
+          {mode === 'vox_populi'
+            ? 'The winner earns final immunity.'
+            : 'The winner earns final power.'}{' '}
+          Press Play to begin.
         </p>
       </div>
 
