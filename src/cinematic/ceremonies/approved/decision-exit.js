@@ -4,7 +4,7 @@ export const DECISION_IDS = ['exit', 'tiebreak', 'final4', 'final3']
 export { FINAL_EXIT_BRAND_RESOURCE } from './finale-closing-brand.js'
 import { animateFinaleClosingBrand, makeFinaleClosingBrandMarkup } from './finale-closing-brand.js'
 // Allow the complete Eye turn, a readable title, then a lens-bound flight and a black hold.
-// Only opted-in Final Three exits receive this extension; ordinary door timings do not move.
+// Branded exits use this extension so the doorway sequence stays intact.
 const BRAND_HOLD_MS = 3400
 const common = [
   'cinema_hall',

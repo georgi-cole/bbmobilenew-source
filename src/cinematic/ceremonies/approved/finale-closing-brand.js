@@ -1,4 +1,4 @@
-/** The approved final-day ident, shared by departures and competition broadcasts. */
+/** The shared Big Eye ident used by departures and competition broadcasts. */
 export const FINAL_EXIT_BRAND_RESOURCE = {
   src: 'assets/ceremonies/final-decision/token.webp',
   width: 384,

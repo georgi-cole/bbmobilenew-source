@@ -191,7 +191,7 @@ describe('departure soundtrack continuation', () => {
     }
   })
 
-  it('does not add the final-day ident to an ordinary weekly exit', async () => {
+  it('adds the Big Eye ident to an ordinary weekly exit', async () => {
     const { releaseDecision } = openExit({ phase: 'eviction_results' })
     try {
       await waitFor(() => expect(film.handoff).toBeTypeOf('function'))
@@ -199,7 +199,7 @@ describe('departure soundtrack continuation', () => {
         'exit',
         expect.anything(),
         'generic',
-        expect.not.objectContaining({ closingBrand: true })
+        expect.objectContaining({ closingBrand: true })
       )
     } finally {
       await act(async () => releaseDecision())

@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-02: Reviewed enabling the existing Big Eye closing ident at the end of
+  every shared VIP departure film, including ordinary weekly exits. The Eye asset,
+  choreography, and handoff remain shared; VIP eligibility, animation settings,
+  products, prices, benefits, entitlements, and Store copy are unchanged.
+
 - 2026-11-02: Reviewed the VIP Cinematic backup-nomination presentation. It reuses
   the existing nomination chamber and character-pack poses, and follows the
   actual chooser for LOH/co-LOH, Halo Exchange, and Detox. Vox ballot backups,

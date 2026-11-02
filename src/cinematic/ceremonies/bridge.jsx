@@ -189,9 +189,9 @@ export function PremiumBridge({
           const controller = clipModule.createClip()
           clip.current = controller
           const details = modeDetails(scene, props.current, state.game)
-          // The final-day ident belongs after the already-approved doorway zoom.
-          // Ordinary weekly and paired exits retain their existing film and clock.
-          if (state.game.phase?.startsWith('final3') && ['exit', 'final3'].includes(scene))
+          // Every shared departure film closes through the Big Eye ident after
+          // the doorway zoom. The standalone Final Three film keeps its finale gate.
+          if (scene === 'exit' || (state.game.phase?.startsWith('final3') && scene === 'final3'))
             details.closingBrand = true
           const ok = await controller.prepare(scene, cast, shockType, details)
           if (current.cancelled || completed.current || handed.current || !ok) return
