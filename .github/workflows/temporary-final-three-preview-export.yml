@@ -6,22 +6,33 @@ on:
 permissions:
   contents: read
 jobs:
-  export:
+  record:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Build self-contained review component
+      - name: Install dependencies and browser
         run: |
           npm ci
-          node scripts/build-f3-preview.mjs
-      - uses: actions/upload-artifact@v4
+          npx playwright install --with-deps chromium
+      - name: Bundle the actual spectator component
+        run: node scripts/build-f3-preview.mjs
+      - name: Record four real spectator broadcasts
+        run: |
+          command -v ffmpeg
+          node scripts/record-f3-preview.mjs
+      - name: Upload playable MP4 recordings and review frames
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: f3-preview-component-20261102
-          path: preview-export/preview/
-          retention-days: 1
-          compression-level: 6
+          name: Big-Eye-Final-Three-Review-Videos
+          path: |
+            preview-export/recordings/*.mp4
+            preview-export/recordings/*.png
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
