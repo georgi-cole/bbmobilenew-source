@@ -23,6 +23,8 @@ export interface SeasonRecapProps {
   history?: GameHistoryEvent[]
   completedWeekendDays?: number[]
   publicOpinion?: PublicOpinionState | null
+  /** The finale recap runs before Vox's audience ballot, not after a Tribunal vote. */
+  finalVoteMode?: 'tribunal' | 'audience'
   onComplete: () => void
 }
 
@@ -1189,6 +1191,7 @@ export default function SeasonRecapCinematic({
   history = [],
   completedWeekendDays = [],
   publicOpinion,
+  finalVoteMode = 'tribunal',
   onComplete,
 }: SeasonRecapProps) {
   const reducedMotion = usePresentationReducedMotion()
@@ -1199,8 +1202,8 @@ export default function SeasonRecapCinematic({
   const foreground = usePresentationForeground()
   const isOwner = ownsPresentation && foreground
   const recapData = useMemo(
-    () => buildSeasonRecapData(players, week, publicOpinion),
-    [players, publicOpinion, week]
+    () => buildSeasonRecapData(players, week, publicOpinion, finalVoteMode),
+    [players, publicOpinion, week, finalVoteMode]
   )
   const [view, setView] = useState<RecapView>('intro')
   const [selectedHonorIndex, setSelectedHonorIndex] = useState(0)
