@@ -407,6 +407,9 @@ export function normalizeRealityDomainState(
   // founding guard existed. Reconcile once at hydration without inventing a
   // historical day when the save has no current clock available.
   reconcileConvergedAllianceRosters(normalized)
+  // Migrate older saves containing a private Nemesis and a genuine pact.
+  // Preserve membership, but make the hidden loyalty conflict operational.
+  enforceNemesisAllianceConsistency(normalized)
   for (const alliance of Object.values(normalized.alliances))
     alliance.history = retainAllianceHistory(alliance.history ?? [])
   return normalized
