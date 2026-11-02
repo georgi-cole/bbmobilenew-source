@@ -223,28 +223,54 @@
 }
 
 @keyframes f3-venue-camera {
-  from { transform: scale(1.055) translateX(0.5%); }
-  to { transform: scale(1.08) translateX(-0.5%); }
+  from {
+    transform: scale(1.055) translateX(0.5%);
+  }
+  to {
+    transform: scale(1.08) translateX(-0.5%);
+  }
 }
 
 @keyframes f3-venue-light {
-  from { transform: translateX(-3%); opacity: 0.58; }
-  to { transform: translateX(3%); opacity: 0.9; }
+  from {
+    transform: translateX(-3%);
+    opacity: 0.58;
+  }
+  to {
+    transform: translateX(3%);
+    opacity: 0.9;
+  }
 }
 
 @keyframes f3-venue-halo {
-  from { opacity: 0.5; }
-  to { opacity: 0.95; }
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 0.95;
+  }
 }
 
 @keyframes f3-venue-dust {
-  from { background-position: 16px 29px, 77px 83px; }
-  to { background-position: 36px -108px, 57px -104px; }
+  from {
+    background-position:
+      16px 29px,
+      77px 83px;
+  }
+  to {
+    background-position:
+      36px -108px,
+      57px -104px;
+  }
 }
 
 @keyframes f3-venue-mist {
-  from { transform: translateX(-5%) scale(1); }
-  to { transform: translateX(5%) scale(1.04); }
+  from {
+    transform: translateX(-5%) scale(1);
+  }
+  to {
+    transform: translateX(5%) scale(1.04);
+  }
 }
 
 @media (max-height: 680px) {
