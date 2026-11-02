@@ -347,7 +347,9 @@
   font-weight: 600;
   line-height: 1.15;
   overflow-wrap: anywhere;
-  text-shadow: 0 2px 5px #080811, 0 0 14px #000;
+  text-shadow:
+    0 2px 5px #080811,
+    0 0 14px #000;
 }
 
 @media (max-width: 620px) {
