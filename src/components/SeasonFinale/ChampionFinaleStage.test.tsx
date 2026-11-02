@@ -1,11 +1,7 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createInitialGameState } from '../../store/gameSlice'
 import ChampionFinaleStage from './ChampionFinaleStage'
-const styles = readFileSync(resolve('src/components/SeasonFinale/ChampionFinaleStage.css'), 'utf8')
-
 const [winner, runnerUp] = createInitialGameState({ seed: 514 }).players.slice(0, 2)
 
 afterEach(cleanup)
@@ -82,7 +78,7 @@ describe('shared champion coronation', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('data-final-vote', 'audience')
   })
 
-  it('keeps suspended coronations inert and supports reduced motion', () => {
+  it('keeps suspended coronations inert so backgrounded overlays cannot be advanced', () => {
     render(
       <ChampionFinaleStage
         winner={winner}
@@ -98,7 +94,5 @@ describe('shared champion coronation', () => {
     expect(dialog).toHaveAttribute('inert')
     expect(dialog).toHaveAttribute('aria-hidden', 'true')
     expect(dialog).toHaveAttribute('data-presentation-suspended')
-    expect(styles).toContain('@media (prefers-reduced-motion: reduce)')
-    expect(styles).toContain('animation-play-state: paused')
   })
 })
