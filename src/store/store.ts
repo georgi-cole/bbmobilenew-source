@@ -28,6 +28,7 @@ import profilesReducer, {
 } from './profilesSlice'
 import socialReducer from '../social/socialSlice'
 import { socialMiddleware } from '../social/socialMiddleware'
+import { nemesisStoryMiddleware } from '../social/nemesisStoryMiddleware'
 import { allianceManagementMiddleware } from '../social/allianceManagementMiddleware'
 import { relationshipResourcePolicyMiddleware } from '../social/relationshipResourcePolicyMiddleware'
 import { intelligenceMiddleware } from '../social/intelligenceMiddleware'
@@ -183,6 +184,7 @@ export const store = configureStore({
         socialStrategyMiddleware,
         relationshipResourcePolicyMiddleware,
         socialMiddleware,
+        nemesisStoryMiddleware,
         allianceManagementMiddleware,
         soundMiddleware,
         publicOpinionMiddleware,
