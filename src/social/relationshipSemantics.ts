@@ -284,30 +284,25 @@ export function isNemesisDisclosedTo(
     if (nemesis.status !== 'ACTIVE') return false
     if (nemesis.ownerId === viewerId && nemesis.targetId === otherId) return true
     if (nemesis.ownerId !== otherId || nemesis.targetId !== viewerId) return false
+    // A recorded reveal remains known even if its detailed event has rolled
+    // out of the bounded feed. Neither a generic dispute nor a private AI
+    // objective is by itself proof that this person is a Nemesis.
+    if (nemesis.revealEventId || nemesis.revealedAt) return true
+
+    // Legacy witnessed provocations already explicitly introduced an opponent
+    // and explained their grievance; keep those reads when loading old saves.
     const source = reality.events.find((event) => event.id === nemesis.sourceEventId)
-    return reality.events.some((event) => {
-      if (
-        event.actorId !== otherId ||
-        !event.targetIds.includes(viewerId) ||
-        event.day < nemesis.createdAt.day ||
-        (source && event.sequence < source.sequence)
-      ) {
-        return false
-      }
-      const directlyKnown =
-        event.visibility === 'HOUSE_PUBLIC' ||
-        event.visibility === 'CEREMONY_PUBLIC' ||
-        (event.visibility !== 'PRIVATE' &&
-          event.visibility !== 'JURY_ONLY' &&
-          (event.participantIds.includes(viewerId) || event.witnessIds.includes(viewerId)))
-      return (
-        directlyKnown &&
-        (event.tags.includes('CONFLICT') ||
-          event.tags.includes('BETRAYAL') ||
-          event.type === 'PROVOCATEUR_CONFLICT_STARTED' ||
-          event.type === 'ALLIANCE_BETRAYAL')
-      )
-    })
+    return Boolean(
+      source &&
+        source.type === 'PROVOCATEUR_CONFLICT_STARTED' &&
+        source.actorId === otherId &&
+        source.targetIds.includes(viewerId) &&
+        source.visibility !== 'PRIVATE' &&
+        (source.participantIds.includes(viewerId) ||
+          source.witnessIds.includes(viewerId) ||
+          source.visibility === 'HOUSE_PUBLIC' ||
+          source.visibility === 'CEREMONY_PUBLIC')
+    )
   })
 }
 
