@@ -24,9 +24,7 @@ const seasonCount = (value: number | undefined): number =>
 function optionsFor(nominee: Player, read: FinalThreeDecisionRead): PleaOption[] {
   const wins = seasonCount(nominee.stats?.lohWins) + seasonCount(nominee.stats?.posWins)
   const nominations = seasonCount(nominee.stats?.timesNominated)
-  const hasFriction = read.tags.some((tag) =>
-    ['betrayal', 'target', 'rivalry'].includes(tag)
-  )
+  const hasFriction = read.tags.some((tag) => ['betrayal', 'target', 'rivalry'].includes(tag))
   const hasBond =
     read.affinity >= 35 || read.tags.some((tag) => ['romance', 'bromance'].includes(tag))
   const hasPact = read.pactStrength >= 0.65 || read.tags.includes('alliance')
@@ -36,8 +34,7 @@ function optionsFor(nominee: Player, read: FinalThreeDecisionRead): PleaOption[]
     choices.push({
       angle: 'friction',
       priority: 76,
-      plea:
-        "We haven't agreed on every move, and I won't pretend we did. You can respect what I brought to this game without forgetting where we clashed.",
+      plea: "We haven't agreed on every move, and I won't pretend we did. You can respect what I brought to this game without forgetting where we clashed.",
       response:
         "I'm not rewriting our history either. I hear your case, but those moments still matter to me.",
     })
@@ -54,8 +51,7 @@ function optionsFor(nominee: Player, read: FinalThreeDecisionRead): PleaOption[]
     choices.push({
       angle: 'bond',
       priority: 72,
-      plea:
-        'We trusted each other through this season. I hope the way we treated each other still counts when you choose who stands beside you.',
+      plea: 'We trusted each other through this season. I hope the way we treated each other still counts when you choose who stands beside you.',
       response:
         'I remember what we built together. That connection makes this a harder choice, not an automatic one.',
     })
@@ -64,8 +60,7 @@ function optionsFor(nominee: Player, read: FinalThreeDecisionRead): PleaOption[]
     choices.push({
       angle: 'pact',
       priority: 69,
-      plea:
-        'We stood on the same side of this game. If our alliance still means something tonight, I want us to see the final together.',
+      plea: 'We stood on the same side of this game. If our alliance still means something tonight, I want us to see the final together.',
       response:
         'I know the alliance brought us this far. I also have to think about what happens when we reach the final vote.',
     })
@@ -85,16 +80,14 @@ function optionsFor(nominee: Player, read: FinalThreeDecisionRead): PleaOption[]
     {
       angle: 'case',
       priority: 12,
-      plea:
-        "I can't reduce my whole season to one moment. I played to reach this room, and I'd like the chance to make my case to the Tribunal.",
+      plea: "I can't reduce my whole season to one moment. I played to reach this room, and I'd like the chance to make my case to the Tribunal.",
       response:
         "I hear the argument you're making for your whole season. I need to weigh that against the choice in front of me.",
     },
     {
       angle: 'stakes',
       priority: 11,
-      plea:
-        "You have the final say, and I know you have your own game to protect. I'm asking you to give me the chance to stand beside you and answer for mine.",
+      plea: "You have the final say, and I know you have your own game to protect. I'm asking you to give me the chance to stand beside you and answer for mine.",
       response:
         "I know what's at stake for you, and I have to think about my own game too. I'll make the call with both in mind.",
     }
