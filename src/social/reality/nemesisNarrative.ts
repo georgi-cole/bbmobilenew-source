@@ -190,9 +190,22 @@ function createReveal(
   objective.revealEventId = event.id
 
   if (postExit) {
-    // The target has already left. Preserve the reveal in history without
-    // creating an opponent that can continue influencing the game from outside.
+    // The opponent has already left. Preserve the reveal in history without
+    // creating an opponent that can keep influencing the Hub from outside.
     objective.status = 'ENDED'
+    const intent = domain.relationshipAutonomy.intents[
+      `relationship-intent:${objective.ownerId}:${objective.targetId}:UNDERMINE`
+    ]
+    if (intent) {
+      intent.status = 'CLOSED'
+      intent.continuationPressure = 0
+    }
+    const thread = domain.threads[`nemesis-thread:${objective.ownerId}:${objective.targetId}`]
+    if (thread) {
+      thread.status = 'RESOLVED'
+      thread.stage = 'ENDED_BY_EVICTION'
+      thread.urgency = 0
+    }
   } else {
     applyRealityRelationshipChange(domain, {
       sourceId: objective.targetId,
