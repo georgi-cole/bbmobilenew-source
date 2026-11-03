@@ -644,7 +644,7 @@ export const SOCIAL_ACTIONS: SocialActionDefinition[] = [
   },
   {
     id: 'ask_nemesis_reason',
-    title: 'Ask Why',
+    title: 'Why Betray Me?',
     icon: '❔',
     description: 'Privately ask why this hubmate turned against you.',
     category: 'strategic',
