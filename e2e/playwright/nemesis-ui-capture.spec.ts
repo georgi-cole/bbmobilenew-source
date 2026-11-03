@@ -1,3 +1,4 @@
+import { copyFile, mkdir } from 'node:fs/promises'
 import {
   closeDebugPanelIfOpen,
   dismissPermissionPromptIfPresent,
@@ -5,14 +6,23 @@ import {
   readAppState,
   test,
   type Page,
+  type TestInfo,
 } from './support/test'
 import { openProfileCreationForm } from './support/profile'
 
 /**
  * Authentic PR screenshots: React components, Redux reducers and the Faux TV
  * run in Chromium. Debug controls seed reproducible game state, NOT mock HTML.
- * Images are retained under test-results in the PR browser artifact.
+ * Screenshots are saved both to the test result and a persistent CI evidence
+ * directory, since the later finale test clears Playwright's test-results.
  */
+async function captureActualScreen(page: Page, testInfo: TestInfo, filename: string) {
+  const capturePath = testInfo.outputPath(filename)
+  await page.screenshot({ path: capturePath, fullPage: true })
+  await mkdir('visual-evidence/nemesis', { recursive: true })
+  await copyFile(capturePath, `visual-evidence/nemesis/${filename}`)
+}
+
 async function startCaptureGame(page: Page) {
   await page.goto('./', { waitUntil: 'domcontentloaded' })
   const menu = page.getByRole('navigation', { name: 'Main menu' })
@@ -80,10 +90,7 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
     await expect(tv.getByText(/Someone in the Hub is quietly questioning your game/)).toBeVisible({
       timeout: 20_000,
     })
-    await page.screenshot({
-      path: testInfo.outputPath('01-real-faux-tv-anonymous-warning.png'),
-      fullPage: true,
-    })
+    await captureActualScreen(page, testInfo, '01-real-faux-tv-anonymous-warning.png')
   })
 
   test('real reveal, Nemesis relationship, one-energy action and private answer', async ({
@@ -110,10 +117,7 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
     await expect(tv.getByText(new RegExp(`${nemesis.name} has turned against you`))).toBeVisible({
       timeout: 20_000,
     })
-    await page.screenshot({
-      path: testInfo.outputPath('02-real-faux-tv-nemesis-reveal.png'),
-      fullPage: true,
-    })
+    await captureActualScreen(page, testInfo, '02-real-faux-tv-nemesis-reveal.png')
 
     await page
       .getByRole('toolbar', { name: 'Game actions' })
@@ -151,10 +155,7 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
     // The detailed card exposes a dedicated accessible Nemesis indicator. A
     // hidden duplicate label elsewhere in the panel must not shadow it.
     await expect(social.locator('[aria-label="Nemesis relationship"]')).toBeVisible()
-    await page.screenshot({
-      path: testInfo.outputPath('03-real-social-nemesis-relationship.png'),
-      fullPage: true,
-    })
+    await captureActualScreen(page, testInfo, '03-real-social-nemesis-relationship.png')
 
     await social.getByRole('tab', { name: 'Strategy' }).click()
     const questionCard = social
@@ -162,10 +163,7 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
       .getByRole('button', { name: /Why Betray Me\?/ })
     await expect(questionCard).toBeVisible()
     await questionCard.scrollIntoViewIfNeeded()
-    await page.screenshot({
-      path: testInfo.outputPath('04-real-social-why-betray-me-card.png'),
-      fullPage: true,
-    })
+    await captureActualScreen(page, testInfo, '04-real-social-why-betray-me-card.png')
 
     const energyBefore = (await readAppState(page)).social.energyBank[human.id]
     await questionCard.click()
@@ -184,9 +182,6 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
     if (!answer) throw new Error('The game did not persist the Nemesis answer')
     expect(after.social.energyBank[human.id]).toBe(energyBefore - 1)
     await expect(social.getByText(answer.reason, { exact: false }).first()).toBeVisible()
-    await page.screenshot({
-      path: testInfo.outputPath('05-real-social-private-nemesis-answer.png'),
-      fullPage: true,
-    })
+    await captureActualScreen(page, testInfo, '05-real-social-private-nemesis-answer.png')
   })
 })
