@@ -17,7 +17,7 @@ export interface IncomingActionContent {
  * four response-specific reactions; the existing Reality contract still
  * decides legality, costs, and relationship dimensions.
  *
- * 52 inbox-routed actions × 4 response stances = 208 authored action/response pairings.
+ * 53 inbox-routed actions × 4 response stances = 212 authored action/response pairings.
  * Scene families are shared deliberately, so game-event context and social
  * effect rules stay consistent without duplicating the full scene engine.
  */
@@ -694,6 +694,33 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
       dismiss: [
         'They let the moment pass and do not put a name on your slate.',
         'They leave you to make the nomination call without their recommendation.',
+      ],
+    },
+  },
+  ask_nemesis_reason: {
+    scenarioKey: 'generic_check_in',
+    family: 'relationship_boundaries',
+    interactionType: 'other',
+    openings: [
+      'Something changed between us, {player}. Can we talk about what happened?',
+      'I want to understand this conflict without pretending our history disappeared.',
+    ],
+    replies: {
+      positive: [
+        'They listen to your account and explain their own perspective without treating it as forgiveness.',
+        'They acknowledge what you said; rebuilding trust would still take more than this conversation.',
+      ],
+      neutral: [
+        'They accept the limit of your answer and leave the disagreement unresolved.',
+        'They hear your account without claiming you have repaired the relationship.',
+      ],
+      negative: [
+        'They recognize that you disagree about what happened and step back.',
+        'They stop pressing for an explanation after hearing your refusal.',
+      ],
+      dismiss: [
+        'They respect your choice to end the conversation.',
+        'They leave the question open and give you space.',
       ],
     },
   },

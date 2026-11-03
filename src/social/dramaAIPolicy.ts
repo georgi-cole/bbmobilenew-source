@@ -1,3 +1,4 @@
+import { strategicSocialAdjustment } from './strategicSocialUtility'
 import { normalizeAffinity } from './affinityUtils'
 import { selectIntelFactForActor } from './intelligenceSystem'
 import type { DramaAIMove, DramaAIMoveInput } from './dramaModeEngine'
@@ -85,8 +86,7 @@ function hasActiveAlliance(input: DramaAIMoveInput, targetId: string): boolean {
 function canTradeWith(input: DramaAIMoveInput, targetId: string): boolean {
   if (!input.reality) return false
   return Boolean(
-    selectIntelFactForActor(input.reality, input.actorId, targetId, input.week, input.players) ||
-    selectIntelFactForActor(input.reality, targetId, input.actorId, input.week, input.players)
+    selectIntelFactForActor(input.reality, input.actorId, targetId, input.week, input.players)
   )
 }
 
@@ -482,6 +482,19 @@ function addCandidate(
   ) {
     return
   }
+  const adjustment = strategicSocialAdjustment({
+    actorId: input.actorId,
+    actionId: candidate.actionId,
+    targetId: candidate.targetId,
+    identity: input.aiGameIdentity,
+    planning: input.strategicContext,
+    enabled: input.strategicWeightsEnabled,
+    week: input.week,
+    recentActions: input.recentActions,
+    memory: input.memory,
+    events: input.reality?.events,
+  })
+  if (adjustment.multiplier === 0) return
   const repeats = repeatedThisWeek(input, candidate.actionId, candidate.targetId)
   const repetitionPenalty = getSocialRuntimeConfig().ai.repetitionPenalty
   const noise =
@@ -490,7 +503,10 @@ function addCandidate(
     ) * getSocialRuntimeConfig().ai.noveltyWeight
   candidates.push({
     ...candidate,
-    utility: Math.max(0, candidate.utility / (1 + repeats * repetitionPenalty) + noise),
+    utility: Math.max(
+      0,
+      (candidate.utility * adjustment.multiplier) / (1 + repeats * repetitionPenalty) + noise
+    ),
   })
 }
 
@@ -941,7 +957,7 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
         entry.status === 'active' &&
         !entry.public &&
         !entry.participantIds.includes(input.actorId) &&
-        !(entry.discoveredByIds ?? []).includes(input.actorId)
+        (entry.discoveredByIds ?? []).includes(input.actorId)
     )
     .sort((left, right) => right.intensity - left.intensity)[0]
   if (hiddenArc) {
@@ -952,7 +968,7 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
       addCandidate(candidates, input, {
         actionId: 'snoop_around',
         targetId: investigateId,
-        reason: 'investigating a specific hidden relationship',
+        reason: 'checking a private relationship lead already known to the actor',
         motive: 'intel',
         utility:
           0.36 +

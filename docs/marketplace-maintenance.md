@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-03: Reviewed mode-aware AI social preferences, observer privacy and
+  action-specific conflict dialogue (epic #1711, local phase 4). Existing modes,
+  purchases, benefits, prices, paid access and powers are unchanged. New AI
+  preferences use existing actions, costs and execution guards; the Store's
+  existing product descriptions remain accurate.
+
 - 2026-11-03: Reviewed mode-aware alliance choices and nonbinding faction agendas
   for Classic and Vox (epic #1711, local phase 3). Existing consent, capacity,
   purchases, mode access, prices, premium games and Eyeolean powers remain

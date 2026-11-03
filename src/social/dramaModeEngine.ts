@@ -70,6 +70,8 @@ export interface DramaIncomingResponseEffect {
   week: number
 }
 export interface DramaAIMoveInput {
+  strategicContext?: import('./strategicPlanningContext').StrategicPlanningRead
+  strategicWeightsEnabled?: boolean
   actorId: string
   aiGameIdentity?: AiGameIdentity
   players: DramaPlayer[]

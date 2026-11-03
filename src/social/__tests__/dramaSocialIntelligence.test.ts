@@ -311,3 +311,23 @@ describe('declarative incoming-interaction validity', () => {
     ).toBe(true)
   })
 })
+
+describe('observer-scoped investigation choices', () => {
+  it('does not choose a lead from an entirely unknown private relationship', () => {
+    const input = dramaInput()
+    const expected = chooseUtilityDramaAIMove(input)
+    input.network.arcs.push({
+      id: 'unknown-romance',
+      type: 'romance',
+      participantIds: ['user', 'rae'],
+      stage: 'established',
+      intensity: 100,
+      startedWeek: 1,
+      lastAdvancedWeek: 3,
+      public: false,
+      discoveredByIds: [],
+      status: 'active',
+    })
+    expect(chooseUtilityDramaAIMove(input)).toEqual(expected)
+  })
+})
