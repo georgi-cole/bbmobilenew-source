@@ -61,7 +61,7 @@ Opening profiles receive a small, balanced lean from the AI contestant identity 
 In Vox Populi the competition winner is recorded in `game.lohId` for
 compatibility but holds immunity, not Classic nomination power. The audience
 alone decides evictions, so a Vox eviction does not generate the Classic
-LOH/Safety-holder *eviction responsibility* approval adjustment. Competition
+LOH/Safety-holder _eviction responsibility_ approval adjustment. Competition
 wins and Safety saves retain their separate public reactions. This rule is
 independent of whether the optional Public Meter is currently visible.
 

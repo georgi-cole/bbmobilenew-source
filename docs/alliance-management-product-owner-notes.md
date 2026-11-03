@@ -92,14 +92,14 @@ strategic motives are a planned follow-up, not an implemented guarantee.
 
 ## How each decision is made
 
-| Request | Who decides | Current AI decision input |
-| --- | --- | --- |
-| Personal pact | Both named people | Directed trust, reliability, warmth, loyalty, respect, strategic value, suspicion, resentment, known kept/broken promises, network benefit, survival need, competing commitments, and an active Nemesis if present |
-| Found a group | Every named founder | Average directed trust toward the other founders, evaluated with a seeded roll |
-| Admit a group member | Current group electorate, then candidate | Member trust toward the candidate; invitee trust toward group members, capacity and possible switch away from a weaker existing group |
-| Accept co-leader or leadership | Named nominee | Average directed trust toward group members, evaluated with a seeded roll |
-| Suggest removing a member | Group officers | Officer's directed trust toward candidate below −10 |
-| Suggest renaming a group | Current leader | Leader's directed trust toward suggester at least 0 |
+| Request                        | Who decides                              | Current AI decision input                                                                                                                                                                                          |
+| ------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Personal pact                  | Both named people                        | Directed trust, reliability, warmth, loyalty, respect, strategic value, suspicion, resentment, known kept/broken promises, network benefit, survival need, competing commitments, and an active Nemesis if present |
+| Found a group                  | Every named founder                      | Average directed trust toward the other founders, evaluated with a seeded roll                                                                                                                                     |
+| Admit a group member           | Current group electorate, then candidate | Member trust toward the candidate; invitee trust toward group members, capacity and possible switch away from a weaker existing group                                                                              |
+| Accept co-leader or leadership | Named nominee                            | Average directed trust toward group members, evaluated with a seeded roll                                                                                                                                          |
+| Suggest removing a member      | Group officers                           | Officer's directed trust toward candidate below −10                                                                                                                                                                |
+| Suggest renaming a group       | Current leader                           | Leader's directed trust toward suggester at least 0                                                                                                                                                                |
 
 Group founding, ordinary admission, and officer-role acceptance use:
 

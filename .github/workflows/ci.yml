@@ -82,7 +82,12 @@ jobs:
             command: npm run typecheck
             fetch_depth: 1
           - label: Core regressions
-            command: npm run test:pr-core
+            command: >-
+              npm run test:pr-core &&
+              npx vitest run
+              src/social/__tests__/allianceCampaign.test.ts
+              src/social/__tests__/dramaSocialIntelligence.test.ts
+              tests/unit/publicOpinion/publicOpinionMiddleware.test.ts
             fetch_depth: 1
     steps:
       - uses: actions/checkout@v4

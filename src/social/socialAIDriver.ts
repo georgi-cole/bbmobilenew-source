@@ -1211,11 +1211,7 @@ function candidateForPlayer(
       availableActionIds: Object.keys(socialConfig.actionWeights).filter((candidateId) => {
         const candidateAction = getActionById(candidateId)
         if (
-          !isAISocialActionVisible(
-            candidateId,
-            dramaMode ? 'drama' : 'normal',
-            voxPopuliActive
-          )
+          !isAISocialActionVisible(candidateId, dramaMode ? 'drama' : 'normal', voxPopuliActive)
         ) {
           return false
         }

@@ -92,15 +92,7 @@ for (const file of files) {
   }
 
   checked.push(file)
-  if (!currentClean) {
-    const expectedLines = (await prettier.format(currentSource, options)).split('\n')
-    const actualLines = currentSource.split('\n')
-    const firstDiff = actualLines.findIndex((line, index) => line !== expectedLines[index])
-    console.error(`[format-diagnostic] ${file} first difference at line ${firstDiff + 1}`)
-    console.error(`[format-diagnostic] current: ${JSON.stringify(actualLines.slice(firstDiff, firstDiff + 14))}`)
-    console.error(`[format-diagnostic] expected: ${JSON.stringify(expectedLines.slice(firstDiff, firstDiff + 14))}`)
-    violations.push(file)
-  }
+  if (!currentClean) violations.push(file)
 }
 
 console.log(`Strictly checked: ${checked.length}`)
