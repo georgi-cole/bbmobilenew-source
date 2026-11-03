@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { evaluateAllianceStrategicFit } from '../reality/allianceStrategicFit'
 import {
   advanceAllianceRequests,
@@ -16,6 +16,9 @@ import {
 import { evaluateAllianceAutonomy } from '../reality/allianceAutonomy'
 import { normalizeAllianceManagement } from '../reality/allianceIdentity'
 import { upsertRealityPromise } from '../reality/commitments'
+
+const calibration: Array<Record<string, unknown>> = []
+afterAll(() => console.info('STRATEGIC_CALIBRATION', JSON.stringify(calibration)))
 
 const ids = ['human', 'actor', 'friend', 'other', 'third', 'fourth']
 function context(vox: boolean, seed = 1): AllianceManagementContext {
@@ -85,9 +88,23 @@ function setup(publicConflict = true) {
     })
   return domain
 }
-function offer(vox: boolean, seed: number, group = false) {
+function offer(
+  vox: boolean,
+  seed: number,
+  group = false,
+  persona: 'loyal_anchor' | 'opportunist' | 'antihero' = 'loyal_anchor'
+) {
   const domain = setup()
   const ctx = context(vox, seed)
+  if (persona !== 'loyal_anchor')
+    ctx.identityByActorId = {
+      actor: {
+        ...ctx.identityByActorId!.actor,
+        archetype: persona,
+        audienceFocus: persona === 'opportunist' ? 0.2 : 0.65,
+        survivalFocus: persona === 'opportunist' ? 0.9 : 0.5,
+      },
+    }
   if (group) ctx.humanActorIds = ['human', 'friend']
   const result = manageAlliance(
     domain,
@@ -114,6 +131,13 @@ describe('mode-aware alliance decisions', () => {
         if (offer(false, seed, group).request.consents.actor === true) classic++
         if (offer(true, seed, group).request.consents.actor === true) vox++
       }
+      calibration.push({
+        scenario: group ? 'group' : 'pact',
+        persona: 'loyal_anchor',
+        seeds: 256,
+        classicAccepted: classic,
+        voxAccepted: vox,
+      })
       expect(classic).toBeGreaterThan(vox + 15)
       expect(classic).toBeLessThan(256)
       expect(vox).toBeGreaterThan(0)
@@ -257,4 +281,71 @@ describe('mode-aware alliance decisions', () => {
     ).toEqual([])
     expect(JSON.stringify(domain)).toBe(before)
   })
+})
+
+describe('strategy rollback and saved requests', () => {
+  it('does not pin new weights when disabled, while existing pinned requests keep their policy', () => {
+    const domain = setup(),
+      ctx = {
+        ...context(true),
+        strategicPreferencesEnabled: false,
+        humanActorIds: ['human', 'actor'],
+      }
+    const result = manageAlliance(
+      domain,
+      { type: 'PROPOSE', kind: 'PACT', actorId: 'human', candidateId: 'actor' },
+      ctx
+    )
+    expect(
+      domain.allianceManagement.requests[result.requestId!].strategicPolicyVersion
+    ).toBeUndefined()
+    const pending = setup()
+    const pendingId = manageAlliance(
+      pending,
+      { type: 'PROPOSE', kind: 'PACT', actorId: 'human', candidateId: 'actor' },
+      { ...context(true), humanActorIds: ['human', 'actor'] }
+    ).requestId!
+    expect(pending.allianceManagement.requests[pendingId].strategicPolicyVersion).toBe(1)
+    const enabledCopy = structuredClone(pending)
+    advanceAllianceRequests(pending, { ...context(true), strategicPreferencesEnabled: false })
+    advanceAllianceRequests(enabledCopy, context(true))
+    expect(pending).toEqual(enabledCopy)
+    const pinned = offer(true, 9)
+    expect(pinned.request.strategicPolicyVersion).toBe(1)
+    const before = JSON.stringify(pinned.domain)
+    advanceAllianceRequests(pinned.domain, { ...pinned.ctx, strategicPreferencesEnabled: false })
+    expect(JSON.stringify(pinned.domain)).toBe(before)
+  })
+})
+
+describe('matched personality calibration cohorts', () => {
+  it.each(['opportunist', 'antihero'] as const)(
+    'records overlapping %s decisions in both formats',
+    (persona) => {
+      for (const group of [false, true]) {
+        let classic = 0,
+          vox = 0,
+          discordant = 0
+        for (let seed = 1; seed <= 256; seed++) {
+          const c = offer(false, seed, group, persona).request.consents.actor === true
+          const v = offer(true, seed, group, persona).request.consents.actor === true
+          if (c) classic++
+          if (v) vox++
+          if (c !== v) discordant++
+        }
+        expect(classic).toBeGreaterThan(0)
+        expect(classic).toBeLessThan(256)
+        expect(vox).toBeGreaterThan(0)
+        expect(vox).toBeLessThan(256)
+        calibration.push({
+          scenario: group ? 'group' : 'pact',
+          persona,
+          seeds: 256,
+          classicAccepted: classic,
+          voxAccepted: vox,
+          discordant,
+        })
+      }
+    }
+  )
 })

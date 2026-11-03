@@ -1,3 +1,4 @@
+import { strategicPreferencesEnabled } from './strategicPolicy'
 import type { AiGameIdentity } from '../ai/aiGameIdentity'
 import type { RealitySocialEvent } from './reality/types'
 import type { StrategicPlanningRead } from './strategicPlanningContext'
@@ -37,10 +38,15 @@ export interface StrategicSocialInput {
  * by observer before it can support a grievance or public credibility read. */
 export function strategicSocialAdjustment(input: StrategicSocialInput) {
   const rules = input.planning?.rules
-  if (!input.enabled || !rules || !['classic', 'vox'].includes(rules.format))
-    return { multiplier: 1, reason: 'LEGACY_PREFERENCES' }
-  if (rules.format === 'vox' && CLASSIC_ONLY.has(input.actionId))
+  if (input.enabled !== undefined && rules?.format === 'vox' && CLASSIC_ONLY.has(input.actionId))
     return { multiplier: 0, reason: 'NO_SUCH_POWER' }
+  if (
+    !input.enabled ||
+    !strategicPreferencesEnabled() ||
+    !rules ||
+    !['classic', 'vox'].includes(rules.format)
+  )
+    return { multiplier: 1, reason: 'LEGACY_PREFERENCES' }
   const experience = getSocialExperienceRead(input.actorId, input.targetId, {
     recentActions: input.recentActions as SocialActionLogEntry[] | undefined,
     socialMemory: input.memory,
@@ -122,5 +128,6 @@ export function strategicSocialAdjustment(input: StrategicSocialInput) {
     multiplier *= 1 + motives.loyalty * 0.18
     reason = 'PERSONAL_LOYALTY'
   }
+  if (!Number.isFinite(multiplier)) return { multiplier: 1, reason: 'INVALID_PREFERENCE_FALLBACK' }
   return { multiplier: Math.max(0.2, Math.min(1.8, multiplier)), reason }
 }

@@ -71,6 +71,7 @@ export function evaluateAllianceStrategicFit(
         (1 - fear * 0.45)
       : 0
   const modifier = clamp(survival + reliability - audienceConcern, -0.2, 0.18)
+  if (!Number.isFinite(modifier)) return neutral
   const tactical = trust < 0 && survival > 0.045
   const reason =
     audienceConcern > survival + 0.02

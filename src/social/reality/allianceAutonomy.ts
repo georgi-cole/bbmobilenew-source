@@ -243,7 +243,16 @@ function chooseRecruitment(
     )
     .map((id) => {
       const edge = domain.relationships[recruiterId]?.[id]
-      const fit = evaluateAllianceStrategicFit(domain, context, recruiterId, [id])
+      const fit = evaluateAllianceStrategicFit(
+        domain,
+        {
+          ...context,
+          strategicMode:
+            context.strategicPreferencesEnabled === false ? undefined : context.strategicMode,
+        },
+        recruiterId,
+        [id]
+      )
       const score =
         (edge?.trust ?? 0) * 0.03 +
         (edge?.loyalty ?? 0) * 0.018 +
