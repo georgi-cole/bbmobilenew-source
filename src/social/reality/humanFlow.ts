@@ -2076,6 +2076,9 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
         at: { day: state.game.week, phase: state.game.phase },
         seed: state.game.seed ?? 0,
         identity: target.aiGameIdentity,
+        playerNames: Object.fromEntries(
+          state.game.players.map((player) => [player.id, player.name])
+        ),
       })
       if (!answer) {
         finishDraft(draft)
