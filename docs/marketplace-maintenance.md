@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-03: Reviewed the restored headless social simulation entry point for
+  epic #1711. It reuses production selection, legality, budgets and action caps;
+  browser gameplay scheduling and all paid gates, offers, prices and powers
+  remain unchanged. The existing marketplace listings remain accurate.
+
 - 2026-11-03: Reviewed the diagnostic strategic context resolver for Classic, Vox
   Populi, Cupid and Survival (epic #1711, PR 2). It describes existing authority
   and public powers without connecting new weights to gameplay. Mode access,

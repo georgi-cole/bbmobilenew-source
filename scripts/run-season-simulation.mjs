@@ -1,4 +1,6 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { isDeepStrictEqual } from 'node:util'
+import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
@@ -35,6 +37,9 @@ function seedValue(value, fallback, name) {
 
 const runs = positiveInteger('runs', readOption('runs', '1'))
 const headless = process.argv.includes('--headless')
+if (process.argv.includes('--verify-replay') && !headless) {
+  throw new Error('--verify-replay requires --headless.')
+}
 const fullSeason = headless || process.argv.includes('--full-season') || runs > 1
 const fullViewport = process.argv.includes('--full')
 const viewport = readOption('viewport', fullSeason ? 'compact-mobile' : 'iphone-17')
@@ -123,14 +128,61 @@ const command = headless
       '--workers=1',
       '--retries=0',
     ]
-const result = spawnSync(node, command, {
-  env: runEnvironment,
-  stdio: 'inherit',
-})
-
-if (result.error) throw result.error
-
-let exitCode = result.status ?? 1
+let exitCode = 0
+if (headless) {
+  // A fresh process resets runtime counters, cached observers and season history.
+  // Resetting Redux alone leaves those sources of cross-season contamination.
+  for (let repeat = 0; repeat < runs; repeat += 1) {
+    const environment = {
+      ...runEnvironment,
+      SEASON_SIM_RUNS: '1',
+      SEASON_SIM_BATCH_RUNS: String(runs),
+      SEASON_SIM_RUN_OFFSET: String(repeat),
+    }
+    const result = spawnSync(node, command, { env: environment, stdio: 'inherit' })
+    if (result.error) throw result.error
+    if (result.status !== 0) {
+      exitCode = result.status ?? 1
+      break
+    }
+    if (process.argv.includes('--verify-replay')) {
+      const replayBatchId = `${batchId}-replay`
+      const replay = spawnSync(node, command, {
+        env: { ...environment, SEASON_SIM_BATCH_ID: replayBatchId },
+        stdio: 'inherit',
+      })
+      if (replay.error) throw replay.error
+      if (replay.status !== 0) {
+        exitCode = replay.status ?? 1
+        break
+      }
+      const filename = `run-${String(repeat + 1).padStart(3, '0')}.json`
+      const report = JSON.parse(
+        readFileSync(join('test-results/season-sim-headless', batchId, filename), 'utf8')
+      )
+      const repeated = JSON.parse(
+        readFileSync(join('test-results/season-sim-headless', replayBatchId, filename), 'utf8')
+      )
+      if (
+        !isDeepStrictEqual(report.outcome, repeated.outcome) ||
+        !isDeepStrictEqual(
+          report.timeline.map((entry) => entry.action),
+          repeated.timeline.map((entry) => entry.action)
+        )
+      ) {
+        console.error(
+          `Replay diverged for run ${repeat + 1}; inspect ${batchId} and ${replayBatchId}.`
+        )
+        exitCode = 1
+        break
+      }
+    }
+  }
+} else {
+  const result = spawnSync(node, command, { env: runEnvironment, stdio: 'inherit' })
+  if (result.error) throw result.error
+  exitCode = result.status ?? 1
+}
 if (batchId) {
   const summary = spawnSync(
     node,
