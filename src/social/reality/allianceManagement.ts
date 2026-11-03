@@ -1,4 +1,5 @@
 import { recordAllianceRequestEvent } from './allianceRequestEvents'
+import type { AiGameIdentity } from '../../ai/aiGameIdentity'
 import {
   ALLIANCE_LIMITS,
   allianceKind,
@@ -34,6 +35,14 @@ export interface AllianceManagementContext {
   at: RealityClock
   activeActorIds: readonly string[]
   humanActorIds: readonly string[]
+  /** Real same-day AI appeals to the human power holder; not inferred from power alone. */
+  protectionAppealsByActorId?: Readonly<
+    Record<string, { recipientId: string; day: number; scenarioKey: string }>
+  >
+  powerHolderIds?: readonly string[]
+  identityByActorId?: Readonly<Record<string, AiGameIdentity>>
+  /** A Classic-only contextual boost. Other modes retain their existing odds. */
+  classicGame?: boolean
   /** Publicly known nomination state available to autonomous faction planning. */
   atRiskActorIds?: readonly string[]
   /** Jurors whose witnessed relationships can inform an endgame threat read. */
@@ -389,6 +398,12 @@ function finalize(
     }
     if (kind === 'PACT') {
       for (const [actorId, response] of Object.entries(request.responsesByActorId ?? {})) {
+        // Survival-driven acceptance is not an oath of loyalty. Keep private
+        // strategic intent separate from the externally signed personal pact.
+        if (response.strategic && created.memberIds.includes(actorId)) {
+          created.genuine = false
+          if (!created.infiltratorIds.includes(actorId)) created.infiltratorIds.push(actorId)
+        }
         const commitment =
           response.style === 'ENTHUSIASTIC'
             ? 0.68
@@ -397,8 +412,11 @@ function finalize(
               : response.style === 'HESITANT'
                 ? 0.44
                 : undefined
-        if (commitment !== undefined && created.memberIds.includes(actorId))
-          created.memberCommitment[actorId] = commitment
+        if (commitment !== undefined && created.memberIds.includes(actorId)) {
+          created.memberCommitment[actorId] = response.strategic
+            ? Math.min(commitment, 0.18)
+            : commitment
+        }
       }
       const aiResponse = request.memberIds
         .filter((actorId) => actorId !== request.proposerId)
@@ -667,7 +685,8 @@ function pactDecision(
   state: RealityDomainState,
   request: RealityAllianceRequest,
   actorId: string,
-  seed: number
+  seed: number,
+  context: AllianceManagementContext
 ): { accepted: boolean; response: RealityAllianceResponse } {
   const proposerId = request.memberIds.find((id) => id !== actorId) ?? request.proposerId
   const relationship = state.relationships[actorId]?.[proposerId]
@@ -693,18 +712,56 @@ function pactDecision(
       },
     }
   }
+  const appeal = context.protectionAppealsByActorId?.[actorId]
+  const isSurvivalOffer = Boolean(
+    context.classicGame &&
+    appeal &&
+    appeal.recipientId === proposerId &&
+    appeal.day === context.at.day &&
+    request.proposerId === proposerId &&
+    context.humanActorIds.includes(proposerId) &&
+    context.powerHolderIds?.includes(proposerId) &&
+    !['EXPIRED', 'INVALIDATED'].includes(request.status)
+  )
+  const identity = context.identityByActorId?.[actorId]
+  const honorDriven =
+    ['loyal_anchor', 'romantic_loyalist', 'lone_wolf', 'antihero', 'jury_artisan'].includes(
+      identity?.archetype ?? ''
+    ) &&
+    trust <= -18 &&
+    resentment >= 30 &&
+    (identity?.survivalFocus ?? 0.5) < 0.7
+  // An occasional principled refusal is grounded in character and a real
+  // grievance, not a generic "I am better than the power player" roll.
+  const prideRefusal = Boolean(
+    isSurvivalOffer && honorDriven && allianceDecisionRoll(request, actorId, seed ^ 0x1f42b) < 0.12
+  )
+  if (prideRefusal) {
+    return {
+      accepted: false,
+      response: {
+        style: 'DECLINED',
+        reason:
+          'I know you hold the power, but I will not make a promise I do not believe in. I would rather take my chances.',
+      },
+    }
+  }
   if (privateNemesis) {
     // Nemeses don't sincerely commit on an ordinary trust roll. A strategically
     // useful minority can play along, but the signed pact is flagged as false
     // pretense when the Reality alliance is created.
-    const deceptiveOffer =
-      strategicValue >= 35 && allianceDecisionRoll(request, actorId, seed) < 0.18
+    const deceptiveOffer = isSurvivalOffer
+      ? allianceDecisionRoll(request, actorId, seed) < 0.81
+      : strategicValue >= 35 && allianceDecisionRoll(request, actorId, seed) < 0.18
     return deceptiveOffer
       ? {
           accepted: true,
           response: {
             style: 'LIMITED',
-            reason: 'I can cooperate for now, but I will not promise blind loyalty.',
+            strategic: true,
+            reason: isSurvivalOffer
+              ? 'You have power this week, and I need a way to survive. I can work with you for now, but I cannot promise personal trust.'
+              : 'I can cooperate for now, but I will not promise blind loyalty.',
           },
         }
       : {
@@ -797,7 +854,29 @@ function pactDecision(
         commitmentPressure
     )
   )
-  const accepted = allianceDecisionRoll(request, actorId, seed) < chance
+  // A person who just sought protection usually accepts an actual offer from
+  // that power holder. The benefit is strategic, so distrust does not become
+  // instant affection; refusal still remains possible. Without a real appeal,
+  // retain the established relationship-only pact decision unchanged.
+  const highDistrust = trust <= -12 || resentment >= 40 || suspicion >= 55
+  const survivalChance = Math.max(
+    0.66,
+    Math.min(
+      0.95,
+      0.87 +
+        (identity?.survivalFocus ?? 0.5) * 0.08 +
+        (['opportunist', 'double_agent', 'puppet_master', 'strategic_operator'].includes(
+          identity?.archetype ?? ''
+        )
+          ? 0.03
+          : 0) -
+        Math.min(0.13, brokenPromises * 0.05) -
+        Math.min(0.08, commitmentPressure * 0.22) -
+        (highDistrust ? 0.09 : 0)
+    )
+  )
+  const accepted =
+    allianceDecisionRoll(request, actorId, seed) < (isSurvivalOffer ? survivalChance : chance)
 
   let style: RealityAllianceResponseStyle
   let reason: string
@@ -809,7 +888,18 @@ function pactDecision(
       reason =
         'I already have people I am committed to protecting, so I will not promise to turn on them.'
     else if (chance < 0.3) reason = 'We do not have enough trust for me to risk this pact.'
-    else reason = 'I do not see enough protection in this pact to commit.'
+    else
+      reason =
+        'I need to see what we can actually do for each other before I promise long-term loyalty. A pact is bigger than one safe decision.'
+  } else if (isSurvivalOffer) {
+    const strategic = highDistrust
+    style = strategic || commitmentPressure >= 0.08 ? 'LIMITED' : 'HESITANT'
+    reason = strategic
+      ? 'You have power over my survival right now. I can cooperate, but I will not pretend our trust is repaired.'
+      : commitmentPressure >= 0.08
+        ? 'Your offer gives me a route through this week, but I still have commitments to other people.'
+        : 'I came to you for help this week. I will work with you, and we can see whether that becomes a stronger partnership.'
+    return { accepted, response: { style, reason, ...(strategic ? { strategic: true } : {}) } }
   } else if (commitmentPressure >= 0.08) {
     style = 'LIMITED'
     reason = 'I can work with you, but I will not break my existing commitments for this pact.'
@@ -834,7 +924,8 @@ function aiDecision(
   state: RealityDomainState,
   request: RealityAllianceRequest,
   actorId: string,
-  seed: number
+  seed: number,
+  context: AllianceManagementContext
 ): { accepted: boolean; response?: RealityAllianceResponse; departureAllianceId?: string } {
   const otherIds =
     request.kind === 'ADMIT' && request.status === 'VOTING'
@@ -843,7 +934,7 @@ function aiDecision(
   const trust =
     otherIds.reduce((sum, id) => sum + (state.relationships[actorId]?.[id]?.trust ?? 0), 0) /
     Math.max(1, otherIds.length)
-  if (request.kind === 'PACT') return pactDecision(state, request, actorId, seed)
+  if (request.kind === 'PACT') return pactDecision(state, request, actorId, seed, context)
   if (request.kind === 'REMOVE_SUGGESTION')
     return { accepted: (state.relationships[actorId]?.[request.candidateId!]?.trust ?? 0) < -10 }
   if (request.kind === 'RENAME_SUGGESTION')
@@ -976,7 +1067,7 @@ export function advanceAllianceRequests(
     }
     for (const actorId of allianceRequestDecisionActors(request)) {
       if (context.humanActorIds.includes(actorId)) continue
-      const decision = aiDecision(state, request, actorId, context.seed)
+      const decision = aiDecision(state, request, actorId, context.seed, context)
       recordAllianceDecision(
         state,
         request,
@@ -1016,7 +1107,7 @@ export function advanceAllianceRequests(
       }
       // Candidate consent is a separate stage with its own complete window.
       if (!context.humanActorIds.includes(request.candidateId!)) {
-        const decision = aiDecision(state, request, request.candidateId!, context.seed)
+        const decision = aiDecision(state, request, request.candidateId!, context.seed, context)
         recordAllianceDecision(
           state,
           request,

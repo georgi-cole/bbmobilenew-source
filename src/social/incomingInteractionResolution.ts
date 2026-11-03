@@ -3,6 +3,7 @@ import { getIncomingActionOutcome } from './incomingOutcomeMatrix'
 import { FALLBACK_SCENE, SCENE_DEFINITIONS } from './incomingSceneDefinitionBank'
 import { SCENE_CHOICES, SCENE_FAMILY_CHOICES } from './incomingSceneChoiceBank'
 import { getSocialPersonality } from './socialPersonalityBank'
+import { isProtectionClarification } from './pactProtectionContinuity'
 import type { SocialMemoryDelta } from './socialMemory'
 import type {
   IncomingInteraction,
@@ -204,18 +205,16 @@ export function getContextualIncomingChoices(
       ) % variants.length
     ]
   const responseTypes = responseTypesFor(interaction.type)
-  return labels.map((label, index) => ({
-    label,
-    responseType:
-      scenarioKey === 'automatic_nominee_reaction' && index === 2
-        ? 'neutral'
-        : (responseTypes[index] ?? 'dismiss'),
-    style: styleForResponse(
-      scenarioKey === 'automatic_nominee_reaction' && index === 2
+  return labels.map((label, index) => {
+    // A question about what a nominee needs is *not* an endorsement or a
+    // commitment, even when its authored variant happens to occupy slot one.
+    const responseType =
+      (scenarioKey === 'automatic_nominee_reaction' && index === 2) ||
+      (scenarioKey === 'nominee_campaign' && isProtectionClarification(scenarioKey, label))
         ? 'neutral'
         : (responseTypes[index] ?? 'dismiss')
-    ),
-  }))
+    return { label, responseType, style: styleForResponse(responseType) }
+  })
 }
 
 function baseDelta(kind: SceneDefinition['kind'], stance: OutcomeStance): number {

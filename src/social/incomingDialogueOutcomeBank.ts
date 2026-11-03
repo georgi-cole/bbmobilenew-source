@@ -1,5 +1,10 @@
 import type { IncomingInteractionResponseType } from './types'
 import { pickIncomingActionReply } from './incomingActionContentBank'
+import {
+  explainProtectionNeed,
+  explainProtectionWithoutPact,
+  isProtectionClarification,
+} from './pactProtectionContinuity'
 
 /**
  * The spoken beat that sits between a player's reply and its social fallout.
@@ -21,6 +26,8 @@ export interface IncomingDialogueBeatInput {
   secondarySubjectName?: string
   seed: number
   recentLines?: readonly string[]
+  /** A real same-day pact refusal, visible to both people in this dialogue. */
+  recentPactRefusal?: string
 }
 
 type Stance = 'positive' | 'neutral' | 'negative' | 'dismiss'
@@ -622,6 +629,11 @@ function replaceTokens(line: string, input: IncomingDialogueBeatInput): string {
 
 /** Returns a stable in-character reply, rotating past recently used dialogue where possible. */
 export function getIncomingDialogueBeat(input: IncomingDialogueBeatInput): string | null {
+  if (isProtectionClarification(input.scenarioKey, input.responseLabel)) {
+    return input.recentPactRefusal
+      ? explainProtectionWithoutPact(input.recentPactRefusal, input.scenarioKey)
+      : explainProtectionNeed(input.scenarioKey)
+  }
   if (input.actionId) {
     const actionReply = pickIncomingActionReply({
       actionId: input.actionId,

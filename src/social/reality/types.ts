@@ -492,6 +492,8 @@ export type RealityAllianceResponseStyle = 'ENTHUSIASTIC' | 'HESITANT' | 'LIMITE
 export interface RealityAllianceResponse {
   style: RealityAllianceResponseStyle
   reason: string
+  /** Private acceptance motive: cooperation to survive, not genuine allegiance. */
+  strategic?: boolean
 }
 
 export interface RealityAllianceRequest {

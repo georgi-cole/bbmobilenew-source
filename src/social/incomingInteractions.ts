@@ -2,6 +2,7 @@ import { finalizeAcceptedPersonalPact } from './reality/allianceManagement'
 import { getCurrentPact } from './reality/allianceIdentity'
 import { getIncomingInteractionTone } from './incomingInteractionPresentation'
 import { getIncomingDialogueBeat } from './incomingDialogueOutcomeBank'
+import { getSameDayPactRefusal, isProtectionClarification } from './pactProtectionContinuity'
 import { getIncomingActionContent } from './incomingActionContentBank'
 import {
   getIncomingResponseLogCopy,
@@ -125,7 +126,8 @@ function buildIncomingReactionText(
   subjectName: string | undefined,
   secondarySubjectName: string | undefined,
   phase: string,
-  recentLines: readonly string[] = []
+  recentLines: readonly string[] = [],
+  recentPactRefusal?: string
 ): string | undefined {
   const scenarioKey = interaction.payload?.scenarioKey
   if (typeof scenarioKey !== 'string') return undefined
@@ -167,6 +169,7 @@ function buildIncomingReactionText(
     secondarySubjectName,
     seed: seed >>> 0,
     recentLines,
+    recentPactRefusal,
   })
   if (!beat) return undefined
   const isActionReaction =
@@ -1003,15 +1006,27 @@ function applyIncomingChoiceConsequences({
     : hasContextualScenario && !consultationScenario
       ? contextualResolution.playerDelta
       : 0
-  const outcomeText =
-    buildResponseOutcomeText(
-      interaction,
-      responseType,
-      fromName,
-      subjectName,
-      responseLabel,
-      state.game.players
-    ) ?? contextualResolution.outcomeText
+  const asksForProtectionDetails = isProtectionClarification(
+    typeof interaction.payload?.scenarioKey === 'string'
+      ? interaction.payload.scenarioKey
+      : undefined,
+    responseLabel
+  )
+  const recentPactRefusal = asksForProtectionDetails
+    ? getSameDayPactRefusal(state.social.reality, humanPlayer.id, interaction.fromId, currentWeek)
+    : null
+  const outcomeText = asksForProtectionDetails
+    ? recentPactRefusal
+      ? `${fromName} explained why asking for help with this decision did not mean accepting a long-term pact. You made no new promise.`
+      : `${fromName} explained what would help them, without assuming you agreed to provide it.`
+    : (buildResponseOutcomeText(
+        interaction,
+        responseType,
+        fromName,
+        subjectName,
+        responseLabel,
+        state.game.players
+      ) ?? contextualResolution.outcomeText)
   const reactionText = buildIncomingReactionText(
     interaction,
     responseType,
@@ -1022,7 +1037,8 @@ function applyIncomingChoiceConsequences({
       ? interaction.payload.secondarySubjectName
       : undefined,
     state.game.phase,
-    getRecentIncomingReactionLines(state, interaction)
+    getRecentIncomingReactionLines(state, interaction),
+    recentPactRefusal ?? undefined
   )
   const acceptedAlliance = interaction.type === 'alliance_proposal' && responseType === 'accept'
 

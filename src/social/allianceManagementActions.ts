@@ -1,4 +1,5 @@
 import type { AppDispatch, RootState } from '../store/store'
+import { isVoxPopuliActive } from '../features/twists/voxPopuli'
 import { spendWeekendSocialResources } from '../store/gameSlice'
 import {
   applyEnergyDelta,
@@ -16,9 +17,46 @@ import { normalizeRealityDomainState } from './reality/state'
 import type { SocialActionReceipt } from './types'
 
 export function allianceManagementContext(
-  state: Pick<RootState, 'game'>
+  state: Pick<RootState, 'game'> & Partial<Pick<RootState, 'social'>>
 ): AllianceManagementContext {
+  const human = state.game.players.find((player) => player.isUser)
+  const protectionAppealsByActorId: Record<
+    string,
+    { recipientId: string; day: number; scenarioKey: string }
+  > = {}
+  // A current-day, directly delivered request for protection is the only
+  // source of a survival-driven pact boost. Player power alone is insufficient.
+  for (const interaction of state.social?.incomingInteractions ?? []) {
+    if (
+      !human ||
+      (interaction.createdDay ?? interaction.createdWeek) !== state.game.week ||
+      ['decline', 'negative', 'dismiss', 'ignore'].includes(interaction.resolvedWith ?? '')
+    ) {
+      continue
+    }
+    const scenario = interaction.payload?.scenarioKey
+    const humanIsLoh =
+      state.game.lohId === human.id &&
+      ['hoh_safety_request', 'nominee_hoh_plea'].includes(String(scenario))
+    const humanHasSafety = state.game.posWinnerId === human.id && scenario === 'nominee_veto_pitch'
+    if (!humanIsLoh && !humanHasSafety) continue
+    protectionAppealsByActorId[interaction.fromId] = {
+      recipientId: human.id,
+      day: state.game.week,
+      scenarioKey: String(scenario),
+    }
+  }
   return {
+    classicGame: state.game.mode === 'classic' && !isVoxPopuliActive(state.game),
+    powerHolderIds: [state.game.lohId, state.game.posWinnerId].filter((id): id is string =>
+      Boolean(id)
+    ),
+    protectionAppealsByActorId,
+    identityByActorId: Object.fromEntries(
+      state.game.players
+        .filter((player) => !player.isUser && player.aiGameIdentity)
+        .map((player) => [player.id, player.aiGameIdentity!])
+    ),
     at: { day: state.game.week, phase: state.game.phase },
     activeActorIds: state.game.players
       .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
