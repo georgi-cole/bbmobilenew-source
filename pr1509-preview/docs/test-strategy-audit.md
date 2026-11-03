@@ -151,7 +151,7 @@ No threshold is configured. The coverage run contains 121 failures. Therefore th
 | `src/store/secretMissionMiddleware.ts`        |          — |    30.09 |     40.90 | 41.60 | Reward eligibility/consumption and progression side effects.                                             |
 | `src/social/SocialManeuvers.ts`               |      71.79 |    62.35 |     58.82 | 77.88 | Multi-resource actions, alliances, betrayal; several current tests fail.                                 |
 
-Examples at or near zero meaningful branch coverage include full components for Estimation, Rescue the King, Blackjack Tournament, Big Spender, Biography Blitz, Tetris, Hold the Wall, Traveling Dots, Memory Colors and Pressure Plank; Lane Racers rendering; and the Cordova native audio adapter. Some have well-tested pure logic or slices, but their real UI/lifecycle paths remain unprotected.
+Examples at or near zero meaningful branch coverage include full components for Estimation, Blackjack Tournament, Big Spender, Biography Blitz, Tetris, Hold the Wall, Traveling Dots, Memory Colors and Pressure Plank; Lane Racers rendering; and the Cordova native audio adapter. Some have well-tested pure logic or slices, but their real UI/lifecycle paths remain unprotected.
 
 ## Test-quality findings
 
@@ -681,7 +681,6 @@ The following index is exhaustive for the 371 files included in the run. A path 
 - tests/unit/quickTapRace/quickTapRaceCanvasEngine.test.ts — unit; 12 tests; behavioral
 - tests/unit/quickTapRace/useQuickTapRaceAudio.test.ts — unit; 2 tests; behavioral
 - tests/unit/remoteConfig.test.ts — unit; 31 tests; behavioral
-- tests/unit/rescue-the-king/logic.test.ts — unit; 37 tests; behavioral
 - tests/unit/riskWheel/idempotency.test.ts — unit; 4 tests; behavioral
 - tests/unit/riskWheel/minigameHostRiskWheelSeed.test.tsx — component; 3 tests; mixed
 - tests/unit/riskWheel/RiskWheelComp.completion.test.tsx — component; 4 tests; behavioral

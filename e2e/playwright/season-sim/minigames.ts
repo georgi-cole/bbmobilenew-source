@@ -5,13 +5,6 @@ import { isInMinigameCertificationScope } from '../../../tests/helpers/minigameC
 import type { SimulationSkill } from './types'
 import { SeededRandom } from './seededRandom'
 import { createVaultCrackerLayout } from '../../../src/minigames/vaultCracker/engine/layout'
-import { hasAnyValidMove } from '../../../src/minigames/rescueTheKing/rescueTheKingLogic'
-import {
-  SYMBOL_EMOJI,
-  type Board,
-  type Cell,
-  type TileSymbol,
-} from '../../../src/minigames/rescueTheKing/rescueTheKingTypes'
 import { FINAL_OVERRIDE_QUESTION_BANK } from '../../../src/components/FinalThreeCircuit/finalOverrideQuestionBank'
 
 type DriverKind = 'tap' | 'memory' | 'keyboard' | 'board' | 'choice' | 'path' | 'finale'
@@ -71,7 +64,6 @@ const HOUSE_OF_CARDS_MEMORY = new WeakMap<Page, Map<string, Map<string, Set<numb
 const HOUSE_OF_DARKNESS_MEMORY = new WeakMap<Page, Map<string, Map<string, Set<number>>>>()
 const HANGMAN_GUESS_SEQUENCE = new WeakMap<Page, number>()
 const VAULT_CRACKER_DIGITS = new WeakMap<Page, number[]>()
-const RESCUE_THE_KING_NO_MOVE_STREAK = new WeakMap<Page, { board: string; count: number }>()
 const FINAL_THREE_SEQUENCE_PLANS = new WeakMap<
   Page,
   { target: string; moves: string[]; index: number }
@@ -1712,137 +1704,6 @@ async function playHouseOfDarknessTurn(
   return true
 }
 
-async function playRescueTheKingTurn(page: Page, host: Locator): Promise<boolean> {
-  const board = host.locator('.rtk-board')
-  if (!(await board.isVisible().catch(() => false))) return false
-
-  const cells = await board.locator('.rtk-cell').evaluateAll((elements) =>
-    elements.map((element) => ({
-      row: Number(element.getAttribute('data-row')),
-      col: Number(element.getAttribute('data-col')),
-      normal: element.classList.contains('rtk-cell-normal'),
-      blocker: element.classList.contains('rtk-cell-blocker'),
-      blockerKind: element.classList.contains('rtk-cell-blocker-crate') ? 'crate' : 'stone',
-      damaged: element.classList.contains('rtk-cell-blocker-damaged'),
-      symbol: element.textContent?.trim() ?? '',
-    }))
-  )
-  const rows = Math.max(...cells.map((cell) => cell.row)) + 1
-  const cols = Math.max(...cells.map((cell) => cell.col)) + 1
-  const symbols = Array.from({ length: rows }, () => Array<string | null>(cols).fill(null))
-  const boardState: Board = Array.from({ length: rows }, () =>
-    Array<Cell>(cols).fill({ kind: 'empty' })
-  )
-  const symbolByEmoji = new Map<string, TileSymbol>(
-    Object.entries(SYMBOL_EMOJI).map(([symbol, emoji]) => [emoji, symbol as TileSymbol])
-  )
-  for (const cell of cells) {
-    if (cell.normal) {
-      const symbol = symbolByEmoji.get(cell.symbol)
-      if (!symbol) throw new Error(`Rescue the King exposed an unknown tile: ${cell.symbol}`)
-      symbols[cell.row]![cell.col] = cell.symbol
-      boardState[cell.row]![cell.col] = { kind: 'normal', symbol }
-    } else if (cell.blocker) {
-      boardState[cell.row]![cell.col] = {
-        kind: 'blocker',
-        blockerKind: cell.blockerKind,
-        hitsRemaining: cell.blockerKind === 'crate' || cell.damaged ? 1 : 2,
-      }
-    }
-  }
-  const boardFingerprint = JSON.stringify(symbols)
-
-  const symbolAfterSwap = (
-    row: number,
-    col: number,
-    first: { row: number; col: number },
-    second: { row: number; col: number }
-  ): string | null =>
-    row === first.row && col === first.col
-      ? symbols[second.row]![second.col]
-      : row === second.row && col === second.col
-        ? symbols[first.row]![first.col]
-        : (symbols[row]?.[col] ?? null)
-
-  const makesMatchAt = (
-    row: number,
-    col: number,
-    first: { row: number; col: number },
-    second: { row: number; col: number }
-  ): boolean => {
-    const symbol = symbolAfterSwap(row, col, first, second)
-    if (symbol == null) return false
-    for (const [dr, dc] of [
-      [0, 1],
-      [1, 0],
-    ] as const) {
-      let count = 1
-      for (const direction of [-1, 1]) {
-        let nextRow = row + dr * direction
-        let nextCol = col + dc * direction
-        while (symbolAfterSwap(nextRow, nextCol, first, second) === symbol) {
-          count += 1
-          nextRow += dr * direction
-          nextCol += dc * direction
-        }
-      }
-      if (count >= 3) return true
-    }
-    return false
-  }
-
-  for (let row = 0; row < rows; row += 1) {
-    for (let col = 0; col < cols; col += 1) {
-      if (symbols[row]![col] == null) continue
-      for (const [nextRow, nextCol] of [
-        [row, col + 1],
-        [row + 1, col],
-      ] as const) {
-        if (symbols[nextRow]?.[nextCol] == null) continue
-        const first = { row, col }
-        const second = { row: nextRow, col: nextCol }
-        if (
-          !makesMatchAt(row, col, first, second) &&
-          !makesMatchAt(nextRow, nextCol, first, second)
-        ) {
-          continue
-        }
-
-        RESCUE_THE_KING_NO_MOVE_STREAK.delete(page)
-        const firstCell = board.locator(`.rtk-cell-normal[data-row="${row}"][data-col="${col}"]`)
-        const secondCell = board.locator(
-          `.rtk-cell-normal[data-row="${nextRow}"][data-col="${nextCol}"]`
-        )
-        if (!(await clickWithShortTimeout(firstCell))) return false
-        return clickWithShortTimeout(secondCell)
-      }
-    }
-  }
-
-  if (hasAnyValidMove(boardState)) {
-    RESCUE_THE_KING_NO_MOVE_STREAK.delete(page)
-    throw new Error('The Rescue the King driver missed a legal move confirmed by game rules.')
-  }
-
-  if (
-    await host
-      .locator('.rtk-reshuffle-toast')
-      .isVisible()
-      .catch(() => false)
-  ) {
-    RESCUE_THE_KING_NO_MOVE_STREAK.delete(page)
-    return false
-  }
-
-  // Allow one clock step for the automatic reshuffle to finish. If the same
-  // board remains immobile on the next visible read, report a game deadlock.
-  const previous = RESCUE_THE_KING_NO_MOVE_STREAK.get(page)
-  const count = previous?.board === boardFingerprint ? previous.count + 1 : 1
-  RESCUE_THE_KING_NO_MOVE_STREAK.set(page, { board: boardFingerprint, count })
-  if (count < 2) return false
-  throw new Error('Rescue the King is stuck: no legal match-producing swap after reshuffling.')
-}
-
 async function playSilentSaboteurTurn(host: Locator): Promise<boolean> {
   const closeHistory = await firstVisibleEnabled(
     host.getByRole('button', { name: 'Close Round History', exact: true })
@@ -2354,8 +2215,6 @@ export async function playVisibleMinigame(
     interacted = await playTrapAuctionTurn(host)
   } else if (gameKey === 'houseOfDarkness') {
     interacted = await playHouseOfDarknessTurn(page, host, skill === 'thrower')
-  } else if (gameKey === 'rescueTheKing') {
-    interacted = await playRescueTheKingTurn(page, host)
   } else if (gameKey === 'batteryLow') {
     interacted = await playBatteryLowTurn(page, host, random)
   } else if (gameKey === 'gatesOfTheEye') {
@@ -2443,7 +2302,6 @@ export async function playVisibleMinigame(
       'famousFigures',
       'hangman',
       'houseOfDarkness',
-      'rescueTheKing',
       'silentSaboteur',
       'finalThreeCircuit',
     ].includes(gameKey)
