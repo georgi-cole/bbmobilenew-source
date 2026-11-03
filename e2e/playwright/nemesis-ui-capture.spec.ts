@@ -33,9 +33,13 @@ async function startCaptureGame(page: Page) {
   await page.getByRole('button', { name: 'Go back' }).click()
   await expect(menu).toBeVisible()
   await menu.getByRole('button', { name: 'Play', exact: true }).click()
-  await page.getByRole('navigation', { name: 'Play menu' }).getByRole('button', {
-    name: 'Classic', exact: true,
-  }).click()
+  await page
+    .getByRole('navigation', { name: 'Play menu' })
+    .getByRole('button', {
+      name: 'Classic',
+      exact: true,
+    })
+    .click()
   await expect(page.getByRole('toolbar', { name: 'Game actions' })).toBeVisible()
 }
 
@@ -44,11 +48,11 @@ async function seedRealNemesis(page: Page, scenario: 'warning' | 'reveal') {
   const panel = page.getByRole('complementary', { name: 'Debug Panel' })
   await toggle.click()
   await expect(panel).toBeVisible()
-  await panel.getByRole('button', {
-    name: scenario === 'warning'
-      ? 'Load Nemesis warning preview'
-      : 'Load Nemesis reveal preview',
-  }).click()
+  await panel
+    .getByRole('button', {
+      name: scenario === 'warning' ? 'Load Nemesis warning preview' : 'Load Nemesis reveal preview',
+    })
+    .click()
   await expect(panel).toBeHidden()
   const state = await readAppState(page)
   const human = state.game.players.find((player) => player.isUser)
@@ -91,12 +95,11 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
       (entry) => entry.ownerId === nemesis.id && entry.targetId === human.id
     )
     expect(objective?.revealEventId).toBeTruthy()
-    const pact = state.social.reality.alliances[
-      `qa-nemesis-pact:${human.id}:${nemesis.id}`
-    ]
+    const pact = state.social.reality.alliances[`qa-nemesis-pact:${human.id}:${nemesis.id}`]
     expect(pact?.status).toBe('DISSOLVED')
     const group = Object.values(state.social.reality.alliances).find(
-      (entry) => entry.kind === 'GROUP' &&
+      (entry) =>
+        entry.kind === 'GROUP' &&
         entry.memberIds.includes(human.id) &&
         entry.memberIds.includes(nemesis.id)
     )
@@ -112,9 +115,12 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
       fullPage: true,
     })
 
-    await page.getByRole('toolbar', { name: 'Game actions' }).getByRole('button', {
-      name: /^Social(?: \(\d+\))?$/,
-    }).click()
+    await page
+      .getByRole('toolbar', { name: 'Game actions' })
+      .getByRole('button', {
+        name: /^Social(?: \(\d+\))?$/,
+      })
+      .click()
     const social = page.getByRole('dialog', { name: 'Social Phase' })
     await expect(social).toBeVisible()
     const tutorial = page.getByTestId('reality-social-tutorial-prompt')
@@ -147,7 +153,8 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
     })
 
     await social.getByRole('tab', { name: 'Strategy' }).click()
-    const questionCard = social.locator('[aria-label="Action grid"]')
+    const questionCard = social
+      .locator('[aria-label="Action grid"]')
       .getByRole('button', { name: /Why Betray Me\?/ })
     await expect(questionCard).toBeVisible()
     await questionCard.scrollIntoViewIfNeeded()
