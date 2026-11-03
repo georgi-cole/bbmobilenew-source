@@ -140,7 +140,9 @@ describe('Ask Why — private Nemesis explanation', () => {
     expect(eligibility(domain, 'echo', 5).eligible).toBe(true)
     const nextDay = ask(domain, 5, 701)
     expect(nextDay).not.toBeNull()
-    expect(domain.events.filter((event) => event.type.startsWith('NEMESIS_REASON_'))).toHaveLength(2)
+    expect(domain.events.filter((event) => event.type.startsWith('NEMESIS_REASON_'))).toHaveLength(
+      2
+    )
     expect(domain.events[domain.events.length - 1].day).toBe(5)
   })
 
@@ -229,7 +231,10 @@ describe('Ask Why — private Nemesis explanation', () => {
       witnessIds: [],
       allianceRequestId: 'admit-jax',
       allianceRequestSnapshot: {
-        kind: 'ADMIT', status: 'VOTING', candidateId: 'jax', accepted: false,
+        kind: 'ADMIT',
+        status: 'VOTING',
+        candidateId: 'jax',
+        accepted: false,
       },
       visibility: 'GROUP_VISIBLE',
       outcome: 'FAILURE',
