@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-03: Reviewed the diagnostic strategic context resolver for Classic, Vox
+  Populi, Cupid and Survival (epic #1711, PR 2). It describes existing authority
+  and public powers without connecting new weights to gameplay. Mode access,
+  paid benefits, prices, minigame versions, Eyeolean powers and Store copy remain
+  unchanged; the existing listings remain accurate.
+
 - 2026-11-03: Reviewed the compact VIP Cinematic badge handoffs. Saved-by-Safety
   cinematics now finish with a short badge landing; replacement nominations
   use the same short badge reveal in VIP Cinematic mode, while public saves
