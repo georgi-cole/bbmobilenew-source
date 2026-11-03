@@ -85,7 +85,9 @@ export default function NemesisPreviewDebugControls({ onLoaded }: { onLoaded: ()
       at,
     })
 
-    dispatch(commitRealityDomainUpdate({ domain: finishDraft(draft), projectAllRelationships: true }))
+    dispatch(
+      commitRealityDomainUpdate({ domain: finishDraft(draft), projectAllRelationships: true })
+    )
     // Entering Social triggers the *real* Nemesis story middleware and broadcast.
     dispatch(setPhase('social_2'))
     onLoaded()
@@ -95,8 +97,8 @@ export default function NemesisPreviewDebugControls({ onLoaded }: { onLoaded: ()
     <div className="dbg-row dbg-row--col" aria-label="Nemesis real UI QA scenarios">
       <h3 className="dbg-section__title">Nemesis UI preview (actual game)</h3>
       <p className="dbg-help">
-        Load the game's real Nemesis event, pact, and alliance logic in a temporary
-        campaign. Use the live Faux TV and Social screens to inspect the result.
+        Load the game's real Nemesis event, pact, and alliance logic in a temporary campaign. Use
+        the live Faux TV and Social screens to inspect the result.
       </p>
       <button
         className="dbg-btn dbg-btn--wide"
