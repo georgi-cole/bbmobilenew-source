@@ -342,6 +342,13 @@ export interface RealityNemesisObjective {
   clueEventId?: string
   revealedAt?: RealityClock
   revealEventId?: string
+  /** The evidence linked to the hostility when it became an objective. */
+  triggerEventId?: string
+  /** Durable private explanation; source events may later leave the rolling feed. */
+  motiveText?: string
+  /** The player may ask once per day until the rival actually answers. */
+  reasonLastAskedDay?: number
+  reasonDisclosedAt?: RealityClock
   /** Alliances whose false-pretense state was introduced by this objective. */
   compromisedAllianceIds?: string[]
 }
