@@ -1,0 +1,373 @@
+.replacement-film {
+  container-type: size;
+  overflow: hidden;
+  isolation: isolate;
+  background: #07050b;
+  color: #f1e5d2;
+}
+
+.replacement-camera {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transform-origin: 50% 58%;
+}
+
+.replacement-set {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.87;
+}
+
+.replacement-room-light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 58%, #a6213824, transparent 44%),
+    linear-gradient(180deg, #07050b20 27%, #09061018 52%, #06040bc9 100%);
+}
+
+.replacement-block {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+}
+
+.replacement-slot {
+  --support-y: 60.1cqh;
+  position: absolute;
+  inset: 0 auto 0 var(--slot-left);
+  width: var(--slot-width);
+  height: 100%;
+  isolation: isolate;
+}
+
+.replacement-platform {
+  position: absolute;
+  top: calc(var(--support-y) - var(--platform-surface-offset));
+  left: 0;
+  z-index: 3;
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 13px #06030bab);
+}
+
+.replacement-platform-rim {
+  position: absolute;
+  top: calc(var(--support-y) + var(--platform-rim-offset));
+  left: 8%;
+  z-index: 3;
+  width: 84%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #c84047aa, #efa45a9a, #bd343f88, transparent);
+  box-shadow: 0 0 9px 2px #a92c3338;
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+.replacement-contact {
+  position: absolute;
+  top: calc(var(--support-y) - 0.45cqh);
+  left: 23%;
+  z-index: 4;
+  width: 54%;
+  height: 1.4%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #09060bd1 0, #100b1473 48%, transparent 74%);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.replacement-person {
+  position: absolute;
+  bottom: calc(100% - var(--support-y));
+  left: 0;
+  z-index: 5;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  transform-origin: 50% 100%;
+  opacity: 0;
+  filter: drop-shadow(0 6px 7px #05030969);
+}
+
+.replacement-body {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  transform: translateY(calc(100% - var(--feet-y, 94.762%)));
+}
+
+.replacement-person-name {
+  position: absolute;
+  top: calc(100% + 8.5cqh);
+  left: -34%;
+  width: 168%;
+  color: #eee2d0;
+  font:
+    500 clamp(11px, 3.1vw, 16px) / 1.2 Georgia,
+    serif;
+  text-align: center;
+  text-shadow: 0 2px 12px #05030bed;
+  overflow-wrap: anywhere;
+}
+.replacement-person-name small {
+  display: block;
+  margin-top: 5px;
+  color: #c9b286;
+  font:
+    500 7px / 1.3 system-ui,
+    sans-serif;
+  letter-spacing: 0.12em;
+}
+
+.replacement-pair-slot .replacement-platform {
+  filter: drop-shadow(0 10px 13px #06030bab);
+}
+
+.replacement-pair-slot .replacement-person {
+  left: calc(-9% + var(--pair-index) * 46%);
+  width: 72%;
+}
+
+.replacement-pair-slot .replacement-person-name {
+  left: -42%;
+  width: 184%;
+  color: var(--pair-accent, #edc78c);
+  font-size: clamp(10px, 2.65vw, 14px);
+}
+
+.replacement-authority {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.replacement-authority-beam {
+  position: absolute;
+  top: 23%;
+  left: 16%;
+  width: 68%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #dfbf806e 18%,
+    #f0dda8,
+    #d5a96c80 82%,
+    transparent
+  );
+  box-shadow: 0 0 22px 5px #d9b46b22;
+  transform-origin: 50% 50%;
+}
+
+.replacement-authority-label {
+  position: absolute;
+  top: 9.5%;
+  left: 12%;
+  width: 76%;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  text-align: center;
+  text-shadow: 0 2px 15px #06040bed;
+}
+
+.replacement-authority-label span,
+.replacement-authority-label em,
+.replacement-power-holder span {
+  color: #d7bf8e;
+  font:
+    600 8px / 1.3 system-ui,
+    sans-serif;
+  font-style: normal;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+}
+
+.replacement-authority-label strong {
+  color: #f5e9d4;
+  font:
+    400 clamp(17px, 4.3vw, 24px) / 1.08 Georgia,
+    serif;
+}
+
+.replacement-power-holder {
+  position: absolute;
+  top: 17%;
+  right: 7%;
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  color: #f0e3cc;
+  text-align: right;
+  text-shadow: 0 2px 12px #06040bed;
+}
+
+.replacement-power-holder strong,
+.replacement-prior-authority {
+  font:
+    500 12px / 1.2 Georgia,
+    serif;
+}
+
+.replacement-power-insignia {
+  position: absolute;
+  top: 16.5%;
+  left: 50%;
+  width: 5cqw;
+  height: auto;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 0 13px #d9bd795c);
+}
+
+.replacement-prior-authority {
+  position: absolute;
+  top: 17%;
+  left: 7%;
+  color: #c8b9a1;
+  font:
+    500 9px / 1.3 system-ui,
+    sans-serif;
+  letter-spacing: 0.08em;
+  text-shadow: 0 2px 12px #06040bed;
+}
+
+.replacement-save-sweep,
+.replacement-power-accent,
+.replacement-force-accent {
+  position: absolute;
+  z-index: 4;
+  top: 59.5%;
+  left: 7%;
+  width: 86%;
+  height: 3px;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: 50% 50%;
+}
+
+.replacement-save-sweep {
+  background: linear-gradient(90deg, transparent, #f7e7bd, #fff6dd, #f5d290, transparent);
+  box-shadow: 0 0 18px 6px #f5dfaf66;
+}
+
+.replacement-reveal-light {
+  position: absolute;
+  z-index: 4;
+  left: -10%;
+  bottom: calc(100% - var(--support-y) - 1cqh);
+  width: 120%;
+  height: 30cqh;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 75%, #f4d6a947, #9d597829 33%, transparent 69%);
+  transform-origin: 50% 100%;
+}
+
+.replacement-power-accent {
+  z-index: 1;
+  top: 47%;
+  height: 24%;
+  background: radial-gradient(ellipse at 50% 52%, #fff5d224, #c9ab6220 22%, transparent 68%);
+}
+
+.replacement-force-accent {
+  z-index: 1;
+  top: 42%;
+  height: 30%;
+  background: radial-gradient(ellipse at 50% 54%, #fff1d65c, #d7ad7230 28%, transparent 70%);
+}
+
+.replacement-caption {
+  position: absolute;
+  z-index: 9;
+  right: 6%;
+  bottom: max(6.5%, env(safe-area-inset-bottom));
+  left: 6%;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  color: #f0e4ce;
+  text-align: center;
+  text-shadow: 0 2px 16px #07040df2;
+  opacity: 0;
+}
+
+.replacement-caption span {
+  color: #d5bb84;
+  font:
+    600 8px / 1.4 system-ui,
+    sans-serif;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.replacement-caption strong {
+  max-width: 92%;
+  font:
+    400 clamp(20px, 5.5vw, 30px) / 1.12 Georgia,
+    serif;
+  overflow-wrap: anywhere;
+}
+
+.replacement-halo .replacement-room-light,
+.replacement-mission .replacement-room-light {
+  background:
+    radial-gradient(ellipse at 50% 47%, #dfc57b2c, transparent 46%),
+    linear-gradient(180deg, #07050b10 28%, #07050b19 53%, #06040bba 100%);
+}
+
+.replacement-force .replacement-room-light,
+.replacement-detox .replacement-room-light,
+.replacement-doubleTrouble .replacement-room-light {
+  background:
+    radial-gradient(ellipse at 50% 61%, #a62c3332, transparent 43%),
+    linear-gradient(180deg, #07050b10 28%, #07050b16 53%, #06040bc2 100%);
+}
+
+.replacement-cupid .replacement-room-light {
+  background:
+    radial-gradient(ellipse at 50% 60%, #844b7d28, transparent 46%),
+    linear-gradient(180deg, #07050b10 28%, #07050b18 53%, #06040bc2 100%);
+}
+
+.replacement-vox .replacement-room-light {
+  background:
+    radial-gradient(ellipse at 50% 46%, #73529a28, transparent 49%),
+    linear-gradient(180deg, #07050b1d 25%, #08051127 53%, #06040bc2 100%);
+}
+
+.replacement-vox .replacement-caption span {
+  color: #c8b2df;
+}
+
+.replacement-cupid .replacement-platform-rim {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--pair-accent, #e7a7d1),
+    #fff0d8,
+    var(--pair-accent, #d98bc0),
+    transparent
+  );
+  box-shadow: 0 0 11px 3px color-mix(in srgb, var(--pair-accent, #d98bc0) 40%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .replacement-film * {
+    scroll-behavior: auto !important;
+  }
+}

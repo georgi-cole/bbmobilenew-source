@@ -22,6 +22,7 @@ export function isCinematicSceneAllowed(game, scene, shockKey) {
   if (isVoxActive(game)) {
     if (scene === 'shock') return shockKey !== 'vox_populi'
     return [
+      'replacement',
       'voxImmunity',
       'voxFinal4',
       'voxNominations',
@@ -204,6 +205,31 @@ export function findArt(player, catalog) {
 }
 export function ceremonyCast(scene, props, game, catalog) {
   const get = (id) => game.players.find((p) => p.id === id)
+  if (scene === 'replacement') {
+    const outcome = props.replacementOutcome
+    if (!outcome || outcome.owner !== 'replacement') return null
+    const ids = [
+      ...outcome.openingNomineeIds,
+      ...outcome.continuingNomineeIds,
+      ...outcome.replacementIds,
+      ...outcome.savedIds,
+      ...(outcome.chooserId ? [outcome.chooserId] : []),
+      ...(outcome.powerHolderId ? [outcome.powerHolderId] : []),
+      ...(outcome.priorAuthorityId ? [outcome.priorAuthorityId] : []),
+      ...(outcome.coLohIds ?? []),
+      ...(outcome.coLohAssignments ?? []).flatMap(({ coLohId, nomineeId }) => [coLohId, nomineeId]),
+      ...(outcome.pairUnits ?? []).flatMap((pair) => pair.memberIds),
+      ...(outcome.actionHistory ?? []).flatMap((action) => [action.playerId, action.actorId]),
+    ]
+    const cast = {}
+    for (const id of new Set(ids.filter(Boolean))) {
+      const player = get(id),
+        art = findArt(player, catalog)
+      if (!art) return null
+      cast[id] = { ...art, name: player.name, playerId: id }
+    }
+    return cast
+  }
   if (scene in MODE_BASE) {
     const ids = modeActors(scene, props, game)
     if (!ids.length || ids.length > 6) return null
@@ -219,7 +245,7 @@ export function ceremonyCast(scene, props, game, catalog) {
     if (scene === 'voxImmunity' && ids.length !== 2) return null
     if (baseScene(scene) === 'nominations' && !scene.startsWith('cupid') && ids.length > 3)
       return null
-    if (scene === 'voxNominations' && ids.length < 2) return null
+    if (scene === 'voxNominations' && ids.length < 2 && game.nomineeIds?.length !== 1) return null
     if (!baseScene(scene)) return cast
     // Legacy scenes address three role slots, even when a single actor is on screen.
     cast.b ??= cast.a
@@ -239,12 +265,17 @@ export function ceremonyCast(scene, props, game, catalog) {
   if (scene === 'save') a = winner ?? get(game.povSavedId)
   if (scene === 'nominations') {
     const label = props.caption ?? props.ariaLabel ?? ''
-    if (/has been nominated/i.test(label)) return null
+    if (/has been nominated/i.test(label) && game.nomineeIds?.length !== 1) return null
     if (new Set(mentioned.map((p) => p.name)).size !== mentioned.length) return null
     const revealed = [...mentioned].sort((a, b) => label.indexOf(a.name) - label.indexOf(b.name))
-    if (revealed.length < 2 || revealed.length > 3) return null
+    if (!revealed.length || revealed.length > 3) return null
+    if (
+      revealed.length === 1 &&
+      (game.nomineeIds?.length !== 1 || game.nomineeIds[0] !== revealed[0].id)
+    )
+      return null
     a = revealed[0]
-    b = revealed[1]
+    b = revealed[1] ?? a
     c = revealed[2] ?? a
   }
   if (['tiebreak', 'final3'].includes(scene))
@@ -257,6 +288,13 @@ export function ceremonyCast(scene, props, game, catalog) {
   }
   const cast = { a: artFor(a), b: artFor(b), c: artFor(c) }
   if (scene === 'nominations') cast.d = artFor(get(game.lohId))
+  if (scene === 'nominations' && props.cinematicCoLohIds?.length > 1)
+    Object.assign(cast, {
+      d: artFor(get(props.cinematicCoLohIds[0])),
+      e: artFor(get(props.cinematicCoLohIds[1])),
+    })
+  if (scene === 'nominations' && props.cinematicCoLohIds?.length > 1 && (!cast.d || !cast.e))
+    return null
   const required =
     scene === 'shock'
       ? []

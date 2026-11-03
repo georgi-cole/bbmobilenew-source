@@ -65,6 +65,13 @@ export function findArt(
   catalog: CeremonyCharacterArt[]
 ): CeremonyCharacterArt | null
 
+export function ceremonyCast(
+  scene: string,
+  props: Record<string, unknown>,
+  game: GameState,
+  catalog: CeremonyCharacterArt[]
+): Record<string, CeremonyCharacterArt & { playerId: string }> | null
+
 export function isCinematicSceneAllowed(
   game: {
     mode?: string

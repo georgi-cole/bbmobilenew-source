@@ -1,3 +1,9 @@
+import {
+  replacementResources,
+  makeReplacementFilm,
+  animateReplacementFilm,
+} from './replacement-film.js'
+import replacementStyles from './replacement-film.css?raw'
 import sheet0 from './approved/styles.css?raw'
 import sheet1 from './approved/ceremony-lab.css?raw'
 import sheet2 from './approved/cinema-scenes.css?raw'
@@ -32,6 +38,7 @@ import {
 import modeStyles from './mode-films.css?raw'
 
 export const SCENES = {
+  replacement: { label: 'Replacement nomination', duration: 4500 },
   loh: { label: 'LOH crowning', duration: 3200 },
   ...CEREMONIES,
   ...MODE_SCENES,
@@ -62,6 +69,7 @@ let stylePromise
 const percent = (n) => (n * 100).toFixed(4) + '%'
 
 export function sceneResources(id, cast, shockType = 'doubleEviction', details = {}) {
+  if (id === 'replacement') return replacementResources(cast, details, shared)
   const mode = id
   const extra = modeResources(mode, cast, shared, premiumVfx)
   id = baseScene(id)
@@ -94,7 +102,12 @@ export function sceneResources(id, cast, shockType = 'doubleEviction', details =
           ...(mode === 'cupidPower' ? ['seated', 'throne'] : []),
         ]
       : SCENES[id].art.filter((key) => !['cinema_avatarC', 'cinema_eliminatedStamp'].includes(key))
-  if (id === 'nominations' && mode === 'nominations' && cast.d) {
+  if (
+    id === 'nominations' &&
+    mode === 'nominations' &&
+    cast.d &&
+    !(details.coLohAssignments?.length > 1)
+  ) {
     keys.push('nomination_seated', 'throne', 'crown', 'cinema_royalRoom')
     actors.nomination_seated = pose('d', 'royal-seated')
   }
@@ -241,6 +254,193 @@ function addRoyalNomination(root, images, resources, cast) {
   shot.querySelector('.nom-decision-caption strong').textContent = cast.d.name
   root.append(shot)
   root.classList.add('nom-royal')
+}
+
+function addCoLohNominationIntro(root, cast, assignments) {
+  if (assignments?.length !== 2) return false
+  const byPlayerId = (id) => Object.values(cast).find((actor) => actor?.playerId === id)
+  const intro = document.createElement('div')
+  intro.className = 'nom-coloh-intro'
+  const header = document.createElement('div')
+  header.className = 'nom-coloh-header'
+  header.textContent = 'TWO LEADERS · TWO CHOICES'
+  intro.append(header)
+  for (const [index, assignment] of assignments.slice(0, 2).entries()) {
+    const leader = byPlayerId(assignment.coLohId)
+    const nominee = byPlayerId(assignment.nomineeId)
+    const beat = document.createElement('div')
+    beat.className = 'nom-coloh-beat'
+    beat.dataset.beat = String(index)
+    const credit = document.createElement('span')
+    credit.textContent = `${leader?.name ?? 'Co-Leader'} NOMINATES`
+    const nomineeName = document.createElement('strong')
+    nomineeName.textContent = nominee?.name ?? 'Nominee'
+    const selected = document.createElement('em')
+    selected.textContent = 'SELECTED FOR THE BLOCK'
+    beat.append(credit, nomineeName, selected)
+    intro.append(beat)
+    const slotIndex = ['a', 'b'].findIndex((key) => cast[key]?.playerId === assignment.nomineeId)
+    root.querySelector(slotIndex === 0 ? '.nom-first' : '.nom-second').dataset.choiceOrder =
+      String(index)
+  }
+  root.append(intro)
+  root.classList.add('nom-coloh-active')
+  root.querySelector('.c-caption strong').textContent = 'The block is set.'
+  return true
+}
+
+function calibrateNominationBlock(root, cast) {
+  root.classList.add('nom-calibrated')
+  for (const [index, pod] of [...root.querySelectorAll('.nom-pod')].entries()) {
+    const pose = cast[['a', 'b', 'c'][index]].poses.front
+    const width = root.classList.contains('nom-three') ? 31 : 44
+    pod.style.setProperty('--platform-surface-offset', `${width * (64 / 400)}cqw`)
+    const person = pod.querySelector('.nom-person')
+    person.style.setProperty('--feet-y', `${pose.feetY * 100}%`)
+    if (root.classList.contains('nom-coloh-active'))
+      pod.querySelector('.nom-label').textContent = cast[['a', 'b', 'c'][index]].name
+    const contact = document.createElement('i')
+    contact.className = 'nom-contact'
+    pod.append(contact)
+  }
+}
+
+function animateNominationFilm(root, a, duration) {
+  const solo = root.classList.contains('nom-solo')
+  const third = Boolean(root.querySelector('.nom-third'))
+  const royal = Boolean(root.querySelector('.nom-decision'))
+  const coLoh = Boolean(root.querySelector('.nom-coloh-intro'))
+  const count = solo ? 1 : third ? 3 : 2
+  const establishSeconds = solo ? 0.75 : coLoh ? 0.45 : royal ? 2.7 : 0.4
+  const revealAt = solo ? 1.1 : coLoh ? 1.35 : royal ? 3.05 : 1.05
+  const captionAt = duration - 1620
+  a(root, [
+    [0, 0],
+    [180, 1],
+    [duration, 1],
+  ])
+  a('.ceremony-backdrop', [
+    [0, 0.42, 'translateY(1%) scale(1.07)'],
+    [duration, 0.62, 'translateY(-0.7%) scale(1.015)'],
+  ])
+  a('.nom-chasm', [
+    [0, 0],
+    [Math.round(establishSeconds * 1000), 0],
+    [Math.round((establishSeconds + 0.4) * 1000), 0.84],
+    [duration, 0.9],
+  ])
+  a('.nom-warning', [
+    [0, 0],
+    [Math.round(establishSeconds * 1000), 0],
+    [Math.round((establishSeconds + 0.28) * 1000), 1],
+    [duration, 1],
+  ])
+
+  for (const [index, selector] of ['.nom-first', '.nom-second', '.nom-third'].entries()) {
+    const pod = root.querySelector(selector)
+    if (!pod || (solo && index > 0)) continue
+    const start = coLoh
+      ? index === 2
+        ? 3.6
+        : 1.35 + Number(pod.dataset.choiceOrder ?? index) * 1.35
+      : revealAt + index * (solo ? 0 : 0.86)
+    const enter = Math.round(start * 1000)
+    const settle = Math.round((start + 0.38) * 1000)
+    a(pod, [
+      [0, 1],
+      [duration, 1],
+    ])
+    for (const actor of pod.querySelectorAll('.nom-person'))
+      a(actor, [
+        [0, 0],
+        [enter, 0],
+        [settle, 1],
+        [duration, 1],
+      ])
+    if (pod.querySelector('.nom-contact'))
+      a(`${selector} .nom-contact`, [
+        [0, 0],
+        [enter, 0],
+        [settle, 0.7],
+        [duration, 0.7],
+      ])
+    if (pod.querySelector('.nom-label'))
+      a(`${selector} .nom-label`, [
+        [0, 0],
+        [settle + 150, 0],
+        [settle + 350, 1],
+        [duration, 1],
+      ])
+    a(`${selector} .nom-aura`, [
+      [0, 0],
+      [enter, 0],
+      [settle + 180, 0.78],
+      [duration, 0.45],
+    ])
+  }
+
+  a('.c-caption', [
+    [0, 0, 'translateY(10px)'],
+    [captionAt, 0, 'translateY(10px)'],
+    [captionAt + 200, 1, 'translateY(0)'],
+    [duration, 1, 'translateY(0)'],
+  ])
+
+  if (royal) {
+    const decisionEnd = Math.round((establishSeconds + 0.38) * 1000)
+    a('.nom-decision', [
+      [0, 1],
+      [Math.round((establishSeconds - 0.22) * 1000), 1],
+      [decisionEnd, 0],
+      [duration, 0],
+    ])
+    a('.nom-decision-figure', [
+      [0, 0.9, 'scale(1.045)'],
+      [Math.min(650, Math.round((establishSeconds - 0.32) * 1000)), 1, 'scale(1.018)'],
+      [Math.round((establishSeconds - 0.22) * 1000), 1, 'scale(1)'],
+      [duration, 1, 'scale(1)'],
+    ])
+    a('.nom-decision-caption', [
+      [0, 0],
+      [450, 1],
+      [Math.round((establishSeconds - 0.25) * 1000), 1],
+      [decisionEnd, 0],
+      [duration, 0],
+    ])
+    a('.nom-decision-progress', [
+      [0, 1, 'scaleX(0)'],
+      [Math.round((establishSeconds - 0.15) * 1000), 1, 'scaleX(.96)'],
+      [decisionEnd, 1, 'scaleX(1)'],
+      [duration, 1, 'scaleX(1)'],
+    ])
+  }
+
+  if (coLoh) {
+    a('.nom-coloh-intro', [
+      [0, 1],
+      [3750, 1],
+      [4100, 0],
+      [duration, 0],
+    ])
+    for (const [index, beat] of root.querySelectorAll('.nom-coloh-beat').entries()) {
+      const start = index === 0 ? 500 : 2100
+      a(beat, [
+        [0, 0, 'translateY(12px) scale(.99)'],
+        [start, 0, 'translateY(12px) scale(.99)'],
+        [start + 250, 1, 'translateY(0) scale(1)'],
+        [start + 1200, 1, 'translateY(0) scale(1)'],
+        [start + 1450, 0, 'translateY(-5px) scale(.995)'],
+        [duration, 0],
+      ])
+    }
+  }
+
+  // Reserve a full second for the final line before the single outer fade to game.
+  if (duration - captionAt - 420 < 1200) throw new Error('Nomination caption hold is too short')
+  if (count === 1 && root.querySelector('.nom-second'))
+    root.querySelector('.nom-second').style.display = 'none'
+  if (root.querySelector('.nom-decision'))
+    root.dataset.decisionHoldMs = String(duration - Math.round(establishSeconds * 1000))
 }
 
 function animateRoyalNomination(root, a) {
@@ -538,6 +738,7 @@ export function createClip() {
           decisionExitStyles,
           fittingStyles,
           modeStyles,
+          replacementStyles,
         ].join('\n')
       )
       const entries = await Promise.all(
@@ -584,14 +785,25 @@ export function createClip() {
       style.textContent = css
       const stage = document.createElement('div')
       stage.className = 'stage is-playing'
-      root = !id
-        ? makeVoxFilm(sceneId, images, cast, details)
-        : id === 'loh'
-          ? makeLoh(images)
-          : decision
-            ? makeDecisionScene(id, images, 0, decisionOptions)
-            : makeScene(id, images, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic, 0)
-      if (id === 'nominations' && images.cinema_standC && sceneId !== 'cupidNominations') {
+      root =
+        id === 'replacement'
+          ? makeReplacementFilm(images, cast, details.replacementOutcome)
+          : !id
+            ? makeVoxFilm(sceneId, images, cast, details)
+            : id === 'loh'
+              ? makeLoh(images)
+              : decision
+                ? makeDecisionScene(id, images, 0, decisionOptions)
+                : makeScene(id, images, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic, 0)
+      if (id === 'nominations' && sceneId !== 'cupidNominations' && details.nomineeCount === 1) {
+        root.classList.add('nom-solo')
+      }
+      if (
+        id === 'nominations' &&
+        images.cinema_standC &&
+        sceneId !== 'cupidNominations' &&
+        !root.classList.contains('nom-solo')
+      ) {
         root.classList.add('nom-three')
         const third = root.querySelector('.nom-second').cloneNode(true)
         third.classList.replace('nom-second', 'nom-third')
@@ -602,7 +814,11 @@ export function createClip() {
         root.append(third)
         root.querySelector('.c-caption strong').textContent = 'Three names. One block.'
       }
-      if (sceneId === 'nominations' && images.nomination_seated)
+      if (
+        sceneId === 'nominations' &&
+        images.nomination_seated &&
+        (!details.coLohAssignments || details.coLohAssignments.length < 2)
+      )
         addRoyalNomination(root, images, resources, cast)
       if (id === 'shock') decorateShock(root, shockType, images)
       if (id) fitScene(root, id, images, resources, cast)
@@ -621,9 +837,38 @@ export function createClip() {
         root.querySelector('.loh-name').textContent = cast.a.name
       }
       if (sceneId !== id) adaptModeFilm(sceneId, root, images, resources, cast, details, fitCrown)
+      if (root.classList.contains('nom-solo')) {
+        root.querySelector('.nom-second').remove()
+        root.querySelector('.nom-label').remove()
+      }
+      if (sceneId === 'nominations') addCoLohNominationIntro(root, cast, details.coLohAssignments)
+      if (
+        id === 'nominations' &&
+        (root.classList.contains('nom-solo') || root.classList.contains('nom-coloh-active'))
+      )
+        calibrateNominationBlock(root, cast)
+      if (id === 'nominations' && root.classList.contains('nom-solo')) {
+        const title = root.querySelector('.c-caption strong')
+        const subtitle = root.querySelector('.c-caption em')
+        if (sceneId === 'voxNominations') {
+          root.querySelector('.nom-warning').textContent = 'SECRET HUBMATE BALLOTS · COUNTED'
+          title.textContent = `${cast.a.name} is nominated.`
+          subtitle.textContent = 'THE PUBLIC WILL VOTE TO ELIMINATE.'
+        } else {
+          title.textContent = `${cast.a.name} is nominated.`
+          subtitle.textContent = 'ONE NAME. ONE PLACE ON THE BLOCK.'
+        }
+      }
       stage.append(root)
       shadow.append(style, stage)
-      const duration = decisionTiming?.duration ?? SCENES[sceneId].duration
+      const duration =
+        details.replacementOutcome?.durationMs ??
+        decisionTiming?.duration ??
+        (root.classList.contains('nom-coloh-active')
+          ? 6000
+          : id === 'nominations' && root.classList.contains('nom-solo')
+            ? 3800
+            : SCENES[sceneId].duration)
       startTime = document.timeline.currentTime
       if (id === 'nominations' && options.matchHandoff) {
         const rect = options.origin
@@ -665,9 +910,12 @@ export function createClip() {
           animations.push(animation)
         }
       }
-      if (!id) animateVoxFilm(sceneId, root, a, duration, later)
+      if (id === 'replacement')
+        animateReplacementFilm(root, a, details.replacementOutcome, duration)
+      else if (!id) animateVoxFilm(sceneId, root, a, duration, later)
       else if (id === 'loh') animateLoh(root, a)
       else if (decision) animateDecisionScene(id, root, a, decisionOptions)
+      else if (root.classList.contains('nom-calibrated')) animateNominationFilm(root, a, duration)
       else if (root.classList.contains('nom-royal')) animateRoyalNomination(root, a)
       else if (id === 'nominations' && sceneId === id)
         animateScene(id, root, (selector, stops) =>
@@ -681,7 +929,8 @@ export function createClip() {
         id === 'nominations' &&
         images.cinema_standC &&
         sceneId === id &&
-        !root.classList.contains('nom-royal')
+        !root.classList.contains('nom-royal') &&
+        !root.classList.contains('nom-calibrated')
       ) {
         a('.nom-third', [
           [0, 0, 'translateY(18px)'],
@@ -705,7 +954,11 @@ export function createClip() {
           [1810, 1],
           [4200, 1],
         ])
-      const endAt = decisionTiming?.handoffAt ?? duration
+      const endAt =
+        decisionTiming?.handoffAt ??
+        (id === 'replacement' || root.classList.contains('nom-calibrated')
+          ? duration - 220
+          : duration)
       later(() => {
         if (dead) return
         if (decision) {

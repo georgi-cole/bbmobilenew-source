@@ -105,6 +105,59 @@
   background: linear-gradient(90deg, transparent, #e6cc97, transparent);
   transform-origin: 0 50%;
 }
+
+.nom-coloh-intro {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  pointer-events: none;
+}
+.nom-coloh-active .nom-warning {
+  visibility: hidden;
+}
+.nom-coloh-header {
+  position: absolute;
+  top: 8%;
+  left: 9%;
+  width: 82%;
+  color: #d7bf8e;
+  font:
+    600 9px / 1.4 system-ui,
+    sans-serif;
+  letter-spacing: 0.21em;
+  text-align: center;
+  text-shadow: 0 2px 14px #05030bea;
+}
+.nom-coloh-beat {
+  position: absolute;
+  top: 14%;
+  left: 8%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  box-sizing: border-box;
+  width: 84%;
+  gap: 5px;
+  text-align: center;
+  text-shadow: 0 2px 15px #07040deb;
+}
+.nom-coloh-beat span,
+.nom-coloh-beat em {
+  color: #c9b282;
+  font:
+    600 7px / 1.4 system-ui,
+    sans-serif;
+  font-style: normal;
+  letter-spacing: 0.17em;
+}
+.nom-coloh-beat strong {
+  margin: 3px 0;
+  color: #f0e5d4;
+  font:
+    400 clamp(22px, 5.8vw, 31px) / 1.05 Georgia,
+    serif;
+  overflow-wrap: anywhere;
+}
 .loh-figure {
   width: 76%;
   height: auto;
@@ -443,4 +496,54 @@
 .shock-force-release {
   inset: -60% -100%;
   background: radial-gradient(ellipse, #f2dfb693, #c9a56335 18%, #9c6bb623 38%, transparent 62%);
+}
+
+/* Keep a real single-nominee outcome grounded without inventing a second player. */
+.nom-solo .nom-first {
+  left: 28%;
+  width: 44%;
+}
+.nom-calibrated {
+  container-type: size;
+}
+.c-nominations.nom-calibrated .nom-pod {
+  top: 0;
+  height: 100%;
+}
+.nom-calibrated .nom-person {
+  bottom: 39.9cqh;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  transform: translateY(calc(100% - var(--feet-y)));
+  opacity: 0;
+}
+.nom-calibrated .nom-platform {
+  top: calc(60.1cqh - var(--platform-surface-offset));
+  bottom: auto;
+  left: 0;
+  width: 100%;
+  height: auto;
+}
+.nom-calibrated .nom-label {
+  top: 70%;
+  bottom: auto;
+}
+.nom-contact {
+  position: absolute;
+  z-index: 3;
+  top: 59.65cqh;
+  left: 23%;
+  width: 54%;
+  height: 1cqh;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #09060bd1, transparent 74%);
+  pointer-events: none;
+}
+.nom-coloh-active .nom-label {
+  color: #eee2d0;
+  font:
+    500 14px / 1.2 Georgia,
+    serif;
+  letter-spacing: 0;
 }

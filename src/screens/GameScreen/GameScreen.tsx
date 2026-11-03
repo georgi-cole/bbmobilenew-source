@@ -872,6 +872,7 @@ export default function GameScreen() {
     showAiReplacementAnim,
     activeReplacementAnimationTargetIds,
     handleAiReplacementDone,
+    replacementOutcome,
   } = useSafetyFlow({
     game,
     alivePlayers,
@@ -2352,19 +2353,24 @@ export default function GameScreen() {
         {/* a badge. The badge flies from the LOH tile → replacement tile.          */}
         {showAiReplacementAnim && activeReplacementAnimationTargetIds.length > 0 && (
           <CeremonyOverlay
+            replacementOutcome={replacementOutcome ?? undefined}
             tiles={[]}
             layoutSignal={responsiveGameLayout.revision}
             resolveTiles={() => {
               const replacementId = activeReplacementAnimationTargetIds[0]
-              const sourceId = isVoxPopuli
-                ? null
-                : game.specialVeto?.activeType === 'diamond'
-                  ? game.posWinnerId
-                  : game.lohId
+              const sourceId = replacementOutcome
+                ? replacementOutcome.chooserId
+                : isVoxPopuli
+                  ? null
+                  : game.specialVeto?.activeType === 'diamond'
+                    ? game.posWinnerId
+                    : game.lohId
               const sourceRect = sourceId ? getTileRect(sourceId) : null
-              const replacementIds = isVoxPopuli
-                ? activeReplacementAnimationTargetIds
-                : expandCupidIds(game, [replacementId])
+              const replacementIds = replacementOutcome
+                ? replacementOutcome.replacementIds
+                : isVoxPopuli
+                  ? activeReplacementAnimationTargetIds
+                  : expandCupidIds(game, [replacementId])
               const sourceIsDistinct =
                 sourceRect != null && sourceId != null && sourceId !== replacementId
               return [
