@@ -299,7 +299,13 @@ function finalize(
           request.memberIds.includes(nemesis.targetId)
       )
       if (exposedEnemy) {
-        settle(state, request, 'INVALIDATED', 'Resolve the Nemesis conflict before signing another personal pact.', context.at)
+        settle(
+          state,
+          request,
+          'INVALIDATED',
+          'Resolve the Nemesis conflict before signing another personal pact.',
+          context.at
+        )
         return
       }
       const existing = getCurrentPact(state, request.memberIds[0], request.memberIds[1])
