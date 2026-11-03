@@ -95,6 +95,11 @@ jobs:
       - run: npm ci
       - name: Run ${{ matrix.label }}
         run: ${{ matrix.command }}
+      - name: Print exact Prettier corrections (temporary QA diagnostic)
+        if: ${{ always() && matrix.label == 'Formatting' }}
+        run: |
+          npx prettier --write src/social/__tests__/survivalPactAcceptance.test.ts src/social/allianceManagementActions.ts src/social/incomingInteractions.ts src/social/reality/allianceManagement.ts
+          git diff -- src/social/__tests__/survivalPactAcceptance.test.ts src/social/allianceManagementActions.ts src/social/incomingInteractions.ts src/social/reality/allianceManagement.ts
 
   dependency-security:
     name: Dependency security
