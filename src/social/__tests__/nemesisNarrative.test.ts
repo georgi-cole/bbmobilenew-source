@@ -314,7 +314,7 @@ describe('Nemesis storyline — reliable discovery', () => {
     })
     expect(truth).toHaveLength(1)
     expect(truth[0].kind).toBe('reveal')
-    expect(truth[0].text).toContain('After your elimination')
+    expect(truth[0].text).toContain('before your elimination')
     expect(truth[0].text).toContain('Echo')
     expect(objective.status).toBe('ENDED')
     expect(reality.threads['nemesis-thread:echo:human'].status).toBe('RESOLVED')
