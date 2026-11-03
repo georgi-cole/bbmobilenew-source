@@ -809,7 +809,9 @@ function pactDecision(
       reason =
         'I already have people I am committed to protecting, so I will not promise to turn on them.'
     else if (chance < 0.3) reason = 'We do not have enough trust for me to risk this pact.'
-    else reason = 'I do not see enough protection in this pact to commit.'
+    else
+      reason =
+        'I need to see what we can actually do for each other before I promise long-term loyalty. A pact is bigger than one safe decision.'
   } else if (commitmentPressure >= 0.08) {
     style = 'LIMITED'
     reason = 'I can work with you, but I will not break my existing commitments for this pact.'
