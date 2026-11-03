@@ -38,8 +38,7 @@ export function allianceManagementContext(
     const humanIsLoh =
       state.game.lohId === human.id &&
       ['hoh_safety_request', 'nominee_hoh_plea'].includes(String(scenario))
-    const humanHasSafety =
-      state.game.posWinnerId === human.id && scenario === 'nominee_veto_pitch'
+    const humanHasSafety = state.game.posWinnerId === human.id && scenario === 'nominee_veto_pitch'
     if (!humanIsLoh && !humanHasSafety) continue
     protectionAppealsByActorId[interaction.fromId] = {
       recipientId: human.id,
@@ -49,8 +48,8 @@ export function allianceManagementContext(
   }
   return {
     classicGame: state.game.mode === 'classic' && !isVoxPopuliActive(state.game),
-    powerHolderIds: [state.game.lohId, state.game.posWinnerId].filter(
-      (id): id is string => Boolean(id)
+    powerHolderIds: [state.game.lohId, state.game.posWinnerId].filter((id): id is string =>
+      Boolean(id)
     ),
     protectionAppealsByActorId,
     identityByActorId: Object.fromEntries(
