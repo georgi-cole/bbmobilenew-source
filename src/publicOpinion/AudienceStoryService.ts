@@ -1,3 +1,5 @@
+import { socialConductEvidence } from './socialConductEvidence'
+import type { RealitySocialEvent } from '../social/reality/types'
 import type { PlayerPublicProfile } from './types'
 import type { DramaArc, RelationshipsMap, SocialActionLogEntry } from '../social/types'
 
@@ -137,15 +139,21 @@ export function computeSocialAudienceStoryReactions(params: {
   relationships?: RelationshipsMap
   dramaArcs?: readonly DramaArc[]
   week: number
+  realityEvents?: readonly RealitySocialEvent[]
 }): AudienceStoryReaction[] {
   const { entry, profiles, actionHistory = [], relationships, dramaArcs, week } = params
 
   if (!entry.actorId || !entry.targetId) return []
+  const grounded = params.realityEvents !== undefined
+  const evidence = socialConductEvidence(entry, params.realityEvents ?? [], week)
+  if (grounded && !evidence.isPublic(entry)) return []
 
   const reactions: AudienceStoryReaction[] = []
   const actorApproval = approvalOf(profiles, entry.actorId)
   const targetApproval = approvalOf(profiles, entry.targetId)
-  const history = actionHistory.length > 0 ? actionHistory : [entry]
+  const history = (actionHistory.length > 0 ? actionHistory : [entry]).filter(
+    (action) => !grounded || evidence.isPublic(action)
+  )
   const pressure = pressureAgainst(history, entry.targetId, week)
   const isConflict = CONFLICT_ACTIONS.has(entry.actionId) || entry.delta < 0
   const successful = entry.outcome === 'success'
@@ -179,7 +187,7 @@ export function computeSocialAudienceStoryReactions(params: {
     ROMANCE_ACTIONS.has(entry.actionId) ||
     (PRIVATE_ROMANCE_ACTIONS.has(entry.actionId) &&
       hasPublicArc(dramaArcs, entry.actorId, entry.targetId, 'romance')) ||
-    hasBondTag(relationships, entry.actorId, entry.targetId, 'romance')
+    (!grounded && hasBondTag(relationships, entry.actorId, entry.targetId, 'romance'))
   if (
     successful &&
     romanceIsPublic &&
@@ -206,7 +214,7 @@ export function computeSocialAudienceStoryReactions(params: {
   const bromanceIsVisible =
     BROMANCE_ACTIONS.has(entry.actionId) &&
     (hasPublicArc(dramaArcs, entry.actorId, entry.targetId, 'bromance') ||
-      hasBondTag(relationships, entry.actorId, entry.targetId, 'bromance') ||
+      (!grounded && hasBondTag(relationships, entry.actorId, entry.targetId, 'bromance')) ||
       entry.actionId === 'ride_or_die' ||
       entry.actionId === 'protect')
   if (
@@ -227,7 +235,12 @@ export function computeSocialAudienceStoryReactions(params: {
 
   if (successful && isConflict) {
     // Viewers often enjoy conflict and decisive gameplay, but not an endless pile-on.
-    if (DRAMA_ACTIONS.has(entry.actionId) && pressure.total <= 2 && targetApproval < 70) {
+    if (
+      DRAMA_ACTIONS.has(entry.actionId) &&
+      pressure.total <= 2 &&
+      !grounded &&
+      targetApproval < 70
+    ) {
       pushUnique(reactions, {
         playerId: entry.actorId,
         delta: 1,
@@ -238,7 +251,7 @@ export function computeSocialAudienceStoryReactions(params: {
     }
 
     // Going after an established favourite creates backlash and sympathy.
-    if (targetApproval >= 60) {
+    if (targetApproval >= 60 && !(grounded && evidence.justified)) {
       pushUnique(reactions, {
         playerId: entry.actorId,
         delta: targetApproval >= 80 ? -3 : -2,
@@ -253,7 +266,12 @@ export function computeSocialAudienceStoryReactions(params: {
         eventType: 'social_story',
         attributedToId: entry.actorId,
       })
-    } else if (targetApproval < 35 && pressure.total <= 2 && DRAMA_ACTIONS.has(entry.actionId)) {
+    } else if (
+      !grounded &&
+      targetApproval < 35 &&
+      pressure.total <= 2 &&
+      DRAMA_ACTIONS.has(entry.actionId)
+    ) {
       // Calling out a genuinely disliked player can be popular before it turns into a pile-on.
       pushUnique(reactions, {
         playerId: entry.actorId,
@@ -269,7 +287,7 @@ export function computeSocialAudienceStoryReactions(params: {
     if (
       (pressure.total === 3 || pressure.total === 5) &&
       pressure.distinctActors >= 2 &&
-      targetApproval >= 40
+      (grounded || targetApproval >= 40)
     ) {
       pushUnique(reactions, {
         playerId: entry.targetId,
@@ -288,7 +306,7 @@ export function computeSocialAudienceStoryReactions(params: {
     }
 
     // Betrayal is entertaining but still costs integrity unless the target is already disliked.
-    if (entry.actionId === 'betray' && targetApproval >= 40) {
+    if (entry.actionId === 'betray' && (grounded || targetApproval >= 40)) {
       pushUnique(reactions, {
         playerId: entry.actorId,
         delta: -1,
@@ -297,6 +315,82 @@ export function computeSocialAudienceStoryReactions(params: {
         attributedToId: entry.targetId,
       })
     }
+  }
+
+  if (grounded && successful) {
+    const directConflict = ['confront', 'public_callout', 'startFight'].includes(entry.actionId)
+    if (directConflict && pressure.total <= 2) {
+      pushUnique(reactions, {
+        playerId: entry.actorId,
+        delta: entry.actionId === 'startFight' || !evidence.justified ? -1 : 1,
+        reason:
+          entry.actionId === 'startFight'
+            ? 'audience_escalation_cost'
+            : evidence.justified
+              ? 'audience_grounded_boundary'
+              : 'audience_unsupported_attack',
+        eventType: 'social_story',
+        attributedToId: entry.targetId,
+      })
+    }
+    if (evidence.substantiatedExposure && pressure.total <= 2) {
+      for (let index = reactions.length - 1; index >= 0; index--)
+        if (reactions[index].playerId === entry.actorId && reactions[index].delta > 0)
+          reactions.splice(index, 1)
+      pushUnique(reactions, {
+        playerId: entry.actorId,
+        delta: 1,
+        reason: 'audience_substantiated_exposure',
+        eventType: 'social_story',
+        attributedToId: entry.targetId,
+      })
+    }
+    const apology = ['apologize', 'repair_bond'].includes(entry.actionId)
+    const repairCount = pairBeatCount(
+      history,
+      entry.actorId,
+      entry.targetId,
+      new Set(['apologize', 'repair_bond']),
+      week
+    )
+    if (apology) {
+      for (let index = reactions.length - 1; index >= 0; index--)
+        if (reactions[index].playerId === entry.actorId && reactions[index].delta > 0)
+          reactions.splice(index, 1)
+    }
+    if (apology && evidence.accountableRepair && repairCount <= 1) {
+      pushUnique(reactions, {
+        playerId: entry.actorId,
+        delta: 1,
+        reason: 'audience_accountable_repair',
+        eventType: 'social_story',
+        attributedToId: entry.targetId,
+      })
+    }
+    const warmCount = history.filter(
+      (action) =>
+        action.actorId === entry.actorId &&
+        (action.week ?? week) === week &&
+        action.outcome === 'success' &&
+        !CONFLICT_ACTIONS.has(action.actionId)
+    ).length
+    const suppressPositive =
+      warmCount > 3 ||
+      ['ally', 'proposeAlliance'].includes(entry.actionId) ||
+      (apology && (!evidence.accountableRepair || repairCount > 1))
+    for (let index = reactions.length - 1; index >= 0; index--) {
+      const reaction = reactions[index]
+      if (reaction.playerId === entry.actorId && reaction.delta > 0 && suppressPositive)
+        reactions.splice(index, 1)
+    }
+    if (evidence.explicitBreach)
+      pushUnique(reactions, {
+        playerId: entry.actorId,
+        delta: -2,
+        reason: 'audience_explicit_promise_breach',
+        eventType: 'social_story',
+        attributedToId: entry.targetId,
+      })
   }
 
   // Avoid a high-rated actor receiving unlimited positive social drift from tiny actions.

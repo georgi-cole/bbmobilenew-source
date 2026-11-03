@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-03: Reviewed grounded audience consequences, private-event filtering,
+  persisted reaction receipts and existing audience-feed feedback for epic #1711
+  local phase 5. Mode access, product benefits, prices, minigame versions,
+  purchases and Eyeolean powers are unchanged. Audience eviction and finale
+  formulas remain unchanged; existing Store wording remains accurate.
+
 - 2026-11-03: Reviewed mode-aware AI social preferences, observer privacy and
   action-specific conflict dialogue (epic #1711, local phase 4). Existing modes,
   purchases, benefits, prices, paid access and powers are unchanged. New AI

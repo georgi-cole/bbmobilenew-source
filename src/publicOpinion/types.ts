@@ -126,6 +126,8 @@ export interface PublicFeedEntry {
 }
 
 export interface PublicOpinionState {
+  /** Bounded, persisted provenance receipts; missing in legacy saves. */
+  socialStoryReceipts?: Record<string, true>
   profiles: Record<string, PlayerPublicProfile>
   directions: PublicDirection[]
   feed: PublicFeedEntry[]

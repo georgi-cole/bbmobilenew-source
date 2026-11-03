@@ -423,6 +423,8 @@ function executeRealityCandidate(
     recordSocialAction({
       entry: {
         actionId: candidate.actionId,
+        realityEventId: result.event.id,
+        visibility: result.event.visibility,
         actorId: player.id,
         targetId: primaryTargetId,
         targetIds: candidate.targetIds,

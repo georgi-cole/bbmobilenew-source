@@ -462,6 +462,15 @@ const publicOpinionSlice = createSlice({
       }
     },
 
+    recordSocialStoryReceipt(state, action: PayloadAction<string | string[]>) {
+      state.socialStoryReceipts ??= {}
+      for (const key of Array.isArray(action.payload) ? action.payload : [action.payload])
+        state.socialStoryReceipts[key] = true
+      const keys = Object.keys(state.socialStoryReceipts)
+      for (const key of keys.slice(0, Math.max(0, keys.length - 2000)))
+        delete state.socialStoryReceipts[key]
+    },
+
     hydratePublicOpinion(_state, action: PayloadAction<PublicOpinionState>) {
       return action.payload
     },
@@ -487,6 +496,7 @@ export const {
   addTemporaryApprovalBoost,
   updateMissionProgress,
   hydratePublicOpinion,
+  recordSocialStoryReceipt,
 } = publicOpinionSlice.actions
 
 export default publicOpinionSlice.reducer

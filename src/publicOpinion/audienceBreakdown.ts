@@ -110,6 +110,12 @@ export function getAudienceApproval(breakdown: AudienceBreakdown): number {
 function getWeights(reason: string, eventType?: string): Record<AudienceMetric, number> {
   const signal = `${reason} ${eventType ?? ''}`.toLowerCase()
 
+  if (
+    /(substantiated_exposure|grounded_boundary|accountable_repair|unsupported_attack|explicit_promise_breach)/.test(
+      signal
+    )
+  )
+    return { charisma: 0.25, gameplay: 0.1, integrity: 0.65 }
   if (/(romance|bromance|ride_or_die)/.test(signal)) {
     return { charisma: 0.55, gameplay: 0.1, integrity: 0.35 }
   }

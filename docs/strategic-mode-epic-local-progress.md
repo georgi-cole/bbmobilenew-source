@@ -65,6 +65,36 @@ relationship-boundary, mode-isolation and driver/lifecycle tests passed. Targete
 ESLint and TypeScript are also run locally. Audience effects remain phase 5 work;
 consolidated replay/browser/performance validation remains phase 6 work.
 
+## Phase 5
+
+Public story reactions now filter private events and check source-event identity,
+actor, action and target. Grounded boundaries, unsupported attacks, escalation,
+substantiated exposure, accountable repair and explicit promise breaches have
+separate reason codes in the existing audience feed/dossier. Popularity alone
+never proves misconduct. Repeated attacks can create sympathy for an unpopular
+target; private pacts and private romance tags do not become public evidence.
+
+Persisted, bounded reaction receipts prevent duplicate story/mission processing
+across replay and hydration. Legacy history seeds that ledger without reapplying
+old effects. Repair credit is at most one positive reaction per pair/window;
+repeated repair and warmth are capped. Existing Charisma/Gameplay/Integrity,
+positive damping and seeded audience mood remain authoritative. Public-vote and
+finale formulas are unchanged, including Vox with the Public Meter hidden.
+
+The seven-suite local audience run has 79 passes and four failures. All four also
+fail against the previous local commit, verified by temporarily restoring the
+previous audience implementation and restoring the new files afterward:
+
+- `eventDrivenReactions.test.ts`: “gives no LOH penalty for nominating a disliked player”.
+- `publicOpinionMiddleware.test.ts`: AI nomination mission progress.
+- `publicOpinionMiddleware.test.ts`: AI vote mission progress.
+- `publicOpinionMiddleware.test.ts`: missing `publicOpinionConfig` test import.
+
+Per the owner's local-only strategy, those existing failures are documented for
+owner repair. The new grounded-consequence and duplicate/save-load cases pass;
+local TypeScript passes. The feature must not be described as fully release
+validated while these failures, browser evidence and PO review remain open.
+
 ## Simulator evidence and known follow-ups
 
 The restored headless driver retains production legality, resources, attempt
