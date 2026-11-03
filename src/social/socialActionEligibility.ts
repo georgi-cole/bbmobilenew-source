@@ -1,4 +1,5 @@
 import { getCurrentPact } from './reality/allianceIdentity'
+import { getNemesisReasonAvailability } from './reality/nemesisInquiry'
 import { findRealityAllianceForConsultation } from './reality/relationshipForms'
 import type { PlayerStatus } from '../types'
 import { getPublicDramaActionAvailability, isPublicDramaAction } from './dramaPacing'
@@ -153,6 +154,13 @@ export function evaluateSocialActionEligibility({
 
   const targetMode = resolveActionTargetMode(action, dramaMode)
   const targets = [...new Set(targetIds.filter(Boolean))]
+  if (action.id === 'ask_nemesis_reason') {
+    if (!dramaMode || !actorId || targets.length !== 1 || !reality) {
+      return unavailable('Select a revealed Nemesis to ask.')
+    }
+    const availability = getNemesisReasonAvailability(reality, actorId, targets[0], week)
+    if (!availability.eligible) return unavailable(availability.reason)
+  }
   if (
     actorId &&
     reality &&
