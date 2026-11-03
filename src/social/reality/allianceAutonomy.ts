@@ -1,3 +1,4 @@
+import { evaluateAllianceStrategicFit } from './allianceStrategicFit'
 import { buildStrategicThreatSnapshot } from '../strategicThreat'
 import {
   isPendingAllianceRequest,
@@ -182,8 +183,8 @@ function planBeliefs(
     )
     beliefs[memberId] = personallyProtective
       ? fallback
-        ? [planId('fallback', fallback.actorId)]
-        : []
+        ? [`dissent:${primary.actorId}`, planId('fallback', fallback.actorId)]
+        : [`dissent:${primary.actorId}`]
       : [
           planId('target', primary.actorId),
           ...(fallback ? [planId('fallback', fallback.actorId)] : []),
@@ -242,16 +243,14 @@ function chooseRecruitment(
     )
     .map((id) => {
       const edge = domain.relationships[recruiterId]?.[id]
-      const towardTarget = selectedTargetId
-        ? domain.relationships[id]?.[selectedTargetId]
-        : undefined
+      const fit = evaluateAllianceStrategicFit(domain, context, recruiterId, [id])
       const score =
         (edge?.trust ?? 0) * 0.03 +
         (edge?.loyalty ?? 0) * 0.018 +
         (edge?.reliability ?? 0) * 0.012 +
         (edge?.strategicValue ?? 0) * 0.022 -
         (edge?.suspicion ?? 0) * 0.012 +
-        ((towardTarget?.resentment ?? 0) + (towardTarget?.perceivedThreat ?? 0)) * 0.009
+        fit.modifier * 4
       return { id, score, trust: edge?.trust ?? 0, strategicValue: edge?.strategicValue ?? 0 }
     })
     .filter((entry) => entry.trust >= 18 || entry.strategicValue >= 34)
@@ -286,6 +285,55 @@ function chooseRecruitment(
     },
     context
   )
+}
+
+/** Nonbinding discussion plans never create promises, ballots or protection. */
+function discussSupportAgenda(
+  domain: RealityDomainState,
+  alliance: RealityAlliance,
+  context: AllianceManagementContext
+): boolean {
+  const rules = context.strategicMode
+  if (!rules || !['classic', 'vox'].includes(rules.format)) return false
+  const atRisk = alliance.memberIds.filter((id) => context.atRiskActorIds?.includes(id))
+  const needsRepair = alliance.cohesion < 0.42 || alliance.fractureRisk > 0.55
+  if (rules.format !== 'vox' && !needsRepair && atRisk.length === 0) return false
+  const agenda = needsRepair
+    ? 'ALLIANCE_MAINTENANCE'
+    : atRisk.length && context.at.phase === 'social_1' && rules.capabilities.safetyRequests
+      ? 'SAFETY_SUPPORT'
+      : rules.format === 'vox' && context.at.phase === 'social_1'
+        ? 'NOMINATION_COVER'
+        : 'INFORMATION_SHARING'
+  const summaries: Record<string, string> = {
+    ALLIANCE_MAINTENANCE:
+      'The members discussed strained trust and clearer limits. Membership does not require agreement with every plan.',
+    SAFETY_SUPPORT:
+      'The members discussed asking the current Safety holder for support. The holder keeps their own decision; no protection was promised.',
+    NOMINATION_COVER:
+      'The members discussed mutual nomination cover. Each member keeps their secret ballot; the audience still decides eviction.',
+    INFORMATION_SHARING:
+      rules.format === 'vox'
+        ? 'The members reviewed known nomination risk and mutual support. They cannot coordinate or guarantee the audience vote.'
+        : 'The members reviewed their nomination risk and possible support, while keeping individual voting decisions.',
+  }
+  const attendees = aiMembers(alliance, context)
+  holdRealityAllianceStrategyMeeting(domain, {
+    allianceId: alliance.id,
+    callerId: attendees.includes(alliance.leaderId ?? '') ? alliance.leaderId! : attendees[0],
+    attendeeIds: attendees,
+    targetIds: [],
+    fallbackTargetIds: [],
+    planIds: [`discuss:${agenda}`],
+    memberPlanBeliefs: Object.fromEntries(attendees.map((id) => [id, [`aware:${agenda}`]])),
+    agenda,
+    consultationSummary: summaries[agenda],
+    at: context.at,
+    sourceEventId: `autonomous-support:${alliance.id}:${context.at.day}:${context.at.phase}`,
+    excusedAbsentIds: alliance.memberIds.filter((id) => context.humanActorIds.includes(id)),
+  })
+  chooseRecruitment(domain, alliance, context)
+  return true
 }
 
 /**
@@ -325,6 +373,7 @@ export function evaluateAllianceAutonomy(
     .sort((left, right) => left.id.localeCompare(right.id))
 
   for (const alliance of alliances) {
+    if (discussSupportAgenda(domain, alliance, context)) continue
     const ranked = rankAllianceTargets(domain, alliance, context, threatSnapshot)
     const selected = selectAllianceTargets(alliance, ranked, context)
     if (selected.length > 0) {
