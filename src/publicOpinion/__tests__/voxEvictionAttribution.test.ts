@@ -1,10 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import type { Player } from '../../types'
-import publicOpinionReducer, {
-  initializeProfiles,
-  setProfileApprovals,
-} from '../publicOpinionSlice'
+import publicOpinionReducer, { initializeProfiles, setProfileApprovals } from '../publicOpinionSlice'
 import { publicOpinionMiddleware } from '../publicOpinionMiddleware'
 
 type VoxStatus = 'inactive' | 'scheduled' | 'active' | 'complete'
@@ -43,10 +40,7 @@ function makeStore(
     publicModeEnabled,
     ...(voxStatus ? { voxPopuli: { status: voxStatus } } : {}),
   }
-  const gameReducer = (
-    state: GameFixture = initial,
-    action: { type: string }
-  ): GameFixture => {
+  const gameReducer = (state: GameFixture = initial, action: { type: string }): GameFixture => {
     if (
       completeVoxOnEviction &&
       action.type === 'game/finalizePendingEviction' &&
