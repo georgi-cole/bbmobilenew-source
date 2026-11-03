@@ -1,4 +1,28 @@
 const NARRATIVE_VARIANTS = {
+  audience_substantiated_exposure: [
+    'Viewers saw evidence behind the exposure.',
+    'The reveal had a visible factual basis.',
+  ],
+  audience_grounded_boundary: [
+    'Viewers saw the conduct behind that challenge.',
+    'The boundary had visible reasons, though some viewers disliked the tone.',
+  ],
+  audience_unsupported_attack: [
+    'Viewers saw an attack without clear supporting evidence.',
+    'The accusation lacked a public basis.',
+  ],
+  audience_escalation_cost: [
+    'The grievance was overshadowed by the escalation.',
+    'The public fight carried a credibility cost.',
+  ],
+  audience_accountable_repair: [
+    'Viewers noticed an attempt to repair visible harm.',
+    'The apology was a start; the earlier harm still counts.',
+  ],
+  audience_explicit_promise_breach: [
+    'Viewers saw an explicit commitment broken.',
+    'The strategic move came with a visible promise cost.',
+  ],
   hoh_win: [
     'The crown found a new head, and the crowd absolutely clocked it.',
     'A power swing just landed with all the subtlety of a confetti cannon.',
@@ -285,6 +309,12 @@ const REASON_ALIASES: Record<string, NarrativeKey> = {
   high_quality_social_play: 'high_quality_social_play',
   poor_social_play: 'poor_social_play',
   audience_social_warmth: 'audience_social_warmth',
+  audience_grounded_boundary: 'audience_grounded_boundary',
+  audience_substantiated_exposure: 'audience_substantiated_exposure',
+  audience_unsupported_attack: 'audience_unsupported_attack',
+  audience_escalation_cost: 'audience_escalation_cost',
+  audience_accountable_repair: 'audience_accountable_repair',
+  audience_explicit_promise_breach: 'audience_explicit_promise_breach',
   audience_strategy: 'audience_strategy',
   audience_conflict_fatigue: 'audience_conflict_fatigue',
   audience_social_overexposure: 'audience_social_overexposure',

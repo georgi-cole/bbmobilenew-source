@@ -199,6 +199,9 @@ export interface SocialActionReceipt {
 
 /** A single recorded social action executed during a phase. */
 export interface SocialActionLogEntry {
+  /** Authoritative action provenance; absent on legacy logs. */
+  realityEventId?: string
+  visibility?: import('./reality/types').RealityVisibility
   /** Stable identity for finalizing display copy without recording the action twice. */
   id?: string
   receipt?: SocialActionReceipt

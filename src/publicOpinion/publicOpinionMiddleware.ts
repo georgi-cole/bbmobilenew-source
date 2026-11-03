@@ -1,7 +1,9 @@
+import { socialStoryReceiptKey } from './socialConductEvidence'
 import type { Middleware, MiddlewareAPI, Dispatch, UnknownAction } from '@reduxjs/toolkit'
 import type { Player } from '../types'
 import {
   initializeProfiles,
+  recordSocialStoryReceipt,
   updateApproval,
   addDirection,
   pruneExpiredDirections,
@@ -103,6 +105,7 @@ interface StateWithGame {
   publicOpinion?: {
     profiles: Record<string, PlayerPublicProfile>
     directions: PublicDirection[]
+    socialStoryReceipts?: Record<string, true>
   }
   social?: {
     relationships?: import('../social/types').RelationshipsMap
@@ -587,12 +590,24 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
     const entry = payload?.entry
     if (entry?.actorId) {
       const week = game.week ?? 1
+      if (!prevState.publicOpinion?.socialStoryReceipts) {
+        const priorKeys = (prevState.social?.actionHistory ?? []).flatMap((prior) => [
+          socialStoryReceiptKey(prior),
+          socialStoryReceiptKey({ ...prior, id: undefined }),
+        ])
+        store.dispatch(recordSocialStoryReceipt(priorKeys))
+      }
+      const receiptKey = socialStoryReceiptKey(entry)
+      if ((store.getState() as StateWithGame).publicOpinion?.socialStoryReceipts?.[receiptKey])
+        return result
+      store.dispatch(recordSocialStoryReceipt(receiptKey))
       const storyReactions = computeSocialAudienceStoryReactions({
         entry,
         profiles: nextState.publicOpinion?.profiles ?? {},
         actionHistory: nextState.social?.actionHistory ?? [entry],
         relationships: nextState.social?.relationships,
         dramaArcs: nextState.social?.dramaNetwork?.arcs,
+        realityEvents: nextState.social?.reality?.events,
         week,
       })
       dispatchReactionDeltas(store, storyReactions, week)
