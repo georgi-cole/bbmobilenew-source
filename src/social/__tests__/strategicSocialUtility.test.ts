@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { strategicSocialAdjustment } from '../strategicSocialUtility'
 import { withStrategicPlanningContext } from '../strategicPlanningContext'
 import { chooseActionFor, chooseTargetsFor } from '../SocialPolicy'
@@ -203,5 +203,31 @@ describe('strategic social preferences', () => {
     state.relationships.holder.b.affinity = -100
     expect(chooseTargetsFor('actor', 'ask_use_safety', state)).toEqual(first)
     expect(first).toEqual(['holder', 'a'])
+  })
+})
+
+describe('preference rollback', () => {
+  afterEach(() => vi.unstubAllEnvs())
+  it('restores legacy preference weights while keeping Vox legality', () => {
+    vi.stubEnv('VITE_STRATEGIC_PREFERENCES', 'false')
+    expect(
+      strategicSocialAdjustment({ ...input, planning: planning(true), events: [event()] })
+        .multiplier
+    ).toBe(1)
+    expect(
+      strategicSocialAdjustment({ ...input, actionId: 'pitch_target', planning: planning(true) })
+        .multiplier
+    ).toBe(0)
+  })
+  it('uses legacy weight for invalid new numeric preferences', () => {
+    expect(
+      strategicSocialAdjustment({
+        ...input,
+        actionId: 'public_callout',
+        identity: { ...identity, audienceFocus: NaN },
+        planning: planning(true),
+        events: [event()],
+      })
+    ).toEqual({ multiplier: 1, reason: 'INVALID_PREFERENCE_FALLBACK' })
   })
 })

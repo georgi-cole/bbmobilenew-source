@@ -38,6 +38,7 @@ export interface AllianceManagementContext {
   at: RealityClock
   /** Public rules; absent on legacy contexts. New requests pin their policy version. */
   strategicMode?: StrategicModeContext
+  strategicPreferencesEnabled?: boolean
   activeActorIds: readonly string[]
   humanActorIds: readonly string[]
   /** Real same-day AI appeals to the human power holder; not inferred from power alone. */
@@ -1424,7 +1425,8 @@ function propose(
   const id = `request:${state.allianceManagement.nextRequestSequence++}`
   const request: RealityAllianceRequest = {
     id,
-    ...(['classic', 'vox'].includes(context.strategicMode?.format ?? '')
+    ...(context.strategicPreferencesEnabled !== false &&
+    ['classic', 'vox'].includes(context.strategicMode?.format ?? '')
       ? { strategicPolicyVersion: 1 as const }
       : {}),
     kind: command.kind,

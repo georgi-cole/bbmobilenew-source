@@ -254,7 +254,7 @@ describe('resolveEventMissionProgress', () => {
     expect(signals).toHaveLength(1)
   })
 
-  it('repair_relationship: apologized_to related player completes mission directly', () => {
+  it('repair_relationship: apologizing to the related player advances a partial step', () => {
     const direction = makeDirection({
       type: 'repair_relationship',
       relatedPlayerId: 'rae',
@@ -268,8 +268,8 @@ describe('resolveEventMissionProgress', () => {
     }
     const signals = resolveEventMissionProgress(event, [direction])
     expect(signals).toHaveLength(1)
-    expect(signals[0].newProgress).toBe(100)
-    expect(signals[0].isComplete).toBe(true)
+    expect(signals[0].newProgress).toBe(85)
+    expect(signals[0].isComplete).toBe(false)
   })
 
   it('break_alliance: the exact break event completes the request in one action', () => {

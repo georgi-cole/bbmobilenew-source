@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-03: Reviewed local strategic preference rollback and regression
+  hardening for epic #1711 phase 6. The build control affects new AI preference
+  weights only; paid offers, access, prices, power limits and products are
+  unchanged. Privacy, legal mode rules and recorded decisions remain enforced.
+
 - 2026-11-03: Reviewed grounded audience consequences, private-event filtering,
   persisted reaction receipts and existing audience-feed feedback for epic #1711
   local phase 5. Mode access, product benefits, prices, minigame versions,

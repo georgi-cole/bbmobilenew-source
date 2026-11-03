@@ -1,3 +1,4 @@
+import { strategicPreferencesEnabled } from './strategicPolicy'
 import type { AppDispatch, RootState } from '../store/store'
 import { resolveStrategicModeContext } from './strategicModeContext'
 import { spendWeekendSocialResources } from '../store/gameSlice'
@@ -49,6 +50,7 @@ export function allianceManagementContext(
   }
   return {
     strategicMode: rules,
+    strategicPreferencesEnabled: strategicPreferencesEnabled(),
     classicGame: rules.format === 'classic',
     powerHolderIds: [
       ...rules.powers.lohIds,

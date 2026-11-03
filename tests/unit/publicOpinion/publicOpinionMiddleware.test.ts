@@ -7,6 +7,7 @@ import publicOpinionReducer, {
   setProfileApprovals,
 } from '../../../src/publicOpinion/publicOpinionSlice'
 import { publicOpinionMiddleware } from '../../../src/publicOpinion/publicOpinionMiddleware'
+import { publicOpinionConfig } from '../../../src/publicOpinion/publicOpinionConfig'
 import type { PublicDirection } from '../../../src/publicOpinion/types'
 
 interface TestGameState {
@@ -71,6 +72,17 @@ function gameReducer(
       ...(action.payload ?? {}),
     }
   }
+  return state
+}
+
+function socialReducer(
+  state = {
+    relationships: {
+      p1: { p2: { affinity: -20, tags: ['rival'] } },
+      p2: { p1: { affinity: -20, tags: ['rival'] } },
+    },
+  }
+) {
   return state
 }
 
@@ -153,6 +165,7 @@ describe('publicOpinionMiddleware', () => {
       reducer: {
         game: gameReducer,
         publicOpinion: publicOpinionReducer,
+        social: socialReducer,
       },
       middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(publicOpinionMiddleware),
       preloadedState: {
@@ -197,6 +210,7 @@ describe('publicOpinionMiddleware', () => {
       reducer: {
         game: gameReducer,
         publicOpinion: publicOpinionReducer,
+        social: socialReducer,
       },
       middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(publicOpinionMiddleware),
       preloadedState: {

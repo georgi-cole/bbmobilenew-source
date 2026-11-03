@@ -1,0 +1,48 @@
+[
+  {
+    "scenario": "pact",
+    "persona": "loyal_anchor",
+    "seeds": 256,
+    "classicAccepted": 127,
+    "voxAccepted": 92
+  },
+  {
+    "scenario": "group",
+    "persona": "loyal_anchor",
+    "seeds": 256,
+    "classicAccepted": 153,
+    "voxAccepted": 111
+  },
+  {
+    "scenario": "pact",
+    "persona": "opportunist",
+    "seeds": 256,
+    "classicAccepted": 133,
+    "voxAccepted": 115,
+    "discordant": 18
+  },
+  {
+    "scenario": "group",
+    "persona": "opportunist",
+    "seeds": 256,
+    "classicAccepted": 157,
+    "voxAccepted": 135,
+    "discordant": 22
+  },
+  {
+    "scenario": "pact",
+    "persona": "antihero",
+    "seeds": 256,
+    "classicAccepted": 126,
+    "voxAccepted": 106,
+    "discordant": 20
+  },
+  {
+    "scenario": "group",
+    "persona": "antihero",
+    "seeds": 256,
+    "classicAccepted": 153,
+    "voxAccepted": 120,
+    "discordant": 33
+  }
+]
