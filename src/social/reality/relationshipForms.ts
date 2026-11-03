@@ -9,7 +9,7 @@ import { appendRealityEvent } from './events'
 import { reconcileConvergedAllianceRosters } from './allianceRosterConvergence'
 import { remember } from './memory'
 import { applyRealityRelationshipChange, getRealityRelationship } from './relationships'
-import { recordGroundedJealousy } from './relationshipAutonomy'
+import { enforceNemesisAllianceConsistency, recordGroundedJealousy } from './relationshipAutonomy'
 import {
   allianceKind,
   getCurrentPact,
@@ -412,6 +412,8 @@ export function removeRealityAllianceMember(
     kind: RealityAllianceMembershipExitKind
     at: RealityClock
     sourceEventId?: string
+    /** Specific automatic ending; manual and eviction exits keep the existing reason. */
+    endReason?: string
     deferSuccession?: boolean
   }
 ): RealityAlliance {
@@ -512,7 +514,7 @@ export function removeRealityAllianceMember(
     alliance.fallbackTargetIds = []
     alliance.leaderIds = []
     alliance.endedAt = { ...input.at }
-    alliance.endReason = 'TOO_FEW_MEMBERS'
+    alliance.endReason = input.endReason ?? 'TOO_FEW_MEMBERS'
     alliance.memberIds = []
     synchronizeAllianceOfficers(alliance)
     appendRealityEvent(state, {
@@ -535,7 +537,7 @@ export function removeRealityAllianceMember(
         kind: allianceKind(alliance),
         ...(alliance.name ? { name: alliance.name } : {}),
         memberIds: formerMemberIds,
-        endReason: 'TOO_FEW_MEMBERS',
+        endReason: input.endReason ?? 'TOO_FEW_MEMBERS',
         exitKind: input.kind,
       },
       publicEligible: false,
@@ -1343,6 +1345,9 @@ export function createRealityAlliance(
     juryEligible: true,
   })
   strengthenRealityAllianceBonds(state, memberIds, input.at, event.id)
+  // A newly signed pact can be false pretense when one signatory secretly
+  // intends to undermine the other. Do not clear that private objective.
+  enforceNemesisAllianceConsistency(state)
   refreshRealityAllianceDynamics(alliance)
   rememberAllianceRoster(alliance)
   refreshRealityAllianceOverlaps(state)

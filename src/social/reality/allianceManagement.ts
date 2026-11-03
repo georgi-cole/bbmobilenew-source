@@ -289,6 +289,25 @@ function finalize(
       return
     }
     if (kind === 'PACT') {
+      // Once the hostility is exposed, a personal pact must remain broken
+      // until the Nemesis objective has actually been reconciled.
+      const exposedEnemy = Object.values(state.relationshipAutonomy.nemeses).some(
+        (nemesis) =>
+          nemesis.status === 'ACTIVE' &&
+          Boolean(nemesis.revealEventId) &&
+          request.memberIds.includes(nemesis.ownerId) &&
+          request.memberIds.includes(nemesis.targetId)
+      )
+      if (exposedEnemy) {
+        settle(
+          state,
+          request,
+          'INVALIDATED',
+          'Resolve the Nemesis conflict before signing another personal pact.',
+          context.at
+        )
+        return
+      }
       const existing = getCurrentPact(state, request.memberIds[0], request.memberIds[1])
       if (existing && existing.id !== request.basePactId) {
         settle(state, request, 'INVALIDATED', 'This personal pact already exists.', context.at)
@@ -660,6 +679,42 @@ function pactDecision(
   const loyalty = relationship?.loyalty ?? 0
   const respect = relationship?.respect ?? 0
   const strategicValue = relationship?.strategicValue ?? 0
+
+  const privateNemesis = Object.values(state.relationshipAutonomy.nemeses).find(
+    (nemesis) =>
+      nemesis.status === 'ACTIVE' && nemesis.ownerId === actorId && nemesis.targetId === proposerId
+  )
+  if (privateNemesis?.revealEventId) {
+    return {
+      accepted: false,
+      response: {
+        style: 'DECLINED',
+        reason: 'We cannot sign another personal pact while this conflict is unresolved.',
+      },
+    }
+  }
+  if (privateNemesis) {
+    // Nemeses don't sincerely commit on an ordinary trust roll. A strategically
+    // useful minority can play along, but the signed pact is flagged as false
+    // pretense when the Reality alliance is created.
+    const deceptiveOffer =
+      strategicValue >= 35 && allianceDecisionRoll(request, actorId, seed) < 0.18
+    return deceptiveOffer
+      ? {
+          accepted: true,
+          response: {
+            style: 'LIMITED',
+            reason: 'I can cooperate for now, but I will not promise blind loyalty.',
+          },
+        }
+      : {
+          accepted: false,
+          response: {
+            style: 'DECLINED',
+            reason: 'We have unresolved conflict. I cannot commit to this pact yet.',
+          },
+        }
+  }
 
   const proposerNetwork = new Set<string>()
   for (const alliance of Object.values(state.alliances)) {

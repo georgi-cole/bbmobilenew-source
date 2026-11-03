@@ -8,6 +8,7 @@ import type {
   RealityRelationshipIntentKind,
 } from './types'
 import { appendRealityEvent } from './events'
+import { allianceKind, isCurrentAlliance } from './allianceIdentity'
 
 export interface RelationshipStoryBeat {
   intent: RealityRelationshipIntentKind
@@ -249,6 +250,52 @@ export function getActiveRealityNemesis(
   )
 }
 
+/**
+ * An alliance may exist on paper while one member privately plots against another.
+ * Keep the official membership for history and gameplay, but never treat that
+ * commitment as genuine while a Nemesis objective is active.
+ */
+export function enforceNemesisAllianceConsistency(domain: RealityDomainState): void {
+  for (const nemesis of Object.values(domain.relationshipAutonomy.nemeses)) {
+    if (nemesis.status !== 'ACTIVE') continue
+    const compromised = new Set(nemesis.compromisedAllianceIds ?? [])
+    const initiatingEvent = domain.events.find((event) => event.id === nemesis.sourceEventId)
+    const knownConflict =
+      initiatingEvent !== undefined &&
+      initiatingEvent.visibility !== 'PRIVATE' &&
+      initiatingEvent.visibility !== 'JURY_ONLY' &&
+      (initiatingEvent.participantIds.includes(nemesis.targetId) ||
+        initiatingEvent.witnessIds.includes(nemesis.targetId) ||
+        initiatingEvent.visibility === 'HOUSE_PUBLIC' ||
+        initiatingEvent.visibility === 'CEREMONY_PUBLIC')
+
+    for (const alliance of Object.values(domain.alliances)) {
+      if (
+        !isCurrentAlliance(alliance) ||
+        !alliance.memberIds.includes(nemesis.ownerId) ||
+        !alliance.memberIds.includes(nemesis.targetId)
+      ) {
+        continue
+      }
+
+      if (!alliance.infiltratorIds.includes(nemesis.ownerId)) {
+        alliance.infiltratorIds.push(nemesis.ownerId)
+        compromised.add(alliance.id)
+      }
+      alliance.genuine = false
+      alliance.memberCommitment[nemesis.ownerId] = Math.min(
+        alliance.memberCommitment[nemesis.ownerId] ?? 0.5,
+        0.28
+      )
+      alliance.fractureRisk = Math.max(alliance.fractureRisk, 0.55)
+      // A witnessed feud makes a two-person pact openly broken; a secret
+      // grudge instead remains a plausible false-pretense alliance.
+      if (knownConflict && allianceKind(alliance) === 'PACT') alliance.status = 'FRACTURED'
+    }
+    nemesis.compromisedAllianceIds = [...compromised]
+  }
+}
+
 /** Starts one specialised, persistent anti-player objective after a real
  * escalated conflict. A target may have only one active Nemesis at a time. */
 export function createRealityNemesisObjective(
@@ -259,6 +306,7 @@ export function createRealityNemesisObjective(
     sourceEventId: string
     at: RealityClock
     reason?: RealityNemesisObjective['reason']
+    triggerEventId?: string
   }
 ): RealityNemesisObjective {
   const existingForTarget = Object.values(domain.relationshipAutonomy.nemeses).find(
@@ -271,11 +319,13 @@ export function createRealityNemesisObjective(
     ownerId: input.ownerId,
     targetId: input.targetId,
     sourceEventId: input.sourceEventId,
+    ...(input.triggerEventId ? { triggerEventId: input.triggerEventId } : {}),
     reason: input.reason ?? 'PERSONAL_FRICTION',
     createdAt: input.at,
     status: 'ACTIVE',
   }
   domain.relationshipAutonomy.nemeses[id] = objective
+  enforceNemesisAllianceConsistency(domain)
   const intent = advanceRelationshipAutonomy(domain, {
     ownerId: input.ownerId,
     targetId: input.targetId,
@@ -349,7 +399,43 @@ export function startAutonomousNemesisIfReady(
     ).length *
       8
   const candidates = [...new Set(input.candidateIds)]
-    .filter((candidateId) => candidateId !== input.targetId)
+    .filter((candidateId) => {
+      if (candidateId === input.targetId) return false
+      const edge = domain.relationships[candidateId]?.[input.targetId]
+      const grievance = Object.values(domain.grievances).some(
+        (item) =>
+          item.holderId === candidateId &&
+          item.againstId === input.targetId &&
+          item.status !== 'RESOLVED' &&
+          item.severity >= 60
+      )
+      const groundedConflict =
+        grievance ||
+        Boolean(
+          edge &&
+          edge.negativeAnchorEventIds.length > 0 &&
+          ((edge.resentment >= 42 && edge.perceivedThreat >= 25) ||
+            (edge.suspicion >= 45 && edge.trust <= 0) ||
+            (['RIVAL', 'ENEMY'].includes(edge.perceivedLabel) && edge.resentment >= 25))
+        )
+      if (!groundedConflict) return false
+      // A genuine working ally can feel threatened, but rivalry must first be
+      // supported by a concrete betrayal rather than a volatile random roll.
+      const sharedAlliance = Object.values(domain.alliances).some(
+        (alliance) =>
+          isCurrentAlliance(alliance) &&
+          alliance.memberIds.includes(candidateId) &&
+          alliance.memberIds.includes(input.targetId) &&
+          alliance.genuine
+      )
+      if (!sharedAlliance) return true
+      return domain.events.some(
+        (event) =>
+          event.type === 'ALLIANCE_BETRAYAL' &&
+          ((event.actorId === candidateId && event.targetIds.includes(input.targetId)) ||
+            (event.actorId === input.targetId && event.targetIds.includes(candidateId)))
+      )
+    })
     .map((candidateId) => {
       const edge = domain.relationships[candidateId]?.[input.targetId]
       const attraction = edge?.attraction ?? 0
@@ -390,7 +476,9 @@ export function startAutonomousNemesisIfReady(
     type: 'NEMESIS_OBJECTIVE_FORMED',
     actorId: selected.candidateId,
     targetIds: [input.targetId],
-    participantIds: [selected.candidateId, input.targetId],
+    // The target is not a participant in a private thought. Keeping them in
+    // participantIds previously made this hidden objective readable as intel.
+    participantIds: [selected.candidateId],
     witnessIds: [],
     visibility: 'PRIVATE',
     outcome: 'SYSTEM',
@@ -402,17 +490,101 @@ export function startAutonomousNemesisIfReady(
     publicEligible: false,
     juryEligible: false,
   })
+  const candidateEdge = domain.relationships[selected.candidateId]?.[input.targetId]
+  const negativeAnchors = new Set(candidateEdge?.negativeAnchorEventIds ?? [])
+  const realTrigger = [...domain.events]
+    .reverse()
+    .find(
+      (candidate) =>
+        candidate.id !== event.id &&
+        negativeAnchors.has(candidate.id) &&
+        candidate.day <= input.at.day &&
+        (candidate.participantIds.includes(selected.candidateId) ||
+          candidate.actorId === selected.candidateId ||
+          candidate.targetIds.includes(selected.candidateId))
+    )
+  const grievanceTrigger = Object.values(domain.grievances)
+    .filter(
+      (item) =>
+        item.holderId === selected.candidateId &&
+        item.againstId === input.targetId &&
+        item.status !== 'RESOLVED' &&
+        domain.events.some((candidate) => candidate.id === item.causeEventId)
+    )
+    .sort((a, b) => b.severity - a.severity)[0]
   return createRealityNemesisObjective(domain, {
     ownerId: selected.candidateId,
     targetId: input.targetId,
     sourceEventId: event.id,
+    ...(realTrigger
+      ? { triggerEventId: realTrigger.id }
+      : grievanceTrigger
+        ? { triggerEventId: grievanceTrigger.causeEventId }
+        : {}),
     at: input.at,
     reason: selected.reason,
   })
 }
 
-/** The reconciliation is intentionally exact: the Nemesis target must be the
- * voluntary Safety holder and must save the Nemesis, never themselves. */
+/**
+ * Resolve one Nemesis objective and the underlying AI storyline together.
+ * Reconciliation must remove its special pursuit behaviour, not just the label.
+ */
+function settleNemesis(
+  domain: RealityDomainState,
+  nemesis: RealityNemesisObjective,
+  eventId: string,
+  at: RealityClock,
+  stage: 'RECONCILED_BY_SAFETY' | 'RECONCILED_BY_REPAIR'
+): void {
+  nemesis.status = 'RECONCILED'
+  nemesis.reconciledAt = at
+  nemesis.reconciliationEventId = eventId
+  const intent =
+    domain.relationshipAutonomy.intents[intentId(nemesis.ownerId, nemesis.targetId, 'UNDERMINE')]
+  if (intent) {
+    intent.status = 'RESOLVED'
+    intent.continuationPressure = 0
+    intent.lastAdvancedAt = at
+    intent.supportingEventIds = [...new Set([...intent.supportingEventIds, eventId])]
+  }
+  const thread = domain.threads[`nemesis-thread:${nemesis.ownerId}:${nemesis.targetId}`]
+  if (thread) {
+    thread.status = 'RESOLVED'
+    thread.stage = stage
+    thread.urgency = 0
+  }
+
+  for (const allianceId of nemesis.compromisedAllianceIds ?? []) {
+    const alliance = domain.alliances[allianceId]
+    if (!alliance) continue
+    alliance.infiltratorIds = alliance.infiltratorIds.filter((id) => id !== nemesis.ownerId)
+    if (alliance.infiltratorIds.length === 0) alliance.genuine = true
+    // Fractured pacts only recover through the normal relationship/alliance
+    // healing lifecycle, not automatically on a successful apology.
+  }
+  for (const edge of [
+    domain.relationships[nemesis.ownerId]?.[nemesis.targetId],
+    domain.relationships[nemesis.targetId]?.[nemesis.ownerId],
+  ]) {
+    if (edge && (edge.perceivedLabel === 'RIVAL' || edge.perceivedLabel === 'ENEMY')) {
+      edge.perceivedLabel = 'UNEASY_TRUCE'
+    }
+  }
+
+  recordRelationshipEvidence(domain, {
+    id: `relationship-evidence:${eventId}:${nemesis.ownerId}:${nemesis.targetId}:reconciled`,
+    ownerId: nemesis.ownerId,
+    targetId: nemesis.targetId,
+    family: stage === 'RECONCILED_BY_SAFETY' ? 'PROTECTION' : 'REPAIR',
+    eventId,
+    day: at.day,
+    reciprocal: true,
+    significance: 1,
+  })
+}
+
+/** A voluntary rescue of the Nemesis by the targeted player is decisive. */
 export function reconcileNemesisWithVoluntarySafety(
   domain: RealityDomainState,
   input: { actorId?: string; savedIds: readonly string[]; eventId: string; at: RealityClock }
@@ -428,33 +600,48 @@ export function reconcileNemesisWithVoluntarySafety(
     ) {
       continue
     }
-    nemesis.status = 'RECONCILED'
-    nemesis.reconciledAt = input.at
-    nemesis.reconciliationEventId = input.eventId
-    const intent =
-      domain.relationshipAutonomy.intents[intentId(nemesis.ownerId, nemesis.targetId, 'UNDERMINE')]
-    if (intent) {
-      intent.status = 'RESOLVED'
-      intent.continuationPressure = 0
-      intent.lastAdvancedAt = input.at
-      intent.supportingEventIds = [...new Set([...intent.supportingEventIds, input.eventId])]
+    settleNemesis(domain, nemesis, input.eventId, input.at, 'RECONCILED_BY_SAFETY')
+    reconciled.push(nemesis)
+  }
+  return reconciled
+}
+
+/**
+ * Sustained, accepted repair can also end a feud. A single apology cannot
+ * erase an active rivalry: two distinct days of reciprocal repair plus a
+ * materially improved opinion from the hostile player are required.
+ */
+export function reconcileNemesisAfterSustainedRepair(
+  domain: RealityDomainState,
+  input: { actorId: string; targetId: string; eventId: string; at: RealityClock }
+): RealityNemesisObjective[] {
+  const reconciled: RealityNemesisObjective[] = []
+  for (const nemesis of Object.values(domain.relationshipAutonomy.nemeses)) {
+    if (
+      nemesis.status !== 'ACTIVE' ||
+      !(
+        (nemesis.ownerId === input.actorId && nemesis.targetId === input.targetId) ||
+        (nemesis.ownerId === input.targetId && nemesis.targetId === input.actorId)
+      )
+    ) {
+      continue
     }
-    const thread = domain.threads[`nemesis-thread:${nemesis.ownerId}:${nemesis.targetId}`]
-    if (thread) {
-      thread.status = 'RESOLVED'
-      thread.stage = 'RECONCILED_BY_SAFETY'
-      thread.urgency = 0
-    }
-    recordRelationshipEvidence(domain, {
-      id: `relationship-evidence:${input.eventId}:${nemesis.ownerId}:${nemesis.targetId}:safety`,
-      ownerId: nemesis.ownerId,
-      targetId: nemesis.targetId,
-      family: 'PROTECTION',
-      eventId: input.eventId,
-      day: input.at.day,
-      reciprocal: true,
-      significance: 1,
-    })
+    const edge = domain.relationships[nemesis.ownerId]?.[nemesis.targetId]
+    if (!edge || edge.trust < 18 || edge.resentment > 25 || edge.suspicion > 35) continue
+    const repairDays = new Set(
+      Object.values(domain.relationshipAutonomy.evidence)
+        .filter(
+          (evidence) =>
+            evidence.family === 'REPAIR' &&
+            evidence.reciprocal &&
+            evidence.day >= nemesis.createdAt.day &&
+            ((evidence.ownerId === nemesis.ownerId && evidence.targetId === nemesis.targetId) ||
+              (evidence.ownerId === nemesis.targetId && evidence.targetId === nemesis.ownerId))
+        )
+        .map((evidence) => evidence.day)
+    )
+    if (repairDays.size < 2 || edge.positiveAnchorEventIds.length === 0) continue
+    settleNemesis(domain, nemesis, input.eventId, input.at, 'RECONCILED_BY_REPAIR')
     reconciled.push(nemesis)
   }
   return reconciled
@@ -752,6 +939,14 @@ export function resolveRelationshipStoryResponse(
     reciprocal: accepted,
     significance: accepted ? 0.6 : deferred ? 0.3 : 0.45,
   })
+  if (kind === 'REPAIR' && accepted) {
+    reconcileNemesisAfterSustainedRepair(domain, {
+      actorId: input.ownerId,
+      targetId: input.targetId,
+      eventId: input.eventId,
+      at: input.at,
+    })
+  }
   if (input.responseType === 'decline' || input.responseType === 'negative') {
     const category =
       kind === 'EXPLORE_ROMANCE' || kind === 'MAINTAIN_ROMANCE'

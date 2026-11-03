@@ -5,12 +5,17 @@ import {
   createDirectedRelationship,
   createInitialRealityDomainState,
   createRealityAlliance,
+  createRealityNemesisObjective,
   learnRealityFact,
+  normalizeRealityDomainState,
+  recordRelationshipEvidence,
+  reconcileNemesisWithVoluntarySafety,
   recordRealityAllianceBetrayal,
   recordRealityAllianceDiscovery,
 } from '../../../social/reality'
 import type { Player } from '../../../types'
 import RealityLedger from '../RealityLedger'
+import { advanceNemesisNarrative } from '../../../social/reality/nemesisNarrative'
 
 const players = [
   { id: 'human', name: 'You', status: 'active', isUser: true },
@@ -20,6 +25,84 @@ const players = [
 ] as Player[]
 
 describe('RealityLedger privacy projection', () => {
+  it('keeps an unrevealed Nemesis out of Hub stories even with unrelated bond evidence', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityNemesisObjective(reality, {
+      ownerId: 'lia',
+      targetId: 'human',
+      sourceEventId: 'private-hostility',
+      reason: 'SOCIAL_REACH',
+      at: { day: 3, phase: 'social_1' },
+    })
+    // Being friendly once is not evidence that Lia secretly wants to undermine us.
+    recordRelationshipEvidence(reality, {
+      id: 'unrelated-bond',
+      ownerId: 'lia',
+      targetId: 'human',
+      family: 'BOND',
+      eventId: 'public-compliment',
+      day: 2,
+      reciprocal: true,
+      significance: 0.2,
+    })
+    const { rerender } = render(
+      <RealityLedger reality={reality} players={players} humanId="human" section="house" />
+    )
+    expect(screen.getByText('No known Hub story is active.')).toBeInTheDocument()
+    expect(screen.queryByText('A strategic conflict')).toBeNull()
+    expect(screen.queryByText('Player Nemesis')).toBeNull()
+
+    const story = {
+      humanId: 'human',
+      playerNames: { human: 'You', lia: 'Lia', kai: 'Kai' },
+      activePlayerIds: new Set(['human', 'lia', 'kai']),
+    }
+    expect(advanceNemesisNarrative(reality, { ...story, day: 3, phase: 'social_2' })[0]?.kind).toBe(
+      'clue'
+    )
+    expect(advanceNemesisNarrative(reality, { ...story, day: 4, phase: 'social_1' })[0]?.kind).toBe(
+      'reveal'
+    )
+    rerender(
+      <RealityLedger
+        reality={normalizeRealityDomainState(reality)}
+        players={players}
+        humanId="human"
+        section="house"
+      />
+    )
+    expect(screen.getByText('A strategic conflict')).toBeInTheDocument()
+    expect(screen.getByText('Player Nemesis')).toBeInTheDocument()
+  })
+
+  it('keeps a known, resolved Nemesis story visible without showing an active enemy', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityNemesisObjective(reality, {
+      ownerId: 'lia',
+      targetId: 'human',
+      sourceEventId: 'private-grudge',
+      reason: 'PERSONAL_FRICTION',
+      at: { day: 3, phase: 'social_1' },
+    })
+    reconcileNemesisWithVoluntarySafety(reality, {
+      actorId: 'human',
+      savedIds: ['lia'],
+      eventId: 'rescued-lia',
+      at: { day: 3, phase: 'pos_ceremony_results' },
+    })
+    const epilogue = advanceNemesisNarrative(reality, {
+      humanId: 'human',
+      day: 4,
+      phase: 'social_1',
+      playerNames: { human: 'You', lia: 'Lia' },
+      activePlayerIds: new Set(['human', 'lia']),
+    })
+    expect(epilogue[0]?.text).toContain('once saw you as a rival')
+    render(<RealityLedger reality={reality} players={players} humanId="human" section="house" />)
+    expect(screen.getByText('Player Nemesis')).toBeInTheDocument()
+    expect(screen.getByText('A strategic conflict')).toBeInTheDocument()
+  })
+
   it('does not describe all relationships as still forming after the opening days', () => {
     render(
       <RealityLedger

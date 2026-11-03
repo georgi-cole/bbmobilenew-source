@@ -118,20 +118,59 @@ export function registerProvocateurConflict(
   const activeNemesisForTarget = Object.values(domain.relationshipAutonomy.nemeses).some(
     (nemesis) => nemesis.targetId === input.targetId && nemesis.status === 'ACTIVE'
   )
-  const nemesis = activeNemesisForTarget
-    ? null
-    : createRealityNemesisObjective(domain, {
-        ownerId: input.actorId,
-        targetId: input.targetId,
-        sourceEventId,
-        at: input.at,
-        reason:
-          input.cause === 'COMPETITION_THREAT'
-            ? 'COMPETITION_THREAT'
-            : input.cause === 'SOCIAL_REACH'
-              ? 'SOCIAL_REACH'
-              : 'PERSONAL_FRICTION',
-      })
+  // One public disagreement with a genuine ally is a rivalry, not yet a
+  // season-long Nemesis. Betrayal can escalate a shared pact into that role.
+  const sharesGenuineAlliance = Object.values(domain.alliances).some(
+    (alliance) =>
+      alliance.status !== 'DISSOLVED' &&
+      alliance.genuine &&
+      alliance.memberIds.includes(input.actorId) &&
+      alliance.memberIds.includes(input.targetId)
+  )
+  const hasBetrayal = domain.events.some(
+    (event) =>
+      event.type === 'ALLIANCE_BETRAYAL' &&
+      ((event.actorId === input.actorId && event.targetIds.includes(input.targetId)) ||
+        (event.actorId === input.targetId && event.targetIds.includes(input.actorId)))
+  )
+  if (sharesGenuineAlliance && !hasBetrayal) {
+    // An open argument should visibly strain the commitment and reduce the
+    // provocateur's protection bias, without inventing a lifelong enemy yet.
+    for (const alliance of Object.values(domain.alliances)) {
+      if (
+        alliance.status === 'DISSOLVED' ||
+        !alliance.memberIds.includes(input.actorId) ||
+        !alliance.memberIds.includes(input.targetId)
+      ) {
+        continue
+      }
+      alliance.memberCommitment[input.actorId] = Math.max(
+        0,
+        (alliance.memberCommitment[input.actorId] ?? 0.5) - 0.14
+      )
+      alliance.memberCommitment[input.targetId] = Math.max(
+        0,
+        (alliance.memberCommitment[input.targetId] ?? 0.5) - 0.06
+      )
+      alliance.fractureRisk = Math.max(alliance.fractureRisk, 0.45)
+      if (alliance.memberIds.length === 2) alliance.status = 'FRACTURED'
+    }
+  }
+  const nemesis =
+    activeNemesisForTarget || (sharesGenuineAlliance && !hasBetrayal)
+      ? null
+      : createRealityNemesisObjective(domain, {
+          ownerId: input.actorId,
+          targetId: input.targetId,
+          sourceEventId,
+          at: input.at,
+          reason:
+            input.cause === 'COMPETITION_THREAT'
+              ? 'COMPETITION_THREAT'
+              : input.cause === 'SOCIAL_REACH'
+                ? 'SOCIAL_REACH'
+                : 'PERSONAL_FRICTION',
+        })
 
   return {
     eventId: sourceEventId,

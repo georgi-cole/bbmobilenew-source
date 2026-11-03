@@ -15,6 +15,7 @@ import {
   selectCanonicalRelationshipView,
 } from '../../social/relationshipSemantics'
 import { getRealityAllianceKnowledgeView } from '../../social/reality'
+import { allianceDisplayLabel } from '../../social/reality/allianceIdentity'
 import type {
   TieBreakerAllianceAdvice,
   TieBreakerRecommendation,
@@ -94,9 +95,19 @@ function ReadSheet({
     : affinity === undefined
       ? 'Still forming'
       : getRelationshipLabel(affinity).label
-  const alliance = relationship.alliance?.operational
-    ? getRealityAllianceKnowledgeView(social.reality, relationship.alliance.id, humanId)
-    : null
+  const allianceRecord = relationship.alliance
+    ? social.reality.alliances[relationship.alliance.id]
+    : undefined
+  const alliance =
+    allianceRecord && allianceRecord.status !== 'DISSOLVED'
+      ? getRealityAllianceKnowledgeView(social.reality, allianceRecord.id, humanId)
+      : null
+  const knownConflict =
+    relationship.isNemesis || ['RIVAL', 'ENEMY', 'ESTRANGED'].includes(edge?.perceivedLabel ?? '')
+  const allianceCaption =
+    allianceRecord && (knownConflict || allianceRecord.status === 'FRACTURED')
+      ? `${allianceDisplayLabel(allianceRecord, knownConflict)}${alliance?.displayName ? ` · ${alliance.displayName}` : ''}`
+      : (alliance?.displayName ?? 'Shared alliance')
   const intel = realityMode
     ? getIntelLeadViews(social.reality, humanId, game.players, game.week).filter((lead) =>
         lead.subjectIds.includes(target.id)
@@ -182,9 +193,7 @@ function ReadSheet({
             <h3>{target.name}</h3>
             <p>{label}</p>
             {alliance && alliance.level === 'MEMBER' && (
-              <span className="rcd-read-sheet__alliance">
-                {alliance.displayName ?? 'Shared alliance'}
-              </span>
+              <span className="rcd-read-sheet__alliance">{allianceCaption}</span>
             )}
           </div>
         </div>

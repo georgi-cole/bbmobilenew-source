@@ -66,6 +66,7 @@ import SurvivorDebugControls from './SurvivorDebugControls'
 import DebugDiagnostics from './DebugDiagnostics'
 import SimulationDebugControls from './SimulationDebugControls'
 import WalletDebugControls from './WalletDebugControls'
+import NemesisPreviewDebugControls from './NemesisPreviewDebugControls'
 import PregnancyDebugControls from './PregnancyDebugControls'
 import { isDebugAccessGranted, persistDebugAccess } from '../../utils/debugMode'
 import type { ForcedShockType, Phase } from '../../types'
@@ -1339,6 +1340,7 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
             {/* ── Incoming Interaction Debugging ── */}
             <section className="dbg-section" id="dbg-social">
               <PregnancyDebugControls />
+              <NemesisPreviewDebugControls onLoaded={() => setIsOpen(false)} />
 
               <h3 className="dbg-section__title">Incoming Interactions</h3>
               <div className="dbg-row">

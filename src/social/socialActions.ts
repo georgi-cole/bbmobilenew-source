@@ -643,6 +643,18 @@ export const SOCIAL_ACTIONS: SocialActionDefinition[] = [
     ],
   },
   {
+    id: 'ask_nemesis_reason',
+    title: 'Why Betray Me?',
+    icon: '❔',
+    description: 'Privately ask why this hubmate turned against you.',
+    category: 'strategic',
+    kind: 'intel_gain',
+    baseCost: { energy: 1 },
+    dramaCost: { energy: 1 },
+    targetMode: 'primary',
+    dramaOnly: true,
+  },
+  {
     id: 'ask_why_nominated',
     title: 'Ask Why You Were Nominated',
     icon: '❓',

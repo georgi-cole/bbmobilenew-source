@@ -6,6 +6,8 @@ import {
   applyEnergyDelta,
   applyInfoDelta,
   applyInfluenceDelta,
+  commitRealityDomainUpdate,
+  recordSocialAction,
   finalizeSocialActionReceipt,
   replaceRealityDomain,
   replaceRealitySimulation,
@@ -33,6 +35,7 @@ import {
   holdRealityAllianceStrategyMeeting,
 } from './relationshipForms'
 import { appendRealityEvent } from './events'
+import { askRevealedNemesisWhy, getNemesisReasonAvailability } from './nemesisInquiry'
 import { buildPreNominationLohRead } from './allianceConsultationIntel'
 import { formatLohNominationPlanCopy } from '../lohNominationPlanCopy'
 import { formatVagueLohPlan, isBeforeInitialNominations } from '../lohConsultationCopy'
@@ -2034,6 +2037,88 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
         ...classicResult,
         summary: buildLohConsultationSummary(getState(), input, classicResult.summary),
       }
+    }
+
+    // Context-only private Nemesis inquiry is resolved by its persisted story,
+    // not a generic random Social action. It cannot be batched, spoofed with
+    // free costOverrides, charged twice, or used before the identity is known.
+    if (input.actionId === 'ask_nemesis_reason') {
+      const availability = getNemesisReasonAvailability(
+        state.social.reality,
+        input.actorId,
+        input.targetId,
+        state.game.week
+      )
+      const actor = state.game.players.find((player) => player.id === input.actorId)
+      const target = state.game.players.find((player) => player.id === input.targetId)
+      if (
+        !actor?.isUser ||
+        !target ||
+        target.status === 'evicted' ||
+        target.status === 'jury' ||
+        targetIds.length !== 1 ||
+        !availability.eligible
+      ) {
+        return result(false, availability.reason || 'This conversation is unavailable.', energy)
+      }
+      if (state.game.weekendInterlude?.active) {
+        return result(false, 'This conversation must happen during regular Social time.', energy)
+      }
+      if (energy < 1) {
+        return result(false, 'You need 1 Social Energy. Nothing was spent.', energy)
+      }
+      const draft = createDraft(state.social.reality)
+      const answer = askRevealedNemesisWhy(draft, {
+        humanId: input.actorId,
+        targetId: input.targetId,
+        name: target.name,
+        at: { day: state.game.week, phase: state.game.phase },
+        seed: state.game.seed ?? 0,
+        identity: target.aiGameIdentity,
+        playerNames: Object.fromEntries(
+          state.game.players.map((player) => [player.id, player.name])
+        ),
+      })
+      if (!answer) {
+        finishDraft(draft)
+        return result(false, 'That question is no longer available.', energy)
+      }
+      dispatch(commitRealityDomainUpdate({ domain: finishDraft(draft) }))
+      dispatch(applyEnergyDelta({ playerId: input.actorId, delta: -1 }))
+      const after = getState()
+      const remaining = after.social.energyBank[input.actorId] ?? 0
+      dispatch(
+        recordSocialAction({
+          entry: {
+            actionId: input.actionId,
+            actorId: input.actorId,
+            targetId: input.targetId,
+            cost: 1,
+            costs: { energy: 1, influence: 0, info: 0 },
+            newEnergy: remaining,
+            balancesAfter: {
+              energy: remaining,
+              influence: after.social.influenceBank[input.actorId] ?? 0,
+              info: after.social.infoBank[input.actorId] ?? 0,
+            },
+            delta: 0,
+            outcome: answer.answered ? 'success' : 'failure',
+            label: answer.answered ? 'Explained' : 'Refused',
+            score: 0,
+            timestamp: Date.now(),
+            week: state.game.week,
+            phase: state.game.phase,
+            source: 'manual',
+            narrative: answer.text,
+            receipt: {
+              summary: answer.text,
+              outcomeLabel: answer.answered ? 'Explained' : 'Refused',
+              tone: answer.answered ? 'neutral' : 'warning',
+            },
+          },
+        })
+      )
+      return result(true, answer.text, remaining, 0, answer.answered ? 'Explained' : 'Refused')
     }
 
     const contract = getRealityActionContract(input.actionId)

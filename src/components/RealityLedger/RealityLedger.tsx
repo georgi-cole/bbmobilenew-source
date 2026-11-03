@@ -24,6 +24,7 @@ import {
 } from './relationshipRead'
 import {
   RELATIONSHIP_FORMING_GRACE_DAYS,
+  isNemesisDisclosedTo,
   selectCanonicalRelationshipView,
 } from '../../social/relationshipSemantics'
 import { getRealityRelationshipLabel } from '../SocialPanelV2/relationshipUtils'
@@ -237,13 +238,19 @@ export default function RealityLedger({
           !thread.type.startsWith('RELATIONSHIP_') &&
           (thread.participantIds.includes(humanId) || thread.observerIds.includes(humanId)) &&
           (thread.type !== 'PLAYER_NEMESIS' ||
-            Object.values(reality.relationshipAutonomy.evidence).some(
-              (evidence) =>
-                evidence.ownerId === thread.participantIds[0] &&
-                evidence.targetId === thread.participantIds[1]
+            isNemesisDisclosedTo(
+              reality,
+              humanId,
+              thread.participantIds.find((id) => id !== humanId) ?? ''
+            ) ||
+            reality.events.some(
+              (event) =>
+                ['NEMESIS_REVEALED', 'NEMESIS_RECONCILIATION_REVEALED'].includes(event.type) &&
+                event.participantIds.includes(humanId) &&
+                thread.participantIds.every((id) => event.participantIds.includes(id))
             ))
       ),
-    [humanId, reality.relationshipAutonomy.evidence, reality.threads]
+    [humanId, reality]
   )
   const knownRelationshipStories = useMemo(() => {
     const directEvidence = new Set(
@@ -252,17 +259,29 @@ export default function RealityLedger({
         .map((entry) => `${entry.ownerId}:${entry.targetId}`)
     )
     return Object.values(reality.relationshipAutonomy.intents)
-      .filter(
-        (intent) =>
-          intent.status !== 'CLOSED' &&
-          (intent.ownerId === humanId || intent.targetId === humanId) &&
-          directEvidence.has(`${intent.ownerId}:${intent.targetId}`)
-      )
+      .filter((intent) => {
+        if (intent.status === 'CLOSED') return false
+        if (intent.ownerId !== humanId && intent.targetId !== humanId) return false
+        const revealed =
+          intent.kind === 'UNDERMINE' &&
+          intent.ownerId !== humanId &&
+          (isNemesisDisclosedTo(reality, humanId, intent.ownerId) ||
+            reality.events.some(
+              (event) =>
+                ['NEMESIS_REVEALED', 'NEMESIS_RECONCILIATION_REVEALED'].includes(event.type) &&
+                event.actorId === intent.ownerId &&
+                event.targetIds.includes(humanId)
+            ))
+        // Ordinary relationship evidence must never reveal an antagonist's
+        // private UNDERMINE objective before their actual story discovery.
+        if (intent.kind === 'UNDERMINE' && intent.ownerId !== humanId) return revealed
+        return directEvidence.has(`${intent.ownerId}:${intent.targetId}`)
+      })
       .sort(
         (left, right) =>
           right.lastAdvancedAt.day - left.lastAdvancedAt.day || right.importance - left.importance
       )
-  }, [humanId, reality.relationshipAutonomy])
+  }, [humanId, reality])
   const alliances = useMemo(
     () =>
       Object.values(reality.alliances)

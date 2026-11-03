@@ -334,9 +334,23 @@ export interface RealityNemesisObjective {
   sourceEventId: string
   reason: 'COMPETITION_THREAT' | 'SOCIAL_REACH' | 'PERSONAL_FRICTION' | 'JEALOUSY' | 'VOLATILE_READ'
   createdAt: RealityClock
-  status: 'ACTIVE' | 'RECONCILED'
+  status: 'ACTIVE' | 'RECONCILED' | 'ENDED'
   reconciledAt?: RealityClock
   reconciliationEventId?: string
+  /** A private objective becomes public knowledge only after an observable event. */
+  clueAt?: RealityClock
+  clueEventId?: string
+  revealedAt?: RealityClock
+  revealEventId?: string
+  /** The evidence linked to the hostility when it became an objective. */
+  triggerEventId?: string
+  /** Durable private explanation; source events may later leave the rolling feed. */
+  motiveText?: string
+  /** The player may ask once per day until the rival actually answers. */
+  reasonLastAskedDay?: number
+  reasonDisclosedAt?: RealityClock
+  /** Alliances whose false-pretense state was introduced by this objective. */
+  compromisedAllianceIds?: string[]
 }
 
 export interface RealityRelationshipAutonomyState {

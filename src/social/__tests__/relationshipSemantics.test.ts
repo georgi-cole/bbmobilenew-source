@@ -4,6 +4,8 @@ import {
   applyRealityRelationshipChange,
   createInitialRealityDomainState,
   createRealityAlliance,
+  createRealityNemesisObjective,
+  normalizeRealityDomainState,
   createRealityGrievance,
   recordRealityAllianceBetrayal,
 } from '../reality'
@@ -14,6 +16,8 @@ import {
   selectCanonicalAlliance,
 } from '../relationshipSemantics'
 import socialReducer, { replaceRealityDomain } from '../socialSlice'
+import { appendRealityEvent } from '../reality/events'
+import { advanceNemesisNarrative } from '../reality/nemesisNarrative'
 
 function addAlliance(
   reality: ReturnType<typeof createInitialRealityDomainState>,
@@ -218,6 +222,131 @@ describe('canonical relationship presentation', () => {
     const view = pairView(reality)
     expect(view.visibleTags.has('rivalry')).toBe(true)
     expect(view.visibleTags.has('betrayal')).toBe(false)
+  })
+
+  it('does not expose a secret Nemesis inside an official alliance until a witnessed conflict', () => {
+    const reality = createInitialRealityDomainState()
+    const pact = createRealityAlliance(reality, {
+      id: 'echo-pact',
+      founderIds: ['human', 'echo'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: 2, phase: 'social_1' },
+    })
+    pact.status = 'ACTIVE'
+    createRealityNemesisObjective(reality, {
+      ownerId: 'echo',
+      targetId: 'human',
+      sourceEventId: 'private-grudge',
+      at: { day: 3, phase: 'social_1' },
+    })
+
+    const hiddenView = selectCanonicalRelationshipView({
+      reality,
+      actorId: 'human',
+      targetId: 'echo',
+    })
+    expect(hiddenView.isNemesis).toBe(false)
+    expect(hiddenView.visibleTags.has('rivalry')).toBe(false)
+    expect(hiddenView.alliance?.id).toBe('echo-pact')
+    expect(pact.genuine).toBe(false)
+    expect(pact.infiltratorIds).toContain('echo')
+    expect(
+      getCanonicalRelationshipLabel(
+        reality.relationships.human?.echo,
+        hiddenView.alliance?.operational,
+        3,
+        hiddenView.isNemesis
+      )
+    ).not.toBe('Nemesis')
+
+    appendRealityEvent(reality, {
+      day: 4,
+      phase: 'social_1',
+      type: 'PROVOCATEUR_CONFLICT_STARTED',
+      actorId: 'echo',
+      targetIds: ['human'],
+      participantIds: ['echo', 'human'],
+      witnessIds: [],
+      visibility: 'PAIR_ONLY',
+      outcome: 'SYSTEM',
+      reason: 'Echo publicly challenged your game',
+      tags: ['CONFLICT'],
+      relatedFactIds: [],
+      relatedPromiseIds: [],
+      relatedThreadIds: [],
+      publicEligible: false,
+      juryEligible: false,
+    })
+    // A visible argument is evidence of rivalry, not automatic proof of a
+    // privately assigned Nemesis. The named objective is disclosed only when
+    // the corresponding story reveal is actually delivered.
+    expect(
+      selectCanonicalRelationshipView({
+        reality,
+        actorId: 'human',
+        targetId: 'echo',
+      }).isNemesis
+    ).toBe(false)
+    const reveal = advanceNemesisNarrative(reality, {
+      humanId: 'human',
+      day: 4,
+      phase: 'social_2',
+      playerNames: { human: 'You', echo: 'Echo' },
+      activePlayerIds: new Set(['human', 'echo']),
+    })
+    expect(reveal[0]?.kind).toBe('reveal')
+    const revealedView = selectCanonicalRelationshipView({
+      reality,
+      actorId: 'human',
+      targetId: 'echo',
+    })
+    expect(revealedView.isNemesis).toBe(true)
+    expect(revealedView.visibleTags.has('rivalry')).toBe(true)
+    expect(
+      getCanonicalRelationshipLabel(
+        reality.relationships.human?.echo,
+        revealedView.alliance?.operational,
+        4,
+        revealedView.isNemesis
+      )
+    ).toBe('Nemesis')
+    expect(pact.status).toBe('DISSOLVED')
+    expect(pact.memberIds).toEqual([])
+    expect(revealedView.alliance?.status).toBe('DISSOLVED')
+    expect(revealedView.alliance?.operational).toBe(false)
+    expect(revealedView.visibleTags.has('broken_alliance')).toBe(true)
+  })
+
+  it('repairs older saved seasons with an active nemesis and an incorrectly genuine pact', () => {
+    const oldReality = createInitialRealityDomainState()
+    const pact = createRealityAlliance(oldReality, {
+      id: 'old-echo-pact',
+      founderIds: ['human', 'echo'],
+      memberIds: [],
+      purpose: 'Shared strategy',
+      at: { day: 2, phase: 'social_1' },
+    })
+    pact.status = 'ACTIVE'
+    // Simulate a pre-fix snapshot that preserved both records without the
+    // Nemesis/commitment reconciliation performed when the pact was signed.
+    oldReality.relationshipAutonomy.nemeses['nemesis:echo:human'] = {
+      id: 'nemesis:echo:human',
+      ownerId: 'echo',
+      targetId: 'human',
+      sourceEventId: 'private-ambition',
+      reason: 'PERSONAL_FRICTION',
+      createdAt: { day: 3, phase: 'social_1' },
+      status: 'ACTIVE',
+    }
+    expect(pact.genuine).toBe(true)
+    const normalized = normalizeRealityDomainState(oldReality)
+    expect(normalized.alliances['old-echo-pact'].genuine).toBe(false)
+    expect(normalized.alliances['old-echo-pact'].infiltratorIds).toContain('echo')
+    expect(
+      normalized.relationshipAutonomy.nemeses['nemesis:echo:human'].compromisedAllianceIds
+    ).toContain('old-echo-pact')
+    expect(pact.genuine).toBe(true) // Recovery snapshot was not mutated.
   })
 
   it('still exposes a real alliance betrayal from the Reality event record', () => {
