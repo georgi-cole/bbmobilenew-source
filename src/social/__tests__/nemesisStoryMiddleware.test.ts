@@ -101,7 +101,9 @@ describe('Nemesis phase-driven delivery', () => {
     expect(social.reality.events.filter((event) => event.type === 'NEMESIS_REVEALED')).toHaveLength(
       1
     )
-    expect(social.reality.events.find((event) => event.type === 'NEMESIS_REVEALED')?.reason).toContain('win power')
+    expect(
+      social.reality.events.find((event) => event.type === 'NEMESIS_REVEALED')?.reason
+    ).toContain('win power')
     expect(
       selectCanonicalRelationshipView({
         reality: social.reality,
