@@ -73,10 +73,10 @@ const eligibility = (domain: RealityDomainState, targetId = 'echo', week = 4) =>
     requireCompleteSelection: true,
   })
 
-describe('Ask Why — private Nemesis explanation', () => {
+describe('Why Betray Me? — private Nemesis explanation', () => {
   it('is a one-energy action hidden until an active Nemesis is explicitly disclosed', () => {
     const { domain, objective } = createScene()
-    expect(action.title).toBe('Ask Why')
+    expect(action.title).toBe('Why Betray Me?')
     expect(normalizeActionCosts(action, 1, true)).toEqual({
       energy: 1,
       influence: 0,
