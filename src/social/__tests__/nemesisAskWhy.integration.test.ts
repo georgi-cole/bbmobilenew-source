@@ -75,7 +75,10 @@ function setup(revealed = true, resources = 2, dramaMode = true) {
     },
   })
   initManeuvers(store)
-  const ask = (targetId = 'echo', costOverride?: { energy: number; influence: number; info: number }) =>
+  const ask = (
+    targetId = 'echo',
+    costOverride?: { energy: number; influence: number; info: number }
+  ) =>
     executeHumanRealityAction({
       actorId: 'human',
       targetId,
@@ -100,7 +103,11 @@ describe('Nemesis questioning — integrated Social action and energy bank', () 
     expect(log?.costs).toEqual({ energy: 1, influence: 0, info: 0 })
     expect(log?.receipt?.summary).toBe(first.summary)
     expect(log?.receipt?.relationshipShifts).toBeDefined()
-    expect(store.getState().social.reality.events.filter((event) => event.actionId === 'ask_nemesis_reason')).toHaveLength(1)
+    expect(
+      store
+        .getState()
+        .social.reality.events.filter((event) => event.actionId === 'ask_nemesis_reason')
+    ).toHaveLength(1)
 
     const second = ask()
     expect(second.success).toBe(false)
@@ -131,8 +138,10 @@ describe('Nemesis questioning — integrated Social action and energy bank', () 
     const { store, ask } = setup(true, 2, false)
     expect(ask().success).toBe(false)
     expect(store.getState().social.energyBank.human).toBe(2)
-    expect(store.getState().social.reality.events.some((event) =>
-      event.type === 'NEMESIS_REASON_EXPLAINED'
-    )).toBe(false)
+    expect(
+      store
+        .getState()
+        .social.reality.events.some((event) => event.type === 'NEMESIS_REASON_EXPLAINED')
+    ).toBe(false)
   })
 })
