@@ -444,12 +444,3 @@
   inset: -60% -100%;
   background: radial-gradient(ellipse, #f2dfb693, #c9a56335 18%, #9c6bb623 38%, transparent 62%);
 }
-
-/* Keep a real single-nominee outcome grounded without inventing a second player. */
-.nom-solo .nom-second {
-  visibility: hidden;
-}
-.nom-solo .nom-first {
-  left: 31%;
-  width: 38%;
-}

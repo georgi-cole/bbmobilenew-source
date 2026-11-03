@@ -1,9 +1,3 @@
-import {
-  replacementResources,
-  makeReplacementFilm,
-  animateReplacementFilm,
-} from './replacement-film.js'
-import replacementStyles from './replacement-film.css?raw'
 import sheet0 from './approved/styles.css?raw'
 import sheet1 from './approved/ceremony-lab.css?raw'
 import sheet2 from './approved/cinema-scenes.css?raw'
@@ -38,7 +32,6 @@ import {
 import modeStyles from './mode-films.css?raw'
 
 export const SCENES = {
-  replacement: { label: 'Replacement nomination', duration: 4500 },
   loh: { label: 'LOH crowning', duration: 3200 },
   ...CEREMONIES,
   ...MODE_SCENES,
@@ -69,7 +62,6 @@ let stylePromise
 const percent = (n) => (n * 100).toFixed(4) + '%'
 
 export function sceneResources(id, cast, shockType = 'doubleEviction', details = {}) {
-  if (id === 'replacement') return replacementResources(cast, details, shared)
   const mode = id
   const extra = modeResources(mode, cast, shared, premiumVfx)
   id = baseScene(id)
@@ -546,7 +538,6 @@ export function createClip() {
           decisionExitStyles,
           fittingStyles,
           modeStyles,
-          replacementStyles,
         ].join('\n')
       )
       const entries = await Promise.all(
@@ -593,27 +584,14 @@ export function createClip() {
       style.textContent = css
       const stage = document.createElement('div')
       stage.className = 'stage is-playing'
-      root =
-        id === 'replacement'
-          ? makeReplacementFilm(images, cast, details.replacementOutcome)
-          : !id
-            ? makeVoxFilm(sceneId, images, cast, details)
-            : id === 'loh'
-              ? makeLoh(images)
-              : decision
-                ? makeDecisionScene(id, images, 0, decisionOptions)
-                : makeScene(id, images, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic, 0)
-      if (
-        id === 'nominations' &&
-        new Set([cast.a, cast.b].map((actor) => actor.playerId ?? actor.id)).size === 1
-      )
-        root.classList.add('nom-solo')
-      if (
-        id === 'nominations' &&
-        images.cinema_standC &&
-        sceneId !== 'cupidNominations' &&
-        !root.classList.contains('nom-solo')
-      ) {
+      root = !id
+        ? makeVoxFilm(sceneId, images, cast, details)
+        : id === 'loh'
+          ? makeLoh(images)
+          : decision
+            ? makeDecisionScene(id, images, 0, decisionOptions)
+            : makeScene(id, images, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic, 0)
+      if (id === 'nominations' && images.cinema_standC && sceneId !== 'cupidNominations') {
         root.classList.add('nom-three')
         const third = root.querySelector('.nom-second').cloneNode(true)
         third.classList.replace('nom-second', 'nom-third')
@@ -645,10 +623,7 @@ export function createClip() {
       if (sceneId !== id) adaptModeFilm(sceneId, root, images, resources, cast, details, fitCrown)
       stage.append(root)
       shadow.append(style, stage)
-      const duration =
-        details.replacementOutcome?.durationMs ??
-        decisionTiming?.duration ??
-        SCENES[sceneId].duration
+      const duration = decisionTiming?.duration ?? SCENES[sceneId].duration
       startTime = document.timeline.currentTime
       if (id === 'nominations' && options.matchHandoff) {
         const rect = options.origin
@@ -690,9 +665,7 @@ export function createClip() {
           animations.push(animation)
         }
       }
-      if (id === 'replacement')
-        animateReplacementFilm(root, a, details.replacementOutcome, duration)
-      else if (!id) animateVoxFilm(sceneId, root, a, duration, later)
+      if (!id) animateVoxFilm(sceneId, root, a, duration, later)
       else if (id === 'loh') animateLoh(root, a)
       else if (decision) animateDecisionScene(id, root, a, decisionOptions)
       else if (root.classList.contains('nom-royal')) animateRoyalNomination(root, a)

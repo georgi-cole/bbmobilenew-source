@@ -188,10 +188,7 @@ export function PremiumBridge({
           }
           const controller = clipModule.createClip()
           clip.current = controller
-          const details =
-            scene === 'replacement'
-              ? { replacementOutcome: props.current.replacementOutcome }
-              : modeDetails(scene, props.current, state.game)
+          const details = modeDetails(scene, props.current, state.game)
           // Every shared departure film closes through the Big Eye ident after
           // the doorway zoom. The standalone Final Three film keeps its finale gate.
           if (scene === 'exit' || (state.game.phase?.startsWith('final3') && scene === 'final3'))
