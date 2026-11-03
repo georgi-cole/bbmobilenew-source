@@ -1,4 +1,3 @@
-import { replacementPresentationMiddleware } from '../cinematic/ceremonies/replacementPresentationMiddleware'
 import { missionPowerMiddleware } from './missionPowerMiddleware'
 import { configureStore } from '@reduxjs/toolkit'
 import gameReducer, {
@@ -168,7 +167,6 @@ export const store = configureStore({
     })
       .prepend(gamePerformanceMiddleware)
       .concat(
-        replacementPresentationMiddleware,
         profileAppearanceMiddleware,
         weekendSettingsMiddleware,
         missionPowerMiddleware,

@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  ceremonyCast,
-  createBattleBackIntroGuard,
-  createCeremonyQueue,
-  shouldPlayCinematic,
-} from './runtime.mjs'
-import catalog from './cast.json'
-import type { GameState } from '../../types'
+import { createBattleBackIntroGuard, createCeremonyQueue, shouldPlayCinematic } from './runtime.mjs'
 
 describe('cinematic ceremony routing', () => {
   it('requires VIP, animations and motion; explicit Standard wins over the automatic VIP style', () => {
@@ -86,26 +79,5 @@ describe('cinematic ceremony routing', () => {
     expect(
       guard.shouldSkip({ game: { ...state.game, battleBack: { winnerId: 'aria' } } }, 'battle_back')
     ).toBe(true)
-  })
-
-  it('keeps a permitted single initial nominee as one real character across legacy role slots', () => {
-    const game = {
-      mode: 'classic',
-      nomineeIds: ['nova'],
-      lohId: 'rune',
-      players: [
-        { id: 'nova', name: 'Nova', status: 'active' },
-        { id: 'rune', name: 'Rune', status: 'loh' },
-      ],
-    }
-    const cast = ceremonyCast(
-      'nominations',
-      { caption: 'Nova has been nominated.' },
-      game as unknown as GameState,
-      catalog.characters
-    )
-    expect(cast?.a.playerId).toBe('nova')
-    expect(cast?.b.playerId).toBe('nova')
-    expect(cast?.c.playerId).toBe('nova')
   })
 })

@@ -1,7 +1,3 @@
-import { useStore } from 'react-redux'
-import { selectIsVipActive } from '../../../store/vipSlice'
-import { shouldPlayCinematic } from '../../../cinematic/ceremonies/runtime.mjs'
-import { getReplacementFilmPresentation } from '../../../cinematic/ceremonies/replacementPresentationMiddleware'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   aiReplacementRendered,
@@ -52,14 +48,6 @@ export function useSafetyFlow({
   getTileRect,
   dispatch,
 }: UseSafetyFlowOptions) {
-  const store = useStore<RootState>()
-  const presentationState = store.getState()
-  const replacementOutcome = shouldPlayCinematic(
-    presentationState,
-    selectIsVipActive(presentationState)
-  )
-    ? getReplacementFilmPresentation(game)
-    : null
   // ── Human LOH replacement picker ─────────────────────────────────────────
   // Shown when a nominee auto-saved themselves and the human LOH must pick a
   // replacement. The Continue button is hidden while this modal is open.
@@ -371,11 +359,6 @@ export function useSafetyFlow({
 
   const startReplacementCeremony = useCallback(
     (id: string, onCommit: () => void) => {
-      const current = store.getState()
-      if (shouldPlayCinematic(current, selectIsVipActive(current))) {
-        onCommit()
-        return
-      }
       const replacementPlayers = expandCupidIds(game, [id])
         .map((replacementId) => game.players.find((player) => player.id === replacementId))
         .filter((player): player is Player => Boolean(player))
@@ -465,14 +448,7 @@ export function useSafetyFlow({
         replacementId: id,
       })
     },
-    [
-      activeSpecialVeto,
-      game,
-      getReplacementCeremonyKey,
-      getTileRect,
-      setAiReplacementConsumedKey,
-      store,
-    ]
+    [activeSpecialVeto, game, getReplacementCeremonyKey, getTileRect, setAiReplacementConsumedKey]
   )
 
   const handleReplacementNominee = useCallback(
@@ -509,10 +485,6 @@ export function useSafetyFlow({
   // AI replacements and Confessional human-LOH replacements are already committed
   // before GameScreen can animate them. Use one persisted key for both paths.
   const aiReplacementKey = (() => {
-    if (replacementOutcome) return replacementOutcome.eventKey
-    if (game.specialVeto?.activeType === 'vip' && game.specialVeto.vipUseStage !== -1) return ''
-    if (game.specialVeto?.awaitingCoupReplacement1 || game.specialVeto?.awaitingCoupReplacement2)
-      return ''
     if (game.phase !== 'pos_ceremony_results') return ''
     if (game.replacementNeeded) return ''
     if (game.awaitingPovDecision || game.awaitingPovSaveTarget) return ''
@@ -536,12 +508,11 @@ export function useSafetyFlow({
     !pendingSaveCeremony &&
     !saveCeremonyStillNeedsPresentation
   const activeReplacementAnimationTargetIds = showAiReplacementAnim
-    ? (replacementOutcome?.replacementIds ??
-      (game.voxPopuli?.status === 'active'
-        ? (game.voxPopuli.lastReplacementNomineeIds ?? [])
-        : game.nomineeIds.length > 0
-          ? [game.nomineeIds[game.nomineeIds.length - 1]]
-          : []))
+    ? game.voxPopuli?.status === 'active'
+      ? (game.voxPopuli.lastReplacementNomineeIds ?? [])
+      : game.nomineeIds.length > 0
+        ? [game.nomineeIds[game.nomineeIds.length - 1]]
+        : []
     : []
 
   // Acknowledge the step-1 "LOH must name a replacement" announcement so advance() can
@@ -557,7 +528,6 @@ export function useSafetyFlow({
   }, [aiReplacementKey, setAiReplacementConsumedKey])
 
   return {
-    replacementOutcome,
     replacementOptions,
     humanIsPosHolder,
     activeSpecialVeto,
