@@ -36,7 +36,9 @@ export interface AllianceManagementContext {
   activeActorIds: readonly string[]
   humanActorIds: readonly string[]
   /** Real same-day AI appeals to the human power holder; not inferred from power alone. */
-  protectionAppealsByActorId?: Readonly<Record<string, { recipientId: string; day: number; scenarioKey: string }>>
+  protectionAppealsByActorId?: Readonly<
+    Record<string, { recipientId: string; day: number; scenarioKey: string }>
+  >
   powerHolderIds?: readonly string[]
   identityByActorId?: Readonly<Record<string, AiGameIdentity>>
   /** A Classic-only contextual boost. Other modes retain their existing odds. */
@@ -713,13 +715,13 @@ function pactDecision(
   const appeal = context.protectionAppealsByActorId?.[actorId]
   const isSurvivalOffer = Boolean(
     context.classicGame &&
-      appeal &&
-      appeal.recipientId === proposerId &&
-      appeal.day === context.at.day &&
-      request.proposerId === proposerId &&
-      context.humanActorIds.includes(proposerId) &&
-      context.powerHolderIds?.includes(proposerId) &&
-      !['EXPIRED', 'INVALIDATED'].includes(request.status)
+    appeal &&
+    appeal.recipientId === proposerId &&
+    appeal.day === context.at.day &&
+    request.proposerId === proposerId &&
+    context.humanActorIds.includes(proposerId) &&
+    context.powerHolderIds?.includes(proposerId) &&
+    !['EXPIRED', 'INVALIDATED'].includes(request.status)
   )
   const identity = context.identityByActorId?.[actorId]
   const honorDriven =
@@ -732,9 +734,7 @@ function pactDecision(
   // An occasional principled refusal is grounded in character and a real
   // grievance, not a generic "I am better than the power player" roll.
   const prideRefusal = Boolean(
-    isSurvivalOffer &&
-      honorDriven &&
-      allianceDecisionRoll(request, actorId, seed ^ 0x1f42b) < 0.12
+    isSurvivalOffer && honorDriven && allianceDecisionRoll(request, actorId, seed ^ 0x1f42b) < 0.12
   )
   if (prideRefusal) {
     return {
@@ -876,8 +876,7 @@ function pactDecision(
     )
   )
   const accepted =
-    allianceDecisionRoll(request, actorId, seed) <
-    (isSurvivalOffer ? survivalChance : chance)
+    allianceDecisionRoll(request, actorId, seed) < (isSurvivalOffer ? survivalChance : chance)
 
   let style: RealityAllianceResponseStyle
   let reason: string
