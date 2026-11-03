@@ -87,7 +87,7 @@ jobs:
               npx vitest run
               src/social/__tests__/allianceCampaign.test.ts
               src/social/__tests__/dramaSocialIntelligence.test.ts
-              tests/unit/publicOpinion/publicOpinionMiddleware.test.ts
+              src/publicOpinion/__tests__/voxEvictionAttribution.test.ts
             fetch_depth: 1
     steps:
       - uses: actions/checkout@v4
