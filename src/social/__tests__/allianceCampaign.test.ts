@@ -91,6 +91,23 @@ describe('alliance campaign moves', () => {
     })
   })
 
+  it.each([
+    { phase: 'social_1', lohId: 'human', atRiskActorIds: [] },
+    { phase: 'pos_results', posWinnerId: 'human', atRiskActorIds: ['ai-2', 'ai-3'] },
+    { phase: 'social_2', eligibleVoterIds: ['ai-3'], atRiskActorIds: ['ai-4'] },
+  ])('does not plan a Classic-only $phase campaign in Vox', (window) => {
+    const reality = setup()
+    expect(
+      getAllianceCampaignMove({
+        reality,
+        actorId: 'ai-1',
+        activeActorIds: actorIds,
+        ...window,
+        voxPopuliActive: true,
+      })
+    ).toBeNull()
+  })
+
   it('lets a member with a competing personal plan sit out the campaign', () => {
     const reality = setup()
 

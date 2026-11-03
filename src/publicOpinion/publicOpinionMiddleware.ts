@@ -892,10 +892,19 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
       // yet — so nextState.publicOpinion.profiles holds the correct pre-reaction
       // approval standings.
       const approvals = buildApprovalMap(nextState.publicOpinion?.profiles ?? {})
+      // Vox records its immunity winner in lohId for compatibility, but that
+      // contestant does not control nominations or the audience's eviction.
+      // Check the pre-action status too: the finale can complete on this action.
+      const audienceControlledEviction =
+        prevState.game?.voxPopuli?.status === 'active' || game.voxPopuli?.status === 'active'
       const reactions = computeEvictionReactions({
         evicteeId,
-        lohId: game.lohId,
-        povHolderId: game.povSavedId ? (game.posWinnerId ?? null) : null,
+        lohId: audienceControlledEviction ? null : game.lohId,
+        povHolderId: audienceControlledEviction
+          ? null
+          : game.povSavedId
+            ? (game.posWinnerId ?? null)
+            : null,
         approvals,
         week,
       })

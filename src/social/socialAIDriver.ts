@@ -1128,12 +1128,14 @@ function candidateForPlayer(
   attempt: number
 ): CandidateMove | null {
   const dramaMode = getEffectiveSocialMode(state) === 'drama'
+  const voxPopuliActive = state.game.voxPopuli?.status === 'active'
   const human = state.game.players.find((candidate) => candidate.isUser)
   const nemesis = human ? getActiveRealityNemesis(state.social.reality, player.id, human.id) : null
   const contactBoundary =
     Boolean(nemesis && human) &&
     hasRelationshipBoundary(state.social.reality, human!.id, player.id, 'MINIMIZE_CONTACT')
   const strategicNemesisAction =
+    !voxPopuliActive &&
     contactBoundary &&
     nemesis &&
     human &&
@@ -1145,6 +1147,7 @@ function candidateForPlayer(
   if (contactBoundary && nemesis && !strategicNemesisAction) return null
   const allianceCampaign = getAllianceCampaignMove({
     reality: state.social.reality,
+    voxPopuliActive,
     actorId: player.id,
     activeActorIds: state.game.players
       .filter((candidate) => candidate.status !== 'evicted' && candidate.status !== 'jury')
@@ -1180,7 +1183,8 @@ function candidateForPlayer(
           phase: state.game.phase ?? '',
           seed: state.game.seed ?? 0,
           tick: _tickCount,
-          lohId: state.game.lohId,
+          // Vox stores the immunity winner in lohId, not a nominating leader.
+          lohId: voxPopuliActive ? null : state.game.lohId,
           posWinnerId: state.game.posWinnerId,
           nomineeIds: state.game.nomineeIds,
           reality: state.social.reality,
@@ -1207,11 +1211,7 @@ function candidateForPlayer(
       availableActionIds: Object.keys(socialConfig.actionWeights).filter((candidateId) => {
         const candidateAction = getActionById(candidateId)
         if (
-          !isAISocialActionVisible(
-            candidateId,
-            dramaMode ? 'drama' : 'normal',
-            state.game.voxPopuli?.status === 'active'
-          )
+          !isAISocialActionVisible(candidateId, dramaMode ? 'drama' : 'normal', voxPopuliActive)
         ) {
           return false
         }
