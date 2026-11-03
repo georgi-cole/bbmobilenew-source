@@ -1,6 +1,11 @@
 import type { AiGameIdentity } from '../../ai/aiGameIdentity'
 import { appendRealityEvent } from './events'
-import type { RealityClock, RealityDomainState, RealityNemesisObjective, RealitySocialEvent } from './types'
+import type {
+  RealityClock,
+  RealityDomainState,
+  RealityNemesisObjective,
+  RealitySocialEvent,
+} from './types'
 
 export const ASK_NEMESIS_REASON_ACTION_ID = 'ask_nemesis_reason'
 
@@ -44,8 +49,10 @@ function causalSource(
   domain: RealityDomainState,
   objective: RealityNemesisObjective
 ): RealitySocialEvent | undefined {
-  return domain.events.find((event) => event.id === objective.triggerEventId) ??
+  return (
+    domain.events.find((event) => event.id === objective.triggerEventId) ??
     domain.events.find((event) => event.id === objective.sourceEventId)
+  )
 }
 
 /** Refer only to verified decisions that can actually be tied to the rivalry. */
@@ -81,7 +88,8 @@ function actualReason(
                 event.allianceRequestSnapshot?.accepted === false
             )
         : undefined
-  const rejectedInvite = voteEvent?.allianceRequestSnapshot?.kind === 'ADMIT' &&
+  const rejectedInvite =
+    voteEvent?.allianceRequestSnapshot?.kind === 'ADMIT' &&
     voteEvent.actorId === objective.ownerId &&
     voteEvent.allianceRequestSnapshot.accepted === false &&
     voteEvent.allianceRequestId
@@ -124,15 +132,21 @@ function actualReason(
       specific: true,
     }
   }
-  if (source?.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
-    source.actorId === objective.targetId && source.targetIds.includes(objective.ownerId)) {
+  if (
+    source?.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
+    source.actorId === objective.targetId &&
+    source.targetIds.includes(objective.ownerId)
+  ) {
     return {
       text: `You put me on the block on Day ${source.day}. I could not overlook that.`,
       specific: true,
     }
   }
-  if (source?.type === 'ALLIANCE_PLAN_DEFIED' &&
-    source.actorId === objective.targetId && source.participantIds.includes(objective.ownerId)) {
+  if (
+    source?.type === 'ALLIANCE_PLAN_DEFIED' &&
+    source.actorId === objective.targetId &&
+    source.participantIds.includes(objective.ownerId)
+  ) {
     return {
       text: `You ignored our alliance's agreed plan on Day ${source.day}. It cost me my trust in you.`,
       specific: true,
@@ -163,15 +177,30 @@ function actualReason(
   }
   switch (objective.reason) {
     case 'PERSONAL_FRICTION':
-      return { text: 'Too much distrust built up between us. I stopped believing we could work together.', specific: false }
+      return {
+        text: 'Too much distrust built up between us. I stopped believing we could work together.',
+        specific: false,
+      }
     case 'JEALOUSY':
-      return { text: 'I resented how much attention and influence you had. I let it turn into rivalry.', specific: false }
+      return {
+        text: 'I resented how much attention and influence you had. I let it turn into rivalry.',
+        specific: false,
+      }
     case 'COMPETITION_THREAT':
-      return { text: 'You kept becoming a bigger competitive threat. I thought opposing you would protect my own game.', specific: false }
+      return {
+        text: 'You kept becoming a bigger competitive threat. I thought opposing you would protect my own game.',
+        specific: false,
+      }
     case 'SOCIAL_REACH':
-      return { text: 'Everyone was starting to listen to you. I felt my own influence slipping away.', specific: false }
+      return {
+        text: 'Everyone was starting to listen to you. I felt my own influence slipping away.',
+        specific: false,
+      }
     case 'VOLATILE_READ':
-      return { text: 'I was suspicious of your plans and decided it was safer to compete against you.', specific: false }
+      return {
+        text: 'I was suspicious of your plans and decided it was safer to compete against you.',
+        specific: false,
+      }
   }
 }
 
@@ -207,18 +236,22 @@ export function askRevealedNemesisWhy(
   if (!availability.eligible || !availability.objective) return null
   const nemesis = availability.objective
   const edge = domain.relationships[nemesis.ownerId]?.[nemesis.targetId]
-  const tension = Math.min(1, Math.max(0,
-    ((edge?.resentment ?? 0) + (edge?.suspicion ?? 0)) / 190
-  ))
+  const tension = Math.min(1, Math.max(0, ((edge?.resentment ?? 0) + (edge?.suspicion ?? 0)) / 190))
   const refusalChance = Math.min(
     0.28,
     0.04 + tension * 0.17 + (input.identity?.temperament === 'secretive' ? 0.04 : 0)
   )
   const dice = stableUnit(`${input.seed}:${nemesis.id}:${input.at.day}:reply`)
   const actual = actualReason(domain, nemesis, input.playerNames ?? {})
-  const schemer = ['double_agent', 'opportunist', 'puppet_master', 'chaos_agent', 'risk_taker']
-    .includes(input.identity?.archetype ?? '')
-  const strategicAdmission = !actual.specific &&
+  const schemer = [
+    'double_agent',
+    'opportunist',
+    'puppet_master',
+    'chaos_agent',
+    'risk_taker',
+  ].includes(input.identity?.archetype ?? '')
+  const strategicAdmission =
+    !actual.specific &&
     nemesis.reason !== 'PERSONAL_FRICTION' &&
     nemesis.reason !== 'JEALOUSY' &&
     schemer &&
