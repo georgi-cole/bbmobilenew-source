@@ -58,6 +58,13 @@ Every public profile has three live ratings. The visible overall approval is the
 
 Opening profiles receive a small, balanced lean from the AI contestant identity (for example, social butterflies begin with more Charisma texture and loyal anchors with more Integrity texture), without changing their starting overall approval. The human player starts neutral and earns their profile through play.
 
+In Vox Populi the competition winner is recorded in `game.lohId` for
+compatibility but holds immunity, not Classic nomination power. The audience
+alone decides evictions, so a Vox eviction does not generate the Classic
+LOH/Safety-holder *eviction responsibility* approval adjustment. Competition
+wins and Safety saves retain their separate public reactions. This rule is
+independent of whether the optional Public Meter is currently visible.
+
 The Public Meter's **Audience Dossier** opens by tapping any cast card. It shows the three ratings, a dynamic audience archetype, and any active public request. The player-facing **What changed** area tells the selected player's recent audience story, while the main Public Feed tells the rest of the house's story so the same event is not repeated across the screen. Those moments use the houseguest's name and a reality-show voice; approval values remain internal and the UI shows only directional signals. Legacy saves without a breakdown gracefully render as an even split until the next public event writes their first receipt.
 
 Ordinary public reactions also receive a small seeded audience-mood adjustment. It may soften or amplify a result but cannot reverse the direction of the underlying action. It is deterministic for the saved season, so reloads remain stable. Public Request outcomes are deterministic, but the reward is deliberately smaller than before and positive approval gains dampen once a contestant is already highly rated. Missing a still-valid request carries a small penalty; requests invalidated by a changing game state still expire neutrally.

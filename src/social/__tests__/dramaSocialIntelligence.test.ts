@@ -110,6 +110,8 @@ describe('utility-scored Drama AI', () => {
     expect(chooseUtilityDramaAIMove({ ...input, povProtectedIds: ['user'] })?.actionId).not.toBe(
       'protect'
     )
+    // Vox passes null for lohId because immunity grants no nomination authority.
+    expect(chooseUtilityDramaAIMove({ ...input, lohId: null })?.actionId).not.toBe('protect')
   })
 
   it('uses credible alliance knowledge under pressure, at most once per week', () => {

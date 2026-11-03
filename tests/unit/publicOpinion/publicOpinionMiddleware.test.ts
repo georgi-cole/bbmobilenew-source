@@ -18,6 +18,8 @@ interface TestGameState {
   players: Player[]
   seed: number
   publicModeEnabled?: boolean
+  povSavedId?: string | null
+  voxPopuli?: { status: 'inactive' | 'scheduled' | 'active' | 'complete' }
 }
 
 function makePlayer(id: string, name: string, status: Player['status'] = 'active'): Player {
@@ -232,6 +234,79 @@ describe('publicOpinionMiddleware', () => {
     const dir = store.getState().publicOpinion.directions.find((d) => d.id === 'vote-dir')
     expect(dir?.progressPercent ?? 0).toBeGreaterThan(0)
   })
+
+  it.each([true, false])(
+    'does not blame Vox immunity or Safety holders for audience eviction (Public Mode: %s)',
+    (publicModeEnabled) => {
+      const store = configureStore({
+        reducer: { game: gameReducer, publicOpinion: publicOpinionReducer },
+        middleware: (getDefaultMiddleware) =>
+          getDefaultMiddleware().concat(publicOpinionMiddleware),
+        preloadedState: {
+          game: makeGameState({
+            publicModeEnabled,
+            voxPopuli: { status: 'active' },
+            lohId: 'p1',
+            posWinnerId: 'p3',
+            povSavedId: 'p2',
+            nomineeIds: ['p4', 'p2'],
+            players: [
+              makePlayer('p1', 'Aria'),
+              makePlayer('p2', 'Kian'),
+              makePlayer('p3', 'Rae'),
+              makePlayer('p4', 'Echo'),
+            ],
+          }),
+        },
+      })
+      store.dispatch(initializeProfiles(['p1', 'p2', 'p3', 'p4']))
+      store.dispatch(setProfileApprovals({ p1: 50, p2: 50, p3: 50, p4: 25 }))
+      const before = store.getState().publicOpinion.profiles
+
+      store.dispatch({ type: 'game/finalizePendingEviction', payload: 'p4' })
+
+      const after = store.getState().publicOpinion.profiles
+      expect(after.p1.approval).toBe(before.p1.approval)
+      expect(after.p3.approval).toBe(before.p3.approval)
+      // Keep the evictee's existing farewell reaction.
+      expect(after.p4.approval).toBeGreaterThan(before.p4.approval)
+    }
+  )
+
+  it.each(['inactive', 'scheduled'] as const)(
+    'preserves Classic eviction responsibility while Vox is %s',
+    (status) => {
+      const store = configureStore({
+        reducer: { game: gameReducer, publicOpinion: publicOpinionReducer },
+        middleware: (getDefaultMiddleware) =>
+          getDefaultMiddleware().concat(publicOpinionMiddleware),
+        preloadedState: {
+          game: makeGameState({
+            voxPopuli: { status },
+            lohId: 'p1',
+            posWinnerId: 'p3',
+            povSavedId: 'p2',
+            nomineeIds: ['p4', 'p2'],
+            players: [
+              makePlayer('p1', 'Aria'),
+              makePlayer('p2', 'Kian'),
+              makePlayer('p3', 'Rae'),
+              makePlayer('p4', 'Echo'),
+            ],
+          }),
+        },
+      })
+      store.dispatch(initializeProfiles(['p1', 'p2', 'p3', 'p4']))
+      store.dispatch(setProfileApprovals({ p1: 50, p2: 50, p3: 50, p4: 25 }))
+      const before = store.getState().publicOpinion.profiles
+
+      store.dispatch({ type: 'game/finalizePendingEviction', payload: 'p4' })
+
+      const after = store.getState().publicOpinion.profiles
+      expect(after.p1.approval).toBeGreaterThan(before.p1.approval)
+      expect(after.p3.approval).toBeGreaterThan(before.p3.approval)
+    }
+  )
 
   it('does not move approval merely because a new week started', () => {
     const store = configureStore({

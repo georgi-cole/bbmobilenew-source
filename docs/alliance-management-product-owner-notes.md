@@ -61,69 +61,67 @@ the game never fabricates records already trimmed from an older save.
 
 ## How an AI alliance proposal starts
 
-AI alliance autonomy is evaluated when the game advances into a `social_1` or
-`social_2` window. The saved game state records that the window was evaluated,
-so replaying the same state does not create a new proposal. The system permits
-at most one successful AI alliance action per window.
+AI alliance autonomy runs when the game advances into a `social_1` or
+`social_2` window. A saved phase receipt makes the evaluation idempotent.
 
-For each window, it considers active AI players in stable player-ID order. An AI
-with one of its own alliance requests still pending is skipped. An AI whose
-commitment to a current group is at or below 0.08 may leave that group; that
-uses the opportunity for the window.
+Instead of one request for the whole house, each current, active/probationary
+faction with at least two active AI members reviews observer-specific evidence:
+perceived social influence, direct relationship risks, visible competition
+performance, and the live nomination block. It can retain or revise a target
+and fallback, recording individual dissent through member plan beliefs.
+The AI-led strategy meeting does not automatically bind human members' votes.
 
-An AI may propose an admission if it is leader or co-leader of a current group.
-It considers active people who are not already in that group and selects the
-first person by player ID for whom the AI's directed trust is at least 25. It
-then asks that group's members to vote. A regular AI member does not
-autonomously start the admission vote.
+During `social_1`, an eligible AI recruiter may seek an additional member.
+Group recruiters must be eligible by role/commitment; pact recruiters can seek
+a third founder for a new group. Candidates are scored from directed trust,
+loyalty, reliability, strategic value, suspicion, and alignment against an
+existing target. Eligibility requires trust of at least 18 or strategic value
+of at least 34, plus a minimum combined score. The chosen candidate is the
+highest-ranked eligible one, with player ID only breaking score ties.
+A group's current target is excluded from recruitment.
 
-If the AI does not lead or co-lead a current group, it can expand a current,
-resolved personal pact that includes itself. It selects a qualifying person
-with the same trust and ordering rule, then proposes a group containing the
-pact members and that person. Every founder must approve. This proposal records
-the original pact as its base pact. If formation succeeds, the ordinary base
-pact is superseded; a pact whose stated purpose is Final Two, endgame,
-ride-or-die, or last two is retained. A group founded separately through the
-player's **Found an alliance** action does not replace existing pacts.
+A resolved pact may be the base of a new AI-founded group; the existing
+consent and protected-endgame-pact rules still apply. AI players with group
+commitment at or below 0.08 may autonomously leave their group. Human consent,
+capacity, pending-request rules, and phase deadlines remain authoritative.
 
-The AI does **not** prioritize the human player. Stable ID ordering can cause
-it to approach another eligible person first, and a player can receive no
-proposal if there is no eligible leader, group or pact, candidate, open group
-slot, or social-window opportunity. An AI can approach the human when the human
-is the candidate selected by these rules. This is an opportunity-based system,
-not a guaranteed invitation schedule.
+The AI does not guarantee or prioritize an invitation to the human. It may
+choose an AI candidate or decline to propose anything. The current autonomy
+planner is largely shared between Classic and Vox Populi; season-aware
+strategic motives are a planned follow-up, not an implemented guarantee.
 
 ## How each decision is made
 
-| Request                        | Who decides                              | Current AI decision input                                                                                                                                           |
-| ------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Personal pact                  | Both named people                        | Each AI's average directed trust toward the other named person or people                                                                                            |
-| Found a group                  | Every named founder                      | Each AI founder's average directed trust toward the other founders                                                                                                  |
-| Admit a group member           | Current group electorate, then candidate | During the member vote, each AI member's directed trust toward the candidate. After approval, an AI candidate's average directed trust toward current group members |
-| Accept co-leader or leadership | The named nominee                        | The nominee AI's average directed trust toward current group members                                                                                                |
-| Suggest removing a member      | Group officers                           | An AI officer approves when its directed trust toward the candidate is below −10                                                                                    |
-| Suggest renaming a group       | Current leader                           | An AI leader accepts when its directed trust toward the suggester is at least 0                                                                                     |
+| Request | Who decides | Current AI decision input |
+| --- | --- | --- |
+| Personal pact | Both named people | Directed trust, reliability, warmth, loyalty, respect, strategic value, suspicion, resentment, known kept/broken promises, network benefit, survival need, competing commitments, and an active Nemesis if present |
+| Found a group | Every named founder | Average directed trust toward the other founders, evaluated with a seeded roll |
+| Admit a group member | Current group electorate, then candidate | Member trust toward the candidate; invitee trust toward group members, capacity and possible switch away from a weaker existing group |
+| Accept co-leader or leadership | Named nominee | Average directed trust toward group members, evaluated with a seeded roll |
+| Suggest removing a member | Group officers | Officer's directed trust toward candidate below −10 |
+| Suggest renaming a group | Current leader | Leader's directed trust toward suggester at least 0 |
 
-For pact, founding, admission, and role acceptance, the AI threshold is:
+Group founding, ordinary admission, and officer-role acceptance use:
 
 ```text
 clamp(0.12, 0.92, 0.62 + average_directed_trust / 200)
 ```
 
-The request ID, actor ID, request stage, and saved game seed produce a stable
-deterministic draw compared with that threshold. It is not rerolled just because
-the inbox is reopened. Illustrative thresholds are 12% at trust −100, 32% at
-−60, 62% at 0, about 74.5% at +25, and 92% at +60 or higher.
+The current personal-pact decision has its **own** weighted probability,
+clamped to 4–92%, and can decline an overt Nemesis or conditionally accept a
+private strategic truce. An AI candidate who already has two groups can
+switch only if the proposed group's evaluated potential is sufficiently
+better; a low-value invitation is declined. These decisions use stable
+request/actor/stage/season-seed rolls, not new draws on each inbox open.
 
-This is not a full strategic preference model. AI acceptance of alliance
-proposals currently uses directed trust as described above; it does not weigh
-group name, the player's explanation, strategic fit, or a human-visible
-promise. For removal suggestions, the `< −10` rule replaces the acceptance
-threshold. A single authorized officer yes finalizes a removal suggestion; it
-is not a majority vote.
+This is not yet a general mode-aware utility model: group decisions do not
+evaluate full strategic fit or audience reputation. Formal acceptance also
+does not imply unquestioning loyalty, identical ballots, or an automatic
+public-image benefit. A single authorized officer yes finalizes a member
+removal suggestion; that process is not a majority vote.
 
-Human decisions are explicit. They are never filled in from trust or inferred
-from a timeout.
+Human decisions always require explicit input and are never inferred
+from trust or a timeout.
 
 ## Admission voting in detail
 
@@ -297,14 +295,12 @@ Show the complete roster and officer roles before each founder votes. For an
 AI proposal with `basePactId`, explicitly disclose which personal pact will be
 superseded and whether it is one of the protected endgame pacts.
 
-AI initiative currently sorts player IDs rather than ranking candidates by
-gameplay relevance or balancing approaches over time. This is deterministic but
-can feel arbitrary and can systematically favor whichever eligible ID sorts
-first. Replace the first-match rule with a seeded candidate score and include
-relationship strength, strategic need, recent invitation history, capacity,
-and a restrained human-candidate preference. Record an understandable reason
-for the proposal so product can tune the behavior without exposing private AI
-thoughts.
+AI autonomy now scores candidate relevance instead of simply taking the
+first matching player ID, but still lacks distinct Classic versus Vox
+strategic incentives, recent-invitation fatigue, and an explicit
+audience-reputation trade-off. Introduce a bounded mode-aware decision layer
+without replacing alliance governance or the existing per-faction agenda
+receipts. Record grounded reasons while preserving private AI knowledge.
 
 ## Source of truth
 

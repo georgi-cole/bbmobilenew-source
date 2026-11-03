@@ -18,7 +18,12 @@ export function getAllianceCampaignMove(input: {
   lohId?: string | null
   posWinnerId?: string | null
   atRiskActorIds: readonly string[]
+  /** Vox has no LOH nominations, replacement authority, or house eviction vote. */
+  voxPopuliActive?: boolean
 }): AllianceCampaignMove | null {
+  // Use the normal AI policy in Vox; do not attempt a Classic-only campaign
+  // that the execution guard would reject after selection.
+  if (input.voxPopuliActive) return null
   const activeIds = new Set(input.activeActorIds)
   const alliance = Object.values(input.reality.alliances)
     .filter(
