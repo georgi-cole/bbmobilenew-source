@@ -16,6 +16,7 @@ import {
   upsertRealitySecret,
   addRealityFact,
 } from '../reality'
+import { nemesisThreadId } from '../reality/relationshipAutonomy'
 
 describe('persistent relationship autonomy', () => {
   it('turns an explicit romantic refusal into a durable boundary', () => {
@@ -267,7 +268,8 @@ describe('persistent relationship autonomy', () => {
     })
     expect(getActiveRealityNemesis(domain, 'rae', 'player')).toBeNull()
     expect(edge.perceivedLabel).toBe('UNEASY_TRUCE')
-    expect(domain.threads['nemesis-thread:rae:player'].status).toBe('RESOLVED')
+    const nemesis = Object.values(domain.relationshipAutonomy.nemeses)[0]
+    expect(domain.threads[nemesisThreadId(nemesis)].status).toBe('RESOLVED')
   })
 
   it('keeps the objective through a contact boundary and reconciles it only when the player saves that Nemesis with Safety', () => {

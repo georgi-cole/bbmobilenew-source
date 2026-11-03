@@ -1,4 +1,5 @@
 import { getSocialPersonality } from './socialPersonalityBank'
+import { getCurrentAlliancesBetween } from './reality/allianceIdentity'
 import { appendRealityEvent } from './reality/events'
 import { createRealityNemesisObjective } from './reality/relationshipAutonomy'
 import { applyRealityRelationshipChange } from './reality/relationships'
@@ -120,18 +121,19 @@ export function registerProvocateurConflict(
   )
   // One public disagreement with a genuine ally is a rivalry, not yet a
   // season-long Nemesis. Betrayal can escalate a shared pact into that role.
-  const sharesGenuineAlliance = Object.values(domain.alliances).some(
-    (alliance) =>
-      alliance.status !== 'DISSOLVED' &&
-      alliance.genuine &&
-      alliance.memberIds.includes(input.actorId) &&
-      alliance.memberIds.includes(input.targetId)
-  )
-  const hasBetrayal = domain.events.some(
-    (event) =>
-      event.type === 'ALLIANCE_BETRAYAL' &&
-      ((event.actorId === input.actorId && event.targetIds.includes(input.targetId)) ||
-        (event.actorId === input.targetId && event.targetIds.includes(input.actorId)))
+  const sharedAlliances = getCurrentAlliancesBetween(domain, input.actorId, input.targetId)
+  const sharedGenuineAlliances = sharedAlliances.filter((alliance) => alliance.genuine)
+  const sharesGenuineAlliance = sharedGenuineAlliances.length > 0
+  // Alliance histories are capped at 64 entries and scoped to one alliance ID.
+  // A betrayal in a dissolved, superseded pact cannot authorize a new Nemesis.
+  const hasBetrayal = sharedGenuineAlliances.some((alliance) =>
+    (alliance.history ?? []).some(
+      (event) =>
+        event.allianceId === alliance.id &&
+        event.type === 'ALLIANCE_BETRAYAL' &&
+        ((event.actorId === input.actorId && event.targetIds.includes(input.targetId)) ||
+          (event.actorId === input.targetId && event.targetIds.includes(input.actorId)))
+    )
   )
   if (sharesGenuineAlliance && !hasBetrayal) {
     // An open argument should visibly strain the commitment and reduce the

@@ -137,7 +137,9 @@ describe('Nemesis phase-driven delivery', () => {
     expect(epilogue?.meta?.forceOnTv).toBe(true)
     expect(epilogue && isVisibleOnTv(epilogue)).toBe(true)
     expect(
-      store.getState().social.reality.relationshipAutonomy.nemeses['nemesis:echo:human'].status
+      Object.values(store.getState().social.reality.relationshipAutonomy.nemeses).find(
+        (nemesis) => nemesis.ownerId === 'echo' && nemesis.targetId === 'human'
+      )?.status
     ).toBe('RECONCILED')
     store.dispatch(setPhase('week_end'))
     expect(

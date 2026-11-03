@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { getRealityRelationshipLabel } from '../../components/SocialPanelV2/relationshipUtils'
 import { createInitialRealityDomainState, createRealityAlliance } from '../reality'
+import { recordRealityAllianceBetrayal } from '../reality/relationshipForms'
 import { selectCanonicalRelationshipView } from '../relationshipSemantics'
 import { advanceNemesisNarrative } from '../reality/nemesisNarrative'
 import { registerProvocateurConflict } from '../seasonProvocateurs'
@@ -83,6 +84,46 @@ describe('season provocateur conflict relationships', () => {
         targetId: 'provocateur',
       }).isNemesis
     ).toBe(false)
+  })
+
+  it('does not reuse a betrayal from a dissolved pact to escalate a new pact', () => {
+    const reality = createInitialRealityDomainState()
+    const oldPact = createRealityAlliance(reality, {
+      id: 'old-pact',
+      founderIds: ['human', 'provocateur'],
+      memberIds: [],
+      purpose: 'Old protection pact',
+      at: { day: 1, phase: 'social_1' },
+    })
+    oldPact.status = 'ACTIVE'
+    recordRealityAllianceBetrayal(reality, {
+      actorId: 'provocateur',
+      targetId: 'human',
+      kind: 'SOCIAL_BETRAYAL',
+      at: { day: 2, phase: 'social_1' },
+      sourceEventId: 'old-pact-breach',
+      allianceId: oldPact.id,
+    })
+    oldPact.status = 'DISSOLVED'
+
+    const newPact = createRealityAlliance(reality, {
+      id: 'new-pact',
+      founderIds: ['human', 'provocateur'],
+      memberIds: [],
+      purpose: 'Renewed protection pact',
+      at: { day: 5, phase: 'social_1' },
+    })
+    newPact.status = 'ACTIVE'
+
+    const result = registerProvocateurConflict(reality, {
+      actorId: 'provocateur',
+      targetId: 'human',
+      at: { day: 6, phase: 'social_1' },
+      cause: 'PERSONALITY_CLASH',
+    })
+
+    expect(result?.nemesis).toBeNull()
+    expect(newPact.status).toBe('FRACTURED')
   })
 
   it('records a rival label for another AI target without replacing their existing nemesis', () => {

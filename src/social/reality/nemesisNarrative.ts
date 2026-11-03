@@ -1,6 +1,6 @@
 import { allianceKind, isCurrentAlliance } from './allianceIdentity'
 import { appendRealityEvent } from './events'
-import { recordRelationshipEvidence } from './relationshipAutonomy'
+import { nemesisThreadId, recordRelationshipEvidence } from './relationshipAutonomy'
 import { applyRealityRelationshipChange } from './relationships'
 import { removeRealityAllianceMember } from './relationshipForms'
 import type {
@@ -165,7 +165,7 @@ function createClue(
     tags: ['NEMESIS', 'UNDERMINE'],
     relatedFactIds: [],
     relatedPromiseIds: [],
-    relatedThreadIds: [`nemesis-thread:${objective.ownerId}:${objective.targetId}`],
+    relatedThreadIds: [nemesisThreadId(objective)],
     publicEligible: false,
     juryEligible: false,
   })
@@ -247,7 +247,7 @@ function createReveal(
     tags: ['NEMESIS_REVEALED', 'CONFLICT'],
     relatedFactIds: [],
     relatedPromiseIds: [],
-    relatedThreadIds: [`nemesis-thread:${objective.ownerId}:${objective.targetId}`],
+    relatedThreadIds: [nemesisThreadId(objective)],
     publicEligible: false,
     juryEligible: true,
   })
@@ -292,7 +292,7 @@ function createReveal(
       intent.status = 'CLOSED'
       intent.continuationPressure = 0
     }
-    const thread = domain.threads[`nemesis-thread:${objective.ownerId}:${objective.targetId}`]
+    const thread = domain.threads[nemesisThreadId(objective)]
     if (thread) {
       thread.status = 'RESOLVED'
       thread.stage = 'ENDED_BY_EVICTION'
@@ -334,7 +334,7 @@ function createReconciledEpilogue(
   const at = { day: context.day, phase: context.phase }
   const name = context.playerNames[objective.ownerId] ?? 'A hubmate'
   const motive = explainNemesisMotive(domain, objective)
-  const thread = domain.threads[`nemesis-thread:${objective.ownerId}:${objective.targetId}`]
+  const thread = domain.threads[nemesisThreadId(objective)]
   const resolution =
     thread?.stage === 'RECONCILED_BY_SAFETY'
       ? 'Your voluntary Safety rescue changed their mind before the conflict escalated further.'
@@ -356,7 +356,7 @@ function createReconciledEpilogue(
     tags: ['NEMESIS_REVEALED', 'RECONCILED'],
     relatedFactIds: [],
     relatedPromiseIds: [],
-    relatedThreadIds: [`nemesis-thread:${objective.ownerId}:${objective.targetId}`],
+    relatedThreadIds: [nemesisThreadId(objective)],
     publicEligible: false,
     juryEligible: true,
   })

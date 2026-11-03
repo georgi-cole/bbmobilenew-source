@@ -271,3 +271,8 @@ store listings or change configured prices.
   price change, reward change or new gameplay advantage. Standard and unsupported
   presentation paths retain the native decision. Existing Store listings and
   marketplace product descriptions remain accurate.
+
+- 2026-11-03: Reviewed pair-scoped audience evidence, current-alliance Nemesis
+  escalation, and bounded Nemesis episode history. These social and relationship
+  consistency safeguards do not add or change purchasable items, entitlements,
+  prices, rewards, or marketplace copy.
