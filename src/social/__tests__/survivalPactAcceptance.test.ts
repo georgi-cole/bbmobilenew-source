@@ -98,7 +98,7 @@ describe('Classic survival-driven pact consent', () => {
 
   it('does not invent a survival deal without the correct request, recipient, day and power', () => {
     const baseline = offer(18, { classicGame: false }).request
-    for (const overrides of [
+    const scenarios: Partial<AllianceManagementContext>[] = [
       { protectionAppealsByActorId: {} },
       {
         protectionAppealsByActorId: {
@@ -112,7 +112,8 @@ describe('Classic survival-driven pact consent', () => {
       },
       { powerHolderIds: ['lia'] },
       { classicGame: false },
-    ] satisfies Partial<AllianceManagementContext>[]) {
+    ]
+    for (const overrides of scenarios) {
       const candidate = offer(18, overrides).request
       expect(candidate.status).toBe(baseline.status)
       expect(candidate.responsesByActorId?.blue).toEqual(baseline.responsesByActorId?.blue)
