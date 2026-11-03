@@ -284,25 +284,10 @@ export function isNemesisDisclosedTo(
     if (nemesis.status !== 'ACTIVE') return false
     if (nemesis.ownerId === viewerId && nemesis.targetId === otherId) return true
     if (nemesis.ownerId !== otherId || nemesis.targetId !== viewerId) return false
-    // A recorded reveal remains known even if its detailed event has rolled
-    // out of the bounded feed. Neither a generic dispute nor a private AI
-    // objective is by itself proof that this person is a Nemesis.
-    if (nemesis.revealEventId || nemesis.revealedAt) return true
-
-    // Legacy witnessed provocations already explicitly introduced an opponent
-    // and explained their grievance; keep those reads when loading old saves.
-    const source = reality.events.find((event) => event.id === nemesis.sourceEventId)
-    return Boolean(
-      source &&
-      source.type === 'PROVOCATEUR_CONFLICT_STARTED' &&
-      source.actorId === otherId &&
-      source.targetIds.includes(viewerId) &&
-      source.visibility !== 'PRIVATE' &&
-      (source.participantIds.includes(viewerId) ||
-        source.witnessIds.includes(viewerId) ||
-        source.visibility === 'HOUSE_PUBLIC' ||
-        source.visibility === 'CEREMONY_PUBLIC')
-    )
+    // The player may witness hostility before the story discloses that
+    // character's private Nemesis objective. Show a Rival in that interval;
+    // only the persisted named revelation justifies the Nemesis label.
+    return Boolean(nemesis.revealEventId || nemesis.revealedAt)
   })
 }
 
