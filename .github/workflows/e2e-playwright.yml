@@ -58,6 +58,14 @@ jobs:
         run: >-
           npx playwright test --grep @smoke --grep-invert @minigame
           --project=mobile-chromium --workers=1 --retries=0
+      - name: Upload actual Nemesis UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-nemesis-real-ui
+          path: visual-evidence/nemesis/*.png
+          if-no-files-found: warn
+          retention-days: 7
       - name: Run finale progression and recovery journey
         run: >-
           npx playwright test e2e/playwright/finale.spec.ts
@@ -70,5 +78,6 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            visual-evidence/nemesis/
           if-no-files-found: warn
           retention-days: 7
