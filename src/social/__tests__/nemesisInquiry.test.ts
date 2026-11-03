@@ -26,6 +26,14 @@ function createScene(reason: 'SOCIAL_REACH' | 'PERSONAL_FRICTION' = 'SOCIAL_REAC
 }
 
 function unveil(domain: RealityDomainState, atDay = 4) {
+  const first = advanceNemesisNarrative(domain, {
+    humanId: 'human',
+    day: 3,
+    phase: 'social_2',
+    playerNames: { human: 'Quartz', echo: 'Echo', jax: 'Jax' },
+    activePlayerIds: new Set(['human', 'echo', 'jax']),
+  })
+  expect(first[0]?.kind).toBe('clue')
   const revealed = advanceNemesisNarrative(domain, {
     humanId: 'human',
     day: atDay,
