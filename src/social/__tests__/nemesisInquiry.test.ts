@@ -140,7 +140,8 @@ describe('Ask Why — private Nemesis explanation', () => {
     expect(eligibility(domain, 'echo', 5).eligible).toBe(true)
     const nextDay = ask(domain, 5, 701)
     expect(nextDay).not.toBeNull()
-    expect(domain.events.filter((event) => event.type === 'NEMESIS_REASON_REFUSED')).toHaveLength(1)
+    expect(domain.events.filter((event) => event.type.startsWith('NEMESIS_REASON_'))).toHaveLength(2)
+    expect(domain.events[domain.events.length - 1].day).toBe(5)
   })
 
   it('gives a specific real Safety abandonment rather than inventing a different event', () => {
