@@ -145,7 +145,9 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
       .filter({ hasText: nemesis.name })
       .first()
     await targetCard.click()
-    await expect(targetCard).toHaveAttribute('aria-pressed', 'true')
+    // Selecting a player intentionally replaces the roster with a detail card;
+    // the old roster button is removed from the DOM rather than left pressed.
+    await expect(social.getByRole('heading', { name: nemesis.name })).toBeVisible()
     await expect(social.getByText('Nemesis', { exact: true }).first()).toBeVisible()
     await page.screenshot({
       path: testInfo.outputPath('03-real-social-nemesis-relationship.png'),
@@ -163,6 +165,7 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
       fullPage: true,
     })
 
+    const energyBefore = (await readAppState(page)).social.energyBank[human.id]
     await questionCard.click()
     await social.getByRole('button', { name: 'Execute' }).click()
     await expect
@@ -177,7 +180,7 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
       (event) => event.actionId === 'ask_nemesis_reason'
     )
     if (!answer) throw new Error('The game did not persist the Nemesis answer')
-    expect(after.social.energyBank[human.id]).toBe(9)
+    expect(after.social.energyBank[human.id]).toBe(energyBefore - 1)
     await expect(social.getByText(answer.reason, { exact: false }).first()).toBeVisible()
     await page.screenshot({
       path: testInfo.outputPath('05-real-social-private-nemesis-answer.png'),
