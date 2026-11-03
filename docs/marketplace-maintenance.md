@@ -55,6 +55,11 @@ store listings or change configured prices.
   paid benefits, prices, minigame versions, Eyeolean powers and Store copy remain
   unchanged; the existing listings remain accurate.
 
+- 2026-11-03: Reviewed replacement-ceremony outcome routing and the shared film
+  family for ordinary replacements, power overrides, Vox and Cupid. Reuses existing
+  character packs and sets, adds no product or gameplay advantage, and preserves
+  VIP access, Standard/reduced-motion fallback, pricing and Store copy.
+
 - 2026-11-03: Reviewed the compact VIP Cinematic badge handoffs. Saved-by-Safety
   cinematics now finish with a short badge landing; replacement nominations
   use the same short badge reveal in VIP Cinematic mode, while public saves

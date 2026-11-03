@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Replacement ceremony review</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #08060d;
+        color: #ebdfcb;
+        font: 14px system-ui;
+      }
+      nav {
+        position: fixed;
+        z-index: 20000;
+        top: 12px;
+        left: 12px;
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid #cbb68155;
+        border-radius: 12px;
+        background: #110b20d9;
+      }
+      select,
+      button {
+        padding: 8px;
+        border: 1px solid #d9bd7955;
+        border-radius: 6px;
+        background: #21152d;
+        color: inherit;
+      }
+      #film {
+        position: fixed;
+        z-index: 1;
+        inset: 0;
+      }
+      #handoff {
+        position: fixed;
+        z-index: 0;
+        inset: 0;
+        display: grid;
+        align-content: center;
+        gap: 24px;
+        padding: 28px;
+        opacity: 0;
+        background:
+          radial-gradient(ellipse at 50% 42%, #4a285e9c, transparent 64%),
+          linear-gradient(165deg, #170e22, #08060d 75%);
+        transition: opacity 240ms ease;
+      }
+      #handoff.is-visible {
+        opacity: 1;
+      }
+      .handoff-title {
+        color: #d8c48e;
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        text-align: center;
+        text-transform: uppercase;
+      }
+      .handoff-roster {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .handoff-player {
+        position: relative;
+        display: grid;
+        min-height: 145px;
+        overflow: hidden;
+        align-content: end;
+        justify-items: center;
+        border: 1px solid #bba57835;
+        border-radius: 16px;
+        background: linear-gradient(160deg, #271a31, #08070a);
+      }
+      .handoff-player img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: 50% 100%;
+      }
+      .handoff-player strong {
+        z-index: 1;
+        width: 100%;
+        padding: 22px 8px 10px;
+        background: linear-gradient(transparent, #08060df0);
+        font:
+          400 19px Georgia,
+          serif;
+        text-align: center;
+      }
+      .handoff-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: grid;
+        width: 31px;
+        height: 31px;
+        place-items: center;
+        transform: scale(0.4);
+        border: 1px solid #e0c787;
+        border-radius: 50%;
+        background: #2b2036;
+        box-shadow: 0 0 18px #d2af5e70;
+        color: #f4e3b7;
+        opacity: 0;
+      }
+      .handoff-player.is-nominated .handoff-badge {
+        animation: badge-arrive 520ms cubic-bezier(0.2, 0.75, 0.25, 1) 130ms forwards;
+      }
+      @keyframes badge-arrive {
+        0% {
+          transform: scale(0.4) rotate(-18deg);
+          opacity: 0;
+        }
+        70% {
+          transform: scale(1.12) rotate(4deg);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1) rotate(0);
+          opacity: 1;
+        }
+      }
+      #status {
+        position: fixed;
+        z-index: 20000;
+        bottom: 10px;
+        left: 10px;
+        color: #c5b493;
+        font-size: 11px;
+      }
+      body.capture nav,
+      body.capture #status {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <select id="scenario" aria-label="Preview scenario"></select>
+      <button id="play" type="button">Replay</button>
+      <button id="pause" type="button">Pause</button>
+    </nav>
+    <div id="handoff"></div>
+    <div id="film"></div>
+    <div id="status" role="status"></div>
+    <script type="module">
+      import { createClip } from '/src/cinematic/ceremonies/renderer.js'
+      import catalog from '/src/cinematic/ceremonies/cast.json'
+
+      const scenarios = [
+        { id: 'ordinary', label: 'The Open Seat · ordinary LOH' },
+        { id: 'halo', label: 'Halo Exchange · POS chooses' },
+        { id: 'force', label: 'Force Majeure · enforced choice' },
+        { id: 'mission', label: 'Pick the Backup · mission chooser' },
+        { id: 'coLoh', label: 'Co-LOH · designated chooser' },
+        { id: 'detox', label: 'Detox · two replacement nominees' },
+        { id: 'doubleTroubleOne', label: 'Double Trouble · one use' },
+        { id: 'doubleTroubleTwo', label: 'Double Trouble · two uses' },
+        { id: 'failedAmbush', label: 'Failed Ambush · no plan disclosed' },
+        { id: 'voxOne', label: 'Vox Populi · one replacement' },
+        { id: 'voxMultiple', label: 'Vox Populi · multiple replacements' },
+        { id: 'cupid', label: 'Cupid · linked pair' },
+        { id: 'singleNominee', label: 'Initial nomination · one person' },
+        { id: 'ambushControl', label: 'Existing Ambush · exclusive control' },
+      ]
+      const select = document.querySelector('#scenario')
+      for (const scenario of scenarios) select.add(new Option(scenario.label, scenario.id))
+      const query = new URLSearchParams(location.search)
+      select.value = scenarios.some((scenario) => scenario.id === query.get('scenario'))
+        ? query.get('scenario')
+        : 'ordinary'
+      if (query.has('capture')) document.body.classList.add('capture')
+
+      const byId = (id) => catalog.characters.find((character) => character.id === id)
+      let clip
+      let paused = false
+      window.previewScenario = async (scenarioId = select.value) => {
+        clip?.stop()
+        paused = false
+        const scenario = scenarios.find((entry) => entry.id === scenarioId)
+        const filmRoot = document.querySelector('#film')
+        const handoff = document.querySelector('#handoff')
+        filmRoot.replaceChildren()
+        handoff.replaceChildren()
+        handoff.classList.remove('is-visible')
+
+        let scene = 'replacement'
+        let cast
+        let outcome
+        let durationMs =
+          scenarioId === 'singleNominee' ? 7600 : scenarioId === 'ambushControl' ? 4300 : 4500
+        let nomineeIds = []
+
+        if (scenarioId === 'singleNominee') {
+          scene = 'nominations'
+          const nominee = { ...byId('nova'), playerId: 'nova' }
+          const chooser = { ...byId('rune'), playerId: 'rune' }
+          cast = { a: nominee, b: nominee, c: nominee, d: chooser }
+          nomineeIds = ['nova']
+        } else if (scenarioId === 'ambushControl') {
+          scene = 'ambush'
+          cast = {
+            a: { ...byId('rune'), playerId: 'rune' },
+            b: { ...byId('aria'), playerId: 'aria' },
+            c: { ...byId('nova'), playerId: 'nova' },
+          }
+          nomineeIds = ['nova']
+        } else {
+          const replacements = ['detox', 'doubleTroubleTwo', 'cupid', 'voxMultiple'].includes(
+            scenarioId
+          )
+            ? ['nova', 'lia']
+            : ['nova']
+          const continuing = ['detox', 'doubleTroubleTwo', 'cupid', 'voxMultiple'].includes(
+            scenarioId
+          )
+            ? []
+            : ['ash']
+          const chooserId =
+            scenarioId === 'voxOne' || scenarioId === 'voxMultiple'
+              ? null
+              : ['halo', 'mission', 'coLoh', 'detox'].includes(scenarioId)
+                ? 'aria'
+                : 'rune'
+          const actorIds = [...continuing, ...replacements, ...(chooserId ? [chooserId] : [])]
+          cast = Object.fromEntries(
+            [...new Set(actorIds)].map((id) => [id, { ...byId(id), playerId: id }])
+          )
+          const variant = scenarioId.startsWith('doubleTrouble')
+            ? 'doubleTrouble'
+            : scenarioId.startsWith('vox')
+              ? 'vox'
+              : scenarioId === 'failedAmbush'
+                ? 'ordinary'
+                : scenarioId
+          durationMs =
+            variant === 'vox' ? 3000 : replacements.length > 1 && variant !== 'cupid' ? 6000 : 4500
+          nomineeIds = [...continuing, ...replacements]
+          outcome = {
+            owner: 'replacement',
+            eventKey: `preview:${scenarioId}`,
+            variant,
+            replacementIds: replacements,
+            continuingNomineeIds: continuing,
+            savedIds: ['ali'],
+            chooserId,
+            durationMs,
+          }
+        }
+
+        const roster = document.createElement('div')
+        roster.className = 'handoff-title'
+        roster.textContent = 'The ceremony returns to the game'
+        const cards = document.createElement('div')
+        cards.className = 'handoff-roster'
+        for (const id of [...new Set(nomineeIds)]) {
+          const actor = byId(id)
+          if (!actor) continue
+          const card = document.createElement('div')
+          card.className = 'handoff-player'
+          if (outcome?.replacementIds.includes(id)) card.classList.add('is-nominated')
+          const portrait = document.createElement('img')
+          portrait.src = `/${actor.poses.front.src}`
+          portrait.alt = ''
+          const name = document.createElement('strong')
+          name.textContent = actor.name
+          const badge = document.createElement('span')
+          badge.className = 'handoff-badge'
+          badge.textContent = '◆'
+          card.append(portrait, name, badge)
+          cards.append(card)
+        }
+        handoff.append(roster, cards)
+
+        clip = createClip()
+        const details = outcome ? { replacementOutcome: outcome } : {}
+        const data = await clip.prepare(scene, cast, 'generic', details)
+        if (!data) throw new Error(`Could not prepare ${scenario.label}`)
+        document.querySelector('#status').textContent = outcome
+          ? `${scenario.label} · ${(data.transferBytes / 1024).toFixed(0)} KB · ${(data.decodedBytes / 1048576).toFixed(1)} MB decoded · ${durationMs / 1000}s`
+          : `${scenario.label} · existing scene · ${(data.transferBytes / 1024).toFixed(0)} KB`
+        clip.mount(
+          filmRoot,
+          () => handoff.classList.add('is-visible'),
+          () => handoff.classList.add('is-visible')
+        )
+        window.replacementClip = clip
+        window.replacementDurationMs = durationMs
+        return { durationMs, data }
+      }
+      document.querySelector('#play').onclick = () => window.previewScenario()
+      select.onchange = () => window.previewScenario()
+      document.querySelector('#pause').onclick = () => {
+        paused = !paused
+        if (paused) clip?.pause()
+        else clip?.resume()
+      }
+      window.previewScenario(select.value)
+    </script>
+  </body>
+</html>
