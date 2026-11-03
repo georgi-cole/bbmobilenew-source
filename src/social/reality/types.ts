@@ -498,6 +498,8 @@ export interface RealityAllianceResponse {
 
 export interface RealityAllianceRequest {
   id: string
+  /** Missing on legacy pending requests: retain their original decision weights. */
+  strategicPolicyVersion?: 1
   history?: RealitySocialEvent[]
   kind: RealityAllianceRequestKind
   status: RealityAllianceRequestStatus

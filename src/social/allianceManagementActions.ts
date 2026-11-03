@@ -1,5 +1,5 @@
 import type { AppDispatch, RootState } from '../store/store'
-import { isVoxPopuliActive } from '../features/twists/voxPopuli'
+import { resolveStrategicModeContext } from './strategicModeContext'
 import { spendWeekendSocialResources } from '../store/gameSlice'
 import {
   applyEnergyDelta,
@@ -19,6 +19,7 @@ import type { SocialActionReceipt } from './types'
 export function allianceManagementContext(
   state: Pick<RootState, 'game'> & Partial<Pick<RootState, 'social'>>
 ): AllianceManagementContext {
+  const rules = resolveStrategicModeContext(state.game)
   const human = state.game.players.find((player) => player.isUser)
   const protectionAppealsByActorId: Record<
     string,
@@ -47,10 +48,13 @@ export function allianceManagementContext(
     }
   }
   return {
-    classicGame: state.game.mode === 'classic' && !isVoxPopuliActive(state.game),
-    powerHolderIds: [state.game.lohId, state.game.posWinnerId].filter((id): id is string =>
-      Boolean(id)
-    ),
+    strategicMode: rules,
+    classicGame: rules.format === 'classic',
+    powerHolderIds: [
+      ...rules.powers.lohIds,
+      rules.powers.safetyHolderId,
+      ...rules.powers.safetyCoholderIds,
+    ].filter((id): id is string => Boolean(id)),
     protectionAppealsByActorId,
     identityByActorId: Object.fromEntries(
       state.game.players

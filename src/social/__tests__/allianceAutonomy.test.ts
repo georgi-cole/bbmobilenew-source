@@ -105,7 +105,10 @@ describe('autonomous alliance strategy', () => {
     evaluateAllianceAutonomy(domain, context)
 
     expect(alliance.currentTargetIds).toEqual(['ai-6'])
-    expect(alliance.memberPlanBeliefs['ai-1']?.[0]).toMatch(/^fallback:/)
+    expect(alliance.memberPlanBeliefs['ai-1']).toContain('dissent:ai-6')
+    expect(alliance.memberPlanBeliefs['ai-1']?.some((plan) => plan.startsWith('fallback:'))).toBe(
+      true
+    )
     expect(alliance.memberPlanBeliefs['ai-2']).toContain('target:ai-6')
   })
 

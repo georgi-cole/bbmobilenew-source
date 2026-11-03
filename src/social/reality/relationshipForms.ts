@@ -1521,6 +1521,9 @@ export function recordRealityAlliancePlanDefiance(
       (planId) =>
         planId.startsWith('dissent') && planTargetIds.some((targetId) => planId.includes(targetId))
     )
+    // The meeting already records this boundary. An explicit broken promise is
+    // resolved separately; following declared dissent is not a new betrayal.
+    if (declaredDissent) continue
     const merelyAware =
       !declaredDissent &&
       actorPlanBeliefs.some(

@@ -1,3 +1,5 @@
+import { evaluateAllianceStrategicFit } from './allianceStrategicFit'
+import type { StrategicModeContext } from '../strategicModeContext'
 import { recordAllianceRequestEvent } from './allianceRequestEvents'
 import type { AiGameIdentity } from '../../ai/aiGameIdentity'
 import {
@@ -17,6 +19,7 @@ import { reconcileConvergedAllianceRosters } from './allianceRosterConvergence'
 import {
   createRealityAlliance,
   refreshRealityAllianceOverlaps,
+  refreshRealityAllianceDynamics,
   removeRealityAllianceMember,
   renameRealityAlliance,
   strengthenRealityAlliancePair,
@@ -33,6 +36,8 @@ import type {
 
 export interface AllianceManagementContext {
   at: RealityClock
+  /** Public rules; absent on legacy contexts. New requests pin their policy version. */
+  strategicMode?: StrategicModeContext
   activeActorIds: readonly string[]
   humanActorIds: readonly string[]
   /** Real same-day AI appeals to the human power holder; not inferred from power alone. */
@@ -590,6 +595,34 @@ function finalize(
     })
     request.resultAllianceId = alliance.id
   }
+  const resulting = request.resultAllianceId ? state.alliances[request.resultAllianceId] : undefined
+  if (
+    request.strategicPolicyVersion === 1 &&
+    resulting &&
+    allianceKind(resulting) === 'GROUP' &&
+    ['FOUND', 'ADMIT'].includes(request.kind)
+  ) {
+    for (const [actorId, response] of Object.entries(request.responsesByActorId ?? {})) {
+      if (
+        !resulting.memberIds.includes(actorId) ||
+        response.style === 'DECLINED' ||
+        (request.kind === 'ADMIT' && actorId !== request.candidateId)
+      )
+        continue
+      const commitment = response.strategic
+        ? 0.25
+        : response.style === 'LIMITED'
+          ? 0.32
+          : response.style === 'HESITANT'
+            ? 0.44
+            : 0.68
+      resulting.memberCommitment[actorId] = Math.min(
+        resulting.memberCommitment[actorId] ?? 0.5,
+        commitment
+      )
+    }
+  }
+  if (resulting && request.strategicPolicyVersion === 1) refreshRealityAllianceDynamics(resulting)
   settle(state, request, 'ACCEPTED', successReason, context.at)
   refreshRealityAllianceOverlaps(state)
 }
@@ -834,6 +867,15 @@ function pactDecision(
     Math.min(0.05, Math.max(0, contestant?.loneliness ?? 0) / 1000) +
     Math.min(0.04, Math.max(0, contestant?.emotions.fear ?? 0) / 1500)
 
+  const fit = evaluateAllianceStrategicFit(
+    state,
+    {
+      ...context,
+      strategicMode: request.strategicPolicyVersion === 1 ? context.strategicMode : undefined,
+    },
+    actorId,
+    [proposerId]
+  )
   const chance = Math.max(
     0.04,
     Math.min(
@@ -851,7 +893,8 @@ function pactDecision(
         survivalNeed +
         keptPromises * 0.035 -
         brokenPromises * 0.09 -
-        commitmentPressure
+        commitmentPressure +
+        fit.modifier
     )
   )
   // A person who just sought protection usually accepts an actual offer from
@@ -917,6 +960,21 @@ function pactDecision(
     style = 'HESITANT'
     reason = 'I will agree for now, but I need to see us follow through for each other.'
   }
+  if (
+    request.strategicPolicyVersion === 1 &&
+    accepted &&
+    fit.reason &&
+    (fit.tactical || fit.modifier < -0.025)
+  ) {
+    return {
+      accepted,
+      response: {
+        style: 'LIMITED',
+        reason: fit.reason,
+        ...(fit.tactical ? { strategic: true } : {}),
+      },
+    }
+  }
   return { accepted, response: { style, reason } }
 }
 
@@ -939,7 +997,16 @@ function aiDecision(
     return { accepted: (state.relationships[actorId]?.[request.candidateId!]?.trust ?? 0) < -10 }
   if (request.kind === 'RENAME_SUGGESTION')
     return { accepted: (state.relationships[actorId]?.[request.proposerId]?.trust ?? 0) >= 0 }
-  const chance = Math.max(0.12, Math.min(0.92, 0.62 + trust / 200))
+  const fit = evaluateAllianceStrategicFit(
+    state,
+    {
+      ...context,
+      strategicMode: request.strategicPolicyVersion === 1 ? context.strategicMode : undefined,
+    },
+    actorId,
+    otherIds
+  )
+  const chance = Math.max(0.12, Math.min(0.92, 0.62 + trust / 200 + fit.modifier))
   const isInviteeDecision =
     request.kind === 'ADMIT' && request.status === 'CONSENT' && request.candidateId === actorId
   const groupCount = isInviteeDecision ? currentAllianceCounts(state, actorId).groups : 0
@@ -968,7 +1035,7 @@ function aiDecision(
     const requiredAdvantage = 12
     const decisiveAdvantage = 32
     const acceptsSwitch =
-      switchOption.advantage >= decisiveAdvantage ||
+      (switchOption.advantage >= decisiveAdvantage && request.strategicPolicyVersion !== 1) ||
       (switchOption.advantage >= requiredAdvantage &&
         allianceDecisionRoll(request, actorId, seed) <
           Math.min(
@@ -986,7 +1053,28 @@ function aiDecision(
       },
     }
   }
-  return { accepted: allianceDecisionRoll(request, actorId, seed) < chance }
+  const accepted = allianceDecisionRoll(request, actorId, seed) < chance
+  return {
+    accepted,
+    ...(request.strategicPolicyVersion === 1
+      ? {
+          response: {
+            style: !accepted
+              ? ('DECLINED' as const)
+              : fit.tactical || fit.modifier < -0.025
+                ? ('LIMITED' as const)
+                : chance >= 0.75
+                  ? ('ENTHUSIASTIC' as const)
+                  : ('HESITANT' as const),
+            reason: accepted
+              ? fit.reason || 'I can work with these terms, while keeping my own decisions.'
+              : 'I cannot commit to these terms yet. ' +
+                (fit.reason || 'I need a more reliable fit with my current commitments.'),
+            ...(accepted && fit.tactical ? { strategic: true } : {}),
+          },
+        }
+      : {}),
+  }
 }
 
 function admissionVoteSummary(
@@ -1016,7 +1104,7 @@ function admissionVoteSummary(
       : `Only ${yesVotes} of ${request.electorateIds.length} members voted yes, so the proposal did not win a majority.`
   return {
     approved,
-    summary: `Votes: ${ballots.join('; ')}. Tally: ${tally}. ${decision}${request.electorateIds.some((id) => !context.humanActorIds.includes(id)) ? ' AI members weigh their current trust in the invitee.' : ''}`,
+    summary: `Votes: ${ballots.join('; ')}. Tally: ${tally}. ${decision}${request.electorateIds.some((id) => !context.humanActorIds.includes(id)) ? (request.strategicPolicyVersion === 1 ? ' AI members weigh trust, current risks and the proposed terms.' : ' AI members weigh their current trust in the invitee.') : ''}`,
   }
 }
 
@@ -1336,6 +1424,9 @@ function propose(
   const id = `request:${state.allianceManagement.nextRequestSequence++}`
   const request: RealityAllianceRequest = {
     id,
+    ...(['classic', 'vox'].includes(context.strategicMode?.format ?? '')
+      ? { strategicPolicyVersion: 1 as const }
+      : {}),
     kind: command.kind,
     status: command.kind === 'ADMIT' ? 'VOTING' : 'CONSENT',
     proposerId: command.actorId,
