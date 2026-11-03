@@ -1,7 +1,10 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import type { Player } from '../../types'
-import publicOpinionReducer, { initializeProfiles, setProfileApprovals } from '../publicOpinionSlice'
+import publicOpinionReducer, {
+  initializeProfiles,
+  setProfileApprovals,
+} from '../publicOpinionSlice'
 import { publicOpinionMiddleware } from '../publicOpinionMiddleware'
 
 type VoxStatus = 'inactive' | 'scheduled' | 'active' | 'complete'
@@ -53,8 +56,7 @@ function makeStore(
 
   const store = configureStore({
     reducer: { game: gameReducer, publicOpinion: publicOpinionReducer },
-    middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware().concat(publicOpinionMiddleware),
+    middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(publicOpinionMiddleware),
   })
   store.dispatch(initializeProfiles(['p1', 'p2', 'p3', 'p4']))
   store.dispatch(setProfileApprovals({ p1: 50, p2: 50, p3: 50, p4: 25 }))
