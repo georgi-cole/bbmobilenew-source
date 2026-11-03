@@ -123,12 +123,23 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
       await expect(tutorial).toBeHidden()
     }
 
+    // Forming a QA group correctly triggers the real one-time alliance
+    // onboarding prompt. Dismiss it through its own player-facing button
+    // before interacting with the roster; never force-click through a modal.
+    for (let index = 0; index < 4; index += 1) {
+      const prompt = page.locator('.season-tutorial-prompt')
+      if (!(await prompt.isVisible())) break
+      await prompt.getByRole('button', { name: 'Got it' }).click()
+      await expect(prompt).toBeHidden()
+    }
+
     const targetCard = social
       .locator('[aria-label="Player roster"]')
       .getByRole('button')
       .filter({ hasText: nemesis.name })
       .first()
     await targetCard.click()
+    await expect(targetCard).toHaveAttribute('aria-pressed', 'true')
     await expect(social.getByText('Nemesis', { exact: true }).first()).toBeVisible()
     await page.screenshot({
       path: testInfo.outputPath('03-real-social-nemesis-relationship.png'),
