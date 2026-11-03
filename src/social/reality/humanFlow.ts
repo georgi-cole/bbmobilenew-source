@@ -2039,7 +2039,6 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       }
     }
 
-
     // Context-only private Nemesis inquiry is resolved by its persisted story,
     // not a generic random Social action. It cannot be batched, spoofed with
     // free costOverrides, charged twice, or used before the identity is known.
@@ -2088,35 +2087,37 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       dispatch(applyEnergyDelta({ playerId: input.actorId, delta: -1 }))
       const after = getState()
       const remaining = after.social.energyBank[input.actorId] ?? 0
-      dispatch(recordSocialAction({
-        entry: {
-          actionId: input.actionId,
-          actorId: input.actorId,
-          targetId: input.targetId,
-          cost: 1,
-          costs: { energy: 1, influence: 0, info: 0 },
-          newEnergy: remaining,
-          balancesAfter: {
-            energy: remaining,
-            influence: after.social.influenceBank[input.actorId] ?? 0,
-            info: after.social.infoBank[input.actorId] ?? 0,
+      dispatch(
+        recordSocialAction({
+          entry: {
+            actionId: input.actionId,
+            actorId: input.actorId,
+            targetId: input.targetId,
+            cost: 1,
+            costs: { energy: 1, influence: 0, info: 0 },
+            newEnergy: remaining,
+            balancesAfter: {
+              energy: remaining,
+              influence: after.social.influenceBank[input.actorId] ?? 0,
+              info: after.social.infoBank[input.actorId] ?? 0,
+            },
+            delta: 0,
+            outcome: answer.answered ? 'success' : 'failure',
+            label: answer.answered ? 'Explained' : 'Refused',
+            score: 0,
+            timestamp: Date.now(),
+            week: state.game.week,
+            phase: state.game.phase,
+            source: 'manual',
+            narrative: answer.text,
+            receipt: {
+              summary: answer.text,
+              outcomeLabel: answer.answered ? 'Explained' : 'Refused',
+              tone: answer.answered ? 'neutral' : 'warning',
+            },
           },
-          delta: 0,
-          outcome: answer.answered ? 'success' : 'failure',
-          label: answer.answered ? 'Explained' : 'Refused',
-          score: 0,
-          timestamp: Date.now(),
-          week: state.game.week,
-          phase: state.game.phase,
-          source: 'manual',
-          narrative: answer.text,
-          receipt: {
-            summary: answer.text,
-            outcomeLabel: answer.answered ? 'Explained' : 'Refused',
-            tone: answer.answered ? 'neutral' : 'warning',
-          },
-        },
-      }))
+        })
+      )
       return result(true, answer.text, remaining, 0, answer.answered ? 'Explained' : 'Refused')
     }
 
