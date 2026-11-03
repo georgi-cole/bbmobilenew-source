@@ -148,7 +148,9 @@ test.describe('Nemesis PR actual UI screenshots @nemesis-visual @smoke', () => {
     // Selecting a player intentionally replaces the roster with a detail card;
     // the old roster button is removed from the DOM rather than left pressed.
     await expect(social.getByRole('heading', { name: nemesis.name })).toBeVisible()
-    await expect(social.getByText('Nemesis', { exact: true }).first()).toBeVisible()
+    // The detailed card exposes a dedicated accessible Nemesis indicator. A
+    // hidden duplicate label elsewhere in the panel must not shadow it.
+    await expect(social.locator('[aria-label="Nemesis relationship"]')).toBeVisible()
     await page.screenshot({
       path: testInfo.outputPath('03-real-social-nemesis-relationship.png'),
       fullPage: true,
