@@ -22,6 +22,20 @@ For fast Classic batches that do not launch a browser, use:
 npm run test:season-sim -- --headless --runs=50 --seed=12345
 ```
 
+Headless mode currently supports Classic only; Vox, Cupid and Survival require
+browser journeys. To verify repeated outcomes and decision transcripts for each
+seed in fresh processes, add `--verify-replay`:
+
+```bash
+npm run test:season-sim -- --headless --runs=1 --seed=1711 --verify-replay
+```
+
+The headless runner also seeds test-only UUID identities because Reality derives
+its random stream from both the season seed and game ID. This does not change
+production identity generation. Each headless season runs in a fresh process to
+reset runtime counters and historical caches as well as Redux state. Replay
+comparisons exclude report timings.
+
 Headless runs advance the real season reducers and AI strategy systems directly, including synchronous AI social turns in both weekly social phases. Relationship actions affect the season, and reports count those actions and alliance, pact, strategy-meeting, defection, leak, and romance events. They replace visible LOH minigames with seeded scores based on the selected human competition skill and each AI's competition identity. Safety and Final 3 outcomes use the game's seeded fast paths. The runner auto-resolves required human choices, skips optional confessionals, weekends, and presentation delays, and does not spend the human's social budget or answer incoming conversations. Use it to compare AI political behavior and broad season outcomes quickly; use the browser path when evaluating a human social-action strategy or visual gameplay.
 
 The runner assigns each repeat a stable, distinct roster, season, and action seed. Set `SEASON_SIM_ROSTER_SEED`, `SEASON_SIM_SEASON_SEED`, and `SEASON_SIM_ACTOR_SEED` to replay a known batch. Pass `--batch-id=my-change-10-run` to choose a readable batch name.

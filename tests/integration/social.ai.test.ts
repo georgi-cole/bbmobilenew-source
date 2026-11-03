@@ -17,7 +17,13 @@ import socialReducer, {
 import { initManeuvers, canAfford } from '../../src/social/SocialManeuvers'
 import { normalizeActionCosts } from '../../src/social/smExecNormalize'
 import { getActionById } from '../../src/social/SocialManeuvers'
-import { setStore, start, stop, getStatus } from '../../src/social/socialAIDriver'
+import {
+  setStore,
+  start,
+  stop,
+  getStatus,
+  runCurrentPhaseSynchronously,
+} from '../../src/social/socialAIDriver'
 import { socialConfig } from '../../src/social/socialConfig'
 import * as SocialPolicy from '../../src/social/SocialPolicy'
 import * as DramaPolicy from '../../src/social/dramaAIPolicy'
@@ -28,7 +34,7 @@ function makeStore() {
   return configureStore({ reducer: { social: socialReducer } })
 }
 
-function makeFullStore() {
+function makeFullStore(phase = 'social_1', targetIsUser = true) {
   // Include a minimal game slice so the driver can read players
   return configureStore({
     reducer: {
@@ -41,11 +47,11 @@ function makeFullStore() {
         } = {
           players: [
             { id: 'ai1', status: 'active', isUser: false },
-            { id: 'p_human', status: 'active', isUser: true },
+            { id: 'p_human', status: 'active', isUser: targetIsUser },
           ],
           seed: 42,
           week: 1,
-          phase: 'social_1',
+          phase,
         }
       ) => state,
     },
@@ -273,5 +279,68 @@ describe('normalizeActionCosts + canAfford integration', () => {
     const costs = normalizeActionCosts(action)
     expect(costs).toEqual({ energy: 1, influence: 20, info: 0 })
     expect(canAfford('p1', costs)).toBe(true)
+  })
+})
+
+describe('headless production social driver', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => {
+    stop()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('drains bounded AI work without timers and does not repeat completed actions', () => {
+    const store = makeFullStore('social_1', false)
+    initManeuvers(store)
+    setStore(store)
+    for (const playerId of ['ai1', 'p_human']) {
+      store.dispatch(setEnergyBankEntry({ playerId, value: 100 }))
+    }
+    vi.spyOn(SocialPolicy, 'chooseActionFor').mockReturnValue('compliment')
+    vi.spyOn(SocialPolicy, 'chooseTargetsFor').mockImplementation((id) => [
+      id === 'ai1' ? 'p_human' : 'ai1',
+    ])
+    const count = runCurrentPhaseSynchronously()
+    expect(count).toBeGreaterThan(0)
+    expect(count).toBeLessThanOrEqual(2 * socialConfig.maxActionsPerPlayer)
+    expect(getStatus().running).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+    expect(runCurrentPhaseSynchronously()).toBe(0)
+  })
+
+  it('stops after bounded attempts when no candidate can execute', () => {
+    const store = makeFullStore()
+    initManeuvers(store)
+    setStore(store)
+    store.dispatch(setEnergyBankEntry({ playerId: 'ai1', value: 10 }))
+    vi.spyOn(SocialPolicy, 'chooseActionFor').mockReturnValue('idle')
+    expect(runCurrentPhaseSynchronously()).toBe(0)
+    expect(getStatus().tickCount).toBeLessThanOrEqual(socialConfig.maxTicksPerPhase)
+    expect(getStatus().running).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('cleans up when a candidate planner throws', () => {
+    const store = makeFullStore()
+    initManeuvers(store)
+    setStore(store)
+    store.dispatch(setEnergyBankEntry({ playerId: 'ai1', value: 10 }))
+    vi.spyOn(SocialPolicy, 'chooseActionFor').mockImplementation(() => {
+      throw Error('planner failure')
+    })
+    expect(() => runCurrentPhaseSynchronously()).toThrow('planner failure')
+    expect(getStatus().running).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('does not run social work in a ceremony phase', () => {
+    const store = makeFullStore('nominations')
+    initManeuvers(store)
+    setStore(store)
+    store.dispatch(setEnergyBankEntry({ playerId: 'ai1', value: 10 }))
+    expect(runCurrentPhaseSynchronously()).toBe(0)
+    expect(store.getState().social.energyBank.ai1).toBe(10)
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

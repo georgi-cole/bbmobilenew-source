@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 
 import { competitionIdentityMultiplier } from '../src/ai/aiGameIdentity'
 import {
@@ -375,6 +375,14 @@ async function runOneSeason(
   const startedAtMs = performance.now()
   const timeline: TimelineEntry[] = []
   let aiSocialActions = 0
+  // Reality's stream includes gameId. Test-only identities must also replay.
+  let identitySequence = 0
+  const uuid = vi.spyOn(globalThis.crypto, 'randomUUID').mockImplementation(() => {
+    const hex =
+      seeds.actor.toString(16).padStart(8, '0') +
+      (++identitySequence).toString(16).padStart(24, '0')
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20)}`
+  })
   Math.random = random
   Date.now = () => clock++
 
@@ -477,6 +485,8 @@ async function runOneSeason(
     }
     return report
   } finally {
+    socialAIDriver.stop()
+    uuid.mockRestore()
     Math.random = originalRandom
     Date.now = originalDateNow
   }
@@ -496,6 +506,10 @@ test(
   async () => {
     requiredHeadlessMode()
     const runs = readPositiveInt('SEASON_SIM_RUNS', 1)
+    const offset = Number(process.env.SEASON_SIM_RUN_OFFSET ?? 0)
+    const batchRuns = readPositiveInt('SEASON_SIM_BATCH_RUNS', runs)
+    if (!Number.isInteger(offset) || offset < 0 || offset + runs > batchRuns)
+      throw new Error('Invalid simulation run offset')
     const batchId = process.env.SEASON_SIM_BATCH_ID ?? `headless-${Date.now().toString(36)}`
     const skill =
       (process.env.SEASON_SIM_COMPETITION_SKILL as
@@ -539,17 +553,17 @@ test(
 
     try {
       for (let runIndex = 1; runIndex <= runs; runIndex += 1) {
-        const seeds = seedsForRepeat(baseSeeds, runIndex - 1)
-        const report = await runOneSeason(runIndex, batchId, runs, seeds, skill)
+        const seeds = seedsForRepeat(baseSeeds, offset + runIndex - 1)
+        const report = await runOneSeason(offset + runIndex, batchId, batchRuns, seeds, skill)
         const reportPath = path.join(
           outputDirectory,
-          `run-${String(runIndex).padStart(3, '0')}.json`
+          `run-${String(offset + runIndex).padStart(3, '0')}.json`
         )
         await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
         const outcome = report.outcome!
         expect(outcome.aiSocialActions).toBeGreaterThan(0)
         summaries.push(
-          `HEADLESS_SEASON ${runIndex}/${runs}: seed ${seeds.season} → ${outcome.humanWon ? 'human win' : `place ${outcome.humanPlacement ?? 'unknown'}`} in ${report.durationMs}ms`
+          `HEADLESS_SEASON ${offset + runIndex}/${batchRuns}: seed ${seeds.season} → ${outcome.humanWon ? 'human win' : `place ${outcome.humanPlacement ?? 'unknown'}`} in ${report.durationMs}ms`
         )
         if (runIndex % 10 === 0) originalConsoleLog(`Completed ${runIndex}/${runs} seeded seasons.`)
       }

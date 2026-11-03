@@ -468,6 +468,7 @@ let _activePhaseKey: string | null = null
 let _cycle: AiTickCycle | null = null
 let _cancelScheduledWork: (() => void) | null = null
 let _pausedForBackground = false
+let _synchronous = false
 
 const CANDIDATE_ATTEMPTS_PER_TICK = 4
 const AI_SLICE_BUDGET_MS = 4
@@ -583,7 +584,29 @@ export function getStatus(): {
   return { running: _running, tickCount: _tickCount, actionsExecuted: _actionsExecuted }
 }
 
-export const socialAIDriver = { setStore, start, stop, getStatus }
+/** Drain one simulation social window through the production action loop.
+ * No browser timers or frame deadlines; budgets, attempts and action caps still apply.
+ * Kept opt-in so visible gameplay retains its frame-sliced scheduling. */
+export function runCurrentPhaseSynchronously(): number {
+  stop()
+  if (!_store) return 0
+  const state = _store.getState() as DriverState
+  if (!['social_1', 'social_2'].includes(state.game.phase ?? '')) return 0
+  _running = true
+  _tickCount = 0
+  _actionsExecuted = 0
+  _activePhaseKey = getPhaseKey(state)
+  _synchronous = true
+  try {
+    while (_running) tick()
+    return _actionsExecuted
+  } finally {
+    _synchronous = false
+    stop()
+  }
+}
+
+export const socialAIDriver = { setStore, start, stop, getStatus, runCurrentPhaseSynchronously }
 
 function getAIPlayers(state: DriverState): DriverPlayer[] {
   return (state.game?.players ?? []).filter(
@@ -640,12 +663,13 @@ function finishTickCycle(cycle: AiTickCycle): void {
 
 function processTickSlice(cycle: AiTickCycle): void {
   if (!isCycleCurrent(cycle) || !_store) return
-  const deadline =
-    (typeof performance !== 'undefined' ? performance.now() : Date.now()) + AI_SLICE_BUDGET_MS
+  const deadline = _synchronous
+    ? Infinity
+    : (typeof performance !== 'undefined' ? performance.now() : Date.now()) + AI_SLICE_BUDGET_MS
 
   while (_store && _running && cycle.epoch === _epoch && cycle === _cycle) {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
-    if (now >= deadline) {
+    if (!_synchronous && now >= deadline) {
       scheduleWork(cycle)
       return
     }
