@@ -97,7 +97,7 @@ describe('RealityLedger privacy projection', () => {
       playerNames: { human: 'You', lia: 'Lia' },
       activePlayerIds: new Set(['human', 'lia']),
     })
-    expect(epilogue[0]?.text).toContain('HIDDEN RIVALRY RESOLVED')
+    expect(epilogue[0]?.text).toContain('once saw you as a rival')
     render(<RealityLedger reality={reality} players={players} humanId="human" section="house" />)
     expect(screen.getByText('Player Nemesis')).toBeInTheDocument()
     expect(screen.getByText('A strategic conflict')).toBeInTheDocument()
