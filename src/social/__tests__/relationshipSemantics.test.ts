@@ -312,7 +312,9 @@ describe('canonical relationship presentation', () => {
         revealedView.isNemesis
       )
     ).toBe('Nemesis')
-    expect(allianceDisplayLabel(pact, revealedView.isNemesis)).toBe('Strained pact')
+    expect(pact.status).toBe('DISSOLVED')
+    expect(pact.memberIds).toEqual([])
+    expect(revealedView.alliance).toBeNull()
   })
 
   it('repairs older saved seasons with an active nemesis and an incorrectly genuine pact', () => {
