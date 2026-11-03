@@ -19,8 +19,9 @@ export function allianceManagementContext(
   state: Pick<RootState, 'game'> & Partial<Pick<RootState, 'social'>>
 ): AllianceManagementContext {
   const human = state.game.players.find((player) => player.isUser)
-  const protectionAppealsByActorId: NonNullable<
-    AllianceManagementContext['protectionAppealsByActorId']
+  const protectionAppealsByActorId: Record<
+    string,
+    { recipientId: string; day: number; scenarioKey: string }
   > = {}
   // A current-day, directly delivered request for protection is the only
   // source of a survival-driven pact boost. Player power alone is insufficient.
