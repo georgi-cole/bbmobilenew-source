@@ -990,7 +990,8 @@ export default function SocialPanelV2() {
     targetMode === 'primary' &&
     !selectedAction?.requiredTargetStatus &&
     selectedActionId !== 'proposeAlliance' &&
-    selectedActionId !== 'consult_alliance'
+    selectedActionId !== 'consult_alliance' &&
+    selectedActionId !== 'ask_nemesis_reason'
   const isAllianceConsultation = selectedActionId === 'consult_alliance'
   const isAllianceInvitation = selectedActionId?.startsWith('alliance:invite:') === true
   const showAlliancePicker =
@@ -1347,6 +1348,7 @@ export default function SocialPanelV2() {
         'ask_safety_plan',
         'ask_hold_safety',
         'ask_loh_target',
+        'ask_nemesis_reason',
         'rally_votes_against',
         'vote_rally',
         'nominate',
@@ -1784,6 +1786,7 @@ export default function SocialPanelV2() {
             : selectedActionId === 'ask_loh_target' ||
                 selectedActionId === 'ask_nomination_advice' ||
                 selectedActionId === 'ask_player_opinion' ||
+                selectedActionId === 'ask_nemesis_reason' ||
                 selectedActionId === 'share_pregnancy_news' ||
                 selectedActionId === 'pregnancy_test_self' ||
                 selectedActionId === 'paternity_test_self'
