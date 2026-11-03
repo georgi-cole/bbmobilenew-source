@@ -1013,12 +1013,7 @@ function applyIncomingChoiceConsequences({
     responseLabel
   )
   const recentPactRefusal = asksForProtectionDetails
-    ? getSameDayPactRefusal(
-        state.social.reality,
-        humanPlayer.id,
-        interaction.fromId,
-        currentWeek
-      )
+    ? getSameDayPactRefusal(state.social.reality, humanPlayer.id, interaction.fromId, currentWeek)
     : null
   const outcomeText = asksForProtectionDetails
     ? recentPactRefusal
