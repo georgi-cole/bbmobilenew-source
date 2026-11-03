@@ -58,11 +58,20 @@ function finiteAdapter(
         })
         return
       }
-      await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
-      await page.getByRole('button', { name: 'Start Season', exact: true }).click()
-      await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
-        timeout: MODE_LAUNCH_TIMEOUT,
-      })
+      const contestantHeading = page.getByRole('heading', { name: 'Choose your contestant' })
+      const gameActionZone = page.getByRole('region', { name: 'Game action zone' })
+      await expect
+        .poll(
+          async () =>
+            (await contestantHeading.isVisible().catch(() => false)) ||
+            (await gameActionZone.isVisible().catch(() => false)),
+          { timeout: MODE_LAUNCH_TIMEOUT }
+        )
+        .toBe(true)
+      if (await contestantHeading.isVisible().catch(() => false)) {
+        await page.getByRole('button', { name: 'Start Season', exact: true }).click()
+      }
+      await expect(gameActionZone).toBeVisible({ timeout: MODE_LAUNCH_TIMEOUT })
     },
     async isTerminal(page, suppliedState) {
       const state = suppliedState ?? (await readAppState(page))

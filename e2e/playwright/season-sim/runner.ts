@@ -279,9 +279,15 @@ async function skipEliminationAnimation(page: Page): Promise<boolean> {
 }
 
 async function skipOptionalVoteReveal(page: Page): Promise<boolean> {
-  const prompt = page.getByRole('dialog', { name: 'Peek Behind the Curtain?' })
+  const prompt = page.getByRole('dialog', {
+    name: /^(?:Peek Behind the Curtain\?|Reveal the Secret Ballots\?)$/,
+  })
   if (!(await prompt.isVisible().catch(() => false))) return false
-  await prompt.getByRole('button', { name: 'Continue', exact: true }).click()
+  const keepSecret = prompt.getByRole('button', {
+    name: /^(?:Continue|Keep the Ballots Secret)$/,
+  })
+  await expect(keepSecret).toBeVisible()
+  await keepSecret.click()
   return true
 }
 
@@ -367,7 +373,7 @@ async function resolveConfessional(page: Page): Promise<boolean> {
   if (!panelVisible) return false
 
   const confirms = decisionSurface.getByRole('button', {
-    name: /Confirm nominations|Confirm power decision|Confirm replacement|Confirm|Seal deciding vote|Confirm eliminations/,
+    name: /Confirm nominations|Confirm power decision|Confirm replacement|Confirm|Seal deciding vote|Seal secret ballot|Confirm eliminations/,
   })
   const confirm = confirms.first()
   let selectedAnOption = false
@@ -667,6 +673,9 @@ export async function runSeasonSimulation(
   const handledConfessionalWindows = new Set<string>()
   const attemptedPactTargets = new Set<string>()
 
+  // Keep an unexpected unclickable control from consuming the full season's
+  // one-hour test budget. Long game transitions already have explicit waits.
+  page.setDefaultTimeout(UI_TIMEOUT)
   await page.goto(config.performanceBenchmark ? './?debugPerformance=1' : './')
   await waitForHome(page)
   await createFreshProfile(page, `Sim ${config.personaId} ${config.seeds.actor}`)
