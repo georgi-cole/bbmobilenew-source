@@ -2,6 +2,7 @@ import { allianceKind, isCurrentAlliance } from './allianceIdentity'
 import { appendRealityEvent } from './events'
 import { recordRelationshipEvidence } from './relationshipAutonomy'
 import { applyRealityRelationshipChange } from './relationships'
+import { removeRealityAllianceMember } from './relationshipForms'
 import type {
   RealityClock,
   RealityDomainState,
@@ -188,8 +189,8 @@ function createClue(
     })
   }
   const text = listenerId
-    ? 'THE BIG EYE: Someone in the Hub has begun quietly questioning your game behind your back. The source is still unknown.'
-    : 'THE BIG EYE: Someone in the Hub is privately planning to undermine your game. Their identity is still unknown.'
+    ? 'Someone in the Hub is quietly questioning your game behind your back.'
+    : 'Someone in the Hub is privately planning to work against you.'
   const clue = appendRealityEvent(domain, {
     ...at,
     type: 'NEMESIS_ANONYMOUS_CLUE',
@@ -226,12 +227,13 @@ function createReveal(
       alliance.memberIds.includes(objective.ownerId) &&
       alliance.memberIds.includes(objective.targetId)
   )
+  const sharedPacts = shared.filter((alliance) => allianceKind(alliance) === 'PACT')
   const text =
     exitWho === 'owner'
-      ? `THE BIG EYE — REVEALED: After ${name}'s departure, their private campaign against you comes to light. Why? ${motive}`
+      ? `After ${name}'s exit, you learn they were secretly working against you.`
       : exitWho === 'target'
-        ? `THE BIG EYE — REVEALED: After your elimination, the reason ${name} opposed you comes to light. Why? ${motive}`
-        : `THE BIG EYE — NEMESIS REVEALED: ${name} has been working against you. Why? ${motive}`
+        ? `You learn that ${name} was working against you before your elimination.`
+        : `${name} has turned against you.${sharedPacts.length ? ' Your personal pact has ended.' : ''}${STORY_PHASES.has(context.phase) ? ` Ask ${name} why in Social.` : ''}`
   const event = appendRealityEvent(domain, {
     ...at,
     type: 'NEMESIS_REVEALED',
@@ -241,7 +243,7 @@ function createReveal(
     witnessIds: [],
     visibility: 'PAIR_ONLY',
     outcome: 'SYSTEM',
-    reason: text,
+    reason: `${name} turned against you. ${motive}`,
     tags: ['NEMESIS_REVEALED', 'CONFLICT'],
     relatedFactIds: [],
     relatedPromiseIds: [],
@@ -251,6 +253,7 @@ function createReveal(
   })
   objective.revealedAt = at
   objective.revealEventId = event.id
+  objective.motiveText = motive
   recordRelationshipEvidence(domain, {
     id: `relationship-evidence:${event.id}:nemesis-revealed`,
     ownerId: objective.ownerId,
@@ -261,6 +264,21 @@ function createReveal(
     reciprocal: false,
     significance: 1,
   })
+
+  // Exposing a Nemesis ends each shared personal pact, not the group.
+  // The standard membership path keeps former rosters and histories intact.
+  for (const pact of sharedPacts) {
+    const leavingId = exitWho === 'target' ? objective.targetId : objective.ownerId
+    removeRealityAllianceMember(domain, {
+      allianceId: pact.id,
+      memberId: leavingId,
+      actorId: leavingId,
+      kind: exitWho ? 'ELIMINATED' : 'DEFECTION',
+      at,
+      sourceEventId: event.id,
+      endReason: 'NEMESIS_REVEALED',
+    })
+  }
 
   if (exitWho) {
     // The rivalry has ended through an elimination. Preserve the reveal in
@@ -291,8 +309,14 @@ function createReveal(
       eventId: event.id,
     })
     for (const alliance of shared) {
-      if (allianceKind(alliance) === 'PACT') alliance.status = 'FRACTURED'
-      alliance.fractureRisk = Math.max(alliance.fractureRisk, 0.6)
+      if (allianceKind(alliance) !== 'GROUP' || !isCurrentAlliance(alliance)) continue
+      // Group membership remains for manual exit, kick, or reconciliation.
+      alliance.status = 'FRACTURED'
+      alliance.memberCommitment[objective.ownerId] = Math.min(
+        alliance.memberCommitment[objective.ownerId] ?? 0.5,
+        0.2
+      )
+      alliance.fractureRisk = Math.max(alliance.fractureRisk, 0.7)
     }
   }
   return { objectiveId: objective.id, eventId: event.id, kind: 'reveal', text }
@@ -315,7 +339,10 @@ function createReconciledEpilogue(
     thread?.stage === 'RECONCILED_BY_SAFETY'
       ? 'Your voluntary Safety rescue changed their mind before the conflict escalated further.'
       : 'Sustained efforts to repair the relationship changed their mind before the conflict escalated further.'
-  const text = `THE BIG EYE — A HIDDEN RIVALRY RESOLVED: ${name} once regarded you as an opponent. Why? ${motive} ${resolution}`
+  const text =
+    thread?.stage === 'RECONCILED_BY_SAFETY'
+      ? `${name} once saw you as a rival, but your Safety rescue helped change their mind.`
+      : `${name} once saw you as a rival, but your efforts to repair things helped change their mind.`
   const event = appendRealityEvent(domain, {
     ...at,
     type: 'NEMESIS_RECONCILIATION_REVEALED',
@@ -325,7 +352,7 @@ function createReconciledEpilogue(
     witnessIds: [],
     visibility: 'PAIR_ONLY',
     outcome: 'SYSTEM',
-    reason: text,
+    reason: `${name} once regarded you as an opponent. ${motive} ${resolution}`,
     tags: ['NEMESIS_REVEALED', 'RECONCILED'],
     relatedFactIds: [],
     relatedPromiseIds: [],
@@ -335,6 +362,7 @@ function createReconciledEpilogue(
   })
   objective.revealedAt = at
   objective.revealEventId = event.id
+  objective.motiveText = motive
   recordRelationshipEvidence(domain, {
     id: `relationship-evidence:${event.id}:nemesis-reconciled-reveal`,
     ownerId: objective.ownerId,
