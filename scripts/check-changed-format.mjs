@@ -102,6 +102,18 @@ for (const file of legacyExceptions) console.log(`  legacy: ${file}`)
 if (violations.length > 0) {
   console.error('Changed-file formatting regressions:')
   for (const file of violations) console.error(`  ${file}`)
+  // Temporary diagnostic; restored immediately after capturing formatter output.
+  for (const file of violations) {
+    const config = (await prettier.resolveConfig(file)) ?? {}
+    const formatted = await prettier.format(await readFile(file, 'utf8'), {
+      ...config,
+      filepath: file,
+    })
+    const payload = JSON.stringify(formatted)
+    for (let offset = 0; offset < payload.length; offset += 2000) {
+      console.log(`FMT_PART|${file}|${offset}|${payload.slice(offset, offset + 2000)}`)
+    }
+  }
   process.exit(1)
 }
 
