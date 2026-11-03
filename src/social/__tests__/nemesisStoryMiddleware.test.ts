@@ -91,7 +91,8 @@ describe('Nemesis phase-driven delivery', () => {
       .game.tvFeed.find((event) => event.meta?.nemesisStory === 'reveal')
     expect(reveal).toBeDefined()
     expect(reveal?.text).toContain('Echo')
-    expect(reveal?.text).toContain('win power')
+    expect(reveal?.text).toContain('has turned against you')
+    expect(reveal?.text).not.toContain('win power')
     expect(reveal?.meta?.week).toBe(4)
     expect(reveal?.meta?.forceOnTv).toBe(true)
     expect(reveal && isVisibleOnTv(reveal)).toBe(true)
@@ -100,6 +101,7 @@ describe('Nemesis phase-driven delivery', () => {
     expect(social.reality.events.filter((event) => event.type === 'NEMESIS_REVEALED')).toHaveLength(
       1
     )
+    expect(social.reality.events.find((event) => event.type === 'NEMESIS_REVEALED')?.reason).toContain('win power')
     expect(
       selectCanonicalRelationshipView({
         reality: social.reality,
@@ -127,7 +129,7 @@ describe('Nemesis phase-driven delivery', () => {
     store.dispatch(setPhase('social_2'))
     const epilogue = store
       .getState()
-      .game.tvFeed.find((event) => event.text.includes('HIDDEN RIVALRY RESOLVED'))
+      .game.tvFeed.find((event) => event.text.includes('once saw you as a rival'))
     expect(epilogue).toBeDefined()
     expect(epilogue?.text).toContain('Echo')
     expect(epilogue?.meta?.forceOnTv).toBe(true)
@@ -137,7 +139,7 @@ describe('Nemesis phase-driven delivery', () => {
     ).toBe('RECONCILED')
     store.dispatch(setPhase('week_end'))
     expect(
-      store.getState().game.tvFeed.filter((event) => event.text.includes('HIDDEN RIVALRY RESOLVED'))
+      store.getState().game.tvFeed.filter((event) => event.text.includes('once saw you as a rival'))
     ).toHaveLength(1)
   })
 
