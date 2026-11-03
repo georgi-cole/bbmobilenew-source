@@ -5,6 +5,8 @@ import { allianceForEvent } from './allianceHistory'
 import { reconcileConvergedAllianceRosters } from './allianceRosterConvergence'
 import { retainAllianceHistory, retainAllianceRequestHistory } from './events'
 import { enforceNemesisAllianceConsistency } from './relationshipAutonomy'
+import { getCurrentAlliancesBetween, allianceKind } from './allianceIdentity'
+import { removeRealityAllianceMember } from './relationshipForms'
 import type {
   DirectedRelationship,
   RealityContestantState,
@@ -410,6 +412,27 @@ export function normalizeRealityDomainState(
   // Migrate older saves containing a private Nemesis and a genuine pact.
   // Preserve membership, but make the hidden loyalty conflict operational.
   enforceNemesisAllianceConsistency(normalized)
+  // Older campaign saves from before automatic breakup can contain a *known*
+  // Nemesis inside a live personal pact. Correct them once using the normal
+  // exit/history pathway; do not dissolve a larger group or mutate the source.
+  for (const nemesis of Object.values(normalized.relationshipAutonomy.nemeses)) {
+    if (nemesis.status !== 'ACTIVE' || !nemesis.revealEventId) continue
+    for (const pact of getCurrentAlliancesBetween(
+      normalized,
+      nemesis.ownerId,
+      nemesis.targetId
+    ).filter((alliance) => allianceKind(alliance) === 'PACT')) {
+      removeRealityAllianceMember(normalized, {
+        allianceId: pact.id,
+        memberId: nemesis.ownerId,
+        actorId: nemesis.ownerId,
+        kind: 'DEFECTION',
+        at: nemesis.revealedAt ?? nemesis.createdAt,
+        sourceEventId: nemesis.revealEventId,
+        endReason: 'NEMESIS_REVEALED',
+      })
+    }
+  }
   for (const alliance of Object.values(normalized.alliances))
     alliance.history = retainAllianceHistory(alliance.history ?? [])
   return normalized
