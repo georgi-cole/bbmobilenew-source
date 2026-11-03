@@ -1,4 +1,5 @@
 import type { AppDispatch, RootState } from '../store/store'
+import { isVoxPopuliActive } from '../features/twists/voxPopuli'
 import { spendWeekendSocialResources } from '../store/gameSlice'
 import {
   applyEnergyDelta,
@@ -47,7 +48,7 @@ export function allianceManagementContext(
     }
   }
   return {
-    classicGame: state.game.mode === 'classic',
+    classicGame: state.game.mode === 'classic' && !isVoxPopuliActive(state.game),
     powerHolderIds: [state.game.lohId, state.game.posWinnerId].filter(
       (id): id is string => Boolean(id)
     ),
