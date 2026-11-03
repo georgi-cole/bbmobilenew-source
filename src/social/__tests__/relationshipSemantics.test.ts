@@ -17,7 +17,6 @@ import {
 } from '../relationshipSemantics'
 import socialReducer, { replaceRealityDomain } from '../socialSlice'
 import { appendRealityEvent } from '../reality/events'
-import { allianceDisplayLabel } from '../reality/allianceIdentity'
 import { advanceNemesisNarrative } from '../reality/nemesisNarrative'
 
 function addAlliance(
