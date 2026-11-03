@@ -25,6 +25,13 @@ function setup(revealed = true, resources = 2, dramaMode = true) {
   if (revealed) {
     advanceNemesisNarrative(reality, {
       humanId: 'human',
+      day: 3,
+      phase: 'social_2',
+      playerNames: { human: 'Quartz', echo: 'Echo', jax: 'Jax' },
+      activePlayerIds: new Set(['human', 'echo', 'jax']),
+    })
+    advanceNemesisNarrative(reality, {
+      humanId: 'human',
       day: 4,
       phase: 'social_1',
       playerNames: { human: 'Quartz', echo: 'Echo', jax: 'Jax' },
