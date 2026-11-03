@@ -51,10 +51,55 @@ function causalSource(
 /** Refer only to verified decisions that can actually be tied to the rivalry. */
 function actualReason(
   domain: RealityDomainState,
-  objective: RealityNemesisObjective
+  objective: RealityNemesisObjective,
+  names: Readonly<Record<string, string>>
 ): { text: string; specific: boolean } {
   const source = causalSource(domain, objective)
   const trigger = source?.reason?.toLowerCase() ?? ''
+  const relevantEvent = (type: string) =>
+    [...domain.events]
+      .reverse()
+      .find(
+        (event) =>
+          event.type === type &&
+          event.day <= objective.createdAt.day &&
+          event.actorId === objective.targetId &&
+          (event.targetIds.includes(objective.ownerId) ||
+            event.participantIds.includes(objective.ownerId))
+      )
+  const voteEvent =
+    source?.type === 'ALLIANCE_REQUEST_VOTE'
+      ? source
+      : source?.type === 'ALLIANCE_REQUEST_ACCEPTED'
+        ? [...domain.events]
+            .reverse()
+            .find(
+              (event) =>
+                event.type === 'ALLIANCE_REQUEST_VOTE' &&
+                event.allianceRequestId === source.allianceRequestId &&
+                event.actorId === objective.ownerId &&
+                event.allianceRequestSnapshot?.accepted === false
+            )
+        : undefined
+  const rejectedInvite = voteEvent?.allianceRequestSnapshot?.kind === 'ADMIT' &&
+    voteEvent.actorId === objective.ownerId &&
+    voteEvent.allianceRequestSnapshot.accepted === false &&
+    voteEvent.allianceRequestId
+      ? domain.allianceManagement.requests[voteEvent.allianceRequestId]
+      : undefined
+  if (
+    rejectedInvite?.kind === 'ADMIT' &&
+    rejectedInvite.proposerId === objective.targetId &&
+    rejectedInvite.status === 'ACCEPTED' &&
+    rejectedInvite.candidateId &&
+    rejectedInvite.votes[objective.ownerId] === false
+  ) {
+    const newcomer = names[rejectedInvite.candidateId] ?? 'someone new'
+    return {
+      text: `You brought ${newcomer} into our alliance despite my vote against it. I stopped trusting your judgment.`,
+      specific: true,
+    }
+  }
   if (source?.type === 'ALLIANCE_BETRAYAL' && source.actorId === objective.targetId) {
     if (trigger.startsWith('safety_abandon:')) {
       return {
@@ -95,10 +140,25 @@ function actualReason(
   }
   if (source?.type === 'PROVOCATEUR_CONFLICT_STARTED') {
     if (trigger.includes('nomination')) {
-      return { text: 'You put my position at risk with a nomination, and I did not forgive it.', specific: true }
+      const nomination = relevantEvent('CEREMONY_NOMINATIONS_LOCKED')
+      return {
+        text: nomination
+          ? `You put me on the block on Day ${nomination.day}. I could not overlook that.`
+          : 'You put my position at risk with a nomination, and I did not forgive it.',
+        specific: true,
+      }
     }
     if (trigger.includes('betrayal') || trigger.includes('plan_defied')) {
-      return { text: 'I thought you had broken our agreement. I stopped believing I could rely on you.', specific: true }
+      const betrayed = relevantEvent('ALLIANCE_BETRAYAL')
+      const plan = relevantEvent('ALLIANCE_PLAN_DEFIED')
+      return {
+        text: betrayed
+          ? `You broke our alliance agreement on Day ${betrayed.day}, and my trust was gone.`
+          : plan
+            ? `You went against our alliance plan on Day ${plan.day}. I stopped relying on you.`
+            : 'I thought you had broken our agreement. I stopped believing I could rely on you.',
+        specific: true,
+      }
     }
   }
   switch (objective.reason) {
@@ -135,6 +195,7 @@ export function askRevealedNemesisWhy(
     at: RealityClock
     seed: number
     identity?: AiGameIdentity
+    playerNames?: Readonly<Record<string, string>>
   }
 ): NemesisInquiryResponse | null {
   const availability = getNemesisReasonAvailability(
@@ -154,7 +215,7 @@ export function askRevealedNemesisWhy(
     0.04 + tension * 0.17 + (input.identity?.temperament === 'secretive' ? 0.04 : 0)
   )
   const dice = stableUnit(`${input.seed}:${nemesis.id}:${input.at.day}:reply`)
-  const actual = actualReason(domain, nemesis)
+  const actual = actualReason(domain, nemesis, input.playerNames ?? {})
   const schemer = ['double_agent', 'opportunist', 'puppet_master', 'chaos_agent', 'risk_taker']
     .includes(input.identity?.archetype ?? '')
   const strategicAdmission = !actual.specific &&
