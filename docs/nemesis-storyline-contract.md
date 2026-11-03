@@ -8,9 +8,20 @@ A Nemesis must be an antagonist with a grounded motive, observable actions, an e
 
 1. **Grounded formation (private):** Drama Social may create one active anti-player objective when a real hostility threshold is met (significant negative relationship anchors or a serious outstanding grievance). Existing genuine allies require a concrete betrayal before an autonomous Nemesis can start. A provocateur's first disagreement with a genuine ally strains the pact but does not itself establish a permanent enemy.
 2. **Observable warning:** At the next eligible social phase, the antagonist takes a real private undermining action. The player receives an anonymous Faux-TV warning about a brewing campaign. The warning is recorded in the player's Reality events but never contains the hidden actor's ID or name. The private action is not visible to the player. If the player has _already_ witnessed the antagonist's confrontation, that incident substitutes for the anonymous warning.
-3. **Named reveal:** At an eligible social phase on a later numbered day, the game reveals the Nemesis, states the real motive, records the reveal as a player-readable event, and applies an observable trust/tension consequence. A previously witnessed confrontation can proceed directly to this beat at the next eligible phase. Direct pacts become strained; larger groups keep their formal membership but the revealed conflict affects their viability.
-4. **Closure protection:** If either the opponent leaves or the human joins the Tribunal before the ordinary reveal, the game uses a retrospective Big Eye reveal at the next valid end-of-day/endgame checkpoint, then closes the executable objective. A final-three/endgame transition reveals an unfinished story before normal social windows disappear. If a genuine reconciliation happened first, the game shows a retrospective **resolved-rivalry epilogue** rather than a stale active-Nemesis announcement.
+3. **Named reveal:** At an eligible Social phase on a later day, a short, natural Faux TV line identifies the Nemesis and directs the player to Social. The detailed motive is stored in the Reality event and the persistent relationship record, not narrated in full on Faux TV. An already witnessed confrontation skips the anonymous warning. Revealed hostility breaks every shared **personal pact** automatically; group alliances are strained while their membership and existing manual leave/kick controls remain intact.
+4. **Closure protection:** If the rival exits, the player joins Tribunal, or the game enters Final Three/Jury before discovery, a short retrospective Faux TV update closes the unfinished arc. A reconciliation before exposure produces a concise **resolved-rivalry epilogue**, never an incorrect active-Nemesis label. The detailed reasons remain in the event history.
 5. **Reconciliation:** Voluntary Safety rescue or a documented two-day sequence of accepted, reciprocal repair plus improved hostile-player trust can resolve the Nemesis. The underlying undermining intent and thread close. Reconciliation does not erase the historical event or instantly restore a fractured pact.
+
+## Faux TV and private dialogue
+
+Faux TV is an **event ticker**, not a paragraph-long explanation. No messages may start with an all-caps "THE BIG EYE —" header. Examples:
+
+- Anonymous clue: "Someone in the Hub is quietly questioning your game behind your back."
+- Named reveal: "Echo has turned against you. Your personal pact has ended. Ask Echo why in Social."
+- Reconciled secret rivalry: "Echo once saw you as a rival, but your Safety rescue helped change their mind."
+- Evicted rival: "After Echo's exit, you learn they were secretly working against you."
+
+A short **Ask Why** card under Social → Strategy (also visible in All) provides the private explanation as a native Social action result. It uses a normal receipt and main-log entry, not a new modal or Faux TV line. Answers are character dialogue with deterministic, save-persisted outcomes.
 
 ## Motive accuracy
 
@@ -18,7 +29,7 @@ The persisted `reason` category belongs to the AI's **perception** and must be p
 
 When a recorded nomination, betrayal, or broken plan is identified, mention its actual day from that event. Never reuse the later provocateur scene's day as if it were the date of the earlier nomination. If the historical evidence was compacted or missing, use a careful undated statement of the character's perceived motive rather than fabricate a specific action.
 
-The final reveal has a durable `NEMESIS_REVEALED` Reality event (or `NEMESIS_RECONCILIATION_REVEALED` for an earlier resolved secret feud) whose `reason` contains the explanation. It remains in the history even if the source event is later compacted.
+The reveal has a durable `NEMESIS_REVEALED` Reality event (or `NEMESIS_RECONCILIATION_REVEALED` for an earlier resolved feud) whose `reason` holds the detailed explanation. The action's private conversation records `NEMESIS_REASON_EXPLAINED` or `NEMESIS_REASON_REFUSED`, also as persisted player-readable evidence. If a source event has been compacted, its exact day or details must not be invented.
 
 ## Information boundaries
 
@@ -35,13 +46,16 @@ Each objective retains the unique clue/reveal event IDs and their day/phase. Onc
 
 ## Acceptance scenarios
 
-- Private Echo objective + current pact: anonymous clue, then named Echo reveal with specific motive and strained pact, with no leaked identity in between.
+- Private Echo objective + current pact: anonymous clue, then a short named Echo reveal, **auto-ended personal pact**, updated Nemesis relationship label and private `Ask Why` card (⚡1) with no leaked identity beforehand.
 - Already witnessed hostility: no redundant anonymous hint; named explanation arrives in the next eligible social window.
 - Documented nomination: reveal uses the real nomination day; if it is missing, no invented date.
-- Safety or accepted two-day repair: objectives and undermining behavior close; the player receives one truthful retrospective epilogue explaining the former rival's motive and how the relationship healed, never an active antagonist label.
+- Safety or accepted two-day repair: objectives and undermining behavior close. The player receives a brief retrospective TV epilogue without a false active Nemesis label; detailed context remains in Reality history.
 - Eviction/endgame: unfinished stories resolve, without continuing enemy actions from an evicted AI.
 - Normal Social/survival modes: no Nemesis scenes.
-- Replayed phases and saved seasons: no duplicate events or broadcasts; Reality Ledger and the roster agree on what the player knows.
+- The contextual `Ask Why` action appears only for a revealed **active** Nemesis selected in regular Drama Social. It costs exactly 1 energy (even on refusal), allows only one attempt per day, retries on a later day after refusal, and disappears after a real explanation or reconciliation. It cannot be batched or bypassed through a price override.
+- Replies normally use the objective's actual triggering event (nomination, actual alliance Safety failure, verified plan defiance, proven opposed recruit) or a grounded motive. Refusal is uncommon and influenced by tension; a small minority of ambition-driven archetypes can admit pure strategy when no concrete betrayal was established.
+- A revealed Nemesis cannot create a new personal pact until resolved; larger group alliances remain manageable through existing group commands.
+- Replayed phases and saved seasons: no duplicate events, charged questions, or broadcasts; the Reality Ledger and the roster agree on what the player knows.
 
 ## Scope and safeguards
 
