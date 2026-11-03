@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { allianceManagementContext } from '../allianceManagementActions'
 import { manageAlliance, type AllianceManagementContext } from '../reality/allianceManagement'
-import { createDirectedRelationship, createInitialRealityDomainState, ensureRealityActors } from '../reality/state'
+import {
+  createDirectedRelationship,
+  createInitialRealityDomainState,
+  ensureRealityActors,
+} from '../reality/state'
 import type { RealityAllianceRequest, RealityDomainState } from '../reality/types'
 
 function setup() {
@@ -20,7 +24,10 @@ function setup() {
   return state
 }
 
-function context(seed: number, overrides: Partial<AllianceManagementContext> = {}): AllianceManagementContext {
+function context(
+  seed: number,
+  overrides: Partial<AllianceManagementContext> = {}
+): AllianceManagementContext {
   return {
     at: { day: 3, phase: 'social_1' },
     activeActorIds: ['you', 'blue', 'lia'],
@@ -47,7 +54,10 @@ function context(seed: number, overrides: Partial<AllianceManagementContext> = {
   }
 }
 
-function offer(seed: number, overrides?: Partial<AllianceManagementContext>): {
+function offer(
+  seed: number,
+  overrides?: Partial<AllianceManagementContext>
+): {
   state: RealityDomainState
   request: RealityAllianceRequest
 } {
