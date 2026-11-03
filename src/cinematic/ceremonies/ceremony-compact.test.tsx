@@ -8,13 +8,7 @@ vi.mock('./session.js', () => ({
   useCinematicSession: (scene: string | null) => Boolean(scene),
 }))
 vi.mock('./bridge.jsx', () => ({
-  PremiumBridge: ({
-    scene,
-    badgeOnlyHandoff,
-  }: {
-    scene: string
-    badgeOnlyHandoff: boolean
-  }) => (
+  PremiumBridge: ({ scene, badgeOnlyHandoff }: { scene: string; badgeOnlyHandoff: boolean }) => (
     <div
       data-testid="premium-ceremony"
       data-scene={scene}

@@ -405,8 +405,7 @@ export default function CeremonyOverlay({
 
   // A public save removes the danger badge. Keep its outward motion in VIP mode,
   // even though the condensed handoff skips the full spotlight and caption.
-  const compactExtraction =
-    badgeOnly && validTiles.some((tile) => tile.badgeMotion === 'extract')
+  const compactExtraction = badgeOnly && validTiles.some((tile) => tile.badgeMotion === 'extract')
   const cues = useMemo(() => {
     if (compactExtraction)
       return [
