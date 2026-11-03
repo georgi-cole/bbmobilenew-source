@@ -47,11 +47,22 @@ export function socialConductEvidence(
   )
   const misconduct = (event: RealitySocialEvent) =>
     MISCONDUCT.has(event.actionId ?? '') || event.allianceCommitmentSnapshot?.status === 'BROKEN'
+  const involvedPair = (event: RealitySocialEvent, leftId: string, rightId: string) =>
+    (event.actorId === leftId && event.targetIds.includes(rightId)) ||
+    (event.actorId === rightId && event.targetIds.includes(leftId))
   return {
     isPublic,
-    justified: publicPast.some((event) => event.actorId === entry.targetId && misconduct(event)),
+    justified: publicPast.some(
+      (event) =>
+        event.actorId === entry.targetId &&
+        involvedPair(event, entry.actorId, entry.targetId) &&
+        misconduct(event)
+    ),
     accountableRepair: publicPast.some(
-      (event) => event.actorId === entry.actorId && misconduct(event)
+      (event) =>
+        event.actorId === entry.actorId &&
+        involvedPair(event, entry.actorId, entry.targetId) &&
+        misconduct(event)
     ),
     substantiatedExposure:
       source?.actionId === 'expose_secret' &&

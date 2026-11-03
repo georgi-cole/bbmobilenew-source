@@ -3,6 +3,7 @@ import { createRealityAlliance } from '../reality/relationshipForms'
 import { appendRealityEvent, visibleRealityEvents } from '../reality/events'
 import {
   createRealityNemesisObjective,
+  nemesisThreadId,
   reconcileNemesisWithVoluntarySafety,
 } from '../reality/relationshipAutonomy'
 import { createInitialRealityDomainState, normalizeRealityDomainState } from '../reality/state'
@@ -309,7 +310,7 @@ describe('Nemesis storyline — reliable discovery', () => {
       'Unresolved friction'
     )
     expect(objective.status).toBe('ENDED')
-    expect(reality.threads['nemesis-thread:echo:human'].status).toBe('RESOLVED')
+    expect(reality.threads[nemesisThreadId(objective)].status).toBe('RESOLVED')
     expect(advanceNemesisNarrative(reality, context(4, 'social_1', false))).toEqual([])
   })
 
@@ -325,8 +326,47 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(truth[0].text).toContain('before your elimination')
     expect(truth[0].text).toContain('Echo')
     expect(objective.status).toBe('ENDED')
-    expect(reality.threads['nemesis-thread:echo:human'].status).toBe('RESOLVED')
+    expect(reality.threads[nemesisThreadId(objective)].status).toBe('RESOLVED')
     expect(advanceNemesisNarrative(reality, context(4, 'social_1'))).toEqual([])
+  })
+
+  it('preserves separate bounded episodes when the same pair enters a new feud', () => {
+    const reality = createInitialRealityDomainState()
+    const episodes = []
+    for (let index = 1; index <= 6; index += 1) {
+      const objective = createRealityNemesisObjective(reality, {
+        ownerId: 'echo',
+        targetId: 'human',
+        sourceEventId: `feud-${index}`,
+        at: { day: index * 3, phase: 'social_1' },
+      })
+      episodes.push(objective)
+      if (index < 6) {
+        reconcileNemesisWithVoluntarySafety(reality, {
+          actorId: 'human',
+          savedIds: ['echo'],
+          eventId: `repair-${index}`,
+          at: { day: index * 3 + 1, phase: 'social_1' },
+        })
+        if (index === 1) {
+          const replay = createRealityNemesisObjective(reality, {
+            ownerId: 'echo',
+            targetId: 'human',
+            sourceEventId: 'feud-1',
+            at: { day: 3, phase: 'social_1' },
+          })
+          expect(replay).toBe(objective)
+          expect(replay.status).toBe('RECONCILED')
+        }
+      }
+    }
+
+    expect(episodes[0].id).not.toBe(episodes[1].id)
+    expect(episodes[0].status).toBe('RECONCILED')
+    expect(reality.relationshipAutonomy.nemeses[episodes[5].id].status).toBe('ACTIVE')
+    expect(Object.values(reality.relationshipAutonomy.nemeses)).toHaveLength(4)
+    expect(reality.threads[nemesisThreadId(episodes[5])].status).toBe('OPEN')
+    expect(reality.threads[nemesisThreadId(episodes[0])]).toBeUndefined()
   })
 
   it('reveals a late active Nemesis before the endgame even when normal social phases stop', () => {

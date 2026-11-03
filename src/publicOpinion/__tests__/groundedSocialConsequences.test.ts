@@ -107,6 +107,16 @@ describe('grounded public social consequences', () => {
     expect(result.some((r) => r.playerId === 'a' && r.delta > 0)).toBe(false)
     expect(result.some((r) => r.reason === 'audience_escalation_cost')).toBe(true)
   })
+  it('does not treat misconduct toward someone else as a grounded callout or repair', () => {
+    const unrelatedHarm = harm({ targetIds: ['c'], participantIds: ['b', 'c'] })
+    const callout = reactions(log(), [unrelatedHarm], [log()], 90)
+    expect(callout.some((r) => r.reason === 'audience_grounded_boundary')).toBe(false)
+    expect(callout.some((r) => r.reason === 'fan_favorite_backlash')).toBe(true)
+
+    const apology = log('apologize', { delta: 4 })
+    const apologyReactions = reactions(apology, [harm({ actorId: 'a', targetIds: ['c'] })])
+    expect(apologyReactions.some((r) => r.reason === 'audience_accountable_repair')).toBe(false)
+  })
   it('recognizes pile-ons against unpopular people without a villain-callout farm', () => {
     const history = [
       log('public_callout', { actorId: 'x', id: 'x' }),

@@ -1,5 +1,6 @@
 import type { AiGameIdentity } from '../../ai/aiGameIdentity'
 import { appendRealityEvent } from './events'
+import { nemesisThreadId } from './relationshipAutonomy'
 import type {
   RealityClock,
   RealityDomainState,
@@ -277,7 +278,7 @@ export function askRevealedNemesisWhy(
     tags: ['NEMESIS', 'PRIVATE_CONVERSATION', refused ? 'REFUSAL' : 'EXPLANATION'],
     relatedFactIds: [],
     relatedPromiseIds: [],
-    relatedThreadIds: [`nemesis-thread:${nemesis.ownerId}:${nemesis.targetId}`],
+    relatedThreadIds: [nemesisThreadId(nemesis)],
     publicEligible: false,
     juryEligible: false,
   })

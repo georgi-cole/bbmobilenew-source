@@ -21,12 +21,15 @@ export type ImagePreloadResult = {
 function preloadOne(url: string, timeoutMs: number): Promise<ImagePreloadResult> {
   return new Promise<ImagePreloadResult>((resolve) => {
     const img = new Image();
+    // Keep the timer host alive if a test realm is torn down before this
+    // background preload reaches its timeout.
+    const timerHost = globalThis;
     let done = false;
 
     const finish = (status: ImagePreloadStatus) => {
       if (done) return;
       done = true;
-      window.clearTimeout(timer);
+      timerHost.clearTimeout(timer);
       img.onload = null;
       img.onerror = null;
       resolve({ url, status });
@@ -51,7 +54,7 @@ function preloadOne(url: string, timeoutMs: number): Promise<ImagePreloadResult>
       finish('loaded');
     };
 
-    const timer = window.setTimeout(() => finish('timeout'), timeoutMs);
+    const timer = timerHost.setTimeout(() => finish('timeout'), timeoutMs);
     img.onload = () => {
       void markLoadedAfterDecode();
     };

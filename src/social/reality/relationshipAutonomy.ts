@@ -35,8 +35,43 @@ function boundaryId(ownerId: string, targetId: string, category: RealityBoundary
   return `relationship-boundary:${ownerId}:${targetId}:${category}`
 }
 
-function nemesisId(ownerId: string, targetId: string): string {
-  return `nemesis:${ownerId}:${targetId}`
+function nemesisId(ownerId: string, targetId: string, sourceEventId: string): string {
+  return `nemesis:${ownerId}:${targetId}:${sourceEventId}`
+}
+
+/** Keeps legacy pair-only threads readable while giving new Nemesis episodes separate threads. */
+export function nemesisThreadId(
+  nemesis: Pick<RealityNemesisObjective, 'id' | 'ownerId' | 'targetId'>
+): string {
+  const legacyId = `nemesis:${nemesis.ownerId}:${nemesis.targetId}`
+  const episodeId = nemesis.id.startsWith(`${legacyId}:`)
+    ? nemesis.id.slice(legacyId.length + 1)
+    : ''
+  return episodeId
+    ? `nemesis-thread:${nemesis.ownerId}:${nemesis.targetId}:${episodeId}`
+    : `nemesis-thread:${nemesis.ownerId}:${nemesis.targetId}`
+}
+
+const MAX_NEMESIS_EPISODES_PER_TARGET = 4
+
+function pruneNemesisEpisodes(domain: RealityDomainState, targetId: string): void {
+  const episodes = Object.values(domain.relationshipAutonomy.nemeses)
+    .filter((nemesis) => nemesis.targetId === targetId)
+    .sort(
+      (left, right) =>
+        left.createdAt.day - right.createdAt.day ||
+        left.createdAt.phase.localeCompare(right.createdAt.phase) ||
+        left.id.localeCompare(right.id)
+    )
+  let excess = episodes.length - MAX_NEMESIS_EPISODES_PER_TARGET
+  for (const episode of episodes) {
+    if (excess <= 0) break
+    if (episode.status === 'ACTIVE') continue
+    delete domain.relationshipAutonomy.nemeses[episode.id]
+    const threadId = nemesisThreadId(episode)
+    if (domain.threads[threadId]?.type === 'PLAYER_NEMESIS') delete domain.threads[threadId]
+    excess -= 1
+  }
 }
 
 function clockReached(at: RealityClock, threshold: RealityClock | undefined): boolean {
@@ -313,7 +348,9 @@ export function createRealityNemesisObjective(
     (nemesis) => nemesis.targetId === input.targetId && nemesis.status === 'ACTIVE'
   )
   if (existingForTarget) return existingForTarget
-  const id = nemesisId(input.ownerId, input.targetId)
+  const id = nemesisId(input.ownerId, input.targetId, input.sourceEventId)
+  const existingEpisode = domain.relationshipAutonomy.nemeses[id]
+  if (existingEpisode) return existingEpisode
   const objective: RealityNemesisObjective = {
     id,
     ownerId: input.ownerId,
@@ -338,7 +375,7 @@ export function createRealityNemesisObjective(
   intent.continuationPressure = 1
   intent.stage = 'STRAINED'
   intent.nextEligibleAt = input.at
-  const threadId = `nemesis-thread:${input.ownerId}:${input.targetId}`
+  const threadId = nemesisThreadId(objective)
   domain.threads[threadId] = {
     id: threadId,
     type: 'PLAYER_NEMESIS',
@@ -354,6 +391,7 @@ export function createRealityNemesisObjective(
     relatedSecretIds: [],
     status: 'OPEN',
   }
+  pruneNemesisEpisodes(domain, input.targetId)
   return objective
 }
 
@@ -548,7 +586,7 @@ function settleNemesis(
     intent.lastAdvancedAt = at
     intent.supportingEventIds = [...new Set([...intent.supportingEventIds, eventId])]
   }
-  const thread = domain.threads[`nemesis-thread:${nemesis.ownerId}:${nemesis.targetId}`]
+  const thread = domain.threads[nemesisThreadId(nemesis)]
   if (thread) {
     thread.status = 'RESOLVED'
     thread.stage = stage
