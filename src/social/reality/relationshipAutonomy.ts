@@ -306,6 +306,7 @@ export function createRealityNemesisObjective(
     sourceEventId: string
     at: RealityClock
     reason?: RealityNemesisObjective['reason']
+    triggerEventId?: string
   }
 ): RealityNemesisObjective {
   const existingForTarget = Object.values(domain.relationshipAutonomy.nemeses).find(
@@ -318,6 +319,7 @@ export function createRealityNemesisObjective(
     ownerId: input.ownerId,
     targetId: input.targetId,
     sourceEventId: input.sourceEventId,
+    ...(input.triggerEventId ? { triggerEventId: input.triggerEventId } : {}),
     reason: input.reason ?? 'PERSONAL_FRICTION',
     createdAt: input.at,
     status: 'ACTIVE',
@@ -488,10 +490,37 @@ export function startAutonomousNemesisIfReady(
     publicEligible: false,
     juryEligible: false,
   })
+  const candidateEdge = domain.relationships[selected.candidateId]?.[input.targetId]
+  const negativeAnchors = new Set(candidateEdge?.negativeAnchorEventIds ?? [])
+  const realTrigger = [...domain.events]
+    .reverse()
+    .find(
+      (candidate) =>
+        candidate.id !== event.id &&
+        negativeAnchors.has(candidate.id) &&
+        candidate.day <= input.at.day &&
+        (candidate.participantIds.includes(selected.candidateId) ||
+          candidate.actorId === selected.candidateId ||
+          candidate.targetIds.includes(selected.candidateId))
+    )
+  const grievanceTrigger = Object.values(domain.grievances)
+    .filter(
+      (item) =>
+        item.holderId === selected.candidateId &&
+        item.againstId === input.targetId &&
+        item.status !== 'RESOLVED' &&
+        domain.events.some((candidate) => candidate.id === item.causeEventId)
+    )
+    .sort((a, b) => b.severity - a.severity)[0]
   return createRealityNemesisObjective(domain, {
     ownerId: selected.candidateId,
     targetId: input.targetId,
     sourceEventId: event.id,
+    ...(realTrigger
+      ? { triggerEventId: realTrigger.id }
+      : grievanceTrigger
+        ? { triggerEventId: grievanceTrigger.causeEventId }
+        : {}),
     at: input.at,
     reason: selected.reason,
   })
