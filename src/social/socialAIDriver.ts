@@ -1,4 +1,5 @@
-﻿/**
+import { withStrategicPlanningContext } from './strategicPlanningContext'
+import type { GameState, PlayerStatus } from '../types' /**
  * socialAIDriver — budget-aware social decision loop for AI housemates.
  *
  * Normal Mode uses the compact utility policy. Drama Mode first asks the
@@ -6,7 +7,6 @@
  * contextual policy. Every candidate is validated through the shared execution
  * contract before resources or relationships can change.
  */
-
 import { createDraft, finishDraft } from 'immer'
 import { chooseActionFor, chooseTargetsFor } from './SocialPolicy'
 import { canAfford, executeAction, executeGroupAction, getActionById } from './SocialManeuvers'
@@ -119,7 +119,18 @@ interface DriverState {
     mode?: 'classic' | 'survival'
     publicModeEnabled?: boolean
     dramaSocialMode?: boolean
-    voxPopuli?: { status?: 'active' | 'complete' | 'inactive' | 'scheduled' }
+    voxPopuli?: {
+      status?: 'active' | 'complete' | 'inactive' | 'scheduled'
+      immunityWinnerId?: string | null
+      autoNomineeId?: string | null
+    }
+    cupidArrow?: GameState['cupidArrow']
+    coLohIds?: string[] | null
+    status?: GameState['status']
+    doubleEviction?: GameState['doubleEviction']
+    publicSavedNomineeId?: string | null
+    nominationContext?: GameState['nominationContext']
+    weekendInterlude?: GameState['weekendInterlude']
     lohId?: string | null
     posWinnerId?: string | null
     nomineeIds?: string[]
@@ -1152,7 +1163,53 @@ function candidateForPlayer(
   attempt: number
 ): CandidateMove | null {
   const dramaMode = getEffectiveSocialMode(state) === 'drama'
-  const voxPopuliActive = state.game.voxPopuli?.status === 'active'
+  const planning = withStrategicPlanningContext(
+    {
+      players: state.game.players,
+      relationships: state.social.relationships,
+      week: state.game.week,
+      seed: state.game.seed,
+    },
+    {
+      mode: state.game.mode,
+      status: state.game.status,
+      week: state.game.week,
+      publicModeEnabled: state.game.publicModeEnabled,
+      coLohIds: state.game.coLohIds,
+      cupidArrow: state.game.cupidArrow
+        ? { status: state.game.cupidArrow.status, pairs: state.game.cupidArrow.pairs }
+        : undefined,
+      doubleEviction: state.game.doubleEviction
+        ? { weekActive: state.game.doubleEviction.weekActive }
+        : undefined,
+      povProtectedIds: state.game.povProtectedIds,
+      publicSavedNomineeId: state.game.publicSavedNomineeId,
+      nominationContext: state.game.nominationContext
+        ? { autoNomineeId: state.game.nominationContext.autoNomineeId }
+        : undefined,
+      weekendInterlude: state.game.weekendInterlude,
+      phase: state.game.phase as GameState['phase'],
+      players: state.game.players.map((actor) => ({
+        id: actor.id,
+        status: actor.status as PlayerStatus,
+      })),
+      lohId: state.game.lohId ?? null,
+      posWinnerId: state.game.posWinnerId ?? null,
+      nomineeIds: state.game.nomineeIds ?? [],
+      voxPopuli: state.game.voxPopuli
+        ? {
+            status: state.game.voxPopuli.status ?? 'inactive',
+            immunityWinnerId: state.game.voxPopuli.immunityWinnerId ?? null,
+            autoNomineeId: state.game.voxPopuli.autoNomineeId ?? null,
+          }
+        : undefined,
+    },
+    player.id
+  )
+  const strategicWeightsEnabled = ['classic', 'vox'].includes(
+    planning.strategicContext.rules.format
+  )
+  const voxPopuliActive = planning.strategicContext.rules.format === 'vox'
   const human = state.game.players.find((candidate) => candidate.isUser)
   const nemesis = human ? getActiveRealityNemesis(state.social.reality, player.id, human.id) : null
   const contactBoundary =
@@ -1197,6 +1254,8 @@ function candidateForPlayer(
     dramaMode && attempt === 0
       ? chooseUtilityDramaAIMove({
           actorId: player.id,
+          strategicContext: planning.strategicContext,
+          strategicWeightsEnabled,
           aiGameIdentity: player.aiGameIdentity,
           players: state.game.players,
           relationships: state.social.relationships,
@@ -1224,6 +1283,9 @@ function candidateForPlayer(
     relationshipCandidate?.actionId ??
     dramaMove?.actionId ??
     chooseActionFor(player.id, {
+      ...planning,
+      strategicWeightsEnabled,
+      observedEvents: state.social.reality?.events,
       players: state.game.players,
       relationships: state.social.relationships,
       week: state.game.week,
@@ -1293,6 +1355,9 @@ function candidateForPlayer(
     subjectId = dramaMove.subjectId
   } else {
     const selected = chooseTargetsFor(player.id, actionId, {
+      ...planning,
+      strategicWeightsEnabled,
+      observedEvents: state.social.reality?.events,
       players: state.game.players,
       relationships: state.social.relationships,
       week: state.game.week,

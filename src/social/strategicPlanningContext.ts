@@ -5,7 +5,12 @@ import {
   type StrategicGameRead,
 } from './strategicModeContext'
 
-/** Opt-in diagnostic adapter for future planners. Live policy ignores this data. */
+export interface StrategicPlanningRead {
+  rules: ReturnType<typeof resolveStrategicModeContext>
+  actor: ReturnType<typeof resolveActorStrategicRead>
+}
+
+/** Read-only adapter. Live preference changes require a separate explicit opt-in. */
 export function withStrategicPlanningContext(
   context: PolicyContext,
   game: StrategicGameRead,

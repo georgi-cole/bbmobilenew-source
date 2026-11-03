@@ -45,6 +45,26 @@ campaign, bridge, integrity and mode-context tests; marketplace generation and
 checks; focused ESLint and TypeScript. Full release calibration, real-game UI
 evidence and the consolidated lifecycle matrix remain phase 6 work.
 
+## Phase 4
+
+The background driver explicitly opts Classic/Vox actors into the shared strategic
+preferences. Diagnostic and legacy policy calls keep their existing weights.
+Grounded grievances can support private boundaries or public challenges; Classic
+power and fear can favor diplomacy, while Vox public evidence can favor measured
+resistance. Both formats retain fearful cooperation and emotional exceptions.
+Existing costs, execution guards, four-attempt fallback, cooldowns and player
+boundaries remain authoritative. No new action or public-vote formula is added.
+
+Safety-request subjects use the actor's own read. Investigation no longer selects
+an unknown hidden relationship or assumes a counterpart's private intel. The
+missing `ask_nemesis_reason` content entry now supplies action-specific dialogue
+that distinguishes explanation from forgiveness.
+
+Local validation: 114 focused utility, causal conflict, incoming dialogue,
+relationship-boundary, mode-isolation and driver/lifecycle tests passed. Targeted
+ESLint and TypeScript are also run locally. Audience effects remain phase 5 work;
+consolidated replay/browser/performance validation remains phase 6 work.
+
 ## Simulator evidence and known follow-ups
 
 The restored headless driver retains production legality, resources, attempt
@@ -61,8 +81,6 @@ This is reproducibility evidence, not a balance conclusion. An earlier interrupt
 six-report exploratory batch is excluded. Headless currently supports Classic
 only; Vox/Cupid/Survival need browser journeys.
 
-The expanded incoming-content suite has a pre-existing failure: the targetable
-`ask_nemesis_reason` action lacks an incoming content-bank entry. Resolve that
-contract during phase 4 before consolidated acceptance. Do not count that suite
-as passed until repaired. Product-owner gameplay approval is still required by
+The pre-existing incoming-content coverage failure for `ask_nemesis_reason` was
+repaired in local phase 4; the expanded suite now passes. Product-owner gameplay approval is still required by
 the epic before calling the full feature complete.

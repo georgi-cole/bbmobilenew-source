@@ -49,8 +49,8 @@ describe('AI background incoming content', () => {
     expect(Object.keys(INCOMING_ACTION_CONTENT_BANK).sort()).toEqual(
       targetableActions.map((action) => action.id).sort()
     )
-    expect(targetableActions).toHaveLength(52)
-    expect(getIncomingActionPairingCount()).toBe(208)
+    expect(targetableActions).toHaveLength(53)
+    expect(getIncomingActionPairingCount()).toBe(212)
 
     for (const action of targetableActions) {
       const content = INCOMING_ACTION_CONTENT_BANK[action.id]

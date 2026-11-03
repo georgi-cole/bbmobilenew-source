@@ -469,6 +469,9 @@ export interface SocialState {
 
 /** Context passed to SocialPolicy functions. */
 export interface PolicyContext {
+  strategicContext?: import('./strategicPlanningContext').StrategicPlanningRead
+  /** Explicit opt-in; diagnostic callers and legacy contexts retain their weights. */
+  strategicWeightsEnabled?: boolean
   relationships: RelationshipsMap
   players: Array<{ id: string; status: string; isUser?: boolean }>
   week?: number
