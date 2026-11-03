@@ -410,8 +410,11 @@ function finalize(
               : response.style === 'HESITANT'
                 ? 0.44
                 : undefined
-        if (commitment !== undefined && created.memberIds.includes(actorId))
-          created.memberCommitment[actorId] = commitment
+        if (commitment !== undefined && created.memberIds.includes(actorId)) {
+          created.memberCommitment[actorId] = response.strategic
+            ? Math.min(commitment, 0.18)
+            : commitment
+        }
       }
       const aiResponse = request.memberIds
         .filter((actorId) => actorId !== request.proposerId)
