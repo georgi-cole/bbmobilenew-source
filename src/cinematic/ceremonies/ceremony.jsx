@@ -39,7 +39,7 @@ export default function Ceremony(props) {
       scene={scene}
       standard={CeremonyHandoff}
       badgeOnlyHandoff={
-        scene != null && ['nominations', 'loh', 'safety', 'allPower'].includes(baseScene(scene))
+        scene != null && ['nominations', 'loh', 'safety', 'allPower', 'save'].includes(baseScene(scene))
       }
       original={props}
     />

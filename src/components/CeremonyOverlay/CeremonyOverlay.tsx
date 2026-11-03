@@ -403,25 +403,35 @@ export default function CeremonyOverlay({
     }
   }, [hasValidTiles, active, durationMs, pendingResolve, pendingSurface, reducedMotion, complete])
 
-  const cues = useMemo(
-    () =>
-      badgeOnly
-        ? [
-            { atMs: 0, run: () => setBadgePhase('landed') },
-            { atMs: 380, run: () => setBadgePhase('holding') },
-            { atMs: 620, run: () => setVisible(false) },
-            { atMs: 1000, run: complete },
-          ]
-        : [
-            { atMs: APPEAR_DELAY, run: () => setBadgePhase('appearing') },
-            { atMs: FLY_DELAY, run: () => setBadgePhase('flying') },
-            { atMs: LAND_DELAY, run: () => setBadgePhase('landed') },
-            { atMs: HOLD_DELAY, run: () => setBadgePhase('holding') },
-            { atMs: durationMs, run: () => setVisible(false) },
-            { atMs: durationMs + 350, run: complete },
-          ],
-    [badgeOnly, complete, durationMs]
-  )
+  // A public save removes the danger badge. Keep its outward motion in VIP mode,
+  // even though the condensed handoff skips the full spotlight and caption.
+  const compactExtraction =
+    badgeOnly && validTiles.some((tile) => tile.badgeMotion === 'extract')
+  const cues = useMemo(() => {
+    if (compactExtraction)
+      return [
+        { atMs: 0, run: () => setBadgePhase('appearing') },
+        { atMs: 320, run: () => setBadgePhase('flying') },
+        { atMs: 840, run: () => setBadgePhase('holding') },
+        { atMs: 900, run: () => setVisible(false) },
+        { atMs: 1000, run: complete },
+      ]
+    if (badgeOnly)
+      return [
+        { atMs: 0, run: () => setBadgePhase('landed') },
+        { atMs: 380, run: () => setBadgePhase('holding') },
+        { atMs: 620, run: () => setVisible(false) },
+        { atMs: 1000, run: complete },
+      ]
+    return [
+      { atMs: APPEAR_DELAY, run: () => setBadgePhase('appearing') },
+      { atMs: FLY_DELAY, run: () => setBadgePhase('flying') },
+      { atMs: LAND_DELAY, run: () => setBadgePhase('landed') },
+      { atMs: HOLD_DELAY, run: () => setBadgePhase('holding') },
+      { atMs: durationMs, run: () => setVisible(false) },
+      { atMs: durationMs + 350, run: complete },
+    ]
+  }, [badgeOnly, compactExtraction, complete, durationMs])
   usePresentationTimeline(
     active && hasValidTiles && !pendingResolve && !pendingSurface && !reducedMotion,
     cues
@@ -467,6 +477,8 @@ export default function CeremonyOverlay({
     if (badgeOnly) {
       startX = targetX
       startY = targetY
+      if (t.badgeMotion === 'extract')
+        endY = Math.max(BADGE_EXTRACT_MIN_TOP, targetY - BADGE_EXTRACT_Y_OFFSET)
     } else if (t.badgeMotion === 'extract') {
       startX = targetX
       startY = targetY
