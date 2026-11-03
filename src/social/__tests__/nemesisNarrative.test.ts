@@ -80,7 +80,9 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(reveal[0].text).toContain('Echo')
     expect(reveal[0].text).toContain('Echo has turned against you')
     expect(reveal[0].text).not.toContain('Why?')
-    expect(reality.events.find((event) => event.type === 'NEMESIS_REVEALED')?.reason).toContain('growing influence')
+    expect(reality.events.find((event) => event.type === 'NEMESIS_REVEALED')?.reason).toContain(
+      'growing influence'
+    )
     expect(objective.revealEventId).toBe(reveal[0].eventId)
     expect(pact.status).toBe('DISSOLVED')
     expect(pact.memberIds).toEqual([])
@@ -130,7 +132,9 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(group.memberIds).toEqual(expect.arrayContaining(['human', 'echo', 'jax']))
     expect(group.memberIds).toHaveLength(3)
     expect(group.memberCommitment.echo).toBeLessThanOrEqual(0.2)
-    expect(reality.events.filter((event) => event.type === 'ALLIANCE_MEMBER_DEFECTED')).toHaveLength(1)
+    expect(
+      reality.events.filter((event) => event.type === 'ALLIANCE_MEMBER_DEFECTED')
+    ).toHaveLength(1)
     expect(reality.events.filter((event) => event.type === 'ALLIANCE_ENDED')).toHaveLength(1)
     expect(advanceNemesisNarrative(reality, context(4, 'social_2'))).toEqual([])
   })
@@ -247,7 +251,9 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(beats).toHaveLength(1)
     expect(beats[0].kind).toBe('reveal')
     expect(beats[0].text).not.toContain('Day 2')
-    expect(reality.events.find((event) => event.type === 'NEMESIS_REVEALED')?.reason).toContain('nominated them on Day 2')
+    expect(reality.events.find((event) => event.type === 'NEMESIS_REVEALED')?.reason).toContain(
+      'nominated them on Day 2'
+    )
     expect(reality.events.some((event) => event.type === 'NEMESIS_ANONYMOUS_CLUE')).toBe(false)
   })
 
@@ -299,7 +305,9 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(closing[0].kind).toBe('reveal')
     expect(closing[0].text).toContain("Echo's exit")
     expect(closing[0].text).not.toContain('Why?')
-    expect(reality.events.find((event) => event.type === 'NEMESIS_REVEALED')?.reason).toContain('Unresolved friction')
+    expect(reality.events.find((event) => event.type === 'NEMESIS_REVEALED')?.reason).toContain(
+      'Unresolved friction'
+    )
     expect(objective.status).toBe('ENDED')
     expect(reality.threads['nemesis-thread:echo:human'].status).toBe('RESOLVED')
     expect(advanceNemesisNarrative(reality, context(4, 'social_1', false))).toEqual([])
@@ -353,7 +361,9 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(epilogue[0].text).toContain('once saw you as a rival')
     expect(epilogue[0].text).toContain('Echo')
     expect(epilogue[0].text).toContain('Safety rescue helped change their mind')
-    expect(reality.events.find((event) => event.type === 'NEMESIS_RECONCILIATION_REVEALED')?.reason).toContain('growing influence')
+    expect(
+      reality.events.find((event) => event.type === 'NEMESIS_RECONCILIATION_REVEALED')?.reason
+    ).toContain('growing influence')
     expect(objective.status).toBe('RECONCILED')
     expect(reality.events.some((event) => event.type === 'NEMESIS_REVEALED')).toBe(false)
     expect(
