@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-03: Reviewed the compact VIP Cinematic badge handoffs. Saved-by-Safety
+  cinematics now finish with a short badge landing; replacement nominations
+  use the same short badge reveal in VIP Cinematic mode, while public saves
+  retain a shortened outward badge extraction. Standard-mode and motion
+  preferences remain unchanged; VIP offers, entitlements, benefits, prices,
+  and Store copy are unaffected.
+
 - 2026-11-02: Reviewed enabling the existing Big Eye closing ident at the end of
   every shared VIP departure film, including ordinary weekly exits. The Eye asset,
   choreography, and handoff remain shared; VIP eligibility, animation settings,

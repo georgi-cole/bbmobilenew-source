@@ -79,6 +79,8 @@ import SpotlightEvictionOverlay from '../../cinematic/ceremonies/exit.jsx'
 import SurveyevalTileEvictionEffect from '../../components/Eviction/SurveyevalTileEvictionEffect'
 import DayStartShockPopup from '../../cinematic/ceremonies/day-shock.jsx'
 import CeremonyOverlay from '../../cinematic/ceremonies/ceremony.jsx'
+import { shouldPlayCinematic } from '../../cinematic/ceremonies/runtime.mjs'
+import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
 import WinnerTileLiftAnimation from '../../cinematic/ceremonies/winner.jsx'
 import ChatOverlay from '../../components/ChatOverlay/ChatOverlay'
 import Final4PublicVotePanel from './Final4PublicVotePanel'
@@ -113,7 +115,7 @@ import TwinShockRevealOverlay from '../../components/TwinShockRevealOverlay/Twin
 import TwinShockIntroCinematic from '../../components/TwinShockIntroCinematic/TwinShockIntroCinematic'
 import type { PlayerPublicProfile } from '../../publicOpinion/types'
 import { selectSettings } from '../../store/settingsSlice'
-import { selectHasPublicModeAccess } from '../../store/vipSlice'
+import { selectHasPublicModeAccess, selectIsVipActive } from '../../store/vipSlice'
 import type { RootState } from '../../store/store'
 
 import {
@@ -269,6 +271,10 @@ export default function GameScreen() {
   const isGuest = useAppSelector(selectIsGuest)
   const settings = useAppSelector(selectSettings)
   const hasPublicModeAccess = useAppSelector(selectHasPublicModeAccess)
+  const vipActive = useAppSelector(selectIsVipActive)
+  const reducedPresentationMotion = usePresentationReducedMotion()
+  const compactVipBadges =
+    !reducedPresentationMotion && shouldPlayCinematic({ game, settings }, vipActive)
   // ── Confessional ceremony decision routing ─────────────────────────────────
   // When non-null, a required player ceremony decision is pending that must be
   // resolved inside the Confessional.  The in-game decision modals are hidden
@@ -2335,6 +2341,9 @@ export default function GameScreen() {
             subtitle={pendingReplacementCeremony.subtitle}
             onDone={handleReplacementCeremonyDone}
             ariaLabel={pendingReplacementCeremony.caption}
+            badgeOnly={compactVipBadges}
+            showDim={!compactVipBadges}
+            showCaption={!compactVipBadges}
           />
         )}
 
@@ -2401,6 +2410,9 @@ export default function GameScreen() {
             }
             onDone={handleAiReplacementDone}
             ariaLabel="Backup nominee ceremony"
+            badgeOnly={compactVipBadges}
+            showDim={!compactVipBadges}
+            showCaption={!compactVipBadges}
           />
         )}
 
@@ -2431,6 +2443,7 @@ export default function GameScreen() {
               .join(' and ')} ${isCupidArrowActive(game) ? 'are' : 'is'} safe`}
             showDim={false}
             showCaption={false}
+            badgeOnly={compactVipBadges}
           />
         )}
 
