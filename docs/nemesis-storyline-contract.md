@@ -21,7 +21,7 @@ Faux TV is an **event ticker**, not a paragraph-long explanation. No messages ma
 - Reconciled secret rivalry: "Echo once saw you as a rival, but your Safety rescue helped change their mind."
 - Evicted rival: "After Echo's exit, you learn they were secretly working against you."
 
-A short **Ask Why** card under Social → Strategy (also visible in All) provides the private explanation as a native Social action result. It uses a normal receipt and main-log entry, not a new modal or Faux TV line. Answers are character dialogue with deterministic, save-persisted outcomes.
+A short **Why Betray Me?** card under Social → Strategy (also visible in All) provides the private explanation as a native Social action result. It uses a normal receipt and main-log entry, not a new modal or Faux TV line. Answers are character dialogue with deterministic, save-persisted outcomes.
 
 ## Motive accuracy
 
@@ -46,13 +46,13 @@ Each objective retains the unique clue/reveal event IDs and their day/phase. Onc
 
 ## Acceptance scenarios
 
-- Private Echo objective + current pact: anonymous clue, then a short named Echo reveal, **auto-ended personal pact**, updated Nemesis relationship label and private `Ask Why` card (⚡1) with no leaked identity beforehand.
+- Private Echo objective + current pact: anonymous clue, then a short named Echo reveal, **auto-ended personal pact**, updated Nemesis relationship label and private `Why Betray Me?` card (⚡1) with no leaked identity beforehand.
 - Already witnessed hostility: no redundant anonymous hint; named explanation arrives in the next eligible social window.
 - Documented nomination: reveal uses the real nomination day; if it is missing, no invented date.
 - Safety or accepted two-day repair: objectives and undermining behavior close. The player receives a brief retrospective TV epilogue without a false active Nemesis label; detailed context remains in Reality history.
 - Eviction/endgame: unfinished stories resolve, without continuing enemy actions from an evicted AI.
 - Normal Social/survival modes: no Nemesis scenes.
-- The contextual `Ask Why` action appears only for a revealed **active** Nemesis selected in regular Drama Social. It costs exactly 1 energy (even on refusal), allows only one attempt per day, retries on a later day after refusal, and disappears after a real explanation or reconciliation. It cannot be batched or bypassed through a price override.
+- The contextual `Why Betray Me?` action appears only for a revealed **active** Nemesis selected in regular Drama Social. It costs exactly 1 energy (even on refusal), allows only one attempt per day, retries on a later day after refusal, and disappears after a real explanation or reconciliation. It cannot be batched or bypassed through a price override.
 - Replies normally use the objective's actual triggering event (nomination, actual alliance Safety failure, verified plan defiance, proven opposed recruit) or a grounded motive. Refusal is uncommon and influenced by tension; a small minority of ambition-driven archetypes can admit pure strategy when no concrete betrayal was established.
 - A revealed Nemesis cannot create a new personal pact until resolved; larger group alliances remain manageable through existing group commands.
 - Replayed phases and saved seasons: no duplicate events, charged questions, or broadcasts; the Reality Ledger and the roster agree on what the player knows.
