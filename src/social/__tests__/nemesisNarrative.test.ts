@@ -97,6 +97,67 @@ describe('Nemesis storyline — reliable discovery', () => {
     expect(reality.events.filter((event) => event.type === 'NEMESIS_REVEALED')).toHaveLength(1)
   })
 
+  it('ends only the personal pact and strains a group without removing the nemesis or the human', () => {
+    const reality = createInitialRealityDomainState()
+    const pact = createRealityAlliance(reality, {
+      id: 'personal-pact',
+      founderIds: ['human', 'echo'],
+      memberIds: [],
+      kind: 'PACT',
+      purpose: 'Mutual protection',
+      at: { day: 2, phase: 'social_1' },
+    })
+    const group = createRealityAlliance(reality, {
+      id: 'working-group',
+      kind: 'GROUP',
+      founderIds: ['human', 'echo', 'jax'],
+      memberIds: [],
+      purpose: 'Control the vote',
+      at: { day: 2, phase: 'social_1' },
+    })
+    pact.status = 'ACTIVE'
+    group.status = 'ACTIVE'
+    secretObjective(reality)
+    expect(pact.status).not.toBe('DISSOLVED')
+    expect(group.memberIds).toContain('echo')
+    expect(advanceNemesisNarrative(reality, context(3, 'social_2'))[0]?.kind).toBe('clue')
+    const reveal = advanceNemesisNarrative(reality, context(4, 'social_1'))
+    expect(reveal[0]?.text).toContain('personal pact has ended')
+    expect(pact.status).toBe('DISSOLVED')
+    expect(pact.memberIds).toHaveLength(0)
+    expect(pact.endReason).toBe('NEMESIS_REVEALED')
+    expect(group.status).toBe('FRACTURED')
+    expect(group.memberIds).toEqual(expect.arrayContaining(['human', 'echo', 'jax']))
+    expect(group.memberIds).toHaveLength(3)
+    expect(group.memberCommitment.echo).toBeLessThanOrEqual(0.2)
+    expect(reality.events.filter((event) => event.type === 'ALLIANCE_MEMBER_DEFECTED')).toHaveLength(1)
+    expect(reality.events.filter((event) => event.type === 'ALLIANCE_ENDED')).toHaveLength(1)
+    expect(advanceNemesisNarrative(reality, context(4, 'social_2'))).toEqual([])
+  })
+
+  it('migrates an already revealed Nemesis and open old-save pact without duplicating dissolution', () => {
+    const original = createInitialRealityDomainState()
+    const pact = createRealityAlliance(original, {
+      id: 'legacy-pact',
+      founderIds: ['human', 'echo'],
+      memberIds: [],
+      kind: 'PACT',
+      purpose: 'Shared promises',
+      at: { day: 2, phase: 'social_1' },
+    })
+    pact.status = 'ACTIVE'
+    const nemesis = secretObjective(original)
+    nemesis.revealEventId = 'old-reveal'
+    nemesis.revealedAt = { day: 3, phase: 'social_2' }
+    const normalized = normalizeRealityDomainState(original)
+    expect(normalized.alliances['legacy-pact'].status).toBe('DISSOLVED')
+    expect(normalized.alliances['legacy-pact'].endReason).toBe('NEMESIS_REVEALED')
+    expect(original.alliances['legacy-pact'].status).toBe('ACTIVE')
+    const twice = normalizeRealityDomainState(normalized)
+    expect(twice.events.filter((event) => event.type === 'ALLIANCE_ENDED')).toHaveLength(1)
+    expect(twice.alliances['legacy-pact'].status).toBe('DISSOLVED')
+  })
+
   it('does not invent a conversation with a nonexistent third contestant', () => {
     const reality = createInitialRealityDomainState()
     secretObjective(reality)
