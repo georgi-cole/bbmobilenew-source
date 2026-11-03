@@ -83,4 +83,42 @@ describe('image preloader', () => {
       status: 'timeout',
     })
   })
+
+  it('settles a pending image when its window global has already been torn down', async () => {
+    vi.useFakeTimers()
+
+    class NeverLoadsImage {
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      complete = false
+      naturalWidth = 0
+
+      set src(_value: string) {
+        // Intentionally never settles: simulate a preload still pending at teardown.
+      }
+    }
+
+    Object.defineProperty(globalThis, 'Image', {
+      configurable: true,
+      writable: true,
+      value: NeverLoadsImage,
+    })
+
+    const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')
+    expect(windowDescriptor).toBeDefined()
+
+    const resultPromise = preloadImage('/assets/skins/Nova_sad_avatar.webp', 50)
+    try {
+      expect(Reflect.deleteProperty(globalThis, 'window')).toBe(true)
+      await vi.advanceTimersByTimeAsync(51)
+      await expect(resultPromise).resolves.toEqual({
+        url: '/assets/skins/Nova_sad_avatar.webp',
+        status: 'timeout',
+      })
+    } finally {
+      if (windowDescriptor) {
+        Object.defineProperty(globalThis, 'window', windowDescriptor)
+      }
+    }
+  })
 })
