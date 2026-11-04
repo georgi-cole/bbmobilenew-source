@@ -1,0 +1,90 @@
+.replacement-sequence {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  isolation: isolate;
+  background: radial-gradient(ellipse at 50% 40%, #21122c, #09060f 68%);
+}
+.replacement-sequence-film {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.replacement-sequence-input {
+  position: absolute;
+  inset: 0;
+  z-index: 10002;
+}
+.replacement-sequence-input .tv-decision-modal,
+.replacement-sequence-input .tv-binary-modal {
+  background: transparent;
+}
+.replacement-sequence-input .tv-decision-modal,
+.replacement-sequence-input .tv-binary-modal {
+  top: auto;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  padding: 0 12px;
+}
+.replacement-sequence-input .tv-decision-modal__card,
+.replacement-sequence-input .tv-binary-modal__card {
+  width: min(520px, 100%);
+  max-height: 40dvh;
+  border-color: #c6ad774d;
+  background: linear-gradient(155deg, #1c1324f5, #0e0a15fa);
+  box-shadow: 0 12px 40px #0008;
+}
+.replacement-sequence-input .tv-decision-modal__header,
+.replacement-sequence-input .tv-binary-modal__header {
+  background: transparent;
+  border-color: #b79c7133;
+  padding: 12px 16px;
+}
+.replacement-sequence-input .tv-decision-modal__title {
+  font-size: 16px;
+}
+.replacement-sequence-input .tv-binary-modal__title {
+  font-size: 16px;
+}
+.replacement-sequence-input .tv-binary-modal__subtitle {
+  font-size: 12px;
+}
+.replacement-sequence-input .tv-decision-modal__subtitle {
+  font-size: 12px;
+}
+.replacement-sequence-input .tv-decision-modal__body,
+.replacement-sequence-input .tv-binary-modal__body {
+  overflow: auto;
+  min-height: 0;
+}
+.replacement-sequence-input .tv-decision-modal__option {
+  padding: 6px 10px;
+}
+.replacement-sequence-input .tv-decision-modal__footer {
+  padding: 8px 12px;
+}
+.replacement-sequence-input .tv-decision-modal__footer,
+.replacement-sequence-input .tv-binary-modal__footer {
+  flex-shrink: 0;
+}
+.replacement-sequence-input .tvs-overlay {
+  z-index: 10004;
+}
+.replacement-mission-panel {
+  position: absolute;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, calc(100% - 24px));
+  max-height: 41dvh;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #c6ad774d;
+  border-radius: 18px;
+  color: #f1e5d2;
+  background: linear-gradient(155deg, #1c1324f5, #0e0a15fa);
+}
+@media (max-height: 550px) {
+  .replacement-sequence-input .tv-decision-modal__card {
+    max-height: 48dvh;
+  }
+}

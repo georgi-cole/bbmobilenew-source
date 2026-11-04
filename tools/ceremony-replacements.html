@@ -61,6 +61,10 @@
     <div id="status" role="status"></div>
     <script type="module">
       import { createClip } from '../src/cinematic/ceremonies/renderer.js'
+      import {
+        replacementDuration,
+        replacementBeats,
+      } from '../src/cinematic/ceremonies/replacement-timing.js'
       import catalog from '../src/cinematic/ceremonies/cast.json'
 
       const scenarios = [
@@ -294,6 +298,12 @@
         }
         const config = presets[id]
         const outcome = makeOutcome(id, config)
+        if (!config.actionHistory)
+          outcome.actionHistory = outcome.actionHistory.map((action) => ({
+            ...action,
+            actorId: action.kind === 'save' ? outcome.powerHolderId : outcome.chooserId,
+          }))
+        outcome.durationMs = replacementDuration(outcome)
         const ids = [
           ...outcome.openingNomineeIds,
           ...outcome.nomineeIds,
@@ -345,6 +355,9 @@
         )
         window.replacementClip = clip
         window.replacementDurationMs = data.durationMs
+        window.replacementBeats =
+          data.scene === 'replacement' ? replacementBeats(data.details.replacementOutcome) : []
+        if (query.has('time')) clip.seek(Number(query.get('time')))
         return { durationMs: data.durationMs, data: prepared }
       }
       document.querySelector('#play').onclick = () => window.previewScenario()

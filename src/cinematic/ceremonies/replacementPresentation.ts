@@ -1,4 +1,5 @@
 import type { CupidArrowPair, GameState } from '../../types'
+import { replacementDuration } from './replacement-timing.js'
 
 export type ReplacementVariant =
   | 'ordinary'
@@ -12,10 +13,11 @@ export type ReplacementVariant =
   | 'cupid'
 
 export interface ReplacementAction {
-  kind: 'save' | 'replacement'
+  kind: 'save' | 'replacement' | 'decline'
   playerId: string
   actorId: string | null
   slotIndex: number
+  actorRole?: 'loh' | 'coLoh' | 'safety' | 'mission' | 'ballot'
 }
 
 export interface CoLohAssignment {
@@ -41,6 +43,15 @@ export interface ReplacementPresentation {
   pairUnits: CupidArrowPair[]
   actionHistory: ReplacementAction[]
   durationMs: number
+  /** A held shot for a real, still-unresolved choice. It contains no proposed target. */
+  decision?: { actorId: string; kind: 'save' | 'replacement' | 'use' | 'secondUse' | 'mission' }
+  decisionOnly?: boolean
+  openingSlots?: Record<string, number>
+  slotCount?: number
+  sequenceKey?: string
+  segment?: boolean
+  safetyUseNumber?: number
+  powerType?: string | null
 }
 
 const unique = (ids: string[]) => [...new Set(ids)]
@@ -91,10 +102,34 @@ function captureCommittedActions(
             : removed.find((id) => opening.nomineeIds.includes(id) || occupants.includes(id)),
         ].filter((id): id is string => Boolean(id))
 
+  const declined =
+    !savedIds.length &&
+    !removed.length &&
+    !added.length &&
+    !game.awaitingPovDecision &&
+    !game.awaitingPovSaveTarget &&
+    ((before.awaitingPovDecision && !game.awaitingPovDecision) ||
+      (before.specialVeto?.vipUseStage === 2 && game.specialVeto?.vipUseStage === -1) ||
+      (before.phase === 'pos_ceremony' &&
+        !game.aiReplacementStep &&
+        !game.replacementNeeded &&
+        !game.specialVeto?.awaitingHolderReplacement &&
+        !game.specialVeto?.awaitingCoupReplacement1))
+  if (declined && game.posWinnerId) {
+    const actorId = roleChooser(game, game.posWinnerId)
+    history.push({ kind: 'decline', playerId: actorId ?? game.posWinnerId, actorId, slotIndex: -1 })
+  }
+
   for (const savedId of savedIds) {
     if (history.some((action) => action.kind === 'save' && action.playerId === savedId)) continue
     const slotIndex = slotFor(occupants, savedId)
-    history.push({ kind: 'save', playerId: savedId, actorId: game.posWinnerId ?? null, slotIndex })
+    history.push({
+      kind: 'save',
+      playerId: savedId,
+      actorId: roleChooser(game, game.posWinnerId),
+      slotIndex,
+      actorRole: 'safety',
+    })
     occupants[slotIndex] = null
   }
 
@@ -125,7 +160,17 @@ function captureCommittedActions(
       game.voxPopuli?.status === 'active'
         ? null
         : (game.missionPowers?.backupChooserId ?? roleChooser(game, roleActorId))
-    history.push({ kind: 'replacement', playerId, actorId: actorId ?? null, slotIndex })
+    const actorRole =
+      game.voxPopuli?.status === 'active'
+        ? 'ballot'
+        : game.missionPowers?.backupChooserId
+          ? 'mission'
+          : game.coLohIds?.includes(roleActorId ?? '')
+            ? 'coLoh'
+            : ['coup', 'diamond'].includes(game.specialVeto?.activeType ?? '')
+              ? 'safety'
+              : 'loh'
+    history.push({ kind: 'replacement', playerId, actorId: actorId ?? null, slotIndex, actorRole })
     occupants[slotIndex] = playerId
   }
 }
@@ -136,7 +181,8 @@ function captureCommittedActions(
 export function selectReplacementPresentation(
   opening: GameState,
   game: GameState,
-  actionHistory: ReplacementAction[] = []
+  actionHistory: ReplacementAction[] = [],
+  allowPending = false
 ): ReplacementPresentation | null {
   if (
     scope(opening) !== scope(game) ||
@@ -146,31 +192,37 @@ export function selectReplacementPresentation(
     return null
   const veto = game.specialVeto
   if (
-    game.replacementNeeded ||
-    game.awaitingPovDecision ||
-    game.awaitingPovSaveTarget ||
-    game.aiReplacementStep ||
-    veto?.awaitingHolderReplacement ||
-    veto?.awaitingCoupReplacement1 ||
-    veto?.awaitingCoupReplacement2 ||
-    veto?.awaitingVipSecondUseDecision ||
-    veto?.awaitingVipSecondSaveTarget ||
-    (veto?.activeType === 'vip' && veto.vipUseStage !== -1)
+    !allowPending &&
+    (game.replacementNeeded ||
+      game.awaitingPovDecision ||
+      game.awaitingPovSaveTarget ||
+      game.aiReplacementStep ||
+      veto?.awaitingHolderReplacement ||
+      veto?.awaitingCoupReplacement1 ||
+      veto?.awaitingCoupReplacement2 ||
+      veto?.awaitingVipSecondUseDecision ||
+      veto?.awaitingVipSecondSaveTarget ||
+      (veto?.activeType === 'vip' && veto.vipUseStage !== -1))
   )
     return null
 
   const nominees = unique(game.nomineeIds)
-  if (!nominees.length || nominees.some((id) => !live(game, id))) return null
+  if ((!allowPending && !nominees.length) || nominees.some((id) => !live(game, id))) return null
   const openingNomineeIds = unique(opening.nomineeIds)
   const replacementIds = nominees.filter((id) => !openingNomineeIds.includes(id))
   const savedIds = unique(openingNomineeIds.filter((id) => !nominees.includes(id)))
-  if (!replacementIds.length || !savedIds.length) return null
+  if (!allowPending && (!replacementIds.length || !savedIds.length)) return null
 
   const plan = game.lohNominationPlan
   const targetArrived = plan?.strategy === 'backdoor' && replacementIds.includes(plan.targetId)
   // The advance pipeline may still be settling the plan. Do not announce a generic
   // replacement while it can become the globally scheduled Ambush reveal.
-  if (targetArrived && !['executed', 'failed', 'compromised'].includes(plan.status)) return null
+  if (
+    !allowPending &&
+    targetArrived &&
+    !['executed', 'failed', 'compromised'].includes(plan.status)
+  )
+    return null
 
   const vox = game.voxPopuli?.status === 'active'
   const cupid = game.cupidArrow?.status === 'active'
@@ -237,36 +289,25 @@ export function selectReplacementPresentation(
                   ? 'coLoh'
                   : 'ordinary'
 
-  if (variant === 'detox' && replacementIds.length !== 2) return null
+  if (!allowPending && variant === 'detox' && replacementIds.length !== 2) return null
   // Keep intermediate nominees too: the second Safety use can save the first
   // replacement, who is absent from both the opening and final blocks.
   const orderedActionHistory = actionHistory.slice()
-  const completedSafetyUses = Math.max(
-    orderedActionHistory.filter((action) => action.kind === 'save').length,
-    savedIds.length
-  )
-  const durationMs =
-    variant === 'vox'
-      ? replacementIds.length > 1
-        ? 4600
-        : 3600
-      : variant === 'detox'
-        ? 6000
-        : variant === 'doubleTrouble'
-          ? completedSafetyUses > 1
-            ? 6000
-            : 4800
-          : variant === 'halo'
-            ? 5000
-            : variant === 'coLoh'
-              ? 5000
-              : 4800
+  const durationMs = replacementDuration({
+    actionHistory: orderedActionHistory,
+    replacementIds,
+    chooserId,
+    variant,
+    powerType: veto?.activeType ?? null,
+    pairUnits,
+  })
 
   const actionSignature = orderedActionHistory.map((action) => [
     action.kind,
     action.playerId,
     action.actorId,
     action.slotIndex,
+    action.actorRole,
   ])
   return {
     owner: targetArrived && plan?.status === 'executed' ? 'ambush' : 'replacement',
@@ -302,6 +343,7 @@ export function createReplacementPresentationTracker() {
   let actionHistory: ReplacementAction[] = []
   let occupants: Array<string | null> = []
   let collecting = false
+  let sequenceKey = ''
 
   const reset = (game: GameState, startCollecting = false) => {
     opening = game
@@ -309,6 +351,7 @@ export function createReplacementPresentationTracker() {
     actionHistory = []
     occupants = unique(game.nomineeIds).map((id) => id)
     collecting = startCollecting
+    sequenceKey = `${scope(game)}:${Date.now()}:${++nextCollectionId}`
   }
 
   return {
@@ -342,5 +385,12 @@ export function createReplacementPresentationTracker() {
     restore(snapshot: GameState) {
       reset(snapshot, snapshot.phase === 'pos_ceremony_results')
     },
+    progress(game: GameState) {
+      if (!collecting || !opening || previous !== game) return null
+      const result = selectReplacementPresentation(opening, game, actionHistory, true)
+      return result ? { ...result, sequenceKey } : null
+    },
   }
 }
+
+let nextCollectionId = 0

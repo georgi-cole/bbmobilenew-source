@@ -36,6 +36,8 @@ interface UseSafetyFlowOptions {
   activeConfessionalDecision: ActiveConfessionalDecision | null
   getTileRect: GetTileRect
   dispatch: AppDispatch
+  sequenceHandled?: boolean
+  sequenceActive?: boolean
 }
 
 /**
@@ -51,6 +53,8 @@ export function useSafetyFlow({
   activeConfessionalDecision,
   getTileRect,
   dispatch,
+  sequenceHandled = false,
+  sequenceActive = false,
 }: UseSafetyFlowOptions) {
   const store = useStore<RootState>()
   const presentationState = store.getState()
@@ -135,6 +139,10 @@ export function useSafetyFlow({
       const submitSaveAction = isVipSecondSave
         ? submitVipSecondSaveTarget(id)
         : submitPovSaveTarget(id)
+      if (sequenceHandled) {
+        dispatch(submitSaveAction)
+        return
+      }
       const saveSubtitle = isVipSecondSave
         ? '👑 Double Trouble used again'
         : activeSpecialVeto === 'diamond'
@@ -217,13 +225,22 @@ export function useSafetyFlow({
         savedId: id,
       })
     },
-    [dispatch, game, activeSpecialVeto, getTileRect, getSaveCeremonyKey, setConsumedSaveCeremonyKey]
+    [
+      dispatch,
+      game,
+      activeSpecialVeto,
+      getTileRect,
+      getSaveCeremonyKey,
+      setConsumedSaveCeremonyKey,
+      sequenceHandled,
+    ]
   )
 
   // Confessional and AI Safety choices commit synchronously rather than going
   // through handlePovSaveTarget above. Give those saves the same visual beat,
   // but only once for the whole game session.
   useEffect(() => {
+    if (sequenceHandled) return
     const savedId = game.povSavedId ?? null
     if (!savedId) {
       presentedSaveIdRef.current = null
@@ -297,6 +314,7 @@ export function useSafetyFlow({
     getTileRect,
     pendingSaveCeremony,
     setConsumedSaveCeremonyKey,
+    sequenceHandled,
   ])
 
   // Hide the save modal while the save ceremony is playing.
@@ -529,8 +547,11 @@ export function useSafetyFlow({
 
   const currentSaveCeremonyKey = game.povSavedId ? getSaveCeremonyKey(game.povSavedId) : ''
   const saveCeremonyStillNeedsPresentation =
-    currentSaveCeremonyKey !== '' && consumedSaveCeremonyKey !== currentSaveCeremonyKey
+    !sequenceHandled &&
+    currentSaveCeremonyKey !== '' &&
+    consumedSaveCeremonyKey !== currentSaveCeremonyKey
   const showAiReplacementAnim =
+    !sequenceActive &&
     aiReplacementKey !== '' &&
     aiReplacementKey !== aiReplacementConsumedKey &&
     !pendingSaveCeremony &&

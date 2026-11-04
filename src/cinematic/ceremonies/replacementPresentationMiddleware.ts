@@ -6,6 +6,8 @@ import {
 } from './replacementPresentation'
 
 const outcomes = new WeakMap<GameState, ReplacementPresentation | null>()
+const progress = new WeakMap<GameState, ReplacementPresentation | null>()
+export const getReplacementProgress = (game: GameState) => progress.get(game) ?? null
 export const getReplacementPresentation = (game: GameState) => outcomes.get(game) ?? null
 export const getReplacementFilmPresentation = (game: GameState) => {
   const outcome = getReplacementPresentation(game)
@@ -27,6 +29,7 @@ export const replacementPresentationMiddleware: Middleware = (api) => {
     if (actionType === 'game/hydrateGame') {
       tracker.restore(game)
       outcomes.set(game, null)
+      progress.set(game, null)
       return result
     }
     if (game === before) return result
@@ -53,9 +56,11 @@ export const replacementPresentationMiddleware: Middleware = (api) => {
       // Broadcast acknowledgements and other unrelated immutable game updates
       // must not drop an already committed presentation before its handoff.
       outcomes.set(game, outcomes.get(before) ?? null)
+      progress.set(game, progress.get(before) ?? null)
       return result
     }
     outcomes.set(game, tracker.observe(game))
+    progress.set(game, tracker.progress(game))
     return result
   }
 }

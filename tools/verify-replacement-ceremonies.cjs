@@ -124,38 +124,22 @@ async function main() {
       )
       results.push({ character: actor.id, ...result })
     }
-    for (const [scenario, checkpoints] of [
-      [
-        'detox',
-        [
-          [500, 2],
-          [1400, 0],
-          [2500, 1],
-          [3300, 2],
-        ],
-      ],
-      [
-        'doubleTroubleTwo',
-        [
-          [2100, 2],
-          [2900, 1],
-          [4100, 2],
-        ],
-      ],
-      [
-        'ordinary',
-        [
-          [600, 1],
-          [1400, 1],
-          [2800, 2],
-          [4300, 2],
-        ],
-      ],
-    ]) {
-      for (const [at, count] of checkpoints) {
-        await page.evaluate((scenario) => window.previewScenario(scenario), scenario)
-        const result = await inspect(page, at)
-        assert.equal(result.people.length, count, `${scenario} at ${at}: wrong occupancy`)
+    for (const scenario of ['detox', 'doubleTroubleTwo', 'ordinary']) {
+      await page.evaluate((scenario) => window.previewScenario(scenario), scenario)
+      const beats = await page.evaluate(() => window.replacementBeats)
+      const occupants = new Set(scenario === 'detox' ? ['nova', 'ash'] : ['ash', 'nova'])
+      for (const beat of beats) {
+        beat.actions.forEach((action) => {
+          if (action.kind === 'save') occupants.delete(action.playerId)
+          if (action.kind === 'replacement') occupants.add(action.playerId)
+        })
+        const result = await inspect(page, beat.revealAt + 700)
+        assert.equal(
+          result.people.length,
+          occupants.size,
+          `${scenario} at ${beat.revealAt}: wrong occupancy`
+        )
+        assert.deepEqual(result.people.map((person) => person.id).sort(), [...occupants].sort())
       }
     }
     const performanceReport = await page.evaluate(async () => {

@@ -3,28 +3,39 @@
 ## Ownership and timing
 
 The store-scoped middleware records the opening nominees and a small ordered
-receipt of committed saves and replacement choices. It does not store full game
-snapshots, dispatch gameplay actions, or expose a proposed choice. A ceremony is
-created only after the replacement block is committed. Successful Ambush stays
-owned by the existing Ambush film; unsettled plans wait, and a failed or
-compromised plan falls back to the ordinary film only for the actual committed
-replacement.
+receipt of committed saves, replacement choices and declined Safety uses. The
+middleware never commits a proposed choice. The live sequence consumes one
+readable decision/consequence segment at a time, rather than waiting for the
+final block. A save shows its actual Safety holder; each replacement shows the
+actual LOH, co-leader, Safety holder or mission chooser from that action's receipt.
+Successful Ambush retains ownership of its own target reveal.
 
-| Event                            | Chooser / visible action                                                             | Runtime |
-| -------------------------------- | ------------------------------------------------------------------------------------ | ------: |
-| Ordinary, failed Ambush fallback | LOH decides; open seat is filled                                                     |   4.8 s |
-| Halo Exchange                    | Safety holder takes authority; prior authority remains identified                    |   5.0 s |
-| Force Majeure                    | Safety holder is identified separately from the chooser; the mandatory save is shown |   4.8 s |
-| Mission backup                   | The designated mission chooser makes the selection                                   |   4.8 s |
-| Co-LOH backup                    | The affected co-leader makes the selection                                           |   5.0 s |
-| Detox                            | Both original nominees clear; the two actual replacements arrive in order            |   6.0 s |
-| Double Trouble, one use          | Save, chooser and replacement play in sequence                                       |   4.8 s |
-| Double Trouble, two uses         | The second save can remove the first replacement before the final choice             |   6.0 s |
-| Vox, one replacement             | The committed public replacement enters on the Vox studio stage                      |   3.6 s |
-| Vox, multiple replacements       | Each committed replacement reveals in order; no ballot count is shown                |   4.6 s |
-| Cupid linked block               | Continuing pair and incoming pair reveal as paired units                             |   4.8 s |
-| Initial single nominee           | One centered figure/platform, with mode-aware copy                                   |   3.8 s |
-| Initial Co-LOH nominations       | Each actual leader-to-nominee choice activates its persistent platform in turn       |   6.0 s |
+A save segment lasts 3.9 s and a replacement segment 4.1 s. Two complete Double
+Trouble rounds therefore use about 16 s of film, excluding human thinking and
+native confirmation UI. The standalone full-sequence preview runs about 15.5 s.
+Simultaneous Detox saves or linked Cupid partners share a segment; distinct choices
+have separate shots. Vox ballot replacements use the studio/ballot cue without
+inventing a human chooser. Initial single/Co-LOH nomination timings are unchanged.
+
+### Human input and safe continuation
+
+- The finished segment hands over to an opaque held character shot and the real
+  decision controls. No countdown or Skip can select a target, accept a power,
+  or dismiss a mandatory choice. Tab is contained within the active controls.
+- The existing game reducers validate and commit every choice. Earned mission
+  power interventions reuse the existing required-Confessional decision component.
+  Already-confirmed staged Safety intents resume through their canonical middleware.
+- Only explicit intermediate AI replacement steps and the Double Trouble second-use
+  stage advance automatically. The next gameplay phase still requires normal Play.
+- A store-scoped collection ID and a consumed-action cursor prevent replay after
+  Confessional navigation. Hydration starts a new receipt boundary. Decisions
+  already presented in Standard mode are not replayed when Cinematic is enabled.
+- A static held shot has no running animation timers. Backgrounding suspends film
+  playback; disabling Cinematic/reduced motion or unsupported art retains the native
+  fallback. Movie preparation failure releases its handles and required input.
+- The opaque sequence cover remains between segments and human choices. Only the
+  final return reveals the real roster and its compact native badges. A completed
+  save is never replayed by a separate native Safety film.
 
 The successful Ambush control is unchanged. Standard and unsupported paths retain
 their existing full native ceremony behavior. VIP cinematic paths return to the
@@ -39,11 +50,11 @@ normal game flow once.
   image keeps its native aspect ratio; the contact shadow and red rim are separate
   lightweight layers. Existing nomination slot widths and the same 60% stage sole
   line are used as the visual calibration targets.
-- A concise named authority cue directs attention within the same danger-room
-  scene. The miniature chooser cutout has been removed following visual review.
-  Continuing nominees stay at full opacity through the authority beat and final
-  hold. Camera travel is limited to one slow push
-  and settle; light accents are static gradients or brief opacity/scale cues.
+- Decision makers occupy separate, full-size opaque camera shots. LOH replacement
+  shots reuse the calibrated seated pose, crown and throne; Safety and other
+  holders use a front-facing character shot. Continuing nominees retain their
+  physical slots and opacity in the block shot. Camera/light movement is composited
+  with transforms, opacity and static gradients.
 - Save and replacement events are rendered in the order captured from committed
   game changes. Detox shows both cleared nominees; Double Trouble can show the
   first replacement being saved by the second use before the next replacement
@@ -58,7 +69,8 @@ normal game flow once.
   1.2 s readable hold before the single outer fade. The gallery does not invent a
   duplicate roster or badge-handoff screen.
 - Runtime effects use composited artwork, transforms, opacity and static gradients.
-  No continuous particles, animated blur or extra network assets were added.
+  No continuous particles, animated blur or new artwork files were added. Decision
+  shots request the existing front/seated character assets and reusable room props.
 
 ## Review media and validation
 

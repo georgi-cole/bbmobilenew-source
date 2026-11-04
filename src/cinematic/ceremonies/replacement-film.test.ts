@@ -46,6 +46,7 @@ const images = () =>
       'replacementPlatform',
       ...Object.keys(cast).map((id) => `replacement-body-${id}`),
       ...Object.keys(cast).map((id) => `replacement-authority-${id}`),
+      ...Object.keys(cast).map((id) => `replacement-holder-${id}`),
       'replacementShield',
     ].map((key) => {
       const image = document.createElement('img')
@@ -89,8 +90,9 @@ describe('replacement film family', () => {
     expect(slots).toHaveLength(2)
     expect(root.querySelectorAll('.replacement-platform')).toHaveLength(slots.length)
     expect(root.querySelector('.replacement-authority-shot')).toBeNull()
-    if (variant === 'vox') expect(root.querySelector('.replacement-authority')).toBeNull()
-    else expect(root.querySelector('.replacement-authority')).toBeTruthy()
+    expect(root.querySelectorAll('.replacement-decision-shot')).toHaveLength(2)
+    expect(root.querySelector('.replacement-decision-shot[data-actor-id="pos"]')).toBeTruthy()
+    expect(root.querySelector('.replacement-decision-shot[data-actor-id="loh"]')).toBeTruthy()
     expect(root.textContent).toContain('<script>long player name</script>')
     const body = root.querySelector<HTMLImageElement>('.replacement-body')
     expect(body?.alt).toBe('')
@@ -118,7 +120,7 @@ describe('replacement film family', () => {
     expect(selectors).toContain('.replacement-camera')
   })
 
-  it('uses the established Vox studio and does not request a chooser pose', () => {
+  it('uses the established Vox studio without inventing a chooser for ballot replacements', () => {
     const shared = {
       'vox-studio.webp': { width: 400, height: 600, bytes: 1000 },
       'danger-chamber.webp': { width: 400, height: 600, bytes: 1000 },
@@ -133,18 +135,19 @@ describe('replacement film family', () => {
           chooserId: null,
           powerHolderId: null,
           priorAuthorityId: null,
+          actionHistory: [{ kind: 'replacement', playerId: 'c', actorId: null, slotIndex: 1 }],
         },
       },
       shared
     )
     expect(voxResources.replacementSet.src).toContain('vox-studio.webp')
     expect(voxResources['replacement-authority-loh']).toBeUndefined()
-    expect(voxResources['replacement-body-b']).toBeUndefined()
+    expect(voxResources['replacement-body-b'].pose).toBe('front')
     const ordinaryResources = replacementResources(cast, { replacementOutcome: base }, shared)
     expect(ordinaryResources['replacement-body-c'].pose).toBe('front')
     expect(ordinaryResources['replacement-body-loh']).toBeUndefined()
-    expect(ordinaryResources['replacement-authority-loh']).toBeUndefined()
-    expect(ordinaryResources['replacement-authority-pos']).toBeUndefined()
+    expect(ordinaryResources['replacement-authority-loh'].pose).toBe('front')
+    expect(ordinaryResources['replacement-holder-pos'].pose).toBe('front')
   })
 
   it('keeps the nominee body at the approved 44% slot width and shared sole anchor', () => {
@@ -165,10 +168,12 @@ describe('replacement film family', () => {
     }
     const resources = replacementResources(cast, { replacementOutcome: outcome }, {})
     expect(resources['replacement-body-loh'].pose).toBe('front')
-    expect(resources['replacement-authority-loh']).toBeUndefined()
+    expect(resources['replacement-authority-loh'].pose).toBe('front')
     const root = makeReplacementFilm(images(), cast, outcome)
-    expect(root.querySelectorAll('[data-actor-id="loh"]')).toHaveLength(1)
-    expect(root.querySelector('.replacement-authority-label strong')?.textContent).toBe('loh')
+    expect(root.querySelectorAll('.replacement-person[data-actor-id="loh"]')).toHaveLength(1)
+    expect(
+      root.querySelector('.replacement-decision-shot[data-actor-id="loh"] strong')?.textContent
+    ).toBe('loh')
   })
 
   it('keeps continuing nominees fully visible and leaves their fitted foot transform untouched', () => {
@@ -176,7 +181,11 @@ describe('replacement film family', () => {
     animateReplacementFilm(
       root,
       (target: string | Element, stops: (number | string)[][]) => {
-        if (target instanceof Element && target.classList.contains('replacement-person-opening')) {
+        if (
+          target instanceof HTMLElement &&
+          target.classList.contains('replacement-person-opening') &&
+          target.dataset.actorId === 'a'
+        ) {
           expect(stops.at(-1)).toEqual([base.durationMs, 1])
           expect(stops.slice(1).every(([, opacity]) => opacity === 1)).toBe(true)
           expect(stops.every((stop) => stop.length === 2)).toBe(true)

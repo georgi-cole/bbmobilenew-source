@@ -109,7 +109,7 @@ describe('committed replacement presentation ownership', () => {
       variant: 'detox',
       chooserId: 'pos',
       replacementIds: ['c', 'd'],
-      durationMs: 6000,
+      durationMs: 8340,
     })
   })
   it.each([0, 1, 2, 3])('waits at Double Trouble intermediate stage %s', (vipUseStage) => {
@@ -125,7 +125,7 @@ describe('committed replacement presentation ownership', () => {
   })
   it('shows only the committed Vox names, without a chooser or ballot data', () => {
     const result = resolve({ voxPopuli: { status: 'active', nominationVoteCounts: { d: 900 } } })
-    expect(result).toMatchObject({ variant: 'vox', chooserId: null, durationMs: 3600 })
+    expect(result).toMatchObject({ variant: 'vox', chooserId: null, durationMs: 3800 })
     expect(JSON.stringify(result)).not.toContain('900')
   })
   it('waits for a complete Cupid pair', () => {
@@ -232,7 +232,7 @@ describe('committed replacement presentation ownership', () => {
       ['save', 'c'],
       ['replacement', 'd'],
     ])
-    expect(outcome?.durationMs).toBe(6000)
+    expect(outcome?.durationMs).toBeGreaterThanOrEqual(14000)
     expect(outcome?.replacementIds).toEqual(['d'])
   })
   it('captures the affected co-leader before the committed replacement clears its role field', () => {

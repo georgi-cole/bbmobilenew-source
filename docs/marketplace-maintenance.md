@@ -287,3 +287,9 @@ store listings or change configured prices.
   changes refine the existing VIP cinematic benefit and its preview assets only;
   VIP eligibility, Standard behavior, product availability, prices, rewards,
   benefits, and Store copy remain unchanged.
+
+- 2026-11-04: Reviewed connected VIP replacement decision scenes, slower Double
+  Trouble pacing, actual LOH/Safety/mission-holder shots, and pauses for mandatory
+  human decisions. The same VIP entitlement and animation preferences apply.
+  This is presentation maintenance: products, prices, rewards, access gates,
+  benefits, and marketplace copy remain unchanged.

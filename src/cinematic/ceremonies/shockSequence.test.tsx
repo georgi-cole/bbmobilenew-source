@@ -49,6 +49,8 @@ it('completes follow-up cards and an alias without replaying the Back 2 the Game
     expect(prepare).toHaveBeenCalledTimes(1)
     expect(mount).toHaveBeenCalledTimes(1)
   }
-  expect(document.querySelector('.shock-intro')).toBeNull()
-  expect(document.querySelector('[data-cinematic-active]')).toBeNull()
+  await waitFor(() => {
+    expect(document.querySelector('.shock-intro')).toBeNull()
+    expect(document.querySelector('[data-cinematic-active]')).toBeNull()
+  })
 })
