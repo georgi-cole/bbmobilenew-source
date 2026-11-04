@@ -1,0 +1,140 @@
+name: Deploy production site
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  release-quality:
+    name: Required release-quality checks
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run test:guard
+      - run: npm run lint:ci
+      - run: npm run typecheck
+      - run: npm run build:mobile
+      - run: npm audit --omit=dev --audit-level=high
+
+  deploy-production:
+    name: Build and publish production site
+    if: github.ref == 'refs/heads/main'
+    needs: [release-quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production site
+        env:
+          VITE_APP_ENVIRONMENT: production
+          VITE_BUILD_ID: ${{ github.sha }}
+          VITE_VIP_DEV_ENTITLEMENT: 'false'
+          VITE_BASE_PATH: '/bbmobilenew/'
+          VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_ENABLED }}
+        run: |
+          test "$VITE_SUPABASE_ENABLED" = "true"
+          case "$VITE_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "VITE_SUPABASE_URL must be a Supabase HTTPS project URL" >&2; exit 1;; esac
+          case "$VITE_SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*) ;; *) echo "VITE_SUPABASE_PUBLISHABLE_KEY must be a publishable key" >&2; exit 1;; esac
+          npm run build
+
+      - name: Validate automatic Supabase migration settings
+        shell: bash
+        env:
+          SUPABASE_MIGRATIONS_ENABLED: ${{ vars.SUPABASE_MIGRATIONS_ENABLED }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+        run: |
+          case "$SUPABASE_MIGRATIONS_ENABLED" in
+            ''|false) echo "Automatic Supabase migrations are disabled."; exit 0 ;;
+            true) ;;
+            *) echo "::error::SUPABASE_MIGRATIONS_ENABLED must be true, false, or unset."; exit 1 ;;
+          esac
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_REF; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is required when automatic Supabase migrations are enabled."
+              exit 1
+            fi
+          done
+          if [[ ! "$SUPABASE_PROJECT_REF" =~ ^[a-z0-9]+$ ]] || [ "$VITE_SUPABASE_URL" != "https://${SUPABASE_PROJECT_REF}.supabase.co" ]; then
+            echo "::error::SUPABASE_PROJECT_REF must match the production VITE_SUPABASE_URL project."
+            exit 1
+          fi
+
+      - name: Set up pinned Supabase CLI
+        if: vars.SUPABASE_MIGRATIONS_ENABLED == 'true'
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.0
+
+      - name: Apply pending Supabase migrations before publish
+        if: vars.SUPABASE_MIGRATIONS_ENABLED == 'true'
+        timeout-minutes: 10
+        shell: bash
+        env:
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          git diff --exit-code HEAD -- supabase/migrations supabase/config.toml
+          untracked_migrations="$(git ls-files --others -- supabase/migrations supabase/config.toml)"
+          if [ -n "$untracked_migrations" ]; then
+            echo "::error::Untracked Supabase migration files or configuration cannot be deployed."
+            exit 1
+          fi
+          if [ ! -f supabase/config.toml ]; then
+            supabase init
+          fi
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase db push --linked --yes
+
+      - name: Check out the public deployment repository
+        env:
+          PAGES_DEPLOY_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+        run: |
+          git clone --depth=1 "https://x-access-token:${PAGES_DEPLOY_TOKEN}@github.com/${{ github.repository_owner }}/bbmobilenew.git" deployment
+
+      - name: Replace public files with this production build
+        run: rsync -a --delete --exclude .git dist/ deployment/
+
+      - name: Publish production build
+        working-directory: deployment
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          if git diff --cached --quiet; then
+            echo "No public-file changes to publish."
+            exit 0
+          fi
+          git commit -m "Deploy production source build ${{ github.sha }}"
+          git push origin main
