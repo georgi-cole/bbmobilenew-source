@@ -768,27 +768,14 @@
   position: absolute;
   z-index: 2;
   left: 10%;
-  bottom: -8px;
+  bottom: -1.5%;
   width: 80%;
-  height: 30px;
-  border: 1px solid #d8b37587;
-  border-top-color: #f0d5a1b0;
-  border-bottom-color: #3e2c1a;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 15%, #7770893d, #1b1520 55%, #090a10);
-  box-shadow:
-    0 3px 0 #443526,
-    0 5px 0 #171219,
-    0 6px 9px #000b,
-    0 -3px 15px #d1ae6229,
-    inset 0 1px 0 #ffe6be80;
-  transition: box-shadow 1.8s ease;
-}
-.f3-broadcast__podium i {
-  position: absolute;
-  inset: 20% 15%;
-  border: 1px solid #dec18a2b;
-  border-radius: 50%;
+  height: auto;
+  aspect-ratio: 8 / 3;
+  object-fit: contain;
+  pointer-events: none;
+  transform: translateY(58%);
+  transition: opacity 1.8s ease;
 }
 .f3-broadcast__contestant-light {
   position: absolute;
@@ -941,26 +928,8 @@
   );
   opacity: 1;
 }
-.f3-broadcast__contestant.is-focused .f3-broadcast__podium {
-  border-top-color: var(--contest-accent);
-  box-shadow:
-    0 3px 0 #443526,
-    0 5px 0 #171219,
-    0 6px 12px #0009,
-    0 -4px 25px rgba(var(--contest-rgb), 0.22),
-    inset 0 1px 0 var(--contest-accent);
-}
 .f3-broadcast__contestant.is-struck .f3-broadcast__contestant-light {
   background: radial-gradient(ellipse at 50% 70%, #c956633d, #ad3b5410 48%, transparent 72%);
-}
-.f3-broadcast__contestant.is-struck .f3-broadcast__podium {
-  border-top-color: #f2a5a5;
-  box-shadow:
-    0 3px 0 #443526,
-    0 5px 0 #171219,
-    0 6px 12px #0009,
-    0 -4px 22px #ca5d6b3d,
-    inset 0 1px 0 #edafb3;
 }
 .f3-broadcast[data-stage='lock'] .f3-broadcast__cast {
   filter: brightness(0.55) saturate(0.65);
@@ -1007,14 +976,6 @@
 .f3-broadcast__contestant.is-winner .f3-broadcast__contestant-light {
   background: radial-gradient(ellipse at 50% 72%, #e8bc7560, #bc8ae120 48%, transparent 70%);
   opacity: 1;
-}
-.f3-broadcast__contestant.is-winner .f3-broadcast__podium {
-  box-shadow:
-    0 3px 0 #443526,
-    0 5px 0 #171219,
-    0 6px 12px #0009,
-    0 -4px 30px #e4bd7959,
-    inset 0 1px 0 #ffe6be;
 }
 .f3-broadcast[data-stage='verdict'] .f3-broadcast__lower-third,
 .f3-broadcast[data-stage='handoff'] .f3-broadcast__lower-third {

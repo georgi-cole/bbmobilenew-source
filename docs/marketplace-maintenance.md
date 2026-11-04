@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-04: Reviewed Final Three presentation acknowledgements, visible finalist
+  staging, reuse of existing marble podium artwork, nomination ordinal cleanup,
+  and native-only messages for declined Safety uses. These are presentation and
+  progression repairs. VIP/Standard gates, offers, prices, rewards and Store copy
+  remain unchanged; no new artwork or paid product is added.
+
 - 2026-11-03: Reviewed local strategic preference rollback and regression
   hardening for epic #1711 phase 6. The build control affects new AI preference
   weights only; paid offers, access, prices, power limits and products are

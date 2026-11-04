@@ -10,6 +10,7 @@ export const FINAL_THREE_SET_PUBLIC_ASSETS = {
   eye: 'assets/ceremonies/final-decision/token.webp',
   monitor: 'assets/ceremonies/final-decision/monitor.webp',
   mist: 'assets/ceremonies/vfx/natural-mist-v2.webp',
+  podium: 'assets/dressing-room/profile-podium.webp',
 } as const
 
 export const FINAL_THREE_SET_ASSETS = {
@@ -17,4 +18,5 @@ export const FINAL_THREE_SET_ASSETS = {
   eye: joinPublicAssetPath(FINAL_THREE_SET_PUBLIC_ASSETS.eye),
   monitor: joinPublicAssetPath(FINAL_THREE_SET_PUBLIC_ASSETS.monitor),
   mist: joinPublicAssetPath(FINAL_THREE_SET_PUBLIC_ASSETS.mist),
+  podium: joinPublicAssetPath(FINAL_THREE_SET_PUBLIC_ASSETS.podium),
 } as const

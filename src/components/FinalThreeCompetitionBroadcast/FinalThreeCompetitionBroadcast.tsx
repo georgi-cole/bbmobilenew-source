@@ -23,6 +23,7 @@ import { selectIsVipActive } from '../../store/vipSlice'
 import type { GameState, Player } from '../../types'
 import CinematicSkipButton from '../CinematicSkipButton/CinematicSkipButton'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
+import FinalThreePodium from '../FinalThreeStage/FinalThreePodium'
 import { EMPTY_SEQUENCE_TILE } from '../FinalThreeCircuit/finalThreeCircuitLogic'
 import {
   prepareCompetitionBroadcastArtwork,
@@ -723,9 +724,7 @@ export default function FinalThreeCompetitionBroadcast(props: FinalThreeCompetit
                     data-contestant-id={player.id}
                     style={{ '--index': index, '--count': initial.players.length } as CSSProperties}
                   >
-                    <div className="f3-broadcast__podium">
-                      <i />
-                    </div>
+                    <FinalThreePodium className="f3-broadcast__podium" />
                     <div className="f3-broadcast__contestant-light" />
                     <img
                       className="f3-broadcast__reflection"

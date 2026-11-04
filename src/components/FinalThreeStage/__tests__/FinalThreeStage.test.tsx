@@ -13,6 +13,23 @@ afterEach(cleanup)
 const cast = createInitialGameState({ seed: 400 }).players.slice(0, 3)
 
 describe('unified Final Three garden', () => {
+  it('uses the existing marble podium raster in every finale handoff', () => {
+    const { container } = render(
+      <>
+        <FinalPowerBattleIntro finalists={cast} mode="classic" />
+        <FinalThreeBlockReveal blockPlayer={cast[0]} competitors={cast.slice(1)} mode="classic" />
+        <FinalPowerHolderReveal player={cast[0]} mode="classic" continueCopy="Press Play." />
+      </>
+    )
+    const podiums = container.querySelectorAll(
+      '.fpb-intro__podium, .fpb-block__podium, .fp-holder-reveal__podium'
+    )
+    expect(podiums).toHaveLength(6)
+    podiums.forEach((podium) => {
+      expect(podium.tagName).toBe('IMG')
+      expect(podium).toHaveAttribute('src', FINAL_THREE_SET_ASSETS.podium)
+    })
+  })
   it.each(['opening', 'block', 'holder', 'final-two', 'champion'] as const)(
     'uses the exact shared architecture and live monitor for %s',
     (scene) => {

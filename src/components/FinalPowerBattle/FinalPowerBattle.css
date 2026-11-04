@@ -973,6 +973,9 @@
   max-height: none;
   transform: translateX(-50%);
   margin: 0;
+  /* With top/bottom insets, the stage must stretch rather than inherit the
+     legacy centered grid alignment, which shrink-wrapped the Part 3 cast to 0. */
+  align-self: stretch;
 }
 
 .fpb-intro__stage {
@@ -996,6 +999,8 @@
   max-width: none;
   object-fit: contain;
   object-position: center bottom;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .fpb-intro__podium,
@@ -1003,27 +1008,30 @@
 .fp-holder-reveal__podium {
   position: absolute;
   z-index: 1;
-  right: 9%;
-  bottom: 5px;
+  right: auto;
+  /* Informal cutouts carry a small transparent foot margin. */
+  bottom: calc(var(--fpb-feet-inset, 14px) + 4%);
   left: 9%;
-  height: clamp(17px, 3.4vh, 29px);
-  border: 1px solid #d8b37587;
-  border-top-color: #f0d5a1b0;
-  border-bottom-color: #3e2c1a;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 15%, #7770893d, #1b1520 55%, #090a10);
-  box-shadow:
-    0 3px 0 #443526,
-    0 5px 0 #171219,
-    0 6px 9px #000b,
-    0 -3px 15px #d1ae6229,
-    inset 0 1px 0 #ffe6be80;
+  width: 82%;
+  height: auto;
+  aspect-ratio: 8 / 3;
+  object-fit: contain;
+  pointer-events: none;
+  transform: translateY(58%);
+}
+
+.fpb-block__podium {
+  --fpb-feet-inset: 16px;
+}
+
+.fp-holder-reveal__podium {
+  --fpb-feet-inset: 13px;
 }
 
 .fpb-intro__name {
   z-index: 3;
   right: -5%;
-  bottom: -7px;
+  bottom: -25px;
   left: -5%;
   font-size: clamp(10px, 2.6cqw, 15px);
   font-weight: 600;
@@ -1113,13 +1121,15 @@
   width: 100%;
   height: calc(100% - 16px);
   object-fit: contain;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .fpb-block__platform-name {
   position: absolute;
   top: auto;
   right: 0;
-  bottom: -7px;
+  bottom: -32px;
   left: 0;
   z-index: 3;
   display: block;

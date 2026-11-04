@@ -43,6 +43,19 @@ const game = (props: Record<string, unknown> = {}) =>
   }) as unknown as GameState
 
 describe('connected replacement decisions', () => {
+  it('leaves a declined Safety use on faux TV and preserves real consequences in mixed batches', () => {
+    const decline = { kind: 'decline' as const, playerId: 'pos', actorId: 'pos', slotIndex: -1 }
+    expect(nextReplacementStep({ ...outcome, actionHistory: [decline] }, 0)).toBeNull()
+    const step = nextReplacementStep(
+      { ...outcome, actionHistory: [...outcome.actionHistory, decline] },
+      0
+    )
+    expect(step?.end).toBe(5)
+    expect(step?.outcome.actionHistory).toEqual(outcome.actionHistory)
+    expect(
+      nextReplacementStep({ ...outcome, actionHistory: [...outcome.actionHistory, decline] }, 4)
+    ).toBeNull()
+  })
   it('presents the four committed actions in order with the actor for each choice', () => {
     const expected = [
       ['save', 'b', 'pos'],

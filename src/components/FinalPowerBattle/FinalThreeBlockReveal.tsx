@@ -1,6 +1,7 @@
 import type { Player } from '../../types'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import FinalThreeStage from '../FinalThreeStage/FinalThreeStage'
+import FinalThreePodium from '../FinalThreeStage/FinalThreePodium'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import './FinalPowerBattle.css'
 
@@ -65,7 +66,7 @@ export default function FinalThreeBlockReveal({ blockPlayer, competitors, mode }
               aria-label={`${player.name}, competitor ${index + 1}`}
             >
               <span className="fpb-block__competitor-light" aria-hidden="true" />
-              <span className="fpb-block__podium" aria-hidden="true" />
+              <FinalThreePodium className="fpb-block__podium" />
               <FullSizeCutoutImage
                 player={player}
                 attire="informal"

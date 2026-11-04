@@ -15,6 +15,7 @@ import gameReducer, {
   selectF3Part3PredictedWinnerId,
 } from '../../../store/gameSlice'
 import { useAppSelector } from '../../../store/hooks'
+import { gameScreenGameEquality } from '../gameScreenGameEquality'
 import { store as baseline, type RootState } from '../../../store/store'
 import type { GameState } from '../../../types'
 import { useEndgameFlow } from './useEndgameFlow'
@@ -101,7 +102,7 @@ function mountFlow(game: GameState, enabled = true, reactEnabled = true) {
   })
   const hook = renderHook(
     () => {
-      const current = useAppSelector((state) => state.game)
+      const current = useAppSelector((state) => state.game, gameScreenGameEquality)
       return useEndgameFlow({
         game: current,
         humanPlayer: current.players.find((player) => player.isUser),
