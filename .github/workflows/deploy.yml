@@ -82,6 +82,7 @@ jobs:
           VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_QA_ENABLED }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_QA_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_QA_PUBLISHABLE_KEY }}
+          VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_QA_ENABLED }}
           VITE_PRODUCTION_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
         run: |
           test "$QA_ACCESS_CONFIGURED" = "true" || { echo "::error::Protect the QA Pages and pages.dev hostnames with Cloudflare Access, then set CLOUDFLARE_QA_ACCESS_CONFIGURED=true."; exit 1; }
@@ -89,6 +90,7 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN is required."; exit 1; }
           test -n "$PAGES_DEPLOY_TOKEN" || { echo "::error::PAGES_DEPLOY_TOKEN is required to remove the old public QA copy."; exit 1; }
           test "$VITE_SUPABASE_ENABLED" = "true" || { echo "::error::VITE_SUPABASE_QA_ENABLED must be true."; exit 1; }
+          test "$VITE_PLAYER_ACCOUNTS_ENABLED" = "true" || { echo "::error::VITE_PLAYER_ACCOUNTS_QA_ENABLED must be true for the full QA feature set."; exit 1; }
           case "$VITE_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "::error::VITE_SUPABASE_QA_URL must be a Supabase HTTPS project URL."; exit 1;; esac
           case "$VITE_SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*) ;; *) echo "::error::VITE_SUPABASE_QA_PUBLISHABLE_KEY must be a publishable key."; exit 1;; esac
           test "$VITE_SUPABASE_URL" != "$VITE_PRODUCTION_SUPABASE_URL" || { echo "::error::QA and production must use different Supabase projects."; exit 1; }
@@ -103,7 +105,7 @@ jobs:
           VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_QA_ENABLED }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_QA_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_QA_PUBLISHABLE_KEY }}
-          VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_ENABLED }}
+          VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_QA_ENABLED }}
         run: npm run build
 
       - name: Deploy QA build to Cloudflare Pages

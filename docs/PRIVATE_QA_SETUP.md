@@ -12,16 +12,17 @@ The DEV project already has Crystal Path migration history. For that reason, the
 
 ## One-time setup
 
-1. In Cloudflare Pages, create a **Direct Upload** project named `bbmobilenew-qa` with `main` as its production branch. Add `qa.kolequant.xyz` as its custom domain.
-2. In Cloudflare Zero Trust, protect `qa.kolequant.xyz`, `bbmobilenew-qa.pages.dev`, and `*.bbmobilenew-qa.pages.dev` with an allow policy for the intended testers. Check that a signed-out browser is blocked on all three before enabling the deployment workflow.
-3. Create a Cloudflare API token scoped to your account with only the Cloudflare Pages edit permission needed to deploy. Add it to the source repository as the Actions secret `CLOUDFLARE_API_TOKEN`. Add the Cloudflare account ID as the Actions variable `CLOUDFLARE_ACCOUNT_ID`.
-4. In the source repository's Actions variables, add:
-   - `CLOUDFLARE_QA_ACCESS_CONFIGURED` = `true` (only after steps 1–2 are completed and checked)
+1. The Cloudflare Pages Direct Upload project `bbmobilenew-qa` and custom domain `qa.kolequant.xyz` are already configured. Cloudflare Access protects `qa.kolequant.xyz`, `bbmobilenew-qa.pages.dev`, and `*.bbmobilenew-qa.pages.dev` with the four approved tester emails. A signed-out request to the custom domain was verified to reach Cloudflare Access.
+2. Create a Cloudflare API token scoped to your account with only the Cloudflare Pages edit permission needed to deploy. Add it to the source repository as the Actions secret `CLOUDFLARE_API_TOKEN`. Add the Cloudflare account ID as the Actions variable `CLOUDFLARE_ACCOUNT_ID`.
+3. In the source repository's Actions variables, add:
+   - `CLOUDFLARE_QA_ACCESS_CONFIGURED` = `true` (only after step 1 is completed and signed-out access is checked)
    - `VITE_SUPABASE_QA_ENABLED` = `true`
    - `VITE_SUPABASE_QA_URL` = `https://jbyguybxhezjhdbenevh.supabase.co`
    - `VITE_SUPABASE_QA_PUBLISHABLE_KEY` = the publishable key from `The Crystal Path Infinity DEV`
-5. Add a Cloudflare Pages deployment token as the Actions secret `PAGES_DEPLOY_TOKEN`. This lets the workflow remove the old public `/qa/` copy from the separate GitHub Pages deployment repository after the private QA deployment succeeds.
-6. After the access rules and Supabase schema are ready, start `Deploy private QA site` on `main`. The workflow then removes the old public `/qa/` copy from GitHub Pages.
+   - `VITE_PLAYER_ACCOUNTS_QA_ENABLED` = `true` (enables the optional profile contact/audience feature in QA only; production keeps its separate `VITE_PLAYER_ACCOUNTS_ENABLED` variable)
+4. Add a fine-grained GitHub token with Contents read/write access to the `bbmobilenew` deployment repository as the Actions secret `PAGES_DEPLOY_TOKEN`. This lets the workflow remove the old public `/qa/` copy from the separate GitHub Pages deployment repository after the private QA deployment succeeds.
+5. The Big Eye profile, analytics, and optional contact schema migrations have been applied to the shared DEV database through SQL Editor, in filename order. Do not run `supabase db push` against this shared project.
+6. After the two deployment secrets and Actions variables are ready, start `Deploy private QA site` on `main`. The workflow then removes the old public `/qa/` copy from GitHub Pages.
 
 The Supabase publishable key is intended for browser use. Never use a Supabase secret/service-role key in either build. Do not add database passwords or Supabase migration tokens for the shared QA database to GitHub Actions.
 
