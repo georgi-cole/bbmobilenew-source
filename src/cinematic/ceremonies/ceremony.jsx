@@ -3,7 +3,7 @@ import React from 'react'
 import Standard from '../../components/CeremonyOverlay/CeremonyOverlay'
 import { useStore } from 'react-redux'
 import { PremiumBridge } from './bridge.jsx'
-import { adaptCeremonyScene, baseScene } from './runtime.mjs'
+import { adaptCeremonyScene, baseScene, hasLeadershipRole } from './runtime.mjs'
 
 function CeremonyHandoff(props) {
   if (!props.badgeOnlyHandoff) return <Standard {...props} />
@@ -28,12 +28,7 @@ export default function Ceremony(props) {
     props.replacementOutcome?.owner === 'replacement'
       ? 'replacement'
       : adaptCeremonyScene(
-          base === 'safety' &&
-            Boolean(game.lohId) &&
-            game.voxPopuli?.status !== 'active' &&
-            game.posWinnerId === game.lohId
-            ? 'allPower'
-            : base,
+          base === 'safety' && hasLeadershipRole(game, game.posWinnerId) ? 'allPower' : base,
           props,
           game
         )

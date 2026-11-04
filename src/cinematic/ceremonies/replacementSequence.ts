@@ -66,58 +66,62 @@ export function replacementDecision(
 }
 
 export function nextReplacementStep(progress: ReplacementPresentation, consumed: number) {
-  const groups = replacementBeats(progress)
-  let cursor = 0
-  for (const group of groups) {
-    const end = cursor + group.actions.length
-    if (end > consumed) {
-      // Restored receipts may start between paired actions: never replay the
-      // already-presented half of a choice.
-      const actions = group.actions.slice(Math.max(0, consumed - cursor))
-      const opening = [...progress.openingNomineeIds]
-      const openingSlots = Object.fromEntries(opening.map((id, index) => [id, index]))
-      for (const action of progress.actionHistory.slice(0, Math.max(consumed, cursor))) {
-        if (action.kind === 'save') {
-          const index = opening.indexOf(action.playerId)
-          if (index >= 0) opening.splice(index, 1)
-          delete openingSlots[action.playerId]
-        } else if (action.kind === 'replacement' && !opening.includes(action.playerId)) {
-          opening.push(action.playerId)
-          openingSlots[action.playerId] = action.slotIndex
-        }
-      }
-      const final = [...opening]
-      for (const action of actions) {
-        if (action.kind === 'save') {
-          const index = final.indexOf(action.playerId)
-          if (index >= 0) final.splice(index, 1)
-        } else if (action.kind === 'replacement' && !final.includes(action.playerId))
-          final.push(action.playerId)
-      }
-      const step: ReplacementPresentation = {
-        ...progress,
-        eventKey: `${progress.eventKey}:step:${cursor}:${end}`,
-        openingNomineeIds: opening,
-        nomineeIds: final,
-        continuingNomineeIds: opening.filter((id) => final.includes(id)),
-        replacementIds: actions.filter((a) => a.kind === 'replacement').map((a) => a.playerId),
-        savedIds: actions.filter((a) => a.kind === 'save').map((a) => a.playerId),
-        actionHistory: actions,
-        decision: undefined,
-        decisionOnly: false,
-        segment: true,
-        safetyUseNumber: groups.slice(0, group.index + 1).filter((beat) => beat.kind === 'save')
-          .length,
-        openingSlots,
-        slotCount: progress.openingNomineeIds.length,
-      }
-      // Keep original physical slot indices even when a previous save left a hole.
-      step.durationMs = replacementDuration(step)
-      return { outcome: step, end }
-    }
-    cursor = end
+  if (consumed >= progress.actionHistory.length) return null
+  const actions = progress.actionHistory.slice(consumed)
+  const opening = [...progress.openingNomineeIds]
+  const openingSlots = Object.fromEntries(opening.map((id, index) => [id, index]))
+  const apply = (ids: string[], action: ReplacementPresentation['actionHistory'][number]) => {
+    if (action.kind === 'save') {
+      const index = ids.indexOf(action.playerId)
+      if (index >= 0) ids.splice(index, 1)
+    } else if (action.kind === 'replacement' && !ids.includes(action.playerId))
+      ids.push(action.playerId)
   }
-  return null
+  for (const action of progress.actionHistory.slice(0, consumed)) {
+    apply(opening, action)
+    if (action.kind === 'save') delete openingSlots[action.playerId]
+    else if (action.kind === 'replacement') openingSlots[action.playerId] = action.slotIndex
+  }
+  const final = [...opening]
+  actions.forEach((action) => apply(final, action))
+  const step: ReplacementPresentation = {
+    ...progress,
+    eventKey: `${progress.sequenceKey ?? progress.eventKey}:step:${consumed}:${progress.actionHistory.length}`,
+    openingNomineeIds: opening,
+    nomineeIds: final,
+    continuingNomineeIds: opening.filter((id) => final.includes(id)),
+    replacementIds: actions.filter((a) => a.kind === 'replacement').map((a) => a.playerId),
+    savedIds: actions.filter((a) => a.kind === 'save').map((a) => a.playerId),
+    actionHistory: actions,
+    decision: undefined,
+    decisionOnly: false,
+    segment: true,
+    safetyUseNumber: replacementBeats({
+      ...progress,
+      actionHistory: progress.actionHistory.slice(0, consumed),
+      replacementIds: [],
+    }).filter((beat) => beat.kind === 'save').length,
+    openingSlots,
+    slotCount: Math.max(
+      progress.openingNomineeIds.length,
+      progress.nomineeIds.length,
+      ...progress.actionHistory.map((action) => action.slotIndex + 1)
+    ),
+  }
+  step.durationMs = replacementDuration(step)
+  return { outcome: step, end: progress.actionHistory.length }
+}
+
+export function replacementBlockAt(progress: ReplacementPresentation, count: number) {
+  const slots = new Map(progress.openingNomineeIds.map((id, index) => [id, index]))
+  for (const action of progress.actionHistory.slice(0, count)) {
+    if (action.kind === 'save') slots.delete(action.playerId)
+    else if (action.kind === 'replacement') slots.set(action.playerId, action.slotIndex)
+  }
+  return {
+    ids: [...slots].sort((a, b) => a[1] - b[1]).map(([id]) => id),
+    slots: Object.fromEntries(slots),
+  }
 }
 
 /** Only explicit intermediate reducer steps may be advanced by presentation. */

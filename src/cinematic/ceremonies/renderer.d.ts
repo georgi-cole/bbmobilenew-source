@@ -20,10 +20,11 @@ export interface ClipController {
     onHandoff: () => void,
     onComplete: () => void,
     shockType?: string,
-    options?: { matchHandoff?: boolean; origin?: DOMRect | null }
+    options?: { matchHandoff?: boolean; origin?: DOMRect | null; retainLastFrame?: boolean }
   ): void
   nativeReady(rosterOnly?: boolean): void
   readonly root: HTMLElement | null
+  readonly durationMs: number
   readonly metrics: ClipMetrics | null
   readonly counts: { animations: number; timers: number; mounted: boolean; retainedImages: number }
 }

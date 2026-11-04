@@ -4,6 +4,10 @@ import {
   animateReplacementFilm,
 } from './replacement-film.js'
 import replacementStyles from './replacement-film.css?raw'
+import { royalPowerResources, makeRoyalPowerFilm, animateRoyalPowerFilm } from './royal-power.js'
+import { coLeaderOutcome } from './co-leader-film.js'
+import { byPlayerId, authorityResources, royalPowerOutcome } from './authority-film.js'
+import { appendDecisionShots } from './replacement-decisions.js'
 import sheet0 from './approved/styles.css?raw'
 import sheet1 from './approved/ceremony-lab.css?raw'
 import sheet2 from './approved/cinema-scenes.css?raw'
@@ -43,6 +47,8 @@ export const SCENES = {
   ...CEREMONIES,
   ...MODE_SCENES,
   nominations: { ...CEREMONIES.nominations, duration: 7600 },
+  allPower: { ...CEREMONIES.allPower, duration: 5600 },
+  cupidPower: { ...MODE_SCENES.cupidPower, duration: 5600 },
 }
 export const OPTIONS = Object.keys(SCENES)
 const props = {
@@ -69,6 +75,14 @@ let stylePromise
 const percent = (n) => (n * 100).toFixed(4) + '%'
 
 export function sceneResources(id, cast, shockType = 'doubleEviction', details = {}) {
+  if (id === 'allPower' || id === 'cupidPower')
+    return royalPowerResources(cast, shared, id === 'cupidPower')
+  if (id === 'nominations' && details.coLohAssignments?.length > 1)
+    return replacementResources(
+      byPlayerId(cast),
+      { replacementOutcome: coLeaderOutcome(cast, details) },
+      shared
+    )
   if (id === 'replacement') return replacementResources(cast, details, shared)
   const mode = id
   const extra = modeResources(mode, cast, shared, premiumVfx)
@@ -135,6 +149,9 @@ export function sceneResources(id, cast, shockType = 'doubleEviction', details =
       })
     ),
     ...extra,
+    ...(details.authorityIntro
+      ? authorityResources(byPlayerId(cast), details.authorityIntro, shared)
+      : {}),
     ...(details.closingBrand === true && ['exit', 'final3'].includes(mode)
       ? { cinema_closingEye: FINAL_EXIT_BRAND_RESOURCE }
       : {}),
@@ -652,7 +669,8 @@ export function createClip() {
     sceneId,
     handedOff = false,
     nativeRevealed = false,
-    root
+    root,
+    durationMs = 0
   let paused = false
   const pausedAnimations = new Set()
   const schedule = (entry) => {
@@ -725,6 +743,12 @@ export function createClip() {
     },
     async prepare(id, cast, shockType = 'doubleEviction', details = {}) {
       sceneId = id
+      if (id === 'tiebreak') {
+        const intro = royalPowerOutcome({ a: cast.a })
+        intro.safetyHolderIds = details.safetyHolderIds ?? []
+        intro.decision.kind = 'replacement'
+        details = { ...details, authorityIntro: intro }
+      }
       const resources = sceneResources(id, cast, shockType, details),
         start = performance.now()
       stylePromise ??= Promise.resolve(
@@ -777,6 +801,9 @@ export function createClip() {
         closingBrand: details.closingBrand === true && ['exit', 'final3'].includes(sceneId),
       }
       const decisionTiming = decision ? getDecisionTiming(id, decisionOptions) : null
+      const coOutcome = sceneId === 'nominations' ? coLeaderOutcome(cast, details) : null
+      const royalPower = sceneId === 'allPower' || sceneId === 'cupidPower'
+      const leadIn = details.authorityIntro ? 2200 : 0
       host = document.createElement('div')
       host.className = 'game-sample-film'
       parent.append(host)
@@ -785,85 +812,100 @@ export function createClip() {
       style.textContent = css
       const stage = document.createElement('div')
       stage.className = 'stage is-playing'
-      root =
-        id === 'replacement'
-          ? makeReplacementFilm(images, cast, details.replacementOutcome)
-          : !id
-            ? makeVoxFilm(sceneId, images, cast, details)
-            : id === 'loh'
-              ? makeLoh(images)
-              : decision
-                ? makeDecisionScene(id, images, 0, decisionOptions)
-                : makeScene(id, images, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic, 0)
-      if (id === 'nominations' && sceneId !== 'cupidNominations' && details.nomineeCount === 1) {
-        root.classList.add('nom-solo')
-      }
-      if (
-        id === 'nominations' &&
-        images.cinema_standC &&
-        sceneId !== 'cupidNominations' &&
-        !root.classList.contains('nom-solo')
-      ) {
-        root.classList.add('nom-three')
-        const third = root.querySelector('.nom-second').cloneNode(true)
-        third.classList.replace('nom-second', 'nom-third')
-        const portrait = images.cinema_standC.cloneNode()
-        portrait.className = 'nom-person'
-        third.querySelector('.nom-person').replaceWith(portrait)
-        third.querySelector('.nom-label span').textContent = '03'
-        root.append(third)
-        root.querySelector('.c-caption strong').textContent = 'Three names. One block.'
-      }
-      if (
-        sceneId === 'nominations' &&
-        images.nomination_seated &&
-        (!details.coLohAssignments || details.coLohAssignments.length < 2)
-      )
-        addRoyalNomination(root, images, resources, cast)
-      if (id === 'shock') decorateShock(root, shockType, images)
-      if (id) fitScene(root, id, images, resources, cast)
-      if (id === 'loh') {
-        for (const [selector, key] of [
-          ['.loh-before .loh-crown', 'winner'],
-          ['.loh-royal .loh-crown', 'royal'],
-        ])
-          fitCrown(root.querySelector(selector), resources[key])
-        if (resources.seated) {
-          fitCrown(root.querySelector('.loh-seated-crown'), resources.seated)
-          const t = resources.seated.throne
-          root.querySelector('.loh-seat-throne').style.transform =
-            `translate(${percent(t.x)},${percent(t.y)}) scale(${t.scale})`
+      root = royalPower
+        ? makeRoyalPowerFilm(images, cast, sceneId === 'cupidPower')
+        : coOutcome
+          ? makeReplacementFilm(images, byPlayerId(cast), coOutcome)
+          : id === 'replacement'
+            ? makeReplacementFilm(images, cast, details.replacementOutcome)
+            : !id
+              ? makeVoxFilm(sceneId, images, cast, details)
+              : id === 'loh'
+                ? makeLoh(images)
+                : decision
+                  ? makeDecisionScene(id, images, 0, decisionOptions)
+                  : makeScene(id, images, SHOCK_VARIANTS[shockType] || SHOCK_VARIANTS.generic, 0)
+      if (!royalPower && !coOutcome) {
+        if (id === 'nominations' && sceneId !== 'cupidNominations' && details.nomineeCount === 1) {
+          root.classList.add('nom-solo')
         }
-        root.querySelector('.loh-name').textContent = cast.a.name
-      }
-      if (sceneId !== id) adaptModeFilm(sceneId, root, images, resources, cast, details, fitCrown)
-      if (root.classList.contains('nom-solo')) {
-        root.querySelector('.nom-second').remove()
-        root.querySelector('.nom-label').remove()
-      }
-      if (sceneId === 'nominations') addCoLohNominationIntro(root, cast, details.coLohAssignments)
-      if (
-        id === 'nominations' &&
-        (root.classList.contains('nom-solo') || root.classList.contains('nom-coloh-active'))
-      )
-        calibrateNominationBlock(root, cast)
-      if (id === 'nominations' && root.classList.contains('nom-solo')) {
-        const title = root.querySelector('.c-caption strong')
-        const subtitle = root.querySelector('.c-caption em')
-        if (sceneId === 'voxNominations') {
-          root.querySelector('.nom-warning').textContent = 'SECRET HUBMATE BALLOTS · COUNTED'
-          title.textContent = `${cast.a.name} is nominated.`
-          subtitle.textContent = 'THE PUBLIC WILL VOTE TO ELIMINATE.'
-        } else {
-          title.textContent = `${cast.a.name} is nominated.`
-          subtitle.textContent = 'ONE NAME. ONE PLACE ON THE BLOCK.'
+        if (
+          id === 'nominations' &&
+          images.cinema_standC &&
+          sceneId !== 'cupidNominations' &&
+          !root.classList.contains('nom-solo')
+        ) {
+          root.classList.add('nom-three')
+          const third = root.querySelector('.nom-second').cloneNode(true)
+          third.classList.replace('nom-second', 'nom-third')
+          const portrait = images.cinema_standC.cloneNode()
+          portrait.className = 'nom-person'
+          third.querySelector('.nom-person').replaceWith(portrait)
+          third.querySelector('.nom-label span').textContent = '03'
+          root.append(third)
+          root.querySelector('.c-caption strong').textContent = 'Three names. One block.'
         }
+        if (
+          sceneId === 'nominations' &&
+          images.nomination_seated &&
+          (!details.coLohAssignments || details.coLohAssignments.length < 2)
+        )
+          addRoyalNomination(root, images, resources, cast)
+        if (id === 'shock') decorateShock(root, shockType, images)
+        if (id) fitScene(root, id, images, resources, cast)
+        if (id === 'loh') {
+          for (const [selector, key] of [
+            ['.loh-before .loh-crown', 'winner'],
+            ['.loh-royal .loh-crown', 'royal'],
+          ])
+            fitCrown(root.querySelector(selector), resources[key])
+          if (resources.seated) {
+            fitCrown(root.querySelector('.loh-seated-crown'), resources.seated)
+            const t = resources.seated.throne
+            root.querySelector('.loh-seat-throne').style.transform =
+              `translate(${percent(t.x)},${percent(t.y)}) scale(${t.scale})`
+          }
+          root.querySelector('.loh-name').textContent = cast.a.name
+        }
+        if (sceneId !== id) adaptModeFilm(sceneId, root, images, resources, cast, details, fitCrown)
+        if (root.classList.contains('nom-solo')) {
+          root.querySelector('.nom-second').remove()
+          root.querySelector('.nom-label').remove()
+        }
+        if (sceneId === 'nominations') addCoLohNominationIntro(root, cast, details.coLohAssignments)
+        if (
+          id === 'nominations' &&
+          (root.classList.contains('nom-solo') || root.classList.contains('nom-coloh-active'))
+        )
+          calibrateNominationBlock(root, cast)
+        if (id === 'nominations' && root.classList.contains('nom-solo')) {
+          const title = root.querySelector('.c-caption strong')
+          const subtitle = root.querySelector('.c-caption em')
+          if (sceneId === 'voxNominations') {
+            root.querySelector('.nom-warning').textContent = 'SECRET HUBMATE BALLOTS · COUNTED'
+            title.textContent = `${cast.a.name} is nominated.`
+            subtitle.textContent = 'THE PUBLIC WILL VOTE TO ELIMINATE.'
+          } else {
+            title.textContent = `${cast.a.name} is nominated.`
+            subtitle.textContent = 'ONE NAME. ONE PLACE ON THE BLOCK.'
+          }
+        }
+      }
+      if (details.authorityIntro) {
+        root.classList.add('has-royal-decision')
+        const intro = document.createElement('div')
+        intro.className = 'tiebreak-authority-intro'
+        appendDecisionShots(intro, images, byPlayerId(cast), details.authorityIntro)
+        intro.querySelector('.replacement-decision-label em').textContent = 'THE DECIDING VOTE'
+        root.append(intro)
       }
       stage.append(root)
       shadow.append(style, stage)
       const duration =
+        coOutcome?.durationMs ??
+        (royalPower ? 5600 : null) ??
         details.replacementOutcome?.durationMs ??
-        decisionTiming?.duration ??
+        (decisionTiming ? decisionTiming.duration + leadIn : null) ??
         (root.classList.contains('nom-coloh-active')
           ? 6000
           : id === 'nominations' && root.classList.contains('nom-solo')
@@ -910,12 +952,44 @@ export function createClip() {
           animations.push(animation)
         }
       }
-      if (id === 'replacement')
+      if (royalPower) animateRoyalPowerFilm(root, a, duration)
+      else if (coOutcome) animateReplacementFilm(root, a, coOutcome, duration)
+      else if (id === 'replacement')
         animateReplacementFilm(root, a, details.replacementOutcome, duration)
       else if (!id) animateVoxFilm(sceneId, root, a, duration, later)
       else if (id === 'loh') animateLoh(root, a)
-      else if (decision) animateDecisionScene(id, root, a, decisionOptions)
-      else if (root.classList.contains('nom-calibrated')) animateNominationFilm(root, a, duration)
+      else if (decision) {
+        animateDecisionScene(
+          id,
+          root,
+          (selector, stops) => {
+            if (leadIn && selector === root) return
+            a(selector, leadIn ? stops.map(([ms, ...rest]) => [ms + leadIn, ...rest]) : stops)
+          },
+          decisionOptions
+        )
+        if (leadIn) {
+          a(root, [
+            [0, 1],
+            [duration, 1],
+          ])
+          a('.tiebreak-authority-intro', [
+            [0, 1],
+            [leadIn - 150, 1],
+            [leadIn + 350, 0],
+            [duration, 0],
+          ])
+          a('.tiebreak-authority-intro .replacement-decision-shot', [
+            [0, 1],
+            [duration, 1],
+          ])
+          a('.tiebreak-authority-intro .replacement-decision-figure', [
+            [0, 1, 'scale(1.05)'],
+            [leadIn, 1, 'scale(1)'],
+            [duration, 1, 'scale(1)'],
+          ])
+        }
+      } else if (root.classList.contains('nom-calibrated')) animateNominationFilm(root, a, duration)
       else if (root.classList.contains('nom-royal')) animateRoyalNomination(root, a)
       else if (id === 'nominations' && sceneId === id)
         animateScene(id, root, (selector, stops) =>
@@ -946,7 +1020,7 @@ export function createClip() {
         ])
       }
       if (id === 'shock') animateShockTheme(root, shockType, a, duration)
-      if (sceneId !== id) animateModeLayers(sceneId, root, a, duration)
+      if (!royalPower && !coOutcome && sceneId !== id) animateModeLayers(sceneId, root, a, duration)
       if (id === 'safety')
         a('.fitted-knight-shield', [
           [0, 0],
@@ -954,14 +1028,21 @@ export function createClip() {
           [1810, 1],
           [4200, 1],
         ])
+      durationMs = duration
       const endAt =
-        decisionTiming?.handoffAt ??
-        (id === 'replacement' || root.classList.contains('nom-calibrated')
+        (decisionTiming ? decisionTiming.handoffAt + leadIn : null) ??
+        (id === 'replacement' || coOutcome || root.classList.contains('nom-calibrated')
           ? duration - 220
           : duration)
       later(() => {
         if (dead) return
-        if (decision) {
+        if (options.retainLastFrame) {
+          animations.forEach((animation) => {
+            animation.pause()
+            animation.currentTime = endAt
+          })
+          onComplete()
+        } else if (decision) {
           animations.forEach((a) => {
             a.pause()
             a.currentTime = endAt
@@ -1026,6 +1107,9 @@ export function createClip() {
     },
     get root() {
       return root
+    },
+    get durationMs() {
+      return durationMs
     },
     get metrics() {
       return prepared

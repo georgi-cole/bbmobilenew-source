@@ -1,6 +1,6 @@
 import type { ReplacementPresentation } from './replacementPresentation'
 
-interface CeremonyPoseResource {
+export interface CeremonyPoseResource {
   src: string
   width: number
   height: number
@@ -12,9 +12,10 @@ interface CeremonyPoseResource {
   crown?: { x: number; baseY: number; width: number; angle: number }
 }
 
-interface CeremonyCastMember {
+export interface CeremonyCastMember {
   id: string
   name: string
+  playerId?: string
   poses: Record<string, CeremonyPoseResource>
 }
 

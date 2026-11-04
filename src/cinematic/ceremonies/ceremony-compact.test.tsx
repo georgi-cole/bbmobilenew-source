@@ -36,6 +36,37 @@ function renderCeremony(caption: string) {
 
 describe('VIP ceremony badge handoffs', () => {
   it.each([
+    [{ lohId: 'a', posWinnerId: 'a' }, 'allPower'],
+    [
+      {
+        lohId: 'a',
+        posWinnerId: 'b',
+        cupidArrow: { status: 'active', pairs: [{ memberIds: ['a', 'b'] }] },
+      },
+      'cupidPower',
+    ],
+    [{ lohId: 'a', posWinnerId: 'a', voxPopuli: { status: 'active' } }, 'safety'],
+  ])(
+    'respects shared leadership precedence without applying All the Power to Vox',
+    (roles, scene) => {
+      const rolesStore = configureStore({
+        reducer: { game: (state = { mode: 'classic', players: [], ...roles }) => state },
+      })
+      render(
+        <Provider store={rolesStore}>
+          <Ceremony
+            tiles={[]}
+            actorIds={[roles.posWinnerId]}
+            caption="Power of Safety"
+            ariaLabel="Safety"
+            onDone={() => {}}
+          />
+        </Provider>
+      )
+      expect(screen.getByTestId('premium-ceremony').dataset.scene).toBe(scene)
+    }
+  )
+  it.each([
     ['Nova has been saved!', 'save'],
     ['Nova and Ash have been nominated', 'nominations'],
     ['Nova wins Power of Safety', 'safety'],

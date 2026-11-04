@@ -293,3 +293,10 @@ store listings or change configured prices.
   human decisions. The same VIP entitlement and animation preferences apply.
   This is presentation maintenance: products, prices, rewards, access gates,
   benefits, and marketplace copy remain unchanged.
+
+- 2026-11-04: Reviewed royal precedence for shared LOH/Safety holders, paired
+  thrones, continuous Vox ballot-ranked replacements, Co-LOH ownership, and
+  automatic ceremony continuation through the existing required Confessional.
+  These maintain the existing optional VIP cinematic benefit; Standard and
+  Survival behavior, paid access, products, prices, rewards, and Store copy
+  remain unchanged.

@@ -5,6 +5,9 @@ import {
   animateReplacementFilm,
   replacementResources,
 } from './replacement-film.js'
+import { replacementBeats, replacementDuration } from './replacement-timing.js'
+import { coLeaderOutcome } from './co-leader-film.js'
+import { royalPowerResources, makeRoyalPowerFilm } from './royal-power.js'
 
 const pose = { src: 'actor.webp', width: 420, height: 630, bytes: 1000, feetY: 0.94762 }
 const cast = Object.fromEntries(
@@ -13,7 +16,7 @@ const cast = Object.fromEntries(
     {
       id,
       name: id === 'c' ? '<script>long player name</script>' : id,
-      poses: { front: pose, 'decision-back': pose },
+      poses: { front: pose, 'decision-back': pose, 'royal-seated': pose },
     },
   ])
 )
@@ -44,6 +47,10 @@ const images = () =>
     [
       'replacementSet',
       'replacementPlatform',
+      'replacementMist',
+      'royal-room.webp',
+      'throne.webp',
+      'crown.webp',
       ...Object.keys(cast).map((id) => `replacement-body-${id}`),
       ...Object.keys(cast).map((id) => `replacement-authority-${id}`),
       ...Object.keys(cast).map((id) => `replacement-holder-${id}`),
@@ -105,7 +112,7 @@ describe('replacement film family', () => {
         if (typeof target === 'string') {
           expect(root.querySelector(target)).toBeTruthy()
           selectors.push(target)
-        }
+        } else expect(target).toBeInstanceOf(Element)
         const offsets = stops.map(([time]) => Number(time))
         expect(
           offsets.every((time) => Number.isFinite(time) && time >= 0 && time <= 4500),
@@ -146,8 +153,8 @@ describe('replacement film family', () => {
     const ordinaryResources = replacementResources(cast, { replacementOutcome: base }, shared)
     expect(ordinaryResources['replacement-body-c'].pose).toBe('front')
     expect(ordinaryResources['replacement-body-loh']).toBeUndefined()
-    expect(ordinaryResources['replacement-authority-loh'].pose).toBe('front')
-    expect(ordinaryResources['replacement-holder-pos'].pose).toBe('front')
+    expect(ordinaryResources['replacement-authority-loh'].pose).toBe('royal-seated')
+    expect(ordinaryResources['replacement-holder-pos'].pose).toBe('decision-back')
   })
 
   it('keeps the nominee body at the approved 44% slot width and shared sole anchor', () => {
@@ -168,7 +175,7 @@ describe('replacement film family', () => {
     }
     const resources = replacementResources(cast, { replacementOutcome: outcome }, {})
     expect(resources['replacement-body-loh'].pose).toBe('front')
-    expect(resources['replacement-authority-loh'].pose).toBe('front')
+    expect(resources['replacement-authority-loh'].pose).toBe('royal-seated')
     const root = makeReplacementFilm(images(), cast, outcome)
     expect(root.querySelectorAll('.replacement-person[data-actor-id="loh"]')).toHaveLength(1)
     expect(
@@ -198,5 +205,112 @@ describe('replacement film family', () => {
     expect(root.querySelector('.replacement-slot')?.getAttribute('style')).toContain(
       '--platform-surface-offset: 7.04cqw'
     )
+  })
+
+  it('gives leadership precedence over Safety and introduces a dual holder only once', () => {
+    const outcome = {
+      ...base,
+      leaderIds: ['loh'],
+      safetyHolderIds: ['loh'],
+      powerHolderId: 'loh',
+      actionHistory: base.actionHistory.map((action) => ({ ...action, actorId: 'loh' })),
+    }
+    const resources = replacementResources(cast, { replacementOutcome: outcome }, {})
+    expect(resources['replacement-authority-loh'].pose).toBe('royal-seated')
+    expect(resources['replacement-holder-loh']).toBeUndefined()
+    const root = makeReplacementFilm(images(), cast, outcome)
+    expect(root.querySelectorAll('.replacement-decision-shot')).toHaveLength(1)
+    expect(root.querySelector('.is-royal .royal-safety-plinth')).toBeTruthy()
+    expect(root.querySelector('.replacement-holder-foreground')).toBeNull()
+    animateReplacementFilm(
+      root,
+      (target: string | Element, stops: (number | string)[][]) => {
+        if (target === '.replacement-block') expect(stops[0]).toEqual([0, 0])
+      },
+      outcome,
+      replacementDuration(outcome)
+    )
+  })
+  it('uses the actual rear pose without an opaque backdrop for a nonroyal power holder', () => {
+    const root = makeReplacementFilm(images(), cast, base)
+    const shot = root.querySelector('.is-over-shoulder')!
+    expect(shot.querySelector('.replacement-holder-back')).toBeTruthy()
+    expect(shot.querySelector('.replacement-decision-backdrop')).toBeNull()
+  })
+  it('holds one continuous Vox stage and labels a real fifth-place or tied ballot rank', () => {
+    const outcome = {
+      ...base,
+      variant: 'vox' as const,
+      leaderIds: [],
+      actionHistory: [
+        { kind: 'save' as const, playerId: 'b', actorId: 'pos', slotIndex: 1 },
+        {
+          kind: 'replacement' as const,
+          playerId: 'c',
+          actorId: null,
+          slotIndex: 1,
+          ballotRank: 5,
+          tiedRank: true,
+        },
+        {
+          kind: 'replacement' as const,
+          playerId: 'd',
+          actorId: null,
+          slotIndex: 2,
+          ballotRank: 5,
+          tiedRank: true,
+        },
+      ],
+      nomineeIds: ['a', 'c', 'd'],
+      replacementIds: ['c', 'd'],
+    }
+    const root = makeReplacementFilm(images(), cast, outcome)
+    expect(root.querySelectorAll('.is-royal')).toHaveLength(0)
+    expect(root.textContent).toContain('TIED BALLOT RANK #5')
+    expect(replacementBeats(outcome).at(-1)?.actions).toHaveLength(2)
+    animateReplacementFilm(
+      root,
+      (target: string | Element, stops: (number | string)[][]) => {
+        if (target === '.replacement-block')
+          expect(stops.every(([, opacity]) => opacity === 1)).toBe(true)
+        if (target instanceof Element) expect(target).not.toBeNull()
+        if (typeof target === 'string') expect(root.querySelector(target)).toBeTruthy()
+      },
+      outcome,
+      replacementDuration(outcome)
+    )
+  })
+  it('gives each co-leader their own royal shot and persistent ownership on the correct nominee', () => {
+    const outcome = coLeaderOutcome(cast, {
+      coLohAssignments: [
+        { coLohId: 'loh', nomineeId: 'a' },
+        { coLohId: 'co', nomineeId: 'b' },
+      ],
+    })
+    const root = makeReplacementFilm(images(), cast, outcome!)
+    expect(root.querySelectorAll('.is-royal')).toHaveLength(2)
+    expect(root.querySelector('[data-actor-id="a"] small')?.textContent).toBe('loh’S NOMINEE')
+    expect(root.querySelector('[data-actor-id="b"] small')?.textContent).toBe('co’S NOMINEE')
+    expect(outcome!.actionHistory.map((a) => a.actorId)).toEqual(['loh', 'co'])
+  })
+  it('shows both Cupid leaders in one royal unit rather than a solo casual holder', () => {
+    const outcome = {
+      ...base,
+      leaderIds: ['loh', 'co'],
+      authorityPairs: [
+        { id: 'leaders', memberIds: ['loh', 'co'] as [string, string], color: '#a89' },
+      ],
+      actionHistory: base.actionHistory.slice(1),
+    }
+    const root = makeReplacementFilm(images(), cast, outcome)
+    expect(root.querySelectorAll('.is-royal .royal-member')).toHaveLength(2)
+    expect(root.querySelector('.is-royal strong')?.textContent).toBe('loh & co')
+  })
+  it('uses royal seated artwork with a separate shield for All the Power', () => {
+    const resources = royalPowerResources({ a: cast.loh }, {})
+    expect(resources['replacement-authority-loh'].pose).toBe('royal-seated')
+    const root = makeRoyalPowerFilm(images(), { a: cast.loh })
+    expect(root.querySelector('.royal-safety-plinth')).toBeTruthy()
+    expect(root.querySelector('.replacement-holder-back')).toBeNull()
   })
 })

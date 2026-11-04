@@ -18,6 +18,8 @@ export interface ReplacementAction {
   actorId: string | null
   slotIndex: number
   actorRole?: 'loh' | 'coLoh' | 'safety' | 'mission' | 'ballot'
+  ballotRank?: number
+  tiedRank?: boolean
 }
 
 export interface CoLohAssignment {
@@ -52,6 +54,11 @@ export interface ReplacementPresentation {
   segment?: boolean
   safetyUseNumber?: number
   powerType?: string | null
+  leaderIds?: string[]
+  safetyHolderIds?: string[]
+  authorityPairs?: CupidArrowPair[]
+  skipAuthority?: boolean
+  initialNomination?: boolean
 }
 
 const unique = (ids: string[]) => [...new Set(ids)]
@@ -170,13 +177,29 @@ function captureCommittedActions(
             : ['coup', 'diamond'].includes(game.specialVeto?.activeType ?? '')
               ? 'safety'
               : 'loh'
-    history.push({ kind: 'replacement', playerId, actorId: actorId ?? null, slotIndex, actorRole })
+    const ballot = game.voxPopuli?.nominationVoteCounts
+    const votes = ballot?.[playerId]
+    const ballotRank =
+      actorRole === 'ballot' && Number.isFinite(votes)
+        ? 1 + Object.values(ballot ?? {}).filter((count) => count > votes!).length
+        : undefined
+    const tiedRank =
+      ballotRank !== undefined &&
+      Object.values(ballot ?? {}).filter((count) => count === votes).length > 1
+    history.push({
+      kind: 'replacement',
+      playerId,
+      actorId: actorId ?? null,
+      slotIndex,
+      actorRole,
+      ...(ballotRank === undefined ? {} : { ballotRank, tiedRank }),
+    })
     occupants[slotIndex] = playerId
   }
 }
 
 /** Compare the ceremony's opening snapshot with its committed outcome, never a proposed pick.
- * This is presentation data only: it does not dispatch, infer ballot ranks, or change nominees.
+ * This is presentation data only: it never dispatches, selects targets, or changes nominees.
  */
 export function selectReplacementPresentation(
   opening: GameState,
@@ -293,13 +316,43 @@ export function selectReplacementPresentation(
   // Keep intermediate nominees too: the second Safety use can save the first
   // replacement, who is absent from both the opening and final blocks.
   const orderedActionHistory = actionHistory.slice()
+  const authority = {
+    powerType: veto?.activeType ?? null,
+    leaderIds: vox
+      ? []
+      : unique(
+          [game.lohId, ...(game.coLohIds ?? [])]
+            .filter((id): id is string => Boolean(id))
+            .flatMap((id) =>
+              game.cupidArrow?.status === 'active'
+                ? (game.cupidArrow.pairs.find((pair) => pair.memberIds.includes(id))?.memberIds ?? [
+                    id,
+                  ])
+                : [id]
+            )
+        ),
+    safetyHolderIds: game.posWinnerId
+      ? game.cupidArrow?.status === 'active'
+        ? (game.cupidArrow.pairs.find((pair) => pair.memberIds.includes(game.posWinnerId!))
+            ?.memberIds ?? [game.posWinnerId])
+        : [game.posWinnerId]
+      : [],
+    authorityPairs:
+      game.cupidArrow?.status === 'active'
+        ? game.cupidArrow.pairs.filter(
+            (pair) =>
+              pair.memberIds.includes(game.lohId ?? '') ||
+              pair.memberIds.some((id) => coLohIds.includes(id))
+          )
+        : [],
+  }
   const durationMs = replacementDuration({
     actionHistory: orderedActionHistory,
     replacementIds,
     chooserId,
     variant,
-    powerType: veto?.activeType ?? null,
     pairUnits,
+    ...authority,
   })
 
   const actionSignature = orderedActionHistory.map((action) => [
@@ -329,6 +382,7 @@ export function selectReplacementPresentation(
     coLohIds,
     coLohAssignments,
     pairUnits,
+    ...authority,
     actionHistory: orderedActionHistory,
     durationMs,
   }

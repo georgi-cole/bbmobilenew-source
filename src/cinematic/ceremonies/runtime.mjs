@@ -5,8 +5,10 @@ import {
   isVoxActive,
   MODE_BASE,
   modeActors,
+  hasLeadershipRole,
 } from './mode-routing.mjs'
 export { adaptCeremonyScene, baseScene } from './mode-routing.mjs'
+export { hasLeadershipRole } from './mode-routing.mjs'
 export function shouldPlayCinematic(state, vip) {
   return Boolean(
     vip &&
@@ -43,10 +45,7 @@ export function winnerScene(props, game) {
   const text = `${props.caption ?? ''} ${props.ariaLabel ?? ''}`
   const codes = (props.tiles ?? []).map((t) => t.badgeCode)
   if (/power of safety|\bPOS\b/i.test(text) || codes.includes('pos')) {
-    const scene =
-      !isVoxActive(game) && game.lohId && props.targetIds?.includes(game.lohId)
-        ? 'allPower'
-        : 'safety'
+    const scene = props.targetIds?.some((id) => hasLeadershipRole(game, id)) ? 'allPower' : 'safety'
     return adaptCeremonyScene(scene, props, game)
   }
   if (isVoxActive(game)) {
@@ -217,6 +216,9 @@ export function ceremonyCast(scene, props, game, catalog) {
       ...(outcome.powerHolderId ? [outcome.powerHolderId] : []),
       ...(outcome.priorAuthorityId ? [outcome.priorAuthorityId] : []),
       ...(outcome.coLohIds ?? []),
+      ...(outcome.leaderIds ?? []),
+      ...(outcome.safetyHolderIds ?? []),
+      ...(outcome.authorityPairs ?? []).flatMap((pair) => pair.memberIds),
       ...(outcome.coLohAssignments ?? []).flatMap(({ coLohId, nomineeId }) => [coLohId, nomineeId]),
       ...(outcome.pairUnits ?? []).flatMap((pair) => pair.memberIds),
       ...(outcome.actionHistory ?? []).flatMap((action) => [action.playerId, action.actorId]),

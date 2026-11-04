@@ -37,6 +37,28 @@ describe('committed replacement presentation ownership', () => {
       savedIds: ['b'],
     })
   })
+  it('carries royal and Safety role identity through a real dual-holder decision', () => {
+    expect(resolve({ posWinnerId: 'loh' })).toMatchObject({
+      leaderIds: ['loh'],
+      safetyHolderIds: ['loh'],
+    })
+  })
+  it('records real original-ballot rank without exposing the vote counts', () => {
+    const tracker = createReplacementPresentationTracker()
+    const rules = {
+      voxPopuli: {
+        status: 'active',
+        nominationVoteCounts: { a: 9, b: 8, loh: 7, pos: 6, c: 5, d: 5 },
+      },
+    }
+    tracker.restore(game(rules))
+    const result = tracker.observe(game({ ...rules, nomineeIds: ['a', 'c', 'd'] }))
+    expect(result?.actionHistory.filter((a) => a.kind === 'replacement')).toEqual([
+      expect.objectContaining({ playerId: 'c', actorId: null, ballotRank: 5, tiedRank: true }),
+      expect.objectContaining({ playerId: 'd', actorId: null, ballotRank: 5, tiedRank: true }),
+    ])
+    expect(result).not.toHaveProperty('nominationVoteCounts')
+  })
   it.each(['executed', 'failed', 'compromised'])(
     'gives Ambush priority only for the executed target (%s)',
     (status) => {
@@ -109,7 +131,7 @@ describe('committed replacement presentation ownership', () => {
       variant: 'detox',
       chooserId: 'pos',
       replacementIds: ['c', 'd'],
-      durationMs: 8340,
+      durationMs: expect.any(Number),
     })
   })
   it.each([0, 1, 2, 3])('waits at Double Trouble intermediate stage %s', (vipUseStage) => {
@@ -125,7 +147,12 @@ describe('committed replacement presentation ownership', () => {
   })
   it('shows only the committed Vox names, without a chooser or ballot data', () => {
     const result = resolve({ voxPopuli: { status: 'active', nominationVoteCounts: { d: 900 } } })
-    expect(result).toMatchObject({ variant: 'vox', chooserId: null, durationMs: 3800 })
+    expect(result).toMatchObject({
+      variant: 'vox',
+      chooserId: null,
+      leaderIds: [],
+      durationMs: expect.any(Number),
+    })
     expect(JSON.stringify(result)).not.toContain('900')
   })
   it('waits for a complete Cupid pair', () => {

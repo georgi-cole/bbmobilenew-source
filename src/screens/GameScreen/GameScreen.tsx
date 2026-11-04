@@ -110,9 +110,7 @@ import { getImmediateAutoNomineeId } from './autoNomineeBadge'
 const PublicFavoriteOverlay = lazyWithChunkRecovery(
   () => import('../../components/PublicFavoriteOverlay/PublicFavoriteOverlay')
 )
-const MissionCeremonyDecision = lazyWithChunkRecovery(
-  () => import('../../cinematic/ceremonies/MissionCeremonyDecision')
-)
+
 import JuryPhaseRevealOverlay from '../../components/JuryPhaseRevealOverlay/JuryPhaseRevealOverlay'
 import TwinShockRevealOverlay from '../../components/TwinShockRevealOverlay/TwinShockRevealOverlay'
 import TwinShockIntroCinematic from '../../components/TwinShockIntroCinematic/TwinShockIntroCinematic'
@@ -286,14 +284,7 @@ export default function GameScreen() {
   // resolved inside the Confessional.  The in-game decision modals are hidden
   // and a main-TV guidance banner is shown instead.
   const selectedConfessionalDecision = useAppSelector(selectActiveConfessionalDecision)
-  const activeConfessionalDecision =
-    game.mode === 'survival' ||
-    (replacementSequence.interceptDecision &&
-      ['pos_decision', 'pos_save_target', 'replacement_nominee', 'vip_second_use'].includes(
-        selectedConfessionalDecision?.type ?? ''
-      ))
-      ? null
-      : selectedConfessionalDecision
+  const activeConfessionalDecision = game.mode === 'survival' ? null : selectedConfessionalDecision
   useEffect(() => {
     if (handledConfessionalReturnKeyRef.current === location.key) return
     if (
@@ -1950,13 +1941,24 @@ export default function GameScreen() {
           />
         )}
 
-        <ReplacementDecisionSequence sequence={replacementSequence}>
-          {replacementSequence.interceptDecision &&
-            selectedConfessionalDecision?.type === 'mission_power' && (
-              <Suspense fallback={null}>
-                <MissionCeremonyDecision />
-              </Suspense>
-            )}
+        <ReplacementDecisionSequence
+          sequence={replacementSequence}
+          onRequestDecision={() => {
+            replacementSequence.onDecisionPresented()
+            navigate('/diary-room', {
+              replace: true,
+              state: {
+                requiredConfessional: true,
+                origin: '/game',
+                cinematicCeremony: {
+                  gameId: game.gameId ?? `season-${game.season}`,
+                  week: game.week,
+                  receiptCount: replacementSequence.decisionReceiptCount,
+                },
+              },
+            })
+          }}
+        >
           {/* ── Human POS holder Yes/No decision ────────────────────────────── */}
           {showPovDecisionModal && (
             <TvBinaryDecisionModal

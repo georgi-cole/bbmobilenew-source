@@ -23,6 +23,13 @@ export function expandPair(game, ids) {
     ),
   ]
 }
+export function hasLeadershipRole(game, id) {
+  return (
+    !isVoxActive(game) &&
+    Boolean(id) &&
+    expandPair(game, [game.lohId, ...(game.coLohIds ?? [])].filter(Boolean)).includes(id)
+  )
+}
 export function mentionedIds(props, game) {
   if (props.actorIds?.length) return props.actorIds
   if (props.targetIds?.length) return props.targetIds

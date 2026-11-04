@@ -53,6 +53,32 @@ function fixture(withMissionMiddleware = false) {
   return { store, a, b, c, d, human }
 }
 describe('human decisions within the live replacement sequence', () => {
+  it('queues a later committed action without restarting the currently playing receipt', () => {
+    const { store, b, c } = fixture()
+    const { result } = renderHook(
+      () =>
+        useReplacementSequence(
+          useAppSelector((s) => s.game),
+          true
+        ),
+      {
+        wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+      }
+    )
+    act(() => {
+      store.dispatch(submitPovSaveTarget(b.id))
+    })
+    const eventKey = result.current.playing?.eventKey
+    act(() => {
+      store.dispatch(setReplacementNominee(c.id))
+    })
+    expect(result.current.playing?.eventKey).toBe(eventKey)
+    expect(result.current.playing?.actionHistory).toHaveLength(1)
+    act(() => result.current.onDone())
+    expect(result.current.playing?.actionHistory).toEqual([
+      expect.objectContaining({ kind: 'replacement', playerId: c.id }),
+    ])
+  })
   it('waits for each human choice, shows only its committed result, and never replays the first round', () => {
     const { store, b, c, d } = fixture()
     const { result } = renderHook(

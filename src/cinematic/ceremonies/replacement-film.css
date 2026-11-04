@@ -16,6 +16,128 @@
   background: #09060e;
   opacity: 0;
 }
+.replacement-decision-shot.is-over-shoulder {
+  z-index: 7;
+  background: transparent;
+}
+.tiebreak-authority-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  container-type: size;
+}
+.has-royal-decision .decision-holder,
+.has-royal-decision .decision-insignia {
+  display: none;
+}
+.tiebreak-authority-intro .replacement-decision-shot,
+.royal-power-film .replacement-decision-shot {
+  opacity: 1;
+}
+.replacement-decision-shot.is-over-shoulder .replacement-decision-label {
+  top: 9%;
+  bottom: auto;
+}
+.replacement-holder-foreground {
+  position: absolute;
+  left: -37%;
+  bottom: -14cqh;
+  width: 130cqw;
+  aspect-ratio: 2 / 3;
+  transform-origin: 45% 65%;
+  filter: drop-shadow(12px 8px 16px #050309b3);
+}
+.replacement-holder-back {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.replacement-holder-shadow {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 42%;
+  height: 40%;
+  background: radial-gradient(ellipse at 15% 85%, #050309a3, transparent 75%);
+}
+.replacement-world {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 60.1cqh;
+}
+.royal-member {
+  position: absolute;
+  inset: 0;
+}
+.royal-unit.is-paired {
+  width: 108cqw;
+  margin-left: -54cqw;
+}
+.royal-unit.is-paired .royal-member {
+  inset: auto auto 0 calc(var(--royal-index) * 46%);
+  width: 54%;
+  aspect-ratio: 2 / 3;
+}
+.royal-safety-plinth {
+  position: absolute;
+  z-index: 5;
+  right: 3%;
+  bottom: 30%;
+  width: 16cqw;
+  padding-bottom: 12px;
+  background: radial-gradient(ellipse at 50% 94%, #ccb17760, #170d20 40%, transparent 72%);
+  filter: drop-shadow(0 5px 12px #05030999);
+}
+.royal-safety-plinth.is-paired {
+  right: 42%;
+  bottom: 25%;
+}
+.royal-safety-shield {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.royal-safety-halo {
+  position: absolute;
+  inset: -30% -50%;
+  background: radial-gradient(ellipse, #f4d59233, transparent 68%);
+}
+.replacement-mist {
+  position: absolute;
+  z-index: 3;
+  left: -10%;
+  bottom: 17%;
+  width: 120%;
+  height: 24%;
+  object-fit: cover;
+  pointer-events: none;
+  mask-image: linear-gradient(transparent, #000b 28%, #000 67%, transparent);
+}
+.replacement-light-blade {
+  position: absolute;
+  z-index: 8;
+  inset: -10% 32%;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, #dac28a38 42%, #f3dab24d 50%, transparent 72%);
+}
+.replacement-lens-veil {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 44%, #b1835944, #281038db 65%, #0b0714);
+}
+.replacement-beat-caption em {
+  color: #ccb78f;
+  font:
+    600 clamp(8px, 2cqw, 11px) / 1.45 system-ui,
+    sans-serif;
+  font-style: normal;
+  letter-spacing: 0.1em;
+}
 .replacement-decision-backdrop,
 .replacement-decision-shade {
   position: absolute;
@@ -91,19 +213,6 @@
   height: 1px;
   margin-top: 5px;
   background: linear-gradient(90deg, transparent, #dfc58b, transparent);
-}
-.replacement-decision-wait .replacement-decision-figure {
-  bottom: 42%;
-  width: min(68cqw, 25cqh);
-  margin-left: calc(min(68cqw, 25cqh) / -2);
-}
-.replacement-decision-wait .replacement-decision-label {
-  top: max(6%, env(safe-area-inset-top));
-  bottom: auto;
-  gap: 6px;
-}
-.replacement-decision-wait .replacement-decision-label strong {
-  font-size: clamp(22px, 6cqw, 34px);
 }
 .replacement-beat-caption {
   position: absolute;

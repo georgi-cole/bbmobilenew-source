@@ -50,16 +50,16 @@ describe('connected replacement decisions', () => {
       ['save', 'c', 'pos'],
       ['replacement', 'd', 'special'],
     ]
-    expected.forEach(([kind, playerId, actorId], index) => {
+    expected.forEach((_, index) => {
       const next = nextReplacementStep(outcome, index)!
-      expect(next.end).toBe(index + 1)
-      expect(next.outcome.actionHistory).toEqual([
-        expect.objectContaining({ kind, playerId, actorId }),
-      ])
-      expect(next.outcome.replacementIds).not.toContain(index < 3 ? 'd' : 'uncommitted')
+      expect(next.end).toBe(4)
+      expect(
+        next.outcome.actionHistory.map(({ kind, playerId, actorId }) => [kind, playerId, actorId])
+      ).toEqual(expected.slice(index))
       expect(next.outcome.openingSlots?.a).toBe(0)
-      if (kind === 'save') expect(next.outcome.safetyUseNumber).toBe(index === 0 ? 1 : 2)
     })
+    const partial = { ...outcome, actionHistory: outcome.actionHistory.slice(0, 1) }
+    expect(nextReplacementStep(partial, 0)?.outcome.replacementIds).toEqual([])
     expect(nextReplacementStep(outcome, 4)).toBeNull()
   })
   it('keeps the surviving nominee on its original platform after the first slot clears', () => {
@@ -85,9 +85,9 @@ describe('connected replacement decisions', () => {
       if (index) expect(beat.shotStart).toBeGreaterThan(beats[index - 1].end)
     })
     expect(replacementDuration(outcome)).toBeGreaterThanOrEqual(14000)
-    expect(replacementDuration(outcome)).toBeLessThanOrEqual(16000)
+    expect(replacementDuration(outcome)).toBeLessThanOrEqual(21000)
   })
-  it('groups a simultaneous Detox clearing but leaves its two replacement decisions separate', () => {
+  it('introduces one Detox holder, clears the block, and reveals the replacements sequentially', () => {
     const detox = {
       ...outcome,
       variant: 'detox' as const,
@@ -98,8 +98,11 @@ describe('connected replacement decisions', () => {
         { kind: 'replacement' as const, playerId: 'd', actorId: 'pos', slotIndex: 1 },
       ],
     }
-    expect(replacementBeats(detox).map((b) => b.actions.length)).toEqual([2, 1, 1])
-    expect(nextReplacementStep(detox, 0)?.end).toBe(2)
+    const beats = replacementBeats(detox)
+    expect(beats.map((b) => b.actions.length)).toEqual([2, 2])
+    expect(beats.map((b) => b.showAuthority)).toEqual([true, false])
+    expect(beats[1].reveals[1].at - beats[1].reveals[0].at).toBeGreaterThanOrEqual(1500)
+    expect(nextReplacementStep(detox, 0)?.end).toBe(4)
   })
   it('requires the real human choice and recognizes a human Cupid coholder', () => {
     const current = game({

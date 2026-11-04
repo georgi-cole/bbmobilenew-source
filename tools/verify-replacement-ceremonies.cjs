@@ -21,6 +21,9 @@ const scenarios = [
   'singleNominee',
   'singleVoxNominee',
   'coLohNominations',
+  'dualPower',
+  'voxRankFive',
+  'voxFive',
 ]
 
 // Read the projected artwork anchors after real WAAPI composition. This catches
@@ -34,7 +37,9 @@ async function inspect(page, at) {
     const bodies = [...root.querySelectorAll('.replacement-person, .nom-pod')]
     const people = bodies.flatMap((person) => {
       const image = person.querySelector('.replacement-body, .nom-person')
-      const visible = getComputedStyle(person).opacity * getComputedStyle(image).opacity
+      let visible = 1
+      for (let node = image; node && node !== root.parentElement; node = node.parentElement)
+        visible *= Number(getComputedStyle(node).opacity)
       if (visible < 0.99) return []
       const platform =
         person.closest('.replacement-slot')?.querySelector('.replacement-platform') ??
@@ -124,22 +129,32 @@ async function main() {
       )
       results.push({ character: actor.id, ...result })
     }
-    for (const scenario of ['detox', 'doubleTroubleTwo', 'ordinary']) {
+    for (const scenario of ['detox', 'doubleTroubleTwo', 'ordinary', 'voxMultiple', 'voxFive']) {
       await page.evaluate((scenario) => window.previewScenario(scenario), scenario)
       const beats = await page.evaluate(() => window.replacementBeats)
-      const occupants = new Set(scenario === 'detox' ? ['nova', 'ash'] : ['ash', 'nova'])
+      const occupants = new Set(
+        scenario === 'detox'
+          ? ['nova', 'ash']
+          : scenario === 'voxFive'
+            ? ['ash', 'nova', 'sol', 'dex', 'jax']
+            : scenario === 'voxMultiple'
+              ? ['ash', 'nova', 'sol']
+              : ['ash', 'nova']
+      )
       for (const beat of beats) {
-        beat.actions.forEach((action) => {
+        for (const [index, reveal] of beat.reveals.entries()) {
+          const action = reveal.action
           if (action.kind === 'save') occupants.delete(action.playerId)
           if (action.kind === 'replacement') occupants.add(action.playerId)
-        })
-        const result = await inspect(page, beat.revealAt + 700)
-        assert.equal(
-          result.people.length,
-          occupants.size,
-          `${scenario} at ${beat.revealAt}: wrong occupancy`
-        )
-        assert.deepEqual(result.people.map((person) => person.id).sort(), [...occupants].sort())
+          if (beat.reveals[index + 1]?.at === reveal.at) continue
+          const result = await inspect(page, reveal.at + 700)
+          assert.equal(
+            result.people.length,
+            occupants.size,
+            `${scenario} at ${reveal.at}: wrong occupancy`
+          )
+          assert.deepEqual(result.people.map((person) => person.id).sort(), [...occupants].sort())
+        }
       }
     }
     const performanceReport = await page.evaluate(async () => {

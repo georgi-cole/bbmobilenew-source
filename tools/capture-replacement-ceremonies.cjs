@@ -20,6 +20,12 @@ const scenarios = [
   'singleNominee',
   'singleVoxNominee',
   'coLohNominations',
+  'allPower',
+  'cupidPower',
+  'dualPower',
+  'dualTiebreak',
+  'voxRankFive',
+  'voxFive',
   'ambushControl',
 ]
 

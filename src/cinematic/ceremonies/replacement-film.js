@@ -1,4 +1,6 @@
-import { replacementBeats, replacementDuration } from './replacement-timing.js'
+import { replacementBeats, replacementDuration, isRoyalAuthority } from './replacement-timing.js'
+import { authorityResources } from './authority-film.js'
+import vfx from './vfx.json'
 import { appendDecisionShots } from './replacement-decisions.js'
 
 const TITLES = {
@@ -50,36 +52,8 @@ export function replacementResources(cast, details, shared) {
       pose: 'front',
     }
   }
-  const decisionIds = unique([
-    ...(outcome.actionHistory ?? []).map((action) => action.actorId),
-    outcome.decision?.actorId,
-    ...(!outcome.actionHistory?.length ? [outcome.chooserId] : []),
-  ])
-  for (const id of decisionIds) {
-    const actor = cast[id]
-    if (!actor?.poses?.front) continue
-    const choices = [
-      ...(outcome.actionHistory ?? []).filter((action) => action.actorId === id),
-      ...(outcome.decision?.actorId === id ? [outcome.decision] : []),
-      ...(!outcome.actionHistory?.length && !outcome.decision ? [{ kind: 'replacement' }] : []),
-    ]
-    const royal =
-      choices.some((choice) => choice.kind === 'replacement') &&
-      (id === outcome.priorAuthorityId || outcome.coLohIds?.includes(id))
-    const pose = royal && actor.poses['royal-seated'] ? 'royal-seated' : 'front'
-    resources[`replacement-authority-${id}`] = { ...actor.poses[pose], character: actor.id, pose }
-    if (!royal || choices.some((choice) => choice.kind !== 'replacement'))
-      resources[`replacement-holder-${id}`] = {
-        ...actor.poses.front,
-        character: actor.id,
-        pose: 'front',
-      }
-    if (pose === 'royal-seated') {
-      for (const key of ['royal-room.webp', 'throne.webp', 'crown.webp']) {
-        if (shared[key]) resources[key] = { src: `assets/ceremonies/shared/${key}`, ...shared[key] }
-      }
-    }
-  }
+  Object.assign(resources, authorityResources(cast, outcome, shared))
+  resources.replacementMist = vfx.shockMist
   return resources
 }
 
@@ -95,8 +69,7 @@ function copy(images, key, className) {
 function slotFrame(index, count) {
   if (count <= 1) return { left: 28, width: 44, platformBottom: 33.4 }
   if (count === 2) return { left: index === 0 ? 3 : 53, width: 44, platformBottom: 33.4 }
-  if (count === 3) return { left: [1, 34, 67][index] ?? 34, width: 31, platformBottom: 35.3 }
-  return { left: [1, 26, 51, 76][index] ?? 1, width: 22, platformBottom: 36.7 }
+  return { left: 1 + index * 34, width: 31, platformBottom: 35.3 }
 }
 
 function buildSlots(outcome) {
@@ -157,7 +130,7 @@ function buildSlots(outcome) {
     outcome.nomineeIds.length
   )
   const actionSlots = (outcome.actionHistory ?? []).map((action) => action.slotIndex + 1)
-  const count = Math.min(3, Math.max(minimum, ...actionSlots))
+  const count = Math.max(minimum, ...actionSlots)
   const slots = Array.from({ length: count }, (_, index) => ({
     index,
     openingIds: outcome.openingNomineeIds.filter(
@@ -349,7 +322,10 @@ export function makeReplacementFilm(images, cast, outcome) {
   }
   for (const slotData of slots)
     block.append(makeSlot(slotData, positionCount, outcome, images, cast, pairIndexById))
-  camera.append(block)
+  const world = document.createElement('div')
+  world.className = 'replacement-world'
+  world.append(block)
+  camera.append(world)
   const sweep = document.createElement('div')
   sweep.className = 'replacement-save-sweep'
   camera.append(sweep)
@@ -367,124 +343,252 @@ export function makeReplacementFilm(images, cast, outcome) {
   const result = document.createElement('strong')
   result.textContent = copyForOutcome(cast, outcome)
   caption.append(title, result)
-  root.append(camera, caption)
+  const mist = copy(images, 'replacementMist', 'replacement-mist')
+  const blade = document.createElement('i')
+  blade.className = 'replacement-light-blade'
+  const veil = document.createElement('i')
+  veil.className = 'replacement-lens-veil'
+  camera.append(mist, blade)
+  root.append(camera, caption, veil)
   appendDecisionShots(root, images, cast, outcome)
   return root
 }
 
 export function animateReplacementFilm(root, animate, outcome, duration) {
-  const naturalDuration = replacementDuration(outcome)
-  const scale = duration / naturalDuration
+  const natural = replacementDuration(outcome),
+    scale = duration / natural
   const at = (ms) => Math.min(duration, Math.max(0, Math.round(ms * scale)))
-  const beats = replacementBeats(outcome)
+  const beats = outcome.decisionOnly
+    ? [
+        {
+          ...outcome.decision,
+          index: 0,
+          actions: [],
+          reveals: [],
+          showAuthority: true,
+          royal: isRoyalAuthority(outcome, outcome.decision?.actorId),
+          shotStart: 0,
+          shotEnd: duration - 250,
+          revealAt: duration,
+          end: duration,
+        },
+      ]
+    : replacementBeats(outcome)
+  const firstRoyal = beats[0]?.showAuthority && beats[0].royal
+  const revealMap = new Map(
+    beats.flatMap((beat) => beat.reveals.map((reveal) => [reveal.action, reveal.at]))
+  )
+  const ease = 'cubic-bezier(.18,.72,.2,1)'
   animate(root, [
-    [0, 0],
-    [at(220), 1],
+    [0, outcome.segment ? 1 : 0],
+    [at(280), 1],
     [duration, 1],
   ])
   animate('.replacement-camera', [
     [0, 1, 'scale(1.025)'],
     [duration, 1, 'scale(1)'],
   ])
+  animate('.replacement-set', [
+    [0, 0.85, 'scale(1.07) translateY(1%)'],
+    [duration, 0.9, 'scale(1.025) translateY(-.7%)'],
+  ])
   animate('.replacement-room-light', [
-    [0, 0.42],
-    [duration, 0.5],
+    [0, 0.46],
+    [duration, 0.62],
   ])
   animate('.replacement-caption', [
     [0, 0],
     [duration, beats.length ? 0 : 1],
   ])
-  for (const shot of root.querySelectorAll('.replacement-decision-shot')) {
-    const beat = beats[Number(shot.dataset.beatIndex)]
-    if (outcome.decisionOnly) {
-      animate(shot, [
+  const stageStops = firstRoyal
+    ? [
         [0, 0],
-        [350, 1],
-        [duration, 1],
-      ])
-      continue
+        [at(beats[0].shotEnd + 120), 0],
+        [at(beats[0].shotEnd + 260), 1],
+      ]
+    : [[0, 1]]
+  stageStops.push([duration, 1])
+  animate('.replacement-block', stageStops)
+  const count = Number(root.querySelector('.replacement-block').dataset.count)
+  const cameraStops = [[0, 1, `translateX(0%) scale(${count > 3 ? 3 / count : 1})`]]
+  const shots = [[0, 0]]
+  const blades = [[0, 0, 'translateX(-130%) rotate(-14deg)']]
+  for (const beat of beats) {
+    const shot = root.querySelector(`.replacement-decision-shot[data-beat-index="${beat.index}"]`)
+    if (shot) {
+      if (outcome.decisionOnly) {
+        animate(shot, [
+          [0, 1],
+          [duration, 1],
+        ])
+        const figure = shot.querySelector(
+          '.replacement-decision-figure, .replacement-holder-foreground'
+        )
+        if (figure)
+          animate(figure, [
+            [0, 1, 'scale(1.035)'],
+            [duration, 1, 'scale(1)'],
+          ])
+        animate(shot.querySelector('.replacement-decision-label'), [
+          [0, 0, 'translateY(10px)'],
+          [450, 1, 'translateY(0)'],
+          [duration, 1, 'translateY(0)'],
+        ])
+      } else if (beat.royal) {
+        animate(shot, [
+          [0, beat.index === 0 ? 1 : 0],
+          [at(beat.shotStart), beat.index === 0 ? 1 : 0],
+          [at(beat.shotStart + 220), 1],
+          [at(beat.shotEnd + 160), 1],
+          [at(beat.shotEnd + 420), 0],
+          [duration, 0],
+        ])
+        const figure = shot.querySelector('.replacement-decision-figure')
+        animate(figure, [
+          [0, 1, 'scale(1.055)'],
+          [at(beat.shotStart + 400), 1, 'scale(1.045)'],
+          [at(beat.shotEnd), 1, 'scale(1.005)', ease],
+          [duration, 1, 'scale(1.005)'],
+        ])
+        shots.push(
+          [at(beat.shotEnd - 100), 0],
+          [at(beat.shotEnd + 130), 0.6],
+          [at(beat.shotEnd + 500), 0]
+        )
+      } else {
+        if (count <= 3)
+          cameraStops.push(
+            [at(beat.shotStart + 500), 1, 'translateX(15%) scale(.84)', ease],
+            [at(beat.shotEnd - 300), 1, 'translateX(15%) scale(.84)']
+          )
+        animate(shot, [
+          [0, 0],
+          [at(beat.shotStart), 0],
+          [at(beat.shotStart + 450), 1],
+          [at(beat.shotEnd + 100), 1],
+          [at(beat.revealAt + 600), 0],
+          [duration, 0],
+        ])
+        const holder = shot.querySelector('.replacement-holder-foreground')
+        if (holder)
+          animate(holder, [
+            [0, 1, 'translateX(-14%) scale(1.06)'],
+            [at(beat.shotStart + 850), 1, 'translateX(0) scale(1)', ease],
+            [at(beat.shotEnd), 1, 'translateX(0) scale(1)'],
+            [at(beat.revealAt + 600), 1, 'translateX(-12%) scale(1.02)', ease],
+            [duration, 1, 'translateX(-12%) scale(1.02)'],
+          ])
+      }
     }
-    animate(shot, [
-      [0, 0],
-      [at(beat.shotStart), 0],
-      [at(beat.shotStart + 180), 1],
-      [at(beat.shotEnd), 1],
-      [at(beat.shotEnd + 220), 0],
-      [duration, 0],
-    ])
-    const figure = shot.querySelector('.replacement-decision-figure')
-    if (figure)
-      animate(figure, [
-        [0, 1, 'scale(1)'],
-        [at(beat.shotEnd), 1, 'scale(1.035)'],
-        [duration, 1, 'scale(1.035)'],
+    const captions = [
+      ...root.querySelectorAll(`.replacement-beat-caption[data-beat-index="${beat.index}"]`),
+    ]
+    captions.forEach((caption, index) => {
+      const when = beat.reveals[index]?.at ?? beat.revealAt
+      const next = beat.reveals[index + 1]?.at
+      const end = next && captions.length > 1 ? next - 100 : beat.end
+      animate(caption, [
+        [0, 0, 'translateY(10px)'],
+        [at(when + 160), 0, 'translateY(10px)'],
+        [at(when + 450), 1, 'translateY(0)', ease],
+        [at(end), 1, 'translateY(0)'],
+        ...(beat.index === beats.length - 1 && index === captions.length - 1
+          ? [[duration, 1, 'translateY(0)']]
+          : [
+              [at(end + 180), 0, 'translateY(-5px)'],
+              [duration, 0],
+            ]),
       ])
-    const caption = root.querySelector(`.replacement-beat-caption[data-beat-index="${beat.index}"]`)
-    const last = beat.index === beats.length - 1
-    animate(caption, [
-      [0, 0],
-      [at(beat.revealAt + 180), 0],
-      [at(beat.revealAt + 450), 1],
-      [last ? duration : at(beat.end), 1],
-      ...(!last
-        ? [
-            [at(beat.end + 150), 0],
-            [duration, 0],
-          ]
-        : []),
-    ])
+    })
+    for (const reveal of beat.reveals) {
+      const slot =
+        outcome.variant === 'cupid'
+          ? Math.floor(reveal.action.slotIndex / 2)
+          : reveal.action.slotIndex
+      const x = count > 3 ? Math.max(0, (slot - 1) * 34) : (slot - (count - 1) / 2) * 2.5
+      cameraStops.push(
+        [at(reveal.at - 260), 1, `translateX(${-x}%) scale(1.035)`, ease],
+        [at(reveal.at + 750), 1, `translateX(${-x}%) scale(1.035)`]
+      )
+      blades.push(
+        [at(reveal.at - 160), 0, 'translateX(-130%) rotate(-14deg)'],
+        [at(reveal.at + 100), 0.55, 'translateX(-5%) rotate(-14deg)', ease],
+        [at(reveal.at + 650), 0, 'translateX(135%) rotate(-14deg)']
+      )
+    }
   }
+  const sortStops = (stops) =>
+    [...new Map(stops.map((stop) => [stop[0], stop])).values()].sort((a, b) => a[0] - b[0])
+  const finalScale = count > 3 ? 3 / count : 1
+  cameraStops.push(
+    [duration - 300, 1, `translateX(0%) scale(${finalScale})`, ease],
+    [duration, 1, `translateX(0%) scale(${finalScale})`]
+  )
+  // All feet/platform/contact geometry moves as one world, including wide tied blocks.
+  const block = root.querySelector('.replacement-block')
+  // Put camera motion on a wrapper so its visibility timeline remains independent.
+  const world = block.parentElement
+  animate(world, sortStops(cameraStops))
+  shots.push([duration, 0])
+  animate('.replacement-lens-veil', sortStops(shots))
+  blades.push([duration, 0, 'translateX(135%) rotate(-14deg)'])
+  animate('.replacement-light-blade', sortStops(blades))
+  animate('.replacement-mist', [
+    [0, 0.1, 'translateX(-4%) scale(1.05)'],
+    [duration, 0.16, 'translateX(4%) scale(1.08)'],
+  ])
   for (const person of root.querySelectorAll('.replacement-person')) {
-    const id = person.dataset.actorId
-    const incoming = person.dataset.role === 'incoming'
-    const reveal = beats.find(
-      (b) => b.kind === 'replacement' && b.actions.some((a) => a.playerId === id)
+    const id = person.dataset.actorId,
+      incoming = person.dataset.role === 'incoming'
+    const arrival = outcome.actionHistory?.find(
+      (action) => action.kind === 'replacement' && action.playerId === id
     )
-    const save = beats.find((b) => b.kind === 'save' && b.actions.some((a) => a.playerId === id))
+    const save = outcome.actionHistory?.find(
+      (action) => action.kind === 'save' && action.playerId === id
+    )
+    const show = arrival ? revealMap.get(arrival) : null,
+      remove = save ? revealMap.get(save) : null
     const stops = [[0, incoming ? 0 : 1]]
-    if (incoming && reveal) stops.push([at(reveal.revealAt), 0], [at(reveal.revealAt + 360), 1])
-    if (save) stops.push([at(save.revealAt), 1], [at(save.revealAt + 420), 0])
-    stops.push([duration, save ? 0 : 1])
-    animate(person, stops)
+    if (incoming && show != null) stops.push([at(show), 0], [at(show + 120), 1])
+    if (remove != null) stops.push([at(remove), 1], [at(remove + 600), 0])
+    stops.push([duration, remove != null ? 0 : 1])
+    animate(person, sortStops(stops))
     animate(person.querySelector('.replacement-person-name'), [
       [0, 1],
       [duration, 1],
     ])
   }
   for (const slot of root.querySelectorAll('.replacement-slot')) {
-    const arrivals = beats.filter(
-      (b) =>
-        b.kind === 'replacement' &&
-        b.actions.some(
-          (a) =>
-            (isCupid(outcome) ? Math.floor(a.slotIndex / 2) : a.slotIndex) ===
-            Number(slot.dataset.slotIndex)
-        )
-    )
-    const reveal = slot.querySelector('.replacement-reveal-light')
-    const rim = slot.querySelector('.replacement-platform-rim')
-    const stops = [[0, 0, 'scale(.9)']]
-    for (const beat of arrivals)
+    const arrivals = beats
+      .flatMap((beat) => beat.reveals)
+      .filter(
+        (reveal) =>
+          reveal.action.kind === 'replacement' &&
+          (outcome.variant === 'cupid'
+            ? Math.floor(reveal.action.slotIndex / 2)
+            : reveal.action.slotIndex) === Number(slot.dataset.slotIndex)
+      )
+    const stops = [[0, 0, 'scale(.82)']]
+    for (const reveal of arrivals)
       stops.push(
-        [at(beat.revealAt - 100), 0, 'scale(.9)'],
-        [at(beat.revealAt + 160), 0.8, 'scale(1)'],
-        [at(beat.revealAt + 850), 0, 'scale(1.08)']
+        [at(reveal.at - 200), 0, 'scale(.82)'],
+        [at(reveal.at + 70), 0.95, 'scale(1)', ease],
+        [at(reveal.at + 900), 0, 'scale(1.12)']
       )
     stops.push([duration, 0])
-    animate(reveal, stops)
-    animate(rim, [
+    animate(slot.querySelector('.replacement-reveal-light'), sortStops(stops))
+    animate(slot.querySelector('.replacement-platform-rim'), [
       [0, 0.18],
       [duration, 0.4],
     ])
   }
-  const sweep = root.querySelector('.replacement-save-sweep')
-  const stops = [[0, 0, 'scaleX(.2)']]
+  const saveStops = [[0, 0, 'scaleX(.2)']]
   for (const beat of beats.filter((b) => b.kind === 'save'))
-    stops.push(
+    saveStops.push(
       [at(beat.revealAt), 0, 'scaleX(.2)'],
-      [at(beat.revealAt + 200), 0.7, 'scaleX(1)'],
-      [at(beat.revealAt + 700), 0, 'scaleX(1.08)']
+      [at(beat.revealAt + 200), 0.8, 'scaleX(1)'],
+      [at(beat.revealAt + 850), 0, 'scaleX(1.08)']
     )
-  stops.push([duration, 0])
-  animate(sweep, stops)
+  saveStops.push([duration, 0])
+  animate('.replacement-save-sweep', sortStops(saveStops))
 }
