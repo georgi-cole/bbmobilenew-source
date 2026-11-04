@@ -1,5 +1,14 @@
 import { useCallback, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
+import { useStore } from 'react-redux'
+import type { RootState } from '../../store/store'
+import { selectIsVipActive } from '../../store/vipSlice'
+import { shouldPlayCinematic } from '../../cinematic/ceremonies/runtime.mjs'
+import { getReplacementProgress } from '../../cinematic/ceremonies/replacementPresentationMiddleware'
+import {
+  canResumeCinematicCeremony,
+  type CinematicCeremonyReturn,
+} from '../../cinematic/ceremonies/confessionalResume'
 import {
   selectActiveConfessionalDecision,
   type ActiveConfessionalDecision,
@@ -13,6 +22,7 @@ import FinaleTribunalStream from './FinaleTribunalStream'
 
 export default function ConfessionalRoute() {
   const navigate = useNavigate()
+  const store = useStore<RootState>()
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const dispatch = useAppDispatch()
@@ -85,7 +95,34 @@ export default function ConfessionalRoute() {
   }
 
   if (requiredSessionActive) {
-    return <RequiredConfessionalSession decision={focusedDecision} onReturnToGame={returnToGame} />
+    const resume = (location.state as { cinematicCeremony?: CinematicCeremonyReturn } | null)
+      ?.cinematicCeremony
+    return (
+      <RequiredConfessionalSession
+        decision={focusedDecision}
+        onReturnToGame={returnToGame}
+        onCinematicDecisionCommitted={
+          resume
+            ? (decisionType) => {
+                const state = store.getState()
+                if (
+                  shouldPlayCinematic(state, selectIsVipActive(state)) &&
+                  canResumeCinematicCeremony(
+                    resume,
+                    state.game,
+                    getReplacementProgress(state.game)?.actionHistory.length ?? 0,
+                    selectActiveConfessionalDecision(state) !== null
+                  )
+                ) {
+                  returnToGame('game', decisionType)
+                  return true
+                }
+                return false
+              }
+            : undefined
+        }
+      />
+    )
   }
 
   return <DiaryRoom />

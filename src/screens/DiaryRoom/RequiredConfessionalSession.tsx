@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useBlocker } from 'react-router'
 import type { ActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -27,6 +27,7 @@ interface Props {
     returnCue: string,
     decisionType: ActiveConfessionalDecision['type'] | null
   ) => void
+  onCinematicDecisionCommitted?: (decisionType: ActiveConfessionalDecision['type']) => boolean
 }
 
 interface CompletedDecisionState {
@@ -42,7 +43,11 @@ const VOTE_DECISION_TYPES = new Set<ActiveConfessionalDecision['type']>([
   'tie_break',
 ])
 
-export default function RequiredConfessionalSession({ decision, onReturnToGame }: Props) {
+export default function RequiredConfessionalSession({
+  decision,
+  onReturnToGame,
+  onCinematicDecisionCommitted,
+}: Props) {
   const dispatch = useAppDispatch()
   const game = useAppSelector((state) => state.game)
   const survival = game.mode === 'survival'
@@ -57,7 +62,12 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
   >(decision?.type ?? null)
   const [completedDecision, setCompletedDecision] = useState<CompletedDecisionState | null>(null)
   const [completedSummary, setCompletedSummary] = useState<string | null>(null)
-  const navigationBlocker = useBlocker(decision !== null)
+  const cinematicNavigationAllowed = useRef(false)
+  const navigationBlocker = useBlocker(
+    ({ nextLocation }) =>
+      decision !== null &&
+      !(cinematicNavigationAllowed.current && nextLocation.pathname === '/game')
+  )
   const presentation = useMemo(
     () => (decision ? getRequiredConfessionalPresentation(decision, game) : null),
     [decision, game]
@@ -247,6 +257,11 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
                         })
                         if (VOTE_DECISION_TYPES.has(displayDecision.type)) {
                           dispatch(setConfessionalMusicMode('vote-committed'))
+                        }
+                        if (onCinematicDecisionCommitted) {
+                          cinematicNavigationAllowed.current = true
+                          if (!onCinematicDecisionCommitted(displayDecision.type))
+                            cinematicNavigationAllowed.current = false
                         }
                       }}
                     />

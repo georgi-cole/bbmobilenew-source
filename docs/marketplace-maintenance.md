@@ -78,6 +78,11 @@ store listings or change configured prices.
   paid benefits, prices, minigame versions, Eyeolean powers and Store copy remain
   unchanged; the existing listings remain accurate.
 
+- 2026-11-03: Reviewed replacement-ceremony outcome routing and the shared film
+  family for ordinary replacements, power overrides, Vox and Cupid. Reuses existing
+  character packs and sets, adds no product or gameplay advantage, and preserves
+  VIP access, Standard/reduced-motion fallback, pricing and Store copy.
+
 - 2026-11-03: Reviewed the compact VIP Cinematic badge handoffs. Saved-by-Safety
   cinematics now finish with a short badge landing; replacement nominations
   use the same short badge reveal in VIP Cinematic mode, while public saves
@@ -276,3 +281,30 @@ store listings or change configured prices.
   escalation, and bounded Nemesis episode history. These social and relationship
   consistency safeguards do not add or change purchasable items, entitlements,
   prices, rewards, or marketplace copy.
+
+- 2026-11-04: Reviewed the replacement-ceremony choreography, nominee staging,
+  Co-LOH assignments, Vox/Cupid variants, and solo nomination treatment. These
+  changes refine the existing VIP cinematic benefit and its preview assets only;
+  VIP eligibility, Standard behavior, product availability, prices, rewards,
+  benefits, and Store copy remain unchanged.
+
+- 2026-11-04: Reviewed connected VIP replacement decision scenes, slower Double
+  Trouble pacing, actual LOH/Safety/mission-holder shots, and pauses for mandatory
+  human decisions. The same VIP entitlement and animation preferences apply.
+  This is presentation maintenance: products, prices, rewards, access gates,
+  benefits, and marketplace copy remain unchanged.
+
+- 2026-11-04: Reviewed royal precedence for shared LOH/Safety holders, paired
+  thrones, continuous Vox ballot-ranked replacements, Co-LOH ownership, and
+  automatic ceremony continuation through the existing required Confessional.
+  These maintain the existing optional VIP cinematic benefit; Standard and
+  Survival behavior, paid access, products, prices, rewards, and Store copy
+  remain unchanged.
+
+- 2026-11-04: Reviewed removal of costly live shadow filters from moving VIP
+  ceremony layers. Existing artwork lighting and contact shadows remain; this
+  rendering maintenance changes no offers, prices, entitlements, or rewards.
+
+- 2026-11-04: Reviewed replaceable synthetic accent cues synchronised with VIP
+  ceremonies. Existing SFX settings apply; phase music, Standard/Survival paths,
+  entitlement gates, offers, prices, rewards and Store copy remain unchanged.

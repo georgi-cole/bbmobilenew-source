@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Replacement ceremony review</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #08060d;
+        color: #ebdfcb;
+        font: 14px system-ui;
+      }
+      nav {
+        position: fixed;
+        z-index: 20000;
+        top: 12px;
+        left: 12px;
+        display: flex;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid #cbb68155;
+        border-radius: 12px;
+        background: #110b20d9;
+      }
+      select,
+      button {
+        padding: 8px;
+        border: 1px solid #d9bd7955;
+        border-radius: 6px;
+        background: #21152d;
+        color: inherit;
+      }
+      #film {
+        position: fixed;
+        z-index: 1;
+        inset: 0;
+      }
+      #status {
+        position: fixed;
+        z-index: 20000;
+        bottom: 10px;
+        left: 10px;
+        color: #c5b493;
+        font-size: 11px;
+      }
+      body.capture nav,
+      body.capture #status {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <select id="scenario" aria-label="Preview scenario"></select>
+      <button id="play" type="button">Replay</button>
+      <button id="pause" type="button">Pause</button>
+    </nav>
+    <div id="film"></div>
+    <div id="status" role="status"></div>
+    <script type="module">
+      import { createClip } from '../src/cinematic/ceremonies/renderer.js'
+      import {
+        replacementDuration,
+        replacementBeats,
+      } from '../src/cinematic/ceremonies/replacement-timing.js'
+      import catalog from '../src/cinematic/ceremonies/cast.json'
+
+      const scenarios = [
+        { id: 'ordinary', label: 'Open Seat · ordinary LOH replacement' },
+        { id: 'halo', label: 'Halo Exchange · holder chooses' },
+        { id: 'force', label: 'Force Majeure · mandatory Safety use' },
+        { id: 'mission', label: 'Mission · designated backup chooser' },
+        { id: 'coLoh', label: 'Co-LOH · affected leader chooses backup' },
+        { id: 'detox', label: 'Detox · two cleared nominees, two replacements' },
+        { id: 'doubleTroubleOne', label: 'Double Trouble · one Safety use' },
+        { id: 'doubleTroubleTwo', label: 'Double Trouble · second use saves first replacement' },
+        { id: 'doubleTroubleOriginals', label: 'Double Trouble · two original nominees saved' },
+        { id: 'failedAmbush', label: 'Failed Ambush · ordinary committed fallback' },
+        { id: 'threePersonFinal', label: 'Three-person final block' },
+        { id: 'voxOne', label: 'Vox · one public replacement' },
+        { id: 'voxMultiple', label: 'Vox · two public replacements' },
+        { id: 'cupid', label: 'Cupid · continuing and incoming pairs' },
+        { id: 'singleNominee', label: 'Classic nomination · one nominee' },
+        { id: 'singleVoxNominee', label: 'Vox nomination · one nominee' },
+        { id: 'coLohNominations', label: 'Co-LOH initial nominations · both actual choices' },
+        { id: 'allPower', label: 'All the Power · Safety arrives beside the throne' },
+        { id: 'cupidPower', label: 'Cupid · shared crown and Safety' },
+        { id: 'dualPower', label: 'Double Trouble · one holder keeps the crown and shield' },
+        { id: 'dualTiebreak', label: 'Tiebreak · royal Safety holder decides' },
+        { id: 'voxRankFive', label: 'Vox · next eligible nominee is ranked fifth' },
+        { id: 'voxFive', label: 'Vox · five tied nominees, continuous replacements' },
+        { id: 'ambushControl', label: 'Existing successful Ambush · unchanged control' },
+      ]
+      const select = document.querySelector('#scenario')
+      scenarios.forEach(({ id, label }) => select.add(new Option(label, id)))
+      const query = new URLSearchParams(location.search)
+      select.value = scenarios.some(({ id }) => id === query.get('scenario'))
+        ? query.get('scenario')
+        : 'ordinary'
+      if (query.has('capture')) document.body.classList.add('capture')
+
+      const byId = (id) => catalog.characters.find((character) => character.id === id)
+      const actor = (id) => ({ ...byId(id), playerId: id })
+      const actors = (ids) => Object.fromEntries([...new Set(ids)].map((id) => [id, actor(id)]))
+      const makeOutcome = (scenarioId, overrides) => ({
+        owner: 'replacement',
+        eventKey: `review:${scenarioId}`,
+        variant: 'ordinary',
+        openingNomineeIds: ['ash', 'nova'],
+        nomineeIds: ['ash', 'lia'],
+        replacementIds: ['lia'],
+        continuingNomineeIds: ['ash'],
+        savedIds: ['nova'],
+        chooserId: 'rune',
+        powerHolderId: 'aria',
+        priorAuthorityId: 'rune',
+        affectedCoLohId: null,
+        coLohIds: [],
+        coLohAssignments: [],
+        pairUnits: [],
+        actionHistory: [
+          { kind: 'save', playerId: 'nova', actorId: 'aria', slotIndex: 1 },
+          { kind: 'replacement', playerId: 'lia', actorId: 'rune', slotIndex: 1 },
+        ],
+        durationMs: 4800,
+        ...overrides,
+      })
+
+      function scenarioData(id) {
+        if (id === 'allPower' || id === 'cupidPower') {
+          return {
+            scene: id,
+            cast: { a: actor('rune'), b: actor(id === 'cupidPower' ? 'bea' : 'rune') },
+          }
+        }
+        if (id === 'dualTiebreak') {
+          return {
+            scene: 'tiebreak',
+            cast: { a: actor('rune'), b: actor('ash'), c: actor('nova') },
+            details: { safetyHolderIds: ['rune'] },
+          }
+        }
+        if (id === 'ambushControl') {
+          return {
+            scene: 'ambush',
+            cast: {
+              a: actor('rune'),
+              b: actor('aria'),
+              c: actor('nova'),
+            },
+            durationMs: 4300,
+          }
+        }
+        if (id === 'singleNominee' || id === 'singleVoxNominee') {
+          const nominee = actor('nova')
+          return {
+            scene: id === 'singleVoxNominee' ? 'voxNominations' : 'nominations',
+            cast: {
+              a: nominee,
+              b: nominee,
+              c: nominee,
+              ...(id === 'singleNominee' ? { d: actor('rune') } : {}),
+            },
+            details: { names: ['Nova'], nomineeCount: 1 },
+            durationMs: 3800,
+          }
+        }
+        if (id === 'coLohNominations') {
+          const assignments = [
+            { coLohId: 'rune', nomineeId: 'nova' },
+            { coLohId: 'aria', nomineeId: 'lia' },
+          ]
+          return {
+            scene: 'nominations',
+            cast: {
+              a: actor('nova'),
+              b: actor('lia'),
+              c: actor('nova'),
+              d: actor('rune'),
+              e: actor('aria'),
+            },
+            details: { names: ['Nova', 'Lia'], coLohAssignments: assignments },
+            durationMs: 6000,
+          }
+        }
+
+        const presets = {
+          ordinary: { variant: 'ordinary', chooserId: 'rune' },
+          halo: { variant: 'halo', chooserId: 'aria', priorAuthorityId: 'rune' },
+          force: { variant: 'force', chooserId: 'rune', powerHolderId: 'aria' },
+          mission: { variant: 'mission', chooserId: 'dex', powerHolderId: 'aria' },
+          coLoh: {
+            variant: 'coLoh',
+            chooserId: 'aria',
+            coLohIds: ['rune', 'aria'],
+            affectedCoLohId: 'aria',
+            coLohAssignments: [
+              { coLohId: 'rune', nomineeId: 'ash' },
+              { coLohId: 'aria', nomineeId: 'lia' },
+            ],
+          },
+          detox: {
+            variant: 'detox',
+            openingNomineeIds: ['nova', 'ash'],
+            nomineeIds: ['lia', 'sol'],
+            replacementIds: ['lia', 'sol'],
+            continuingNomineeIds: [],
+            savedIds: ['nova', 'ash'],
+            chooserId: 'dex',
+            powerHolderId: 'dex',
+            actionHistory: [
+              { kind: 'save', playerId: 'nova', actorId: 'dex', slotIndex: 0 },
+              { kind: 'save', playerId: 'ash', actorId: 'dex', slotIndex: 1 },
+              { kind: 'replacement', playerId: 'lia', actorId: 'dex', slotIndex: 0 },
+              { kind: 'replacement', playerId: 'sol', actorId: 'dex', slotIndex: 1 },
+            ],
+            durationMs: 6000,
+          },
+          doubleTroubleOne: {
+            variant: 'doubleTrouble',
+            chooserId: 'rune',
+            durationMs: 4800,
+          },
+          doubleTroubleTwo: {
+            variant: 'doubleTrouble',
+            openingNomineeIds: ['ash', 'nova'],
+            nomineeIds: ['ash', 'sol'],
+            replacementIds: ['sol'],
+            continuingNomineeIds: ['ash'],
+            savedIds: ['nova', 'lia'],
+            chooserId: 'rune',
+            actionHistory: [
+              { kind: 'save', playerId: 'nova', actorId: 'aria', slotIndex: 1 },
+              { kind: 'replacement', playerId: 'lia', actorId: 'rune', slotIndex: 1 },
+              { kind: 'save', playerId: 'lia', actorId: 'aria', slotIndex: 1 },
+              { kind: 'replacement', playerId: 'sol', actorId: 'rune', slotIndex: 1 },
+            ],
+            durationMs: 6000,
+          },
+          doubleTroubleOriginals: {
+            variant: 'doubleTrouble',
+            openingNomineeIds: ['ash', 'nova'],
+            nomineeIds: ['sol', 'lia'],
+            replacementIds: ['lia', 'sol'],
+            continuingNomineeIds: [],
+            savedIds: ['nova', 'ash'],
+            actionHistory: [
+              { kind: 'save', playerId: 'nova', actorId: 'aria', slotIndex: 1 },
+              { kind: 'replacement', playerId: 'lia', actorId: 'rune', slotIndex: 1 },
+              { kind: 'save', playerId: 'ash', actorId: 'aria', slotIndex: 0 },
+              { kind: 'replacement', playerId: 'sol', actorId: 'rune', slotIndex: 0 },
+            ],
+            durationMs: 6000,
+          },
+          failedAmbush: { variant: 'ordinary', chooserId: 'rune' },
+          threePersonFinal: {
+            variant: 'ordinary',
+            openingNomineeIds: ['ash', 'nova', 'sol'],
+            nomineeIds: ['ash', 'lia', 'dex'],
+            replacementIds: ['lia', 'dex'],
+            continuingNomineeIds: ['ash'],
+            savedIds: ['nova', 'sol'],
+            actionHistory: [
+              { kind: 'save', playerId: 'nova', actorId: 'aria', slotIndex: 1 },
+              { kind: 'replacement', playerId: 'lia', actorId: 'rune', slotIndex: 1 },
+              { kind: 'save', playerId: 'sol', actorId: 'aria', slotIndex: 2 },
+              { kind: 'replacement', playerId: 'dex', actorId: 'rune', slotIndex: 2 },
+            ],
+            durationMs: 6000,
+          },
+          voxOne: {
+            variant: 'vox',
+            chooserId: null,
+            powerHolderId: 'aria',
+            openingNomineeIds: ['ash', 'nova'],
+            nomineeIds: ['ash', 'lia'],
+            replacementIds: ['lia'],
+            continuingNomineeIds: ['ash'],
+            actionHistory: [
+              { kind: 'save', playerId: 'nova', actorId: 'aria', slotIndex: 1 },
+              { kind: 'replacement', playerId: 'lia', actorId: null, slotIndex: 1, ballotRank: 3 },
+            ],
+            durationMs: 3600,
+          },
+          voxMultiple: {
+            variant: 'vox',
+            powerType: 'coup',
+            chooserId: null,
+            powerHolderId: 'aria',
+            openingNomineeIds: ['ash', 'nova', 'sol'],
+            nomineeIds: ['lia', 'dex', 'ash'],
+            replacementIds: ['lia', 'dex'],
+            continuingNomineeIds: ['ash'],
+            savedIds: ['nova', 'sol'],
+            actionHistory: [
+              { kind: 'save', playerId: 'nova', actorId: 'aria', slotIndex: 1 },
+              { kind: 'save', playerId: 'sol', actorId: 'aria', slotIndex: 2 },
+              { kind: 'replacement', playerId: 'lia', actorId: null, slotIndex: 1, ballotRank: 4 },
+              { kind: 'replacement', playerId: 'dex', actorId: null, slotIndex: 2, ballotRank: 5 },
+            ],
+            durationMs: 4600,
+          },
+          cupid: {
+            variant: 'cupid',
+            openingNomineeIds: ['ash', 'nova', 'sol', 'dex'],
+            nomineeIds: ['ash', 'nova', 'aria', 'lux'],
+            replacementIds: ['aria', 'lux'],
+            continuingNomineeIds: ['ash', 'nova'],
+            savedIds: ['sol', 'dex'],
+            chooserId: 'rune',
+            powerHolderId: 'lia',
+            leaderIds: ['rune', 'bea'],
+            safetyHolderIds: ['lia', 'vee'],
+            authorityPairs: [{ id: 'leaders', memberIds: ['rune', 'bea'] }],
+            pairUnits: [
+              { id: 'pair-one', memberIds: ['ash', 'nova'], color: '#d5a6dc' },
+              { id: 'pair-saved', memberIds: ['sol', 'dex'], color: '#a3c6df' },
+              { id: 'pair-two', memberIds: ['aria', 'lux'], color: '#e9a0c1' },
+            ],
+            actionHistory: [
+              { kind: 'save', playerId: 'sol', actorId: 'lia', slotIndex: 2 },
+              { kind: 'save', playerId: 'dex', actorId: 'lia', slotIndex: 3 },
+              { kind: 'replacement', playerId: 'aria', actorId: 'rune', slotIndex: 2 },
+              { kind: 'replacement', playerId: 'lux', actorId: 'rune', slotIndex: 3 },
+            ],
+            durationMs: 4800,
+          },
+        }
+        presets.dualPower = {
+          ...presets.doubleTroubleTwo,
+          powerHolderId: 'rune',
+          leaderIds: ['rune'],
+          safetyHolderIds: ['rune'],
+          actionHistory: presets.doubleTroubleTwo.actionHistory.map((action) => ({
+            ...action,
+            actorId: 'rune',
+          })),
+        }
+        presets.voxRankFive = {
+          ...presets.voxOne,
+          actionHistory: presets.voxOne.actionHistory.map((action) => ({
+            ...action,
+            ...(action.kind === 'replacement' ? { ballotRank: 5 } : {}),
+          })),
+        }
+        presets.voxFive = {
+          ...presets.voxMultiple,
+          openingNomineeIds: ['ash', 'nova', 'sol', 'dex', 'jax'],
+          nomineeIds: ['ash', 'lia', 'lux', 'dex', 'jax'],
+          replacementIds: ['lia', 'lux'],
+          continuingNomineeIds: ['ash', 'dex', 'jax'],
+          actionHistory: [
+            { kind: 'save', playerId: 'nova', actorId: 'aria', slotIndex: 1 },
+            { kind: 'save', playerId: 'sol', actorId: 'aria', slotIndex: 2 },
+            {
+              kind: 'replacement',
+              playerId: 'lia',
+              actorId: null,
+              slotIndex: 1,
+              ballotRank: 6,
+              tiedRank: true,
+            },
+            {
+              kind: 'replacement',
+              playerId: 'lux',
+              actorId: null,
+              slotIndex: 2,
+              ballotRank: 6,
+              tiedRank: true,
+            },
+          ],
+        }
+        const config = presets[id]
+        const outcome = makeOutcome(id, config)
+        outcome.leaderIds ??=
+          outcome.variant === 'vox'
+            ? []
+            : [outcome.priorAuthorityId, ...outcome.coLohIds].filter(Boolean)
+        outcome.safetyHolderIds ??= [outcome.powerHolderId].filter(Boolean)
+        if (!config.actionHistory)
+          outcome.actionHistory = outcome.actionHistory.map((action) => ({
+            ...action,
+            actorId: action.kind === 'save' ? outcome.powerHolderId : outcome.chooserId,
+          }))
+        outcome.durationMs = replacementDuration(outcome)
+        const ids = [
+          ...outcome.openingNomineeIds,
+          ...outcome.nomineeIds,
+          ...outcome.savedIds,
+          ...outcome.actionHistory.flatMap((beat) => [beat.playerId, beat.actorId]),
+          ...outcome.coLohIds,
+          ...outcome.leaderIds,
+          ...outcome.safetyHolderIds,
+          ...(outcome.authorityPairs ?? []).flatMap((pair) => pair.memberIds),
+          ...outcome.coLohAssignments.flatMap((assignment) => [
+            assignment.coLohId,
+            assignment.nomineeId,
+          ]),
+          ...outcome.pairUnits.flatMap((pair) => pair.memberIds),
+          outcome.chooserId,
+          outcome.powerHolderId,
+          outcome.priorAuthorityId,
+        ].filter(Boolean)
+        return {
+          scene: 'replacement',
+          cast: actors(ids),
+          details: { replacementOutcome: outcome },
+          durationMs: outcome.durationMs,
+        }
+      }
+
+      let clip
+      let paused = false
+      window.previewScenario = async (
+        scenarioId = select.value,
+        incomingCharacter = query.get('character'),
+        holderCharacter = null
+      ) => {
+        clip?.stop()
+        paused = false
+        const scenario = scenarios.find(({ id }) => id === scenarioId)
+        const filmRoot = document.querySelector('#film')
+        filmRoot.replaceChildren()
+        const data = scenarioData(scenarioId)
+        if (incomingCharacter && data.scene === 'replacement') {
+          const slotId = data.details.replacementOutcome.replacementIds[0]
+          data.cast[slotId] = { ...actor(incomingCharacter), playerId: slotId }
+        }
+        if (holderCharacter && data.scene === 'replacement') {
+          const holderId = data.details.replacementOutcome.powerHolderId
+          if (holderId) data.cast[holderId] = { ...actor(holderCharacter), playerId: holderId }
+        }
+        clip = createClip()
+        const prepared = await clip.prepare(data.scene, data.cast, 'generic', data.details ?? {})
+        if (!prepared) throw new Error(`Could not prepare ${scenario.label}`)
+        clip.mount(
+          filmRoot,
+          () => clip.nativeReady(true),
+          () => {}
+        )
+        data.durationMs = clip.durationMs
+        document.querySelector('#status').textContent =
+          `${scenario.label} · ${(prepared.transferBytes / 1024).toFixed(0)} KB · ${(prepared.decodedBytes / 1048576).toFixed(1)} MB decoded · ${(data.durationMs / 1000).toFixed(1)}s`
+        window.replacementClip = clip
+        window.replacementDurationMs = data.durationMs
+        window.replacementBeats =
+          data.scene === 'replacement' ? replacementBeats(data.details.replacementOutcome) : []
+        if (query.has('time')) clip.seek(Number(query.get('time')))
+        return { durationMs: data.durationMs, data: prepared }
+      }
+      document.querySelector('#play').onclick = () => window.previewScenario()
+      select.onchange = () => window.previewScenario()
+      document.querySelector('#pause').onclick = () => {
+        paused = !paused
+        if (paused) clip?.pause()
+        else clip?.resume()
+      }
+      window.previewScenario(select.value).catch((error) => {
+        window.replacementError = error.message
+        document.querySelector('#status').textContent = error.message
+        console.error(error)
+      })
+    </script>
+  </body>
+</html>

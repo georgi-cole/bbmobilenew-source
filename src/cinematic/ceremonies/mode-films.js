@@ -515,7 +515,11 @@ export function animateModeLayers(scene, root, a, duration) {
       [2900, 1],
       [duration, 1],
     ])
-  if (baseScene(scene) === 'nominations' && root.querySelector('.nom-third')) {
+  if (
+    baseScene(scene) === 'nominations' &&
+    root.querySelector('.nom-third') &&
+    !root.classList.contains('nom-calibrated')
+  ) {
     a('.nom-third', [
       [0, 0, 'translateY(18px)'],
       [2700, 0, 'translateY(18px)'],

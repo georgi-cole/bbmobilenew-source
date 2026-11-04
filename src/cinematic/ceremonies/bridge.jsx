@@ -10,7 +10,7 @@ import {
 } from '../../services/presentation/presentationOwnership'
 import { MotionConfig } from 'framer-motion'
 import CinematicSkipButton from '../../components/CinematicSkipButton/CinematicSkipButton'
-import { modeDetails, baseScene } from './mode-routing.mjs'
+import { modeDetails, baseScene, expandPair } from './mode-routing.mjs'
 import './bridge.css'
 import {
   shouldPlayCinematic,
@@ -188,7 +188,19 @@ export function PremiumBridge({
           }
           const controller = clipModule.createClip()
           clip.current = controller
-          const details = modeDetails(scene, props.current, state.game)
+          const details =
+            scene === 'replacement'
+              ? { replacementOutcome: props.current.replacementOutcome }
+              : modeDetails(scene, props.current, state.game)
+          if (scene === 'nominations' && props.current.cinematicCoLohAssignments?.length > 1)
+            details.coLohAssignments = props.current.cinematicCoLohAssignments
+          if (baseScene(scene) === 'nominations')
+            details.nomineeCount = new Set(state.game.nomineeIds ?? []).size
+          if (scene === 'tiebreak')
+            details.safetyHolderIds = expandPair(
+              state.game,
+              [state.game.posWinnerId].filter(Boolean)
+            )
           // Every shared departure film closes through the Big Eye ident after
           // the doorway zoom. The standalone Final Three film keeps its finale gate.
           if (scene === 'exit' || (state.game.phase?.startsWith('final3') && scene === 'final3'))

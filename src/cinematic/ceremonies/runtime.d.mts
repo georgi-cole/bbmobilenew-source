@@ -1,5 +1,6 @@
 import type { GameState, Player } from '../../types'
 export const exitTracker: { update(game: GameState): void }
+export function hasLeadershipRole(game: GameState, id: string | null | undefined): boolean
 export function requestAmbush(effect: () => void): boolean
 
 interface IntroState {
@@ -64,6 +65,13 @@ export function findArt(
   player: Player,
   catalog: CeremonyCharacterArt[]
 ): CeremonyCharacterArt | null
+
+export function ceremonyCast(
+  scene: string,
+  props: Record<string, unknown>,
+  game: GameState,
+  catalog: CeremonyCharacterArt[]
+): Record<string, CeremonyCharacterArt & { playerId: string }> | null
 
 export function isCinematicSceneAllowed(
   game: {

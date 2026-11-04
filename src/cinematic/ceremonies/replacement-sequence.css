@@ -1,0 +1,12 @@
+.replacement-sequence {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  isolation: isolate;
+  background: radial-gradient(ellipse at 50% 40%, #21122c, #09060f 68%);
+}
+.replacement-sequence-film {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
