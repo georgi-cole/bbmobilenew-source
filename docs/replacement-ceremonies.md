@@ -85,7 +85,9 @@ slots and 72% partner image widths. Wide blocks retain that close-shot geometry
 and use a scaled overview only when the whole block must fit on screen.
 
 Effects reuse existing WebP artwork and static gradients animated with transforms
-and opacity. No rendered video, new raster, continuous particle system or animated
+and opacity. Moving figures and platforms avoid live drop-shadow filters; the
+artwork lighting, contact shadows and gradient light cues provide depth.
+No rendered video, new raster, continuous particle system or animated
 blur is added to the application. Preparation is lazy, and scene cleanup is
 separate from the browser's own image/network caches.
 

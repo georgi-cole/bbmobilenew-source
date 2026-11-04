@@ -300,3 +300,7 @@ store listings or change configured prices.
   These maintain the existing optional VIP cinematic benefit; Standard and
   Survival behavior, paid access, products, prices, rewards, and Store copy
   remain unchanged.
+
+- 2026-11-04: Reviewed removal of costly live shadow filters from moving VIP
+  ceremony layers. Existing artwork lighting and contact shadows remain; this
+  rendering maintenance changes no offers, prices, entitlements, or rewards.
