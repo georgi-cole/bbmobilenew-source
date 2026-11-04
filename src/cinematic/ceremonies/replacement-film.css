@@ -39,10 +39,11 @@
   bottom: auto;
 }
 .replacement-holder-foreground {
+  --holder-width: min(130cqw, 61cqh);
   position: absolute;
-  left: -37%;
+  left: calc(4cqw - var(--holder-width) * var(--holder-head-x, 0.4));
   bottom: -14cqh;
-  width: 130cqw;
+  width: var(--holder-width);
   aspect-ratio: 2 / 3;
   transform-origin: 45% 65%;
   filter: drop-shadow(12px 8px 16px #050309b3);

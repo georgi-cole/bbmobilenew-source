@@ -458,8 +458,8 @@ export function animateReplacementFilm(root, animate, outcome, duration) {
       } else {
         if (count <= 3)
           cameraStops.push(
-            [at(beat.shotStart + 500), 1, 'translateX(15%) scale(.84)', ease],
-            [at(beat.shotEnd - 300), 1, 'translateX(15%) scale(.84)']
+            [at(beat.shotStart + 500), 1, 'translate(15%, -7%) scale(.84)', ease],
+            [at(beat.shotEnd - 300), 1, 'translate(15%, -7%) scale(.84)']
           )
         animate(shot, [
           [0, 0],

@@ -415,7 +415,8 @@
       let paused = false
       window.previewScenario = async (
         scenarioId = select.value,
-        incomingCharacter = query.get('character')
+        incomingCharacter = query.get('character'),
+        holderCharacter = null
       ) => {
         clip?.stop()
         paused = false
@@ -426,6 +427,10 @@
         if (incomingCharacter && data.scene === 'replacement') {
           const slotId = data.details.replacementOutcome.replacementIds[0]
           data.cast[slotId] = { ...actor(incomingCharacter), playerId: slotId }
+        }
+        if (holderCharacter && data.scene === 'replacement') {
+          const holderId = data.details.replacementOutcome.powerHolderId
+          if (holderId) data.cast[holderId] = { ...actor(holderCharacter), playerId: holderId }
         }
         clip = createClip()
         const prepared = await clip.prepare(data.scene, data.cast, 'generic', data.details ?? {})

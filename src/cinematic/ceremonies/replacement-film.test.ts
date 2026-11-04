@@ -9,7 +9,14 @@ import { replacementBeats, replacementDuration } from './replacement-timing.js'
 import { coLeaderOutcome } from './co-leader-film.js'
 import { royalPowerResources, makeRoyalPowerFilm } from './royal-power.js'
 
-const pose = { src: 'actor.webp', width: 420, height: 630, bytes: 1000, feetY: 0.94762 }
+const pose = {
+  src: 'actor.webp',
+  width: 420,
+  height: 630,
+  bytes: 1000,
+  feetY: 0.94762,
+  crown: { x: 0.31, baseY: 0.08, width: 0.14, angle: 0 },
+}
 const cast = Object.fromEntries(
   ['a', 'b', 'c', 'd', 'loh', 'pos', 'co', 'mission'].map((id) => [
     id,
@@ -235,6 +242,11 @@ describe('replacement film family', () => {
     const root = makeReplacementFilm(images(), cast, base)
     const shot = root.querySelector('.is-over-shoulder')!
     expect(shot.querySelector('.replacement-holder-back')).toBeTruthy()
+    expect(
+      (shot.querySelector('.replacement-holder-foreground') as HTMLElement).style.getPropertyValue(
+        '--holder-head-x'
+      )
+    ).toBe('0.31')
     expect(shot.querySelector('.replacement-decision-backdrop')).toBeNull()
   })
   it('holds one continuous Vox stage and labels a real fifth-place or tied ballot rank', () => {

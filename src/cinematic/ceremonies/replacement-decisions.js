@@ -45,6 +45,7 @@ export function appendDecisionShots(root, images, cast, outcome) {
       } else if (!selfSave) {
         const figure = document.createElement('div')
         figure.className = 'replacement-holder-foreground'
+        figure.style.setProperty('--holder-head-x', actor.poses['decision-back']?.crown?.x ?? 0.4)
         figure.append(
           copyArt(images, `replacement-holder-${beat.actorId}`, 'replacement-holder-back')
         )

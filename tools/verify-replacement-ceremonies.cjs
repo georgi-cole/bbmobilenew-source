@@ -29,47 +29,96 @@ const scenarios = [
 // Read the projected artwork anchors after real WAAPI composition. This catches
 // object-fit, camera and viewport errors that a selector-only unit test cannot.
 async function inspect(page, at) {
-  return page.evaluate(async (at) => {
-    const clip = window.replacementClip
-    clip.seek(at)
-    await new Promise(requestAnimationFrame)
-    const root = clip.root
-    const bodies = [...root.querySelectorAll('.replacement-person, .nom-pod')]
-    const people = bodies.flatMap((person) => {
-      const image = person.querySelector('.replacement-body, .nom-person')
-      let visible = 1
-      for (let node = image; node && node !== root.parentElement; node = node.parentElement)
-        visible *= Number(getComputedStyle(node).opacity)
-      if (visible < 0.99) return []
-      const platform =
-        person.closest('.replacement-slot')?.querySelector('.replacement-platform') ??
-        person.querySelector('.nom-platform')
-      const bodyRect = image.getBoundingClientRect()
-      const platformRect = platform.getBoundingClientRect()
-      const feetY = parseFloat(image.style.getPropertyValue('--feet-y')) / 100
-      const footY = bodyRect.top + bodyRect.height * feetY
-      const supportY = platformRect.top + platformRect.height * (64 / 220)
-      return [
-        {
-          id: person.dataset.actorId,
-          footError: Math.abs(footY - supportY),
-          center: bodyRect.x + bodyRect.width / 2,
-          width: bodyRect.width,
-          footY,
-        },
-      ]
-    })
-    const rectangle = root.getBoundingClientRect()
-    const caption = root.querySelector('.replacement-caption, .c-caption').getBoundingClientRect()
-    return {
-      people,
-      stageCenter: rectangle.x + rectangle.width / 2,
-      captionTop: caption.top,
-      solo: root.classList.contains('nom-solo'),
-      podCount: root.querySelectorAll('.nom-pod').length,
-      tinyChooser: root.querySelectorAll('.replacement-authority-figure').length,
+  return page.evaluate(
+    async ({ at, anchors, rearAnchors }) => {
+      const clip = window.replacementClip
+      clip.seek(at)
+      await new Promise(requestAnimationFrame)
+      const root = clip.root
+      const bodies = [...root.querySelectorAll('.replacement-person, .nom-pod')]
+      const people = bodies.flatMap((person) => {
+        const image = person.querySelector('.replacement-body, .nom-person')
+        let visible = 1
+        for (let node = image; node && node !== root.parentElement; node = node.parentElement)
+          visible *= Number(getComputedStyle(node).opacity)
+        if (visible < 0.99) return []
+        const platform =
+          person.closest('.replacement-slot')?.querySelector('.replacement-platform') ??
+          person.querySelector('.nom-platform')
+        const bodyRect = image.getBoundingClientRect()
+        const platformRect = platform.getBoundingClientRect()
+        const feetY = parseFloat(image.style.getPropertyValue('--feet-y')) / 100
+        const footY = bodyRect.top + bodyRect.height * feetY
+        const supportY = platformRect.top + platformRect.height * (64 / 220)
+        return [
+          {
+            id: person.dataset.actorId,
+            footError: Math.abs(footY - supportY),
+            center: bodyRect.x + bodyRect.width / 2,
+            width: bodyRect.width,
+            footY,
+          },
+        ]
+      })
+      const rectangle = root.getBoundingClientRect()
+      const caption = root.querySelector('.replacement-caption, .c-caption').getBoundingClientRect()
+      const foregroundOverlaps = []
+      const holderHeads = []
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 1
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      for (const foreground of root.querySelectorAll('.replacement-holder-back')) {
+        const shot = foreground.closest('.replacement-decision-shot')
+        if (Number(getComputedStyle(shot).opacity) < 0.9) continue
+        const rect = foreground.getBoundingClientRect()
+        const holderAnchor = rearAnchors[foreground.dataset.character] ?? { x: 0.4, baseY: 0.08 }
+        holderHeads.push({
+          x: rect.x + rect.width * (holderAnchor.x + 0.06),
+          y: rect.y + rect.height * (holderAnchor.baseY + 0.06),
+        })
+        for (const person of bodies) {
+          if (Number(getComputedStyle(person).opacity) < 0.99) continue
+          const image = person.querySelector('.replacement-body, .nom-person')
+          const box = image.getBoundingClientRect()
+          const head = anchors[image.dataset.character] ?? { x: 0.5, baseY: 0.08 }
+          const x = box.x + box.width * head.x
+          const y = box.y + box.height * (head.baseY + 0.06)
+          if (x < rect.x || x >= rect.right || y < rect.y || y >= rect.bottom) continue
+          ctx.clearRect(0, 0, 1, 1)
+          ctx.drawImage(
+            foreground,
+            ((x - rect.x) / rect.width) * foreground.naturalWidth,
+            ((y - rect.y) / rect.height) * foreground.naturalHeight,
+            1,
+            1,
+            0,
+            0,
+            1,
+            1
+          )
+          if (ctx.getImageData(0, 0, 1, 1).data[3] > 32)
+            foregroundOverlaps.push(person.dataset.actorId)
+        }
+      }
+      return {
+        people,
+        foregroundOverlaps,
+        holderHeads,
+        stageCenter: rectangle.x + rectangle.width / 2,
+        captionTop: caption.top,
+        solo: root.classList.contains('nom-solo'),
+        podCount: root.querySelectorAll('.nom-pod').length,
+        tinyChooser: root.querySelectorAll('.replacement-authority-figure').length,
+      }
+    },
+    {
+      at,
+      anchors: Object.fromEntries(catalog.characters.map((c) => [c.id, c.poses.front.crown])),
+      rearAnchors: Object.fromEntries(
+        catalog.characters.map((c) => [c.id, c.poses['decision-back'].crown])
+      ),
     }
-  }, at)
+  )
 }
 
 async function main() {
@@ -113,6 +162,25 @@ async function main() {
           assert.ok(Math.abs(result.people[0].center - result.stageCenter) < 1)
         }
         results.push({ scenario, viewport, ...result })
+        if (['ordinary', 'voxMultiple', 'cupid'].includes(scenario)) {
+          const choice = await inspect(page, 2200)
+          assert.deepEqual(
+            choice.foregroundOverlaps,
+            [],
+            `${scenario}: foreground hides a face at ${viewport.width}px`
+          )
+          assert.ok(choice.holderHeads.length > 0)
+          assert.ok(
+            choice.holderHeads.every(
+              (head) =>
+                head.x > 5 &&
+                head.x < viewport.width - 5 &&
+                head.y > 20 &&
+                head.y < viewport.height * 0.75
+            ),
+            `${scenario}: holder's head outside frame`
+          )
+        }
       }
     }
     await page.setViewportSize({ width: 390, height: 844 })
@@ -128,6 +196,24 @@ async function main() {
         `${actor.id}: foot anchor mismatch`
       )
       results.push({ character: actor.id, ...result })
+      for (const scenario of ['ordinary', 'voxMultiple', 'cupid']) {
+        await page.evaluate(
+          async ({ scenario, holder }) => window.previewScenario(scenario, null, holder),
+          { scenario, holder: actor.id }
+        )
+        const choice = await inspect(page, 2200)
+        assert.deepEqual(
+          choice.foregroundOverlaps,
+          [],
+          `${actor.id} in ${scenario}: foreground hides a face`
+        )
+        assert.ok(
+          choice.holderHeads.every(
+            (head) => head.x > 5 && head.x < 385 && head.y > 20 && head.y < 633
+          ),
+          `${actor.id}: holder's head outside frame`
+        )
+      }
     }
     for (const scenario of ['detox', 'doubleTroubleTwo', 'ordinary', 'voxMultiple', 'voxFive']) {
       await page.evaluate((scenario) => window.previewScenario(scenario), scenario)
@@ -203,6 +289,7 @@ async function main() {
       performance: performanceReport,
       viewportCases: results.filter((result) => result.viewport).length,
       characterPacks: catalog.characters.length,
+      holderPoseCases: catalog.characters.length * 3,
       results,
       errors,
     }

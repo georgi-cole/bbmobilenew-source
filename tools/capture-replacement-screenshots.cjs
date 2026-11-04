@@ -5,6 +5,8 @@ const { chromium } = require('@playwright/test')
 const captures = [
   { scenario: 'ordinary', filename: 'ordinary-decision.png', at: 0.3 },
   { scenario: 'ordinary', filename: 'safety-rear.png', at: 0.15 },
+  { scenario: 'voxMultiple', filename: 'vox-rear.png', at: 0.2 },
+  { scenario: 'cupid', filename: 'cupid-rear.png', at: 0.18 },
   { scenario: 'allPower', filename: 'all-power.png', at: 0.65 },
   { scenario: 'cupidPower', filename: 'cupid-power.png', at: 0.65 },
   { scenario: 'dualPower', filename: 'dual-power.png', at: 0.1 },

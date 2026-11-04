@@ -104,6 +104,11 @@ Double Trouble walkthrough through the real Confessional.
 `tools/verify-replacement-ceremonies.cjs <review-directory>` checks projected
 sole/platform error within 1 CSS px, five viewport shapes, every character pack,
 intermediate occupants, completion cleanup, preparation cost and frame gaps.
+Image-alpha checks also confirm that foreground holders do not cover the
+nominees' faces, across ordinary, three-person Vox and paired Cupid shots for
+every character pack.
+Foreground framing uses each pack's head anchor and a height cap so holders
+remain recognizable on wider or shorter screens too.
 These are desktop Chromium measurements, not a zero-cost guarantee or a
 physical-phone performance certification.
 
