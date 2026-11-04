@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import styles from '../FinalThreeCompetitionBroadcast.css?raw'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+// Keep source-file inspection with the Node-backed layout tests. Vitest's
+// default CSS stub also stubs ?raw, so inspect the actual shipped rules.
+const styles = readFileSync(
+  resolve(
+    process.cwd(),
+    'src/components/FinalThreeCompetitionBroadcast/FinalThreeCompetitionBroadcast.css'
+  ),
+  'utf8'
+)
 
 function cssRules() {
   return [...styles.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(([, selector, declarations]) => ({

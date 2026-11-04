@@ -4,6 +4,7 @@ import {
   animateReplacementFilm,
 } from './replacement-film.js'
 import { createCeremonyAudio, ceremonyCuePlan } from './ceremony-audio'
+import { removeNominationOrdinalLabels } from './nomination-labels'
 import replacementStyles from './replacement-film.css?raw'
 import { royalPowerResources, makeRoyalPowerFilm, animateRoyalPowerFilm } from './royal-power.js'
 import { coLeaderOutcome } from './co-leader-film.js'
@@ -904,6 +905,7 @@ export function createClip() {
         intro.querySelector('.replacement-decision-label em').textContent = 'THE DECIDING VOTE'
         root.append(intro)
       }
+      if (id === 'nominations') removeNominationOrdinalLabels(root)
       stage.append(root)
       shadow.append(style, stage)
       const duration =

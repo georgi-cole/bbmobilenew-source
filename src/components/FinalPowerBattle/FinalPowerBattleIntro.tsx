@@ -1,5 +1,6 @@
 import type { Player } from '../../types'
 import FinalThreeStage from '../FinalThreeStage/FinalThreeStage'
+import FinalThreePodium from '../FinalThreeStage/FinalThreePodium'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import './FinalPowerBattle.css'
 
@@ -41,7 +42,7 @@ export default function FinalPowerBattleIntro({ finalists, mode }: Props) {
             role="listitem"
           >
             <span className="fpb-intro__panel-light" aria-hidden="true" />
-            <span className="fpb-intro__podium" aria-hidden="true" />
+            <FinalThreePodium className="fpb-intro__podium" />
             <FullSizeCutoutImage
               player={player}
               attire="informal"

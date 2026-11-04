@@ -67,7 +67,12 @@ export function replacementDecision(
 
 export function nextReplacementStep(progress: ReplacementPresentation, consumed: number) {
   if (consumed >= progress.actionHistory.length) return null
-  const actions = progress.actionHistory.slice(consumed)
+  // Keep declined uses in the receipt ledger, but leave their presentation to
+  // the existing faux-TV message. The dormant decline film remains reusable.
+  const actions = progress.actionHistory
+    .slice(consumed)
+    .filter((action) => action.kind !== 'decline')
+  if (!actions.length) return null
   const opening = [...progress.openingNomineeIds]
   const openingSlots = Object.fromEntries(opening.map((id, index) => [id, index]))
   const apply = (ids: string[], action: ReplacementPresentation['actionHistory'][number]) => {

@@ -1,6 +1,7 @@
 import type { Player } from '../../types'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import FinalThreeStage from '../FinalThreeStage/FinalThreeStage'
+import FinalThreePodium from '../FinalThreeStage/FinalThreePodium'
 import './FinalPowerBattle.css'
 
 interface Props {
@@ -37,7 +38,7 @@ export default function FinalPowerHolderReveal({
         </div>
       </FinalThreeStage>
       <div className="fp-holder-reveal__portrait" aria-hidden="true">
-        <span className="fp-holder-reveal__podium" />
+        <FinalThreePodium className="fp-holder-reveal__podium" />
         <span className="fp-holder-reveal__spotlight" />
         <FullSizeCutoutImage player={player} attire="informal" alt="" />
       </div>

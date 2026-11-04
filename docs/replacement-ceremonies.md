@@ -49,6 +49,13 @@ and is not included in the film duration.
 
 ## Human input and safe continuation
 
+Declined Safety uses remain on the standard faux-TV message. Live receipt batches
+skip decline-only beats, including a declined second Double Trouble use; the older
+replacement badge path must not replay the preceding replacement at that point.
+The underlying decline choreography remains dormant in the renderer for possible
+future use. Binary use/decline prompts open the canonical Confessional directly,
+without preparing a decision film before the outcome is known.
+
 The ceremony presents the actual human authority, then opens the existing
 required Confessional route. All choices use the canonical decision controls
 and reducers. Confirming a real target returns automatically to its consequence

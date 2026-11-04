@@ -7,6 +7,7 @@ import gameReducer, {
   hydrateGame,
   setReplacementNominee,
   submitPovSaveTarget,
+  submitPovDecision,
   submitVipSecondSaveTarget,
   submitVipSecondUseDecision,
 } from '../../../store/gameSlice'
@@ -53,6 +54,34 @@ function fixture(withMissionMiddleware = false) {
   return { store, a, b, c, d, human }
 }
 describe('human decisions within the live replacement sequence', () => {
+  it('enters the real binary decision without a film and leaves a declined use on faux TV', () => {
+    const { store } = fixture()
+    store.dispatch(
+      hydrateGame({
+        ...store.getState().game,
+        awaitingPovDecision: true,
+        awaitingPovSaveTarget: false,
+        specialVeto: { ...store.getState().game.specialVeto!, activeType: null },
+      })
+    )
+    const { result } = renderHook(
+      () =>
+        useReplacementSequence(
+          useAppSelector((s) => s.game),
+          true
+        ),
+      { wrapper: ({ children }) => <Provider store={store}>{children}</Provider> }
+    )
+    expect(result.current.held?.skipAuthority).toBe(true)
+    expect(result.current.held?.decision?.kind).toBe('use')
+    act(() => store.dispatch(submitPovDecision(false)))
+    expect(result.current.active).toBe(false)
+    expect(result.current.playing).toBeNull()
+    expect(result.current.held).toBeNull()
+    expect(
+      store.getState().game.tvFeed.some((event) => /not to use|not use/i.test(event.text))
+    ).toBe(true)
+  })
   it('queues a later committed action without restarting the currently playing receipt', () => {
     const { store, b, c } = fixture()
     const { result } = renderHook(
@@ -210,7 +239,7 @@ describe('human decisions within the live replacement sequence', () => {
     expect(result.current.playing).toBeNull()
     expect(result.current.held?.decision?.kind).toBe('secondUse')
   })
-  it('shows a declined second use without saving or nominating anyone else', () => {
+  it('leaves a declined second use on faux TV without saving or nominating anyone else', () => {
     const { store, b, c } = fixture()
     const { result } = renderHook(
       () =>
@@ -232,9 +261,7 @@ describe('human decisions within the live replacement sequence', () => {
     act(() => {
       store.dispatch(submitVipSecondUseDecision(false))
     })
-    expect(result.current.playing?.actionHistory).toEqual([
-      expect.objectContaining({ kind: 'decline' }),
-    ])
+    expect(result.current.playing).toBeNull()
     expect(store.getState().game.nomineeIds).toEqual(before)
     act(() => result.current.onDone())
     expect(result.current.active).toBe(false)

@@ -113,7 +113,12 @@ export function useReplacementSequence(game: GameState, enabled: boolean) {
           decision,
           decisionOnly: true,
           durationMs: 2700,
-          skipAuthority: seenAuthority === authorityIds(progress, decision.actorId).join('|'),
+          // A binary choice can end in no use: enter the real Confessional
+          // directly rather than play a film before that outcome is known.
+          skipAuthority:
+            decision.kind === 'use' ||
+            decision.kind === 'secondUse' ||
+            seenAuthority === authorityIds(progress, decision.actorId).join('|'),
         }
       : null
   return {
@@ -130,7 +135,8 @@ export function useReplacementSequence(game: GameState, enabled: boolean) {
     interceptDecision: Boolean(available && decision),
     decisionReceiptCount: tracked?.actionHistory.length ?? 0,
     onDecisionPresented: () => {
-      if (decision && progress) setSeenAuthority(authorityIds(progress, decision.actorId).join('|'))
+      if (decision && progress && decision.kind !== 'use' && decision.kind !== 'secondUse')
+        setSeenAuthority(authorityIds(progress, decision.actorId).join('|'))
     },
     onDone,
     onError,

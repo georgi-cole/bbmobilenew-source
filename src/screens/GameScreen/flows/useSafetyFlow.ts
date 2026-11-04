@@ -527,6 +527,9 @@ export function useSafetyFlow({
   // AI replacements and Confessional human-LOH replacements are already committed
   // before GameScreen can animate them. Use one persisted key for both paths.
   const aiReplacementKey = (() => {
+    // A second-use decline can change the receipt key after a replacement was
+    // already shown. Do not replay its badge/film over the stand-pat TV message.
+    if (replacementOutcome?.actionHistory.at(-1)?.kind === 'decline') return ''
     if (replacementOutcome) return replacementOutcome.eventKey
     if (game.specialVeto?.activeType === 'vip' && game.specialVeto.vipUseStage !== -1) return ''
     if (game.specialVeto?.awaitingCoupReplacement1 || game.specialVeto?.awaitingCoupReplacement2)
