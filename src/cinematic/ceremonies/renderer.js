@@ -3,6 +3,7 @@ import {
   makeReplacementFilm,
   animateReplacementFilm,
 } from './replacement-film.js'
+import { createCeremonyAudio, ceremonyCuePlan } from './ceremony-audio'
 import replacementStyles from './replacement-film.css?raw'
 import { royalPowerResources, makeRoyalPowerFilm, animateRoyalPowerFilm } from './royal-power.js'
 import { coLeaderOutcome } from './co-leader-film.js'
@@ -658,6 +659,7 @@ function loadImage(resource, signal) {
 }
 
 export function createClip() {
+  const audio = createCeremonyAudio()
   let animations = [],
     timers = new Set(),
     transitionNodes = [],
@@ -688,6 +690,7 @@ export function createClip() {
   }
   const pause = () => {
     if (dead) return
+    audio.pause()
     const wasPaused = paused
     paused = true
     for (const entry of wasPaused ? [] : timers) {
@@ -703,12 +706,14 @@ export function createClip() {
   }
   const resume = () => {
     if (dead || !paused) return
+    audio.resume()
     paused = false
     for (const entry of timers) schedule(entry)
     for (const animation of pausedAnimations) if (animations.includes(animation)) animation.play()
     pausedAnimations.clear()
   }
   const dropFilm = () => {
+    audio.stop()
     for (const animation of animations) {
       animation.cancel()
       // Break native KeyframeEffect → element references as well as JS refs.
@@ -928,10 +933,20 @@ export function createClip() {
         )
       }
 
+      const visualCues = []
       const a = (selector, stops) => {
         const targets =
           typeof selector === 'string' ? [...root.querySelectorAll(selector)] : [selector]
         if (!targets.length) throw new Error('Missing film layer ' + selector)
+        if (
+          id === 'nominations' &&
+          !coOutcome &&
+          stops[0][1] === 0 &&
+          targets.some((node) => node.matches('.nom-person, .nom-first, .nom-second, .nom-third'))
+        ) {
+          const reveal = stops.findIndex((stop) => stop[1] > 0)
+          if (reveal > 0) visualCues.push({ at: stops[reveal - 1][0], cue: 'reveal' })
+        }
         for (const node of targets) {
           const fittedRotation = node.dataset.fittedCrown ? node.style.transform : ''
           const animation = node.animate(
@@ -1034,8 +1049,24 @@ export function createClip() {
         (id === 'replacement' || coOutcome || root.classList.contains('nom-calibrated')
           ? duration - 220
           : duration)
+      const cuePlan = [
+        ...visualCues,
+        ...ceremonyCuePlan(
+          sceneId,
+          duration,
+          coOutcome ?? details.replacementOutcome,
+          decisionTiming,
+          leadIn
+        ),
+      ]
+      for (const event of cuePlan.filter(
+        (event, index) =>
+          cuePlan.findIndex((other) => other.at === event.at && other.cue === event.cue) === index
+      ))
+        if (event.at < endAt) later(() => audio.play(event.cue), event.at)
       later(() => {
         if (dead) return
+        audio.stop()
         if (options.retainLastFrame) {
           animations.forEach((animation) => {
             animation.pause()
@@ -1098,6 +1129,7 @@ export function createClip() {
       )
     },
     seek(ms) {
+      audio.stop()
       for (const timer of timers) clearTimeout(timer.handle)
       timers.clear()
       animations.forEach((a) => {

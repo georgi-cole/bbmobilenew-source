@@ -304,3 +304,7 @@ store listings or change configured prices.
 - 2026-11-04: Reviewed removal of costly live shadow filters from moving VIP
   ceremony layers. Existing artwork lighting and contact shadows remain; this
   rendering maintenance changes no offers, prices, entitlements, or rewards.
+
+- 2026-11-04: Reviewed replaceable synthetic accent cues synchronised with VIP
+  ceremonies. Existing SFX settings apply; phase music, Standard/Survival paths,
+  entitlement gates, offers, prices, rewards and Store copy remain unchanged.

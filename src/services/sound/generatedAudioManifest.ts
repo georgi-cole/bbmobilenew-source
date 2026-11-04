@@ -559,6 +559,62 @@ export const GENERATED_AUDIO_ASSETS = [
     "loop": false
   },
   {
+    "key": "tv:ceremony_door",
+    "category": "tv",
+    "relativePath": "sounds/ceremonies/door.wav",
+    "preload": false,
+    "volume": 0.22,
+    "loop": false
+  },
+  {
+    "key": "tv:ceremony_impact",
+    "category": "tv",
+    "relativePath": "sounds/ceremonies/impact.wav",
+    "preload": false,
+    "volume": 0.28,
+    "loop": false
+  },
+  {
+    "key": "tv:ceremony_reveal",
+    "category": "tv",
+    "relativePath": "sounds/ceremonies/reveal.wav",
+    "preload": false,
+    "volume": 0.28,
+    "loop": false
+  },
+  {
+    "key": "tv:ceremony_save",
+    "category": "tv",
+    "relativePath": "sounds/ceremonies/save.wav",
+    "preload": false,
+    "volume": 0.24,
+    "loop": false
+  },
+  {
+    "key": "tv:ceremony_shield",
+    "category": "tv",
+    "relativePath": "sounds/ceremonies/shield.wav",
+    "preload": false,
+    "volume": 0.25,
+    "loop": false
+  },
+  {
+    "key": "tv:ceremony_suspense",
+    "category": "tv",
+    "relativePath": "sounds/ceremonies/suspense.wav",
+    "preload": false,
+    "volume": 0.18,
+    "loop": false
+  },
+  {
+    "key": "tv:ceremony_transition",
+    "category": "tv",
+    "relativePath": "sounds/ceremonies/transition.wav",
+    "preload": false,
+    "volume": 0.22,
+    "loop": false
+  },
+  {
     "key": "tv:event",
     "category": "tv",
     "relativePath": "sounds/tv/tv_winner_reveal.mp3",
