@@ -18,7 +18,7 @@
  * Dev log tag: [Final3Ceremony]
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -46,6 +46,8 @@ import {
 import { buildFinalThreePleaExchanges } from './finalThreePleaScript'
 import './Final3Ceremony.css'
 import FinalThreeStage from '../FinalThreeStage/FinalThreeStage'
+import FinalThreePodium from '../FinalThreeStage/FinalThreePodium'
+import FinaleContinueButton from '../FinalThreeStage/FinaleContinueButton'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -257,33 +259,37 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
     if (stage === 'pleas') setPleaLines(pleaDialogueLines)
   }, [pleaDialogueLines, stage])
 
-  useEffect(() => {
-    const playAvailable = stage === 'coronation' || stage === 'final_two_reveal'
+  useLayoutEffect(() => {
+    const playAvailable = stage === 'coronation'
     onPlayAvailabilityChange?.(playAvailable)
     return () => onPlayAvailabilityChange?.(false)
   }, [onPlayAvailabilityChange, stage])
 
+  const continueCeremony = useCallback(() => {
+    if (stage !== 'coronation' && stage !== 'final_two_reveal') return
+    if (handledPlayStageRef.current === stage) return
+    handledPlayStageRef.current = stage
+    if (stage === 'coronation') {
+      setStage(pleaDialogueLines.length > 0 ? 'pleas' : 'decision')
+      return
+    }
+    if (stage === 'final_two_reveal' && lohId && evicteeId) {
+      dispatch(finalizeFinal3Decision({ hohWinnerId: lohId, evicteeId }))
+      dispatch(advance())
+      setStage('done')
+    }
+  }, [dispatch, evicteeId, lohId, pleaDialogueLines.length, stage])
+
   useEffect(() => {
     const handlePlay = (event: Event) => {
-      if (stage === 'pleas' || stage === 'announcement') return
       if (stage !== 'coronation' && stage !== 'final_two_reveal') return
-      if (handledPlayStageRef.current === stage) return
       event.preventDefault()
       event.stopImmediatePropagation()
-      handledPlayStageRef.current = stage
-      if (stage === 'coronation') {
-        setStage(pleaDialogueLines.length > 0 ? 'pleas' : 'decision')
-        return
-      }
-      if (stage === 'final_two_reveal' && lohId && evicteeId) {
-        dispatch(finalizeFinal3Decision({ hohWinnerId: lohId, evicteeId }))
-        dispatch(advance())
-        setStage('done')
-      }
+      continueCeremony()
     }
     window.addEventListener('ui:playPressed', handlePlay)
     return () => window.removeEventListener('ui:playPressed', handlePlay)
-  }, [dispatch, evicteeId, lohId, pleaDialogueLines.length, stage])
+  }, [continueCeremony, stage])
 
   // ── Build eviction announcement lines ────────────────────────────────────
 
@@ -542,11 +548,12 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
           <div className="f3c-final-two__players">
             {finalTwo.map((player) => (
               <div key={player.id} className="f3c-final-two__player">
-                <span className="f3c-final-two__podium" aria-hidden="true" />
+                <FinalThreePodium className="f3c-final-two__podium" />
                 <div className="f3c-final-two__figure">
                   <FullSizeCutoutImage
                     player={player}
                     attire="informal"
+                    grounded
                     className="f3c-final-two__cutout"
                     alt={player.name}
                     draggable={false}
@@ -556,6 +563,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
               </div>
             ))}
           </div>
+          <FinaleContinueButton onContinue={continueCeremony} />
         </div>
       )}
     </>

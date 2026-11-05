@@ -10,7 +10,7 @@
 .f3c-final-two {
   position: fixed;
   inset: 0;
-  z-index: 900;
+  z-index: 7050;
   overflow: hidden;
   color: #f9f2df;
   text-align: center;
@@ -270,7 +270,8 @@
   position: absolute;
   top: 49%;
   right: auto;
-  bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 40px);
+  /* Include the generated podium's below-floor depth as its width grows. */
+  bottom: calc(104px + min(8.5vw, 6.3dvh) + env(safe-area-inset-bottom, 0px));
   left: 50%;
   z-index: 2;
   display: flex;
@@ -287,6 +288,7 @@
   position: relative;
   isolation: isolate;
   display: block;
+  container-type: size;
   flex: 1 1 0;
   width: 48%;
   min-width: 0;
@@ -302,6 +304,7 @@
   height: auto;
   min-height: 0;
   overflow: visible;
+  container-type: size;
 }
 
 .f3c-final-two__cutout {
@@ -317,33 +320,27 @@
 .f3c-final-two__podium {
   position: absolute;
   z-index: 1;
-  right: 9%;
-  bottom: 6px;
+  bottom: 18px;
   left: 9%;
-  height: clamp(17px, 3.4vh, 29px);
-  border: 1px solid #d8b37587;
-  border-top-color: #f0d5a1b0;
-  border-bottom-color: #3e2c1a;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 15%, #7770893d, #1b1520 55%, #090a10);
-  box-shadow:
-    0 3px 0 #443526,
-    0 5px 0 #171219,
-    0 6px 9px #000b,
-    0 -3px 15px #d1ae6229,
-    inset 0 1px 0 #ffe6be80;
+  width: 82%;
+  height: auto;
+  aspect-ratio: 8 / 3;
+  object-fit: contain;
+  transform: translateY(58%);
 }
 
 .f3c-final-two__name {
   position: absolute;
   z-index: 3;
   right: -4%;
-  bottom: -6px;
+  /* Platform width × height ratio × its below-floor fraction, then 8px gap. */
+  top: calc(100% - 10px + 17.835cqw);
+  bottom: auto;
   left: -4%;
   display: block;
   padding-inline: 3px;
   color: #fff6e7;
-  font-size: clamp(10px, 2.8cqw, 15px);
+  font-size: clamp(11px, 2.8vw, 15px);
   font-weight: 600;
   line-height: 1.15;
   overflow-wrap: anywhere;
@@ -356,7 +353,7 @@
   .f3c-final-two__players {
     top: 49%;
     right: auto;
-    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 40px);
+    bottom: calc(104px + min(8.5vw, 6.3dvh) + env(safe-area-inset-bottom, 0px));
     left: 50%;
     width: min(94%, calc(100dvh * 0.7));
     gap: 1%;
@@ -366,7 +363,7 @@
 @media (max-height: 720px) and (orientation: portrait) {
   .f3c-final-two__players {
     top: 48%;
-    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 32px);
+    bottom: calc(104px + min(8.5vw, 6.3dvh) + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -377,7 +374,7 @@
   .f3c-final-two__players {
     top: 49%;
     right: auto;
-    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 26px);
+    bottom: calc(104px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     width: min(94%, calc(100dvh * 0.7));
   }
@@ -392,7 +389,7 @@
 @media (orientation: landscape) and (max-height: 620px) {
   .f3c-final-two__players {
     top: 17%;
-    bottom: calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 13px);
+    bottom: calc(104px + env(safe-area-inset-bottom, 0px));
     left: 73%;
     width: 46%;
     height: auto;

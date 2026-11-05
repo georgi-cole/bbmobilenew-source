@@ -498,7 +498,7 @@
   background: radial-gradient(ellipse, #f2dfb693, #c9a56335 18%, #9c6bb623 38%, transparent 62%);
 }
 
-/* Keep a real single-nominee outcome grounded without inventing a second player. */
+/* Every nomination layout shares the same measured sole-to-ledge contact. */
 .nom-solo .nom-first {
   left: 28%;
   width: 44%;
@@ -510,24 +510,33 @@
   top: 0;
   height: 100%;
 }
-.nom-calibrated .nom-person {
+.c-nominations.nom-calibrated .nom-person {
   bottom: 39.9cqh;
-  width: 100%;
+  width: var(--nom-body-width, 100%);
   height: auto;
   aspect-ratio: 2 / 3;
   transform: translateY(calc(100% - var(--feet-y)));
   opacity: 0;
 }
-.nom-calibrated .nom-platform {
+.c-nominations.nom-calibrated .nom-platform {
   top: calc(60.1cqh - var(--platform-surface-offset));
   bottom: auto;
   left: 0;
   width: 100%;
   height: auto;
 }
+.nom-calibrated.paired-film {
+  --nom-body-width: 72%;
+}
 .nom-calibrated .nom-label {
-  top: 70%;
+  top: 67%;
   bottom: auto;
+  color: #eee2d0;
+  font:
+    500 clamp(10px, 3cqw, 14px) / 1.2 Georgia,
+    serif;
+  text-transform: none;
+  letter-spacing: 0;
 }
 .nom-contact {
   position: absolute;
@@ -546,4 +555,39 @@
     500 14px / 1.2 Georgia,
     serif;
   letter-spacing: 0;
+}
+
+/* The initial save beat contacts its ledge before the scripted lift removes it. */
+.save-fitted {
+  --save-body-width: 76cqw;
+  --save-platform-width: 62cqw;
+  container-type: size;
+}
+.save-fitted.paired-film {
+  --save-body-width: 49cqw;
+  --save-platform-width: 88cqw;
+}
+.c-save.save-fitted .c-hero.save-person {
+  left: 50%;
+  bottom: 28.5cqh;
+  width: min(var(--save-body-width), 38.6667cqh);
+  height: auto;
+  aspect-ratio: 2 / 3;
+  translate: -50% calc(100% - var(--feet-y));
+  z-index: 4;
+}
+.c-save.save-fitted .save-person.pair-first {
+  left: 27.5%;
+}
+.c-save.save-fitted .save-person.pair-second {
+  left: 72.5%;
+}
+.c-save.save-fitted .save-platform {
+  top: calc(71.5cqh - var(--save-platform-width) * 64 / 400);
+  bottom: auto;
+  left: 50%;
+  width: var(--save-platform-width);
+  height: auto;
+  translate: -50% 0;
+  z-index: 3;
 }

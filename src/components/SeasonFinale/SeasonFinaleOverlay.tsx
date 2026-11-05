@@ -146,8 +146,6 @@ export default function SeasonFinaleOverlay() {
   const presentationActive = isOwner && foreground
   const reducedMotion = usePresentationReducedMotion()
   const [championRevealed, setChampionRevealed] = useState(reducedMotion)
-  const runnerUp =
-    game.players.find((player) => player.finalRank === 2 && player.id !== winner?.id) ?? null
   const { play: playPresentationSound } = usePresentationSound(
     presentationActive,
     finale?.phase ?? 'inactive'
@@ -241,11 +239,11 @@ export default function SeasonFinaleOverlay() {
       {finale.phase === 'winnerCinematic' && (
         <ChampionFinaleStage
           winner={winner}
-          runnerUp={runnerUp}
           season={game.season}
           decidedBy={game.voxPopuli?.winnerId === winner.id ? 'audience' : 'tribunal'}
           revealed={championRevealed}
           active={presentationActive}
+          animate={!reducedMotion && settings.gameUX.animations && !settings.display.reduceMotion}
           onContinue={() => dispatch(startWinnerInterview())}
         />
       )}

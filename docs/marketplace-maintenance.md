@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-05: Reviewed nomination and finale foot anchoring, a shared Continue
+  control for result and Final Two gates, the single-winner public celebration
+  backdrop and finite fireworks, and the shared Eye ident on all VIP departures.
+  These repair existing presentation coverage. Standard results remain manual,
+  reduced-motion/Off preferences remain authoritative, and VIP eligibility,
+  game rules, rewards, products, benefits, pricing and Store copy are unchanged.
+
 - 2026-11-04: Reviewed Final Three presentation acknowledgements, visible finalist
   staging, reuse of existing marble podium artwork, nomination ordinal cleanup,
   and native-only messages for declined Safety uses. These are presentation and

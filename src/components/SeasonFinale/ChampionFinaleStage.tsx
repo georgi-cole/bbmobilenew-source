@@ -1,26 +1,29 @@
 import type { Player } from '../../types'
-import FinalThreeStage from '../FinalThreeStage/FinalThreeStage'
+import { joinPublicAssetPath } from '../../utils/avatar'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
+import FinaleContinueButton from '../FinalThreeStage/FinaleContinueButton'
+import { FINAL_THREE_SET_ASSETS } from '../FinalThreeStage/finalThreeSetAssets'
+import ChampionFireworks from './ChampionFireworks'
 import './ChampionFinaleStage.css'
 
 interface Props {
   winner: Player
-  runnerUp: Player | null
   season: number
   decidedBy: 'tribunal' | 'audience'
   revealed: boolean
   active: boolean
+  animate?: boolean
   onContinue: () => void
 }
 
-/** One coronation for Classic and Vox, independent of their voting mechanics. */
+/** Leave the voting set for one winner's public celebration. */
 export default function ChampionFinaleStage({
   winner,
-  runnerUp,
   season,
   decidedBy,
   revealed,
   active,
+  animate = true,
   onContinue,
 }: Props) {
   return (
@@ -29,6 +32,7 @@ export default function ChampionFinaleStage({
       data-presentation-root="season-winner"
       data-presentation-suspended={!active || undefined}
       data-champion-revealed={revealed}
+      data-motion={animate ? 'full' : 'reduced'}
       data-winner-id={revealed ? winner.id : undefined}
       data-final-vote={decidedBy}
       aria-hidden={!active || undefined}
@@ -37,56 +41,36 @@ export default function ChampionFinaleStage({
       aria-modal="true"
       aria-label={`Season ${season} champion coronation`}
     >
-      <FinalThreeStage scene="champion">
-        <div className="season-finale__champion-monitor" aria-live="polite" aria-atomic="true">
-          <span className="season-finale__champion-eyebrow">
-            Season {season} · The Final Verdict
-          </span>
-          {revealed ? (
-            <>
-              <h2>{winner.name}</h2>
-              <p>
-                {decidedBy === 'audience'
-                  ? 'Chosen by the public · Season champion'
-                  : 'Chosen by the Tribunal · Season champion'}
-              </p>
-            </>
-          ) : (
-            <>
-              <h2>The Big Eye</h2>
-              <p>One season. One champion.</p>
-            </>
-          )}
+      <div className="season-finale__champion-frame">
+        <img
+          className="season-finale__champion-backdrop"
+          src={joinPublicAssetPath('assets/ceremonies/shared/winner-stage.webp')}
+          alt=""
+          draggable={false}
+        />
+        <div className="season-finale__champion-shade" aria-hidden="true" />
+        <img className="season-finale__champion-eye" src={FINAL_THREE_SET_ASSETS.eye} alt="" />
+        <div className="season-finale__champion-heading" aria-live="polite" aria-atomic="true">
+          <span className="season-finale__champion-eyebrow">Season {season} · The champion</span>
+          <h2>{revealed ? winner.name : 'One season. One champion.'}</h2>
+          {revealed && <p>Chosen by {decidedBy === 'audience' ? 'the public' : 'the Tribunal'}</p>}
         </div>
-      </FinalThreeStage>
-
-      <div className="season-finale__champion-stage" aria-hidden="true">
-        {runnerUp && (
-          <div className="season-finale__champion-player season-finale__champion-player--runner">
-            <span className="season-finale__champion-light" />
-            <span className="season-finale__champion-podium" />
-            <FullSizeCutoutImage player={runnerUp} attire="formal" alt="" draggable={false} />
-          </div>
+        <div className="season-finale__champion-stage" aria-hidden="true" hidden={!revealed}>
+          <span className="season-finale__champion-contact" />
+          <FullSizeCutoutImage
+            className="season-finale__champion-cutout"
+            player={winner}
+            attire="formal"
+            grounded
+            alt=""
+            draggable={false}
+          />
+        </div>
+        {revealed && animate && <ChampionFireworks />}
+        {revealed && (
+          <FinaleContinueButton ariaLabel="Continue to winner interview" onContinue={onContinue} />
         )}
-        <div className="season-finale__champion-player season-finale__champion-player--winner">
-          <span className="season-finale__champion-light" />
-          <span className="season-finale__champion-podium" />
-          <FullSizeCutoutImage player={winner} attire="formal" alt="" draggable={false} />
-        </div>
       </div>
-      {revealed && (
-        <>
-          <div className="season-finale__champion-confetti" aria-hidden="true" />
-          <div className="season-finale__champion-footer">
-            {runnerUp && (
-              <p className="season-finale__champion-runner-label">Runner-up · {runnerUp.name}</p>
-            )}
-            <button className="season-finale__champion-continue" type="button" onClick={onContinue}>
-              Continue to winner interview
-            </button>
-          </div>
-        </>
-      )}
     </section>
   )
 }

@@ -70,6 +70,7 @@ export default function FinalThreeBlockReveal({ blockPlayer, competitors, mode }
               <FullSizeCutoutImage
                 player={player}
                 attire="informal"
+                grounded
                 className="fpb-block__competitor-cutout"
                 alt=""
                 draggable={false}

@@ -71,13 +71,13 @@ function renderCoronation(vox: boolean) {
 
 describe('season finale winner-to-interview handoff', () => {
   it.each([false, true])(
-    'gives %s mode its suspense cue, one garden coronation and uninterrupted interview handoff',
+    'gives %s mode its suspense cue, a single-winner celebration and uninterrupted interview handoff',
     (vox) => {
       const { store, winner, runnerUp } = renderCoronation(vox)
       const root = screen.getByRole('dialog', { name: /champion coronation/ })
       expect(root).toHaveAttribute('data-champion-revealed', 'false')
-      expect(root.querySelectorAll('.season-finale__champion-podium')).toHaveLength(2)
-      expect(root.querySelector('[data-finale-set="garden"][data-scene="champion"]')).toBeTruthy()
+      expect(root.querySelector('.season-finale__champion-cutout')).not.toBeVisible()
+      expect(root.querySelector('.f3-venue__monitor')).toBeNull()
       expect(screen.queryByText(winner.name)).toBeNull()
       expect(screen.queryByRole('button', { name: 'Continue to winner interview' })).toBeNull()
 
@@ -89,7 +89,8 @@ describe('season finale winner-to-interview handoff', () => {
       expect(root).toHaveAttribute('data-final-vote', vox ? 'audience' : 'tribunal')
       expect(root).toHaveAttribute('data-winner-id', winner.id)
       expect(screen.getByRole('heading', { name: winner.name })).toBeTruthy()
-      expect(screen.getByText(`Runner-up · ${runnerUp.name}`)).toBeTruthy()
+      expect(screen.queryByText(`Runner-up · ${runnerUp.name}`)).toBeNull()
+      expect(root.querySelectorAll('.season-finale__champion-cutout')).toHaveLength(1)
 
       fireEvent.click(screen.getByRole('button', { name: 'Continue to winner interview' }))
       expect(store.getState().game.seasonFinale?.phase).toBe('winnerInterview')

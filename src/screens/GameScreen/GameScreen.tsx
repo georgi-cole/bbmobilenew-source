@@ -1540,6 +1540,9 @@ export default function GameScreen() {
     },
   })
   const { showGameControlDock, awaitingHumanDecision } = flowCoordination
+  const gameControlDockVisible =
+    shouldRenderGameControlDock(showGameControlDock, Boolean(game.seasonFinale)) &&
+    (!finaleOverlayActive || finalePlayAvailable)
   const weekendInterludeActive = game.weekendInterlude?.active === true
   const weekendVisualTheme = resolveWeekendVisualTheme(game.weekendInterlude)
   const weekendSocialAvailable =
@@ -1576,7 +1579,7 @@ export default function GameScreen() {
   }
 
   const responsiveGameLayout = useResponsiveGameLayout(gameScreenRef, {
-    hasDock: showGameControlDock,
+    hasDock: gameControlDockVisible,
     unifiedActionRail: true,
     playerCount: presentedRosterPlayers.length,
     userCompactRoster: settings.gameUX.compactRoster,
@@ -2969,7 +2972,7 @@ export default function GameScreen() {
         )}
 
         {/* ── Floating Action Bar ───────────────────────────────────────────── */}
-        {shouldRenderGameControlDock(showGameControlDock, Boolean(game.seasonFinale)) && (
+        {gameControlDockVisible && (
           <FloatingActionBar
             tribunalDecisionPending={showTribunalInvitation}
             onPublicMeterBlocked={handlePublicMeterBlocked}

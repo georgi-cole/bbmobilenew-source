@@ -154,7 +154,7 @@ export function sceneResources(id, cast, shockType = 'doubleEviction', details =
     ...(details.authorityIntro
       ? authorityResources(byPlayerId(cast), details.authorityIntro, shared)
       : {}),
-    ...(details.closingBrand === true && ['exit', 'final3'].includes(mode)
+    ...(details.closingBrand === true && DECISION_CONFIG[id]
       ? { cinema_closingEye: FINAL_EXIT_BRAND_RESOURCE }
       : {}),
   }
@@ -310,14 +310,17 @@ function addCoLohNominationIntro(root, cast, assignments) {
 
 function calibrateNominationBlock(root, cast) {
   root.classList.add('nom-calibrated')
+  const paired = root.classList.contains('paired-film')
   for (const [index, pod] of [...root.querySelectorAll('.nom-pod')].entries()) {
-    const pose = cast[['a', 'b', 'c'][index]].poses.front
-    const width = root.classList.contains('nom-three') ? 31 : 44
+    const width = root.classList.contains('nom-three') ? 31 : paired ? 48 : 44
     pod.style.setProperty('--platform-surface-offset', `${width * (64 / 400)}cqw`)
-    const person = pod.querySelector('.nom-person')
-    person.style.setProperty('--feet-y', `${pose.feetY * 100}%`)
-    if (root.classList.contains('nom-coloh-active'))
-      pod.querySelector('.nom-label').textContent = cast[['a', 'b', 'c'][index]].name
+    for (const person of pod.querySelectorAll('.nom-person')) {
+      const actor = Object.values(cast).find((entry) => entry?.id === person.dataset.character)
+      const pose = actor.poses.front
+      person.style.setProperty('--feet-y', `${pose.feetY * 100}%`)
+    }
+    const label = pod.querySelector('.nom-label')
+    if (!paired && label) label.textContent = cast[['a', 'b', 'c'][index]].name
     const contact = document.createElement('i')
     contact.className = 'nom-contact'
     pod.append(contact)
@@ -804,7 +807,7 @@ export function createClip() {
         { images, resources, css, cast, details } = prepared
       const decisionOptions = {
         nativeHandoff: true,
-        closingBrand: details.closingBrand === true && ['exit', 'final3'].includes(sceneId),
+        closingBrand: details.closingBrand === true && Boolean(decision),
       }
       const decisionTiming = decision ? getDecisionTiming(id, decisionOptions) : null
       const coOutcome = sceneId === 'nominations' ? coLeaderOutcome(cast, details) : null
@@ -879,11 +882,16 @@ export function createClip() {
           root.querySelector('.nom-label').remove()
         }
         if (sceneId === 'nominations') addCoLohNominationIntro(root, cast, details.coLohAssignments)
-        if (
-          id === 'nominations' &&
-          (root.classList.contains('nom-solo') || root.classList.contains('nom-coloh-active'))
-        )
-          calibrateNominationBlock(root, cast)
+        if (id === 'nominations') calibrateNominationBlock(root, cast)
+        if (id === 'save') {
+          root.classList.add('save-fitted')
+          for (const person of root.querySelectorAll('.save-person')) {
+            const actor = Object.values(cast).find(
+              (entry) => entry?.id === person.dataset.character
+            )
+            person.style.setProperty('--feet-y', `${actor.poses.front.feetY * 100}%`)
+          }
+        }
         if (id === 'nominations' && root.classList.contains('nom-solo')) {
           const title = root.querySelector('.c-caption strong')
           const subtitle = root.querySelector('.c-caption em')

@@ -81,7 +81,7 @@ export const DECISION_CONFIG = Object.fromEntries(
 /** Keep the original doorway clock; only the final transition gains a brand hold. */
 export function getDecisionTiming(id, { closingBrand = false } = {}) {
   const config = DECISION_CONFIG[id]
-  const branded = closingBrand && ['exit', 'final3'].includes(id)
+  const branded = closingBrand && DECISION_IDS.includes(id)
   const extension = branded ? BRAND_HOLD_MS : 0
   return {
     duration: config.duration + extension,

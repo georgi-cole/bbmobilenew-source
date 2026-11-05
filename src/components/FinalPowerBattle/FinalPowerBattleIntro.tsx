@@ -46,6 +46,7 @@ export default function FinalPowerBattleIntro({ finalists, mode }: Props) {
             <FullSizeCutoutImage
               player={player}
               attire="informal"
+              grounded
               className="fpb-intro__cutout"
               alt=""
               draggable={false}
