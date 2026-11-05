@@ -47,7 +47,7 @@ describe('FullSizeCutoutImage', () => {
     render(<FullSizeCutoutImage player={{ id: 'dex', name: 'Dex', avatar: '🧑' }} alt="Dex" />)
 
     const image = screen.getByAltText('Dex')
-    expect(image.getAttribute('src')).toContain('Dex_informal.webp')
+    expect(image.getAttribute('src')).toContain('Dex_informal_v2.webp')
   })
 
   it('falls back to Dex’s formal full-body cutout if the informal WebP fails', async () => {
@@ -58,6 +58,18 @@ describe('FullSizeCutoutImage', () => {
 
     await waitFor(() => {
       expect(image.getAttribute('src')).toContain('Dex_formal.png')
+    })
+  })
+
+  it('updates the grounded feet when a cutout falls back to another attire', async () => {
+    render(<FullSizeCutoutImage player={{ id: 'dex', name: 'Dex' }} grounded alt="Grounded Dex" />)
+    const image = screen.getByAltText('Grounded Dex')
+    const originalPlacement = image.style.transform
+    expect(originalPlacement).toContain('translate')
+    fireEvent.error(image)
+    await waitFor(() => {
+      expect(image.getAttribute('src')).toContain('Dex_formal.png')
+      expect(image.style.transform).not.toBe(originalPlacement)
     })
   })
 

@@ -24,6 +24,8 @@ import type { GameState, Player } from '../../types'
 import CinematicSkipButton from '../CinematicSkipButton/CinematicSkipButton'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import FinalThreePodium from '../FinalThreeStage/FinalThreePodium'
+import FinaleContinueButton from '../FinalThreeStage/FinaleContinueButton'
+import { groundedCutoutStyle } from '../../utils/cutoutGrounding'
 import { EMPTY_SEQUENCE_TILE } from '../FinalThreeCircuit/finalThreeCircuitLogic'
 import {
   prepareCompetitionBroadcastArtwork,
@@ -552,7 +554,7 @@ export default function FinalThreeCompetitionBroadcast(props: FinalThreeCompetit
   }, [initial.players, premium])
 
   useEffect(() => {
-    callbacks.current.onPlayAvailabilityChange?.(!premium)
+    callbacks.current.onPlayAvailabilityChange?.(false)
   }, [premium])
 
   useFinalThreeCompetitionAudio(
@@ -616,7 +618,7 @@ export default function FinalThreeCompetitionBroadcast(props: FinalThreeCompetit
         finish()
       }
       if (event.key !== 'Tab') return
-      const button = dialog.current?.querySelector<HTMLButtonElement>('.cinematic-skip-button')
+      const button = dialog.current?.querySelector<HTMLButtonElement>('button')
       if (button) {
         event.preventDefault()
         button.focus()
@@ -676,7 +678,7 @@ export default function FinalThreeCompetitionBroadcast(props: FinalThreeCompetit
         <p>
           {initial.players.map((player) => player.name).join(', ')}. {stakesCopy(initial.part, vox)}
         </p>
-        <p>{viewerCopy(initial.game, initial.part)}.</p>
+        {!revealed && <p>{viewerCopy(initial.game, initial.part)}.</p>}
       </div>
       <p className="f3-broadcast__sr-only" role="status" aria-live="polite" aria-atomic="true">
         {announcement}
@@ -727,16 +729,11 @@ export default function FinalThreeCompetitionBroadcast(props: FinalThreeCompetit
                     <FinalThreePodium className="f3-broadcast__podium" />
                     <div className="f3-broadcast__contestant-light" />
                     <img
-                      className="f3-broadcast__reflection"
-                      src={artwork.contestants[player.id]}
-                      alt=""
-                      draggable={false}
-                    />
-                    <img
                       className="f3-broadcast__cutout"
                       src={artwork.contestants[player.id]}
                       alt=""
                       draggable={false}
+                      style={groundedCutoutStyle(artwork.contestants[player.id])}
                     />
                   </div>
                 ))}
@@ -764,7 +761,9 @@ export default function FinalThreeCompetitionBroadcast(props: FinalThreeCompetit
             THE BIG EYE<span>FINALE NIGHT</span>
           </div>
           <div className="f3-broadcast__lower-third">
-            <p>{viewerCopy(initial.game, initial.part)}</p>
+            <p>
+              {revealed ? 'Finale night · Official result' : viewerCopy(initial.game, initial.part)}
+            </p>
             <span>
               {simulation?.title ??
                 (initial.part === 3 ? 'Down Memory Lane' : 'Final Three Circuit')}
@@ -802,18 +801,19 @@ export default function FinalThreeCompetitionBroadcast(props: FinalThreeCompetit
               <p>Continue to receive the official result.</p>
             </>
           )}
-          <p className="f3-broadcast__summary-viewer">{viewerCopy(initial.game, initial.part)}</p>
         </div>
       )}
-      <CinematicSkipButton
-        ariaLabel={
-          premium
-            ? 'Skip this competition broadcast; the result stays the same'
-            : 'Continue after the competition result'
-        }
-        label={premium ? 'Skip' : 'Continue'}
-        onClick={finish}
-      />
+      {premium ? (
+        <CinematicSkipButton
+          ariaLabel="Skip this competition broadcast; the result stays the same"
+          onClick={finish}
+        />
+      ) : (
+        <FinaleContinueButton
+          ariaLabel="Continue after the competition result"
+          onContinue={finish}
+        />
+      )}
     </section>,
     document.body
   )

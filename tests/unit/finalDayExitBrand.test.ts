@@ -130,19 +130,19 @@ afterEach(() => {
 })
 
 describe('final-day exit closing brand', () => {
-  it('prepares the existing modular Eye only for opted-in final-day departure films', () => {
+  it('prepares the modular Eye for every opted-in departure, including paired exits', () => {
     const asset = readFileSync(path.resolve('public', FINAL_EXIT_BRAND_RESOURCE.src))
     expect(asset.byteLength).toBe(FINAL_EXIT_BRAND_RESOURCE.bytes)
     expect(asset.subarray(8, 16).toString()).toBe('WEBPVP8X')
     expect(asset.readUIntLE(24, 3) + 1).toBe(FINAL_EXIT_BRAND_RESOURCE.width)
     expect(asset.readUIntLE(27, 3) + 1).toBe(FINAL_EXIT_BRAND_RESOURCE.height)
-    for (const id of ['exit', 'final3']) {
+    for (const id of ['exit', 'final3', 'final4', 'tiebreak', 'cupidExit']) {
       expect(sceneResources(id, cast).cinema_closingEye).toBeUndefined()
       expect(sceneResources(id, cast, 'generic', { closingBrand: true }).cinema_closingEye).toEqual(
         FINAL_EXIT_BRAND_RESOURCE
       )
     }
-    for (const id of ['final4', 'tiebreak', 'safety']) {
+    for (const id of ['safety']) {
       expect(
         sceneResources(id, cast, 'generic', { closingBrand: true }).cinema_closingEye
       ).toBeUndefined()
@@ -162,7 +162,7 @@ describe('final-day exit closing brand', () => {
     expect(ordinary.querySelector('.exit-brand')).toBeNull()
   })
 
-  it.each(['exit', 'final3'])(
+  it.each(['exit', 'final3', 'final4', 'tiebreak'])(
     'preserves the entire %s doorway sequence before adding the closing hold',
     (id) => {
       const original = recordTimeline(id, false)

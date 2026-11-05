@@ -1,0 +1,19 @@
+{
+  "generator": "Built-in image_gen",
+  "generatedAt": "2026-11-05",
+  "asset": "public/assets/ceremonies/shared/winner-stage.webp",
+  "prompt": "Use case: photorealistic-natural. Asset type: reusable portrait background plate for The Big Eye reality TV game's season-winner celebration. Create a premium cinematic outdoor live finale stage at night, portrait 9:16 composition. NO main character: the winning contestant is composited separately in front. Central lower area is a clear, flat black polished stage/runway, floor contact at 82 percent down the image; no raised round discs or platforms. Enthusiastic public fans behind velvet ropes flank the runway on the left and right in the middle distance, elegant soft-focus audience silhouettes with a few camera glints, tasteful gold edge lighting and soft purple searchlights through atmospheric haze. Dark deep violet sky and black/gold architecture provide quiet negative space in the upper center for a separate title and Big Eye logo overlay. Frame from audience's perspective toward the empty central winner's position. Luxurious broadcast photography, realistic scale and perspective, refined subtle light bloom, rich shadows. The stage center must remain uncluttered so a full-height person can be added later, with no people in the central 40 percent width. Do not paint fireworks, those will be animated separately. No monitor, TV, text, letters, logos, watermark, trophies, crowns, or main contestant.",
+  "width": 768,
+  "height": 1091,
+  "bytes": 38052,
+  "composition": "Reusable background only; winner, Eye and finite fireworks are separate layers.",
+  "firework": {
+    "asset": "public/assets/ceremonies/shared/winner-firework.webp",
+    "width": 320,
+    "height": 320,
+    "generator": "Built-in image_gen",
+    "transparent": true,
+    "prompt": "Use case: photorealistic-natural. Asset type: a reusable transparent VFX sprite for a luxurious reality-TV season winner celebration. One single realistic aerial firework burst, isolated on a genuinely transparent background with alpha. Delicate irregular champagne-gold and pearl spark trails, a few subtle lavender tips, naturally curved falling embers, a bright small core, organic varied lengths and sparkling fine detail. Photographic light, soft translucent glow, not vector line art or a geometric rosette. The entire single burst must fit in a square with generous transparent margin at every edge, no rectangular dark patch, no scenery, no text, no people, no symbols. The effect must look elegant and light when composited over dark purple sky, with visible soft alpha and no hard outlines. No dense smoke cloud.",
+    "bytes": 25056
+  }
+}

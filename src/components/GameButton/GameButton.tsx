@@ -13,6 +13,7 @@ type GameButtonState = 'normal' | 'hover' | 'pressed' | 'disabled'
 
 interface GameButtonProps {
   label: string
+  ariaLabel?: string
   icon?: ReactNode
   badge?: ReactNode
   variant: GameButtonVariant
@@ -30,6 +31,7 @@ function resolveAsset(variant: GameButtonVariant, state: GameButtonState): strin
 
 export default function GameButton({
   label,
+  ariaLabel,
   icon,
   badge,
   variant,
@@ -58,6 +60,7 @@ export default function GameButton({
 
   return (
     <button
+      aria-label={ariaLabel}
       className={`game-btn game-btn--${variant}${holidayTheme ? ' game-btn--holiday' : ''}${holidayClassName}${disabled ? ' game-btn--disabled' : ''}${badge ? ' game-btn--has-badge' : ''}${!disabled && isPressed ? ' game-btn--pressed' : ''}${className ? ` ${className}` : ''}`}
       style={{ '--button-mask': `url("${src}")` } as CSSProperties}
       type="button"

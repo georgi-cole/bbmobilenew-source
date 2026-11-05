@@ -1,0 +1,31 @@
+.pf-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 9200;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  touch-action: none;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgb(45 24 57 / 58%), transparent 49%),
+    linear-gradient(155deg, #08060d, #130b1c 52%, #05040a);
+}
+
+.pf-loading__eye {
+  width: clamp(72px, 21vw, 126px);
+  height: auto;
+  color: #d8bd85;
+  opacity: 0.58;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+/* The host can slide away without exposing the finished season underneath. */
+.pf-loading--behind-host {
+  z-index: 8990;
+}
+
+.pf-loading__iris {
+  fill: #b993d0;
+  stroke: #eed6a5;
+}

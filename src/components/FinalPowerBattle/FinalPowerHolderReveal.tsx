@@ -40,7 +40,7 @@ export default function FinalPowerHolderReveal({
       <div className="fp-holder-reveal__portrait" aria-hidden="true">
         <FinalThreePodium className="fp-holder-reveal__podium" />
         <span className="fp-holder-reveal__spotlight" />
-        <FullSizeCutoutImage player={player} attire="informal" alt="" />
+        <FullSizeCutoutImage player={player} attire="informal" grounded alt="" />
       </div>
       <p className="fp-holder-reveal__continue">{continueCopy}</p>
     </section>

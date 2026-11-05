@@ -1,3 +1,12 @@
+import type { CeremonyCastMember, CeremonyPoseResource } from './replacement-film'
+
+export function sceneResources(
+  scene: string,
+  cast: Record<string, CeremonyCastMember>,
+  shockType?: string,
+  details?: Record<string, unknown>
+): Record<string, CeremonyPoseResource>
+
 export interface ClipMetrics {
   preparationMs: number
   transferBytes: number

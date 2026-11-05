@@ -24,6 +24,7 @@ import { usePresentationTimeline } from '../../services/presentation/usePresenta
 import { usePresentationSound } from '../../services/presentation/usePresentationSound'
 import FinalLightsOutSequence from '../FinalLightsOutSequence/FinalLightsOutSequence'
 import ChampionFinaleStage from './ChampionFinaleStage'
+import PublicFavoriteLoading from '../PublicFavoriteOverlay/PublicFavoriteLoading'
 import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
 import Credits from '../../screens/Credits/Credits'
 import { buildFinalGoodbyeMessages } from './finaleGoodbyes'
@@ -146,8 +147,6 @@ export default function SeasonFinaleOverlay() {
   const presentationActive = isOwner && foreground
   const reducedMotion = usePresentationReducedMotion()
   const [championRevealed, setChampionRevealed] = useState(reducedMotion)
-  const runnerUp =
-    game.players.find((player) => player.finalRank === 2 && player.id !== winner?.id) ?? null
   const { play: playPresentationSound } = usePresentationSound(
     presentationActive,
     finale?.phase ?? 'inactive'
@@ -229,7 +228,13 @@ export default function SeasonFinaleOverlay() {
 
   if (!finale || !winner) return null
 
-  if (finale.phase === 'publicFavoriteFlow' || finale.phase === 'seasonComplete') {
+  if (finale.phase === 'publicFavoriteFlow') {
+    // Keep the host-to-vote handoff covered while its state initializes. Once
+    // active, GameScreen owns either the vote or the same lazy-loading cover.
+    return game.favoritePlayer ? null : <PublicFavoriteLoading />
+  }
+
+  if (finale.phase === 'seasonComplete') {
     return null
   }
 
@@ -241,11 +246,11 @@ export default function SeasonFinaleOverlay() {
       {finale.phase === 'winnerCinematic' && (
         <ChampionFinaleStage
           winner={winner}
-          runnerUp={runnerUp}
           season={game.season}
           decidedBy={game.voxPopuli?.winnerId === winner.id ? 'audience' : 'tribunal'}
           revealed={championRevealed}
           active={presentationActive}
+          animate={!reducedMotion && settings.gameUX.animations && !settings.display.reduceMotion}
           onContinue={() => dispatch(startWinnerInterview())}
         />
       )}
@@ -270,15 +275,18 @@ export default function SeasonFinaleOverlay() {
       )}
 
       {finale.phase === 'publicFavoriteSetup' && finale.isChatOpen && (
-        <ChatOverlay
-          lines={publicFavoriteSetupLines}
-          header={{
-            title: "Public's Favorite ⭐",
-            subtitle: 'One more reveal before the curtain falls.',
-          }}
-          ariaLabel="Public favorite setup"
-          onComplete={() => dispatch(startPublicFavorite())}
-        />
+        <>
+          <PublicFavoriteLoading behindHost />
+          <ChatOverlay
+            lines={publicFavoriteSetupLines}
+            header={{
+              title: "Public's Favorite ⭐",
+              subtitle: 'One more reveal before the curtain falls.',
+            }}
+            ariaLabel="Public favorite setup"
+            onComplete={() => dispatch(startPublicFavorite())}
+          />
+        </>
       )}
 
       {finale.phase === 'goodbyeSequence' && finale.isChatOpen && (

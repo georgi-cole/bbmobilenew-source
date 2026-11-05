@@ -639,12 +639,12 @@ export function useTwistFlow({
 
   // ── Public Favorite ──────────────────────────────────────────────────────
   const favoritePlayer = game.favoritePlayer
-  const showFavoriteVoting =
-    favoritePlayer?.active === true && favoritePlayer.votingStarted === true
+  // The host already introduces this vote. Own the viewport as soon as it is
+  // active, including restored saves that still carry the old announcement flag.
+  const showFavoriteVoting = favoritePlayer?.active === true
   useEffect(() => {
     if (!favoritePlayer?.active || favoritePlayer.votingStarted) return
-    const id = window.setTimeout(() => dispatch(openFavoritePlayerVoting()), 5000)
-    return () => window.clearTimeout(id)
+    dispatch(openFavoritePlayerVoting())
   }, [dispatch, favoritePlayer?.active, favoritePlayer?.votingStarted])
 
   const handleFavoriteComplete = useCallback(

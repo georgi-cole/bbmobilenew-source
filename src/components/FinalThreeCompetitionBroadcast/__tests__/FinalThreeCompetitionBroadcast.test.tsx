@@ -481,7 +481,9 @@ describe('Final Three competition broadcast', () => {
       'data-winner-id',
       subject.expectedWinnerId
     )
-    expect(onPlayAvailabilityChange).toHaveBeenLastCalledWith(true)
+    expect(onPlayAvailabilityChange).toHaveBeenLastCalledWith(false)
+    expect(screen.queryByText(/Watch who wins/)).toBeNull()
+    expect(screen.getByRole('button', { name: /continue/i })).toHaveClass('game-btn')
     await elapse(90_000)
     expect(onDone).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /continue/i }))

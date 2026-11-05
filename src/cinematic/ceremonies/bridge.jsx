@@ -201,9 +201,8 @@ export function PremiumBridge({
               state.game,
               [state.game.posWinnerId].filter(Boolean)
             )
-          // Every shared departure film closes through the Big Eye ident after
-          // the doorway zoom. The standalone Final Three film keeps its finale gate.
-          if (scene === 'exit' || (state.game.phase?.startsWith('final3') && scene === 'final3'))
+          // All doorway films, including paired and deciding-vote exits, share one ident.
+          if (['exit', 'final3', 'final4', 'tiebreak'].includes(baseScene(scene)))
             details.closingBrand = true
           const ok = await controller.prepare(scene, cast, shockType, details)
           if (current.cancelled || completed.current || handed.current || !ok) return

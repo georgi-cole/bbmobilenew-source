@@ -126,7 +126,7 @@ afterEach(() => {
 describe('Final3Ceremony plea dialogue', () => {
   it('uses the original bronze eviction presentation and retains the deferred Final Two commit', async () => {
     vi.useFakeTimers()
-    const { store, nominees } = renderPleaCeremony()
+    const { store, nominees, onPlayAvailabilityChange } = renderPleaCeremony()
     act(() => vi.advanceTimersByTime(12000))
     fireEvent.click(screen.getByRole('button', { name: 'Continue →' }))
     act(() => vi.advanceTimersByTime(400))
@@ -160,7 +160,9 @@ describe('Final3Ceremony plea dialogue', () => {
     expect(finalTwo.querySelectorAll('.f3c-final-two__name')).toHaveLength(2)
     expect(finalTwo.querySelector('.f3-venue__screen')?.textContent).toContain('THE FINAL TWO')
     expect(finalTwo.querySelector('.f3-venue__screen')?.textContent).toContain('Tribunal chooses')
-    act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
+    expect(onPlayAvailabilityChange).toHaveBeenLastCalledWith(false)
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('game-btn')
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(
       store.getState().game.players.find((player) => player.id === nominees[0].id)?.seasonPlacement
     ).toBe(3)

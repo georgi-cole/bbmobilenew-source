@@ -1,0 +1,23 @@
+.finale-continue {
+  position: absolute;
+  z-index: 8;
+  right: 0;
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  left: 0;
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px;
+}
+.finale-continue .game-btn {
+  width: min(84%, 320px);
+  min-height: 56px;
+}
+@media (max-height: 480px) {
+  .finale-continue {
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
+  .finale-continue .game-btn {
+    min-height: 46px;
+    width: min(70%, 270px);
+  }
+}

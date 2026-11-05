@@ -6,15 +6,18 @@ import {
   resolveInformalCutoutCandidates,
 } from '../../utils/avatar'
 import { imageIdToDataUrl } from '../../utils/imageDb'
+import { groundedCutoutStyle } from '../../utils/cutoutGrounding'
 
 interface FullSizeCutoutImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> {
-  player: Pick<Player, 'id' | 'name'> & Partial<Pick<Player, 'avatar'>>
+  player: Pick<Player, 'id' | 'name'> & Partial<Pick<Player, 'avatar' | 'appearance' | 'isUser'>>
   attire?: 'informal' | 'formal'
+  grounded?: boolean
 }
 
 function FullSizeCutoutImageInstance({
   player,
   attire = 'informal',
+  grounded = false,
   onError,
   onLoad,
   style,
@@ -90,6 +93,7 @@ function FullSizeCutoutImageInstance({
       data-image-state={resolved ? 'resolved' : 'pending'}
       style={{
         ...style,
+        ...(grounded ? groundedCutoutStyle(src) : {}),
         // Keep the source visible while the load event settles. Cached local
         // assets can finish before React receives onLoad; hiding pending images
         // made valid housemate cutouts disappear for an entire recap scene.
