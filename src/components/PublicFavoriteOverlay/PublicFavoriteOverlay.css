@@ -7,7 +7,6 @@
   z-index: 9200;
   overflow: hidden;
   overscroll-behavior: contain;
-  animation: pfFadeIn 0.32s ease;
 }
 
 @keyframes pfFadeIn {
@@ -40,6 +39,8 @@
   flex-direction: column;
   gap: 0.85rem;
   box-sizing: border-box;
+  /* Keep the viewport opaque; fade the studio content above it instead. */
+  animation: pfFadeIn 0.32s ease;
   padding: calc(env(safe-area-inset-top, 0px) + 0.9rem) 0.9rem
     calc(env(safe-area-inset-bottom, 0px) + 1rem);
 }

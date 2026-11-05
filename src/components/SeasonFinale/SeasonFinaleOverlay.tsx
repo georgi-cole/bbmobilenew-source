@@ -24,6 +24,7 @@ import { usePresentationTimeline } from '../../services/presentation/usePresenta
 import { usePresentationSound } from '../../services/presentation/usePresentationSound'
 import FinalLightsOutSequence from '../FinalLightsOutSequence/FinalLightsOutSequence'
 import ChampionFinaleStage from './ChampionFinaleStage'
+import PublicFavoriteLoading from '../PublicFavoriteOverlay/PublicFavoriteLoading'
 import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
 import Credits from '../../screens/Credits/Credits'
 import { buildFinalGoodbyeMessages } from './finaleGoodbyes'
@@ -227,7 +228,13 @@ export default function SeasonFinaleOverlay() {
 
   if (!finale || !winner) return null
 
-  if (finale.phase === 'publicFavoriteFlow' || finale.phase === 'seasonComplete') {
+  if (finale.phase === 'publicFavoriteFlow') {
+    // Keep the host-to-vote handoff covered while its state initializes. Once
+    // active, GameScreen owns either the vote or the same lazy-loading cover.
+    return game.favoritePlayer ? null : <PublicFavoriteLoading />
+  }
+
+  if (finale.phase === 'seasonComplete') {
     return null
   }
 
@@ -268,15 +275,18 @@ export default function SeasonFinaleOverlay() {
       )}
 
       {finale.phase === 'publicFavoriteSetup' && finale.isChatOpen && (
-        <ChatOverlay
-          lines={publicFavoriteSetupLines}
-          header={{
-            title: "Public's Favorite ⭐",
-            subtitle: 'One more reveal before the curtain falls.',
-          }}
-          ariaLabel="Public favorite setup"
-          onComplete={() => dispatch(startPublicFavorite())}
-        />
+        <>
+          <PublicFavoriteLoading behindHost />
+          <ChatOverlay
+            lines={publicFavoriteSetupLines}
+            header={{
+              title: "Public's Favorite ⭐",
+              subtitle: 'One more reveal before the curtain falls.',
+            }}
+            ariaLabel="Public favorite setup"
+            onComplete={() => dispatch(startPublicFavorite())}
+          />
+        </>
       )}
 
       {finale.phase === 'goodbyeSequence' && finale.isChatOpen && (

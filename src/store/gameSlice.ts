@@ -8703,8 +8703,8 @@ const gameSlice = createSlice({
         awardAmount: action.payload.awardAmount,
       }
       state.twistActive = true
-      // Push a TV event WITH major: 'twist' so the TV filler shows the announcement
-      // while the voting overlay waits for openFavoritePlayerVoting.
+      // Retain the announcement in the TV log. The host introduction hands
+      // directly to the full-screen vote; it no longer waits on a TV filler.
       pushEvent(
         state,
         `⭐ THE PUBLIC DECIDES: Vote for your Public's Favorite Player! 🏆`,
@@ -8723,8 +8723,8 @@ const gameSlice = createSlice({
 
     /**
      * Open the full-screen Public's Favorite voting overlay.
-     * Called by GameScreen ~5 s after `startFavoritePlayerPhase`, once the TV
-     * filler announcement has had time to be seen.
+     * Called immediately by GameScreen when the vote becomes active, including
+     * restored saves that still have votingStarted set to false.
      */
     openFavoritePlayerVoting(state) {
       if (state.favoritePlayer && state.favoritePlayer.active) {

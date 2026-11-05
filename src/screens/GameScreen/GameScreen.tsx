@@ -96,6 +96,7 @@ import Capitalization from '../../components/Capitalization/Capitalization'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import Final3Ceremony from '../../components/Final3Ceremony/Final3Ceremony'
 import TribunalCinematicLoading from '../../components/TribunalDecisionCinematic/TribunalCinematicLoading'
+import PublicFavoriteLoading from '../../components/PublicFavoriteOverlay/PublicFavoriteLoading'
 import FinalThreeBlockReveal from '../../components/FinalPowerBattle/FinalThreeBlockReveal'
 import FinalPowerBattleIntro from '../../components/FinalPowerBattle/FinalPowerBattleIntro'
 import FinalThreeCompetitionBroadcast from '../../components/FinalThreeCompetitionBroadcast/FinalThreeCompetitionBroadcast'
@@ -268,6 +269,13 @@ export default function GameScreen() {
   }, [store])
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const game = useAppSelector((s) => s.game, gameScreenGameEquality)
+  const publicFavoriteSetup = game.seasonFinale?.phase === 'publicFavoriteSetup'
+  useEffect(() => {
+    if (!publicFavoriteSetup) return
+    // Prepare only this late-season screen while the host is still speaking.
+    // The lazy render retains chunk recovery if this speculative request fails.
+    void PublicFavoriteOverlay.preload().catch(() => undefined)
+  }, [publicFavoriteSetup])
   const presentedRosterPlayers = useMemo(() => getPresentedRosterPlayers(game), [game])
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const presentationRunKey = `${activeProfileId ?? 'guest'}:${game.gameId || `${game.seed}:${game.season}`}`
@@ -1375,8 +1383,6 @@ export default function GameScreen() {
       finaleSpectatorPlayAvailable) ||
     (showFinal3Ceremony && finalThreeCeremonyPlayAvailable)
   const survivorTerminalActive = game.mode === 'survival' && isSurvivorRunTerminal(game)
-  const favoriteAnnouncementPending =
-    game.favoritePlayer?.active === true && game.favoritePlayer?.votingStarted !== true
 
   // Present the one-time Tribunal invitation only after all eviction and return
   // presentations settle. Never steal the screen from a playable Battle Back.
@@ -1487,7 +1493,6 @@ export default function GameScreen() {
           showBattleBackReturn,
           showBattleBack,
           showFavoriteVoting,
-          favoriteAnnouncementPending,
         ],
         blocksControls: [
           showPublicSaveCeremony,
@@ -2632,7 +2637,7 @@ export default function GameScreen() {
 
         {/* ── Public's Favorite Player voting overlay ───────────────────────── */}
         {isPublicModeEnabled(game.mode) && showFavoriteVoting && favoritePlayer && (
-          <Suspense fallback={<div role="status">Preparing audience vote…</div>}>
+          <Suspense fallback={<PublicFavoriteLoading />}>
             <PublicFavoriteOverlay
               candidates={game.players.filter((p) =>
                 (favoritePlayer.candidates ?? []).includes(p.id)

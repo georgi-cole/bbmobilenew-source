@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-05: Reviewed the immediate Public Favorite handoff, late-season-only
+  vote-bundle preparation and opaque Eye cover for cold loading. The old hidden
+  five-second TV wait is removed, including on resumed votes. Voting rules,
+  forecasts, prizes, music cues, mode access, VIP benefits, products, pricing and
+  Store copy are unchanged.
+
 - 2026-11-05: Reviewed nomination and finale foot anchoring, a shared Continue
   control for result and Final Two gates, the single-winner public celebration
   backdrop and finite fireworks, and the shared Eye ident on all VIP departures.
