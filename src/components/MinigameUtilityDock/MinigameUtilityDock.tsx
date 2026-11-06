@@ -12,6 +12,7 @@ interface Props {
   onCloseMenu: () => void
   onOpenRules: () => void
   onRequestExit: () => void
+  exitAvailable?: boolean
 }
 
 function EyeIcon(): ReactNode {
@@ -50,6 +51,7 @@ export default function MinigameUtilityDock({
   onCloseMenu,
   onOpenRules,
   onRequestExit,
+  exitAvailable = true,
 }: Props) {
   const rulesAvailable = phase === 'countdown' || phase === 'playing'
 
@@ -90,20 +92,22 @@ export default function MinigameUtilityDock({
               </button>
             )}
 
-            <button
-              type="button"
-              className="minigame-utility-dock__menu-item minigame-utility-dock__menu-item--exit"
-              role="menuitem"
-              onClick={onRequestExit}
-            >
-              <span className="minigame-utility-dock__menu-icon">
-                <ExitIcon />
-              </span>
-              <span>
-                <strong>Leave competition</strong>
-                <small>Record a score of 0</small>
-              </span>
-            </button>
+            {exitAvailable && (
+              <button
+                type="button"
+                className="minigame-utility-dock__menu-item minigame-utility-dock__menu-item--exit"
+                role="menuitem"
+                onClick={onRequestExit}
+              >
+                <span className="minigame-utility-dock__menu-icon">
+                  <ExitIcon />
+                </span>
+                <span>
+                  <strong>Leave competition</strong>
+                  <small>Record a score of 0</small>
+                </span>
+              </button>
+            )}
           </div>
         )}
 

@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-06: Reviewed durable competition-attempt and result checkpoints across
+  minigames, including restored paid variants. Interrupted attempts forfeit, while
+  completed results remain available before Continue. Premium entitlements,
+  variants, products, benefits, pricing and Store copy are unchanged.
+
 - 2026-11-05: Reviewed the immediate Public Favorite handoff, late-season-only
   vote-bundle preparation and opaque Eye cover for cold loading. The old hidden
   five-second TV wait is removed, including on resumed votes. Voting rules,

@@ -14,6 +14,7 @@
  *    fixed; festive round-summary leaderboard.
  */
 import { useEffect, useCallback, useRef, useState, type CSSProperties } from 'react'
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch } from '../../store/store'
 import type { RootState } from '../../store/store'
@@ -529,6 +530,15 @@ export default function RiskWheelComp({
     onCompleteRef.current?.(buildCompletion())
   }, [buildCompletion, playClickSound])
   const isCompletePhase = rw?.phase === 'complete'
+  useCompetitionResultCheckpoint(
+    isCompletePhase
+      ? {
+          rawValue: 1,
+          partial: false,
+          completion: { ...buildCompletion(), lastPlaceType: 'survival' },
+        }
+      : null
+  )
   const isHostedComplete = isCompletePhase && !standalone
   const shouldResolveHostedOutcome =
     isHostedComplete && !rw.outcomeResolved && !isFinal3HostedMinigame

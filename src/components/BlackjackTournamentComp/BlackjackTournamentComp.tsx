@@ -1193,6 +1193,19 @@ export default function BlackjackTournamentComp({
         <div className="bjt-confetti" aria-hidden="true" />
         <div className="bjt-confetti--reverse" aria-hidden="true" />
         <MinigameCompleteWrapper
+          result={{
+            rawValue: bt.humanPlayerId ? (bt.playerScores[bt.humanPlayerId] ?? 0) : 0,
+            partial: false,
+            completion: {
+              authoritativeWinnerId: bt.winnerId,
+              authoritativeLastPlaceId: getBlackjackTournamentLastPlace(bt).playerId,
+              authoritativeRankedIds: [
+                bt.winnerId,
+                ...bt.eliminatedPlayerIds.slice().reverse(),
+              ].filter((id): id is string => Boolean(id)),
+              rawResults: bt.playerScores,
+            },
+          }}
           onContinue={() => {
             if (onComplete) {
               onComplete({

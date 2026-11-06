@@ -436,6 +436,18 @@ export default function BiographyBlitzComp({
           <span className="bb-blitz__round-badge">Final</span>
         </div>
         <MinigameCompleteWrapper
+          result={{
+            rawValue: 0,
+            partial: false,
+            completion: {
+              authoritativeWinnerId: winner,
+              authoritativeLastPlaceId: bb.eliminatedContestantIds[0] ?? null,
+              authoritativeRankedIds: [
+                winner,
+                ...bb.eliminatedContestantIds.slice().reverse(),
+              ].filter((id): id is string => Boolean(id)),
+            },
+          }}
           onContinue={() => onComplete?.()}
           continueLabel="Continue ›"
           continueButtonClassName="bb-blitz__continue-btn"

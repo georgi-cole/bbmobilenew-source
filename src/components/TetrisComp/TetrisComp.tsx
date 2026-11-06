@@ -917,6 +917,16 @@ export default function TetrisComp({
         className="tetris-results-screen tetris-results-screen--final"
         panelClassName="tetris-results-panel"
         placementsClassName="tetris-results-placement-list"
+        result={{
+          rawValue: finalResult.humanScore,
+          partial: false,
+          completion: {
+            rawValue: finalResult.humanScore,
+            rawResults: finalResult.outcomeScores,
+            authoritativeWinnerId: finalResult.winnerId,
+            authoritativeLastPlaceId: finalResult.lastPlaceId,
+          },
+        }}
         onContinue={() =>
           onComplete({
             rawValue: finalResult.humanScore,

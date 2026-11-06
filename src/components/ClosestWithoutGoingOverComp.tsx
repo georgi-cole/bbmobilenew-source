@@ -10,6 +10,7 @@
  *   complete    → champion announced
  */
 import { Fragment, useState, useEffect, useRef } from 'react';
+import { useCompetitionResultCheckpoint } from '../minigames/competitionResultContext'
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { RootState } from '../store/store';
@@ -266,6 +267,15 @@ export default function ClosestWithoutGoingOverComp({
     }, 40);
     return () => window.clearTimeout(timer);
   }, [cwgo, dispatch, humanId, onComplete, spectatorMode]);
+
+  useCompetitionResultCheckpoint(cwgo?.status === 'complete' ? {
+    rawValue: 1, partial: false, completion: {
+      authoritativeWinnerId: cwgo.aliveIds[0] ?? null,
+      authoritativeLastPlaceId: cwgo.eliminationOrder[0] ?? null,
+      lastPlaceType: 'survival',
+      authoritativeRankedIds: [...cwgo.aliveIds, ...cwgo.eliminationOrder.slice().reverse()],
+    },
+  } : null);
 
   if (!cwgo || cwgo.status === 'idle') {
     return <div className="cwgo-loading">Loading competition…</div>;

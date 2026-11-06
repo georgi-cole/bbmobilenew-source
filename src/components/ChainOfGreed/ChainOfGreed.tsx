@@ -1,3 +1,4 @@
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n'
@@ -1599,26 +1600,41 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
     startRound(state.roundNumber + 1, state.players, true)
   }
 
-  function finishGame() {
+  function buildFinalResult() {
     const winnerIds = state.gameMode === 'solo' ? state.winnerIds : []
     const winnerId =
       winnerIds[0] ??
       state.winnerId ??
       activePlayers[0]?.id ??
       (state.gameMode === 'solo' ? null : (humanPlayer?.id ?? null))
-    if ((!winnerId && state.gameMode !== 'solo') || resultCommitLockRef.current) return
-    resultCommitLockRef.current = true
-    setIsResultCommitted(true)
     const rawResults = winnerId
       ? buildFinalRawResults(state.players, winnerId, state.securedTotal)
       : Object.fromEntries(state.players.map((player) => [player.id, 0]))
     const rawValue = winnerId ? (rawResults[humanPlayer?.id ?? winnerId] ?? state.securedTotal) : 0
-    props.onFinish?.(rawValue, undefined, {
-      authoritativeWinnerId: winnerId,
-      ...(winnerIds.length > 1 ? { authoritativeWinnerIds: winnerIds } : {}),
+    return {
       rawValue,
-      rawResults,
-    })
+      partial: false,
+      completion: {
+        authoritativeWinnerId: winnerId,
+        ...(winnerIds.length > 1 ? { authoritativeWinnerIds: winnerIds } : {}),
+        rawValue,
+        rawResults,
+      },
+    }
+  }
+
+  useCompetitionResultCheckpoint(state.phase === 'finalResult' ? buildFinalResult() : null)
+
+  function finishGame() {
+    const result = buildFinalResult()
+    if (
+      (!result.completion.authoritativeWinnerId && state.gameMode !== 'solo') ||
+      resultCommitLockRef.current
+    )
+      return
+    resultCommitLockRef.current = true
+    setIsResultCommitted(true)
+    props.onFinish?.(result.rawValue, undefined, result.completion)
   }
 
   const dismissRoundIntro = useCallback(() => {

@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useTranslate } from '../../i18n'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { completeMinigame } from '../../store/gameSlice'
@@ -451,6 +452,20 @@ export default function PressurePlank({
     if (gamePhase !== 'playing') return
     velocityRef.current += TAP_IMPULSE
   }, [gamePhase])
+
+  useCompetitionResultCheckpoint(
+    gamePhase === 'results'
+      ? {
+          rawValue: results.find((entry) => entry.isHuman)?.score ?? 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: results[0]?.id,
+            authoritativeLastPlaceId: results.at(-1)?.id,
+            rawResults: Object.fromEntries(results.map((entry) => [entry.id, entry.score])),
+          },
+        }
+      : null
+  )
 
   // ── Done handler (LOH path: dispatches to store) ───────────────────────────
 

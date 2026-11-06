@@ -8,6 +8,7 @@ import {
   type FormEvent,
 } from 'react'
 import type { MinigameParticipant, ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import {
   BUDGET_CAP,
   CONSONANT_COST,
@@ -957,6 +958,26 @@ export default function HangmanChallengeComp({
   const activeHintsUsed = hintsUsed
   const activeHiddenVowels = hiddenVowels
   const activeHiddenConsonants = hiddenConsonants
+
+  useCompetitionResultCheckpoint(
+    (phase === 'finalResult' || phase === 'eliminated') && competitionWinnerId
+      ? {
+          rawValue: players.find((player) => player.id === human.id)?.cumulativeScore ?? 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: competitionWinnerId,
+            authoritativeLastPlaceId:
+              competitionLastPlaceId ??
+              finalState.finalists.find((id) => id !== competitionWinnerId) ??
+              [...players].sort(winnerSort).at(-1)?.id ??
+              null,
+            rawResults: Object.fromEntries(
+              players.map((player) => [player.id, player.cumulativeScore])
+            ),
+          },
+        }
+      : null
+  )
 
   const finishToHost = useCallback(() => {
     if (!onFinish || !competitionWinnerId) return
