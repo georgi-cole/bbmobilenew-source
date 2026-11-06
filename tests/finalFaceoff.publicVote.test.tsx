@@ -357,6 +357,36 @@ describe('FinalFaceoff public vote pacing', () => {
     expect(state.game.players.filter((player) => player.finalRank === 2)).toHaveLength(1)
   })
 
+  it('resumes a completed Tribunal ballot without replaying the clues or recap', async () => {
+    const store = makeStore()
+    const firstMount = render(
+      <Provider store={store}>
+        <FinalFaceoff />
+      </Provider>
+    )
+
+    beginTribunal()
+    await advanceToRecap(store)
+    act(() => screen.getByRole('button', { name: 'Finish recap' }).click())
+    act(() => vi.advanceTimersByTime(VOTE_REVEAL_INITIAL_DELAY_MS + VOTE_REVEAL_STAGGER_MS))
+    expect(store.getState().finale.isComplete).toBe(true)
+    firstMount.unmount()
+
+    render(
+      <Provider store={store}>
+        <FinalFaceoff />
+      </Provider>
+    )
+    expect(screen.queryByTestId('season-recap')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Reveal the Champion' })).toBeTruthy()
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Reveal the Champion' }).click()
+    })
+    expect(store.getState().game.seasonFinale?.phase).toBe('winnerCinematic')
+    expect(store.getState().finale.isActive).toBe(false)
+  })
+
   it('suspends clue advancement and phrase typing while gameplay owns the screen', async () => {
     const store = makeStore()
     const { container } = render(
