@@ -1414,6 +1414,20 @@ export default function HouseOfCardsComp({
     return (
       <MinigameCompleteWrapper
         className={`hoc-complete hoc-complete--${premiumPresentation ? 'premium' : 'standard'}`}
+        result={{
+          rawValue: humanId
+            ? (finalStandings.find((entry) => entry.playerId === humanId)?.clashScore ?? 0)
+            : 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: finalStandings[0].playerId,
+            authoritativeLastPlaceId: finalStandings.at(-1)?.playerId,
+            authoritativeRankedIds: finalStandings.map((entry) => entry.playerId),
+            rawResults: Object.fromEntries(
+              finalStandings.map((entry) => [entry.playerId, entry.clashScore])
+            ),
+          },
+        }}
         onContinue={finish}
         continueButtonClassName="hoc-complete-continue"
         placementsNode={

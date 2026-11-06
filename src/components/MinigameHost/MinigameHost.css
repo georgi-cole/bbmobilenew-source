@@ -1040,3 +1040,38 @@
   color: #fff;
   border-color: rgba(233, 69, 96, 0.6);
 }
+
+.minigame-host-checkpoint {
+  position: absolute;
+  z-index: 9700;
+  top: max(18px, calc(var(--minigame-safe-top) + 18px));
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 32px);
+  padding: 10px 14px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(19, 25, 42, 0.96);
+  color: #fff;
+  font-size: 0.9rem;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+.minigame-host-checkpoint--error {
+  border-color: rgba(255, 142, 142, 0.65);
+  background: rgba(83, 24, 36, 0.98);
+}
+
+.minigame-host-checkpoint button {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #241322;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}

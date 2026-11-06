@@ -14,6 +14,7 @@
  * Supports generic MinigameHost path: calls onFinish(finalScore, tiebreakerMs) when done.
  */
 
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { mulberry32 } from '../../store/rng'
 import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
@@ -672,6 +673,41 @@ export default function ColorMatchComp({
       : competitionMode
         ? formatColorMatchScore(lastScore, roundScorePrecision)
         : `${Math.round(lastScore)}%`
+
+  const checkpointStandings =
+    phase === 'results' && competitionMode
+      ? rankColorMatchCompetitionStandings(competitionStandings)
+      : []
+  const checkpointScores = buildColorMatchCompetitionRawResults(checkpointStandings)
+  const checkpointHumanScore = competitionMode
+    ? (checkpointScores[humanId ?? ''] ??
+      checkpointScores[checkpointStandings[0]?.participantId ?? ''] ??
+      0)
+    : applyHintPenalty(
+        Math.round(
+          results.reduce((total, result) => total + result.score, 0) / Math.max(1, results.length)
+        ),
+        hintsUsedTotal
+      )
+  useCompetitionResultCheckpoint(
+    phase === 'results'
+      ? {
+          rawValue: checkpointHumanScore,
+          partial: false,
+          completion: {
+            tiebreakerMs: totalElapsedMsRef.current,
+            ...(competitionMode
+              ? {
+                  rawResults: checkpointScores,
+                  authoritativeWinnerId: checkpointStandings[0]?.participantId,
+                  authoritativeLastPlaceId: checkpointStandings.at(-1)?.participantId,
+                  authoritativeRankedIds: checkpointStandings.map((entry) => entry.participantId),
+                }
+              : {}),
+          },
+        }
+      : null
+  )
 
   // ── Results screen ───────────────────────────────────────────────────────────
   if (phase === 'results') {

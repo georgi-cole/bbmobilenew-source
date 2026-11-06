@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
 import { useI18n } from '../../i18n'
 import MinigameRules from '../MinigameRules/MinigameRules'
@@ -208,6 +209,28 @@ export default function Capitalization({
       })
     },
     [humanId, onFinish]
+  )
+
+  const checkpointStandings = scoreboard?.final
+    ? rankCapitalizationStandings(scoreboard.standings)
+    : []
+  const checkpointScores = scoreboard?.final
+    ? buildCapitalizationRawResults(scoreboard.standings)
+    : {}
+  useCompetitionResultCheckpoint(
+    scoreboard?.final
+      ? {
+          rawValue: checkpointScores[humanId] ?? checkpointStandings[0]?.cumulativeScore ?? 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: checkpointStandings[0]?.participantId,
+            authoritativeLastPlaceId: checkpointStandings.at(-1)?.participantId ?? null,
+            authoritativeRankedIds: checkpointStandings.map((entry) => entry.participantId),
+            rawValue: checkpointScores[humanId] ?? checkpointStandings[0]?.cumulativeScore ?? 0,
+            rawResults: checkpointScores,
+          },
+        }
+      : null
   )
 
   const resolveQuestion = useCallback(

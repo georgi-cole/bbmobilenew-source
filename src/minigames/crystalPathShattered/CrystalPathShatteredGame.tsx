@@ -885,6 +885,19 @@ export default function CrystalPathShatteredGame({
         <div className="cps-content">
           <MinigameCompleteWrapper
             className="cps-complete"
+            result={{
+              rawValue: 1,
+              partial: false,
+              completion: {
+                authoritativeWinnerId: buildSummary(scoreboardPlayers).winnerId,
+                lastPlaceType: 'survival',
+                authoritativeLastPlaceId:
+                  [...scoreboardPlayers]
+                    .filter((player) => player.eliminated && player.survivalIndex > 0)
+                    .sort((a, b) => a.survivalIndex - b.survivalIndex)[0]?.id ?? null,
+                authoritativeRankedIds: ranked.map((player) => player.id),
+              },
+            }}
             onContinue={handleContinue}
             placementsClassName="cps-placements"
             placementsRole="list"

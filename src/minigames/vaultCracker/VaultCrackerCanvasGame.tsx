@@ -1,3 +1,4 @@
+import { useCompetitionResultCheckpoint } from '../competitionResultContext'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppDispatch } from '../../store/hooks';
 import { applyMinigameWinner } from '../../store/gameSlice';
@@ -298,7 +299,7 @@ export default function VaultCrackerCanvasGame({
           : 'Locked';
 
   const leaderboard = useMemo(() => {
-    if (phase !== 'results') return [];
+    if (phase !== 'results' && phase !== 'solved') return [];
     const allScores: Record<string, number> = { ...aiScores };
     if (humanId) {
       allScores[humanId] = humanScore;
@@ -317,6 +318,20 @@ export default function VaultCrackerCanvasGame({
       };
     });
   }, [aiScores, aiSolveProfiles, attempts, humanId, humanScore, participantIds, participants, phase, snapshot.elapsedMs]);
+
+  useCompetitionResultCheckpoint(
+    (phase === 'solved' || phase === 'results') && leaderboard.length
+      ? {
+          rawValue: humanScore,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: leaderboard[0].id,
+            authoritativeLastPlaceId: leaderboard.at(-1)?.id,
+            rawResults: Object.fromEntries(leaderboard.map((entry) => [entry.id, entry.score])),
+          },
+        }
+      : null
+  )
 
   if (phase === 'results') {
     return (

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { seededPickN, mulberry32 } from '../../store/rng'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
 import { NUMBER_TRIVIA_QUESTIONS } from './numberTriviaData'
@@ -142,6 +143,24 @@ export default function NumberTrivia({
   const humanStanding = standings.find((entry) => entry.participantId === humanId) ?? null
   const humanStillActive =
     phase === 'duel' ? (duelLives[humanId] ?? 0) > 0 : humanStanding?.eliminatedRound === null
+
+  useCompetitionResultCheckpoint(
+    scoreboard?.final && scoreboard.standings.length
+      ? {
+          rawValue:
+            scoreboard.standings.find((entry) => entry.participantId === humanId)
+              ?.cumulativeScore ?? scoreboard.standings[0].cumulativeScore,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: scoreboard.standings[0].participantId,
+            authoritativeRankedIds: scoreboard.standings.map((entry) => entry.participantId),
+            rawResults: Object.fromEntries(
+              scoreboard.standings.map((entry) => [entry.participantId, entry.cumulativeScore])
+            ),
+          },
+        }
+      : null
+  )
 
   useEffect(() => {
     if (scoreboard || !currentQuestion || !humanStillActive) {

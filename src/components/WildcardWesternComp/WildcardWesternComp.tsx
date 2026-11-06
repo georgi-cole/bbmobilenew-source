@@ -2,6 +2,7 @@
  * WildcardWesternComp.tsx – Main React component for Wildcard Western.
  */
 
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { resolveAvatar, getDicebear } from '../../utils/avatar';
@@ -335,6 +336,11 @@ export default function WildcardWesternComp({
       authoritativeLastPlaceId: state.eliminatedIds[0] ?? null,
     };
   }, [state.eliminatedIds, state.winnerId]);
+  useCompetitionResultCheckpoint(state.phase === 'gameOver' && state.winnerId ? {
+    rawValue: 1,
+    partial: false,
+    completion: { ...buildCompletion(), lastPlaceType: 'survival' },
+  } : null)
   const isHumanEliminated = humanPlayerId ? state.eliminatedIds.includes(humanPlayerId) : false;
   const isSpectating = spectatorMode === 'watching' || spectatorMode === 'skipping';
   const isSkippingToResults = spectatorMode === 'skipping';

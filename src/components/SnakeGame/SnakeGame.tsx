@@ -17,6 +17,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { completeMinigame } from '../../store/gameSlice'
 import type { CompleteMinigamePayload, MinigameSession, Player } from '../../types'
@@ -734,6 +735,22 @@ export default function SnakeGame({
       if (navigator.vibrate) navigator.vibrate(10)
     },
     [setDirection]
+  )
+
+  useCompetitionResultCheckpoint(
+    gamePhase === 'results'
+      ? {
+          rawValue: normaliseScore(currentScoreRef.current),
+          partial: false,
+          completion: {
+            authoritativeWinnerId: scores[0]?.id ?? humanId,
+            authoritativeLastPlaceId: scores.at(-1)?.id,
+            authoritativeRankedIds: scores.map((entry) => entry.id),
+            rawResults: Object.fromEntries(scores.map((entry) => [entry.id, entry.score])),
+            tiebreakerMs: scores.find((entry) => entry.isHuman)?.completionMs,
+          },
+        }
+      : null
   )
 
   // ── Dispatch on "Continue" ─────────────────────────────────────────────────

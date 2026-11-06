@@ -1064,7 +1064,10 @@ export default function GameScreen() {
   // is pending and the human player is a participant in that challenge.
   const humanIsChallengeParticipant =
     !!pendingChallenge && !!humanPlayer && pendingChallenge.participants.includes(humanPlayer.id)
-  const showMinigameHost = humanIsChallengeParticipant
+  // Release the gameplay presentation owner before the lower-priority winner
+  // award starts. The accepted result remains in the pending challenge until
+  // the ceremony commits the winner.
+  const showMinigameHost = humanIsChallengeParticipant && pendingWinnerCeremony == null
   const aiOnlyChallengeResolvedRef = useRef<string | null>(null)
   useEffect(() => {
     const isClassicCompetitionPhase =

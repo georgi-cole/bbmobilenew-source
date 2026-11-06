@@ -289,6 +289,23 @@ export default function GatesOfTheEye({
         <div className="gate-final-scene" aria-hidden="true" />
         <MinigameCompleteWrapper
           className="gate-complete gate-glass-surface"
+          result={{
+            rawValue: human
+              ? (rankedPlayers.find((player) => player.id === human.id)?.score ?? 0)
+              : 0,
+            partial: false,
+            completion: {
+              authoritativeWinnerId: winnerId,
+              authoritativeLastPlaceId: rankedPlayers.at(-1)?.id ?? null,
+              authoritativeRankedIds: rankedPlayers.map((player) => player.id),
+              rawResults: Object.fromEntries(
+                rankedPlayers.map((player, index) => [
+                  player.id,
+                  (rankedPlayers.length - index) * 1_000_000 + player.score,
+                ])
+              ),
+            },
+          }}
           placementsNode={placements}
           placementsRole="list"
           placementsAriaLabel="Final standings"

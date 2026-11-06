@@ -13,6 +13,8 @@
  */
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import CompetitionResultCheckpoint from '../../minigames/CompetitionResultCheckpoint'
+import type { CompetitionResult } from '../../minigames/competitionResult'
 import './minigameCommon.css'
 
 export interface MinigameCompleteWrapperProps {
@@ -43,6 +45,8 @@ export interface MinigameCompleteWrapperProps {
   continueDisabled?: boolean
   /** Optional extra controls rendered below the Continue button. */
   footerNode?: ReactNode
+  /** Durable campaign result captured before the player presses Continue. */
+  result?: CompetitionResult
 }
 
 export default function MinigameCompleteWrapper({
@@ -58,6 +62,7 @@ export default function MinigameCompleteWrapper({
   continueButtonClassName,
   continueDisabled = false,
   footerNode,
+  result,
 }: MinigameCompleteWrapperProps) {
   const continueRef = useRef<HTMLButtonElement>(null)
 
@@ -100,6 +105,7 @@ export default function MinigameCompleteWrapper({
 
   return (
     <div className={rootClass}>
+      {result && <CompetitionResultCheckpoint result={result} />}
       {panelClassName ? <section className={panelClassName}>{panelContent}</section> : panelContent}
     </div>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import type { CSSProperties } from 'react'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
 import useSound from '../../hooks/useSound'
@@ -548,6 +549,23 @@ export default function BatteryLow(props: GenericMinigameProps) {
       batteryLowVoteEffects: completion.batteryLowVoteEffects,
     })
   }
+
+  const checkpointCompletion = human.finalAmount == null ? null : buildCompletion(contestants)
+  useCompetitionResultCheckpoint(
+    checkpointCompletion
+      ? {
+          rawValue: human.finalAmount ?? 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: checkpointCompletion.winner?.contestantId ?? null,
+            rawValue: human.finalAmount ?? 0,
+            rawResults: checkpointCompletion.rawResults,
+            tiebreakerMs: human.finishTimeMs ?? undefined,
+            batteryLowVoteEffects: checkpointCompletion.batteryLowVoteEffects,
+          },
+        }
+      : null
+  )
 
   function getBatteryDisabled(battery: VaultPodState) {
     return (

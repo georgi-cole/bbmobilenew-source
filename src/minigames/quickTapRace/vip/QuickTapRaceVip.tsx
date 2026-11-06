@@ -1,3 +1,4 @@
+import { useCompetitionResultCheckpoint } from '../../competitionResultContext'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useCoveredGameScreen } from '../../../hooks/useCoveredGameScreen'
@@ -787,6 +788,20 @@ export default function QuickTapRaceVip({
   }
 
   const humanEntry = view.entries.find((entry) => entry.isHuman)
+  useCompetitionResultCheckpoint(
+    phase === 'results' && finalEntries.length
+      ? {
+          rawValue: finalEntries.find((entry) => entry.isHuman)?.score ?? 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: finalEntries[0].id,
+            authoritativeLastPlaceId: finalEntries.at(-1)?.id,
+            authoritativeRankedIds: finalEntries.map((entry) => entry.id),
+            rawResults: Object.fromEntries(finalEntries.map((entry) => [entry.id, entry.score])),
+          },
+        }
+      : null
+  )
   const rank = Math.max(1, view.entries.findIndex((entry) => entry.isHuman) + 1)
   const leaders = view.entries.slice(0, 3)
   if (humanEntry && !leaders.some((entry) => entry.isHuman))

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import type { GenericMinigameProps } from '../../minigames/reactComponents';
 import {
   MINESWEEPS_COLS,
@@ -217,6 +218,10 @@ export default function Minesweeps({
     forwardedFinishRef.current = true;
     onFinish(finalScore);
   }, [finalScore, onFinish]);
+
+  useCompetitionResultCheckpoint(
+    phase === 'finished' && finalScore !== null ? { rawValue: finalScore, partial: false } : null
+  )
 
   return (
     <section className="minesweeps" data-testid="minesweeps-game" aria-label="Minesweeps">

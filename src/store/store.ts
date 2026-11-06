@@ -327,6 +327,22 @@ export function flushPendingRunSnapshots(): void {
   runSnapshotAutosave.flush()
 }
 
+/** Persist an attempt boundary before gameplay or a result can be left behind. */
+export async function persistCompetitionCheckpoint(): Promise<boolean> {
+  const current = store.getState()
+  if (current.profiles.isGuest) return true
+  const profileId = current.profiles.activeProfileId
+  if (!profileId || isRunAutosaveSuspended() || isSavePersistenceBlocked()) return false
+
+  runSnapshotAutosave.discard(profileId, getSavedRunSlot(current.game))
+  try {
+    const saved = saveRunSnapshot(profileId, createSavedSeasonSnapshot(profileId, current))
+    return saved && (await flushSavePersistence())
+  } catch {
+    return false
+  }
+}
+
 /** Explicitly capture a completed launch or attach an intact guest run to its owner. */
 export function persistCurrentRunSnapshot(): void {
   const current = store.getState()

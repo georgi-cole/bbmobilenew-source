@@ -1842,6 +1842,11 @@ export default function GlassBridgeComp({
         {gb.phase === 'complete' && (
           <MinigameCompleteWrapper
             className="gb-complete"
+            result={{
+              rawValue: 1,
+              partial: false,
+              completion: buildHostedCompletion(),
+            }}
             onContinue={() => {
               if (onComplete) {
                 onComplete(buildHostedCompletion())

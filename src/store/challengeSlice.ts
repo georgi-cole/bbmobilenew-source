@@ -29,12 +29,12 @@ import {
   supportsPlayerCount,
 } from '../minigames/registry'
 import type { GameRegistryEntry, GameCategory } from '../minigames/registry'
-import { computeScores } from '../minigames/scoring'
 import type { RawResult } from '../minigames/scoring'
+import type { CompetitionAttempt, CompetitionResult } from '../minigames/competitionResult'
+import { rankChallengeResults } from './challengeResults'
 import type { CwgoPrizeType } from '../features/cwgo/cwgoCompetitionSlice'
 import { TWIN_SHOCK_LIA_ID } from '../bb/twinShock'
 import type { MusicMinigameVariant } from '../services/sound/musicConfig'
-import { rankPressurePlankResults } from '../components/PressurePlank/pressurePlankLogic'
 import { resolveGameManagerRule } from '../gameManager/gameManager'
 import {
   applyCompetitionIntentToScore,
@@ -128,6 +128,12 @@ export interface PendingChallenge {
   forcedWinnerId?: string
   /** Hidden intention chosen before scores are simulated. */
   competitionIntents?: Record<string, CompetitionIntent>
+  /** Durable state for the current play attempt. */
+  attempt?: CompetitionAttempt
+  /** Campaign boundary captured when the challenge is scheduled. */
+  origin?: { gameId: string; week: number; phase: string }
+  /** True only while hydrating an attempt that had already started. */
+  restored?: boolean
 }
 
 const initialState: ChallengeState = {
@@ -152,7 +158,7 @@ const challengeSlice = createSlice({
     },
 
     setPendingPhase(state, action: PayloadAction<PendingChallenge['phase']>) {
-      if (state.pending) {
+      if (state.pending && state.pending.attempt?.status !== 'accepted') {
         state.pending.phase = action.payload
         if (action.payload !== 'playing') state.pending.musicVariant = 'normal'
       }
@@ -174,6 +180,7 @@ const challengeSlice = createSlice({
 
     recordRun(state, action: PayloadAction<ChallengeRun>) {
       if (isRemovedMinigameKey(action.payload.gameKey)) return
+      if (state.history.some((run) => run.id === action.payload.id)) return
       // Keep at most 50 runs for telemetry.
       state.history = [action.payload, ...state.history].slice(0, 50)
     },
@@ -185,13 +192,81 @@ const challengeSlice = createSlice({
     clearDebugOverrides(state) {
       state.debug = {}
     },
+    beginChallengeAttempt(state, action: PayloadAction<{ id: string; number: number }>) {
+      const pending = state.pending
+      if (!pending || pending.id !== action.payload.id) return
+      if (pending.attempt && pending.attempt.number !== action.payload.number) return
+      if (pending.attempt?.status === 'finished' || pending.attempt?.status === 'accepted') return
+      pending.attempt = { number: action.payload.number, status: 'playing' }
+      pending.restored = false
+    },
+    checkpointChallengeResult(
+      state,
+      action: PayloadAction<{ id: string; number: number; result: CompetitionResult }>
+    ) {
+      const pending = state.pending
+      if (!pending || pending.id !== action.payload.id) return
+      if (pending.attempt && pending.attempt.number !== action.payload.number) return
+      if (pending.attempt?.status === 'finished' || pending.attempt?.status === 'accepted') return
+      pending.attempt = {
+        number: action.payload.number,
+        status: 'finished',
+        result: action.payload.result,
+      }
+      pending.restored = false
+    },
+    acceptChallengeResult(
+      state,
+      action: PayloadAction<{ id: string; number: number; result: CompetitionResult }>
+    ) {
+      const pending = state.pending
+      if (!pending || pending.id !== action.payload.id) return
+      if (pending.attempt && pending.attempt.number !== action.payload.number) return
+      pending.attempt = {
+        number: action.payload.number,
+        status: 'accepted',
+        result: action.payload.result,
+      }
+      pending.restored = false
+      pending.phase = 'done'
+    },
+    prepareChallengeRetry(state, action: PayloadAction<{ id: string; number: number }>) {
+      const pending = state.pending
+      if (
+        !pending ||
+        pending.id !== action.payload.id ||
+        pending.attempt?.number !== action.payload.number ||
+        pending.attempt.status !== 'finished'
+      ) {
+        return
+      }
+      pending.attempt = { number: action.payload.number + 1, status: 'ready' }
+      pending.phase = 'rules'
+      pending.restored = false
+    },
+    clearChallengeIfCurrent(state, action: PayloadAction<string>) {
+      if (state.pending?.id === action.payload) state.pending = null
+    },
     hydrateChallenge(_state, action: PayloadAction<ChallengeState>) {
       const restored = removeObsoleteChallengeData(action.payload)
+      const saved = restored.pending
+      const consumed = saved?.attempt && saved.attempt.status !== 'ready'
+      const pending = saved
+        ? {
+            ...saved,
+            phase:
+              saved.attempt?.status === 'accepted'
+                ? ('done' as const)
+                : saved.attempt?.status === 'finished'
+                  ? ('results' as const)
+                  : ('rules' as const),
+            musicVariant: 'normal' as const,
+            restored: Boolean(consumed),
+          }
+        : null
       return {
         ...restored,
-        pending: restored.pending
-          ? { ...restored.pending, phase: 'rules' as const, musicVariant: 'normal' as const }
-          : null,
+        pending,
       }
     },
   },
@@ -217,6 +292,11 @@ export const {
   setDebugOverrides,
   clearDebugOverrides,
   hydrateChallenge,
+  beginChallengeAttempt,
+  checkpointChallengeResult,
+  acceptChallengeResult,
+  prepareChallengeRetry,
+  clearChallengeIfCurrent,
 } = challengeSlice.actions
 
 export default challengeSlice.reducer
@@ -728,6 +808,8 @@ export const startChallenge =
       prizeType: opts.prizeType,
       forcedWinnerId,
       competitionIntents,
+      attempt: { number: 0, status: 'ready' },
+      origin: { gameId: gameState.gameId, week: gameState.week, phase: gameState.phase },
     }
 
     dispatch(setPendingChallenge(pending))
@@ -746,6 +828,9 @@ export const completeChallenge =
     options?: {
       authoritativeWinnerId?: string | null
       partial?: boolean
+      keepPending?: boolean
+      skipSeasonUpdate?: boolean
+      authoritativeRankedIds?: string[]
     }
   ) =>
   (dispatch: AppDispatch, getState: () => RootState): string | null => {
@@ -753,25 +838,19 @@ export const completeChallenge =
     const pending = state.challenge?.pending
     if (!pending) return null
 
-    const { game, seed, participants } = pending
+    const recorded = state.challenge.history.find((run) => run.id === pending.id)
+    if (recorded) {
+      if (!options?.keepPending) dispatch(clearChallengeIfCurrent(pending.id))
+      return recorded.winnerId
+    }
 
-    const ranked =
-      game.key === 'pressurePlank'
-        ? rankPressurePlankResults(
-            participants,
-            Object.fromEntries(rawResults.map((result) => [result.playerId, result.rawValue])),
-            seed
-          ).map((result) => ({
-            ...(rawResults.find((raw) => raw.playerId === result.playerId) ?? {
-              playerId: result.playerId,
-              rawValue: result.survivalSeconds,
-            }),
-            rawValue: result.survivalSeconds,
-            score: result.survivalSeconds,
-            points: Math.round(result.survivalSeconds),
-            rank: result.rank,
-          }))
-        : computeScores(game.scoringAdapter, rawResults, game.scoringParams ?? {})
+    const { game, seed, participants } = pending
+    const humanId = state.game.players.find((player) => player.isUser)?.id
+    const ranked = rankChallengeResults(pending, rawResults, {
+      partial: options?.partial,
+      humanId,
+      authoritativeRankedIds: options?.authoritativeRankedIds,
+    })
 
     const canonicalScores: Record<string, number> = {}
     for (const r of ranked) canonicalScores[r.playerId] = r.score
@@ -781,13 +860,16 @@ export const completeChallenge =
     const positiveWinner = ranked.find((r) => r.score > 0)
     const winner = positiveWinner ?? ranked[0]
     const explicitWinnerId =
-      game.key !== 'pressurePlank' &&
+      (game.key !== 'pressurePlank' || options?.partial) &&
       options?.authoritativeWinnerId &&
+      !(options.partial && options.authoritativeWinnerId === humanId) &&
       participants.includes(options.authoritativeWinnerId)
         ? options.authoritativeWinnerId
         : null
     const scheduledWinnerId =
-      pending.forcedWinnerId && participants.includes(pending.forcedWinnerId)
+      pending.forcedWinnerId &&
+      !(options?.partial && pending.forcedWinnerId === humanId) &&
+      participants.includes(pending.forcedWinnerId)
         ? pending.forcedWinnerId
         : null
     const winnerId =
@@ -813,7 +895,9 @@ export const completeChallenge =
     }
 
     dispatch(recordRun(run))
-    if (scheduledWinnerId || explicitWinnerId) {
+    if (options?.skipSeasonUpdate) {
+      // Stateful minigames may already have applied their campaign effects.
+    } else if (scheduledWinnerId || explicitWinnerId) {
       // An authoritative React minigame winner may not align with the generic
       // challenge-score ranking, so apply only the winner boost here and avoid
       // placement bonuses based on fallback scores.
@@ -838,7 +922,7 @@ export const completeChallenge =
         })
       )
     }
-    dispatch(setPendingChallenge(null))
+    if (!options?.keepPending) dispatch(clearChallengeIfCurrent(pending.id))
 
     return winnerId
   }

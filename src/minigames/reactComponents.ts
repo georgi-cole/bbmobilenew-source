@@ -32,6 +32,7 @@
 import type { ComponentType, LazyExoticComponent } from 'react'
 import { lazyWithChunkRecovery } from '../utils/lazyWithChunkRecovery'
 import type { RelationshipsMap } from '../social/types'
+import type { ReactMinigameCompletion } from './competitionResult'
 import type { StrategicAllianceSnapshot } from '../types'
 
 /**
@@ -42,20 +43,7 @@ import type { StrategicAllianceSnapshot } from '../types'
  * seeded-RNG games start deterministically without an extra user click.
  */
 export interface GenericMinigameProps {
-  onFinish?: (
-    value: number,
-    tiebreakerMs?: number,
-    completion?: {
-      authoritativeWinnerId?: string | null
-      authoritativeWinnerIds?: string[]
-      authoritativeLastPlaceId?: string | null
-      authoritativeRankedIds?: string[]
-      rawValue?: number
-      rawResults?: Record<string, number>
-      tiebreakerMs?: number
-      batteryLowVoteEffects?: Record<string, 'doubleVote' | 'skipVote'>
-    }
-  ) => void
+  onFinish?: (value: number, tiebreakerMs?: number, completion?: ReactMinigameCompletion) => void
   /** Deterministic competition seed forwarded from gameOptions.seed. */
   seed?: number
   /** When true the game starts immediately on mount (no Start button needed). */
