@@ -327,3 +327,8 @@ store listings or change configured prices.
 - 2026-11-04: Reviewed replaceable synthetic accent cues synchronised with VIP
   ceremonies. Existing SFX settings apply; phase music, Standard/Survival paths,
   entitlement gates, offers, prices, rewards and Store copy remain unchanged.
+
+- 2026-11-06: Reviewed week-start batching in Drama mode and the resumed Tribunal
+  winner handoff. The same relationship, twin, Bella, jury, and winner rules apply.
+  This changes no VIP or Premium Challenges entitlement, product, price, reward,
+  availability, or Store copy.

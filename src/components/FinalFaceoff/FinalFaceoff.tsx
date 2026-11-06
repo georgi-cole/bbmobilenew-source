@@ -96,7 +96,8 @@ export default function FinalFaceoff() {
   // 'recap'       → season recap cinematic
   // 'revealVotes' → vote chips + tally animate in
   type Phase = 'clues' | 'recap' | 'revealVotes'
-  const [phase, setPhase] = useState<Phase>('clues')
+  const [localPhase, setPhase] = useState<Phase>('clues')
+  const phase: Phase = finale.isComplete && localPhase === 'clues' ? 'revealVotes' : localPhase
   const [tribunalOpeningReady, setTribunalOpeningReady] = useState(false)
   const winnerPersistedRef = useRef(false)
   const { play, cancel: cancelPresentationSound } = usePresentationSound(
@@ -123,13 +124,15 @@ export default function FinalFaceoff() {
     if (!winnerAlreadyMarked || !runnerUpAlreadyMarked) {
       dispatch(finalizeGame({ winnerId: finale.winnerId, runnerUpId: finale.runnerUpId }))
     }
-    dispatch(
-      startWinnerCinematic({
-        winnerId: finale.winnerId,
-        seed: game.seed,
-        publicFavoriteEnabled,
-      })
-    )
+    if (game.seasonFinale?.winnerId !== finale.winnerId) {
+      dispatch(
+        startWinnerCinematic({
+          winnerId: finale.winnerId,
+          seed: game.seed,
+          publicFavoriteEnabled,
+        })
+      )
+    }
     dispatch(dismissFinale())
   }, [
     dispatch,
@@ -137,6 +140,7 @@ export default function FinalFaceoff() {
     finale.winnerId,
     game.players,
     game.seed,
+    game.seasonFinale?.winnerId,
     settings.sim.enableFavoritePlayer,
     settings.sim.enableTwists,
   ])
@@ -385,9 +389,12 @@ export default function FinalFaceoff() {
   // directly into the winner cinematic instead of leaving the player stuck.
   useEffect(() => {
     if (game.phase !== 'jury') return
-    if (game.seasonFinale != null) return
-    if (finale.isActive) return
     if (!finale.isComplete || !finale.winnerId || !finale.runnerUpId) return
+    if (game.seasonFinale?.winnerId === finale.winnerId) {
+      persistWinnerToSeasonFinale()
+      return
+    }
+    if (game.seasonFinale != null || finale.isActive) return
 
     persistWinnerToSeasonFinale()
   }, [
