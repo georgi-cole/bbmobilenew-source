@@ -14,49 +14,63 @@
   box-sizing: border-box;
   overflow: hidden;
   color: #fff;
-  background:
-    radial-gradient(
-      circle at 50% 44%,
-      rgba(86, 114, 255, 0.24) 0%,
-      rgba(86, 114, 255, 0.08) 28%,
-      transparent 55%
-    ),
-    linear-gradient(180deg, #02030a 0%, #060816 54%, #010207 100%);
   pointer-events: none;
 }
 
-.kq-splash::before,
-.kq-splash::after {
+.kq-splash__scene {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  padding: inherit;
+  background: #000;
+}
+
+.kq-splash__scene::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-}
-
-.kq-splash::before {
-  background:
-    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 48%, transparent 52%),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 88px);
-  opacity: 0.16;
-  transform: translateX(-22%);
-  animation: kq-scan 5200ms ease-in-out infinite alternate;
-}
-
-.kq-splash::after {
-  background: radial-gradient(
-    circle at center,
-    transparent 34%,
-    rgba(0, 0, 0, 0.36) 74%,
-    rgba(0, 0, 0, 0.7) 100%
+  background: linear-gradient(
+    151deg,
+    transparent 27%,
+    rgba(155, 174, 194, 0.019) 41%,
+    rgba(206, 222, 239, 0.07) 48%,
+    rgba(174, 189, 205, 0.027) 53%,
+    transparent 67%
   );
+  mask-image: radial-gradient(ellipse at 50% 45%, #000 8%, transparent 68%);
 }
 
-.kq-splash--exiting {
+.kq-splash__scene--aperture {
+  /* The eyelid window and the wider sweep reveal the same Hub layer. */
+  mask-image:
+    linear-gradient(#000, #000),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 128' preserveAspectRatio='none'%3E%3Cfilter id='edge' x='0' y='0' width='240' height='128' filterUnits='userSpaceOnUse'%3E%3CfeGaussianBlur stdDeviation='5'/%3E%3C/filter%3E%3Cpath d='M8 64C50 33 82 12 120 12s70 21 112 52c-42 31-74 52-112 52S50 95 8 64Z' fill='white' filter='url(%23edge)'/%3E%3C/svg%3E"),
+    var(--kq-splash-sweep);
+  mask-repeat: no-repeat;
+  mask-composite: exclude, add;
+}
+
+.kq-splash__morph {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+}
+
+.kq-splash__scene--morphing + .kq-splash__morph {
+  visibility: visible;
+}
+
+.kq-splash__scene--exiting {
   animation: kq-splash-exit 360ms ease forwards;
 }
 
 .kq-splash__composition {
   position: absolute;
+  z-index: 1;
   inset: 0;
   display: flex;
   flex-direction: column;
@@ -72,46 +86,13 @@
   opacity: 1;
 }
 
-.kq-splash__skyline {
-  position: absolute;
-  z-index: 0;
-  inset: auto 0 0;
-  height: min(36dvh, 340px);
-  overflow: hidden;
-  opacity: 0.78;
-  background: linear-gradient(to top, rgba(1, 3, 10, 0.92), rgba(3, 8, 24, 0.36) 52%, transparent);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 29%, #000 100%);
-  pointer-events: none;
-}
-
-.kq-splash__skyline > img {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center bottom;
-}
-
-.kq-splash__skyline::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 16% 62%, rgba(250, 214, 137, 0.95) 0 1px, transparent 2px),
-    radial-gradient(circle at 31% 43%, rgba(182, 213, 255, 0.82) 0 1px, transparent 2px),
-    radial-gradient(circle at 47% 68%, rgba(255, 224, 155, 0.88) 0 1px, transparent 2px),
-    radial-gradient(circle at 65% 50%, rgba(162, 207, 255, 0.78) 0 1px, transparent 2px),
-    radial-gradient(circle at 81% 66%, rgba(255, 215, 130, 0.86) 0 1px, transparent 2px);
-  filter: drop-shadow(0 0 4px rgba(187, 211, 255, 0.42));
-  opacity: 0.12;
-  animation: kq-skyline-lights 5.6s steps(2, end) infinite;
+.kq-splash__brand {
+  position: relative;
+  z-index: 1;
 }
 
 .kq-splash__logo-wrap {
   position: relative;
-  z-index: 1;
   width: var(--kq-splash-logo-width);
   max-width: 300px;
   line-height: 0;
@@ -126,6 +107,25 @@
   width: 100%;
   height: auto;
   filter: drop-shadow(0 18px 36px rgba(67, 89, 255, 0.28));
+}
+
+.kq-splash__title {
+  /* Anchor to the painted wordmark inside the transparent logo image. */
+  position: absolute;
+  top: 67%;
+  right: 10%;
+  margin: 0;
+  color: rgba(218, 230, 255, 0.72);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.11em;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px);
+  animation: kq-preload-in 460ms ease 280ms forwards;
+  animation-play-state: paused;
 }
 
 .kq-splash__dna-glow {
@@ -147,7 +147,7 @@
   z-index: 1;
   width: var(--kq-splash-logo-width);
   max-width: 300px;
-  margin-top: 28px;
+  margin-top: 16px;
   opacity: 0;
   transform: translateY(8px);
   animation: kq-preload-in 560ms ease 420ms forwards;
@@ -197,34 +197,61 @@
   transition: width 180ms linear;
 }
 
-.kq-splash__copyright {
+.kq-splash__footer {
   position: absolute;
   z-index: 1;
   right: 0;
-  bottom: max(20px, env(safe-area-inset-bottom, 20px));
+  bottom: max(20px, var(--safe-bottom, env(safe-area-inset-bottom, 20px)));
   left: 0;
+  padding-inline: 22px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.46);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
+  text-shadow: 0 1px 12px #010307;
   opacity: 0;
   animation: kq-preload-in 560ms ease 560ms forwards;
   animation-play-state: paused;
 }
 
+.kq-splash__tagline {
+  margin: 0;
+  color: rgba(233, 241, 255, 0.84);
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
 .kq-splash--artwork-ready .kq-splash__logo-wrap,
 .kq-splash--artwork-ready .kq-splash__dna-glow,
+.kq-splash--artwork-ready .kq-splash__title,
 .kq-splash--artwork-ready .kq-splash__preload,
-.kq-splash--artwork-ready .kq-splash__copyright {
+.kq-splash--artwork-ready .kq-splash__footer {
   animation-play-state: running;
+}
+
+.kq-splash__scene--morphing .kq-splash__logo-wrap {
+  visibility: hidden;
+}
+
+.kq-splash__scene--morphing .kq-splash__title,
+.kq-splash__scene--morphing .kq-splash__preload,
+.kq-splash__scene--morphing .kq-splash__footer {
+  animation: kq-splash-copy-out 270ms ease both;
 }
 
 @keyframes kq-logo-in {
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes kq-splash-copy-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(0);
   }
 }
 
@@ -253,33 +280,6 @@
   }
 }
 
-@keyframes kq-scan {
-  from {
-    transform: translateX(-22%);
-  }
-  to {
-    transform: translateX(22%);
-  }
-}
-
-@keyframes kq-skyline-lights {
-  0%,
-  22%,
-  65%,
-  100% {
-    opacity: 0.28;
-  }
-  23%,
-  29%,
-  73% {
-    opacity: 0.76;
-  }
-  30%,
-  72% {
-    opacity: 0.46;
-  }
-}
-
 @media (max-width: 420px) {
   .kq-splash {
     --kq-splash-logo-width: 60vmin;
@@ -291,22 +291,16 @@
   .kq-splash__preload-row {
     font-size: 0.72rem;
   }
-
-  .kq-splash__copyright {
-    font-size: 0.66rem;
-    letter-spacing: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kq-splash,
-  .kq-splash::before,
+  .kq-splash__scene,
   .kq-splash__logo,
   .kq-splash__logo-wrap,
+  .kq-splash__title,
   .kq-splash__dna-glow,
   .kq-splash__preload,
-  .kq-splash__copyright,
-  .kq-splash__skyline::after {
+  .kq-splash__footer {
     animation-duration: 1ms;
     animation-iteration-count: 1;
   }
