@@ -145,6 +145,7 @@ jobs:
           app_files=("$unpacked/Payload/"*.app)
           test "${#app_files[@]}" -eq 1
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app_files[0]}/Info.plist")" = com.georgicole.thebigeye
+          python3 -c 'import plistlib, sys; assert plistlib.load(open(sys.argv[1], "rb"))["UIDeviceFamily"] == [1]' "${app_files[0]}/Info.plist"
           codesign --verify --deep --strict --verbose=2 "${app_files[0]}"
           signature_info=$(codesign -d --verbose=4 "${app_files[0]}" 2>&1)
           [[ "$signature_info" == *"TeamIdentifier=C97T2A5255"* ]]

@@ -10,9 +10,9 @@ The final product-led sets use existing named housemates, real in-app interfaces
 
 - `apple/app-store-icon-1024.png` — 1024 × 1024 RGB PNG, no alpha.
 - `apple/iphone-6.9-product/` — **recommended**, six 1320 × 2868 screenshots.
-- `apple/ipad-13-product/` — **recommended**, six 2048 × 2732 screenshots.
+- `apple/ipad-13-product/` — six archived tablet compositions for a future native iPad listing.
 
-Apple permits one to ten screenshots. The iPad set is included because the Xcode target declares device family `1,2`. Replace the supplied tablet marketing compositions with direct native iPad captures if the final iPad UI differs materially.
+Apple permits one to ten screenshots. The first store release targets iPhone, with iPad compatibility mode available through iOS. Use the iPhone gallery for this release.
 
 ### Google Play
 

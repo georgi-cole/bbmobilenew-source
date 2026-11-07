@@ -4,7 +4,7 @@
 
 - No account, sign-in, subscription, or demo credentials are required for the core game.
 - The app opens directly into the game hub. A reviewer can create a player and start a season from the main menu.
-- The experience is portrait-only on phones and tablets.
+- The iOS listing targets iPhone. On iPad the app runs in iPhone compatibility mode.
 
 ## Network-dependent and optional behavior
 
