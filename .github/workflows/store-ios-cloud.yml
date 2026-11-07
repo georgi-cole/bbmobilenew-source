@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ios-store-cloud-${{ github.ref }}
+  group: ios-store-cloud-${{ github.ref }}-${{ inputs.sign_archive || inputs.upload_to_testflight || false }}
   cancel-in-progress: false
 
 jobs:
@@ -94,8 +94,9 @@ jobs:
           security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           uuid=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$uuid.mobileprovision"
+          ios_profile_dir="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$ios_profile_dir"
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$ios_profile_dir/$uuid.mobileprovision"
           echo "IOS_PROFILE_UUID=$uuid" >> "$GITHUB_ENV"
       - name: Archive without signing
         if: inputs.sign_archive != true && inputs.upload_to_testflight != true
@@ -114,9 +115,9 @@ jobs:
           -configuration Release -destination 'generic/platform=iOS'
           -archivePath "$RUNNER_TEMP/TheBigEye.xcarchive"
           CURRENT_PROJECT_VERSION="${{ github.run_number }}"
-          CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution"
-          PROVISIONING_PROFILE_SPECIFIER="$IOS_PROFILE_UUID"
-          OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/the-big-eye-signing.keychain-db"
+          BIG_EYE_IOS_CODE_SIGN_STYLE=Manual
+          BIG_EYE_IOS_CODE_SIGN_IDENTITY="Apple Distribution"
+          BIG_EYE_IOS_PROVISIONING_PROFILE="$IOS_PROFILE_UUID"
       - name: Export the signed iOS app
         if: inputs.sign_archive == true || inputs.upload_to_testflight == true
         shell: bash
@@ -134,6 +135,16 @@ jobs:
           target.write_bytes(plistlib.dumps(options))
           PY
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/TheBigEye.xcarchive" -exportPath "$RUNNER_TEMP/ipa" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+          ipa_files=("$RUNNER_TEMP/ipa/"*.ipa)
+          test "${#ipa_files[@]}" -eq 1
+          unpacked="$RUNNER_TEMP/verified-ipa"
+          unzip -q "${ipa_files[0]}" -d "$unpacked"
+          app_files=("$unpacked/Payload/"*.app)
+          test "${#app_files[@]}" -eq 1
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app_files[0]}/Info.plist")" = com.georgicole.thebigeye
+          codesign --verify --deep --strict --verbose=2 "${app_files[0]}"
+          signature_info=$(codesign -d --verbose=4 "${app_files[0]}" 2>&1)
+          [[ "$signature_info" == *"TeamIdentifier=C97T2A5255"* ]]
       - name: Upload to TestFlight
         if: inputs.upload_to_testflight == true
         env:
@@ -167,5 +178,5 @@ jobs:
             rm -f "$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_API_KEY_ID.p8"
           fi
           if [ -n "${IOS_PROFILE_UUID:-}" ]; then
-            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$IOS_PROFILE_UUID.mobileprovision"
+            rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/$IOS_PROFILE_UUID.mobileprovision"
           fi

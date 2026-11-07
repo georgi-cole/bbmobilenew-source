@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-07: Reviewed the iOS signed store export and all 18 App Store purchase
+  price schedules against the existing release catalog. Filled the missing
+  $7.99 US price schedule for the existing VIP upgrade tier and verified the
+  saved price. Signing applies to the app target; products, benefits, entitlement
+  rules, the canonical prices and Store copy are unchanged.
+
 - 2026-11-07: Reviewed store release preparation against current main. Offline
   release guards reject developer unlocks, Supabase and online AI/diary endpoints
   that have not been included in the published privacy disclosures. Platform
