@@ -224,7 +224,11 @@ describe('mode-aware premium ceremonies', () => {
         catalog.characters
       )
       expect(cast.a.name).toBe('Custom name')
-      expect(sceneResources('cupidLoh', cast).pairSeated.crown.width).toBeGreaterThan(0)
+      const { royal, pairRoyal } = sceneResources('cupidLoh', cast)
+      expect(royal.character).toBe(character.id)
+      expect(pairRoyal.character).toBe(pairPlayers[1].id)
+      expect(royal.crown.width).toBeGreaterThan(0)
+      expect(pairRoyal.crown.width).toBeGreaterThan(0)
     }
     expect(
       ceremonyCast(

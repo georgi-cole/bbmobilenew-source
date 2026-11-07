@@ -611,7 +611,7 @@ describe('DiaryRoom — confessional decision panel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm save target' }))
 
     expect(store.getState().game.awaitingPovSaveTarget).toBe(false)
-    expect(screen.getByText(/Return to the House to continue the ceremony/i)).toBeTruthy()
+    expect(screen.getByText(/Return to the Hub to continue the ceremony/i)).toBeTruthy()
     expect(screen.queryByTestId('required-confessional-decision')).toBeNull()
     expect(screen.queryByText('Select a pair')).toBeNull()
   })
@@ -633,7 +633,7 @@ describe('DiaryRoom — confessional decision panel', () => {
       humanDoubleVoteActive: true,
     })
     renderDiaryRoom(store)
-    expect(screen.getByText(/Choose your two eviction votes/i)).toBeTruthy()
+    expect(screen.getByText(/Choose your two elimination votes/i)).toBeTruthy()
   })
 })
 

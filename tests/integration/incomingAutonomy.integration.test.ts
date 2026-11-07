@@ -25,16 +25,34 @@ import {
 } from '../../src/social/socialSlice'
 import { deliverScheduledIncomingInteractionsForPhase } from '../../src/social/incomingInteractionScheduler'
 import { socialConfig } from '../../src/social/socialConfig'
+import type { GameState, Player } from '../../src/types'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function makeStore() {
+function makeStore(gameOverrides: Partial<GameState> = {}) {
   return configureStore({
     reducer: {
       game: gameReducer,
       social: socialReducer,
     },
+    preloadedState: { game: { ...gameReducer(undefined, { type: 'init' }), ...gameOverrides } },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(socialMiddleware),
+  })
+}
+
+const nominationPlayers: Player[] = [
+  { id: 'user', name: 'You', avatar: '🙂', status: 'loh', isUser: true },
+  { id: 'ai1', name: 'Rae', avatar: '🙂', status: 'nominated' },
+  { id: 'ai2', name: 'Ash', avatar: '🙂', status: 'active' },
+]
+
+function makeNominationStore(week: number) {
+  return makeStore({
+    phase: 'nominations',
+    week,
+    players: nominationPlayers,
+    lohId: 'user',
+    nomineeIds: ['ai1'],
   })
 }
 
@@ -55,22 +73,15 @@ function makeSeededRng(seed: number): () => number {
 
 describe('incomingInteractionAutonomy – direct scheduling', () => {
   it('scheduleIncomingInteractionsForPhase schedules interactions for nominations phase', () => {
-    const store = makeStore()
+    const store = makeNominationStore(2)
 
     // Inject a seeded RNG so the test is deterministic
     scheduleIncomingInteractionsForPhase('nominations', store, {
       random: makeSeededRng(42),
-      players: [
-        { id: 'user', status: 'active', isUser: true },
-        { id: 'ai1', status: 'active' },
-        { id: 'ai2', status: 'active' },
-      ],
-      week: 2,
       relationships: {
         ai1: { user: { affinity: 60, tags: [] } },
         ai2: { user: { affinity: -40, tags: [] } },
       },
-      phase: 'nominations',
     })
 
     const deliveredBefore = selectIncomingInteractions({ social: store.getState().social })
@@ -92,32 +103,28 @@ describe('incomingInteractionAutonomy – direct scheduling', () => {
   })
 
   it('interactions scheduled have correct fromId and type fields', () => {
-    const store = makeStore()
+    const store = makeNominationStore(1)
 
     scheduleIncomingInteractionsForPhase('nominations', store, {
       random: makeSeededRng(1),
-      players: [
-        { id: 'user', status: 'active', isUser: true },
-        { id: 'ai1', status: 'active' },
-      ],
-      week: 1,
       relationships: {
         ai1: { user: { affinity: 70, tags: [] } },
       },
-      phase: 'nominations',
-      lohId: 'user',
     })
 
     const delivered = selectIncomingInteractions({ social: store.getState().social })
     const scheduled = selectScheduledIncomingInteractions({ social: store.getState().social })
     const interactions = [...delivered, ...scheduled.map((entry) => entry.interaction)]
-    expect(interactions.length).toBeGreaterThan(0)
-    const first = interactions[0]
-    expect(first.fromId).toBe('ai1')
-    expect(first.read).toBe(false)
-    expect(first.resolved).toBe(false)
-    expect(first.createdWeek).toBe(1)
-    expect(first.expiresAtWeek).toBe(2)
+    expect(interactions).toContainEqual(
+      expect.objectContaining({
+        fromId: 'ai1',
+        type: 'nomination_plea',
+        read: false,
+        resolved: false,
+        createdWeek: 1,
+        expiresAtWeek: 2,
+      })
+    )
   })
 
   it('does not enqueue interactions for ineligible phases', () => {

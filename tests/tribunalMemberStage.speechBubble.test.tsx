@@ -18,11 +18,13 @@ describe('TribunalMemberStage speech bubble', () => {
 
   it('renders the revealed phrase in a separate comic speech bubble beside the cutout', async () => {
     const phrase = 'I have seen enough to make my choice.'
+    const juror = { id: 'j1', name: 'Casey', avatar: '🧠', status: 'jury' as const }
     const { container } = render(
       <TribunalMemberStage
+        tribunalMembers={[juror]}
         revealedJurors={[
           {
-            juror: { id: 'j1', name: 'Casey', avatar: '🧠', status: 'jury' },
+            juror,
             reveal: { jurorId: 'j1', finalistId: 'f1', phrase },
           },
         ]}
