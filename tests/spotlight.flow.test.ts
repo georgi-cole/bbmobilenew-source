@@ -216,7 +216,7 @@ describe('spotlight flow — replacement nomination after veto save', () => {
 describe('spotlight flow — AI LOH replacement keeps povSavedId for animation detection', () => {
   it('povSavedId remains set after AI LOH picks replacement via submitPovSaveTarget', () => {
     // Scenario: Human POS holder saves a nominee → submitPovSaveTarget dispatched.
-    // AI LOH picks replacement inline in the same reducer call.
+    // AI LOH selects its replacement through a staged announcement.
     // povSavedId should remain set so the UI can detect "veto was used" and
     // trigger the AI replacement animation.
     const players = makePlayers(6);
@@ -235,6 +235,10 @@ describe('spotlight flow — AI LOH replacement keeps povSavedId for animation d
 
     // Human POS holder (p3) saves p2.
     store.dispatch(submitPovSaveTarget('p2'));
+    expect(store.getState().game.nomineeIds).toEqual(['p3']);
+    store.dispatch(advance());
+    store.dispatch(aiReplacementRendered());
+    store.dispatch(advance());
 
     const state = store.getState().game;
     // AI LOH should have picked a replacement — nomineeIds should have 2 entries.

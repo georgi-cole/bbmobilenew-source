@@ -9,6 +9,7 @@ import gameReducer from '../../src/store/gameSlice'
 import profilesReducer from '../../src/store/profilesSlice'
 import publicOpinionReducer from '../../src/publicOpinion/publicOpinionSlice'
 import GameScreen from '../../src/screens/GameScreen/GameScreen'
+import { declarePlayerAge, setOptionalPlayerFeature } from '../../src/safety/playerSafety'
 import settingsReducer from '../../src/store/settingsSlice'
 import socialReducer from '../../src/social/socialSlice'
 import uiReducer from '../../src/store/uiSlice'
@@ -17,7 +18,8 @@ vi.mock('../../src/minigames/LegacyMinigameWrapper', () => ({
   default: () => null,
 }))
 
-vi.mock('../../src/store/confessionalDecisionSelectors', () => ({
+vi.mock('../../src/store/confessionalDecisionSelectors', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/store/confessionalDecisionSelectors')>()),
   selectActiveConfessionalDecision: () => null,
 }))
 
@@ -79,6 +81,8 @@ function renderWithStore(store: ReturnType<typeof makeStore>) {
 describe('GameScreen audience insight prompt gating', () => {
   beforeEach(() => {
     localStorage.clear()
+    declarePlayerAge(28)
+    setOptionalPlayerFeature('ads', true)
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-17T16:00:00.000Z'))
   })

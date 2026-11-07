@@ -282,12 +282,12 @@ describe('bigBrotherReply', () => {
     expect(r.text).not.toContain('{{name}}');
   });
 
-  it('uses "Houseguest" when no playerName is provided', () => {
+  it('uses "Hubmate" when no playerName is provided', () => {
     const texts: string[] = [];
     for (let seed = 0; seed < 10; seed++) {
       texts.push(bigBrotherReply('I miss my parents', { seed }).text);
     }
-    expect(texts.every((t) => t.includes('Houseguest'))).toBe(true);
+    expect(texts.every((t) => t.includes('Hubmate'))).toBe(true);
   });
 
   it('reply text does not exceed 220 characters', () => {

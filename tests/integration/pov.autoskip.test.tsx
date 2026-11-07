@@ -1,28 +1,6 @@
 /**
- * POS minigame auto-skip fix — GameScreen integration tests.
- *
- * Root cause: GameScreen's `onDone` handler did not accept or check the
- * `partial` flag.  Any early exit (accidental ✕ click, rules dismiss) would
- * flow through `completeChallenge → applyMinigameWinner` exactly as a valid
- * completion, immediately crowning a winner without gameplay.  This was most
- * noticeable in the POS competition where the player would see the rules modal
- * and countdown but then be returned to GameScreen with a winner announced.
- *
- * Fix: `GameScreen.onDone` now accepts `partial?: boolean`.  When `partial`
- * is true (exit-early path confirmed via the "Exited Early" results screen),
- * the winner is applied via `applyMinigameWinner` directly — advancing the
- * game so it doesn't get stuck — but the SpotlightAnimation ceremony is
- * skipped so no false winner announcement is shown.
- *
- * Tests verify:
- *  1. partial=true on POS: phase advances from pos_comp → pos_results and
- *     posWinnerId is set (game is not stuck).
- *  2. partial=true on LOH: lohId is set and phase is loh_results.
- *  3. partial=true does NOT trigger the winner ceremony overlay.
- *  4. partial=false (valid completion) still works normally — no regression.
- *  5. POS prizeType is correctly used even when partial=true (not confused
- *     with LOH).
- *  6. challenge.pending is cleared so no double-challenge can start.
+ * An accepted early exit records the result and stages the winner ceremony.
+ * The ceremony completes the phase transition and clears the pending challenge.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -60,7 +38,7 @@ vi.mock('../../src/components/ui/TvZone', () => ({
   default: () => <div data-testid="tv-zone" />,
 }))
 
-vi.mock('../../src/components/WinnerTileLiftAnimation/WinnerTileLiftAnimation', () => ({
+vi.mock('../../src/cinematic/ceremonies/winner.jsx', () => ({
   default: ({ onDone }: { onDone: () => void }) => {
     capturedCeremonyOnDone = onDone
     return null
@@ -155,6 +133,12 @@ function renderWithStore(store: ReturnType<typeof makeStore>) {
   )
 }
 
+async function completeWinnerCeremony() {
+  const onDone = capturedCeremonyOnDone
+  if (!onDone) throw new Error('Expected a staged winner ceremony')
+  await act(async () => onDone())
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('GameScreen.onDone — partial=true still advances the game (no stuck state)', () => {
@@ -183,6 +167,9 @@ describe('GameScreen.onDone — partial=true still advances the game (no stuck s
     await act(async () => {
       capturedOnDone!(0, true)
     })
+    expect(store.getState().game.phase).toBe('pos_comp')
+    expect(store.getState().game.posWinnerId).toBeNull()
+    await completeWinnerCeremony()
 
     // Phase must no longer be 'pos_comp' — the game has advanced
     expect(store.getState().game.phase).toBe('pos_results')
@@ -203,6 +190,8 @@ describe('GameScreen.onDone — partial=true still advances the game (no stuck s
     await act(async () => {
       capturedOnDone!(0, true)
     })
+    expect(store.getState().game.phase).toBe('loh_comp')
+    await completeWinnerCeremony()
 
     expect(store.getState().game.lohId).not.toBeNull()
     expect(store.getState().game.phase).toBe('loh_results')
@@ -222,6 +211,7 @@ describe('GameScreen.onDone — partial=true still advances the game (no stuck s
     await act(async () => {
       capturedOnDone!(0, true)
     })
+    await completeWinnerCeremony()
 
     // pendingChallenge must be null so no second challenge starts
     expect(store.getState().challenge.pending).toBeNull()
@@ -271,6 +261,7 @@ describe('GameScreen.onDone — partial=true still advances the game (no stuck s
     await act(async () => {
       capturedOnDone!(0, true)
     })
+    await completeWinnerCeremony()
 
     // POS winner set, LOH winner still null
     expect(store.getState().game.posWinnerId).not.toBeNull()
@@ -282,6 +273,7 @@ describe('GameScreen.onDone — partial=false (normal completion) — no regress
   beforeEach(() => {
     vi.useFakeTimers()
     capturedOnDone = null
+    capturedCeremonyOnDone = null
   })
 
   afterEach(() => {

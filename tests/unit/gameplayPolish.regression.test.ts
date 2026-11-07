@@ -195,7 +195,7 @@ describe('gameplay polish regressions', () => {
       })
     )
 
-    expect(state.jurorIds).toHaveLength(7)
+    expect(state.jurorIds.filter((id) => id !== PUBLIC_JUROR_ID)).toHaveLength(7)
     expect(state.jurorIds).not.toContain('pre1')
     expect(state.returnedJurorId).toBeNull()
     expect(state.publicJurorEnabled).toBe(true)

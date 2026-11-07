@@ -10,6 +10,7 @@ import gameReducer, {
   addTvEvent,
   addCustomBroadcast,
   consumeBroadcastEvent,
+  resetGame,
   setPhase,
   syncPhaseBroadcasts,
 } from '../src/store/gameSlice'
@@ -44,6 +45,30 @@ function makeStore() {
 }
 
 describe('manager-driven faux-TV queue', () => {
+  it('shows the actual season number in the staged welcome after a reset', async () => {
+    const store = makeStore()
+    store.dispatch(resetGame([{ seasonIndex: 1, seasonId: 'previous', playerSummaries: [] }]))
+
+    render(
+      <I18nContext.Provider value={TEST_I18N}>
+        <Provider store={store}>
+          <MemoryRouter>
+            <TvZone />
+            <SeasonStartOnboardingController />
+          </MemoryRouter>
+        </Provider>
+      </I18nContext.Provider>
+    )
+
+    await waitFor(() => {
+      const welcome = store
+        .getState()
+        .game.tvFeed.filter((event) => event.meta?.seasonOnboardingWelcome)
+      expect(welcome).toHaveLength(1)
+      expect(welcome[0].text).toContain('Season 2 begins now.')
+    })
+  })
+
   it.each([
     ['vox_populi', 'VOX POPULI is now in force.'],
     ['cupid_arrow', 'Cupid has chosen the pairs.'],
