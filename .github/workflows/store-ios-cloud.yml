@@ -5,6 +5,11 @@ on:
     branches: ['codex/store-release-cloud-*']
   workflow_dispatch:
     inputs:
+      sign_archive:
+        description: Export a signed iOS app without uploading it to Apple
+        required: true
+        type: boolean
+        default: false
       upload_to_testflight:
         description: Sign and upload to TestFlight using the configured Apple credentials
         required: true
@@ -50,7 +55,7 @@ jobs:
           npm run prepare:store:ios
           npm run check:production-debug-globals
       - name: Install signing credentials
-        if: inputs.upload_to_testflight == true
+        if: inputs.sign_archive == true || inputs.upload_to_testflight == true
         env:
           IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
           IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
@@ -93,7 +98,7 @@ jobs:
           cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$uuid.mobileprovision"
           echo "IOS_PROFILE_UUID=$uuid" >> "$GITHUB_ENV"
       - name: Archive without signing
-        if: inputs.upload_to_testflight != true
+        if: inputs.sign_archive != true && inputs.upload_to_testflight != true
         run: >-
           xcodebuild archive
           -project ios/App/App.xcodeproj -scheme App
@@ -102,7 +107,7 @@ jobs:
           CURRENT_PROJECT_VERSION="${{ github.run_number }}"
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
       - name: Archive with distribution signing
-        if: inputs.upload_to_testflight == true
+        if: inputs.sign_archive == true || inputs.upload_to_testflight == true
         run: >-
           xcodebuild archive
           -project ios/App/App.xcodeproj -scheme App
@@ -112,11 +117,8 @@ jobs:
           CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution"
           PROVISIONING_PROFILE_SPECIFIER="$IOS_PROFILE_UUID"
           OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/the-big-eye-signing.keychain-db"
-      - name: Export and upload to TestFlight
-        if: inputs.upload_to_testflight == true
-        env:
-          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
-          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+      - name: Export the signed iOS app
+        if: inputs.sign_archive == true || inputs.upload_to_testflight == true
         shell: bash
         run: |
           set -euo pipefail
@@ -132,6 +134,14 @@ jobs:
           target.write_bytes(plistlib.dumps(options))
           PY
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/TheBigEye.xcarchive" -exportPath "$RUNNER_TEMP/ipa" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+      - name: Upload to TestFlight
+        if: inputs.upload_to_testflight == true
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
           ipa_files=("$RUNNER_TEMP/ipa/"*.ipa)
           test "${#ipa_files[@]}" -eq 1
           xcrun altool --upload-app -f "${ipa_files[0]}" -t ios --apiKey "$ASC_API_KEY_ID" --apiIssuer "$ASC_API_ISSUER_ID" --output-format json
@@ -146,7 +156,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Remove temporary signing credentials
-        if: always() && inputs.upload_to_testflight == true
+        if: always() && (inputs.sign_archive == true || inputs.upload_to_testflight == true)
         env:
           ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
         shell: bash
