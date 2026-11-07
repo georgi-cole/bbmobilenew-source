@@ -1884,7 +1884,9 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
         return result(
           false,
           'Choose one partner for a personal pact, or use Your Alliances to agree a group roster.',
-          energy
+          energy,
+          0,
+          'Invalid selection'
         )
       return executeAction(input.actorId, input.targetId, input.actionId, { source: 'manual' })
     }

@@ -65,7 +65,7 @@ describe('audience pulse and explicit requests', () => {
     expect(reactions.find((entry) => entry.playerId === 'echo')?.delta).toBeLessThan(0)
   })
 
-  it('gives influence-LOH requests a concrete nomination target', () => {
+  it('gives public elimination requests a concrete rival the player can target', () => {
     const players = [
       { id: 'user', name: 'You', avatar: '🧑', status: 'active', isUser: true },
       { id: 'lia', name: 'Lia', avatar: '👩', status: 'loh', isUser: false },
@@ -77,11 +77,16 @@ describe('audience pulse and explicit requests', () => {
         players: [...players],
         week: offset + 1,
         seed: offset + 11,
-        count: 4,
+        count: 1,
+        prioritizeHuman: true,
+        relationships: { user: { echo: { affinity: -25, tags: ['rival'] } } },
       })
     ).flat()
-    const influence = directions.find((direction) => direction.type === 'influence_hoh')
-    expect(influence?.targetPlayerId).toBeTruthy()
-    expect(influence?.description).toMatch(/Convince .+ to nominate .+/i)
+    const request = directions.find((direction) => direction.type === 'target_player')
+    expect(request).toMatchObject({
+      playerId: 'user',
+      relatedPlayerId: 'echo',
+      description: 'Target Echo for elimination',
+    })
   })
 })

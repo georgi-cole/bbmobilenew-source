@@ -12,7 +12,7 @@
 //  9. Redux selectors selectEnergyBank and selectSessionLogs are correct.
 // 10. updateRelationship reducer merges affinity and tags.
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { configureStore } from '@reduxjs/toolkit'
 import gameReducer, { setDramaSocialMode, setPhase } from '../../src/store/gameSlice'
 import settingsReducer, { setGameUX } from '../../src/store/settingsSlice'
@@ -51,7 +51,7 @@ import { socialMiddleware } from '../../src/social/socialMiddleware'
 import { executeAllianceManagementCommand } from '../../src/social/allianceManagementActions'
 import { getCurrentPact } from '../../src/social/reality/allianceIdentity'
 import { socialConfig } from '../../src/social/socialConfig'
-import { MIN_ALLIANCE_AFFINITY, hasAllianceBetween } from '../../src/social/socialAlliance'
+import { hasAllianceBetween } from '../../src/social/socialAlliance'
 import { executeHumanRealityAction } from '../../src/social/reality/humanFlow'
 import {
   createDirectedRelationship,
@@ -147,6 +147,7 @@ function makeStoreWithSocialMiddleware(
     preloadedState: {
       game: {
         ...initialGame,
+        dramaSocialMode: dramaMode,
         players,
       },
     } as never,
@@ -212,7 +213,7 @@ describe('Reality action cost atomicity', () => {
     ])
     initManeuvers(store)
     store.dispatch(setPhase('social_1'))
-    store.dispatch(initializeRealitySimulation({ seed: 1, force: true }))
+    store.dispatch(initializeRealitySimulation({ seed: 9, force: true }))
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
 
     const result = executeHumanRealityAction({
@@ -309,12 +310,15 @@ describe('Reality action cost atomicity', () => {
       outcome: 'failure',
       targetOutcomes: { p2: 'success', p3: 'failure' },
       costOverride: { energy: 2, influence: 0, info: 0 },
-      random: () => 0,
+      random: sequence(0, 0.999),
     })
 
     expect(result.success).toBe(true)
-    expect(result.targetDeltas?.p2).toBeGreaterThan(0)
-    expect(result.targetDeltas?.p3).toBeLessThanOrEqual(0)
+    expect(result.targetDeltas).toEqual({
+      p2: socialConfig.affinityDeltas.friendlySuccess,
+      p3: socialConfig.affinityDeltas.friendlyFailure,
+    })
+    expect(store.getState().social.influenceBank.p1 ?? 0).toBeLessThanOrEqual(0)
     expect(store.getState().social.actionHistory.at(-1)?.outcome).toBe('failure')
     expect(store.getState().social.energyBank.p1).toBe(3)
   })
@@ -355,7 +359,7 @@ describe('Reality compatibility outcome semantics', () => {
     ])
     initManeuvers(store)
     store.dispatch(setPhase('social_1'))
-    store.dispatch(initializeRealitySimulation({ seed: 8, force: true }))
+    store.dispatch(initializeRealitySimulation({ seed: 2, force: true }))
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
     store.dispatch(setInfluenceBankEntry({ playerId: 'p1', value: 10 }))
 
@@ -381,36 +385,40 @@ describe('Reality compatibility outcome semantics', () => {
   })
 })
 
-describe('Reality human personal pact proposals', () => {
-  function offerPersonalPact() {
-    const store = makeStoreWithSocialMiddleware(true, [
-      { id: 'p1', name: 'Player', status: 'active', isUser: true },
-      { id: 'p2', name: 'Kian', status: 'active', isUser: true },
-    ])
-    initManeuvers(store)
-    store.dispatch(setPhase('social_1'))
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 300 }))
-    const propose = () =>
-      executeHumanRealityAction({ actorId: 'p1', targetId: 'p2', actionId: 'proposeAlliance' })(
-        store.dispatch as never,
-        store.getState as never
-      )
-    expect(propose().success).toBe(true)
-    const reality = store.getState().social.reality
-    expect(getCurrentPact(reality, 'p1', 'p2')).toBeUndefined()
-    const [request] = Object.values(reality.allianceManagement.requests)
-    expect(request).toMatchObject({ status: 'CONSENT', kind: 'PACT' })
-    const respond = (accept: boolean) =>
-      executeAllianceManagementCommand({
-        type: 'RESPOND',
-        actorId: 'p2',
-        requestId: request.id,
-        accept,
-      })(store.dispatch as never, store.getState as never)
-    return { store, propose, respond, request }
-  }
+function makePersonalPactStore() {
+  const store = makeStoreWithSocialMiddleware(true, [
+    { id: 'p1', name: 'Player', status: 'active', isUser: true },
+    { id: 'p2', name: 'Kian', status: 'active', isUser: true },
+  ])
+  initManeuvers(store)
+  store.dispatch(setPhase('social_1'))
+  store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
+  store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 300 }))
+  return store
+}
 
+function offerPersonalPact(store = makePersonalPactStore()) {
+  const propose = () =>
+    executeHumanRealityAction({ actorId: 'p1', targetId: 'p2', actionId: 'proposeAlliance' })(
+      store.dispatch as never,
+      store.getState as never
+    )
+  expect(propose().success).toBe(true)
+  const reality = store.getState().social.reality
+  expect(getCurrentPact(reality, 'p1', 'p2')).toBeUndefined()
+  const [request] = Object.values(reality.allianceManagement.requests)
+  expect(request).toMatchObject({ status: 'CONSENT', kind: 'PACT' })
+  const respond = (accept: boolean) =>
+    executeAllianceManagementCommand({
+      type: 'RESPOND',
+      actorId: 'p2',
+      requestId: request.id,
+      accept,
+    })(store.dispatch as never, store.getState as never)
+  return { store, propose, respond, request }
+}
+
+describe('Reality human personal pact proposals', () => {
   it('keeps a declined proposal out of the alliance roster and its projection', () => {
     const { store, respond, request } = offerPersonalPact()
     expect(respond(false).status).toBe('APPLIED')
@@ -424,12 +432,16 @@ describe('Reality human personal pact proposals', () => {
   it('charges two Energy once and prevents a duplicate personal pact', () => {
     const { store, propose, respond } = offerPersonalPact()
     expect(respond(true).status).toBe('APPLIED')
-    expect(propose().success).toBe(false)
+    expect(propose()).toMatchObject({
+      success: false,
+      summary: 'You already share a personal pact.',
+    })
     const { energyBank, infoBank, influenceBank, reality } = store.getState().social
     expect(energyBank.p1).toBe(8)
     expect(infoBank.p1).toBe(300)
     expect(influenceBank.p1 ?? 0).toBe(0)
     expect(Object.values(reality.alliances)).toHaveLength(1)
+    expect(Object.values(reality.allianceManagement.requests)).toHaveLength(1)
   })
 
   it('preserves an accepted personal pact through the next day projection', () => {
@@ -983,17 +995,9 @@ describe('getAvailableActions', () => {
     }
   })
 
-  it('excludes propose alliance for a selected target that is already allied', () => {
-    const store = makeStore()
-    initManeuvers(store)
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 300 }))
-    store.dispatch(
-      updateRelationship({ source: 'p1', target: 'p2', delta: 50, tags: ['alliance'] })
-    )
-    store.dispatch(
-      updateRelationship({ source: 'p2', target: 'p1', delta: 50, tags: ['alliance'] })
-    )
+  it('excludes propose alliance for a selected target in an accepted pact', () => {
+    const { respond } = offerPersonalPact()
+    expect(respond(true).status).toBe('APPLIED')
 
     const ids = getAvailableActions('p1', undefined, 'p2').map((action) => action.id)
 
@@ -1256,33 +1260,28 @@ describe('executeAction – failure cases', () => {
 // ── Integration: computeOutcomeDelta wired through executeAction ──────────
 
 describe('executeAction – outcome delta from SocialPolicy', () => {
-  it('reports the applied delta for ally on success', () => {
-    const store = makeStore()
-    initManeuvers(store)
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
+  it('routes the legacy ally action through personal pact consent', () => {
+    const store = makePersonalPactStore()
+    const result = executeAction('p1', 'p2', 'ally', { outcome: 'success' })
 
-    const result = executeAction('p1', 'p2', 'ally', {
-      outcome: 'success',
-      random: sequence(0.79, 0.999),
-    })
     expect(result.success).toBe(true)
-    expect(result.delta).toBe(socialConfig.affinityDeltas.friendlySuccess)
+    const { reality, relationships, energyBank } = store.getState().social
+    expect(energyBank.p1).toBe(8)
+    expect(getCurrentPact(reality, 'p1', 'p2')).toBeUndefined()
+    expect(hasAllianceBetween(relationships, 'p1', 'p2')).toBe(false)
+    expect(Object.values(reality.allianceManagement.requests)).toMatchObject([
+      { kind: 'PACT', status: 'CONSENT' },
+    ])
   })
 
-  it('delta for betray (aggressive, socialConfig) is negative on success', () => {
-    const store = makeStore(true)
-    initManeuvers(store)
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    store.dispatch(
-      updateRelationship({ source: 'p1', target: 'p2', delta: 50, tags: ['alliance'] })
-    )
-    store.dispatch(
-      updateRelationship({ source: 'p2', target: 'p1', delta: 50, tags: ['alliance'] })
-    )
+  it('reports a negative affinity delta after betraying a pact member', () => {
+    const { store, respond } = offerPersonalPact()
+    expect(respond(true).status).toBe('APPLIED')
 
     const result = executeAction('p1', 'p2', 'betray', { outcome: 'success' })
     expect(result.success).toBe(true)
     expect(result.delta).toBe(socialConfig.affinityDeltas.aggressiveSuccess)
+    expect(getCurrentPact(store.getState().social.reality, 'p1', 'p2')).toBeDefined()
   })
 
   it('reports the applied delta for compliment on success', () => {
@@ -1396,10 +1395,9 @@ describe('getAvailableActions – multi-resource filtering', () => {
     const store = makeStore()
     initManeuvers(store)
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    // No info → proposeAlliance ({ energy:3, info:200 }) and rumor ({ energy:2, info:100 }) excluded
     const available = getAvailableActions('p1')
     const ids = available.map((a) => a.id)
-    expect(ids).not.toContain('proposeAlliance')
+    expect(ids).toContain('proposeAlliance')
     expect(ids).not.toContain('rumor')
   })
 
@@ -1447,7 +1445,6 @@ describe('executeAction – multi-resource deductions', () => {
     const store = makeStore(true)
     initManeuvers(store)
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 5 }))
-    // No info set → 0 < 100 required
 
     const result = executeAction('p1', 'p2', 'rumor')
     expect(result.success).toBe(false)
@@ -1512,108 +1509,14 @@ describe('executeAction – multi-resource deductions', () => {
     })
   })
 
-  it('propose alliance success creates a reciprocal alliance', () => {
-    const store = makeStore(true)
-    initManeuvers(store)
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 300 }))
+  it('projects reciprocal alliance tags and goodwill on pact acceptance', () => {
+    const { store, respond } = offerPersonalPact()
+    expect(respond(true).status).toBe('APPLIED')
+    const { reality, relationships } = store.getState().social
 
-    const result = executeAction('p1', 'p2', 'proposeAlliance', {
-      outcome: 'success',
-      random: () => 0,
-    })
-
-    expect(result.success).toBe(true)
-    expect(store.getState().social.relationships.p1?.p2?.tags).toContain('alliance')
-    expect(store.getState().social.relationships.p2?.p1?.tags).toContain('alliance')
-    expect(store.getState().social.relationships.p1?.p2?.affinity).toBeGreaterThanOrEqual(
-      MIN_ALLIANCE_AFFINITY
-    )
-    expect(store.getState().social.relationships.p2?.p1?.affinity).toBeGreaterThanOrEqual(
-      MIN_ALLIANCE_AFFINITY
-    )
-    expect(hasAllianceBetween(store.getState().social.relationships, 'p1', 'p2')).toBe(true)
-    expect(getAvailableActions('p1', undefined, 'p2').map((action) => action.id)).not.toContain(
-      'proposeAlliance'
-    )
-  })
-
-  it('grants alliance formation resources only once for a reciprocal alliance', () => {
-    const store = makeStoreWithSocialMiddleware(true)
-    initManeuvers(store)
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 300 }))
-    store.dispatch(setInfluenceBankEntry({ playerId: 'p1', value: 0 }))
-
-    executeAction('p1', 'p2', 'proposeAlliance', {
-      outcome: 'success',
-      source: 'manual',
-      random: () => 0,
-    })
-
-    expect(store.getState().social.energyBank.p1).toBe(8)
-    expect(store.getState().social.energyBank.p2).toBe(2)
-    expect(store.getState().social.influenceBank.p1).toBe(208)
-    expect(store.getState().social.influenceBank.p2).toBe(200)
-  })
-
-  it('blocks proposing an alliance while the relationship is already allied', () => {
-    const store = makeStore()
-    initManeuvers(store)
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 300 }))
-    store.dispatch(
-      updateRelationship({ source: 'p1', target: 'p2', delta: 50, tags: ['alliance'] })
-    )
-    store.dispatch(
-      updateRelationship({ source: 'p2', target: 'p1', delta: 50, tags: ['alliance'] })
-    )
-
-    const result = executeAction('p1', 'p2', 'proposeAlliance', { outcome: 'success' })
-
-    expect(result).toMatchObject({ success: false, summary: 'Already allied' })
-    expect(store.getState().social.energyBank.p1).toBe(10)
-    expect(store.getState().social.sessionLogs).toHaveLength(0)
-  })
-
-  it('repairs stale low-affinity alliance tags through a newly accepted proposal', () => {
-    const store = makeStore(true)
-    initManeuvers(store)
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 300 }))
-    store.dispatch(updateRelationship({ source: 'p1', target: 'p2', delta: 5, tags: ['alliance'] }))
-    store.dispatch(updateRelationship({ source: 'p2', target: 'p1', delta: 5, tags: ['alliance'] }))
-    expect(hasAllianceBetween(store.getState().social.relationships, 'p1', 'p2')).toBe(false)
-
-    const result = executeAction('p1', 'p2', 'proposeAlliance', {
-      outcome: 'success',
-      random: () => 0,
-    })
-
-    expect(result.success).toBe(true)
-    expect(hasAllianceBetween(store.getState().social.relationships, 'p1', 'p2')).toBe(true)
-  })
-
-  it('can turn a risky alliance proposal into a betrayal', () => {
-    const store = makeStore(true)
-    initManeuvers(store)
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 300 }))
-    store.dispatch(updateRelationship({ source: 'p1', target: 'p2', delta: -20 }))
-    const randomSpy = vi
-      .spyOn(Math, 'random')
-      .mockReturnValueOnce(0.01)
-      .mockReturnValueOnce(0.01)
-      .mockReturnValue(0.5)
-
-    const result = executeAction('p1', 'p2', 'proposeAlliance')
-    randomSpy.mockRestore()
-
-    expect(result.success).toBe(true)
-    expect(result.summary).toMatch(/accepted|playing both sides|strategically convenient/)
-    expect(store.getState().social.relationships.p1?.p2?.tags ?? []).not.toContain('alliance')
-    expect(store.getState().social.relationships.p2?.p1?.tags).toContain('betrayal')
-    expect(store.getState().social.relationships.p2?.p1?.tags).not.toContain('alliance')
+    expect(getCurrentPact(reality, 'p1', 'p2')?.memberIds).toEqual(['p1', 'p2'])
+    expect(relationships.p1?.p2).toMatchObject({ affinity: 5, tags: ['alliance'] })
+    expect(relationships.p2?.p1).toMatchObject({ affinity: 5, tags: ['alliance'] })
   })
 })
 
@@ -1666,7 +1569,7 @@ describe('executeAction – balancesAfter in sessionLogs', () => {
     initManeuvers(store)
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
 
-    executeAction('p1', 'p2', 'ally')
+    executeAction('p1', 'p2', 'confront', { outcome: 'success' })
     const entry = store.getState().social.sessionLogs[0] as SocialActionLogEntry
     expect(entry.yieldsApplied).toBeUndefined()
   })

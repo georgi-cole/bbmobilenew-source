@@ -671,15 +671,15 @@ export function directLocalBigEyeReply(input: LocalBigEyeDirectorInput): string 
     return resolveKnowledgeReply(frame.knowledgeQuery, { ...input, frame }, facts)
   }
 
+  if (frame.contradiction && config.features.memoryCallbacks) {
+    return `${frame.contradiction} What changed?`
+  }
+
   const semanticReply = groundedSemanticReply(input, frame, facts)
   if (semanticReply) return semanticReply
 
   if (config.features.challengeMe && frame.speechAct === 'challenge_request') {
     return `Very well. ${pickConfiguredChallenge(input)} Come back and tell me what happened.`
-  }
-
-  if (frame.contradiction && config.features.memoryCallbacks) {
-    return `${frame.contradiction} What changed?`
   }
 
   if (frame.speechAct === 'prediction' && frame.predictedWinner) {

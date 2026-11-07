@@ -180,7 +180,7 @@ function detectKnowledgeQuery(
   ) {
     return 'alliances'
   }
-  if (/how many (?:people|players|housemates).*(?:left|remain)|who is left/.test(text)) {
+  if (/how many (?:people|players|housemates|hubmates).*(?:left|remain)|who is left/.test(text)) {
     return 'remaining'
   }
   if (
@@ -229,7 +229,10 @@ function findEntities(text: string, world?: ConfessionalWorldContext): string[] 
     ...(world.leaderName ? [world.leaderName] : []),
     ...(world.safetyWinnerName ? [world.safetyWinnerName] : []),
   ])
-  return candidates.filter((name) => text.includes(normalizeInput(name)))
+  return candidates.filter((name) => {
+    const normalized = normalizeInput(name)
+    return normalized !== '' && ` ${text} `.includes(` ${normalized} `)
+  })
 }
 
 function escapeRegExp(value: string): string {

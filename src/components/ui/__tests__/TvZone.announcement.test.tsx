@@ -63,7 +63,7 @@ function render(ui: React.ReactNode) {
 
 // ── Store helpers ─────────────────────────────────────────────────────────────
 
-function makeStore() {
+function makeStore(game?: Partial<ReturnType<typeof gameReducer>>) {
   const store = configureStore({
     reducer: {
       game: gameReducer,
@@ -72,6 +72,9 @@ function makeStore() {
       challenge: challengeReducer,
       finale: finaleReducer,
     },
+    preloadedState: game
+      ? { game: { ...gameReducer(undefined, { type: '@@init' }), ...game } }
+      : undefined,
   })
   // These integration tests inject their own event/phase under test. Clear the
   // real Season Start playback queue so it cannot mask that fixture.
@@ -380,30 +383,31 @@ describe('TvZone — announcement overlay', () => {
   })
 
   it('drops an obsolete Final 3 vote warning after the Final 2 has formed', () => {
-    const store = makeStore()
-    act(() => {
-      store.dispatch(
-        addTvEvent(
-          makeEvent({
-            id: 'stale-final-three-warning',
-            text: 'Ash has final immunity. The audience must eliminate Zed or Ivy.',
-            meta: {
-              week: 1,
-              major: 'vox_populi_final_three_vote',
-              broadcastPriority: 'critical',
-            },
-          })
-        )
-      )
+    const warning = makeEvent({
+      id: 'stale-final-three-warning',
+      text: 'Ash has final immunity. The audience must eliminate Zed or Ivy.',
+      meta: {
+        phase: 'final3_decision',
+        week: 1,
+        major: 'vox_populi_final_three_vote',
+        broadcastPriority: 'critical',
+      },
+    })
+    const store = makeStore({
+      phase: 'jury_announcement',
+      players: [makePlayer('ash', 'Ash'), makePlayer('ivy', 'Ivy')],
+      tvFeed: [warning],
+      broadcastQueue: [],
     })
     renderTvZone(store)
 
     expect(
       screen.queryByRole('dialog', { name: 'Announcement: The Final Three Verdict' })
     ).toBeNull()
-    expect(document.querySelector('.tv-zone__now')?.textContent).not.toContain(
+    expect(document.querySelector('.tv-zone__now')?.textContent ?? '').not.toContain(
       'Ash has final immunity'
     )
+    expect(store.getState().game.tvFeed).toContainEqual(warning)
   })
 
   it('streams Detox safety beats on the main TV before the final nominee message', () => {
@@ -695,7 +699,9 @@ describe('TvZone — announcement overlay', () => {
     })
 
     expect(screen.queryByRole('dialog', { name: /Announcement: Live Elimination/i })).toBeNull()
-    expect(document.querySelector('.tv-zone__now')).toHaveStyle({ opacity: '0' })
+    expect(document.querySelector('.tv-zone__now')?.textContent ?? '').not.toContain(
+      LIVE_VOTE_PITCHES_TEXT
+    )
 
     vi.useRealTimers()
   })
@@ -726,10 +732,16 @@ describe('TvZone — announcement overlay', () => {
       vi.advanceTimersByTime(POST_DISMISS_SETTLE_MS)
     })
 
-    expect(document.querySelector('.tv-zone__now')).toHaveTextContent(
+    expect(document.querySelector('.tv-zone__now')?.textContent ?? '').not.toContain(
       'Housemates give their last plea before voting begins.'
     )
-    expect(document.querySelector('.tv-zone__now')).toHaveStyle({ opacity: '0' })
+    expect(store.getState().game.tvFeed).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          meta: expect.objectContaining({ key: LIVE_VOTE_PITCHES_EVENT_KEY }),
+        }),
+      ])
+    )
 
     vi.useRealTimers()
   })
@@ -775,10 +787,8 @@ describe('TvZone — announcement overlay', () => {
     expect(screen.getByRole('button', { name: /^Music$/i })).toHaveClass(
       'top-utility-btn--inactive'
     )
-    expect(getShellSrc(screen.getByRole('button', { name: /^Music$/i }))).toContain(
-      '/assets/icons/music_disabled.svg'
-    )
-    expect(getGlyph(screen.getByRole('button', { name: /^Music$/i }))).toBeNull()
+    expect(getShellSrc(musicButton)).toContain('/assets/control_dock/top_utility_shell.svg')
+    expect(getGlyph(musicButton)?.getAttribute('src')).toContain('/assets/control_dock/music.svg')
     expect(getScratchSrc(screen.getByRole('button', { name: /^Music$/i }))).toContain(
       '/assets/icons/audio_deactivated_scratch.svg'
     )
@@ -789,10 +799,8 @@ describe('TvZone — announcement overlay', () => {
     expect(screen.getByRole('button', { name: /^Sound effects$/i })).toHaveClass(
       'top-utility-btn--inactive'
     )
-    expect(getShellSrc(screen.getByRole('button', { name: /^Sound effects$/i }))).toContain(
-      '/assets/icons/sound_disabled.svg'
-    )
-    expect(getGlyph(screen.getByRole('button', { name: /^Sound effects$/i }))).toBeNull()
+    expect(getShellSrc(sfxButton)).toContain('/assets/control_dock/top_utility_shell.svg')
+    expect(getGlyph(sfxButton)?.getAttribute('src')).toContain('/assets/control_dock/sound.svg')
     expect(getScratchSrc(screen.getByRole('button', { name: /^Sound effects$/i }))).toContain(
       '/assets/icons/audio_deactivated_scratch.svg'
     )

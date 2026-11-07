@@ -5,6 +5,8 @@ import { SOCIAL_ACTIONS } from '../socialActions'
 import { normalizeActionCosts, normalizeActionYields } from '../smExecNormalize'
 import { getSocialResourceEffect, nextHumanSocialEnergy } from '../socialResourceEconomy'
 import { executeGroupAction, initManeuvers } from '../SocialManeuvers'
+import gameReducer, { createInitialGameState } from '../../store/gameSlice'
+import type { GameState } from '../../types'
 
 function groupAction() {
   const action = SOCIAL_ACTIONS.find((candidate) => candidate.id === 'group_chat')
@@ -122,5 +124,53 @@ describe('atomic Group Chat execution', () => {
     expect(store.getState().social.energyBank.user).toBe(3)
     expect(store.getState().social.relationships.user).toBeUndefined()
     expect(store.getState().social.sessionLogs).toHaveLength(0)
+  })
+
+  it('spends and rewards only the weekend wallet when the human starts a Group Chat', () => {
+    const initialGame = createInitialGameState({ seed: 22 })
+    const human = initialGame.players.find((player) => player.isUser)!
+    const targets = initialGame.players.filter((player) => !player.isUser).slice(0, 2)
+    const game: GameState = {
+      ...initialGame,
+      week: 4,
+      phase: 'week_end',
+      weekendInterlude: {
+        active: true,
+        afterDay: 4,
+        weekendDay: 1,
+        episode: 'party',
+        stage: 'social',
+        wallet: { energy: 5, influence: 4, info: 3 },
+      },
+    }
+    const store = configureStore({
+      reducer: { game: gameReducer, social: socialReducer },
+      preloadedState: { game },
+    })
+    initManeuvers(store)
+    const { energyBank, influenceBank, infoBank } = store.getState().social
+
+    const result = executeGroupAction(
+      human.id,
+      targets.map((player) => player.id),
+      'group_chat',
+      {
+        source: 'manual',
+        costOverride: { energy: 2, influence: 1, info: 2 },
+        random: () => 0,
+      }
+    )
+
+    expect(result).toMatchObject({ success: true, newEnergy: 3 })
+    expect(store.getState().game.weekendInterlude?.wallet).toEqual({
+      energy: 3,
+      influence: 6,
+      info: 1,
+    })
+    expect(store.getState().social).toMatchObject({ energyBank, influenceBank, infoBank })
+    expect(store.getState().social.sessionLogs.at(-1)).toMatchObject({
+      phase: 'weekend_day_1',
+      balancesAfter: { energy: 3, influence: 6, info: 1 },
+    })
   })
 })
