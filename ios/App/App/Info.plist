@@ -2,9 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Google demo app ID; configured by scripts/configure-admob.mjs for live builds. -->
+    <!-- AdMob app ID; configured by scripts/configure-admob.mjs for each build. -->
     <key>GADApplicationIdentifier</key>
-    <string>ca-app-pub-3940256099942544~1458002511</string>
+    <string>ca-app-pub-9243398419153145~3393385791</string>
     <key>GADDelayAppMeasurementInit</key>
     <true/>
     <key>NSUserTrackingUsageDescription</key>

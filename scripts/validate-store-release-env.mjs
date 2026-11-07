@@ -45,8 +45,16 @@ if (values.VITE_VIP_DEV_ENTITLEMENT === 'true') {
   issues.push('VITE_VIP_DEV_ENTITLEMENT must not be true in a store build.')
 }
 
-if (values.VITE_BUILD_TARGET === 'mobile-dev') {
-  issues.push('VITE_BUILD_TARGET=mobile-dev must not be used in a store build.')
+if (values.VITE_BUILD_TARGET && values.VITE_BUILD_TARGET !== 'release') {
+  issues.push(
+    'VITE_BUILD_TARGET must be release in a store build; developer targets unlock paid features.'
+  )
+}
+
+if (values.VITE_SUPABASE_ENABLED === 'true') {
+  issues.push(
+    'Cloud backup and analytics are enabled: complete their release privacy disclosures and retention/deletion review before submitting this offline-first release.'
+  )
 }
 
 const adsMode = values.VITE_ADMOB_MODE || 'off'
@@ -75,6 +83,12 @@ for (const key of ['VITE_BIG_EYE_VIP_API_URL', 'VITE_REMOTE_CONFIG_URL']) {
   if (values[key] && !isProductionHttpsUrl(values[key])) {
     issues.push(`${key} must use a real production HTTPS URL when configured.`)
   }
+}
+
+if (values.VITE_BIG_EYE_VIP_API_URL) {
+  issues.push(
+    'The online Diary Room endpoint must be unset for this offline-first release, even when VITE_BIG_EYE_AI_ENABLED is false.'
+  )
 }
 
 if (values.VITE_BIG_EYE_AI_ENABLED === 'true') {
