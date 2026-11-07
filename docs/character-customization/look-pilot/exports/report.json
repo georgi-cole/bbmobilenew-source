@@ -1,0 +1,181 @@
+{
+  "ticket": "CL-00",
+  "route": "complete-look-image-bundles",
+  "delivery": [
+    {
+      "lookId": "identity-01-everyday",
+      "role": "body",
+      "path": "exports/identity-01-everyday/body.webp",
+      "dimensions": [768, 1152],
+      "bytes": 110842,
+      "quality": 88,
+      "alphaPixels": 259578,
+      "alphaMax": 255,
+      "sha256": "3d8f04f15c42aeee91760293d02fc89d48ce79b590798985182ec3ffabb1cf4b"
+    },
+    {
+      "lookId": "identity-01-everyday",
+      "role": "portrait",
+      "path": "exports/identity-01-everyday/portrait.webp",
+      "dimensions": [256, 256],
+      "bytes": 17538,
+      "quality": 88,
+      "alphaPixels": 65536,
+      "alphaMax": 255,
+      "sha256": "49904bd29b63fc0d641cd1557961cac79bcbec9bb677bf830535d464b7446422"
+    },
+    {
+      "lookId": "identity-01-everyday",
+      "role": "thumbnail",
+      "path": "exports/identity-01-everyday/thumbnail.webp",
+      "dimensions": [128, 128],
+      "bytes": 4664,
+      "quality": 88,
+      "alphaPixels": 3357,
+      "alphaMax": 255,
+      "sha256": "240632c59d80ad32b5206c8d26f184fed09e8c7dc4700f37cf1443056769ccfa"
+    },
+    {
+      "lookId": "identity-01-premium",
+      "role": "body",
+      "path": "exports/identity-01-premium/body.webp",
+      "dimensions": [768, 1152],
+      "bytes": 80118,
+      "quality": 88,
+      "alphaPixels": 258521,
+      "alphaMax": 255,
+      "sha256": "cabd3699a63830b15af93c035e6e4cc568c83ac6f772e892ba7d9e2dd40bc08f"
+    },
+    {
+      "lookId": "identity-01-premium",
+      "role": "portrait",
+      "path": "exports/identity-01-premium/portrait.webp",
+      "dimensions": [256, 256],
+      "bytes": 13288,
+      "quality": 88,
+      "alphaPixels": 65536,
+      "alphaMax": 255,
+      "sha256": "133c5c65df419d6036a1730b96ade76f4e270bb83f9845d36a40e976b421c5d5"
+    },
+    {
+      "lookId": "identity-01-premium",
+      "role": "thumbnail",
+      "path": "exports/identity-01-premium/thumbnail.webp",
+      "dimensions": [128, 128],
+      "bytes": 4044,
+      "quality": 88,
+      "alphaPixels": 3331,
+      "alphaMax": 255,
+      "sha256": "dc23d97bf8a090c303e6ae2d9b4b69d2a7bcb9b6c07b1169ceb97f88585b894d"
+    },
+    {
+      "lookId": "identity-02-everyday",
+      "role": "body",
+      "path": "exports/identity-02-everyday/body.webp",
+      "dimensions": [768, 1152],
+      "bytes": 65546,
+      "quality": 88,
+      "alphaPixels": 249079,
+      "alphaMax": 255,
+      "sha256": "2a64877282748a9964da4d6815e671675f17af2786855c517f6ecd39a5da501b"
+    },
+    {
+      "lookId": "identity-02-everyday",
+      "role": "portrait",
+      "path": "exports/identity-02-everyday/portrait.webp",
+      "dimensions": [256, 256],
+      "bytes": 10876,
+      "quality": 88,
+      "alphaPixels": 65536,
+      "alphaMax": 255,
+      "sha256": "180af0ace36638938125fa4e09b8cbb4f953e1590352171eefeffb02e04bc747"
+    },
+    {
+      "lookId": "identity-02-everyday",
+      "role": "thumbnail",
+      "path": "exports/identity-02-everyday/thumbnail.webp",
+      "dimensions": [128, 128],
+      "bytes": 3746,
+      "quality": 88,
+      "alphaPixels": 3202,
+      "alphaMax": 255,
+      "sha256": "9e93f53d9fb94815ebf3864cb9097d4c741c0241f2639a1dbbb1805641b5ed32"
+    },
+    {
+      "lookId": "identity-02-premium",
+      "role": "body",
+      "path": "exports/identity-02-premium/body.webp",
+      "dimensions": [768, 1152],
+      "bytes": 71764,
+      "quality": 88,
+      "alphaPixels": 248158,
+      "alphaMax": 255,
+      "sha256": "a80cc07b4a79d08b9e0d1050a89970cdfe1e3721c22a263e539b32a54e80dba6"
+    },
+    {
+      "lookId": "identity-02-premium",
+      "role": "portrait",
+      "path": "exports/identity-02-premium/portrait.webp",
+      "dimensions": [256, 256],
+      "bytes": 11022,
+      "quality": 88,
+      "alphaPixels": 65536,
+      "alphaMax": 255,
+      "sha256": "4da64b28f498ecd8f17387ac0673a9ff6a06c79b7b7ad2a10df1221bf55c24d7"
+    },
+    {
+      "lookId": "identity-02-premium",
+      "role": "thumbnail",
+      "path": "exports/identity-02-premium/thumbnail.webp",
+      "dimensions": [128, 128],
+      "bytes": 4118,
+      "quality": 88,
+      "alphaPixels": 3204,
+      "alphaMax": 255,
+      "sha256": "d7da0eed6e2002210fbefd77c143cdedd68a0c61b7c4a2089cbe69855c803e69"
+    }
+  ],
+  "masterSources": [
+    {
+      "path": "identity-01-everyday-body.png",
+      "bytes": 1838878,
+      "sha256": "802a380b42ac4286f5e85f01dabf6917466bef508a40ec32d079589bb2aa0bf4"
+    },
+    {
+      "path": "identity-01-everyday-portrait.png",
+      "bytes": 2732943,
+      "sha256": "cc629f7fa87f012ff35375edd730fb2e71583136b53866f82d8dd27aa7bec1fc"
+    },
+    {
+      "path": "identity-01-premium-body.png",
+      "bytes": 1618339,
+      "sha256": "b36e40d1171a2699eb8776fb3aa3d39cee7d50d6cf2317f606131046311165bf"
+    },
+    {
+      "path": "identity-01-premium-portrait.png",
+      "bytes": 2380509,
+      "sha256": "ff1a91604bd36cf8e55416ee4340fbb04b9c7616adb9e5190bdb28065970e594"
+    },
+    {
+      "path": "identity-02-everyday-body.png",
+      "bytes": 1454391,
+      "sha256": "0f81d298750aca26bab736a3289b2b2989350b25c6ccc2abbe528c1b8b6050b4"
+    },
+    {
+      "path": "identity-02-everyday-portrait.png",
+      "bytes": 2502726,
+      "sha256": "92b330b134226fab50dfb8245ca55ffcea9fda574a0b79fc1ae865d6bc613ec7"
+    },
+    {
+      "path": "identity-02-premium-body.png",
+      "bytes": 1510835,
+      "sha256": "e198ff7f1c8220e669cbe87293f788d9d195ab4a9cac2b488269fd91cf2598f9"
+    },
+    {
+      "path": "identity-02-premium-portrait.png",
+      "bytes": 2356851,
+      "sha256": "541686208699b48396e80c0ba4503a59189dc232019d83702b0c4d47f486550f"
+    }
+  ],
+  "totalDeliveryBytes": 397566
+}

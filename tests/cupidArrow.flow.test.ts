@@ -10,6 +10,7 @@ import gameReducer, {
   forceNominees,
   forcePhase,
   forcePovWinner,
+  hydrateGame,
   selfEvict,
   submitHumanVote,
   submitTieBreak,
@@ -55,7 +56,72 @@ function makeStore() {
   return configureStore({ reducer: { game: gameReducer }, preloadedState: { game } })
 }
 
+function tiedPairEviction(winner: 'human' | 'partner' = 'partner') {
+  let state = gameReducer(makeStore().getState().game, activateCupidArrowNow())
+  const pairs = state.cupidArrow!.pairs
+  const humanPair = pairs.find((pair) => pair.memberIds.includes('user'))!
+  const partnerId = humanPair.memberIds.find((id) => id !== 'user')!
+  const nomineePairs = pairs.filter((pair) => pair.id !== humanPair.id).slice(0, 3)
+  state = gameReducer(state, forceHoH(winner === 'human' ? 'user' : partnerId))
+  state = gameReducer(state, forceNominees(nomineePairs.map((pair) => pair.memberIds[0])))
+  const voterPairs = pairs.filter(
+    (pair) => pair.id !== humanPair.id && !nomineePairs.some((nominee) => nominee.id === pair.id)
+  )
+  state = {
+    ...state,
+    phase: 'live_vote',
+    publicModeEnabled: false,
+    awaitingHumanVote: false,
+    votes: Object.fromEntries(
+      voterPairs.flatMap((pair, index) =>
+        pair.memberIds.map((id) => [id, nomineePairs[index % 2].memberIds[0]])
+      )
+    ),
+  }
+  state = gameReducer(state, advance())
+  return { state, humanPair, nomineePairs }
+}
+
 describe("Cupid's Arrow season shock", () => {
+  it.each(['human', 'partner'] as const)(
+    'accepts the human pair decision when the %s won LOH and eliminates both chosen partners',
+    (winner) => {
+      const { state: tied, nomineePairs } = tiedPairEviction(winner)
+      expect(tied.awaitingTieBreak).toBe(true)
+      expect(tied.tiedNomineeIds).toHaveLength(2)
+      const target = nomineePairs[0]
+      const restored = gameReducer(tied, hydrateGame(JSON.parse(JSON.stringify(tied))))
+      let state = gameReducer(restored, submitTieBreak(target.memberIds[0]))
+      expect(state.awaitingTieBreak).toBe(false)
+      expect(state.pendingEviction?.evictionMessage).toContain(
+        "Cupid's Arrow means you are eliminated together"
+      )
+      expect(state.pendingEviction?.evictionMessage).toContain('You breaks the tie')
+      state = gameReducer(state, finalizePendingEviction(state.pendingEviction!.evicteeId))
+      expect(state.pendingEviction?.evicteeId).toBe(target.memberIds[1])
+      state = gameReducer(state, finalizePendingEviction(state.pendingEviction!.evicteeId))
+      for (const id of target.memberIds) {
+        expect(['evicted', 'jury']).toContain(
+          state.players.find((player) => player.id === id)?.status
+        )
+        expect(state.nomineeIds).not.toContain(id)
+      }
+      expect(state.cupidArrow?.eliminatedPairCount).toBe(1)
+    }
+  )
+
+  it('rejects an untied pair and does not grant a former partner LOH authority after the spell breaks', () => {
+    const { state: tied, nomineePairs } = tiedPairEviction()
+    const invalid = gameReducer(tied, submitTieBreak(nomineePairs[2].memberIds[0]))
+    expect(invalid.awaitingTieBreak).toBe(true)
+    expect(invalid.pendingEviction).toBeNull()
+
+    const broken = { ...tied, cupidArrow: { ...tied.cupidArrow!, status: 'broken' as const } }
+    const rejected = gameReducer(broken, submitTieBreak(tied.tiedNomineeIds![0]))
+    expect(rejected.awaitingTieBreak).toBe(true)
+    expect(rejected.pendingEviction).toBeNull()
+  })
+
   it("automatically schedules only on Valentine's Day or Season 14", () => {
     const ordinarySeasonThree = shouldScheduleCupidArrowSeason({
       season: 3,

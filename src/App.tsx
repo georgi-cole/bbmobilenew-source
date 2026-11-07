@@ -34,6 +34,8 @@ import WeatherRosterReveal from './weather/WeatherRosterReveal'
 import SeasonStartOnboardingController from './onboarding/SeasonStartOnboardingController'
 import FauxTvProgrammingController from './broadcasting/FauxTvProgrammingController'
 import { I18nProvider } from './i18n'
+import PlayerAdmissionBoundary from './safety/PlayerAdmissionBoundary'
+import { canPlayWithSafety } from './safety/playerSafety'
 import './styles/gameCopyPolish.css'
 import './styles/performanceOverrides.css'
 import './styles/majorityRulesFinalDuel.css'
@@ -52,6 +54,16 @@ if (import.meta.env.DEV) {
 }
 
 export default function App() {
+  // Keep the router, global overlays, purchase sync, and remote controllers
+  // unmounted until admission. Deep links cannot skip this boundary.
+  return (
+    <PlayerAdmissionBoundary>
+      <AdmittedApp />
+    </PlayerAdmissionBoundary>
+  )
+}
+
+function AdmittedApp() {
   // The router commits in-app navigation with history.pushState, which does
   // not fire `hashchange`. Subscribe to the router itself so audio always sees
   // the same location as the rendered screen.
@@ -83,7 +95,9 @@ export default function App() {
     }
 
     const refreshRemoteConfig = async () => {
+      if (!canPlayWithSafety()) return
       await store.dispatch(loadRemoteConfig())
+      if (!canPlayWithSafety()) return
       rotationEnabled = store.getState().remoteConfig.config?.iconRotation?.enabled !== false
       remoteConfigReady = true
       rotateIconIfReady()

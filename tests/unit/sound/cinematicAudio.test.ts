@@ -72,4 +72,26 @@ describe('createCinematicAudio', () => {
     expect(audio.removeAttribute).toHaveBeenCalledWith('src');
     expect(audio.load).toHaveBeenCalled();
   });
+
+  it('pauses and resumes without resetting the synchronized media position', async () => {
+    const audio = new MockAudio();
+    audio.play.mockImplementation(async () => {
+      audio.paused = false;
+    });
+    installAudioConstructor(audio);
+
+    const controller = createCinematicAudio('/assets/final_recap_sound.mp3');
+    controller.play();
+    await Promise.resolve();
+    audio.currentTime = 4.5;
+
+    controller.pause();
+    controller.syncTo(6.25);
+    controller.resume();
+    await Promise.resolve();
+
+    expect(audio.currentTime).toBe(6.25);
+    expect(audio.play).toHaveBeenCalledTimes(2);
+    controller.dispose();
+  });
 });

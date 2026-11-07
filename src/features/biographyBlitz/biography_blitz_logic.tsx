@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { biographyBlitzInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Biography Blitz" last-player-standing competition.
  *
@@ -21,14 +23,14 @@
  *  - Human eliminated → isSpectating = true, AI continues automatically.
  *  - One survivor remaining → competition winner.
  */
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { mulberry32, seededPickN } from '../../store/rng';
-import { generateBioQuestions } from './bioQuestionGenerator';
-import HOUSEGUESTS from '../../data/houseguests';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { mulberry32, seededPickN } from '../../store/rng'
+import { generateBioQuestions } from './bioQuestionGenerator'
+import HOUSEGUESTS from '../../data/houseguests'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type BiographyBlitzCompetitionType = 'LOH' | 'POS';
+export type BiographyBlitzCompetitionType = 'LOH' | 'POS'
 
 export type BiographyBlitzPhase =
   | 'idle'
@@ -36,128 +38,91 @@ export type BiographyBlitzPhase =
   | 'reveal'
   | 'elimination'
   | 'round_transition'
-  | 'complete';
+  | 'complete'
 
 export interface BiographyBlitzQuestion {
-  id: string;
+  id: string
   /** The biography-based question prompt. */
-  prompt: string;
+  prompt: string
   /** ID of the correct answer — this is a contestant ID. */
-  correctAnswerId: string;
+  correctAnswerId: string
 }
 
 export interface BiographyBlitzSubmission {
-  contestantId: string;
-  selectedAnswerId: string;
+  contestantId: string
+  selectedAnswerId: string
   /** Unix-ms timestamp when the submission was recorded. */
-  submittedAt: number;
+  submittedAt: number
 }
 
 export interface BiographyBlitzState {
-  competitionType: BiographyBlitzCompetitionType;
+  competitionType: BiographyBlitzCompetitionType
 
-  phase: BiographyBlitzPhase;
-  round: number;
+  phase: BiographyBlitzPhase
+  round: number
 
-  contestantIds: string[];
-  activeContestantIds: string[];
-  eliminatedContestantIds: string[];
+  contestantIds: string[]
+  activeContestantIds: string[]
+  eliminatedContestantIds: string[]
 
-  humanContestantId: string | null;
+  humanContestantId: string | null
 
-  currentQuestion: BiographyBlitzQuestion | null;
-  currentQuestionId: string | null;
-  correctAnswerId: string | null;
+  currentQuestion: BiographyBlitzQuestion | null
+  currentQuestionId: string | null
+  correctAnswerId: string | null
 
   /** Pool of question templates generated from contestant bios. */
-  questionPool: BiographyBlitzQuestion[];
+  questionPool: BiographyBlitzQuestion[]
   /** IDs of questions already used (to avoid repetition). */
-  usedQuestionIds: string[];
+  usedQuestionIds: string[]
 
-  submissions: Record<string, BiographyBlitzSubmission>;
+  submissions: Record<string, BiographyBlitzSubmission>
 
   /** Contestant who answered correctly the fastest this round. */
-  roundWinnerId: string | null;
+  roundWinnerId: string | null
   /** Contestant chosen for elimination by the round winner. */
-  eliminationTargetId: string | null;
+  eliminationTargetId: string | null
   /** Final competition winner (set when phase === "complete"). */
-  competitionWinnerId: string | null;
+  competitionWinnerId: string | null
 
   /** Unix-ms when the current question phase started. */
-  questionStartedAt: number | null;
+  questionStartedAt: number | null
   /** Unix-ms of the hidden answer deadline (questionStartedAt + 12 000). */
-  hiddenDeadlineAt: number | null;
+  hiddenDeadlineAt: number | null
 
-  consecutiveRoundWins: Record<string, number>;
-  hotStreakContestantId: string | null;
+  consecutiveRoundWins: Record<string, number>
+  hotStreakContestantId: string | null
 
   /** True once the human contestant has been eliminated. */
-  isSpectating: boolean;
+  isSpectating: boolean
 
   /** Guard: outcome thunk only fires once. */
-  outcomeResolved: boolean;
-  seed: number;
-  testMode: boolean;
+  outcomeResolved: boolean
+  seed: number
+  testMode: boolean
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** Hidden answer deadline after question starts (milliseconds). */
-export const HIDDEN_DEADLINE_MS = 12_000;
+export const HIDDEN_DEADLINE_MS = 12_000
 
-const ROUND_SEED_MULT = 0x9e3779b9;
+const ROUND_SEED_MULT = 0x9e3779b9
 
-const DEBUG = import.meta.env?.DEV ?? true;
+const DEBUG = import.meta.env?.DEV ?? true
 
 // ─── Initial state ────────────────────────────────────────────────────────────
-
-const initialState: BiographyBlitzState = {
-  competitionType: 'LOH',
-  phase: 'idle',
-  round: 0,
-
-  contestantIds: [],
-  activeContestantIds: [],
-  eliminatedContestantIds: [],
-
-  humanContestantId: null,
-
-  currentQuestion: null,
-  currentQuestionId: null,
-  correctAnswerId: null,
-
-  questionPool: [],
-  usedQuestionIds: [],
-
-  submissions: {},
-
-  roundWinnerId: null,
-  eliminationTargetId: null,
-  competitionWinnerId: null,
-
-  questionStartedAt: null,
-  hiddenDeadlineAt: null,
-
-  consecutiveRoundWins: {},
-  hotStreakContestantId: null,
-
-  isSpectating: false,
-
-  outcomeResolved: false,
-  seed: 0,
-  testMode: false,
-};
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 /** FNV-1a 32-bit hash — stable string → uint32. */
 function fnv1a32(s: string): number {
-  let h = 0x811c9dc5;
+  let h = 0x811c9dc5
   for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = (Math.imul(h, 0x01000193)) >>> 0;
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193) >>> 0
   }
-  return h;
+  return h
 }
 
 /**
@@ -177,29 +142,31 @@ export function buildAiSubmissions(
   aiIds: string[],
   correctId: string,
   questionStartedAt: number,
-  allActiveIds?: string[],
+  allActiveIds?: string[]
 ): Record<string, BiographyBlitzSubmission> {
-  const result: Record<string, BiographyBlitzSubmission> = {};
+  const result: Record<string, BiographyBlitzSubmission> = {}
   // Use the full active set as answer candidates; fall back to aiIds for
   // backwards-compat when callers don't yet pass allActiveIds.
-  const answerChoices = allActiveIds && allActiveIds.length > 0 ? allActiveIds : aiIds;
+  const answerChoices = allActiveIds && allActiveIds.length > 0 ? allActiveIds : aiIds
 
   for (const aiId of aiIds) {
-    const idHash = fnv1a32(aiId);
-    const cSeed = ((seed ^ (round * ROUND_SEED_MULT) ^ idHash) >>> 0);
-    const rng = mulberry32(cSeed);
-    const accuracy = 0.45 + rng() * 0.40;
-    const answersCorrectly = rng() < accuracy;
+    const idHash = fnv1a32(aiId)
+    const cSeed = (seed ^ (round * ROUND_SEED_MULT) ^ idHash) >>> 0
+    const rng = mulberry32(cSeed)
+    const accuracy = 0.45 + rng() * 0.4
+    const answersCorrectly = rng() < accuracy
     // Timing: 700–4000 ms delay
-    const delayMs = 700 + rng() * 3300;
-    const submittedAt = questionStartedAt + delayMs;
-    const wrongCandidates = answerChoices.filter(id => id !== correctId);
+    const delayMs = 700 + rng() * 3300
+    const submittedAt = questionStartedAt + delayMs
+    const wrongCandidates = answerChoices.filter((id) => id !== correctId)
     const selectedAnswerId = answersCorrectly
       ? correctId
-      : (wrongCandidates.length > 0 ? seededPickN(rng, wrongCandidates, 1)[0] : correctId);
-    result[aiId] = { contestantId: aiId, selectedAnswerId, submittedAt };
+      : wrongCandidates.length > 0
+        ? seededPickN(rng, wrongCandidates, 1)[0]
+        : correctId
+    result[aiId] = { contestantId: aiId, selectedAnswerId, submittedAt }
   }
-  return result;
+  return result
 }
 
 /**
@@ -210,21 +177,21 @@ export function buildAiSubmissions(
 export function resolveBiographyBlitzRound(
   submissions: Record<string, BiographyBlitzSubmission>,
   correctAnswerId: string,
-  activeContestantIds: string[],
+  activeContestantIds: string[]
 ): string | null {
-  let winner: string | null = null;
-  let winnerTime = Infinity;
+  let winner: string | null = null
+  let winnerTime = Infinity
 
   for (const id of activeContestantIds) {
-    const sub = submissions[id];
-    if (!sub) continue;
-    if (sub.selectedAnswerId !== correctAnswerId) continue;
+    const sub = submissions[id]
+    if (!sub) continue
+    if (sub.selectedAnswerId !== correctAnswerId) continue
     if (sub.submittedAt < winnerTime) {
-      winner = id;
-      winnerTime = sub.submittedAt;
+      winner = id
+      winnerTime = sub.submittedAt
     }
   }
-  return winner;
+  return winner
 }
 
 /**
@@ -239,27 +206,27 @@ export function resolveBiographyBlitzRound(
  */
 export function resolveBiographyBlitzHumanContestantId(
   participantIds: string[],
-  isHumanId?: string | null,
+  isHumanId?: string | null
 ): string | null {
   // No human player in this session — not an error.
-  if (isHumanId == null) return null;
+  if (isHumanId == null) return null
 
   if (participantIds.includes(isHumanId)) {
     if (DEBUG) {
       console.log('[BiographyBlitz] Resolved human contestant id', {
         humanContestantId: isHumanId,
         participantIds,
-      });
+      })
     }
-    return isHumanId;
+    return isHumanId
   }
 
   // Non-null candidate not found — genuine resolution failure.
   console.error(
     '[BiographyBlitz] resolveBiographyBlitzHumanContestantId: candidate id not found in participants',
-    { isHumanId, participantIds },
-  );
-  return null;
+    { isHumanId, participantIds }
+  )
+  return null
 }
 
 /**
@@ -268,13 +235,13 @@ export function resolveBiographyBlitzHumanContestantId(
 export function canBiographyBlitzContestantAnswer(
   state: BiographyBlitzState,
   contestantId: string,
-  now: number,
+  now: number
 ): boolean {
-  if (state.phase !== 'question') return false;
-  if (!state.activeContestantIds.includes(contestantId)) return false;
-  if (contestantId in state.submissions) return false;
-  if (state.hiddenDeadlineAt !== null && now >= state.hiddenDeadlineAt) return false;
-  return true;
+  if (state.phase !== 'question') return false
+  if (!state.activeContestantIds.includes(contestantId)) return false
+  if (contestantId in state.submissions) return false
+  if (state.hiddenDeadlineAt !== null && now >= state.hiddenDeadlineAt) return false
+  return true
 }
 
 /**
@@ -286,20 +253,20 @@ export function chooseBiographyBlitzEliminationTarget(
   activeContestantIds: string[],
   roundWinnerId: string,
   seed: number,
-  round: number,
+  round: number
 ): string | null {
-  const validTargets = activeContestantIds.filter(id => id !== roundWinnerId);
-  if (validTargets.length === 0) return null;
-  const rng = mulberry32(((seed ^ (round * ROUND_SEED_MULT)) >>> 0));
-  const chosen = seededPickN(rng, validTargets, 1)[0];
+  const validTargets = activeContestantIds.filter((id) => id !== roundWinnerId)
+  if (validTargets.length === 0) return null
+  const rng = mulberry32((seed ^ (round * ROUND_SEED_MULT)) >>> 0)
+  const chosen = seededPickN(rng, validTargets, 1)[0]
   if (DEBUG) {
     console.log('[BiographyBlitz] AI elimination choice', {
       roundWinnerId,
       validTargets,
       chosen,
-    });
+    })
   }
-  return chosen ?? null;
+  return chosen ?? null
 }
 
 /**
@@ -312,41 +279,41 @@ function pickNextQuestion(
   usedIds: string[],
   activeIds: string[],
   seed: number,
-  round: number,
+  round: number
 ): BiographyBlitzQuestion | null {
   // Prefer unused questions with valid (active) correct answers.
   const available = pool.filter(
-    q => activeIds.includes(q.correctAnswerId) && !usedIds.includes(q.id),
-  );
+    (q) => activeIds.includes(q.correctAnswerId) && !usedIds.includes(q.id)
+  )
 
   if (available.length > 0) {
-    const rng = mulberry32(((seed ^ ((round + 1) * ROUND_SEED_MULT)) >>> 0));
-    const idx = Math.floor(rng() * available.length);
-    return available[idx];
+    const rng = mulberry32((seed ^ ((round + 1) * ROUND_SEED_MULT)) >>> 0)
+    const idx = Math.floor(rng() * available.length)
+    return available[idx]
   }
 
   // Pool exhausted or all correct answers eliminated — regenerate from current active contestants.
-  const fresh = generateBioQuestions(activeIds).map(q => ({
+  const fresh = generateBioQuestions(activeIds).map((q) => ({
     id: q.id,
     prompt: q.prompt,
     correctAnswerId: q.correctAnswerId,
-  }));
-  const freshAvailable = fresh.filter(q => !usedIds.includes(q.id));
+  }))
+  const freshAvailable = fresh.filter((q) => !usedIds.includes(q.id))
   if (freshAvailable.length > 0) {
-    const rng = mulberry32(((seed ^ ((round + 17) * ROUND_SEED_MULT)) >>> 0));
-    const idx = Math.floor(rng() * freshAvailable.length);
-    return freshAvailable[idx];
+    const rng = mulberry32((seed ^ ((round + 17) * ROUND_SEED_MULT)) >>> 0)
+    const idx = Math.floor(rng() * freshAvailable.length)
+    return freshAvailable[idx]
   }
 
   // Last resort: pick any question from pool even if used.
-  const anyActive = pool.filter(q => activeIds.includes(q.correctAnswerId));
+  const anyActive = pool.filter((q) => activeIds.includes(q.correctAnswerId))
   if (anyActive.length > 0) {
-    const rng = mulberry32(((seed ^ ((round + 31) * ROUND_SEED_MULT)) >>> 0));
-    const idx = Math.floor(rng() * anyActive.length);
-    return anyActive[idx];
+    const rng = mulberry32((seed ^ ((round + 31) * ROUND_SEED_MULT)) >>> 0)
+    const idx = Math.floor(rng() * anyActive.length)
+    return anyActive[idx]
   }
 
-  return null;
+  return null
 }
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -363,13 +330,13 @@ const biographyBlitzSlice = createSlice({
     initBiographyBlitz(
       state,
       action: PayloadAction<{
-        participantIds: string[];
-        competitionType: BiographyBlitzCompetitionType;
-        seed: number;
-        humanContestantId: string | null;
-        testMode?: boolean;
-        now?: number;
-      }>,
+        participantIds: string[]
+        competitionType: BiographyBlitzCompetitionType
+        seed: number
+        humanContestantId: string | null
+        testMode?: boolean
+        now?: number
+      }>
     ) {
       const {
         participantIds,
@@ -378,15 +345,15 @@ const biographyBlitzSlice = createSlice({
         humanContestantId,
         testMode = false,
         now = Date.now(),
-      } = action.payload;
+      } = action.payload
 
       // Build question pool from bio data.
-      const generatedQuestions = generateBioQuestions(participantIds);
-      const pool: BiographyBlitzQuestion[] = generatedQuestions.map(q => ({
+      const generatedQuestions = generateBioQuestions(participantIds)
+      const pool: BiographyBlitzQuestion[] = generatedQuestions.map((q) => ({
         id: q.id,
         prompt: q.prompt,
         correctAnswerId: q.correctAnswerId,
-      }));
+      }))
 
       if (DEBUG) {
         console.log('[BiographyBlitz] initBiographyBlitz', {
@@ -395,79 +362,79 @@ const biographyBlitzSlice = createSlice({
           questionPoolSize: pool.length,
           competitionType,
           seed,
-        });
+        })
       }
 
-      const firstQuestion = pickNextQuestion(pool, [], participantIds, seed, 0);
+      const firstQuestion = pickNextQuestion(pool, [], participantIds, seed, 0)
 
       // If no question could be generated (e.g. all participants have sparse
       // bios), skip to complete immediately so the game doesn't get stuck.
       if (!firstQuestion) {
         console.error(
           '[BiographyBlitz] initBiographyBlitz: no questions available; resolving to complete with no winner.',
-          { participantIds },
-        );
-        state.competitionType = competitionType;
-        state.phase = 'complete';
-        state.round = 0;
-        state.contestantIds = [...participantIds];
-        state.activeContestantIds = [...participantIds];
-        state.eliminatedContestantIds = [];
-        state.humanContestantId = humanContestantId;
-        state.currentQuestion = null;
-        state.currentQuestionId = null;
-        state.correctAnswerId = null;
-        state.questionPool = pool;
-        state.usedQuestionIds = [];
-        state.submissions = {};
-        state.roundWinnerId = null;
-        state.eliminationTargetId = null;
+          { participantIds }
+        )
+        state.competitionType = competitionType
+        state.phase = 'complete'
+        state.round = 0
+        state.contestantIds = [...participantIds]
+        state.activeContestantIds = [...participantIds]
+        state.eliminatedContestantIds = []
+        state.humanContestantId = humanContestantId
+        state.currentQuestion = null
+        state.currentQuestionId = null
+        state.correctAnswerId = null
+        state.questionPool = pool
+        state.usedQuestionIds = []
+        state.submissions = {}
+        state.roundWinnerId = null
+        state.eliminationTargetId = null
         // Designate the first participant as fallback winner so the outcome
         // thunk can always resolve (avoids null-winner stall).
-        state.competitionWinnerId = participantIds[0] ?? null;
-        state.questionStartedAt = null;
-        state.hiddenDeadlineAt = null;
-        state.consecutiveRoundWins = {};
-        state.hotStreakContestantId = null;
-        state.isSpectating = false;
-        state.outcomeResolved = false;
-        state.seed = seed;
-        state.testMode = testMode;
-        return;
+        state.competitionWinnerId = participantIds[0] ?? null
+        state.questionStartedAt = null
+        state.hiddenDeadlineAt = null
+        state.consecutiveRoundWins = {}
+        state.hotStreakContestantId = null
+        state.isSpectating = false
+        state.outcomeResolved = false
+        state.seed = seed
+        state.testMode = testMode
+        return
       }
 
-      state.competitionType = competitionType;
-      state.phase = 'question';
-      state.round = 0;
+      state.competitionType = competitionType
+      state.phase = 'question'
+      state.round = 0
 
-      state.contestantIds = [...participantIds];
-      state.activeContestantIds = [...participantIds];
-      state.eliminatedContestantIds = [];
+      state.contestantIds = [...participantIds]
+      state.activeContestantIds = [...participantIds]
+      state.eliminatedContestantIds = []
 
-      state.humanContestantId = humanContestantId;
+      state.humanContestantId = humanContestantId
 
-      state.currentQuestion = firstQuestion;
-      state.currentQuestionId = firstQuestion?.id ?? null;
-      state.correctAnswerId = null;
+      state.currentQuestion = firstQuestion
+      state.currentQuestionId = firstQuestion?.id ?? null
+      state.correctAnswerId = null
 
-      state.questionPool = pool;
-      state.usedQuestionIds = firstQuestion ? [firstQuestion.id] : [];
+      state.questionPool = pool
+      state.usedQuestionIds = firstQuestion ? [firstQuestion.id] : []
 
-      state.submissions = {};
-      state.roundWinnerId = null;
-      state.eliminationTargetId = null;
-      state.competitionWinnerId = null;
+      state.submissions = {}
+      state.roundWinnerId = null
+      state.eliminationTargetId = null
+      state.competitionWinnerId = null
 
-      state.questionStartedAt = now;
-      state.hiddenDeadlineAt = now + (testMode ? 0 : HIDDEN_DEADLINE_MS);
+      state.questionStartedAt = now
+      state.hiddenDeadlineAt = now + (testMode ? 0 : HIDDEN_DEADLINE_MS)
 
-      state.consecutiveRoundWins = {};
-      state.hotStreakContestantId = null;
+      state.consecutiveRoundWins = {}
+      state.hotStreakContestantId = null
 
-      state.isSpectating = false;
-      state.outcomeResolved = false;
-      state.seed = seed;
-      state.testMode = testMode;
+      state.isSpectating = false
+      state.outcomeResolved = false
+      state.seed = seed
+      state.testMode = testMode
     },
 
     /**
@@ -479,30 +446,30 @@ const biographyBlitzSlice = createSlice({
     submitBiographyBlitzAnswer(
       state,
       action: PayloadAction<{
-        contestantId: string;
-        answerId: string;
-        now?: number;
-      }>,
+        contestantId: string
+        answerId: string
+        now?: number
+      }>
     ) {
-      if (state.phase !== 'question') return;
-      const { contestantId, answerId, now = Date.now() } = action.payload;
-      if (!state.activeContestantIds.includes(contestantId)) return;
-      if (contestantId in state.submissions) return; // double-submit guard
+      if (state.phase !== 'question') return
+      const { contestantId, answerId, now = Date.now() } = action.payload
+      if (!state.activeContestantIds.includes(contestantId)) return
+      if (contestantId in state.submissions) return // double-submit guard
       // Enforce hidden deadline: late submissions are silently discarded.
-      if (state.hiddenDeadlineAt !== null && now >= state.hiddenDeadlineAt) return;
+      if (state.hiddenDeadlineAt !== null && now >= state.hiddenDeadlineAt) return
 
       state.submissions[contestantId] = {
         contestantId,
         selectedAnswerId: answerId,
         submittedAt: now,
-      };
+      }
 
       if (DEBUG) {
         console.log('[BiographyBlitz] submitBiographyBlitzAnswer', {
           contestantId,
           answerId,
           submittedAt: now,
-        });
+        })
       }
     },
 
@@ -512,19 +479,19 @@ const biographyBlitzSlice = createSlice({
      * No-op if phase is not 'question'.
      */
     resolveRound(state) {
-      if (state.phase !== 'question') return;
-      if (!state.currentQuestion) return;
+      if (state.phase !== 'question') return
+      if (!state.currentQuestion) return
 
-      const correct = state.currentQuestion.correctAnswerId;
+      const correct = state.currentQuestion.correctAnswerId
       const winner = resolveBiographyBlitzRound(
         state.submissions,
         correct,
-        state.activeContestantIds,
-      );
+        state.activeContestantIds
+      )
 
-      state.correctAnswerId = correct;
-      state.roundWinnerId = winner;
-      state.phase = 'reveal';
+      state.correctAnswerId = correct
+      state.roundWinnerId = winner
+      state.phase = 'reveal'
 
       if (DEBUG) {
         console.log('[BiographyBlitz] resolveRound', {
@@ -532,9 +499,9 @@ const biographyBlitzSlice = createSlice({
           correctAnswerId: correct,
           roundWinnerId: winner,
           submissions: Object.fromEntries(
-            Object.entries(state.submissions).map(([k, v]) => [k, v.selectedAnswerId]),
+            Object.entries(state.submissions).map(([k, v]) => [k, v.selectedAnswerId])
           ),
-        });
+        })
       }
     },
 
@@ -545,13 +512,13 @@ const biographyBlitzSlice = createSlice({
      * Transitions reveal → elimination | round_transition.
      */
     advanceFromReveal(state) {
-      if (state.phase !== 'reveal') return;
-      state.phase = state.roundWinnerId ? 'elimination' : 'round_transition';
+      if (state.phase !== 'reveal') return
+      state.phase = state.roundWinnerId ? 'elimination' : 'round_transition'
       if (DEBUG) {
         console.log('[BiographyBlitz] advanceFromReveal', {
           roundWinnerId: state.roundWinnerId,
           nextPhase: state.phase,
-        });
+        })
       }
     },
 
@@ -564,70 +531,67 @@ const biographyBlitzSlice = createSlice({
      *   elimination → round_transition  (≥2 active after elimination)
      *   elimination → complete          (1 active after elimination)
      */
-    pickEliminationTarget(
-      state,
-      action: PayloadAction<{ targetId: string }>,
-    ) {
-      if (state.phase !== 'elimination') return;
+    pickEliminationTarget(state, action: PayloadAction<{ targetId: string }>) {
+      if (state.phase !== 'elimination') return
 
-      const { targetId } = action.payload;
+      const { targetId } = action.payload
       // Validate: must be active and not the winner.
-      if (!state.activeContestantIds.includes(targetId)) return;
+      if (!state.activeContestantIds.includes(targetId)) return
       if (targetId === state.roundWinnerId) {
         if (DEBUG) {
           console.warn('[BiographyBlitz] pickEliminationTarget: invalid self-target, ignoring', {
             targetId,
             roundWinnerId: state.roundWinnerId,
-          });
+          })
         }
-        return;
+        return
       }
 
       // Apply elimination.
-      state.eliminatedContestantIds.push(targetId);
-      state.eliminationTargetId = targetId;
-      state.activeContestantIds = state.activeContestantIds.filter(id => id !== targetId);
-      delete state.consecutiveRoundWins[targetId];
+      state.eliminatedContestantIds.push(targetId)
+      state.eliminationTargetId = targetId
+      state.activeContestantIds = state.activeContestantIds.filter((id) => id !== targetId)
+      delete state.consecutiveRoundWins[targetId]
 
       if (DEBUG) {
         console.log('[BiographyBlitz] pickEliminationTarget', {
           targetId,
           remainingActive: state.activeContestantIds,
-        });
+        })
       }
 
       // Spectating: human was eliminated.
       if (targetId === state.humanContestantId) {
-        state.isSpectating = true;
-        console.log('[BiographyBlitz] Human eliminated — entering spectator mode');
+        state.isSpectating = true
+        console.log('[BiographyBlitz] Human eliminated — entering spectator mode')
       }
 
       // Update hot streak for winner.
       if (state.roundWinnerId) {
         state.consecutiveRoundWins[state.roundWinnerId] =
-          (state.consecutiveRoundWins[state.roundWinnerId] ?? 0) + 1;
+          (state.consecutiveRoundWins[state.roundWinnerId] ?? 0) + 1
         // Reset streaks for non-winners.
         for (const id of state.activeContestantIds) {
           if (id !== state.roundWinnerId) {
-            state.consecutiveRoundWins[id] = 0;
+            state.consecutiveRoundWins[id] = 0
           }
         }
         // Hot streak: 2+ consecutive wins.
-        const wins = state.consecutiveRoundWins[state.roundWinnerId] ?? 0;
-        state.hotStreakContestantId = wins >= 2 ? state.roundWinnerId : null;
+        const wins = state.consecutiveRoundWins[state.roundWinnerId] ?? 0
+        state.hotStreakContestantId = wins >= 2 ? state.roundWinnerId : null
       }
 
       // Check for final survivor.
       if (state.activeContestantIds.length === 1) {
-        state.competitionWinnerId = state.activeContestantIds[0];
-        state.phase = 'complete';
+        state.competitionWinnerId = state.activeContestantIds[0]
+        state.phase = 'complete'
         console.log('[BiographyBlitz] Final winner determined', {
           competitionWinnerId: state.competitionWinnerId,
-        });
-        return;
+        })
+        return
       }
 
-      state.phase = 'round_transition';
+      state.phase = 'round_transition'
     },
 
     /**
@@ -635,52 +599,49 @@ const biographyBlitzSlice = createSlice({
      * Generates the next question for the current active contestants.
      * Increments round counter.
      */
-    startNextRound(
-      state,
-      action: PayloadAction<{ now?: number } | undefined>,
-    ) {
-      if (state.phase !== 'round_transition') return;
+    startNextRound(state, action: PayloadAction<{ now?: number } | undefined>) {
+      if (state.phase !== 'round_transition') return
 
-      const now = action.payload?.now ?? Date.now();
-      const nextRound = state.round + 1;
+      const now = action.payload?.now ?? Date.now()
+      const nextRound = state.round + 1
 
       const nextQuestion = pickNextQuestion(
         state.questionPool,
         state.usedQuestionIds,
         state.activeContestantIds,
         state.seed,
-        nextRound,
-      );
+        nextRound
+      )
 
-      state.round = nextRound;
-      state.currentQuestion = nextQuestion;
-      state.currentQuestionId = nextQuestion?.id ?? null;
-      state.correctAnswerId = null;
-      state.submissions = {};
-      state.roundWinnerId = null;
-      state.eliminationTargetId = null;
+      state.round = nextRound
+      state.currentQuestion = nextQuestion
+      state.currentQuestionId = nextQuestion?.id ?? null
+      state.correctAnswerId = null
+      state.submissions = {}
+      state.roundWinnerId = null
+      state.eliminationTargetId = null
 
       if (nextQuestion) {
-        state.usedQuestionIds = [...state.usedQuestionIds, nextQuestion.id];
+        state.usedQuestionIds = [...state.usedQuestionIds, nextQuestion.id]
       }
 
-      state.questionStartedAt = now;
-      state.hiddenDeadlineAt = now + (state.testMode ? 0 : HIDDEN_DEADLINE_MS);
+      state.questionStartedAt = now
+      state.hiddenDeadlineAt = now + (state.testMode ? 0 : HIDDEN_DEADLINE_MS)
 
-      state.phase = 'question';
+      state.phase = 'question'
 
       if (DEBUG) {
         console.log('[BiographyBlitz] startNextRound', {
           round: nextRound,
           question: nextQuestion?.prompt ?? '(none)',
           activeContestantIds: state.activeContestantIds,
-        });
+        })
       }
     },
 
     /** Idempotency guard: prevent the outcome thunk from firing twice. */
     markBiographyBlitzOutcomeResolved(state) {
-      state.outcomeResolved = true;
+      state.outcomeResolved = true
     },
 
     /**
@@ -693,39 +654,39 @@ const biographyBlitzSlice = createSlice({
      * No-op if phase is already 'complete'.
      */
     skipToComplete(state) {
-      if (state.phase === 'complete') return;
-      if (state.activeContestantIds.length === 0) return;
+      if (state.phase === 'complete') return
+      if (state.activeContestantIds.length === 0) return
 
       // Pick winner: contestant with most consecutive wins; seeded tiebreak.
-      let winner = state.activeContestantIds[0];
-      let maxWins = state.consecutiveRoundWins[winner] ?? 0;
+      let winner = state.activeContestantIds[0]
+      let maxWins = state.consecutiveRoundWins[winner] ?? 0
       for (const id of state.activeContestantIds) {
-        const wins = state.consecutiveRoundWins[id] ?? 0;
+        const wins = state.consecutiveRoundWins[id] ?? 0
         if (wins > maxWins) {
-          maxWins = wins;
-          winner = id;
+          maxWins = wins
+          winner = id
         }
       }
 
       // Eliminate everyone else.
-      const losers = state.activeContestantIds.filter(id => id !== winner);
-      state.eliminatedContestantIds = [...state.eliminatedContestantIds, ...losers];
-      state.activeContestantIds = [winner];
-      state.competitionWinnerId = winner;
-      state.phase = 'complete';
+      const losers = state.activeContestantIds.filter((id) => id !== winner)
+      state.eliminatedContestantIds = [...state.eliminatedContestantIds, ...losers]
+      state.activeContestantIds = [winner]
+      state.competitionWinnerId = winner
+      state.phase = 'complete'
 
       console.log('[BiographyBlitz] skipToComplete', {
         competitionWinnerId: winner,
         skippedRounds: losers.length,
-      });
+      })
     },
 
     /** Reset to idle (e.g. when navigating away). */
     resetBiographyBlitz() {
-      return initialState;
+      return initialState
     },
   },
-});
+})
 
 export const {
   initBiographyBlitz,
@@ -737,12 +698,13 @@ export const {
   markBiographyBlitzOutcomeResolved,
   skipToComplete,
   resetBiographyBlitz,
-} = biographyBlitzSlice.actions;
+} = biographyBlitzSlice.actions
 
-export default biographyBlitzSlice.reducer;
+registerMinigameReducer('biographyBlitz', biographyBlitzSlice.reducer)
+export default biographyBlitzSlice.reducer
 
 // ─── HOUSEGUESTS name lookup helper (used by UI) ──────────────────────────────
 
 export function getContestantName(id: string): string {
-  return HOUSEGUESTS.find(h => h.id === id)?.name ?? id;
+  return HOUSEGUESTS.find((h) => h.id === id)?.name ?? id
 }

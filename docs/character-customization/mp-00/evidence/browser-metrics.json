@@ -1,0 +1,91 @@
+{
+  "pilot": "MP-00",
+  "browser": "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
+  "browserMode": "Headless Chromium mobile emulation; Android user agent, touch, DPR 2, and 3x CDP CPU throttle",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "deviceScaleFactor": 2
+  },
+  "desktop": {
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+    "viewport": {
+      "width": 1280,
+      "height": 900,
+      "deviceScaleFactor": 1
+    },
+    "firstCompositionMs": 424.19999998807907,
+    "warmCompositionMs": 6.299999952316284
+  },
+  "firstCompositionMs": 811.6000000238419,
+  "warmCompositionMs": 16.799999952316284,
+  "firstRetainedRgbaMiB": 30.3,
+  "warmRetainedRgbaMiB": 30.3,
+  "rasterCacheEntriesAfterWarm": 4,
+  "rasterCacheCapacity": 4,
+  "temporaryPixelSurfaceUpperBoundMiB": 72.3,
+  "totalCombinationExports": 8,
+  "starterExports": [
+    {
+      "id": "starter-lavender-waves",
+      "bodyBytes": 1029290,
+      "portraitBytes": 97933
+    },
+    {
+      "id": "starter-teal-straight",
+      "bodyBytes": 983363,
+      "portraitBytes": 98122
+    }
+  ],
+  "skinStopExports": [
+    {
+      "stop": "skin-light",
+      "bodyBytes": 1042784,
+      "portraitBytes": 104800
+    },
+    {
+      "stop": "skin-medium",
+      "bodyBytes": 1041470,
+      "portraitBytes": 104414
+    },
+    {
+      "stop": "skin-deep",
+      "bodyBytes": 1038764,
+      "portraitBytes": 103114
+    }
+  ],
+  "hairStopExports": [
+    {
+      "stop": "hair-dark",
+      "bodyBytes": 982483,
+      "portraitBytes": 98863
+    },
+    {
+      "stop": "hair-brown",
+      "bodyBytes": 983862,
+      "portraitBytes": 99263
+    },
+    {
+      "stop": "hair-honey",
+      "bodyBytes": 986303,
+      "portraitBytes": 100321
+    }
+  ],
+  "accessoryExports": [
+    {
+      "face": "face-a",
+      "bodyBytes": 1037609,
+      "portraitBytes": 103149
+    },
+    {
+      "face": "face-b",
+      "bodyBytes": 982113,
+      "portraitBytes": 97477
+    }
+  ],
+  "lockedApplyRejected": true,
+  "freeApplyAllowed": true,
+  "consoleErrors": [],
+  "nativeDeviceTested": false,
+  "physicalDeviceTested": false
+}

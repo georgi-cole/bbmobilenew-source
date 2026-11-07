@@ -48,3 +48,6 @@ screenshots/
 coverage/
 playwright-report/
 test-results/
+test-results-*/
+.cache/season-checkpoints/
+artifacts/release-*/

@@ -22,8 +22,22 @@ import {
 import { createPortal } from 'react-dom'
 import { isPlacementRankingGame, type GameRegistryEntry } from '../../minigames/registry'
 import { resolvePremiumGameForAccess } from '../../minigames/premiumGameAccess'
-import { store } from '../../store/store'
-import { selectHasPremiumChallengesAccess, selectIsVipActive } from '../../store/vipSlice'
+import { persistCompetitionCheckpoint, store } from '../../store/store'
+import { initializeVip, selectHasPremiumChallengesAccess } from '../../store/vipSlice'
+import {
+  acknowledgeChallengeEdition,
+  beginChallengeAttempt,
+  checkpointChallengeResult,
+  prepareChallengeRetry,
+} from '../../store/challengeSlice'
+import {
+  createAbandonedChallengeResult,
+  recoverCommittedChallengeResult,
+} from '../../store/challengeResults'
+import { CompetitionResultContext } from '../../minigames/competitionResultContext'
+import type { CompetitionResult, ReactMinigameCompletion } from '../../minigames/competitionResult'
+export type { ReactMinigameCompletion } from '../../minigames/competitionResult'
+import { reconcileQuickTapChallenge } from '../../store/reconcileQuickTapChallenge'
 import MinigameRules from '../MinigameRules/MinigameRules'
 import MinigameTurnDemo, { TURN_DEMO_KEYS } from '../MinigameTurnDemo/MinigameTurnDemo'
 import MinigameUtilityDock from '../MinigameUtilityDock/MinigameUtilityDock'
@@ -51,6 +65,7 @@ import type { HouseOfCardsPrizeType } from '../../features/houseOfCards/houseOfC
 import type { MemoryColorsCompetitionType } from '../../features/memoryColors/memoryColorsSlice'
 import reactComponents, { preloadReactMinigame } from '../../minigames/reactComponents'
 import { resetHostedMinigameState } from '../../minigames/resetHostedMinigameState'
+import { prepareMinigameAssets } from '../../minigames/prepareMinigameAssets'
 import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
 import './MinigameHost.css'
 
@@ -127,21 +142,6 @@ export interface MinigameParticipant {
   previousPR: number | null
 }
 
-export interface ReactMinigameCompletion {
-  authoritativeWinnerId?: string | null
-  authoritativeWinnerIds?: string[]
-  /** Authoritative worst finisher when the minigame owns its full standings. */
-  authoritativeLastPlaceId?: string | null
-  /** Complete feature-owned ordering, best to worst, when its scoring has richer tie-breaks. */
-  authoritativeRankedIds?: string[]
-  rawValue?: number
-  rawResults?: Record<string, number>
-  /** Optional time-based tie-breaker in ms (lower = faster = better rank). */
-  tiebreakerMs?: number
-  /** Battery Low only: one-shot vote modifiers earned by contestants. */
-  batteryLowVoteEffects?: Record<string, 'doubleVote' | 'skipVote'>
-}
-
 interface Props {
   game: GameRegistryEntry
   /** Options forwarded to the legacy module (e.g. seed, timeLimit). */
@@ -200,42 +200,181 @@ export default function MinigameHost({
   participants,
   competitionRetry,
 }: Props) {
+  const sessionId = typeof gameOptions.sessionId === 'string' ? gameOptions.sessionId : game.key
+  const competitionHumanId =
+    participants?.find((player) => player.isHuman)?.id ??
+    store.getState().game.players.find((player) => player.isUser)?.id
+  const savedChallenge = useSyncExternalStore(store.subscribe, () => {
+    const pending = store.getState().challenge.pending
+    return pending?.id === sessionId ? pending : null
+  })
+  const vipStatus = useSyncExternalStore(store.subscribe, () => store.getState().vip.status)
+  const editionCheckPending = savedChallenge?.needsEditionReconciliation === true
+  const editionNotice = savedChallenge?.editionChangeNotice
+  const [editionCheckTimedOut, setEditionCheckTimedOut] = useState(false)
+  useEffect(() => {
+    if (!editionCheckPending) return
+    const timer = window.setTimeout(() => setEditionCheckTimedOut(true), 20_000)
+    return () => window.clearTimeout(timer)
+  }, [editionCheckPending, sessionId])
+  useEffect(() => {
+    if (!editionCheckPending) return
+    if (vipStatus === 'idle') void store.dispatch(initializeVip())
+    else if (vipStatus === 'ready') store.dispatch(reconcileQuickTapChallenge())
+  }, [editionCheckPending, vipStatus])
   const hasPremiumChallengesAccess = useSyncExternalStore(
     store.subscribe,
     () => selectHasPremiumChallengesAccess(store.getState()),
     () => selectHasPremiumChallengesAccess(store.getState())
   )
-  const isVipActive = useSyncExternalStore(
-    store.subscribe,
-    () => selectIsVipActive(store.getState()),
-    () => selectIsVipActive(store.getState())
-  )
-  const usePremiumPresentation = premiumPresentationOverride ?? isVipActive
+  const usePremiumPresentation =
+    premiumPresentationOverride ??
+    (hasPremiumChallengesAccess && game.premiumExperience === 'presentation')
+  const quickTapVariantPreviewOverride =
+    import.meta.env.DEV && typeof gameOptions.quickTapVariantPreview === 'boolean'
+      ? gameOptions.quickTapVariantPreview
+        ? ('vip' as const)
+        : ('classic' as const)
+      : undefined
+  const quickTapVipEnabled =
+    game.premiumExperience === 'variant' &&
+    (quickTapVariantPreviewOverride
+      ? quickTapVariantPreviewOverride === 'vip'
+      : savedChallenge?.quickTapVariant
+        ? savedChallenge.quickTapVariant === 'vip'
+        : hasPremiumChallengesAccess)
   const launchedGame = useMemo(() => {
     return resolvePremiumGameForAccess(game, hasPremiumChallengesAccess)
   }, [game, hasPremiumChallengesAccess])
   const reactComponentKey = launchedGame.reactComponentKey
+  const preparationKey = `${launchedGame.key}:${quickTapVipEnabled}:${usePremiumPresentation}`
+  const [preparedKey, setPreparedKey] = useState<string | null>(null)
+  const [preparationFailure, setPreparationFailure] = useState<string | null>(null)
+  const [preparationAttempt, setPreparationAttempt] = useState(0)
+  const preparationError = preparationFailure === preparationKey
+  const ready =
+    !editionCheckPending &&
+    !editionNotice &&
+    (launchedGame.implementation !== 'react' ||
+      !reactComponentKey ||
+      preparedKey === preparationKey)
+  const hasSavedResult = Boolean(savedChallenge?.attempt && 'result' in savedChallenge.attempt)
   useEffect(() => {
+    if (hasSavedResult) return
     if (launchedGame.implementation !== 'react' || !reactComponentKey) return
+    let cancelled = false
     const preload =
-      SPECIAL_MINIGAME_PRELOADERS[reactComponentKey] ??
-      (() => preloadReactMinigame(reactComponentKey))
-    void preload().catch(() => undefined)
-  }, [launchedGame.implementation, reactComponentKey])
+      launchedGame.implementation === 'react' && reactComponentKey
+        ? (SPECIAL_MINIGAME_PRELOADERS[reactComponentKey] ??
+          (() => preloadReactMinigame(reactComponentKey)))
+        : () => Promise.resolve()
+    if (reactComponentKey) prepareMinigameAssets(reactComponentKey, usePremiumPresentation)
+    const variant =
+      reactComponentKey === 'QuickTapRace'
+        ? import('../../minigames/quickTapRace/presentations').then((module) =>
+            module.preloadQuickTapRace(quickTapVipEnabled)
+          )
+        : Promise.resolve()
+    void Promise.all([preload(), variant])
+      .then(() => {
+        if (!cancelled) {
+          setPreparedKey(preparationKey)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPreparationFailure(preparationKey)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    launchedGame.implementation,
+    preparationKey,
+    preparationAttempt,
+    reactComponentKey,
+    quickTapVipEnabled,
+    usePremiumPresentation,
+    skipCountdown,
+    hasSavedResult,
+  ])
 
-  const [phase, setPhase] = useState<HostPhase>(skipRules ? 'countdown' : 'rules')
+  const initialResult =
+    savedChallenge?.attempt && 'result' in savedChallenge.attempt
+      ? savedChallenge.attempt.result
+      : savedChallenge?.attempt?.status === 'playing'
+        ? (recoverCommittedChallengeResult(savedChallenge, store.getState().game) ??
+          createAbandonedChallengeResult(savedChallenge, competitionHumanId))
+        : null
+  const [phase, setPhase] = useState<HostPhase>(
+    initialResult ? 'results' : skipRules ? 'countdown' : 'rules'
+  )
+  const hostPhaseRef = useRef(phase)
+  hostPhaseRef.current = phase
   const [utilityView, setUtilityView] = useState<UtilityView>(null)
   const [countdown, setCountdown] = useState(3)
-  const [finalValue, setFinalValue] = useState<number | null>(null)
-  const [finalTiebreakerMs, setFinalTiebreakerMs] = useState<number | null>(null)
-  const [finalCompletion, setFinalCompletion] = useState<ReactMinigameCompletion | null>(null)
-  const [wasPartial, setWasPartial] = useState(false)
-  const [attempt, setAttempt] = useState(0)
+  const [finalValue, setFinalValue] = useState<number | null>(initialResult?.rawValue ?? null)
+  const [finalTiebreakerMs, setFinalTiebreakerMs] = useState<number | null>(
+    initialResult?.completion?.tiebreakerMs ?? null
+  )
+  const [finalCompletion, setFinalCompletion] = useState<ReactMinigameCompletion | null>(
+    initialResult?.completion ?? null
+  )
+  const [wasPartial, setWasPartial] = useState(initialResult?.partial ?? false)
+  const [attempt, setAttempt] = useState(savedChallenge?.attempt?.number ?? 0)
   const [demoTried, setDemoTried] = useState(false)
   const completionReportedRef = useRef(false)
-  const sessionId = typeof gameOptions.sessionId === 'string' ? gameOptions.sessionId : game.key
   const attemptToken = `${sessionId}:${attempt}`
   const activeAttemptTokenRef = useRef(attemptToken)
+  const [savingCheckpoint, setSavingCheckpoint] = useState(false)
+  const [checkpointError, setCheckpointError] = useState(false)
+  const retryCheckpointRef = useRef<(() => void) | null>(null)
+  const startingAttemptRef = useRef(false)
+  const checkpointWorkRef = useRef<{ token: string; promise: Promise<boolean> } | null>(null)
+
+  const checkpointResult = useCallback(
+    (result: CompetitionResult): Promise<boolean> => {
+      if (activeAttemptTokenRef.current !== attemptToken) return Promise.resolve(false)
+      const state = store.getState()
+      const pending = state.challenge.pending
+      if (pending?.id !== sessionId) return Promise.resolve(true)
+      if (
+        pending.origin &&
+        (pending.origin.gameId !== state.game.gameId || pending.origin.week !== state.game.week)
+      )
+        return Promise.resolve(false)
+      if (pending.attempt && pending.attempt.number !== attempt) return Promise.resolve(false)
+      if (checkpointWorkRef.current?.token === attemptToken) {
+        return checkpointWorkRef.current.promise
+      }
+      store.dispatch(
+        checkpointChallengeResult({
+          id: sessionId,
+          number: attempt,
+          result: { ...result, rawValue: result.completion?.rawValue ?? result.rawValue },
+        })
+      )
+      const work = { token: attemptToken, promise: Promise.resolve(false) }
+      const save = async (): Promise<boolean> => {
+        setSavingCheckpoint(true)
+        setCheckpointError(false)
+        const saved = await persistCompetitionCheckpoint()
+        if (activeAttemptTokenRef.current === attemptToken) {
+          setSavingCheckpoint(false)
+          setCheckpointError(!saved)
+          retryCheckpointRef.current = saved
+            ? null
+            : () => {
+                work.promise = save()
+              }
+        }
+        return saved
+      }
+      work.promise = save()
+      checkpointWorkRef.current = work
+      return work.promise
+    },
+    [attempt, attemptToken, sessionId]
+  )
 
   const reportDoneOnce = useCallback(
     (
@@ -246,14 +385,61 @@ export default function MinigameHost({
     ) => {
       if (completionReportedRef.current) return
       completionReportedRef.current = true
-      if (includeCompletion) {
-        onDone(rawValue, partial, completion)
-      } else {
-        onDone(rawValue, partial)
+      const publish = (result: CompetitionResult) => {
+        if (result.completion || includeCompletion) {
+          onDone(result.rawValue, result.partial, result.completion)
+        } else {
+          onDone(result.rawValue, result.partial)
+        }
       }
+      const result: CompetitionResult = { rawValue, partial, ...(completion ? { completion } : {}) }
+      if (store.getState().challenge.pending?.id !== sessionId) {
+        publish(result)
+        return
+      }
+      void checkpointResult(result).then((saved) => {
+        if (activeAttemptTokenRef.current !== attemptToken) return
+        if (!saved) {
+          completionReportedRef.current = false
+          return
+        }
+        const pending = store.getState().challenge.pending
+        if (pending?.id !== sessionId || pending.attempt?.number !== attempt) return
+        publish('result' in pending.attempt ? pending.attempt.result : result)
+      })
     },
-    [onDone]
+    [attempt, attemptToken, checkpointResult, onDone, sessionId]
   )
+
+  const beginGameplay = useCallback(() => {
+    const pending = store.getState().challenge.pending
+    if (pending?.id !== sessionId) {
+      setPhase('playing')
+      return
+    }
+    if (pending.attempt?.status === 'finished' || pending.attempt?.status === 'accepted') return
+    const campaign = store.getState().game
+    if (
+      pending.origin &&
+      (pending.origin.gameId !== campaign.gameId || pending.origin.week !== campaign.week)
+    )
+      return
+    const saveAndStart = async () => {
+      if (startingAttemptRef.current || activeAttemptTokenRef.current !== attemptToken) return
+      startingAttemptRef.current = true
+      setSavingCheckpoint(true)
+      setCheckpointError(false)
+      store.dispatch(beginChallengeAttempt({ id: sessionId, number: attempt }))
+      const saved = await persistCompetitionCheckpoint()
+      startingAttemptRef.current = false
+      if (activeAttemptTokenRef.current !== attemptToken) return
+      setSavingCheckpoint(false)
+      setCheckpointError(!saved)
+      retryCheckpointRef.current = saved ? null : () => void saveAndStart()
+      if (saved && store.getState().challenge.pending?.id === sessionId) setPhase('playing')
+    }
+    void saveAndStart()
+  }, [attempt, attemptToken, sessionId])
 
   const rankingOnly = isPlacementRankingGame(launchedGame)
   const competitionRetryEnabled = competitionRetry?.enabled ?? false
@@ -271,9 +457,40 @@ export default function MinigameHost({
             : override
               ? { ...launchedGame, ...override }
               : launchedGame
+        if (quickTapVipEnabled) {
+          return {
+            ...resolved,
+            title:
+              resolved.key === 'quickTapSeasons'
+                ? 'Quick Tap Seasons · VIP'
+                : 'Quick Tap Race · VIP',
+            description:
+              resolved.key === 'quickTapSeasons'
+                ? 'Three 28-second rounds. Read the weather, risk mystery boxes, and finish with the most points.'
+                : 'Three 25-second rounds. Charge the Eye, risk mystery boxes, and finish with the most points.',
+            instructions: [
+              resolved.key === 'quickTapSeasons'
+                ? 'Play three 28-second rounds. The season changes every seven seconds, with no preview of what comes next.'
+                : 'Tap the Eye through three 25-second rounds. Your points carry over; short breaks separate the rounds.',
+              resolved.key === 'quickTapSeasons'
+                ? 'Spring taps score 1.25, summer 0.5, autumn 1, and winter −1. Stop tapping in winter. Once per round, Change Season randomly selects another season.'
+                : 'Grab a mystery box or keep tapping. Contents stay hidden until claimed and can include rewards or handicaps.',
+              'All contestants get the same mystery windows and odds. Effects activate immediately; Backfire means stop tapping briefly. Timed effects reset between rounds.',
+              ...(resolved.key === 'quickTapSeasons'
+                ? [
+                    'Mystery contents depend on the current season. Stillness awards 14 points after two seconds without tapping; tapping cancels that bonus.',
+                  ]
+                : []),
+              'The highest point total wins. If points tie, raw taps break the tie.',
+            ],
+            timeLimitMs: resolved.key === 'quickTapSeasons' ? 84_000 : 75_000,
+            metricKind: 'points' as const,
+            metricLabel: 'Points',
+          }
+        }
         return resolved
       })(),
-    [launchedGame]
+    [launchedGame, quickTapVipEnabled]
   )
 
   useEffect(() => {
@@ -283,14 +500,32 @@ export default function MinigameHost({
     completionReportedRef.current = false
     setUtilityView(null)
     setCountdown(3)
-    setFinalValue(null)
-    setFinalTiebreakerMs(null)
-    setFinalCompletion(null)
-    setWasPartial(false)
+    const pending = store.getState().challenge.pending
+    const savedAttempt = pending?.id === sessionId ? pending.attempt : undefined
+    const result =
+      savedAttempt && 'result' in savedAttempt
+        ? savedAttempt.result
+        : pending?.id === sessionId && savedAttempt?.status === 'playing'
+          ? (recoverCommittedChallengeResult(pending, store.getState().game) ??
+            createAbandonedChallengeResult(pending, competitionHumanId))
+          : undefined
+    setFinalValue(result?.rawValue ?? null)
+    setFinalTiebreakerMs(result?.completion?.tiebreakerMs ?? null)
+    setFinalCompletion(result?.completion ?? null)
+    setWasPartial(result?.partial ?? false)
     setDemoTried(false)
-    setPhase(skipRules ? 'countdown' : 'rules')
-    setAttempt(0)
-    activeAttemptTokenRef.current = `${sessionId}:0`
+    setPhase(result ? 'results' : skipRules ? 'countdown' : 'rules')
+    setAttempt(savedAttempt?.number ?? 0)
+    activeAttemptTokenRef.current = `${sessionId}:${savedAttempt?.number ?? 0}`
+    checkpointWorkRef.current = null
+    setSavingCheckpoint(false)
+    setCheckpointError(false)
+    if (result && savedAttempt?.status === 'playing') void checkpointResult(result)
+    return () => {
+      activeAttemptTokenRef.current = ''
+      completionReportedRef.current = true
+      resetHostedMinigameState(store.dispatch, launchedGame.reactComponentKey)
+    }
     // The game selection is stable for a challenge session. Do not rerun this
     // boundary when access metadata changes while a game is in progress.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -348,53 +583,116 @@ export default function MinigameHost({
 
   const handleConfirmEarlyExit = useCallback(() => {
     setUtilityView(null)
-    // Product rule: abandoning a minigame records 0 and lets the existing
-    // competition simulation/ranking continue so LOH/POS can still resolve.
-    setFinalValue(0)
-    setWasPartial(true)
+    const pending = store.getState().challenge.pending
+    const result: CompetitionResult =
+      pending?.id === sessionId
+        ? pending.attempt && 'result' in pending.attempt
+          ? pending.attempt.result
+          : createAbandonedChallengeResult(pending, competitionHumanId)
+        : { rawValue: 0, partial: true }
+    void checkpointResult(result)
+    setFinalValue(result.rawValue)
+    setFinalCompletion(result.completion ?? null)
+    setWasPartial(result.partial)
     setPhase('results')
-  }, [])
+  }, [checkpointResult, competitionHumanId, sessionId])
 
   // Pause the host-owned countdown while the menu, rules, or warning is open.
   useEffect(() => {
-    if (phase !== 'countdown' || utilityView !== null) return
+    if (
+      phase !== 'countdown' ||
+      utilityView !== null ||
+      !ready ||
+      savingCheckpoint ||
+      checkpointError
+    )
+      return
     if (skipCountdown) {
-      const t = setTimeout(() => setPhase('playing'), 0)
+      const t = setTimeout(beginGameplay, 0)
       return () => clearTimeout(t)
     }
     if (countdown <= 0) {
-      const t = setTimeout(() => setPhase('playing'), 600)
+      const t = setTimeout(beginGameplay, 600)
       return () => clearTimeout(t)
     }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000)
     return () => clearTimeout(t)
-  }, [phase, countdown, skipCountdown, utilityView])
+  }, [
+    beginGameplay,
+    checkpointError,
+    phase,
+    countdown,
+    skipCountdown,
+    utilityView,
+    ready,
+    savingCheckpoint,
+  ])
 
   // Keep the countdown SFX synchronized with the reset/paused visual countdown.
   useEffect(() => {
-    if (phase !== 'countdown' || skipCountdown || utilityView !== null) {
+    if (phase !== 'countdown' || skipCountdown || utilityView !== null || !ready) {
       SoundManager.stop(COUNTDOWN_TIMER_KEY)
       return
     }
     void SoundManager.play(COUNTDOWN_TIMER_KEY)
     return () => SoundManager.stop(COUNTDOWN_TIMER_KEY)
-  }, [phase, skipCountdown, utilityView])
+  }, [phase, skipCountdown, utilityView, ready])
 
-  const handleComplete = useCallback((result: LegacyRawResult) => {
-    setFinalValue(result.value)
-    setWasPartial(false)
-    setPhase('results')
-  }, [])
+  const handleComplete = useCallback(
+    (result: LegacyRawResult) => {
+      void checkpointResult({ rawValue: result.value, partial: false })
+      setFinalValue(result.value)
+      setWasPartial(false)
+      setPhase('results')
+    },
+    [checkpointResult]
+  )
 
-  const handleQuit = useCallback((partial: LegacyRawResult) => {
-    setFinalValue(partial.value)
-    setWasPartial(true)
-    setPhase('results')
-  }, [])
+  const handleQuit = useCallback(
+    (partial: LegacyRawResult) => {
+      void checkpointResult({ rawValue: partial.value, partial: true })
+      setFinalValue(partial.value)
+      setWasPartial(true)
+      setPhase('results')
+    },
+    [checkpointResult]
+  )
+
+  const handleScoredComplete = useCallback(
+    (value: number, tiebreakerMs?: number, completion?: ReactMinigameCompletion) => {
+      const finalResult =
+        completion || tiebreakerMs != null
+          ? {
+              ...completion,
+              ...(tiebreakerMs != null ? { tiebreakerMs } : {}),
+            }
+          : undefined
+      void checkpointResult({
+        rawValue: value,
+        partial: false,
+        ...(finalResult ? { completion: finalResult } : {}),
+      })
+      setFinalValue(value)
+      setFinalTiebreakerMs(tiebreakerMs ?? null)
+      setFinalCompletion(finalResult ?? null)
+      setWasPartial(false)
+      setPhase('results')
+    },
+    [checkpointResult]
+  )
 
   const getReportedLastPlaceId = useCallback(
     (completion?: ReactMinigameCompletion) => {
       if (completion?.authoritativeLastPlaceId) return completion.authoritativeLastPlaceId
+      const rankedIds = completion?.authoritativeRankedIds
+      if (
+        participants?.length &&
+        rankedIds?.length === participants.length &&
+        new Set(rankedIds).size === rankedIds.length &&
+        participants.every((participant) => rankedIds.includes(participant.id))
+      ) {
+        return rankedIds.at(-1) ?? null
+      }
       if (!completion?.rawResults || !participants?.length) return null
 
       const ranked = [...participants]
@@ -414,6 +712,20 @@ export default function MinigameHost({
     (completion?: ReactMinigameCompletion, fallbackValue = 1, fallbackTiebreakerMs?: number) => {
       const humanId = participants?.find((participant) => participant.isHuman)?.id
       const lastPlaceId = getReportedLastPlaceId(completion)
+      void checkpointResult({
+        rawValue: completion?.rawValue ?? completion?.rawResults?.[humanId ?? ''] ?? fallbackValue,
+        partial: false,
+        ...(completion || fallbackTiebreakerMs != null
+          ? {
+              completion: {
+                ...completion,
+                ...(fallbackTiebreakerMs != null && completion?.tiebreakerMs == null
+                  ? { tiebreakerMs: fallbackTiebreakerMs }
+                  : {}),
+              },
+            }
+          : {}),
+      })
 
       // Feature-owned placement games can provide their final standings before
       // a season result has been applied. Keep the outcome inside the host when
@@ -429,7 +741,13 @@ export default function MinigameHost({
 
       reportDoneOnce(completion?.rawValue ?? fallbackValue, false, completion, true)
     },
-    [competitionRetryEnabled, getReportedLastPlaceId, participants, reportDoneOnce]
+    [
+      checkpointResult,
+      competitionRetryEnabled,
+      getReportedLastPlaceId,
+      participants,
+      reportDoneOnce,
+    ]
   )
 
   const enrichCompletionForRetry = useCallback(
@@ -516,23 +834,50 @@ export default function MinigameHost({
     // A retry is a fresh run of the same selected game. Reset both the host's
     // completion latch and the child identity; a game-key-only reset is not
     // sufficient when the user deliberately plays one minigame every time.
-    resetHostedMinigameState(store.dispatch, launchedGame.reactComponentKey)
-    completionReportedRef.current = false
-    setUtilityView(null)
-    setFinalValue(null)
-    setFinalTiebreakerMs(null)
-    setFinalCompletion(null)
-    setWasPartial(false)
-    setCountdown(3)
-    activeAttemptTokenRef.current = `${sessionId}:${attempt + 1}`
-    setAttempt((current) => current + 1)
-    setPhase(skipCountdown ? 'playing' : 'countdown')
+    const restart = (number: number) => {
+      resetHostedMinigameState(store.dispatch, launchedGame.reactComponentKey)
+      completionReportedRef.current = false
+      checkpointWorkRef.current = null
+      setUtilityView(null)
+      setFinalValue(null)
+      setFinalTiebreakerMs(null)
+      setFinalCompletion(null)
+      setWasPartial(false)
+      setCountdown(3)
+      activeAttemptTokenRef.current = `${sessionId}:${number}`
+      setAttempt(number)
+      setPhase(
+        skipCountdown && store.getState().challenge.pending?.id !== sessionId
+          ? 'playing'
+          : 'countdown'
+      )
+    }
+    const pending = store.getState().challenge.pending
+    if (pending?.id !== sessionId) {
+      restart(attempt + 1)
+      return
+    }
+    store.dispatch(prepareChallengeRetry({ id: sessionId, number: attempt }))
+    const nextAttempt = store.getState().challenge.pending?.attempt
+    if (nextAttempt?.status !== 'ready') return
+    const persistRetry = async () => {
+      setSavingCheckpoint(true)
+      setCheckpointError(false)
+      const saved = await persistCompetitionCheckpoint()
+      if (activeAttemptTokenRef.current !== `${sessionId}:${attempt}`) return
+      setSavingCheckpoint(false)
+      setCheckpointError(!saved)
+      retryCheckpointRef.current = saved ? null : () => void persistRetry()
+      if (saved) restart(nextAttempt.number)
+    }
+    void persistRetry()
   }, [attempt, launchedGame.reactComponentKey, sessionId, skipCountdown])
 
   const renderActiveGame = () => {
     const participantIds = (participants ?? []).map((p) => p.id)
     const seed = typeof gameOptions?.seed === 'number' ? gameOptions.seed : 0
-    const isActiveAttempt = () => activeAttemptTokenRef.current === attemptToken
+    const isActiveAttempt = () =>
+      activeAttemptTokenRef.current === attemptToken && hostPhaseRef.current === 'playing'
     const handleAttemptReactComplete = (
       completion?: ReactMinigameCompletion,
       fallbackValue?: number,
@@ -695,7 +1040,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as RiskWheelCompetitionType) ?? 'LOH'}
-          premiumPresentation={isVipActive}
+          premiumPresentation={usePremiumPresentation}
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -830,10 +1175,7 @@ export default function MinigameHost({
               )
               return
             }
-            setFinalValue(value)
-            setFinalTiebreakerMs(tiebreakerMs ?? null)
-            setWasPartial(false)
-            setPhase('results')
+            handleScoredComplete(value, tiebreakerMs, completion)
           }}
         />
       )
@@ -870,10 +1212,7 @@ export default function MinigameHost({
               reportDoneOnce(value, false, completion, true)
               return
             }
-            setFinalValue(value)
-            setFinalTiebreakerMs(tiebreakerMs ?? null)
-            setWasPartial(false)
-            setPhase('results')
+            handleScoredComplete(value, tiebreakerMs, completion)
           }}
         />
       )
@@ -900,6 +1239,12 @@ export default function MinigameHost({
           seed={seed}
           autoStart={key !== 'HangmanChallenge'}
           premiumPresentation={usePremiumPresentation}
+          vipQuickTap={(key === 'QuickTapRace' || key === 'QuickTapSeasons') && quickTapVipEnabled}
+          quickTapVariantOverride={
+            key === 'QuickTapRace' || key === 'QuickTapSeasons'
+              ? quickTapVariantPreviewOverride
+              : undefined
+          }
           previewStage={
             import.meta.env.DEV &&
             (gameOptions?.previewStage === 'round6' || gameOptions?.previewStage === 'final2')
@@ -930,10 +1275,7 @@ export default function MinigameHost({
               reportDoneOnce(value, false, completion, true)
               return
             }
-            setFinalValue(value)
-            setFinalTiebreakerMs(tiebreakerMs ?? null)
-            setWasPartial(false)
-            setPhase('results')
+            handleScoredComplete(value, tiebreakerMs, completion)
           }}
         />
       )
@@ -946,6 +1288,48 @@ export default function MinigameHost({
         onComplete={handleAttemptComplete}
         onQuit={handleAttemptQuit}
       />
+    )
+  }
+
+  if (editionCheckPending || editionNotice) {
+    return (
+      <div
+        className="minigame-host"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Resume competition"
+      >
+        <div className="minigame-host-demo__card">
+          <h2>{editionNotice ? 'Challenge edition updated' : 'Checking your challenge edition'}</h2>
+          <p role="status">
+            {editionNotice ??
+              (vipStatus === 'error'
+                ? 'We couldn’t check your purchases. Try again, or continue offline using your last confirmed access.'
+                : editionCheckTimedOut
+                  ? 'The purchase check is taking longer than expected. Keep waiting, or continue offline using your last confirmed access.'
+                  : 'Checking your purchases before this unfinished challenge resumes…')}
+          </p>
+          {editionNotice ? (
+            <button type="button" onClick={() => store.dispatch(acknowledgeChallengeEdition())}>
+              Review rules
+            </button>
+          ) : vipStatus === 'error' || editionCheckTimedOut ? (
+            <>
+              {vipStatus === 'error' && (
+                <button type="button" onClick={() => void store.dispatch(initializeVip())}>
+                  Try again
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => store.dispatch(reconcileQuickTapChallenge(true))}
+              >
+                Continue offline
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
     )
   }
 
@@ -986,6 +1370,11 @@ export default function MinigameHost({
           game={rulesGame}
           onConfirm={handleRulesConfirm}
           onSkip={skipRules ? handleRulesConfirm : undefined}
+          attemptNotice={
+            savedChallenge
+              ? 'Once play starts, closing the app counts as leaving this competition. Finished results are saved before Continue.'
+              : undefined
+          }
         />
       )}
 
@@ -1022,7 +1411,26 @@ export default function MinigameHost({
         <div className="minigame-host-ready">
           <span className="minigame-host-ready-label">Get Ready</span>
           <span className="minigame-host-ready-game">{launchedGame.title}</span>
-          {countdown > 0 ? (
+          {!ready ? (
+            <div className="minigame-host-loading" role="status" aria-live="polite">
+              {preparationError ? (
+                <>
+                  <p>We couldn’t prepare this game. Please try again.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreparationFailure(null)
+                      setPreparationAttempt((current) => current + 1)
+                    }}
+                  >
+                    Try again
+                  </button>
+                </>
+              ) : (
+                `Preparing ${launchedGame.title}…`
+              )}
+            </div>
+          ) : countdown > 0 ? (
             <span className="minigame-host-ready-count" key={countdown}>
               {countdown}
             </span>
@@ -1055,25 +1463,62 @@ export default function MinigameHost({
               </div>
             }
           >
-            {renderActiveGame()}
+            <CompetitionResultContext.Provider value={checkpointResult}>
+              {renderActiveGame()}
+            </CompetitionResultContext.Provider>
           </Suspense>
         </div>
       )}
 
-      {utilityView === 'rules' && phase !== 'results' && (
-        <MinigameRules
-          game={rulesGame}
-          mode="reference"
-          confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
-          onConfirm={() => setUtilityView(null)}
-        />
+      {(savingCheckpoint || checkpointError) && (
+        <div className="minigame-checkpoint-overlay" role={checkpointError ? 'alert' : 'status'}>
+          <div className="minigame-host-demo__card">
+            <p>
+              {checkpointError
+                ? 'We couldn’t save this competition. Try saving again to continue.'
+                : 'Saving competition…'}
+            </p>
+            {checkpointError && (
+              <button type="button" onClick={() => retryCheckpointRef.current?.()}>
+                Try saving again
+              </button>
+            )}
+          </div>
+        </div>
       )}
+
+      {utilityView === 'rules' &&
+        phase !== 'results' &&
+        (quickTapVipEnabled ? (
+          createPortal(
+            <div style={{ position: 'fixed', inset: 0, zIndex: 9800 }}>
+              <MinigameRules
+                game={rulesGame}
+                mode="reference"
+                confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
+                onConfirm={() => setUtilityView(null)}
+              />
+            </div>,
+            document.body
+          )
+        ) : (
+          <MinigameRules
+            game={rulesGame}
+            mode="reference"
+            confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
+            onConfirm={() => setUtilityView(null)}
+          />
+        ))}
 
       {utilityView === 'exit' &&
         phase !== 'results' &&
         createPortal(
           <div
-            className="minigame-exit-confirm-overlay"
+            className={`minigame-exit-confirm-overlay${
+              launchedGame.reactComponentKey === 'GatesOfTheEye'
+                ? ' minigame-exit-confirm-overlay--obsidian'
+                : ''
+            }`}
             role="dialog"
             aria-modal="true"
             aria-label="Leave competition confirmation"

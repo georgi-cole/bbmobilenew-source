@@ -17,6 +17,7 @@ import {
   type LocalConfessionalSafetyCode,
 } from '../bb/localConfessionalSafety'
 import { apiUrl } from '../utils/apiBase'
+import { optionalPlayerFetch } from '../safety/optionalRequest'
 
 export type BigEyeEmotion =
   | 'watchful'
@@ -244,7 +245,7 @@ async function requestDirectorReply(
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), DIRECTOR_TIMEOUT_MS)
   try {
-    const response = await fetch(apiUrl('/api/ai/bigbrother'), {
+    const response = await optionalPlayerFetch('onlineServices', apiUrl('/api/ai/bigbrother'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

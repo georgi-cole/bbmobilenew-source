@@ -88,7 +88,6 @@ function normalizeSurvivorPlayer(player: Player, slot: number, currentDay: numbe
   if (player.isUser) {
     return {
       ...player,
-      status: isExited(player) ? player.status : 'active',
       isUser: true,
       isRobo: false,
       survivorEntryDay: player.survivorEntryDay ?? 1,
@@ -98,10 +97,9 @@ function normalizeSurvivorPlayer(player: Player, slot: number, currentDay: numbe
 
   return {
     ...player,
-    status: 'active',
     isRobo: true,
     survivorEntryDay: player.survivorEntryDay ?? currentDay,
-    survivorSlot: player.survivorSlot ?? slot,
+    survivorSlot: slot,
     stats: player.stats ?? { lohWins: 0, posWins: 0, timesNominated: 0 },
   }
 }
@@ -112,16 +110,31 @@ function withNormalizedSurvivorCast(game: GameState): GameState | null {
   const modeSpecific = getSurvivorState(game)
   // During the deliberate eviction pause, preserve the evicted robo in its
   // original roster slot. Play commits the queued synthetic replacement.
-  if (modeSpecific.replacementPending) return null
+  if (modeSpecific.replacementPending || modeSpecific.replacementQueue?.length) return null
   const currentDay = Math.max(modeSpecific.currentDay, game.week)
   const human = game.players.find((player) => player.isUser)
   if (!human) return terminalizeSurvivorRun(game)
 
   const targetRoboCount = SURVIVOR_STARTING_CAST_SIZE - 1
   const activeRobos = game.players.filter((player) => !player.isUser && !isExited(player))
-  const keptRobos = activeRobos
-    .slice(0, targetRoboCount)
-    .map((player, index) => normalizeSurvivorPlayer(player, index + 1, currentDay))
+  const occupiedSlots = new Set<number>([0])
+  const nextFreeSlot = () =>
+    Array.from({ length: targetRoboCount }, (_, index) => index + 1).find(
+      (slot) => !occupiedSlots.has(slot)
+    )!
+  const keptRobos = activeRobos.slice(0, targetRoboCount).map((player) => {
+    const previousSlot = player.survivorSlot
+    const slot =
+      previousSlot != null &&
+      Number.isInteger(previousSlot) &&
+      previousSlot > 0 &&
+      previousSlot <= targetRoboCount &&
+      !occupiedSlots.has(previousSlot)
+        ? previousSlot
+        : nextFreeSlot()
+    occupiedSlots.add(slot)
+    return normalizeSurvivorPlayer(player, slot, currentDay)
+  })
 
   let nextRoboIndex = Math.max(modeSpecific.nextRoboIndex, targetRoboCount)
   while (keptRobos.length < targetRoboCount) {
@@ -135,8 +148,9 @@ function withNormalizedSurvivorCast(game: GameState): GameState | null {
           nextRoboIndex,
         },
       },
-      keptRobos.length + 1
+      nextFreeSlot()
     )
+    occupiedSlots.add(replacement.survivorSlot!)
     keptRobos.push(replacement)
     nextRoboIndex += 1
   }
@@ -153,7 +167,10 @@ function withNormalizedSurvivorCast(game: GameState): GameState | null {
 
   const unchanged =
     game.players.length === players.length &&
-    game.players.every((player, index) => player.id === players[index]?.id) &&
+    game.players.every(
+      (player, index) =>
+        player.id === players[index]?.id && player.survivorSlot === players[index]?.survivorSlot
+    ) &&
     modeSpecific.startingCastSize === SURVIVOR_STARTING_CAST_SIZE &&
     modeSpecific.nextRoboIndex === nextRoboIndex &&
     modeSpecific.currentDay === currentDay &&
@@ -187,6 +204,12 @@ function withReplacementIfNeeded(game: GameState, evicteeId: string): GameState 
   if (!evictee || !isExited(evictee) || evictee.isUser) return null
 
   const modeSpecific = getSurvivorState(game)
+  const queuedReplacements = [
+    ...(modeSpecific.replacementPending ? [modeSpecific.replacementPending] : []),
+    ...(modeSpecific.replacementQueue ?? []),
+  ]
+  if (queuedReplacements.some((pending) => pending.outgoingPlayerSnapshot.id === evicteeId))
+    return null
   const activeCastSize = game.players.filter((player) => !isExited(player)).length
   if (activeCastSize >= SURVIVOR_STARTING_CAST_SIZE) return null
 
@@ -224,13 +247,25 @@ function withReplacementIfNeeded(game: GameState, evicteeId: string): GameState 
       bestDayReached: Math.max(modeSpecific.bestDayReached, currentDay),
       startingCastSize: SURVIVOR_STARTING_CAST_SIZE,
       nextRoboIndex: modeSpecific.nextRoboIndex + 1,
-      replacementPending: {
+      replacementPending: queuedReplacements[0] ?? {
         mode: 'survival',
         outgoingPlayerSnapshot: { ...evictee, status: 'evicted' },
         incomingPlayer: replacement,
         slot: replacementSlot,
         queuedAt: startedAt,
       },
+      replacementQueue: queuedReplacements.length
+        ? [
+            ...queuedReplacements.slice(1),
+            {
+              mode: 'survival',
+              outgoingPlayerSnapshot: { ...evictee, status: 'evicted' },
+              incomingPlayer: replacement,
+              slot: replacementSlot,
+              queuedAt: startedAt,
+            },
+          ]
+        : [],
       replacementTransition: null,
     },
     lastPlayedAt: startedAt,

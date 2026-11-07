@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
+import { createDraft, finishDraft } from 'immer'
 import {
   advanceAllianceRequests,
   finalizeAcceptedPersonalPact,
   manageAlliance,
   type AllianceManagementContext,
 } from '../reality/allianceManagement'
-import { currentAllianceCounts, isCurrentAlliance } from '../reality/allianceIdentity'
+import {
+  currentAllianceCounts,
+  isCurrentAlliance,
+  normalizeAllianceManagement,
+} from '../reality/allianceIdentity'
 import { allianceEventText } from '../reality/allianceHistory'
 import {
   createDirectedRelationship,
@@ -92,6 +97,18 @@ const approve = (state: RealityDomainState, id: string) => {
 }
 
 describe('explicit alliance management', () => {
+  it('does not rewrite unchanged alliance records on later phase checks', () => {
+    const state = setup()
+    pact(state)
+    group(state)
+    const firstDraft = createDraft(state)
+    normalizeAllianceManagement(firstDraft)
+    const normalized = finishDraft(firstDraft)
+    const nextDraft = createDraft(normalized)
+    normalizeAllianceManagement(nextDraft)
+    expect(finishDraft(nextDraft)).toBe(normalized)
+  })
+
   it('names the members and alliance when a founding vote succeeds', () => {
     const state = setup()
     const namedContext: AllianceManagementContext = {

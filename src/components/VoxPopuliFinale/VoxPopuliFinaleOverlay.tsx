@@ -11,15 +11,18 @@ import PublicFavoriteOverlay from '../PublicFavoriteOverlay/PublicFavoriteOverla
 import SeasonRecapCinematic from '../SeasonRecapCinematic/SeasonRecapCinematic'
 import type { Player } from '../../types'
 import VoxFinalistShowcase, { type VoxFinalistCase } from './VoxFinalistShowcase'
-import { selectCurrentProfile } from '../../store/profilesSlice'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
 
 export default function VoxPopuliFinaleOverlay() {
   const dispatch = useAppDispatch()
   const game = useAppSelector((state) => state.game)
   const publicOpinion = useAppSelector(selectPublicOpinion)
   const social = useAppSelector((state) => state.social)
-  const activeProfile = useAppSelector(selectCurrentProfile)
   const vox = game.voxPopuli
+  usePresentationOwner('season-finale', PRESENTATION_PRIORITY.finale, Boolean(vox?.finaleStage))
   const finalists = useMemo(
     () =>
       (vox?.finalistIds ?? [])
@@ -59,7 +62,7 @@ export default function VoxPopuliFinaleOverlay() {
       ]
         .filter((move): move is string => Boolean(move))
         .slice(0, 3)
-      const profileBio = player.isUser ? activeProfile?.bio : undefined
+      const profileBio = player.isUser ? game.seasonContestant?.bio : undefined
       const profileIdentity = [
         profileBio?.profession ? `a ${profileBio.profession}` : null,
         profileBio?.location ? `from ${profileBio.location}` : null,

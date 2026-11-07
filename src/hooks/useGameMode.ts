@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { Capacitor, SystemBars, SystemBarType } from '@capacitor/core'
+import { Capacitor } from '@capacitor/core'
+import { hasNativeGameDisplay, syncNativeGameDisplay } from '../platform/nativeGameDisplay'
 
 interface WakeLockSentinelLike {
   released?: boolean
@@ -18,43 +19,40 @@ interface LockableOrientationLike {
 }
 
 /**
- * Keeps the game in an "active play" mode on supported mobile browsers.
- *
- * Current behavior:
- * - requests a screen wake lock so the display stays awake during play
- * - re-requests the wake lock when the tab becomes visible again
- * - attempts to keep the experience portrait-locked when the platform allows it
- * - optionally hides only the native status bar during gameplay, while the
- *   measured CSS safe area remains the fallback if a platform keeps it visible
+ * Native gameplay hides both system bars, stays awake, and uses portrait unless
+ * the current minigame supports landscape. Menus restore normal phone controls.
+ * Browsers and older installed shells retain best-effort wake/orientation APIs;
+ * the measured CSS safe area remains the fallback on every platform.
  */
-export default function useGameMode(hideNativeStatusBar = false, allowLandscape = false): void {
+export default function useGameMode(activePlay = false, allowLandscape = false): void {
   useEffect(() => {
-    const isNativeAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
-    if (!isNativeAndroid) return undefined
+    if (!Capacitor.isNativePlatform()) return undefined
+    return () => {
+      void syncNativeGameDisplay({ active: false, allowLandscape: false })
+    }
+  }, [])
 
-    async function syncStatusBar() {
-      try {
-        if (hideNativeStatusBar) {
-          await SystemBars.hide({ bar: SystemBarType.StatusBar })
-        } else {
-          await SystemBars.show({ bar: SystemBarType.StatusBar })
-        }
-      } catch {
-        // Web builds and unsupported native shells keep using measured CSS insets.
-      }
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined
+
+    function syncDisplay() {
+      void syncNativeGameDisplay({
+        active: activePlay,
+        allowLandscape: activePlay && allowLandscape,
+      })
     }
 
     function handleStatusBarVisibilityChange() {
       if (document.visibilityState === 'visible') {
-        void syncStatusBar()
+        syncDisplay()
       }
     }
 
     function handleNativeResume() {
-      void syncStatusBar()
+      syncDisplay()
     }
 
-    void syncStatusBar()
+    syncDisplay()
     document.addEventListener('visibilitychange', handleStatusBarVisibilityChange)
     window.addEventListener('focus', handleNativeResume)
     window.addEventListener('pageshow', handleNativeResume)
@@ -63,13 +61,12 @@ export default function useGameMode(hideNativeStatusBar = false, allowLandscape 
       document.removeEventListener('visibilitychange', handleStatusBarVisibilityChange)
       window.removeEventListener('focus', handleNativeResume)
       window.removeEventListener('pageshow', handleNativeResume)
-      if (hideNativeStatusBar) {
-        void SystemBars.show({ bar: SystemBarType.StatusBar }).catch(() => undefined)
-      }
     }
-  }, [hideNativeStatusBar])
+  }, [activePlay, allowLandscape])
 
   useEffect(() => {
+    if (hasNativeGameDisplay()) return undefined
+
     let isMounted = true
     let wakeLockSentinel: WakeLockSentinelLike | null = null
     let wakeLockRequestInFlight: Promise<void> | null = null
@@ -102,6 +99,7 @@ export default function useGameMode(hideNativeStatusBar = false, allowLandscape 
 
     async function requestWakeLock() {
       if (
+        !activePlay ||
         !isMounted ||
         !isWakeLockRequestAllowedByVisibility() ||
         wakeLockSentinel != null ||
@@ -168,5 +166,5 @@ export default function useGameMode(hideNativeStatusBar = false, allowLandscape 
       unlockOrientation()
       void releaseWakeLock()
     }
-  }, [allowLandscape])
+  }, [activePlay, allowLandscape])
 }

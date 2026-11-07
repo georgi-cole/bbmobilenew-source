@@ -18,6 +18,8 @@ import {
   GAME_MODE_PRODUCT_KEYS,
   STANDALONE_PRODUCT_KEYS,
   UTILITY_PRODUCT_KEYS,
+  VIP_BENEFIT_DETAILS,
+  STORE_PURCHASE_ELIGIBILITY_NOTE,
   getStoreProductDefinition,
   type StoreProductKey,
 } from '../../vip/vipConfig'
@@ -34,6 +36,7 @@ import {
   TEMPORARY_STORE_UNLOCKS_ENABLED,
 } from '../../vip/effectiveEntitlements'
 import { resolveVipUpgradeOffer } from '../../vip/vipUpgrade'
+import { usePlayerSafety } from '../../safety/usePlayerSafety'
 import './Store.css'
 import './StoreProductList.css'
 
@@ -59,18 +62,8 @@ function isStoreShelfId(value: unknown): value is StoreShelfId {
   return STORE_SHELVES.some((shelf) => shelf.id === value)
 }
 
-const VIP_BENEFIT_HIGHLIGHTS: Record<string, string> = {
-  'Public Mode controls': 'Put the viewers in the game.',
-  'Surveyeval Mode': 'Outlast every replacement.',
-  'Reality Mode': 'Turn the social game all the way up.',
-  "Cupid's Arrow expansion": 'Shared fates. Doubled consequences.',
-  'Vox Populi expansion': 'The audience gets the final say.',
-  'VIP themes': 'Give every season a premium finish.',
-  'Premium Challenges remasters': 'Two fan-favourite rescues, rebuilt.',
-  'No automatic ads': 'Keep the broadcast moving without forced commercial breaks.',
-}
-
 export default function Store() {
+  const adultServices = usePlayerSafety()?.ageBand === 'adult'
   const navigate = useNavigate()
   const location = useLocation()
   const dispatch = useAppDispatch()
@@ -114,8 +107,8 @@ export default function Store() {
   }
 
   useEffect(() => {
-    if (storeState.status === 'idle') void dispatch(initializeVip())
-  }, [dispatch, storeState.status])
+    if (adultServices && storeState.status === 'idle') void dispatch(initializeVip())
+  }, [adultServices, dispatch, storeState.status])
 
   function ownsProduct(productKey: StoreProductKey): boolean {
     return productKey === 'vip'
@@ -130,6 +123,10 @@ export default function Store() {
   }
 
   async function handlePurchase(productKey: StoreProductKey) {
+    if (!adultServices) {
+      setModalError('Store purchases require adult access. See Player privacy & family.')
+      return
+    }
     if (purchaseLockRef.current || busy || ownsProduct(productKey)) return
     purchaseLockRef.current = true
     setNotice(null)
@@ -199,6 +196,10 @@ export default function Store() {
   }
 
   async function handleRestore() {
+    if (!adultServices) {
+      setNotice('An adult must manage purchase restoration. See Player privacy & family.')
+      return
+    }
     if (busy || developerAccess) return
     setNotice(null)
     setModalError(null)
@@ -238,6 +239,15 @@ export default function Store() {
         )}
         <GameBackButton className="vip-store__back" onClick={goBack} />
       </header>
+
+      {!adultServices && (
+        <p className="vip-store__notice" role="status">
+          {STORE_PURCHASE_ELIGIBILITY_NOTE}{' '}
+          <button type="button" onClick={() => navigate('/player-privacy')}>
+            Player privacy &amp; family
+          </button>
+        </p>
+      )}
 
       <nav className="vip-store__shelf-nav" aria-label="Store categories">
         {STORE_SHELVES.map((shelf) => (
@@ -413,7 +423,8 @@ export default function Store() {
                   <span>
                     <strong>{benefit}</strong>
                     <small>
-                      {VIP_BENEFIT_HIGHLIGHTS[benefit] || 'Permanently included with VIP.'}
+                      {VIP_BENEFIT_DETAILS.find((detail) => detail.title === benefit)?.detail ||
+                        'Permanently included with VIP.'}
                     </small>
                   </span>
                 </li>
@@ -563,7 +574,7 @@ export default function Store() {
           <div className="vip-store__section-heading">
             <p className="vip-store__eyebrow">Finish your setup</p>
             <h2 id="extras-title">Extras</h2>
-            <p>Premium challenge remasters and a permanent ad-free broadcast option.</p>
+            <p>Every premium minigame version and a permanent ad-free broadcast option.</p>
           </div>
 
           <div className="vip-store__product-grid">
@@ -616,7 +627,7 @@ export default function Store() {
             type="button"
             className="vip-store__restore"
             onClick={() => void handleRestore()}
-            disabled={busy || !storeState.billingAvailable || developerAccess}
+            disabled={!adultServices || busy || !storeState.billingAvailable || developerAccess}
           >
             {storeState.status === 'restoring' ? 'Restoring...' : 'Restore Purchases'}
           </button>
@@ -658,7 +669,7 @@ export default function Store() {
           product={storeState.products[selectedProductKey]}
           owned={selectedOwned}
           includedWithVip={selectedIncludedWithVip}
-          billingAvailable={developerAccess ? false : storeState.billingAvailable}
+          billingAvailable={adultServices && !developerAccess && storeState.billingAvailable}
           purchasing={
             storeState.status === 'purchasing' &&
             storeState.activePurchaseKey === selectedProductKey

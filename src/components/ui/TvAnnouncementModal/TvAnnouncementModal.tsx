@@ -88,7 +88,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     category: 'Vox Populi',
     body: 'Every remaining hubmate may compete. Today’s winner earns immunity and cannot be nominated. The last-place finisher is placed directly on the block before the secret nominations are counted.',
     shockDetail:
-      'The Final 4 reverses the balance: nobody earns immunity, last place starts on the block, and the other three each cast one secret vote.',
+      'The Final 4 reverses the balance: nobody earns immunity, last place starts on the block, and all four cast one secret nomination vote each.',
   },
   vox_final4_immunity_comp: {
     icon: '4️⃣',
@@ -96,7 +96,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     category: 'Vox Populi Endgame',
     body: 'Four hubmates remain. Nobody earns immunity; the last-place finisher begins on the block.',
     shockDetail:
-      'The other three hubmates each cast one secret nomination vote. The highest total joins last place on the block; a tie expands it.',
+      'All four hubmates cast one secret nomination vote each. Nobody can nominate themselves or the last-place nominee. The highest total joins last place on the block; a tie expands it.',
   },
   vox_nominations: {
     icon: '🗳️',
@@ -104,7 +104,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     category: 'Vox Populi',
     body: 'Hubmates enter the Confessional one at a time and privately name two eligible people. They cannot nominate themselves or the immunity winner.',
     shockDetail:
-      'The two highest nomination totals are placed on the block. If players are tied at the cutoff, every tied player is nominated. At Final 4, the other three cast one vote each and the highest total joins the last-place nominee.',
+      'The two highest nomination totals are placed on the block. If players are tied at the cutoff, every tied player is nominated. At Final 4, all four cast one secret nomination vote each and the highest total joins the last-place nominee.',
   },
   vox_safety_ceremony: {
     icon: '🎭',

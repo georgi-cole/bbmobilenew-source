@@ -1,3 +1,4 @@
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -550,6 +551,20 @@ export default function MajorityRulesComp({
       dispatch(resolveMajorityRulesOutcome())
     }
   }, [dispatch, game.eliminatedIds, game.phase, game.winnerId, onComplete])
+
+  useCompetitionResultCheckpoint(
+    (game.phase === 'winner' || game.phase === 'complete') && game.winnerId
+      ? {
+          rawValue: 1,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: game.winnerId,
+            authoritativeLastPlaceId: game.eliminatedIds[0] ?? null,
+            lastPlaceType: 'survival',
+          },
+        }
+      : null
+  )
 
   const activeHumanId =
     game.humanPlayerId && game.activeIds.includes(game.humanPlayerId) ? game.humanPlayerId : null

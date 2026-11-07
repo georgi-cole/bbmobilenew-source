@@ -4,6 +4,10 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useTranslate, type Translate } from '../../i18n';
 import type { GameHistoryEvent, Player } from '../../types';
 import type { PublicOpinionState } from '../../publicOpinion/types';
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership';
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage';
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar';
 import {
@@ -1083,6 +1087,7 @@ export default function SeasonRecapCinematic({
   onComplete,
 }: SeasonRecapProps) {
   const reducedMotion = useReducedMotion() ?? false;
+  const { isOwner, hasOwner } = usePresentationOwner('season-finale', PRESENTATION_PRIORITY.finale);
   const recapData = useMemo(
     () => buildSeasonRecapData(players, week, publicOpinion),
     [players, publicOpinion, week],
@@ -1092,38 +1097,60 @@ export default function SeasonRecapCinematic({
   const [visible, setVisible] = useState(true);
   const completedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
+  const exitTimeoutRef = useRef<number | null>(null);
   const selectedHonor = recapData.categories[selectedHonorIndex] ?? recapData.categories[0];
 
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+
+  useEffect(() => () => {
+    if (exitTimeoutRef.current !== null) window.clearTimeout(exitTimeoutRef.current);
+  }, []);
 
   const finish = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
     setVisible(false);
-    window.setTimeout(() => onCompleteRef.current(), reducedMotion ? 0 : EXIT_FADE_MS);
+    exitTimeoutRef.current = window.setTimeout(() => {
+      exitTimeoutRef.current = null;
+      onCompleteRef.current();
+    }, reducedMotion ? 0 : EXIT_FADE_MS);
   }, [reducedMotion]);
 
+  const interrupt = useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    if (exitTimeoutRef.current !== null) window.clearTimeout(exitTimeoutRef.current);
+    onCompleteRef.current();
+  }, []);
+
   useEffect(() => {
-    if (view !== 'intro') return undefined;
+    if (hasOwner && !isOwner) interrupt();
+  }, [hasOwner, interrupt, isOwner]);
+
+  useEffect(() => {
+    if (!isOwner || view !== 'intro') return undefined;
     const timeout = window.setTimeout(
       () => setView('automatic-intro'),
       reducedMotion ? 0 : INTRO_DURATION_MS,
     );
     return () => window.clearTimeout(timeout);
-  }, [reducedMotion, view]);
+  }, [isOwner, reducedMotion, view]);
 
   useEffect(() => {
+    if (!isOwner) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') finish();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [finish]);
+  }, [finish, isOwner]);
 
   const openHonor = useCallback((index: number) => {
     setSelectedHonorIndex(index);
     setView('honor');
   }, []);
+
+  if (!isOwner) return null;
 
   return (
     <motion.div
@@ -1131,6 +1158,7 @@ export default function SeasonRecapCinematic({
       role="dialog"
       aria-modal="true"
       aria-label="Season recap archive"
+      data-presentation-root="season-recap"
       animate={{ opacity: visible ? 1 : 0 }}
       transition={{ duration: reducedMotion ? 0 : EXIT_FADE_MS / 1000 }}
     >

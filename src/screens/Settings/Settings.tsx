@@ -477,6 +477,17 @@ export default function Settings() {
         <button
           type="button"
           className="settings-row settings-row--legal"
+          onClick={() => navigate('/player-privacy')}
+        >
+          <span>
+            <strong>Player privacy &amp; family</strong>
+            <small>Age checks, parent information, and optional data sharing</small>
+          </span>
+          <span aria-hidden="true">&rsaquo;</span>
+        </button>
+        <button
+          type="button"
+          className="settings-row settings-row--legal"
           onClick={() => navigate('/legal')}
         >
           <span>

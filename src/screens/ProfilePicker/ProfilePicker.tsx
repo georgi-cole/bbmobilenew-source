@@ -13,7 +13,7 @@ import {
   archiveKeyForProfile,
   type StoredProfile,
 } from '../../store/profilesSlice'
-import { resetGame, hydrateGame, updateUserPlayerIdentity } from '../../store/gameSlice'
+import { resetGame, hydrateGame } from '../../store/gameSlice'
 import { hydrateFinale } from '../../store/finaleSlice'
 import { hydrateSocial } from '../../social/socialSlice'
 import { hydratePublicOpinion } from '../../publicOpinion/publicOpinionSlice'
@@ -26,12 +26,17 @@ import {
 } from '../../store/saveStatePersistence'
 import { getPlayableLastRun } from '../../modes/seasonRulesets'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
-import { flushPendingRunSnapshots } from '../../store/store'
+import { persistCurrentRunSnapshot } from '../../store/store'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
-import { imageIdToDataUrl, saveImage, deleteImage } from '../../utils/imageDb'
+import { imageIdToDataUrl, saveImage, deleteImage, pruneProfilePhotos } from '../../utils/imageDb'
+import { savedProfilePhotoIds } from '../../appearance/profilePhotos'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import './ProfilePicker.css'
+import PlayerAgeDialog from '../../safety/PlayerAgeDialog'
+import PlayerSafetyScreen from '../../safety/PlayerSafetyScreen'
+import { usePlayerSafety } from '../../safety/usePlayerSafety'
+import { canPlayWithSafety, reconcileProfileAge } from '../../safety/playerSafety'
 
 const AVATAR_OPTIONS = ['🧑', '👱', '👩', '🧔', '👧', '🧓', '👩‍🦱', '🧑‍🦰', '🧑‍🦳', '🧑‍🦲', '👦', '👴']
 
@@ -51,6 +56,8 @@ export default function ProfilePicker() {
   const navigate = useNavigate()
   const location = useLocation()
   const dispatch = useAppDispatch()
+  const safety = usePlayerSafety()
+  const [ageCheckFor, setAgeCheckFor] = useState<'guest' | 'profile' | null>(null)
   const returnTo = (location.state as { from?: string } | null)?.from === '/' ? '/' : '/game'
 
   const profiles = useAppSelector(selectAllProfiles)
@@ -95,7 +102,7 @@ export default function ProfilePicker() {
     Boolean(newName.trim()) &&
     Boolean(newAge.trim()) &&
     Number.isInteger(parsedNewAge) &&
-    parsedNewAge >= 0 &&
+    parsedNewAge >= 13 &&
     parsedNewAge <= 120 &&
     ['Male', 'Female'].includes(newSex)
 
@@ -125,6 +132,8 @@ export default function ProfilePicker() {
   }, [])
 
   function handleSelectProfile(id: string) {
+    reconcileProfileAge(profiles.find((profile) => profile.id === id)?.bio?.age)
+    if (!canPlayWithSafety()) return
     if (id === activeProfileId && !isGuest) {
       navigate('/profile', { replace: true, state: { from: returnTo } })
       return
@@ -188,6 +197,10 @@ export default function ProfilePicker() {
   }
 
   function handleGuestMode() {
+    setAgeCheckFor('guest')
+  }
+
+  function continueGuestMode() {
     if (isGameActive) {
       setPendingGuest(true)
     } else {
@@ -214,6 +227,7 @@ export default function ProfilePicker() {
   }
 
   function commitGuest() {
+    if (!canPlayWithSafety()) return
     withRunAutosaveSuspended(() => {
       dispatch(enterGuestMode())
       dispatch(resetGame([]))
@@ -222,7 +236,7 @@ export default function ProfilePicker() {
   }
 
   async function handleCreate() {
-    if (!canCreateProfile || atLimit) return
+    if (!canCreateProfile || atLimit || !canPlayWithSafety()) return
     const parsedAge = parsedNewAge
     let photoId: string | undefined
     if (newPhotoBlob) {
@@ -242,6 +256,10 @@ export default function ProfilePicker() {
       }
     }
     const adoptGuestRun = isGuest && hasGuestRunProgress
+    if (!canPlayWithSafety()) {
+      if (photoId) await deleteImage(photoId)
+      return
+    }
     const profileDetails = {
       name: newName.trim(),
       avatar: newAvatar,
@@ -250,18 +268,8 @@ export default function ProfilePicker() {
     }
     if (adoptGuestRun) {
       withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
-      // This action schedules the current, intact guest season under the newly
-      // active profile; flushing both layers makes it available after reload.
-      dispatch(
-        updateUserPlayerIdentity({
-          name: profileDetails.name,
-          avatar: profileDetails.avatar,
-          photoId,
-          age: parsedAge,
-          sex: newSex,
-        })
-      )
-      flushPendingRunSnapshots()
+      // Claim progress without rewriting the contestant already playing it.
+      persistCurrentRunSnapshot()
       await flushSavePersistence()
     } else {
       withRunAutosaveSuspended(() => {
@@ -324,14 +332,23 @@ export default function ProfilePicker() {
 
   async function commitDelete(id: string) {
     const profile = profiles.find((p) => p.id === id)
-    if (profile?.photoId) {
-      await deleteImage(profile.photoId)
-    }
+    const photoIds = [
+      ...savedProfilePhotoIds(id),
+      ...(profile?.photoId ? [profile.photoId] : []),
+      ...(profile?.contestantDefaults?.photoId ? [profile.contestantDefaults.photoId] : []),
+    ]
 
     clearProfileSaveStorage(id)
     clearSeasonArchives(archiveKeyForProfile(id))
     if (!(await flushSavePersistence())) return
-    dispatch(deleteProfile(id))
+    await pruneProfilePhotos(id, [], photoIds)
+    withRunAutosaveSuspended(() => {
+      dispatch(deleteProfile(id))
+      if (id === activeProfileId) {
+        const next = profiles.find((entry) => entry.id !== id)
+        dispatch(resetGame(next ? (loadSeasonArchives(archiveKeyForProfile(next.id)) ?? []) : []))
+      }
+    })
     setPendingDeleteId(null)
   }
 
@@ -346,6 +363,8 @@ export default function ProfilePicker() {
     return <span className="profile-picker__avatar">{p.avatar}</span>
   }
 
+  if (safety && !canPlayWithSafety(safety)) return <PlayerSafetyScreen />
+
   return (
     <div className="placeholder-screen profile-picker">
       <div className="profile-picker__topbar">
@@ -355,7 +374,10 @@ export default function ProfilePicker() {
         />
       </div>
       <h1 className="profile-picker__title">👤 Profiles</h1>
-      <p className="profile-picker__subtitle">Select a profile to play as</p>
+      <p className="profile-picker__subtitle">
+        Separate progress for another player or a fresh career. Choose your contestant when starting
+        a season.
+      </p>
 
       {profiles.length > 0 && (
         <div className="profile-picker__list">
@@ -402,7 +424,10 @@ export default function ProfilePicker() {
       {atLimit && !showCreateForm && (
         <div className="profile-picker__limit-notice">
           <span>⚠️</span>
-          <div>Maximum of 5 profiles. Delete one to create another.</div>
+          <div>
+            Up to {MAX_PROFILES} player profiles. Existing extra profiles and their saves remain
+            available.
+          </div>
         </div>
       )}
 
@@ -421,7 +446,7 @@ export default function ProfilePicker() {
               type="button"
               className="profile-picker__btn profile-picker__btn--create"
               style={{ width: '100%', marginBottom: 12 }}
-              onClick={() => setShowCreateForm(true)}
+              onClick={() => setAgeCheckFor('profile')}
             >
               ➕ Create New Profile
             </button>
@@ -489,6 +514,7 @@ export default function ProfilePicker() {
                 placeholder="Enter your age"
                 value={newAge}
                 onChange={(e) => setNewAge(e.target.value)}
+                readOnly
                 required
               />
               <label className="profile-picker__create-label" htmlFor="profile-create-sex">
@@ -564,6 +590,21 @@ export default function ProfilePicker() {
             </p>
           </div>
         </>
+      )}
+
+      {ageCheckFor && (
+        <PlayerAgeDialog
+          onCancel={() => setAgeCheckFor(null)}
+          onContinue={(age) => {
+            const target = ageCheckFor
+            setAgeCheckFor(null)
+            if (target === 'guest') continueGuestMode()
+            else {
+              setNewAge(String(age))
+              setShowCreateForm(true)
+            }
+          }}
+        />
       )}
 
       <ConfirmExitModal

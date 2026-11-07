@@ -125,6 +125,7 @@ export default function AudienceVerdictReveal({
       <div
         ref={rootRef}
         className={`avr avr--${phase}`}
+        data-presentation-root="audience-verdict"
         role="button"
         tabIndex={0}
         aria-label={`Audience Verdict: ${savedPlayer?.name ?? 'a nominee'} is saved. Activate to reveal now.`}

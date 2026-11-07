@@ -1,0 +1,63 @@
+{
+  "characterId": "candidate-27",
+  "revision": "r1-draft",
+  "status": "awaiting visual acceptance",
+  "exports": {
+    "casual.webp": {
+      "source": "casual-r1.png",
+      "dimensions": [768, 1152],
+      "mode": "RGBA",
+      "bytes": 86082,
+      "sha256": "4460a6af5a9b7785b68e6eaf045b2f78caea35b8ded8791293c2992e08590272",
+      "alphaExtrema": [0, 255]
+    },
+    "main.webp": {
+      "source": "main-r1.png",
+      "dimensions": [256, 256],
+      "mode": "RGB",
+      "bytes": 9308,
+      "sha256": "729cc71ae06b261595f0d44307bebbb4e10da3a61c08595f7cc2b74471fafcf7",
+      "alphaExtrema": null
+    },
+    "grey.webp": {
+      "source": "grey-r1.png",
+      "dimensions": [256, 256],
+      "mode": "RGB",
+      "bytes": 9484,
+      "sha256": "1f0e1a2d7a185a0370b2c5752112941289b7aba8be6af91719fd4b0ffa739ae0",
+      "alphaExtrema": null
+    },
+    "formal.webp": {
+      "source": "formal-r1.png",
+      "dimensions": [768, 1152],
+      "mode": "RGBA",
+      "bytes": 69978,
+      "sha256": "01f71e4795eba76295b779a854992495468e408eb7fd4ed440ce0595096aa101",
+      "alphaExtrema": [0, 255]
+    },
+    "sad.webp": {
+      "source": "sad-r1.png",
+      "dimensions": [256, 256],
+      "mode": "RGB",
+      "bytes": 9448,
+      "sha256": "e3b5dcd0fc687c1c1621868da2c7c2de27ba8650b4f90a463256bceb0677c386",
+      "alphaExtrema": null
+    },
+    "paparazzi.webp": {
+      "source": "paparazzi-r1.png",
+      "dimensions": [768, 1152],
+      "mode": "RGB",
+      "bytes": 115812,
+      "sha256": "46a9d961a3cd513173725928f14eb388e7b52fee4da5a0d479e7ea6a3d3d885a",
+      "alphaExtrema": null
+    },
+    "thumbnail.webp": {
+      "source": "thumbnail-r1.webp",
+      "dimensions": [128, 128],
+      "mode": "RGBA",
+      "bytes": 3794,
+      "sha256": "715c3c4b2207560bfe873c6c99c807b309d716bf20ca59312ad62d019d633a32",
+      "alphaExtrema": [0, 255]
+    }
+  }
+}

@@ -69,14 +69,30 @@ export interface SimulationRunConfig {
   skipCompetitions?: boolean
   /** Resolve required decisions, but do not open optional Confessional entries. */
   skipOptionalConfessionals?: boolean
-  /** Smoke journeys only use normal UI. Full runs may resume an audited checkpoint. */
+  /** Continue to the season-ending presentation as a spectator after the player is eliminated. */
+  continueToSeasonComplete?: boolean
+  /** Save from the visible Home control, reload the browser, and resume on this day. */
+  saveResumeAtDay?: number
+  /** Queue a double elimination through the visible QA controls at launch. */
+  forceDoubleElimination?: boolean
+  /** Resume a saved browser checkpoint through the normal Continue Last control. */
   assistedCheckpoint?: string
+  /** Persist reusable Day 5, Day 10, and finale browser saves in this directory. */
+  checkpointCaptureDir?: string
   /** Skip the final full-page screenshot for high-volume calibration batches. */
   captureFinalScreenshot?: boolean
   /** Keep only calibration-relevant report data instead of the full final Redux state/timeline. */
   compactEconomyReport?: boolean
   /** Enable bounded browser timing samples at seeded early and late season checkpoints. */
   performanceBenchmark?: boolean
+  /** Fast-forward setup days through visible QA controls before a measured window. */
+  journeyAcceleration?: { fromDay: number; toDay: number }
+  /** Record snapshot sections and save/reload/resume timing at the visible save checkpoint. */
+  captureSaveResumePerformance?: boolean
+  /** Capture recent gameplay and save diagnostics at these one-based game days. */
+  progressionPerformanceDays?: readonly number[]
+  /** Reduce layout audits during long diagnostic runs. Defaults to the normal smoke cadence. */
+  checkpointEveryActions?: number
 }
 
 export interface SeasonPerformanceCheckpoint {
@@ -99,6 +115,69 @@ export interface SeasonPerformanceCheckpoint {
   }
   longestFrameGapMs: number | null
   frameGapsOver100Ms: number
+}
+
+export interface SaveResumePerformanceCheckpoint {
+  mode: SeasonSimulationMode
+  day: number
+  phase: string
+  seed: SimulationSeeds
+  snapshot: {
+    totalBytes: number
+    sections: Record<string, number>
+    counts: Record<string, number>
+  }
+  persistence: {
+    lastSnapshotBytes: number
+    lastSerializeMs: number
+    lastWriteMs: number
+    warningThresholdBytes: number
+    blockedReason: string | null
+  } | null
+  timing: {
+    saveAndHomeMs: number
+    reloadToHomeMs: number
+    resumeToGameMs: number
+    reloadAndResumeMs: number
+  }
+}
+
+export interface ProgressionPerformanceCheckpoint {
+  mode: SeasonSimulationMode
+  day: number
+  phase: string
+  seed: SimulationSeeds
+  snapshot: SaveResumePerformanceCheckpoint['snapshot']
+  persistence: SaveResumePerformanceCheckpoint['persistence']
+  sampleCounts: SeasonPerformanceCheckpoint['sampleCounts']
+  metrics: SeasonPerformanceCheckpoint['metrics']
+  longestFrameGapMs: number | null
+  frameGapsOver100Ms: number
+  longTasks: { count: number; p95Ms: number | null; longestMs: number | null }
+  storeUpdateP95Ms: number | null
+  middlewareSteps: Array<{
+    middleware: string
+    count: number
+    totalMs: number
+    p95Ms: number
+    longestMs: number
+  }>
+  phaseSteps: Array<{
+    step: string
+    count: number
+    totalMs: number
+    p95Ms: number
+    longestMs: number
+  }>
+  renders: Array<{
+    component: string
+    count: number
+    totalMs: number
+    p95Ms: number
+    longestMs: number
+  }>
+  slowestActions: Array<{ action: string; durationMs: number }>
+  slowestStoreUpdates: Array<{ action: string; durationMs: number }>
 }
 
 export interface SimulationAction {

@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { blackjackTournamentInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Blackjack Tournament" last-player-standing competition.
  *
@@ -426,42 +428,6 @@ function shuffleLeagueOpponents(ids: string[], seed: number): string[] {
 }
 
 // ─── Initial state ────────────────────────────────────────────────────────────
-
-const initialState: BlackjackTournamentState = {
-  competitionType: 'LOH',
-  phase: 'idle',
-  stage: 'league',
-
-  allPlayerIds: [],
-  remainingPlayerIds: [],
-  eliminatedPlayerIds: [],
-  playerScores: {},
-  leagueScores: {},
-  leagueRankings: [],
-  leagueOpponentIds: [],
-  leagueOpponentIndex: 0,
-  finalistIds: null,
-
-  humanPlayerId: null,
-  isSpectating: false,
-
-  controllingPlayerId: null,
-  fighterAId: null,
-  fighterBId: null,
-
-  currentDuel: null,
-  duelWinnerId: null,
-  duelLoserId: null,
-  duelEliminatedId: null,
-  isDuelTie: false,
-  rematchCount: 0,
-  duelIndex: 0,
-
-  winnerId: null,
-
-  seed: 0,
-  outcomeResolved: false,
-}
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -1013,4 +979,4 @@ export const {
   resetBlackjackTournament,
 } = blackjackTournamentSlice.actions
 
-export default blackjackTournamentSlice.reducer
+export default registerMinigameReducer('blackjackTournament', blackjackTournamentSlice.reducer)

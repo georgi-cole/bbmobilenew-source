@@ -24,7 +24,7 @@ describe('PhonePreviewSystemChrome', () => {
     expect(document.documentElement.style.getPropertyValue('--safe-area-inset-top')).toBe('')
   })
 
-  it('simulates immersive Android gameplay by hiding the status row and releasing its inset', () => {
+  it('hides Android phone bars during gameplay while preserving the camera cutout', () => {
     window.name = 'phone-preview:android'
     render(
       <MemoryRouter initialEntries={['/game']}>
@@ -33,9 +33,24 @@ describe('PhonePreviewSystemChrome', () => {
     )
 
     expect(screen.queryByLabelText('Android simulated status bar')).not.toBeInTheDocument()
-    expect(document.documentElement.style.getPropertyValue('--safe-area-inset-top')).toBe('0px')
+    expect(document.documentElement.style.getPropertyValue('--safe-area-inset-top')).toBe('28px')
+    expect(document.documentElement.style.getPropertyValue('--safe-area-inset-bottom')).toBe('0px')
     expect(document.documentElement).toHaveClass('is-native-status-bar-hidden')
-    expect(document.querySelector('.phone-preview-chrome__home--android')).not.toBeNull()
+    expect(document.querySelector('.phone-preview-chrome__home--android')).toBeNull()
+  })
+
+  it('hides iPhone phone bars during gameplay while preserving cutout and gesture safe areas', () => {
+    window.name = 'phone-preview:iphone'
+    render(
+      <MemoryRouter initialEntries={['/game']}>
+        <PhonePreviewSystemChrome />
+      </MemoryRouter>
+    )
+
+    expect(screen.queryByLabelText('iPhone simulated status bar')).not.toBeInTheDocument()
+    expect(document.documentElement.style.getPropertyValue('--safe-area-inset-top')).toBe('59px')
+    expect(document.documentElement.style.getPropertyValue('--safe-area-inset-bottom')).toBe('34px')
+    expect(document.querySelector('.phone-preview-chrome__home--iphone')).toBeNull()
   })
 
   it('restores Android status chrome outside gameplay', () => {

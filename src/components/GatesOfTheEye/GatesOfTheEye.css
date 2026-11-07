@@ -1,0 +1,1931 @@
+.gate-game {
+  --gate-gold: #f0c66b;
+  --gate-cyan: #69d8e8;
+  --gate-violet: #a197ff;
+  --gate-red: #ef777b;
+  --game-surface-1: rgba(8, 8, 10, 0.97);
+  --game-surface-2: rgba(15, 15, 17, 0.98);
+  --game-surface-raised: rgba(11, 11, 13, 0.99);
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: var(--game-text-primary, #f6f7ff);
+  background: var(--game-surface-canvas, #080d17);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  padding: max(env(safe-area-inset-top, 0px), 12px) 14px max(env(safe-area-inset-bottom, 0px), 14px);
+  scrollbar-color: rgba(148, 135, 255, 0.35) transparent;
+}
+
+.gate-game * {
+  box-sizing: border-box;
+}
+
+.gate-game__backdrop,
+.gate-final-scene {
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 auto;
+  height: min(74vw, 430px);
+  background-image:
+    linear-gradient(180deg, rgba(7, 11, 20, 0.08) 5%, rgba(8, 13, 23, 0.34) 42%, #080d17 100%),
+    var(--gate-temple-wide);
+  background-size: cover;
+  background-position: center 38%;
+  opacity: 0.94;
+  pointer-events: none;
+}
+
+.gate-game__main {
+  position: relative;
+  width: min(100%, 1060px);
+  height: calc(
+    100dvh - max(env(safe-area-inset-top, 0px), 12px) - max(env(safe-area-inset-bottom, 0px), 14px)
+  );
+  min-height: calc(100dvh - 26px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.gate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+}
+
+.gate-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.gate-header__eye {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(240, 198, 107, 0.26);
+  border-radius: 50%;
+  padding: 0;
+  color: var(--gate-gold);
+  background: rgba(11, 17, 29, 0.5);
+  font-size: 27px;
+  line-height: 1;
+  text-shadow: 0 0 18px rgba(240, 198, 107, 0.78);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.gate-header__eye:focus-visible {
+  outline: 2px solid var(--game-focus-color, #978bff);
+  outline-offset: 3px;
+}
+.gate-eyebrow {
+  margin: 0;
+  color: var(--game-text-secondary, rgba(216, 223, 245, 0.68));
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+.gate-header h1 {
+  margin: 2px 0 0;
+  font-size: clamp(1.12rem, 5vw, 1.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+}
+.gate-primary:focus-visible,
+.gate-door-card:focus-visible {
+  outline: 2px solid var(--game-focus-color, #978bff);
+  outline-offset: 2px;
+}
+
+.gate-status {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr 1fr 0.62fr;
+  align-items: center;
+  min-height: 54px;
+  padding: 7px 10px;
+  border-radius: var(--game-radius-2, 14px);
+  background: rgba(8, 8, 10, 0.92);
+  backdrop-filter: blur(14px);
+}
+.gate-status > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.gate-status > div + div {
+  border-left: 1px solid var(--game-border-subtle, rgba(255, 255, 255, 0.08));
+  padding-left: 8px;
+}
+.gate-status strong {
+  font-size: 0.98rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+.gate-status__round strong {
+  font-size: 0.85rem;
+}
+.gate-status__your-score strong {
+  color: var(--gate-gold);
+  font-size: 1.15rem;
+}
+.gate-status__streak {
+  color: rgba(132, 222, 225, 0.92);
+  font-size: 0.52rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+.gate-lives strong {
+  display: flex;
+  gap: 2px;
+  color: rgba(239, 119, 123, 0.25);
+  font-size: 0.82rem;
+}
+.gate-lives strong .is-lit {
+  color: var(--gate-red);
+  filter: drop-shadow(0 0 4px rgba(239, 119, 123, 0.45));
+}
+.gate-lives strong .is-losing {
+  animation: gate-heart-loss 820ms cubic-bezier(0.2, 0.72, 0.24, 1) both;
+}
+.gate-status__active strong {
+  color: var(--gate-cyan);
+}
+
+.gate-howto {
+  display: grid;
+  gap: 4px;
+  padding: 11px 13px;
+  border-radius: 13px;
+  background: rgba(7, 7, 9, 0.97);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.gate-howto strong {
+  color: var(--gate-gold);
+}
+.gate-howto span {
+  color: var(--game-text-secondary, rgba(216, 223, 245, 0.68));
+}
+
+.gate-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 0;
+}
+.gate-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+}
+.gate-prompt h2 {
+  margin: 3px 0 0;
+  font-size: clamp(1rem, 4vw, 1.22rem);
+  line-height: 1.1;
+}
+.gate-door-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.gate-door-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(58px, 0.8fr) minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  min-height: 128px;
+  aspect-ratio: 1.36;
+  overflow: hidden;
+  border: 1px solid rgba(191, 203, 235, 0.16);
+  border-radius: 16px;
+  padding: 7px;
+  color: var(--game-text-primary, #f6f7ff);
+  text-align: left;
+  isolation: isolate;
+  --gate-door-glow: rgba(240, 198, 107, 0.15);
+  background:
+    radial-gradient(ellipse at 92% 8%, var(--gate-door-glow), transparent 48%),
+    linear-gradient(145deg, rgba(23, 31, 49, 0.97), rgba(9, 14, 25, 0.98));
+  backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow:
+    0 9px 22px rgba(0, 0, 0, 0.23),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition:
+    border-color var(--game-motion-standard, 180ms),
+    transform var(--game-motion-standard, 180ms),
+    box-shadow var(--game-motion-standard, 180ms),
+    background var(--game-motion-standard, 180ms);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.gate-door-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(240, 198, 107, 0.42);
+}
+.gate-door-card.is-selected {
+  border-color: var(--gate-gold);
+  background:
+    radial-gradient(ellipse at 92% 8%, rgba(240, 198, 107, 0.2), transparent 50%),
+    linear-gradient(145deg, rgba(36, 34, 37, 0.98), rgba(12, 15, 25, 0.99));
+  box-shadow:
+    0 0 0 2px rgba(240, 198, 107, 0.2),
+    0 11px 26px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+.gate-door-card--2 .gate-door-mark__inner {
+  fill: rgba(110, 173, 228, 0.16);
+}
+.gate-door-card--2 {
+  --gate-door-glow: rgba(105, 216, 232, 0.17);
+}
+.gate-door-card--2 .gate-door-card__visual {
+  border-color: rgba(105, 216, 232, 0.4);
+}
+.gate-door-card--2 .gate-door-card__details {
+  border-left-color: rgba(105, 216, 232, 0.28);
+}
+.gate-door-card--3 .gate-door-mark__inner {
+  fill: rgba(157, 130, 228, 0.15);
+}
+.gate-door-card--3 {
+  --gate-door-glow: rgba(161, 151, 255, 0.17);
+}
+.gate-door-card--3 .gate-door-card__visual {
+  border-color: rgba(161, 151, 255, 0.42);
+}
+.gate-door-card--3 .gate-door-card__details {
+  border-left-color: rgba(161, 151, 255, 0.28);
+}
+.gate-door-card--4 .gate-door-mark__inner {
+  fill: rgba(235, 123, 95, 0.16);
+}
+.gate-door-card--4 {
+  --gate-door-glow: rgba(239, 119, 123, 0.16);
+}
+.gate-door-card--4 .gate-door-card__visual {
+  border-color: rgba(239, 119, 123, 0.42);
+}
+.gate-door-card--4 .gate-door-card__details {
+  border-left-color: rgba(239, 119, 123, 0.28);
+}
+.gate-door-card__visual {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  width: auto;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(240, 198, 107, 0.22);
+  border-radius: 40% 40% 9px 9px;
+  background: rgba(4, 8, 15, 0.36);
+  box-shadow:
+    inset 0 0 20px rgba(0, 0, 0, 0.28),
+    0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.gate-door-card__visual::after {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, transparent 48%, rgba(4, 8, 15, 0.48));
+  content: '';
+  pointer-events: none;
+}
+.gate-door-card__art {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 27%;
+  filter: saturate(1.08) brightness(0.9);
+  transition:
+    filter 360ms ease,
+    transform 650ms cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+.gate-door-card.is-selected .gate-door-card__art {
+  filter: saturate(1.18) brightness(1.04);
+  transform: scale(1.035);
+}
+.gate-door-card__details {
+  position: relative;
+  z-index: 2;
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 9px;
+  min-width: 0;
+  height: auto;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 5px 5px 5px 8px;
+}
+.gate-door-mark {
+  width: 57px;
+  height: 73px;
+  overflow: visible;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.34));
+}
+.gate-door-mark__outer {
+  fill: rgba(8, 13, 22, 0.8);
+  stroke: rgba(218, 194, 134, 0.64);
+  stroke-width: 2;
+}
+.gate-door-mark__inner {
+  fill: rgba(118, 150, 175, 0.13);
+  stroke: rgba(211, 222, 231, 0.48);
+  stroke-width: 1.2;
+}
+.gate-door-mark__line {
+  fill: none;
+  stroke: rgba(235, 218, 169, 0.56);
+  stroke-width: 1.4;
+}
+.gate-door-mark__seal {
+  fill: var(--gate-gold);
+}
+.gate-door-mark__base {
+  fill: none;
+  stroke: rgba(240, 198, 107, 0.65);
+  stroke-width: 2;
+}
+.is-selected .gate-door-mark {
+  filter: drop-shadow(0 0 9px rgba(240, 198, 107, 0.48));
+}
+.gate-door-card__roman {
+  position: absolute;
+  z-index: 3;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9px;
+  color: rgba(245, 237, 216, 0.94);
+  background: rgba(8, 13, 23, 0.76);
+  font-size: 0.7rem;
+  font-weight: 900;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(8px);
+}
+.gate-door-card__offer {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+.gate-door-card__offer strong {
+  color: var(--gate-gold);
+  font-size: 1.12rem;
+  letter-spacing: -0.025em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.28);
+}
+.gate-door-card__offer span {
+  color: rgba(232, 235, 247, 0.74);
+  font-size: 0.6rem;
+}
+.gate-door-card__offer em {
+  flex: 0 0 100%;
+  color: rgba(132, 222, 225, 0.92);
+  font-size: 0.48rem;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+}
+.gate-door-card__risk {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 3px;
+  white-space: nowrap;
+}
+.gate-door-card__risk-label {
+  color: rgba(216, 223, 245, 0.68);
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  white-space: nowrap;
+}
+.gate-door-card__risk strong {
+  color: #f4f5fb;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+.gate-door-card__risk-meter {
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+.gate-door-card__risk-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gate-cyan), var(--gate-gold), var(--gate-red));
+}
+.gate-door-card__picked {
+  position: absolute;
+  z-index: 3;
+  top: 8px;
+  right: 8px;
+  border-radius: 999px;
+  padding: 5px 7px;
+  color: #181309;
+  background: var(--gate-gold);
+  font-size: 0.5rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+}
+
+.gate-action-dock {
+  position: sticky;
+  z-index: 2;
+  bottom: 0;
+  display: grid;
+  gap: 4px;
+  padding: 4px 0 max(env(safe-area-inset-bottom, 0px), 2px);
+  background: linear-gradient(180deg, rgba(8, 13, 23, 0), #080d17 16%);
+}
+.gate-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(255, 227, 161, 0.56);
+  border-radius: 14px;
+  padding: 0 16px;
+  color: #211808;
+  background: linear-gradient(100deg, #edc56a, #f7d990);
+  box-shadow:
+    0 9px 24px rgba(190, 132, 42, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.52);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 900;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.gate-primary--seal {
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+}
+.gate-primary:not(:disabled):active {
+  transform: scale(0.99);
+}
+.gate-primary:disabled {
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(216, 223, 245, 0.38);
+  background: #273044;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.gate-spectator-card {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 14px;
+  background: rgba(8, 8, 10, 0.96);
+}
+.gate-spectator-card__icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: var(--gate-gold);
+  background: rgba(240, 198, 107, 0.12);
+  font-size: 1.4rem;
+}
+.gate-spectator-card strong {
+  font-size: 0.9rem;
+}
+.gate-spectator-card p {
+  margin: 4px 0 0;
+  color: var(--game-text-secondary, rgba(216, 223, 245, 0.68));
+  font-size: 0.73rem;
+  line-height: 1.35;
+}
+.gate-spectator-card .gate-primary {
+  grid-column: 1 / -1;
+}
+
+.gate-reveal {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-height: 365px;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 16px 13px;
+  background: linear-gradient(145deg, rgba(14, 14, 16, 0.98), rgba(5, 5, 7, 0.99));
+}
+.gate-reveal h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.gate-reveal__eye {
+  color: var(--gate-gold);
+  font-size: 42px;
+  line-height: 1.05;
+  text-shadow: 0 0 24px rgba(240, 198, 107, 0.68);
+  animation: gate-eye-pulse 1.8s ease-in-out infinite alternate;
+}
+.gate-reveal__doors {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+  max-width: 480px;
+  perspective: 700px;
+}
+.gate-reveal-door {
+  position: relative;
+  height: 142px;
+  overflow: hidden;
+  border: 1px solid rgba(240, 198, 107, 0.25);
+  border-radius: 48% 48% 8px 8px;
+  background: #101723;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.38);
+  animation: gate-door-open 1s cubic-bezier(0.22, 0.68, 0.26, 1) both;
+  transform-origin: left center;
+}
+.gate-reveal-door:nth-child(2) {
+  animation-delay: 90ms;
+}
+.gate-reveal-door:nth-child(3) {
+  animation-delay: 180ms;
+}
+.gate-reveal-door:nth-child(4) {
+  animation-delay: 270ms;
+}
+.gate-reveal-door > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 31%;
+  filter: brightness(0.86);
+}
+.gate-reveal-door__number,
+.gate-reveal-door__offer {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: #fff4d3;
+  background: rgba(6, 10, 17, 0.78);
+  font-size: 0.58rem;
+  font-weight: 900;
+  text-shadow: 0 1px 3px #000;
+}
+.gate-reveal-door__number {
+  top: 5px;
+  left: 50%;
+  width: 23px;
+  height: 23px;
+  transform: translateX(-50%);
+}
+.gate-reveal-door__offer {
+  right: 3px;
+  bottom: 5px;
+  left: 3px;
+  min-height: 22px;
+  border-radius: 8px;
+  color: var(--gate-gold);
+}
+.gate-reveal-door__players {
+  position: absolute;
+  right: 2px;
+  bottom: 32px;
+  left: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+}
+.gate-reveal-door__players span,
+.gate-reveal-door__players i {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  color: #f8f5ff;
+  background: rgba(85, 71, 145, 0.94);
+  font-size: 0.59rem;
+  font-style: normal;
+  font-weight: 900;
+}
+.gate-reveal-door.is-collapsing {
+  z-index: 2;
+  animation: gate-door-collapse 1.42s cubic-bezier(0.42, 0.04, 0.68, 0.34) forwards;
+  box-shadow:
+    0 0 0 2px rgba(255, 220, 154, 0.78),
+    0 0 34px rgba(255, 112, 79, 0.88),
+    0 0 72px rgba(239, 119, 123, 0.44);
+}
+.gate-reveal-door.is-collapsing > img {
+  animation: gate-door-art-collapse 1.42s ease-in forwards;
+}
+.gate-reveal-door__cracks {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.gate-reveal-door__cracks svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 4px rgba(255, 133, 72, 0.95));
+}
+.gate-reveal-door__cracks path {
+  fill: none;
+  stroke: #fff0bc;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 240;
+  stroke-dashoffset: 240;
+}
+.gate-reveal-door__cracks path + path {
+  stroke: #ff8d56;
+  stroke-width: 1.5;
+}
+.gate-reveal-door.is-collapsing .gate-reveal-door__cracks {
+  animation: gate-crack-appear 1.42s ease-out both;
+}
+.gate-reveal-door.is-collapsing .gate-reveal-door__cracks path {
+  animation: gate-crack-draw 620ms 120ms cubic-bezier(0.16, 0.76, 0.24, 1) forwards;
+}
+.gate-reveal-door.is-collapsing::after {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  content: '';
+  background:
+    radial-gradient(circle at 24% 73%, #fff0bd 0 1px, transparent 4px),
+    radial-gradient(circle at 70% 78%, #ffad64 0 2px, transparent 5px),
+    radial-gradient(circle at 46% 90%, #ffe6a0 0 1.5px, transparent 4px),
+    radial-gradient(ellipse at 50% 76%, rgba(255, 137, 70, 0.84), transparent 46%),
+    linear-gradient(180deg, rgba(255, 244, 200, 0.82), rgba(239, 92, 75, 0.1) 45%, transparent 80%);
+  mix-blend-mode: screen;
+  animation: gate-collapse-burst 1.42s ease-out both;
+}
+.gate-reveal__choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  max-height: 74px;
+  overflow: hidden;
+}
+.gate-reveal-player {
+  display: grid;
+  grid-template-columns: 21px auto 22px;
+  gap: 4px;
+  align-items: center;
+  min-width: 84px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  padding: 4px 6px;
+  color: var(--game-text-secondary, rgba(216, 223, 245, 0.68));
+  font-size: 0.61rem;
+}
+.gate-reveal-player__avatar {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  color: #dfe6ff;
+  background: rgba(148, 135, 255, 0.2);
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+.gate-mini-door {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50% 50% 7px 7px;
+  color: var(--gate-gold);
+  background: rgba(240, 198, 107, 0.12);
+  font-size: 0.54rem;
+  font-weight: 900;
+}
+.gate-mini-door--2 {
+  color: var(--gate-cyan);
+  background: rgba(105, 216, 232, 0.1);
+}
+.gate-mini-door--3 {
+  color: var(--gate-violet);
+  background: rgba(161, 151, 255, 0.1);
+}
+.gate-mini-door--4 {
+  color: var(--gate-red);
+  background: rgba(239, 119, 123, 0.11);
+}
+.gate-reveal__caption {
+  margin: 0;
+  color: var(--game-text-tertiary, rgba(195, 204, 233, 0.48));
+  font-size: 0.68rem;
+}
+@keyframes gate-eye-pulse {
+  from {
+    opacity: 0.65;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+@keyframes gate-door-open {
+  from {
+    opacity: 0.45;
+    transform: rotateY(-28deg) translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: rotateY(0) translateY(0);
+  }
+}
+@keyframes gate-door-collapse {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0) scale(1);
+    opacity: 1;
+    filter: brightness(1) saturate(1);
+  }
+  9% {
+    transform: translateX(-3px) rotate(-1deg) scale(1.015);
+    filter: brightness(1.24) saturate(1.15);
+  }
+  16% {
+    transform: translateX(4px) rotate(1.4deg) scale(1.025);
+  }
+  22% {
+    transform: translateX(-5px) rotate(-1.8deg) scale(1.018);
+  }
+  28% {
+    transform: translateX(5px) rotate(1.5deg) scale(1.02);
+  }
+  34% {
+    transform: translateX(-3px) rotate(-1deg) scale(1.015);
+  }
+  42% {
+    transform: translateX(0) translateY(-4px) scale(1.045);
+    filter: brightness(1.9) saturate(1.65);
+  }
+  53% {
+    transform: translateY(1px) rotateY(12deg) scale(1.02);
+    filter: brightness(1.48) saturate(1.35);
+  }
+  66% {
+    transform: translateY(12px) rotateY(20deg) rotate(2deg) scale(0.96, 0.88);
+    filter: brightness(1.05) saturate(0.8);
+  }
+  82% {
+    transform: translateY(39px) rotateY(29deg) rotate(4deg) scale(0.78, 0.48);
+    opacity: 0.72;
+  }
+  100% {
+    transform: translateY(88px) rotateY(38deg) rotate(7deg) scale(0.36, 0.04);
+    opacity: 0;
+    filter: brightness(1.8) saturate(0.4);
+  }
+}
+@keyframes gate-door-art-collapse {
+  0%,
+  31% {
+    filter: brightness(1) saturate(1);
+    transform: scale(1);
+  }
+  42% {
+    filter: brightness(1.8) saturate(1.5);
+    transform: scale(1.06);
+  }
+  68% {
+    filter: brightness(1.18) saturate(0.8);
+    transform: scale(1.12, 0.92);
+  }
+  100% {
+    filter: brightness(1.8) saturate(0.45);
+    transform: scale(1.25, 0.2);
+  }
+}
+@keyframes gate-crack-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes gate-crack-appear {
+  0%,
+  9% {
+    opacity: 0;
+  }
+  18%,
+  54% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes gate-collapse-burst {
+  0%,
+  35% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  43% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  58% {
+    opacity: 0.68;
+    transform: scale(1.18);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(32px) scale(1.4, 0.55);
+  }
+}
+
+.gate-round-result {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  border-radius: 18px;
+  padding: 15px;
+  background: rgba(7, 7, 9, 0.97);
+}
+.gate-round-result__door {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  color: var(--gate-red);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.gate-round-result__door .gate-door-mark {
+  width: 35px;
+  height: 46px;
+}
+.gate-door-mark.is-collapsed {
+  animation: gate-door-fall 0.55s ease-in forwards;
+}
+@keyframes gate-door-fall {
+  to {
+    transform: translateY(14px) rotate(8deg) scaleY(0.45);
+    opacity: 0.25;
+  }
+}
+.gate-round-result > .gate-eyebrow {
+  text-align: center;
+}
+.gate-round-result h2 {
+  margin: 0;
+  text-align: center;
+  font-size: 1.25rem;
+}
+.gate-round-result__copy {
+  max-width: 440px;
+  margin: 0;
+  color: var(--game-text-secondary, rgba(216, 223, 245, 0.68));
+  text-align: center;
+  font-size: 0.77rem;
+  line-height: 1.4;
+}
+.gate-round-result__players {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  width: 100%;
+  max-height: 184px;
+  overflow-y: auto;
+}
+.gate-result-player {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 5px 8px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 7px 9px;
+  font-size: 0.68rem;
+}
+.gate-result-player > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gate-result-player__standing {
+  color: var(--game-text-tertiary, rgba(195, 204, 233, 0.58));
+  white-space: nowrap;
+}
+.gate-result-player__standing i {
+  margin-left: 4px;
+  color: rgba(239, 119, 123, 0.88);
+  font-style: normal;
+}
+.gate-result-player__outcome {
+  color: var(--gate-gold);
+  font-size: 0.7rem;
+  text-align: right;
+  white-space: nowrap;
+}
+.gate-result-player.is-hit .gate-result-player__outcome {
+  color: #ff9198;
+  animation: gate-life-hit 680ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+.gate-result-player.is-out {
+  border-color: rgba(239, 119, 123, 0.28);
+  animation: gate-eliminated 800ms ease-out both;
+}
+.gate-result-player em {
+  color: #ff858c;
+  font-size: 0.53rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.11em;
+  text-align: right;
+}
+.gate-round-result .gate-primary {
+  margin-top: 2px;
+}
+.gate-round-result .gate-primary--round {
+  width: auto;
+  min-width: 112px;
+  min-height: 39px;
+  border-radius: 11px;
+  padding: 0 18px;
+}
+
+.gate-game .gate-glass-surface {
+  border: 1px solid rgba(224, 197, 138, 0.26);
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(239, 210, 151, 0.075), transparent 42%),
+    linear-gradient(145deg, rgba(24, 24, 25, 0.79), rgba(7, 7, 9, 0.72));
+  -webkit-backdrop-filter: blur(22px) saturate(1.24);
+  backdrop-filter: blur(22px) saturate(1.24);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 -18px 30px rgba(0, 0, 0, 0.16);
+}
+
+.gate-result-player__outcome small {
+  display: block;
+  margin-top: 2px;
+  color: rgba(132, 222, 225, 0.82);
+  font-size: 0.49rem;
+  font-weight: 750;
+  line-height: 1.1;
+}
+.gate-result-player.is-hit .gate-result-player__outcome small {
+  color: rgba(255, 164, 167, 0.9);
+}
+
+.gate-game--hit .gate-game__main {
+  animation: gate-screen-shake 680ms cubic-bezier(0.25, 0.68, 0.3, 1) both;
+}
+.gate-impact {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+.gate-impact::before {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, rgba(255, 113, 79, 0.16), transparent 58%),
+    radial-gradient(ellipse at center, transparent 34%, rgba(185, 25, 40, 0.5) 100%);
+  content: '';
+  animation: gate-impact-flash 940ms ease-out both;
+}
+.gate-impact__label {
+  position: relative;
+  z-index: 2;
+  border: 1px solid rgba(255, 190, 142, 0.58);
+  border-radius: 999px;
+  padding: 9px 16px;
+  color: #fff2d9;
+  background: rgba(13, 8, 9, 0.76);
+  box-shadow:
+    0 0 28px rgba(255, 84, 67, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.13);
+  font-size: clamp(0.72rem, 3vw, 1rem);
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 14px rgba(255, 93, 74, 0.75);
+  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(9px);
+  animation: gate-impact-label 940ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
+}
+.gate-impact--eliminated .gate-impact__label {
+  border-color: rgba(255, 109, 109, 0.8);
+  color: #fff;
+  box-shadow:
+    0 0 34px rgba(255, 43, 57, 0.72),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.gate-impact__shard {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: clamp(24px, 9vw, 76px);
+  height: clamp(70px, 18vh, 170px);
+  clip-path: polygon(46% 0, 100% 31%, 69% 100%, 13% 76%, 0 24%);
+  background: linear-gradient(
+    150deg,
+    rgba(255, 245, 208, 0.95),
+    rgba(255, 107, 75, 0.75) 44%,
+    rgba(112, 16, 28, 0.06)
+  );
+  filter: drop-shadow(0 0 10px rgba(255, 118, 77, 0.8));
+  opacity: 0;
+  animation: gate-impact-shard 840ms cubic-bezier(0.16, 0.75, 0.25, 1) both;
+}
+.gate-impact__shard--one {
+  --gate-x: -34vw;
+  --gate-y: -24vh;
+  --gate-angle: -62deg;
+  animation-delay: 30ms;
+}
+.gate-impact__shard--two {
+  --gate-x: -23vw;
+  --gate-y: 28vh;
+  --gate-angle: 34deg;
+  animation-delay: 80ms;
+}
+.gate-impact__shard--three {
+  --gate-x: 35vw;
+  --gate-y: -21vh;
+  --gate-angle: 66deg;
+  animation-delay: 20ms;
+}
+.gate-impact__shard--four {
+  --gate-x: 28vw;
+  --gate-y: 29vh;
+  --gate-angle: -25deg;
+  animation-delay: 110ms;
+}
+.gate-impact__shard--five {
+  --gate-x: -44vw;
+  --gate-y: 3vh;
+  --gate-angle: 24deg;
+  animation-delay: 60ms;
+}
+.gate-impact__shard--six {
+  --gate-x: 43vw;
+  --gate-y: 5vh;
+  --gate-angle: -72deg;
+  animation-delay: 90ms;
+}
+.gate-impact__shard--seven {
+  --gate-x: -7vw;
+  --gate-y: -38vh;
+  --gate-angle: 78deg;
+  animation-delay: 130ms;
+}
+.gate-impact__shard--eight {
+  --gate-x: 8vw;
+  --gate-y: 39vh;
+  --gate-angle: -41deg;
+  animation-delay: 50ms;
+}
+@keyframes gate-impact-flash {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes gate-impact-label {
+  0% {
+    opacity: 0;
+    transform: scale(0.66);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  34% {
+    transform: scale(1);
+  }
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+@keyframes gate-impact-shard {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--gate-angle)) scale(0.16);
+  }
+  24% {
+    opacity: 0.96;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--gate-x)), calc(-50% + var(--gate-y)))
+      rotate(calc(var(--gate-angle) + 52deg)) scale(0.72);
+  }
+}
+@keyframes gate-screen-shake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  14% {
+    transform: translate3d(-7px, 3px, 0);
+  }
+  30% {
+    transform: translate3d(6px, -3px, 0);
+  }
+  46% {
+    transform: translate3d(-4px, -2px, 0);
+  }
+  64% {
+    transform: translate3d(3px, 2px, 0);
+  }
+  82% {
+    transform: translate3d(-1px, 0, 0);
+  }
+}
+
+.gate-game--final {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding-top: max(env(safe-area-inset-top, 0px), 16px);
+}
+.gate-game--final .gate-final-scene {
+  height: 55vh;
+  background-position: center 26%;
+}
+.gate-complete {
+  position: relative;
+  width: min(100%, 600px);
+  max-height: calc(100dvh - 32px);
+  border: 1px solid var(--game-border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 22px;
+  padding: 18px 14px max(env(safe-area-inset-bottom, 0px), 12px);
+  background: rgba(7, 7, 9, 0.97);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--game-shadow-3, 0 20px 50px rgba(0, 0, 0, 0.44));
+}
+.gate-final-hero {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+.gate-final-door-art {
+  width: min(44vw, 184px);
+  height: min(28vh, 208px);
+  margin: 0 auto 8px;
+  border: 1px solid rgba(240, 198, 107, 0.58);
+  border-radius: 48% 48% 12px 12px;
+  object-fit: cover;
+  object-position: center 27%;
+  box-shadow: 0 0 34px rgba(240, 198, 107, 0.32);
+  animation: gate-winner-arrive 1.15s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+.gate-final-eye {
+  color: var(--gate-gold);
+  font-size: 40px;
+  line-height: 1;
+  text-shadow: 0 0 24px rgba(240, 198, 107, 0.64);
+  animation: gate-eye-pulse 1.8s ease-in-out infinite alternate;
+}
+@keyframes gate-life-hit {
+  0% {
+    transform: scale(1);
+  }
+  22% {
+    transform: scale(1.16);
+    color: #fff;
+    text-shadow: 0 0 16px #ff626d;
+  }
+  48% {
+    transform: translateX(-4px) scale(0.96);
+  }
+  70% {
+    transform: translateX(4px) scale(1.03);
+  }
+  100% {
+    transform: translateX(0) scale(1);
+  }
+}
+@keyframes gate-heart-loss {
+  0% {
+    color: #ff6974;
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #ff6974);
+  }
+  24% {
+    color: #fff;
+    transform: scale(1.55);
+    filter: drop-shadow(0 0 14px #ff6974);
+  }
+  55% {
+    color: #ff6974;
+    transform: scale(0.8);
+  }
+  100% {
+    color: rgba(239, 119, 123, 0.25);
+    transform: scale(1);
+    filter: none;
+  }
+}
+@keyframes gate-eliminated {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  35% {
+    opacity: 0.6;
+    transform: scale(1.035);
+  }
+  to {
+    opacity: 0.56;
+    transform: scale(1);
+  }
+}
+@keyframes gate-winner-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.9);
+    filter: brightness(1.7);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+}
+.gate-final-hero h1 {
+  margin: 7px 0 4px;
+  font-size: clamp(1.25rem, 6vw, 1.85rem);
+}
+.gate-final-subtitle {
+  margin: 3px 0;
+  color: var(--game-text-secondary, rgba(216, 223, 245, 0.68));
+  font-size: 0.8rem;
+}
+.gate-complete .minigame-placement-list {
+  max-height: min(39vh, 340px);
+  margin: 12px 0;
+  overflow-y: auto;
+}
+.gate-final-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 50px 54px;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 5px 6px;
+  font-size: 0.74rem;
+}
+.gate-final-row__rank {
+  color: var(--gate-gold);
+  font-weight: 900;
+}
+.gate-final-row__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gate-final-row strong {
+  color: var(--gate-gold);
+  text-align: right;
+}
+.gate-final-row > span:last-child {
+  color: var(--gate-red);
+  text-align: right;
+}
+.gate-primary--complete {
+  min-height: 48px;
+}
+
+@media (min-width: 720px) {
+  .gate-game {
+    padding: max(env(safe-area-inset-top, 0px), 20px) 24px
+      max(env(safe-area-inset-bottom, 0px), 20px);
+  }
+  .gate-game__main {
+    gap: 16px;
+  }
+  .gate-status {
+    max-width: 700px;
+    min-height: 62px;
+    padding: 10px 14px;
+  }
+  .gate-door-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .gate-door-card {
+    display: grid;
+    grid-template-rows: 104px auto;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 181px;
+    aspect-ratio: auto;
+    padding: 12px 14px;
+  }
+  .gate-door-card__visual {
+    position: relative;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    height: 104px;
+    width: auto;
+    border-radius: 10px;
+  }
+  .gate-door-card__art {
+    object-fit: cover;
+    object-position: center 15%;
+  }
+  .gate-door-card__details {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    z-index: auto;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto 5px;
+    align-items: center;
+    gap: 3px 7px;
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .gate-door-card__offer {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .gate-door-card__risk {
+    grid-column: 2;
+    grid-row: 1;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 3px;
+  }
+  .gate-door-card__risk-meter {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .gate-door-mark {
+    width: 72px;
+    height: 92px;
+  }
+  .gate-door-card__offer strong {
+    font-size: 1.25rem;
+  }
+  .gate-door-card__roman {
+    right: 14px;
+    bottom: 14px;
+  }
+  .gate-door-card__picked {
+    top: 14px;
+    right: 14px;
+  }
+  .gate-action-dock {
+    display: flex;
+    justify-content: center;
+    background: transparent;
+  }
+  .gate-primary--seal {
+    width: auto;
+    min-width: 148px;
+    min-height: 40px;
+  }
+  .gate-round-result {
+    padding: 22px;
+  }
+}
+
+@media (max-width: 350px) {
+  .gate-game {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+  .gate-door-grid {
+    gap: 7px;
+  }
+  .gate-door-card {
+    grid-template-columns: minmax(48px, 0.72fr) minmax(0, 1fr);
+    gap: 6px;
+    min-height: 118px;
+    aspect-ratio: 1.18;
+    padding: 6px;
+  }
+  .gate-door-card__visual {
+    width: auto;
+    height: 100%;
+  }
+  .gate-door-card__roman {
+    right: 7px;
+    bottom: 7px;
+    width: 24px;
+    height: 24px;
+  }
+  .gate-door-card__picked {
+    top: 7px;
+    right: 7px;
+    padding: 4px 6px;
+    font-size: 0.44rem;
+  }
+  .gate-door-card__risk-label {
+    font-size: 0.44rem;
+  }
+  .gate-door-card__risk strong {
+    font-size: 0.76rem;
+  }
+  .gate-door-card__offer strong {
+    font-size: 0.92rem;
+  }
+  .gate-door-card__offer span {
+    font-size: 0.53rem;
+  }
+  .gate-reveal-door {
+    height: 122px;
+  }
+  .gate-reveal__doors {
+    gap: 3px;
+  }
+  .gate-status {
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+  .gate-status > div + div {
+    padding-left: 7px;
+  }
+  .gate-status .game-ui-eyebrow {
+    font-size: 0.5rem;
+  }
+  .gate-status__round strong {
+    font-size: 0.74rem;
+  }
+}
+
+@media (max-width: 719px) {
+  .gate-game__main {
+    gap: 6px;
+  }
+  .gate-header {
+    min-height: 40px;
+  }
+  .gate-header__brand {
+    gap: 7px;
+  }
+  .gate-header__eye {
+    flex-basis: 32px;
+    width: 32px;
+    height: 32px;
+    font-size: 23px;
+  }
+  .gate-eyebrow {
+    font-size: 0.53rem;
+    letter-spacing: 0.1em;
+  }
+  .gate-header h1 {
+    margin-top: 1px;
+    font-size: clamp(1rem, 4.3vw, 1.26rem);
+  }
+  .gate-status {
+    grid-template-columns: 1.1fr 0.76fr 0.9fr 0.58fr;
+    min-height: 45px;
+    padding: 5px 8px;
+    border-radius: 12px;
+  }
+  .gate-status > div {
+    gap: 1px;
+  }
+  .gate-status > div + div {
+    padding-left: 6px;
+  }
+  .gate-status .game-ui-eyebrow {
+    font-size: 0.48rem;
+    letter-spacing: 0.075em;
+    line-height: 1;
+  }
+  .gate-status strong {
+    font-size: 0.84rem;
+  }
+  .gate-status__round strong {
+    font-size: 0.74rem;
+  }
+  .gate-status__your-score strong {
+    font-size: 1rem;
+  }
+  .gate-lives strong {
+    font-size: 0.72rem;
+  }
+  .gate-status__active strong {
+    font-size: 0.9rem;
+  }
+  .gate-stage {
+    gap: 5px;
+  }
+  .gate-prompt {
+    min-height: 32px;
+  }
+  .gate-prompt h2 {
+    margin-top: 2px;
+    font-size: clamp(0.92rem, 3.8vw, 1.08rem);
+  }
+  .gate-door-grid {
+    gap: 8px;
+  }
+  .gate-door-card {
+    min-height: 128px;
+    aspect-ratio: 1.08;
+  }
+  .gate-action-dock {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    padding: 2px 0 max(env(safe-area-inset-bottom, 0px), 2px);
+    background: linear-gradient(180deg, rgba(8, 13, 23, 0), #080d17 42%);
+  }
+  .gate-primary--seal {
+    width: auto;
+    min-width: 148px;
+    min-height: 38px;
+    border-radius: 10px;
+    padding: 0 14px;
+    font-size: 0.76rem;
+    gap: 8px;
+    animation: gate-action-appear 260ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
+  }
+  .gate-game__backdrop {
+    height: min(112vw, 540px);
+    background-image:
+      linear-gradient(180deg, rgba(7, 11, 20, 0.06) 4%, rgba(8, 13, 23, 0.2) 36%, #080d17 100%),
+      var(--gate-temple-mobile);
+    background-position: center top;
+  }
+}
+
+@keyframes gate-action-appear {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 350px) {
+  .gate-status {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+  .gate-status > div + div {
+    padding-left: 5px;
+  }
+  .gate-status .game-ui-eyebrow {
+    font-size: 0.44rem;
+  }
+  .gate-status__round strong {
+    font-size: 0.7rem;
+  }
+  .gate-door-card {
+    min-height: 122px;
+    aspect-ratio: 1.08;
+  }
+}
+
+.gate-door-grid.is-expanded {
+  position: relative;
+  flex: 1;
+  min-height: min(58vh, 560px);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+}
+.gate-door-grid.is-expanded .gate-door-card:not(.is-expanded) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  z-index: 1;
+  opacity: 0;
+  transform: scale(0.94);
+  pointer-events: none;
+  transition:
+    opacity 360ms ease,
+    transform 420ms cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+.gate-stage--choice .gate-door-card {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 6px;
+  padding: 8px;
+}
+.gate-stage--choice .gate-door-card__visual {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 12px;
+}
+.gate-stage--choice .gate-door-card__art {
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: fill;
+  object-position: center 34%;
+}
+.gate-stage--choice .gate-door-card__details {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto 5px;
+  align-items: center;
+  gap: 4px 8px;
+  height: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.13);
+  border-left: 0;
+  padding: 6px 2px 0;
+}
+.gate-stage--choice .gate-door-card__offer {
+  grid-column: 1;
+  grid-row: 1;
+}
+.gate-stage--choice .gate-door-card__risk {
+  grid-column: 2;
+  grid-row: 1;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.gate-stage--choice .gate-door-card__risk-meter {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.gate-door-card.is-expanded {
+  grid-column: 1;
+  grid-row: 1;
+  z-index: 2;
+  min-height: 0;
+  height: 100%;
+  aspect-ratio: auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 22px;
+  animation: gate-door-expand 460ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+.gate-door-card.is-expanded:hover {
+  transform: none;
+}
+.gate-door-card.is-expanded .gate-door-card__visual {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 14px;
+  background: #05080e;
+}
+.gate-door-card.is-expanded .gate-door-card__art {
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: fill;
+  object-position: center;
+}
+.gate-door-card.is-expanded .gate-door-card__details {
+  grid-column: 1;
+  grid-row: 2;
+  grid-template-rows: auto 7px;
+  gap: 7px 12px;
+  border-top-color: rgba(240, 198, 107, 0.28);
+  padding: 10px 5px 2px;
+}
+.gate-door-card.is-expanded .gate-door-card__offer strong {
+  font-size: clamp(1.5rem, 6vw, 2.7rem);
+}
+.gate-door-card.is-expanded .gate-door-card__offer span {
+  font-size: clamp(0.72rem, 2.8vw, 1rem);
+}
+.gate-door-card.is-expanded .gate-door-card__risk-label {
+  font-size: clamp(0.62rem, 2.2vw, 0.82rem);
+}
+.gate-door-card.is-expanded .gate-door-card__risk strong {
+  font-size: clamp(1rem, 4vw, 1.5rem);
+}
+.gate-door-card.is-expanded .gate-door-card__risk-meter {
+  height: 7px;
+}
+.gate-door-card.is-expanded .gate-door-card__roman {
+  right: 14px;
+  bottom: 14px;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+}
+.gate-door-card.is-expanded .gate-door-card__picked {
+  top: 14px;
+  right: 14px;
+  padding: 7px 10px;
+  font-size: 0.64rem;
+}
+.gate-action-dock {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 3px 0 max(env(safe-area-inset-bottom, 0px), 2px);
+  background: transparent;
+  animation: gate-action-appear 280ms ease both;
+}
+.gate-secondary--change {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border: 1px solid rgba(216, 223, 245, 0.2);
+  border-radius: 11px;
+  padding: 0 14px;
+  color: rgba(231, 235, 248, 0.9);
+  background: rgba(12, 18, 31, 0.82);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.gate-secondary--change:focus-visible {
+  outline: 2px solid var(--game-focus-color, #978bff);
+  outline-offset: 2px;
+}
+.gate-action-dock .gate-primary--seal {
+  width: auto;
+  min-width: 148px;
+  min-height: 40px;
+}
+
+@keyframes gate-door-expand {
+  from {
+    clip-path: inset(20% 19% round 18px);
+    filter: brightness(1.25);
+  }
+  to {
+    clip-path: inset(0 round 22px);
+    filter: brightness(1);
+  }
+}
+
+@media (max-width: 719px) {
+  .gate-stage--choice {
+    flex: 1;
+    min-height: 0;
+  }
+  .gate-stage--choice .gate-door-grid {
+    flex: 1;
+    min-height: 260px;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+  .gate-stage--choice .gate-door-card {
+    min-height: 0;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+  .gate-stage--choice .gate-door-card__art {
+    object-fit: fill;
+    object-position: center;
+  }
+  .gate-door-grid.is-expanded {
+    min-height: 260px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .gate-door-card.is-expanded {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px;
+    border-radius: 18px;
+  }
+  .gate-door-card.is-expanded .gate-door-card__details {
+    gap: 7px 10px;
+    padding-left: 5px;
+  }
+  .gate-door-card.is-expanded .gate-door-card__roman {
+    right: 10px;
+    bottom: 10px;
+  }
+  .gate-door-card.is-expanded .gate-door-card__picked {
+    top: 10px;
+    right: 10px;
+  }
+  .gate-action-dock {
+    flex: 0 0 auto;
+  }
+  .gate-action-dock .gate-primary--seal {
+    min-width: 132px;
+    min-height: 38px;
+  }
+}
+
+@media (max-height: 620px) and (max-width: 719px) {
+  .gate-stage--choice .gate-door-grid {
+    min-height: 220px;
+  }
+  .gate-door-grid.is-expanded {
+    min-height: 220px;
+  }
+  .gate-door-card.is-expanded .gate-door-card__details {
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gate-game *,
+  .gate-game *::before,
+  .gate-game *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

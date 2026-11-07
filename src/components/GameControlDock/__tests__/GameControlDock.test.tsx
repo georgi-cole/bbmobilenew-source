@@ -1,11 +1,17 @@
-import { createRef } from 'react'
+import { createRef, type ReactNode } from 'react'
+import { Provider } from 'react-redux'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import GameControlDock from '../GameControlDock'
+import { store } from '../../../store/store'
+
+function renderWithStore(children: ReactNode) {
+  return render(<Provider store={store}>{children}</Provider>)
+}
 
 describe('GameControlDock', () => {
   it('uses the clean glassy dock shell, play, and icon assets', () => {
-    const { container } = render(<GameControlDock />)
+    const { container } = renderWithStore(<GameControlDock />)
 
     const shell = container.querySelector<HTMLImageElement>('.game-control-dock__shell')
     expect(shell).not.toBeNull()
@@ -32,7 +38,7 @@ describe('GameControlDock', () => {
   })
 
   it('portals the existing dock above the finale overlay without duplicating Play', () => {
-    const { container } = render(
+    const { container } = renderWithStore(
       <GameControlDock elevatedDuringOverlay primaryLabel="Play finale scene" />
     )
 
@@ -42,6 +48,12 @@ describe('GameControlDock', () => {
     expect(screen.getByRole('button', { name: 'Play finale scene' })).toBeEnabled()
   })
 
+  it('keeps the primary action queryable when a phase gives it a different label', () => {
+    renderWithStore(<GameControlDock primaryLabel="Next story" />)
+
+    expect(screen.getByTestId('game-primary-action')).toHaveAttribute('aria-label', 'Next story')
+  })
+
   it('preserves dock hit areas, badges, and disabled behavior', () => {
     const onChatClick = vi.fn()
     const onRequestsClick = vi.fn()
@@ -49,7 +61,7 @@ describe('GameControlDock', () => {
     const onPublicMeterClick = vi.fn()
     const onToolClick = vi.fn()
 
-    const { rerender } = render(
+    const { rerender } = renderWithStore(
       <GameControlDock
         onChatClick={onChatClick}
         onIncomingRequestsClick={onRequestsClick}
@@ -74,7 +86,11 @@ describe('GameControlDock', () => {
     expect(onPublicMeterClick).toHaveBeenCalledTimes(1)
     expect(onToolClick).toHaveBeenCalledTimes(1)
 
-    rerender(<GameControlDock disabled primaryDisabled />)
+    rerender(
+      <Provider store={store}>
+        <GameControlDock disabled primaryDisabled />
+      </Provider>
+    )
 
     expect(screen.getByRole('button', { name: 'Social' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Incoming requests' })).toBeDisabled()
@@ -86,7 +102,9 @@ describe('GameControlDock', () => {
   it('forwards the confessional icon ref for spotlight targeting', () => {
     const confessionalIconRef = createRef<HTMLImageElement>()
 
-    const { container } = render(<GameControlDock confessionalIconRef={confessionalIconRef} />)
+    const { container } = renderWithStore(
+      <GameControlDock confessionalIconRef={confessionalIconRef} />
+    )
 
     expect(confessionalIconRef.current).toBe(
       container.querySelector<HTMLImageElement>('.fab-icon.confessional')
@@ -95,7 +113,7 @@ describe('GameControlDock', () => {
 
   it('offers bug reporting in the dock More menu without leaving gameplay', () => {
     const onMoreClick = vi.fn()
-    render(<GameControlDock onMoreClick={onMoreClick} />)
+    renderWithStore(<GameControlDock onMoreClick={onMoreClick} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'More' }))
     expect(screen.getByRole('menu', { name: 'More destinations' })).toBeDefined()

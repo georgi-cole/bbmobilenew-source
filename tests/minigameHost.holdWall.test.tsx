@@ -8,8 +8,9 @@
  *  3. CWGO routing is unaffected.
  */
 
+import { startHostedMinigame } from './helpers/startHostedMinigame';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import cwgoReducer from '../src/features/cwgo/cwgoCompetitionSlice';
@@ -110,9 +111,7 @@ describe('MinigameHost — HoldTheWall routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('htw-comp')).toBeTruthy();
     expect(screen.queryByTestId('legacy-wrapper')).toBeNull();
@@ -135,9 +134,7 @@ describe('MinigameHost — HoldTheWall routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('legacy-wrapper')).toBeTruthy();
     expect(screen.queryByTestId('htw-comp')).toBeNull();

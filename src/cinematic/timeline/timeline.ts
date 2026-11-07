@@ -1,5 +1,5 @@
 import { CINEMATIC_CONFIG } from '../config/cinematicConfig';
-import { clamp01, easedRange, lerp, pulse, rangeProgress, smoothstep } from '../utils/math';
+import { clamp01, easedRange, lerp, pulse, rangeProgress, smoothstep, smootherstep } from '../utils/math';
 
 export type TimelineState = {
   frame: number;
@@ -9,6 +9,8 @@ export type TimelineState = {
   sunRevealProgress: number;
   sunPositionProgress: number;
   sunHorizonProgress: number;
+  oceanRevealProgress: number;
+  sunReflectionProgress: number;
   goldenHourProgress: number;
   sunsetProgress: number;
   apertureClosure: number;
@@ -67,10 +69,9 @@ export const getTimelineState = (inputFrame: number): TimelineState => {
   const apertureClose = easedRange(frame, 1268, 1332);
   const apertureOpen = easedRange(frame, 1438, 1512);
   const apertureClosure = Math.min(apertureClose, 1 - apertureOpen);
-  // The celestial texture changes only while the aperture is fully closed.
-  const sunMorph = easedRange(frame, 1344, 1374);
-  // Keep both the sun and its building reflections dark until the shutter is
-  // visibly opening; the sunrise illumination then follows the reveal.
+  // Let the iris travel first, then morph visibly as its light begins to show.
+  // Preserve the original two-part path and its hold before the final sunset.
+  const sunMorph = easedRange(frame, 1480, 1545);
   const sunRevealProgress = easedRange(frame, 1480, 1542);
   const sunPositionProgress = easedRange(frame, 1438, 1545);
   const sunHorizonProgress = easedRange(frame, 1606, 1662);
@@ -79,14 +80,22 @@ export const getTimelineState = (inputFrame: number): TimelineState => {
   const preDawn = easedRange(frame, 1328, 1438);
   const fullDaylight = easedRange(frame, 1438, 1650);
   const dawnProgress = clamp01(preDawn * 0.42 + fullDaylight * 0.58);
-  // Drop the city below camera before the opaque coast settles in. Keeping
-  // these beats adjacent avoids the transparent city/sea double exposure.
+  // Reveal the sea as the city clears. It is fully formed before the sun's
+  // final approach to the waterline begins.
   const coastProgress = easedRange(frame, 1498, 1640);
   const cityExitProgress = easedRange(frame, 1518, 1638);
   const goldenHourProgress = easedRange(frame, 1535, 1688);
   // Give the wide landscape a few seconds to move through afternoon, sunset,
   // and evening before the final blackout.
   const sunsetProgress = easedRange(frame, 1684, 1786);
+  const oceanRevealProgress = easedRange(frame, 1438, 1480);
+  const sunsetOcclusion = 1 - smootherstep(clamp01((sunsetProgress - 0.72) / 0.28));
+  const sunReflectionProgress = clamp01(
+    sunRevealProgress
+      * oceanRevealProgress
+      * (0.22 + sunHorizonProgress * 0.78)
+      * sunsetOcclusion,
+  );
   // The player ends just before the authored final frame. Reach full black
   // early and hold it so the last visible frame cannot leave a grey flash.
   const finalDarkness = easedRange(frame, 1748, 1776);
@@ -130,6 +139,8 @@ export const getTimelineState = (inputFrame: number): TimelineState => {
     sunRevealProgress,
     sunPositionProgress,
     sunHorizonProgress,
+    oceanRevealProgress,
+    sunReflectionProgress,
     goldenHourProgress,
     sunsetProgress,
     apertureClosure,
@@ -165,8 +176,8 @@ export const getTimelineState = (inputFrame: number): TimelineState => {
     vehicleLightIntensity: nightLightFade * (1.9 + stormShade * 0.82),
     lightning,
     lightningBolt,
-    eyeOpacity: easedRange(frame, 990, 1140) * (1 - easedRange(frame, 1578, 1622)),
-    creditsOpacity: 1 - easedRange(frame, 1588, 1635),
+    eyeOpacity: easedRange(frame, 990, 1140) * (1 - sunMorph),
+    creditsOpacity: 1 - easedRange(frame, 1745, 1776),
     fadeToDark: finalDarkness,
   };
 };

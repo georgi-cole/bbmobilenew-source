@@ -42,6 +42,9 @@ import {
   type HouseOfCardsRoundToolId,
 } from './houseOfCardsUtils'
 import './HouseOfCardsComp.css'
+import '../../styles/houseOfCardsInteractionFix.css'
+import '../../styles/houseOfCardsBrightTheme.css'
+import '../../styles/houseOfCardsBrightThemePriority.css'
 
 // A mismatch needs to remain readable after the flip animation has settled,
 // especially on slower phones. 760ms could be mostly consumed by rendering.
@@ -1319,7 +1322,12 @@ export default function HouseOfCardsComp({
                     {roundSummary.roundScores[id].brightPairBonus ? ' · Bright Pair +120' : ''}
                   </span>
                 </div>
-                <strong>{roundSummary.cumulativeScores[id]}</strong>
+                <div className="hoc-standing-scores">
+                  <strong aria-label={`Round score ${roundSummary.roundScores[id].score}`}>
+                    {roundSummary.roundScores[id].score.toLocaleString()}
+                  </strong>
+                  <span>Total {roundSummary.cumulativeScores[id].toLocaleString()}</span>
+                </div>
               </li>
             ))}
           </ol>
@@ -1344,6 +1352,18 @@ export default function HouseOfCardsComp({
     return (
       <MinigameCompleteWrapper
         className={`hoc-complete hoc-complete--${premiumPresentation ? 'premium' : 'standard'}`}
+        result={{
+          rawValue: finalStandings.find((entry) => entry.playerId === humanId)?.clashScore ?? 0,
+          partial: false,
+          completion: {
+            rawResults: Object.fromEntries(
+              finalStandings.map((entry) => [entry.playerId, entry.clashScore])
+            ),
+            authoritativeWinnerId: winner.playerId,
+            authoritativeLastPlaceId: finalStandings.at(-1)?.playerId,
+            authoritativeRankedIds: finalStandings.map((entry) => entry.playerId),
+          },
+        }}
         onContinue={finish}
         continueButtonClassName="hoc-complete-continue"
         placementsNode={

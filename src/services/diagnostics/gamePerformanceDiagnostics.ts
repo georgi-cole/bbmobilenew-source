@@ -1,15 +1,33 @@
 import type { Middleware } from '@reduxjs/toolkit'
 import { getSavePersistenceDiagnostics } from '../../store/saveStatePersistence'
 
-const SAMPLE_LIMIT = 300
+const SAMPLE_LIMIT = 3_000
 const FRAME_GAP_THRESHOLD_MS = 24
 const INPUT_SAMPLE_LIMIT = 20
 const STATE_SAMPLE_INTERVAL = 50
 
 export type GamePerformanceSample =
   | { kind: 'frame-gap'; atMs: number; durationMs: number }
+  | { kind: 'long-task'; atMs: number; durationMs: number; name: string }
   | { kind: 'input-response'; atMs: number; durationMs: number; input: string }
   | { kind: 'redux-action'; atMs: number; durationMs: number; action: string }
+  | { kind: 'store-update'; atMs: number; durationMs: number; action: string }
+  | {
+      kind: 'middleware-step'
+      atMs: number
+      durationMs: number
+      action: string
+      middleware: string
+    }
+  | { kind: 'phase-step'; atMs: number; durationMs: number; action: string; step: string }
+  | {
+      kind: 'react-render'
+      atMs: number
+      durationMs: number
+      baseDurationMs: number
+      component: string
+      phase: string
+    }
   | {
       kind: 'state-growth'
       atMs: number
@@ -27,12 +45,19 @@ export interface GamePerformanceSnapshot {
   hidden: boolean
   totalSamples: number
   samples: GamePerformanceSample[]
+  juryEvents: JuryPerformanceEvent[]
   metrics: {
     frameGapP95Ms: number | null
     inputResponseP95Ms: number | null
     reduxActionP95Ms: number | null
   }
   save: ReturnType<typeof getSavePersistenceDiagnostics>
+}
+
+export interface JuryPerformanceEvent {
+  atMs: number
+  name: string
+  detail: Record<string, string | number | boolean | null>
 }
 
 declare global {
@@ -54,6 +79,13 @@ let previousFrameAt: number | null = null
 let samples: Array<GamePerformanceSample | undefined> = Array(SAMPLE_LIMIT)
 const pendingInputs = new Set<number>()
 let listenersInstalled = false
+let longTaskObserver: PerformanceObserver | null = null
+const JURY_EVENT_LIMIT = 256
+let juryEvents: JuryPerformanceEvent[] = []
+
+export function isGamePerformanceDiagnosticsEnabled(): boolean {
+  return enabled
+}
 
 function now(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -68,6 +100,33 @@ function record(sample: GamePerformanceSample): void {
   samples[sampleIndex] = sample
   sampleIndex = (sampleIndex + 1) % SAMPLE_LIMIT
   totalSamples += 1
+}
+
+export function recordGamePerformanceMarker(
+  name: string,
+  detail: JuryPerformanceEvent['detail'] = {}
+): void {
+  if (!enabled || !isVisible()) return
+  juryEvents.push({ atMs: now(), name, detail })
+  if (juryEvents.length > JURY_EVENT_LIMIT) juryEvents.shift()
+}
+
+export function recordGameRender(
+  component: string,
+  phase: string,
+  actualDurationMs: number,
+  baseDurationMs: number,
+  _startTime: number,
+  commitTime: number
+): void {
+  record({
+    kind: 'react-render',
+    atMs: commitTime,
+    durationMs: actualDurationMs,
+    baseDurationMs,
+    component,
+    phase,
+  })
 }
 
 function recordFrame(timestamp: number): void {
@@ -151,6 +210,63 @@ export function recordGamePerformanceAction(
   }
 }
 
+/** Time a synchronous phase operation only in an opted-in diagnostic run. */
+export function measureGamePerformanceStep<T>(step: string, work: () => T): T {
+  if (!enabled || !isVisible()) return work()
+  const startedAt = now()
+  try {
+    return work()
+  } finally {
+    record({
+      kind: 'phase-step',
+      atMs: now(),
+      durationMs: Math.max(0, now() - startedAt),
+      action: 'game/advance',
+      step,
+    })
+  }
+}
+
+function actionName(action: unknown): string {
+  return typeof action === 'object' && action && 'type' in action ? String(action.type) : 'unknown'
+}
+
+function recordFinaleStateChange(before: unknown, after: unknown, action: string): void {
+  const previous = before as {
+    game?: { phase?: string; week?: number; seasonFinale?: { phase?: string } | null }
+    finale?: { revealedCount?: number; awaitingHumanJurorId?: string | null; isComplete?: boolean }
+  }
+  const next = after as typeof previous
+  const oldGame = previous.game
+  const newGame = next.game
+  const oldFinale = previous.finale
+  const newFinale = next.finale
+  const changed =
+    oldGame?.phase !== newGame?.phase ||
+    oldGame?.seasonFinale?.phase !== newGame?.seasonFinale?.phase ||
+    oldFinale?.revealedCount !== newFinale?.revealedCount ||
+    oldFinale?.awaitingHumanJurorId !== newFinale?.awaitingHumanJurorId ||
+    oldFinale?.isComplete !== newFinale?.isComplete
+  const relevant =
+    oldGame?.phase?.startsWith('final3') ||
+    newGame?.phase?.startsWith('final3') ||
+    oldGame?.phase?.startsWith('jury') ||
+    newGame?.phase?.startsWith('jury') ||
+    Boolean(oldGame?.seasonFinale || newGame?.seasonFinale)
+  if (!changed || !relevant) return
+  recordGamePerformanceMarker('redux-finale-transition', {
+    action,
+    day: newGame?.week ?? 0,
+    fromPhase: oldGame?.phase ?? '',
+    phase: newGame?.phase ?? '',
+    fromPresentation: oldGame?.seasonFinale?.phase ?? '',
+    presentation: newGame?.seasonFinale?.phase ?? '',
+    revealed: newFinale?.revealedCount ?? 0,
+    awaitingHuman: newFinale?.awaitingHumanJurorId ?? '',
+    complete: newFinale?.isComplete ?? false,
+  })
+}
+
 export function getGamePerformanceSnapshot(): GamePerformanceSnapshot {
   const ordered =
     totalSamples <= SAMPLE_LIMIT
@@ -174,6 +290,7 @@ export function getGamePerformanceSnapshot(): GamePerformanceSnapshot {
     hidden: !isVisible(),
     totalSamples,
     samples: currentSamples,
+    juryEvents: [...juryEvents],
     metrics: {
       frameGapP95Ms: percentile95('frame-gap'),
       inputResponseP95Ms: percentile95('input-response'),
@@ -188,6 +305,7 @@ export function clearGamePerformanceSamples(): void {
   sampleIndex = 0
   totalSamples = 0
   actionCount = 0
+  juryEvents = []
 }
 
 export function startGamePerformanceDiagnostics(forceEnable = false): boolean {
@@ -219,21 +337,103 @@ export function startGamePerformanceDiagnostics(forceEnable = false): boolean {
     listenersInstalled = true
   }
   if (!document.hidden) frameId = window.requestAnimationFrame(recordFrame)
+  if (
+    typeof PerformanceObserver !== 'undefined' &&
+    PerformanceObserver.supportedEntryTypes?.includes('longtask')
+  ) {
+    longTaskObserver = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        record({
+          kind: 'long-task',
+          atMs: entry.startTime,
+          durationMs: entry.duration,
+          name: entry.name,
+        })
+      }
+    })
+    longTaskObserver.observe({ entryTypes: ['longtask'] })
+  }
   return true
 }
 
 export function stopGamePerformanceDiagnostics(): void {
   if (!enabled) return
   stopFrameSampling()
+  longTaskObserver?.disconnect()
+  longTaskObserver = null
   enabled = false
 }
 
 export const gamePerformanceMiddleware: Middleware = (api) => (next) => (action) => {
   if (!enabled || !isVisible()) return next(action)
+  const previousState = api.getState()
   const startedAt = now()
   const result = next(action)
-  const actionType =
-    typeof action === 'object' && action && 'type' in action ? String(action.type) : 'unknown'
-  recordGamePerformanceAction(actionType, Math.max(0, now() - startedAt), api.getState())
+  const actionType = actionName(action)
+  const nextState = api.getState()
+  recordGamePerformanceAction(actionType, Math.max(0, now() - startedAt), nextState)
+  recordFinaleStateChange(previousState, nextState, actionType)
   return result
+}
+
+/** The tail sample measures the reducer and synchronous store subscribers. */
+export const gameStoreUpdatePerformanceMiddleware: Middleware = () => (next) => (action) => {
+  if (!enabled || !isVisible()) return next(action)
+  const startedAt = now()
+  const result = next(action)
+  record({
+    kind: 'store-update',
+    atMs: now(),
+    durationMs: Math.max(0, now() - startedAt),
+    action: actionName(action),
+  })
+  return result
+}
+
+/** Attribute phase-advance time to one middleware without including its downstream chain. */
+export function profileGameMiddleware(name: string, middleware: Middleware): Middleware {
+  // Do not add another dispatch wrapper to normal gameplay.
+  if (
+    typeof window === 'undefined' ||
+    new URLSearchParams(window.location.search).get('debugPerformance') !== '1'
+  ) {
+    return middleware
+  }
+
+  return (api) => (next) => {
+    let activeScope: { downstreamMs: number } | null = null
+    const invoke = middleware(api)((innerAction) => {
+      const scope = activeScope
+      if (!scope) return next(innerAction)
+      const startedAt = now()
+      try {
+        return next(innerAction)
+      } finally {
+        scope.downstreamMs += Math.max(0, now() - startedAt)
+      }
+    })
+
+    return (action) => {
+      if (!enabled || !isVisible() || actionName(action) !== 'game/advance') {
+        return invoke(action)
+      }
+      const previousScope = activeScope
+      const scope = { downstreamMs: 0 }
+      activeScope = scope
+      const startedAt = now()
+      try {
+        return invoke(action)
+      } finally {
+        const finishedAt = now()
+        activeScope = previousScope
+        record({
+          kind: 'middleware-step',
+          atMs: finishedAt,
+          durationMs: Math.max(0, finishedAt - startedAt - scope.downstreamMs),
+          action: 'game/advance',
+          middleware: name,
+        })
+      }
+    }
+  }
 }

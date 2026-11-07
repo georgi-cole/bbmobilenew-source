@@ -17,8 +17,9 @@
  *     seed unchanged.
  */
 
+import { startHostedMinigame } from '../../helpers/startHostedMinigame';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import gameReducer from '../../../src/store/gameSlice';
@@ -163,7 +164,7 @@ describe('MinigameHost — Crystal Path seed isolation', () => {
       </Provider>,
     );
 
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('gb-comp')).toBeTruthy();
     expect(capturedGlassBridgeSeed).toBeUndefined();
@@ -183,7 +184,7 @@ describe('MinigameHost — Crystal Path seed isolation', () => {
       </Provider>,
     );
 
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('gb-comp')).toBeTruthy();
     expect(capturedGlassBridgeSeed).toBeUndefined();
@@ -203,7 +204,7 @@ describe('MinigameHost — Crystal Path seed isolation', () => {
       </Provider>,
     );
 
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('crystal-shattered-comp')).toBeTruthy();
     expect(capturedCrystalPathShatteredSeed).toBeUndefined();
@@ -224,7 +225,7 @@ describe('MinigameHost — Crystal Path seed isolation', () => {
       </Provider>,
     );
 
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('cwgo-comp')).toBeTruthy();
     expect(capturedCwgoSeed).toBe(challengeSeed);

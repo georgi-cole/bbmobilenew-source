@@ -8,19 +8,23 @@ import {
   archiveKeyForProfile,
   type ProfileBio,
 } from '../../store/profilesSlice'
-import {
-  resetGame,
-  resolveProfileAge,
-  resolveProfileSex,
-  updateUserPlayerIdentity,
-} from '../../store/gameSlice'
+import { resetGame } from '../../store/gameSlice'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
-import { saveImage, imageIdToDataUrl, deleteImage } from '../../utils/imageDb'
+import { saveImage, imageIdToDataUrl, deleteImage, pruneProfilePhotos } from '../../utils/imageDb'
+import { savedProfilePhotoIds } from '../../appearance/profilePhotos'
+import { getProfilePhotoAvatarId } from '../../utils/avatar'
 import { clearProfileSaveStorage, flushSavePersistence } from '../../store/saveStatePersistence'
 import { clearSeasonArchives } from '../../store/archivePersistence'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import './EditProfile.css'
+import {
+  canPlayWithSafety,
+  canUseAdultServices,
+  declarePlayerAge,
+  ageBandForAge,
+} from '../../safety/playerSafety'
+import { usePlayerSafety } from '../../safety/usePlayerSafety'
 
 const AVATAR_OPTIONS = ['🧑', '👱', '👩', '🧔', '👧', '🧓', '👩‍🦱', '🧑‍🦰', '🧑‍🦳', '🧑‍🦲', '👦', '👴']
 
@@ -75,10 +79,16 @@ function CollapsibleSection({
  * stored in IndexedDB; a `photoId` reference is kept in the Redux profile.
  */
 export default function EditProfile() {
+  const safety = usePlayerSafety()
+  const adultServices = safety?.ageBand === 'adult'
+  const [ageError, setAgeError] = useState('')
   const navigate = useNavigate()
   const routeLocation = useLocation()
   const dispatch = useAppDispatch()
   const profile = useAppSelector(selectCurrentProfile)
+  const currentRunPhotoId = useAppSelector((state) =>
+    getProfilePhotoAvatarId(state.game?.players.find((player) => player.isUser)?.avatar)
+  )
   const returnTo = (routeLocation.state as { from?: string } | null)?.from === '/' ? '/' : '/game'
 
   // Redirect if no profile is active
@@ -182,8 +192,15 @@ export default function EditProfile() {
 
   async function handleSave() {
     if (!profile) return
+    if (ageBandForAge(age) === null) {
+      setAgeError('Enter your actual age as a whole number between 0 and 120.')
+      return
+    }
+    declarePlayerAge(age)
+    if (!canPlayWithSafety()) return
 
     let photoId = profile.photoId
+    let createdPhotoId: string | undefined
 
     // Persist new photo to IndexedDB; delete the old one to avoid storage growth.
     // Only update photoId if the write actually succeeds — if IndexedDB is unavailable
@@ -193,10 +210,7 @@ export default function EditProfile() {
       const id = `photo-${profile.id}-${Date.now()}`
       try {
         await saveImage(id, newPhotoBlob)
-        // Clean up the previous photo blob now that the new one is persisted.
-        if (profile.photoId && profile.photoId !== id) {
-          await deleteImage(profile.photoId)
-        }
+        createdPhotoId = id
         photoId = id
       } catch (err) {
         // saveImage failed (e.g. private browsing, quota exceeded).
@@ -205,8 +219,13 @@ export default function EditProfile() {
       }
     }
 
-    const reproductiveProfile: ProfileBio['reproductiveProfile'] =
-      pregnancyRole === 'become'
+    if (!canPlayWithSafety()) {
+      if (createdPhotoId) await deleteImage(createdPhotoId)
+      return
+    }
+    const reproductiveProfile: ProfileBio['reproductiveProfile'] = !canUseAdultServices()
+      ? undefined
+      : pregnancyRole === 'become'
         ? { canBecomePregnant: true, canCausePregnancy: false }
         : pregnancyRole === 'cause'
           ? { canBecomePregnant: false, canCausePregnancy: true }
@@ -214,8 +233,6 @@ export default function EditProfile() {
             ? { canBecomePregnant: true, canCausePregnancy: true }
             : undefined
     const profileSex = sex.trim() || undefined
-    const parsedAge = resolveProfileAge(age)
-    const liveSex = resolveProfileSex(profileSex, reproductiveProfile)
 
     const bio: ProfileBio = {
       story: story.trim() || undefined,
@@ -231,8 +248,8 @@ export default function EditProfile() {
       familyStatus: familyStatus.trim() || undefined,
       kids: kids.trim() || undefined,
       pets: pets.trim() || undefined,
-      religion: religion.trim() || undefined,
-      sexuality: sexuality.trim() || undefined,
+      religion: canUseAdultServices() ? religion.trim() || undefined : undefined,
+      sexuality: canUseAdultServices() ? sexuality.trim() || undefined : undefined,
     }
 
     dispatch(
@@ -243,32 +260,33 @@ export default function EditProfile() {
         bio,
       })
     )
-    dispatch(
-      updateUserPlayerIdentity({
-        name: name.trim() || profile.name,
-        avatar,
-        photoId,
-        age: parsedAge ?? null,
-        sex: liveSex ?? null,
-        reproductiveProfile: reproductiveProfile ?? null,
-      })
-    )
-
+    if (createdPhotoId) {
+      await pruneProfilePhotos(
+        profile.id,
+        [
+          ...savedProfilePhotoIds(profile.id),
+          ...[photoId, currentRunPhotoId].filter((id): id is string => Boolean(id)),
+        ],
+        profile.photoId ? [profile.photoId] : []
+      )
+    }
     navigate('/profile', { replace: true, state: { from: returnTo } })
   }
 
   async function handleDeleteProfile() {
     if (!profile) return
-
-    if (profile.photoId) {
-      await deleteImage(profile.photoId)
-    }
+    const photoIds = [
+      ...savedProfilePhotoIds(profile.id),
+      ...(profile.contestantDefaults?.photoId ? [profile.contestantDefaults.photoId] : []),
+      ...[profile.photoId, currentRunPhotoId].filter((id): id is string => Boolean(id)),
+    ]
 
     // Remove every persistence record owned by the deleted profile. Suspending
     // autosave prevents its in-memory season being saved under the next profile.
     clearProfileSaveStorage(profile.id)
     clearSeasonArchives(archiveKeyForProfile(profile.id))
     if (!(await flushSavePersistence())) return
+    await pruneProfilePhotos(profile.id, [], photoIds)
     withRunAutosaveSuspended(() => {
       dispatch(deleteProfile(profile.id))
       dispatch(resetGame([]))
@@ -283,6 +301,11 @@ export default function EditProfile() {
   return (
     <div className="placeholder-screen edit-profile">
       <h1 className="edit-profile__title">✏️ Edit Profile</h1>
+      <p>
+        Saving these player details updates your next-season defaults. Existing seasons keep their
+        own contestant. You can optionally change your contestant before starting a new season. Your
+        real age is used for player access checks.
+      </p>
 
       {/* Photo + avatar section */}
       <div className="edit-profile__photo-section">
@@ -396,18 +419,25 @@ export default function EditProfile() {
       </div>
       <div className="edit-profile__field">
         <label className="edit-profile__label" htmlFor="ep-age">
-          Age
+          Your age
         </label>
         <input
           id="ep-age"
           className="edit-profile__input"
-          type="text"
-          maxLength={20}
+          type="number"
+          min="0"
+          max="120"
+          step="1"
           value={age}
           onChange={(e) => setAge(e.target.value)}
+          onBlur={() => {
+            if (ageBandForAge(age) !== null) declarePlayerAge(age)
+          }}
           placeholder="e.g. 28"
         />
       </div>
+
+      {ageError && <p role="alert">{ageError}</p>}
 
       {/* Flavor section */}
       <CollapsibleSection label="Flavor / Personality">
@@ -516,71 +546,73 @@ export default function EditProfile() {
       </CollapsibleSection>
 
       {/* Sensitive section */}
-      <CollapsibleSection label="Optional / Personal" sensitive>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-sex">
-            Sex (Reality storylines)
-          </label>
-          <select
-            id="ep-sex"
-            className="edit-profile__input"
-            value={sex}
-            onChange={(e) => setSex(e.target.value)}
-          >
-            <option value="">Not specified — ask me in-game when needed</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-          </select>
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-pregnancy-role">
-            Pregnancy role (optional)
-          </label>
-          <select
-            id="ep-pregnancy-role"
-            className="edit-profile__input"
-            value={pregnancyRole}
-            onChange={(e) =>
-              setPregnancyRole(e.target.value as 'none' | 'become' | 'cause' | 'both')
-            }
-          >
-            <option value="none">Not specified — ask me in-game when needed</option>
-            <option value="become">Can become pregnant</option>
-            <option value="cause">Can cause pregnancy</option>
-            <option value="both">Both</option>
-          </select>
-          <p className="edit-profile__sensitive-note">
-            Used only for adult Reality pregnancy storylines. Leaving these unset keeps the existing
-            one-time in-game role choice.
-          </p>
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-religion">
-            Religion
-          </label>
-          <input
-            id="ep-religion"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={religion}
-            onChange={(e) => setReligion(e.target.value)}
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-sexuality">
-            Sexuality
-          </label>
-          <input
-            id="ep-sexuality"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={sexuality}
-            onChange={(e) => setSexuality(e.target.value)}
-          />
-        </div>
-      </CollapsibleSection>
+      {adultServices && (
+        <CollapsibleSection label="Optional / Personal" sensitive>
+          <div className="edit-profile__field">
+            <label className="edit-profile__label" htmlFor="ep-sex">
+              Sex (Reality storylines)
+            </label>
+            <select
+              id="ep-sex"
+              className="edit-profile__input"
+              value={sex}
+              onChange={(e) => setSex(e.target.value)}
+            >
+              <option value="">Not specified — ask me in-game when needed</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+          <div className="edit-profile__field">
+            <label className="edit-profile__label" htmlFor="ep-pregnancy-role">
+              Pregnancy role (optional)
+            </label>
+            <select
+              id="ep-pregnancy-role"
+              className="edit-profile__input"
+              value={pregnancyRole}
+              onChange={(e) =>
+                setPregnancyRole(e.target.value as 'none' | 'become' | 'cause' | 'both')
+              }
+            >
+              <option value="none">Not specified — ask me in-game when needed</option>
+              <option value="become">Can become pregnant</option>
+              <option value="cause">Can cause pregnancy</option>
+              <option value="both">Both</option>
+            </select>
+            <p className="edit-profile__sensitive-note">
+              Used only for adult Reality pregnancy storylines. Leaving these unset keeps the
+              existing one-time in-game role choice.
+            </p>
+          </div>
+          <div className="edit-profile__field">
+            <label className="edit-profile__label" htmlFor="ep-religion">
+              Religion
+            </label>
+            <input
+              id="ep-religion"
+              className="edit-profile__input"
+              type="text"
+              maxLength={40}
+              value={religion}
+              onChange={(e) => setReligion(e.target.value)}
+            />
+          </div>
+          <div className="edit-profile__field">
+            <label className="edit-profile__label" htmlFor="ep-sexuality">
+              Sexuality
+            </label>
+            <input
+              id="ep-sexuality"
+              className="edit-profile__input"
+              type="text"
+              maxLength={40}
+              value={sexuality}
+              onChange={(e) => setSexuality(e.target.value)}
+            />
+          </div>
+        </CollapsibleSection>
+      )}
 
       <section className="edit-profile__danger-zone" aria-labelledby="delete-profile-heading">
         <div>

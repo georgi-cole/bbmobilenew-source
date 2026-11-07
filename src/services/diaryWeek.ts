@@ -8,68 +8,70 @@
  * When the flag is "false" the UI should hide the weekly tab entirely.
  */
 
-import type { DiaryWeek, CreateDiaryWeekPayload, UpdateDiaryWeekPayload } from '../types/diaryWeek';
-import { apiUrl } from '../utils/apiBase';
+import type { DiaryWeek, CreateDiaryWeekPayload, UpdateDiaryWeekPayload } from '../types/diaryWeek'
+import { apiUrl } from '../utils/apiBase'
+import { optionalPlayerFetch } from '../safety/optionalRequest'
 
 /** Set VITE_FEATURE_DIARY_WEEK=false in .env to disable the feature entirely. */
-export const FEATURE_DIARY_WEEK =
-  (import.meta.env.VITE_FEATURE_DIARY_WEEK ?? 'true') !== 'false';
+export const FEATURE_DIARY_WEEK = (import.meta.env.VITE_FEATURE_DIARY_WEEK ?? 'true') !== 'false'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildHeaders(adminKey?: string): HeadersInit {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (adminKey) headers['x-admin-key'] = adminKey;
-  return headers;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (adminKey) headers['x-admin-key'] = adminKey
+  return headers
 }
 
 async function parseResponse<T>(res: Response): Promise<T> {
-  const json = await res.json();
+  const json = await res.json()
   if (!res.ok) {
     const message =
       (json as { error?: string; errors?: string[] }).error ??
       (json as { errors?: string[] }).errors?.join(', ') ??
-      `HTTP ${res.status}`;
-    throw new Error(message);
+      `HTTP ${res.status}`
+    throw new Error(message)
   }
-  return (json as { data: T }).data;
+  return (json as { data: T }).data
 }
 
 // ─── API functions ────────────────────────────────────────────────────────────
 
 /** List all diary weeks for a season. Pass publishedOnly=true for public view. */
-export async function listDiaryWeeks(
-  seasonId: string,
-  publishedOnly = true,
-): Promise<DiaryWeek[]> {
-  const params = publishedOnly ? '?publishedOnly=true' : '';
-  const res = await fetch(apiUrl(`/api/seasons/${encodeURIComponent(seasonId)}/weeks${params}`));
-  return parseResponse<DiaryWeek[]>(res);
+export async function listDiaryWeeks(seasonId: string, publishedOnly = true): Promise<DiaryWeek[]> {
+  const params = publishedOnly ? '?publishedOnly=true' : ''
+  const res = await optionalPlayerFetch(
+    'onlineServices',
+    apiUrl(`/api/seasons/${encodeURIComponent(seasonId)}/weeks${params}`)
+  )
+  return parseResponse<DiaryWeek[]>(res)
 }
 
 /** Fetch a single diary week by season + weekNumber. */
-export async function getDiaryWeek(
-  seasonId: string,
-  weekNumber: number,
-): Promise<DiaryWeek> {
-  const res = await fetch(
-    apiUrl(`/api/seasons/${encodeURIComponent(seasonId)}/weeks/${weekNumber}`),
-  );
-  return parseResponse<DiaryWeek>(res);
+export async function getDiaryWeek(seasonId: string, weekNumber: number): Promise<DiaryWeek> {
+  const res = await optionalPlayerFetch(
+    'onlineServices',
+    apiUrl(`/api/seasons/${encodeURIComponent(seasonId)}/weeks/${weekNumber}`)
+  )
+  return parseResponse<DiaryWeek>(res)
 }
 
 /** Create a new diary week (admin only). */
 export async function createDiaryWeek(
   seasonId: string,
   payload: CreateDiaryWeekPayload,
-  adminKey: string,
+  adminKey: string
 ): Promise<DiaryWeek> {
-  const res = await fetch(apiUrl(`/api/seasons/${encodeURIComponent(seasonId)}/weeks`), {
-    method: 'POST',
-    headers: buildHeaders(adminKey),
-    body: JSON.stringify(payload),
-  });
-  return parseResponse<DiaryWeek>(res);
+  const res = await optionalPlayerFetch(
+    'onlineServices',
+    apiUrl(`/api/seasons/${encodeURIComponent(seasonId)}/weeks`),
+    {
+      method: 'POST',
+      headers: buildHeaders(adminKey),
+      body: JSON.stringify(payload),
+    }
+  )
+  return parseResponse<DiaryWeek>(res)
 }
 
 /** Partially update an existing diary week (admin only). */
@@ -77,37 +79,42 @@ export async function updateDiaryWeek(
   seasonId: string,
   weekNumber: number,
   payload: UpdateDiaryWeekPayload,
-  adminKey: string,
+  adminKey: string
 ): Promise<DiaryWeek> {
-  const res = await fetch(
+  const res = await optionalPlayerFetch(
+    'onlineServices',
     apiUrl(`/api/seasons/${encodeURIComponent(seasonId)}/weeks/${weekNumber}`),
     {
       method: 'PATCH',
       headers: buildHeaders(adminKey),
       body: JSON.stringify(payload),
-    },
-  );
-  return parseResponse<DiaryWeek>(res);
+    }
+  )
+  return parseResponse<DiaryWeek>(res)
 }
 
 /** Export a diary week as a JSON blob and trigger a file download. */
 export async function exportDiaryWeekJson(
   weekId: string,
   weekNumber: number,
-  adminKey?: string,
+  adminKey?: string
 ): Promise<void> {
-  const res = await fetch(apiUrl(`/api/weeks/${encodeURIComponent(weekId)}/export?format=json`), {
-    headers: adminKey ? buildHeaders(adminKey) : {},
-  });
+  const res = await optionalPlayerFetch(
+    'onlineServices',
+    apiUrl(`/api/weeks/${encodeURIComponent(weekId)}/export?format=json`),
+    {
+      headers: adminKey ? buildHeaders(adminKey) : {},
+    }
+  )
   if (!res.ok) {
-    const json = (await res.json()) as { error?: string };
-    throw new Error(json.error ?? `HTTP ${res.status}`);
+    const json = (await res.json()) as { error?: string }
+    throw new Error(json.error ?? `HTTP ${res.status}`)
   }
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `diary-week-${weekNumber}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `diary-week-${weekNumber}.json`
+  a.click()
+  URL.revokeObjectURL(url)
 }

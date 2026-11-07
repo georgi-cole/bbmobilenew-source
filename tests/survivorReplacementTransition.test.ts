@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import gameReducer, {
   finalizePendingEviction,
+  clearSurvivorReplacementTransition,
   hydrateGame,
   revealSurvivorReplacement,
 } from '../src/store/gameSlice'
@@ -16,6 +17,93 @@ function makeStore() {
 }
 
 describe('Survivor replacement transition', () => {
+  it('preserves both arrivals through a double elimination and reload between replacements', () => {
+    let store = makeStore()
+    const run = createSurvivorRun()
+    const [first, second] = run.players.filter((player) => player.isRobo)
+    store.dispatch(
+      hydrateGame({
+        ...run,
+        phase: 'eviction_results',
+        pendingEviction: { evicteeId: first.id, evictionMessage: 'First exit' },
+        doubleEviction: {
+          ...run.doubleEviction!,
+          weekActive: true,
+          pendingSecondEviction: { evicteeId: second.id, evictionMessage: 'Second exit' },
+        },
+      })
+    )
+    store.dispatch(finalizePendingEviction(first.id))
+    store.dispatch(finalizePendingEviction(second.id))
+    let game = store.getState().game
+    expect(game.modeSpecific?.kind).toBe('survival')
+    if (game.modeSpecific?.kind !== 'survival') throw new Error('Expected Survival')
+    expect(game.modeSpecific.replacementPending?.outgoingPlayerSnapshot.id).toBe(first.id)
+    expect(
+      game.modeSpecific.replacementQueue?.map((entry) => entry.outgoingPlayerSnapshot.id)
+    ).toEqual([second.id])
+
+    store.dispatch(revealSurvivorReplacement())
+    game = structuredClone(store.getState().game)
+    store = makeStore()
+    store.dispatch(hydrateGame(game))
+    store.dispatch(clearSurvivorReplacementTransition())
+    store.dispatch(revealSurvivorReplacement())
+    game = store.getState().game
+    if (game.modeSpecific?.kind !== 'survival') throw new Error('Expected Survival')
+    expect(game.modeSpecific.totalRoboContestantsEvicted).toBe(2)
+    expect(game.modeSpecific.replacementPending).toBeNull()
+    expect(game.modeSpecific.replacementQueue).toEqual([])
+    expect(game.players).toHaveLength(8)
+    expect(new Set(game.players.map((player) => player.id)).size).toBe(8)
+    expect([...game.players.map((player) => player.survivorSlot)].sort()).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7,
+    ])
+    expect(game.players.some((player) => player.id === first.id || player.id === second.id)).toBe(
+      false
+    )
+  })
+
+  it('repairs duplicate slots in old saves without removing living contestants', () => {
+    const store = makeStore()
+    const run = createSurvivorRun()
+    run.players[1].survivorSlot = 7
+    run.players[2].survivorSlot = 7
+    run.players[1].status = 'loh'
+    run.lohId = run.players[1].id
+    const ids = run.players.map((player) => player.id)
+    store.dispatch(hydrateGame(run))
+    const game = store.getState().game
+    expect(game.players.map((player) => player.id)).toEqual(ids)
+    expect(game.players[1].status).toBe('loh')
+    expect(game.lohId).toBe(run.lohId)
+    expect([...game.players.map((player) => player.survivorSlot)].sort()).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7,
+    ])
+  })
+
+  it('replaces the departing ID even when an old save has duplicate slots', () => {
+    const run = createSurvivorRun()
+    const innocent = run.players[1]
+    const outgoing = run.players[2]
+    innocent.survivorSlot = 7
+    outgoing.survivorSlot = 7
+    outgoing.status = 'evicted'
+    if (run.modeSpecific?.kind !== 'survival') throw new Error('Expected Survival')
+    const incoming = { ...outgoing, id: 'specific-replacement', status: 'active' as const }
+    run.modeSpecific.replacementPending = {
+      mode: 'survival',
+      outgoingPlayerSnapshot: outgoing,
+      incomingPlayer: incoming,
+      slot: 7,
+      queuedAt: 1,
+    }
+    const game = gameReducer(run, revealSurvivorReplacement())
+    expect(game.players.some((player) => player.id === innocent.id)).toBe(true)
+    expect(game.players.some((player) => player.id === outgoing.id)).toBe(false)
+    expect(game.players.some((player) => player.id === incoming.id)).toBe(true)
+  })
+
   it('holds the evicted tile until Play reveals the replacement', () => {
     const store = makeStore()
     const survivorRun = createSurvivorRun()

@@ -1,5 +1,6 @@
+import { startHostedMinigame } from './helpers/startHostedMinigame';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import gameReducer from '../src/store/gameSlice';
@@ -47,9 +48,7 @@ describe('MinigameHost — Grid of Luck routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('grid-of-luck-game')).toBeTruthy();
     expect(screen.queryByTestId('legacy-wrapper')).toBeNull();

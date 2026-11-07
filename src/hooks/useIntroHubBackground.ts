@@ -1,22 +1,45 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 
 interface IntroHubBackgroundState {
-  url: string | null;
-  ready: boolean;
+  url: string | null
+  ready: boolean
 }
 
 interface ValidationState {
-  resolvedFor: string | null;
-  url: string | null;
+  resolvedFor: string | null
+  url: string | null
 }
+
+const REMOTE_IMAGE_VALIDATION_TIMEOUT_MS = 8_000
 
 function loadImage(url: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const image = new Image();
-    image.onload = () => resolve(true);
-    image.onerror = () => resolve(false);
-    image.src = url;
-  });
+    const image = new Image()
+    let settled = false
+    const finish = (loaded: boolean) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timer)
+      image.onload = null
+      image.onerror = null
+      resolve(loaded)
+    }
+    const timer = window.setTimeout(() => finish(false), REMOTE_IMAGE_VALIDATION_TIMEOUT_MS)
+
+    image.onload = () => {
+      if (typeof image.decode !== 'function') {
+        finish(true)
+        return
+      }
+
+      void image.decode().then(
+        () => finish(true),
+        () => finish(image.complete && image.naturalWidth > 0)
+      )
+    }
+    image.onerror = () => finish(false)
+    image.src = url
+  })
 }
 
 /**
@@ -31,47 +54,50 @@ function loadImage(url: string): Promise<boolean> {
  */
 export default function useIntroHubBackground(
   preferredUrl: string | null,
-  fallbackUrl: string | null,
+  fallbackUrl: string | null
 ): IntroHubBackgroundState {
-  const isBypassed = preferredUrl == null || preferredUrl === fallbackUrl;
-  const [validation, setValidation] = useState<ValidationState>({ resolvedFor: null, url: null });
+  const isBypassed = preferredUrl == null || preferredUrl === fallbackUrl
+  const [validation, setValidation] = useState<ValidationState>({ resolvedFor: null, url: null })
 
   useEffect(() => {
     if (isBypassed || !preferredUrl) {
-      return;
+      return
     }
 
-    let cancelled = false;
+    let cancelled = false
 
     void loadImage(preferredUrl).then((ok) => {
-      if (cancelled) return;
+      if (cancelled) return
 
       if (ok) {
-        setValidation({ resolvedFor: preferredUrl, url: preferredUrl });
-        return;
+        setValidation({ resolvedFor: preferredUrl, url: preferredUrl })
+        return
       }
 
       if (import.meta.env.DEV) {
-        console.warn('[HomeHub] Preferred intro background failed to load; using fallback', preferredUrl);
+        console.warn(
+          '[HomeHub] Preferred intro background failed to load; using fallback',
+          preferredUrl
+        )
       }
 
-      setValidation({ resolvedFor: preferredUrl, url: fallbackUrl ?? preferredUrl });
-    });
+      setValidation({ resolvedFor: preferredUrl, url: fallbackUrl ?? preferredUrl })
+    })
 
     return () => {
-      cancelled = true;
-    };
-  }, [fallbackUrl, isBypassed, preferredUrl]);
+      cancelled = true
+    }
+  }, [fallbackUrl, isBypassed, preferredUrl])
 
   if (isBypassed) {
     return {
       url: fallbackUrl ?? preferredUrl,
       ready: true,
-    };
+    }
   }
 
   return {
     url: validation.resolvedFor === preferredUrl ? validation.url : (fallbackUrl ?? preferredUrl),
     ready: validation.resolvedFor === preferredUrl,
-  };
+  }
 }

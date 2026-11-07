@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { installSafetyFixture } from '../../safety/__tests__/safetyFixture'
 import {
   getProfileRealityAgeEligibility,
   getRealityAgeEligibility,
@@ -31,6 +32,20 @@ describe('Reality Mode presets', () => {
         ],
       })
     ).toBe('unknown')
+  })
+
+  it('does not let an older profile lift a teen admission restriction', () => {
+    const profile = {
+      activeProfileId: 'adult',
+      isGuest: false,
+      profiles: [
+        { id: 'adult', name: 'Player', avatar: '', createdAt: '2026-01-01', bio: { age: '32' } },
+      ],
+    }
+    installSafetyFixture(15)
+    expect(getProfileRealityAgeEligibility(profile)).toBe('unknown')
+    installSafetyFixture(28)
+    expect(getProfileRealityAgeEligibility(profile)).toBe('adult')
   })
 
   it('clamps a saved 18+ preset when adult eligibility is absent', () => {

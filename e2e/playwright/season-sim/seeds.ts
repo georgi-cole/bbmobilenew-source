@@ -13,3 +13,15 @@ export function seedsForRepeat(base: SimulationSeeds, repeatIndex: number): Simu
     actor: (base.actor + Math.imul(repeatIndex, 0xc2b2ae35)) >>> 0,
   }
 }
+
+/** Translate the browser fixture's field names before deriving repeat seeds. */
+export function fixtureSeedsForRepeat(
+  fixture: { rosterSeed: number; seasonSeed: number },
+  actorSeed: number,
+  repeatIndex: number
+): SimulationSeeds {
+  return seedsForRepeat(
+    { roster: fixture.rosterSeed, season: fixture.seasonSeed, actor: actorSeed },
+    repeatIndex
+  )
+}

@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { tetrisInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Fit Me In" scored tournament.
  *
@@ -30,20 +32,6 @@ export interface TetrisState {
   winnerId: string | null
   lastPlaceId: string | null
   outcomeResolved: boolean
-}
-
-const initialState: TetrisState = {
-  phase: 'idle',
-  competitionType: 'LOH',
-  seed: 0,
-  participants: [],
-  humanPlayerId: null,
-  aiScores: {},
-  humanScore: null,
-  finalScores: {},
-  winnerId: null,
-  lastPlaceId: null,
-  outcomeResolved: false,
 }
 
 function deriveWinnerAndLastPlace(
@@ -150,4 +138,4 @@ export const {
   resetTetris,
 } = tetrisSlice.actions
 
-export default tetrisSlice.reducer
+export default registerMinigameReducer('tetris', tetrisSlice.reducer)

@@ -28,8 +28,9 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
     .click()
   await page.getByRole('button', { name: 'Select or Create a Profile' }).click()
   await page.getByRole('button', { name: /Create New Profile/ }).click()
+  await page.getByLabel('Player age').fill('28')
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await page.getByPlaceholder('Enter display name').fill(playerName)
-  await page.getByLabel('Age').fill('28')
   await page.getByLabel('Sex (Reality storylines)').selectOption('Male')
   await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
   const activeProfileId = (await readAppState(page)).profiles.activeProfileId
@@ -48,6 +49,8 @@ async function startClassicSeason(page: Page): Promise<void> {
   const playMenu = page.getByRole('navigation', { name: 'Play menu' })
   await expect(playMenu).toBeVisible()
   await playMenu.getByRole('button', { name: 'Classic', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
+  await page.getByRole('button', { name: 'Start Season', exact: true }).click()
   await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible({
     timeout: SCREEN_TIMEOUT_MS,
   })

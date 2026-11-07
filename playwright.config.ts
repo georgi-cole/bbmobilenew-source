@@ -21,6 +21,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: process.env.CI ? 2 : 1,
   retries: 0,
+  grepInvert: process.env.SEASON_SIM_EXTENDED_MODE === '1' ? undefined : /@extended-mode/,
   reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
     baseURL,

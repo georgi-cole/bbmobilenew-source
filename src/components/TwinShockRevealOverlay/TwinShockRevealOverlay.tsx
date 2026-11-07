@@ -1,6 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { TwinShockRevealAnimation } from '../../types';
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership';
 import './TwinShockRevealOverlay.css';
 
 type TwinShockRevealOverlayProps = {
@@ -22,15 +26,31 @@ export default function TwinShockRevealOverlay({
   onDone,
 }: TwinShockRevealOverlayProps) {
   const targetId = reveal.type === 'combined' ? reveal.playerId : reveal.incomingPlayerId;
+  const { isOwner, hasOwner } = usePresentationOwner(
+    'twin-shock',
+    PRESENTATION_PRIORITY.twinShock,
+  );
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [stage, setStage] = useState<RevealStage>('intro');
+  const completedRef = useRef(false);
+
+  const complete = useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    onDone();
+  }, [onDone]);
+
+  useEffect(() => {
+    if (hasOwner && !isOwner) complete();
+  }, [complete, hasOwner, isOwner]);
 
   useLayoutEffect(() => {
+    if (!isOwner) return undefined;
     let doneFallbackId: number | null = null;
     const frameId = window.requestAnimationFrame(() => {
       const measured = getTileRect(targetId);
       if (!measured) {
-        doneFallbackId = window.setTimeout(onDone, 100);
+        doneFallbackId = window.setTimeout(complete, 100);
         return;
       }
       setRect(measured);
@@ -40,9 +60,10 @@ export default function TwinShockRevealOverlay({
       window.cancelAnimationFrame(frameId);
       if (doneFallbackId !== null) window.clearTimeout(doneFallbackId);
     };
-  }, [getTileRect, onDone, targetId]);
+  }, [complete, getTileRect, isOwner, targetId]);
 
   useLayoutEffect(() => {
+    if (!isOwner) return undefined;
     const tile = getTileElement(targetId);
     if (!tile) return undefined;
 
@@ -57,17 +78,17 @@ export default function TwinShockRevealOverlay({
       tile.style.visibility = previousVisibility;
       tile.style.transition = previousTransition;
     };
-  }, [targetId]);
+  }, [isOwner, targetId]);
 
   useEffect(() => {
-    if (stage !== 'settled') return;
+    if (!isOwner || stage !== 'settled') return;
     const tile = getTileElement(targetId);
     if (!tile) return;
 
     tile.style.transition = 'opacity 420ms ease';
     tile.style.visibility = 'visible';
     tile.style.opacity = '1';
-  }, [stage, targetId]);
+  }, [isOwner, stage, targetId]);
 
   const timings = useMemo(
     () => (
@@ -79,19 +100,20 @@ export default function TwinShockRevealOverlay({
   );
 
   useEffect(() => {
+    if (!isOwner) return undefined;
     if (!rect) return undefined;
     const transformId = window.setTimeout(() => setStage('transform'), timings.transformAt);
     const settledId = window.setTimeout(() => setStage('settled'), timings.settledAt);
     const doneId = window.setTimeout(() => {
       setStage('done');
-      onDone();
+      complete();
     }, timings.doneAt);
     return () => {
       window.clearTimeout(transformId);
       window.clearTimeout(settledId);
       window.clearTimeout(doneId);
     };
-  }, [onDone, rect, timings]);
+  }, [complete, isOwner, rect, timings]);
 
   const display = useMemo(() => {
     if (reveal.type === 'combined') {
@@ -116,7 +138,7 @@ export default function TwinShockRevealOverlay({
   const visibleAvatar = showingIncomingAvatar ? display.afterAvatar : display.beforeAvatar;
   const visibleName = showingIncomingAvatar ? display.afterName : display.beforeName;
 
-  if (!rect || stage === 'done') return null;
+  if (!isOwner || !rect || stage === 'done') return null;
 
   const style = {
     '--twin-shock-left': `${rect.left}px`,

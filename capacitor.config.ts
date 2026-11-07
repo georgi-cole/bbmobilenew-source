@@ -29,6 +29,7 @@ const config: CapacitorConfig = {
     SystemBars: {
       style: 'DARK',
       hidden: false,
+      animation: 'NONE',
       insetsHandling: 'css',
     },
   },

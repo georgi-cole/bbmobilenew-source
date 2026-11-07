@@ -97,7 +97,7 @@ The six configured projects are desktop Chromium at 1366×768, Pixel 7 mobile Ch
 - **Severity:** Medium, potentially High if a season supplies an unsupported field.
 - **Minigame/screen:** Active registry entries still need reviewed participant bounds; Mystic Chamber currently declares 2–5 players.
 - **Viewport/browser:** All.
-- **Reproduction:** Read the active registry through `tests/helpers/minigameQualityMatrix.ts`. Most entries fall back to minimum 1 and no maximum; the lab separately constrains previews to 2–12.
+- **Reproduction:** Read the active registry through `tests/helpers/minigameQualityMatrix.ts`. Most entries fall back to minimum 1 and no maximum; the lab separately constrains previews to 2–16.
 - **Expected player experience:** The host schedules only a supported number of players and explains any qualification/cutoff before play.
 - **Observed experience:** Registry metadata cannot currently reject an unsupported field or document the intended maximum. The generic fallback may not match a component's actual geometry or rules.
 - **Evidence:** The executable matrix and the shared-gap note in `docs/minigame-test-matrix.md`.

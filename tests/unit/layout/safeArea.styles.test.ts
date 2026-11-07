@@ -43,7 +43,7 @@ describe('safe-area layout styles', () => {
     )
   })
 
-  it('lets bottom nav and dock stay parent-relative without raw child env() padding', () => {
+  it('keeps the normal dock parent-relative and above the measured gesture safe area', () => {
     const bottomNavCss = normalizeCss(
       readFileSync(resolve(process.cwd(), 'src/components/GameBottomNav/GameBottomNav.css'), 'utf8')
     )
@@ -63,9 +63,11 @@ describe('safe-area layout styles', () => {
     expect(bottomNavCss).toContain('padding-bottom: var(--safe-bottom);')
     expect(bottomNavCss).not.toContain('env(safe-area-inset-bottom')
     expect(dockCss).toContain('.game-control-dock { position: absolute;')
-    expect(dockCss).toContain('bottom: var(--game-action-dock-gap, 8px);')
-    expect(dockCss).not.toContain('position: fixed;')
-    expect(dockCss).not.toContain('env(safe-area-inset-bottom')
+    const dockBase = dockCss.match(/\.game-control-dock \{([^}]+)\}/)?.[1] ?? ''
+    expect(dockBase).toContain(
+      'bottom: calc( var(--game-safe-bottom, var(--safe-bottom, env(safe-area-inset-bottom, 0px))) + var(--game-action-dock-gap, 8px) );'
+    )
+    expect(dockBase).not.toContain('position: fixed;')
     expect(gameScreenCss).toContain('.game-screen:has(.game-control-dock)')
     expect(gameScreenCss).toContain('html.is-capacitor-ios .game-screen { padding-top: 0; }')
     expect(gameScreenCss).toContain(
@@ -132,11 +134,11 @@ describe('safe-area layout styles', () => {
       readFileSync(resolve(process.cwd(), 'src/screens/HomeHub/HomeHub.css'), 'utf8')
     )
     const frameIndex = homeHubTsx.indexOf('className="homehub-frame"')
-    const bgIndex = homeHubTsx.indexOf('className="homehub-intro-bg"')
+    const bgIndex = homeHubTsx.indexOf('className={`homehub-intro-bg')
     const assetLayerIndex = homeHubTsx.indexOf('<HomeHubAssetLayer')
 
     expect(homeHubTsx).not.toContain("body.classList.add('homehub-full-bleed-active')")
-    expect(homeHubTsx).toContain('className="homehub-intro-bg"')
+    expect(homeHubTsx).toContain('className={`homehub-intro-bg')
     expect(homeHubTsx).toContain('className="homehub-remote-overlay"')
     expect(bgIndex).toBeGreaterThan(frameIndex)
     expect(assetLayerIndex).toBeGreaterThan(bgIndex)
@@ -167,8 +169,8 @@ describe('safe-area layout styles', () => {
       'utf8'
     )
 
-    expect(useGameModeTs).toContain('SystemBars.hide({ bar: SystemBarType.StatusBar })')
-    expect(useGameModeTs).toContain("Capacitor.getPlatform() === 'android'")
+    expect(useGameModeTs).toContain('syncNativeGameDisplay')
+    expect(useGameModeTs).toContain('Capacitor.isNativePlatform()')
     expect(useGameModeTs).toContain('measured CSS safe area remains the fallback')
     expect(useGameModeTs).not.toContain('setOverlaysWebView')
     expect(capacitorConfigTs).toContain("contentInset: 'never'")

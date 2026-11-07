@@ -1226,6 +1226,17 @@ export default function TiltLabyrinthComp({
     return (
       <MinigameCompleteWrapper
         className="tilt-labyrinth-results"
+        result={{
+          rawValue: continueValue,
+          partial: false,
+          completion: {
+            rawValue: continueValue,
+            rawResults: labState.finalScores,
+            authoritativeWinnerId: labState.winnerId,
+            authoritativeLastPlaceId: labState.lastPlaceId,
+            authoritativeRankedIds: leaderboard.map((entry) => entry.id),
+          },
+        }}
         onContinue={() =>
           onComplete({
             rawValue: continueValue,

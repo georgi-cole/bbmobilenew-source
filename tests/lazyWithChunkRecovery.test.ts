@@ -22,4 +22,15 @@ describe('lazy route chunk recovery', () => {
 
     expect(loader).toHaveBeenCalledTimes(1)
   })
+
+  it('can retry preparation after a transient loader failure', async () => {
+    const loader = vi
+      .fn<() => Promise<{ default: () => null }>>()
+      .mockRejectedValueOnce(new Error('Temporarily unavailable'))
+      .mockResolvedValue({ default: () => null })
+    const component = lazyWithChunkRecovery(loader)
+    await expect(component.preload()).rejects.toThrow('Temporarily unavailable')
+    await expect(component.preload()).resolves.toBeUndefined()
+    expect(loader).toHaveBeenCalledTimes(2)
+  })
 })

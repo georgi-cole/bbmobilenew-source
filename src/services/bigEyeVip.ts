@@ -1,4 +1,6 @@
 import type { BigEyeHistoryTurn, BigEyeWorldContext } from './bigBrother'
+import { canUseOptionalFeature, assertOnlineServicesAllowed } from '../safety/playerSafety'
+import { optionalPlayerFetch } from '../safety/optionalRequest'
 
 const INSTALLATION_ID_KEY = 'bbmobilenew:vip-installation-id:v1'
 const VIP_TIMEOUT_MS = 24_000
@@ -59,7 +61,7 @@ export function getBigEyeVipApiUrl(): string {
 }
 
 export function isBigEyeVipConfigured(): boolean {
-  return getBigEyeVipApiUrl().length > 0
+  return getBigEyeVipApiUrl().length > 0 && canUseOptionalFeature('onlineServices')
 }
 
 function createInstallationId(): string {
@@ -71,6 +73,7 @@ function createInstallationId(): string {
 }
 
 export function getBigEyeVipInstallationId(): string {
+  assertOnlineServicesAllowed()
   try {
     const existing = localStorage.getItem(INSTALLATION_ID_KEY)?.trim()
     if (existing) return existing
@@ -89,10 +92,11 @@ function vipUrl(path: string): string {
 }
 
 async function vipFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  assertOnlineServicesAllowed()
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), VIP_TIMEOUT_MS)
   try {
-    return await fetch(vipUrl(path), {
+    return await optionalPlayerFetch('onlineServices', vipUrl(path), {
       ...init,
       headers: {
         'X-Big-Eye-Install-Id': getBigEyeVipInstallationId(),

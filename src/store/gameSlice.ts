@@ -1,4 +1,10 @@
 import { createSlice, createSelector, type PayloadAction } from '@reduxjs/toolkit'
+import {
+  contestantFromPlayer,
+  contestantFromProfile,
+  getLaunchContestant,
+  type SeasonContestant,
+} from '../appearance/seasonContestant'
 import type { RootState, AppDispatch } from './store'
 import type {
   DemocraciaResultDisplay,
@@ -48,6 +54,8 @@ import { loadActiveProfile, archiveKeyForActiveProfile, loadProfilesState } from
 import { loadSettings } from './settingsSlice'
 import { getConfiguredCastSize, DEFAULT_ROSTER_SIZE } from './settingsHelpers'
 import { hasCachedStoreAccess } from '../vip/vipStorage'
+import { hasEffectiveStoreEntitlement } from '../vip/effectiveEntitlements'
+import { scoreQuickTapVipAiOnly } from '../minigames/quickTapRace/vip/quickTapVipLogic'
 import { canAccessSpecialSettings } from '../utils/debugMode'
 import { pickPhrase, NOMINEE_PLEA_TEMPLATES } from '../utils/juryUtils'
 import {
@@ -586,8 +594,7 @@ export function resolveProfileSex(
   if (canCause === canBecome) return undefined
   return canCause ? 'Male' : 'Female'
 }
-function buildUserPlayer(): Player {
-  const profile = loadActiveProfile()
+function buildUserPlayer(profile: SeasonContestant): Player {
   const parsedAge = resolveProfileAge(profile.bio?.age)
   const resolvedSex = resolveProfileSex(profile.bio?.sex, profile.bio?.reproductiveProfile)
   return {
@@ -642,6 +649,7 @@ function pickHouseguests(rosterSize = GAME_ROSTER_SIZE, twinShockConsumed = fals
 }
 
 function buildInitialPlayers(options: {
+  contestant: SeasonContestant
   twinShockConsumed: boolean
   seasonArchives: SeasonArchive[]
   season: number
@@ -665,7 +673,7 @@ function buildInitialPlayers(options: {
     const replaceIndex = options.seed % aiPlayers.length
     aiPlayers[replaceIndex] = buildBellaPoolEntry() as Player
   }
-  return [buildUserPlayer(), ...aiPlayers]
+  return [buildUserPlayer(options.contestant), ...aiPlayers]
 }
 
 function buildInitialCompetitionSeasonState(
@@ -710,11 +718,15 @@ export function createInitialGameState(options?: {
   // sessions always start at Season 1 regardless of any logged-in user data.
   const profilesState = loadProfilesState()
   const isGuest = profilesState.isGuest
-  const activeBellaProgress =
+  const activeStoredProfile =
     !isGuest && profilesState.activeProfileId
       ? profilesState.profiles.find((profile) => profile.id === profilesState.activeProfileId)
-          ?.bellaProgress
       : undefined
+  const activeBellaProgress = activeStoredProfile?.bellaProgress
+  const seasonContestant =
+    getLaunchContestant() ??
+    activeStoredProfile?.contestantDefaults ??
+    contestantFromProfile(activeStoredProfile ?? loadActiveProfile())
   const seasonArchives: SeasonArchive[] = isGuest
     ? []
     : (options?.seasonArchives ?? loadSeasonArchives(archiveKeyForActiveProfile()) ?? [])
@@ -762,6 +774,7 @@ export function createInitialGameState(options?: {
     initialVoxPopuli.activatedWeek = 1
   }
   const freshPlayers = buildInitialPlayers({
+    contestant: seasonContestant,
     twinShockConsumed,
     seasonArchives,
     season,
@@ -898,6 +911,7 @@ export function createInitialGameState(options?: {
       : { status: 'none' as const }
   return {
     gameId: crypto.randomUUID(),
+    seasonContestant,
     expansionMode: null,
     season,
     week: 1,
@@ -1807,6 +1821,15 @@ function resolvePairAwarePublicSave(rootState: RootState) {
   return resolvePublicSaveNominee({
     nomineeIds: game.nomineeIds,
     profiles: adjustedProfiles,
+    nomineeGroups: game.cupidArrow?.pairs.map((pair) => pair.memberIds),
+    context: {
+      seed: game.seed,
+      week: game.week,
+      feed: rootState.publicOpinion?.feed,
+      nominationCounts: Object.fromEntries(
+        game.players.map((player) => [player.id, player.stats?.timesNominated ?? 0])
+      ),
+    },
   })
 }
 
@@ -4876,7 +4899,7 @@ function applyLohWinner(state: GameState, winnerId: string, source?: string) {
     pushEvent(
       state,
       finalFour
-        ? `${winner?.name ?? winnerId} wins the Final 4 competition, but there is no immunity today. Last place will begin on the block, and the other three hubmates will each cast one secret nomination vote.`
+        ? `${winner?.name ?? winnerId} wins the Final 4 competition, but there is no immunity today. Last place will begin on the block, and all four hubmates cast one secret nomination vote each.`
         : `${winner?.name ?? winnerId} won today's competition and is immune from nomination and the audience vote.`,
       'game',
       finalFour
@@ -4885,7 +4908,7 @@ function applyLohWinner(state: GameState, winnerId: string, source?: string) {
             broadcastPriority: 'critical',
             announcementTitle: `${winner?.name ?? winnerId} Wins the Final 4 Competition`,
             announcementSubtitle:
-              'There is no immunity today. Last place begins on the block, and the other three hubmates will each cast one secret vote.',
+              'There is no immunity today. Last place begins on the block, and all four hubmates cast one secret nomination vote each.',
           }
         : undefined
     )
@@ -7234,6 +7257,35 @@ const gameSlice = createSlice({
       if (!tied.includes(nomineeId)) return
 
       const evictee = state.players.find((p) => p.id === nomineeId)
+      if (isCupidArrowActive(state)) {
+        const decisionMaker = getCupidHumanCoholder(state, state.lohId)
+        const roleIds = getCupidRoleIds(state, state.lohId)
+        const evicteeIds = getCupidRoleIds(state, nomineeId)
+        if (
+          !evictee ||
+          !decisionMaker ||
+          roleIds.some((id) => state.nomineeIds.includes(id)) ||
+          evicteeIds.length === 0 ||
+          evicteeIds.some(
+            (id) =>
+              !state.nomineeIds.includes(id) || !canPlayerTargetPlayer(state, decisionMaker.id, id)
+          )
+        )
+          return
+
+        const names = formatNameList(
+          evicteeIds.map((id) => state.players.find((player) => player.id === id)!.name)
+        )
+        state.awaitingTieBreak = false
+        state.tiedNomineeIds = null
+        state.votes = {}
+        state.voteResults = null
+        state.pendingEviction = {
+          evicteeId: nomineeId,
+          evictionMessage: `${decisionMaker.name} breaks the tie. ${names}, Cupid's Arrow means you are eliminated together. 💔`,
+        }
+        return
+      }
       const lohPlayer = state.players.find((p) => p.id === state.lohId)
       if (!evictee || !lohPlayer?.isUser) return
       if (state.coLohIds && state.coLohIds.length >= 2) return
@@ -8103,6 +8155,30 @@ const gameSlice = createSlice({
       }
     },
 
+    beginBattleBackAttempt(state, action: PayloadAction<number>) {
+      const bb = state.battleBack
+      if (!bb?.active || !bb.competitionActive || (bb.attemptIndex ?? 0) !== action.payload) return
+      if (bb.attemptCheckpoint && 'result' in bb.attemptCheckpoint) return
+      bb.attemptCheckpoint = { number: action.payload, status: 'playing' }
+    },
+
+    checkpointBattleBackResult(
+      state,
+      action: PayloadAction<{
+        number: number
+        result: import('../minigames/competitionResult').CompetitionResult
+      }>
+    ) {
+      const bb = state.battleBack
+      if (!bb?.active || (bb.attemptIndex ?? 0) !== action.payload.number) return
+      if (bb.attemptCheckpoint && 'result' in bb.attemptCheckpoint) return
+      bb.attemptCheckpoint = {
+        number: action.payload.number,
+        status: 'finished',
+        result: action.payload.result,
+      }
+    },
+
     offerBattleBackRetry(state, action: PayloadAction<string>) {
       const bb = state.battleBack
       if (!bb?.active) return
@@ -8122,6 +8198,7 @@ const gameSlice = createSlice({
       if (retryCount >= retryLimit) return
       bb.retryCount = retryCount + 1
       bb.attemptIndex = (bb.attemptIndex ?? 0) + 1
+      bb.attemptCheckpoint = { number: bb.attemptIndex, status: 'ready' }
       bb.pendingRetryWinnerId = null
     },
 
@@ -8168,6 +8245,7 @@ const gameSlice = createSlice({
 
       bb.active = false
       bb.used = true
+      delete bb.attemptCheckpoint
       bb.winnerId = winnerId
       bb.pendingRetryWinnerId = null
       bb.returnAnimationPending = true
@@ -8567,6 +8645,10 @@ const gameSlice = createSlice({
 
         appendNominee(state, rep1.id)
         appendNominee(state, rep2.id)
+        state.replacementNomineeIds = [
+          ...new Set([...(state.replacementNomineeIds ?? []), rep1.id, rep2.id]),
+        ]
+        state.replacementNeeded = false
         state.specialVeto.awaitingCoupReplacement2 = false
         state.specialVeto.coupReplacement1Id = null
         pushDetoxEvent(
@@ -9078,6 +9160,7 @@ const gameSlice = createSlice({
       state.voxPopuli.winnerId = null
       state.tvFeed = []
       state.phase = 'final3'
+      state.status = 'active'
       pushEvent(
         state,
         `Final 3! ${formatNameList(finalists.map((player) => player.name))} remain. The final immunity journey begins now.`,
@@ -9122,6 +9205,7 @@ const gameSlice = createSlice({
       state.evictionSplashId = null
       state.evictionOverlayPlayerId = null
       state.phase = 'final3'
+      state.status = 'active'
       // TvZone's phase broadcast is the single, prominent Final Three
       // announcement. Do not append a near-identical feed event underneath
       // it, which otherwise reads as the same news twice.
@@ -9174,6 +9258,7 @@ const gameSlice = createSlice({
       state.weekendInterlude = null
       state.finaleWeekendCompleted = false
       state.phase = 'final4_eviction'
+      state.status = 'active'
     },
     /** Force entry into Final 4 eviction phase (debug only). */
     forcePhase(state, action: PayloadAction<Phase>) {
@@ -9435,6 +9520,8 @@ const gameSlice = createSlice({
         reproductiveProfile?: Player['reproductiveProfile'] | null
       }>
     ) {
+      // A running season owns its identity, including migrated legacy saves.
+      if (state.seasonContestant) return
       const human = state.players.find((player) => player.isUser)
       if (!human) return
       human.name = action.payload.name.trim() || human.name
@@ -9645,12 +9732,13 @@ const gameSlice = createSlice({
      * seasonFinale field is always preserved as-is from the snapshot.
      */
     hydrateGame(state, action: PayloadAction<GameState>) {
-      const profileAge = resolveProfileAge(loadActiveProfile().bio?.age)
+      const human = action.payload.players.find((player) => player.isUser)
+      const seasonContestant =
+        action.payload.seasonContestant ?? (human ? contestantFromPlayer(human) : undefined)
       const hydrated: GameState = {
         ...action.payload,
-        players: action.payload.players.map((player) =>
-          player.isUser && profileAge !== undefined ? { ...player, age: profileAge } : player
-        ),
+        seasonContestant,
+        players: action.payload.players,
         gameId: action.payload.gameId ?? crypto.randomUUID(),
         hasSeenConfessionalSpotlight: action.payload.hasSeenConfessionalSpotlight ?? false,
         status: action.payload.status ?? 'active',
@@ -9775,13 +9863,12 @@ const gameSlice = createSlice({
       const pending = state.modeSpecific.replacementPending
       if (!pending) return
       const playerIndex = state.players.findIndex(
-        (player) =>
-          player.survivorSlot === pending.slot || player.id === pending.outgoingPlayerSnapshot.id
+        (player) => player.id === pending.outgoingPlayerSnapshot.id
       )
       if (playerIndex < 0) return
       state.players[playerIndex] = pending.incomingPlayer
       state.modeSpecific.totalRoboContestantsEvicted += 1
-      state.modeSpecific.replacementPending = null
+      state.modeSpecific.replacementPending = state.modeSpecific.replacementQueue?.shift() ?? null
       state.modeSpecific.replacementTransition = {
         mode: 'survival',
         outgoingPlayerSnapshot: pending.outgoingPlayerSnapshot,
@@ -13551,6 +13638,8 @@ export const {
   consumeBattleBackReturn,
   dismissBattleBack,
   openBattleBackCompetition,
+  beginBattleBackAttempt,
+  checkpointBattleBackResult,
   offerBattleBackRetry,
   acceptBattleBackRetry,
   clearBattleBackRetryOffer,
@@ -14553,9 +14642,13 @@ export const simulateImmediateEliminationCycle =
 export const startMinigame =
   (opts: { key: string; participants: string[]; seed: number; options: { timeLimit: number } }) =>
   (dispatch: AppDispatch, getState: () => RootState): MinigameResult | undefined => {
-    const state = getState().game
+    const rootState = getState()
+    const state = rootState.game
     const model = getMinigameAiModel(opts.key)
     const isHybrid = isHybridScoredGame(opts.key)
+    const isVipQuickTap =
+      (opts.key === 'quickTap' || opts.key === 'quickTapSeasons') &&
+      hasEffectiveStoreEntitlement(rootState.vip, 'premiumChallenges')
 
     // Generate a fresh per-invocation seed so every new game launch / restart /
     // reload gets a different booster sequence and AI variation, even when the
@@ -14588,7 +14681,23 @@ export const startMinigame =
       })
     }
 
-    if (!isHybrid || !hasHuman) {
+    if (isVipQuickTap && !hasHuman) {
+      const profiles = Object.fromEntries(
+        opts.participants.map((id) => {
+          const player = state.players.find((candidate) => candidate.id === id)
+          return [id, player?.competitionProfile ?? getDefaultCompetitionProfile()]
+        })
+      )
+      Object.assign(
+        aiScores,
+        scoreQuickTapVipAiOnly({
+          seed: invocationSeed,
+          participantIds: opts.participants,
+          profiles,
+          mode: opts.key === 'quickTapSeasons' ? 'seasons' : 'race',
+        })
+      )
+    } else if (!isVipQuickTap && (!isHybrid || !hasHuman)) {
       // Precompute for: (a) AI-only runs, (b) endurance/non-hybrid games,
       // (c) Quick Tap Race and Snake (isHybridScoredGame returns false for them).
       opts.participants.forEach((id, index) => {
@@ -14653,6 +14762,9 @@ export const startMinigame =
       options: opts.options,
       aiScores,
       competitionIntents,
+      ...(opts.key === 'quickTap' || opts.key === 'quickTapSeasons'
+        ? { quickTapVariant: isVipQuickTap ? ('vip' as const) : ('classic' as const) }
+        : {}),
       ...(isHybrid ? { hybridResolveOnComplete: true } : {}),
     }
     dispatch(launchMinigame(session))

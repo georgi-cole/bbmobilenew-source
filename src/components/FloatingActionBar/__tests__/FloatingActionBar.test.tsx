@@ -20,6 +20,7 @@ import type { ComponentProps } from 'react'
 import { MemoryRouter, useLocation } from 'react-router'
 import gameReducer, {
   advance,
+  dismissDemocraciaResultDisplay,
   continueWeekendFeature,
   returnFromWeekendTribunalStream,
   createInitialGameState,
@@ -444,7 +445,7 @@ describe('FloatingActionBar – social module availability', () => {
     expect(store.getState().social.incomingInboxOpen).toBe(true)
   })
 
-  it('keeps outgoing conversations and incoming vote pitches accessible during live vote', () => {
+  it('blocks new outgoing conversations but keeps incoming vote pitches accessible during live vote', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const store = makeStore(true, { phase: 'live_vote' })
     renderFAB(store)
@@ -454,9 +455,12 @@ describe('FloatingActionBar – social module availability', () => {
       screen.getByRole('button', { name: 'Incoming requests' }).click()
     })
 
-    expect(store.getState().social.panelOpen).toBe(true)
+    expect(store.getState().social.panelOpen).toBe(false)
     expect(store.getState().social.incomingInboxOpen).toBe(true)
-    expect(warnSpy).not.toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Outgoing social module did not open'),
+      expect.objectContaining({ phase: 'live_vote', moduleKind: 'outgoing' })
+    )
 
     warnSpy.mockRestore()
   })
@@ -592,6 +596,36 @@ describe('FloatingActionBar – layout', () => {
     expect(store.getState().game.phase).toBe('week_start')
   })
 
+  it('forwards repeated Battle Back announcement presses without advancing the season', () => {
+    const store = makeStore(true, {
+      phase: 'week_end',
+      week: 1,
+      battleBack: {
+        used: false,
+        active: true,
+        competitionActive: false,
+        weekDecided: 1,
+        candidates: [],
+        winnerId: null,
+      },
+    })
+    const onPlay = vi.fn()
+    window.addEventListener('ui:playPressed', onPlay)
+    try {
+      renderFAB(store)
+      const playButton = screen.getByRole('button', { name: 'Advance to next phase' })
+      act(() => {
+        playButton.click()
+        playButton.click()
+      })
+      expect(onPlay).toHaveBeenCalledTimes(2)
+      expect(store.getState().game.phase).toBe('week_end')
+      expect(store.getState().game.week).toBe(1)
+    } finally {
+      window.removeEventListener('ui:playPressed', onPlay)
+    }
+  })
+
   it('uses Play to reveal Democracia results without a TV card consuming the press', () => {
     const initial = makeStore().getState().game
     const players = initial.players.slice(0, 6).map((player, index) => ({
@@ -638,6 +672,49 @@ describe('FloatingActionBar – layout', () => {
     window.removeEventListener('ui:playPressed', consumePlay, { capture: true })
   })
 
+  it('allows Play to advance through a tied Democracia ballotage in the same phase', () => {
+    const initial = makeStore().getState().game
+    const players = initial.players.slice(0, 4).map((player) => ({
+      ...player,
+      isUser: false,
+      status: 'active' as const,
+    }))
+    const playerIds = players.map((player) => player.id)
+    const store = makeStore(true, {
+      phase: 'democracia_vote',
+      players,
+      publicModeEnabled: false,
+      democracia: {
+        ...initial.democracia!,
+        active: true,
+        round: 1,
+        candidateIds: playerIds.slice(0, 2),
+        eligibleVoterIds: playerIds,
+        votesByVoterId: {
+          [playerIds[2]]: playerIds[0],
+          [playerIds[3]]: playerIds[1],
+        },
+        awaitingHumanVote: false,
+        awaitingPublicBreaker: false,
+        resultDisplay: null,
+      },
+    })
+    renderFAB(store, '/game', {
+      onDemocraciaResultsDone: () => store.dispatch(dismissDemocraciaResultDisplay()),
+    })
+
+    const playButton = screen.getByTestId('game-primary-action')
+    act(() => playButton.click())
+    expect(store.getState().game.phase).toBe('democracia_vote')
+    expect(store.getState().game.democracia?.round).toBe(2)
+    expect(store.getState().game.democracia?.resultDisplay).not.toBeNull()
+
+    act(() => playButton.click())
+    expect(store.getState().game.democracia?.resultDisplay).toBeNull()
+
+    act(() => playButton.click())
+    expect(store.getState().game.phase).toBe('democracia_results')
+  })
   it('lets a blocking Faux TV card consume Play before advancing the reducer', () => {
     const store = makeStore(true, { phase: 'week_end', week: 1 })
     const consumePlay = (event: Event) => event.preventDefault()

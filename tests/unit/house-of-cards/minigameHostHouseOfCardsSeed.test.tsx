@@ -18,8 +18,9 @@
  *     seed unchanged.
  */
 
+import { startHostedMinigame } from '../../helpers/startHostedMinigame';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import gameReducer from '../../../src/store/gameSlice';
@@ -139,7 +140,7 @@ describe('MinigameHost — House of Cards seed isolation', () => {
       </Provider>,
     );
 
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('hoc-comp')).toBeTruthy();
     expect(capturedHouseOfCardsSeed).toBeUndefined();
@@ -159,7 +160,7 @@ describe('MinigameHost — House of Cards seed isolation', () => {
       </Provider>,
     );
 
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('hoc-comp')).toBeTruthy();
     expect(capturedHouseOfCardsSeed).toBeUndefined();
@@ -179,7 +180,7 @@ describe('MinigameHost — House of Cards seed isolation', () => {
       </Provider>,
     );
 
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('hoc-comp')).toBeTruthy();
     expect(capturedHouseOfCardsSeed).toBe(LAB_SEED);
@@ -200,7 +201,7 @@ describe('MinigameHost — House of Cards seed isolation', () => {
       </Provider>,
     );
 
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('cwgo-comp')).toBeTruthy();
     expect(capturedCwgoSeed).toBe(CHALLENGE_SEED);

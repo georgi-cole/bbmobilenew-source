@@ -1,10 +1,13 @@
 import { expect } from '@playwright/test'
+import type { PlayerStatus } from '../../../src/types'
 import { writeFile } from 'node:fs/promises'
 
 import { readAppState } from '../support/test'
 import type { CoverageLedger } from './coverage'
 import { buildSimulationEyeoleanSample } from './economyCalibration'
 import type {
+  ProgressionPerformanceCheckpoint,
+  SaveResumePerformanceCheckpoint,
   SeasonPerformanceCheckpoint,
   SimulationContext,
   SimulationFinding,
@@ -12,14 +15,17 @@ import type {
   TimelineEntry,
 } from './types'
 
-const activeStatus = new Set(['active', 'jury'])
 type StateSnapshot = Awaited<ReturnType<typeof readAppState>>
+
+export function isActiveGamePlayerStatus(status: PlayerStatus): boolean {
+  return status !== 'evicted' && status !== 'jury'
+}
 
 function gameDay(game: Awaited<ReturnType<typeof readAppState>>['game']): number {
   return game.modeSpecific?.kind === 'survival' ? game.modeSpecific.currentDay : game.week
 }
 
-function seasonOutcome(state: StateSnapshot, terminal: string): SimulationSeasonOutcome {
+export function seasonOutcome(state: StateSnapshot, terminal: string): SimulationSeasonOutcome {
   const { game } = state
   const human = game.players.find((player) => player.isUser)
   const humanId = human?.id ?? null
@@ -42,13 +48,15 @@ function seasonOutcome(state: StateSnapshot, terminal: string): SimulationSeason
     alliance.status !== 'DISSOLVED' &&
     alliance.memberIds.length >= 2 &&
     aiOnlyParticipants(alliance.memberIds)
-  const activePlayerCount = game.players.filter(
-    (player) => player.status !== 'evicted' && player.status !== 'jury'
+  const activePlayerCount = game.players.filter((player) =>
+    isActiveGamePlayerStatus(player.status)
   ).length
   const humanPlacement = human?.finalRank ?? human?.seasonPlacement ?? null
   const humanWon = Boolean(human && (human.isWinner || human.finalRank === 1))
   const humanIsActive = Boolean(human && human.status !== 'evicted' && human.status !== 'jury')
-  const seasonComplete = game.seasonFinale?.phase === 'seasonComplete' || game.status !== 'active'
+  const seasonComplete =
+    game.seasonFinale?.phase === 'seasonComplete' ||
+    (game.status != null && game.status !== 'active')
   const humanExited = human?.status === 'evicted' || human?.status === 'jury'
 
   return {
@@ -97,6 +105,8 @@ export class SeasonAuditor {
   readonly timeline: TimelineEntry[] = []
   readonly checkpoints: Array<{ name: string; phase: string; day: number }> = []
   readonly performanceCheckpoints: SeasonPerformanceCheckpoint[] = []
+  readonly saveResumePerformanceCheckpoints: SaveResumePerformanceCheckpoint[] = []
+  readonly progressionPerformanceCheckpoints: ProgressionPerformanceCheckpoint[] = []
   private lastPhase: string | null = null
   private lastWeek = 0
   private readonly announced = new Set<string>()
@@ -138,8 +148,31 @@ export class SeasonAuditor {
     this.performanceCheckpoints.push(checkpoint)
   }
 
+  recordSaveResumePerformanceCheckpoint(checkpoint: SaveResumePerformanceCheckpoint): void {
+    this.saveResumePerformanceCheckpoints.push(checkpoint)
+  }
+
+  async recordProgressionPerformanceCheckpoint(
+    checkpoint: ProgressionPerformanceCheckpoint,
+    state?: StateSnapshot
+  ): Promise<void> {
+    this.progressionPerformanceCheckpoints.push(checkpoint)
+    await this.writeProgress(
+      state ?? (await readAppState(this.context.page)),
+      `performance-checkpoint:day-${checkpoint.day}`
+    )
+  }
+
   /** Persist the currently executing UI step so long runs remain diagnosable. */
   async markProgress(lastAction: string, state?: StateSnapshot): Promise<void> {
+    if (
+      this.context.config.progressionPerformanceDays?.length &&
+      !lastAction.includes(':check-terminal') &&
+      !lastAction.startsWith('save-resume:') &&
+      !lastAction.startsWith('checkpoint:')
+    ) {
+      return
+    }
     await this.writeProgress(state ?? (await readAppState(this.context.page)), lastAction)
   }
 
@@ -155,12 +188,16 @@ export class SeasonAuditor {
       seed: this.context.config.seeds,
       day: gameDay(game),
       phase: game.phase,
+      humanStatus: game.players.find((player) => player.isUser)?.status ?? 'missing',
       lastAction,
       actions: this.timeline.length,
       findings: this.findings.length,
       objectivesVerified: this.coverage.values().filter((item) => item.status === 'verified')
         .length,
       objectivesTotal: this.coverage.values().length,
+      ...(this.progressionPerformanceCheckpoints.length > 0
+        ? { progressionPerformanceCheckpoints: this.progressionPerformanceCheckpoints }
+        : {}),
     }
     await writeFile(
       this.context.testInfo.outputPath('season-simulation-progress.json'),
@@ -187,6 +224,12 @@ export class SeasonAuditor {
       ...(economySample ? { economySample } : {}),
       ...(this.performanceCheckpoints.length > 0
         ? { performanceCheckpoints: this.performanceCheckpoints }
+        : {}),
+      ...(this.saveResumePerformanceCheckpoints.length > 0
+        ? { saveResumePerformanceCheckpoints: this.saveResumePerformanceCheckpoints }
+        : {}),
+      ...(this.progressionPerformanceCheckpoints.length > 0
+        ? { progressionPerformanceCheckpoints: this.progressionPerformanceCheckpoints }
         : {}),
       ...(compactEconomyReport
         ? {}
@@ -229,6 +272,26 @@ export class SeasonAuditor {
             ...this.performanceCheckpoints.map(
               (checkpoint) =>
                 `- ${checkpoint.name} (day ${checkpoint.day}): input p95 ${checkpoint.metrics.inputResponseP95Ms ?? 'n/a'} ms; Redux p95 ${checkpoint.metrics.reduxActionP95Ms ?? 'n/a'} ms; frame-gap p95 ${checkpoint.metrics.frameGapP95Ms ?? 'n/a'} ms; ${checkpoint.frameGapsOver100Ms} frame gaps over 100 ms; state history/feed ${checkpoint.historyCount}/${checkpoint.tvFeedCount}.`
+            ),
+          ]
+        : []),
+      ...(this.saveResumePerformanceCheckpoints.length > 0
+        ? [
+            '',
+            '## Save and resume performance',
+            ...this.saveResumePerformanceCheckpoints.map(
+              (checkpoint) =>
+                `- ${checkpoint.mode} day ${checkpoint.day}: snapshot ${(checkpoint.snapshot.totalBytes / 1024 / 1024).toFixed(2)} MB; serialize ${checkpoint.persistence?.lastSerializeMs ?? 'n/a'} ms; storage write ${checkpoint.persistence?.lastWriteMs ?? 'n/a'} ms; save/home ${checkpoint.timing.saveAndHomeMs} ms; reload ${checkpoint.timing.reloadToHomeMs} ms; resume ${checkpoint.timing.resumeToGameMs} ms.`
+            ),
+          ]
+        : []),
+      ...(this.progressionPerformanceCheckpoints.length > 0
+        ? [
+            '',
+            '## Late-game performance',
+            ...this.progressionPerformanceCheckpoints.map(
+              (checkpoint) =>
+                `- ${checkpoint.mode} day ${checkpoint.day}: Redux action p95 ${checkpoint.metrics.reduxActionP95Ms ?? 'n/a'} ms; store update p95 ${checkpoint.storeUpdateP95Ms ?? 'n/a'} ms; input p95 ${checkpoint.metrics.inputResponseP95Ms ?? 'n/a'} ms; frame-gap p95 ${checkpoint.metrics.frameGapP95Ms ?? 'n/a'} ms; save ${((checkpoint.persistence?.lastSnapshotBytes ?? checkpoint.snapshot.totalBytes) / 1024 / 1024).toFixed(2)} MB; serialize ${checkpoint.persistence?.lastSerializeMs ?? 'n/a'} ms; flush ${checkpoint.persistence?.lastWriteMs ?? 'n/a'} ms; ${checkpoint.frameGapsOver100Ms} frame gaps over 100 ms.`
             ),
           ]
         : []),
@@ -304,7 +367,7 @@ export class SeasonAuditor {
     }
     this.lastPhase = game.phase
 
-    const activePlayers = game.players.filter((player) => activeStatus.has(player.status))
+    const activePlayers = game.players.filter((player) => isActiveGamePlayerStatus(player.status))
     const knownIds = new Set(game.players.map((player) => player.id))
     const nomineeIds = game.nomineeIds ?? []
     if (

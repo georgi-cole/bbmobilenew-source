@@ -11,6 +11,9 @@ import {
   noteDemocraciaSkippedLoh,
   selectPendingChallenge,
   startChallenge,
+  acceptChallengeResult,
+  checkpointChallengeResult,
+  clearChallengeIfCurrent,
 } from '../../../store/challengeSlice'
 import { useAppSelector } from '../../../store/hooks'
 import type { AppDispatch, RootState } from '../../../store/store'
@@ -18,11 +21,18 @@ import type { CeremonyTile } from '../../../components/CeremonyOverlay/CeremonyO
 import type { ReactMinigameCompletion } from '../../../components/MinigameHost/MinigameHost'
 import type { SpectatorVariant } from '../../../components/ui/SpectatorView'
 import type { Player } from '../../../types'
-import { computeScores } from '../../../minigames/scoring'
 import { isPlacementRankingGame } from '../../../minigames/registry'
 import { statusBadgeImageSrc } from '../../../utils/statusBadges'
 import { expandCupidIds, isCupidArrowActive } from '../../../features/twists/cupidArrow'
-import { rankPressurePlankResults } from '../../../components/PressurePlank/pressurePlankLogic'
+import {
+  createAbandonedChallengeResult,
+  rankChallengeResults,
+  recoverCommittedChallengeResult,
+} from '../../../store/challengeResults'
+import { persistCompetitionCheckpoint } from '../../../store/store'
+import { reconcileQuickTapChallenge } from '../../../store/reconcileQuickTapChallenge'
+import { initializeVip } from '../../../store/vipSlice'
+import { updateRelationship } from '../../../social/socialSlice'
 
 const LOH_BADGE_SRC = statusBadgeImageSrc('loh')
 const POS_BADGE_SRC = statusBadgeImageSrc('pos')
@@ -55,6 +65,15 @@ export function useCompetitionFlow({
 }: UseCompetitionFlowOptions) {
   const store = useStore<RootState>()
   const pendingChallenge = useAppSelector(selectPendingChallenge)
+  const vipStatus = useAppSelector((state) => state.vip.status)
+  useEffect(() => {
+    if (!pendingChallenge?.needsEditionReconciliation) return
+    if (vipStatus === 'idle') {
+      void dispatch(initializeVip())
+    } else if (vipStatus === 'ready') {
+      dispatch(reconcileQuickTapChallenge())
+    }
+  }, [dispatch, pendingChallenge?.id, pendingChallenge?.needsEditionReconciliation, vipStatus])
   // ── Lifted-tile reveal — deferred LOH / POS winner commit ────────────────
   // When MinigameHost reports a winner, the live roster tile is cloned into a
   // fixed animation layer, awarded its badge, and returned to its newly measured
@@ -73,11 +92,21 @@ export function useCompetitionFlow({
   } | null>(null)
   const pendingWinnerDispatchRef = useRef<(() => void) | null>(null)
 
-  const handleWinnerCeremonyDone = useCallback(() => {
-    pendingWinnerDispatchRef.current?.()
+  const commitPendingWinner = useCallback(() => {
+    const commit = pendingWinnerDispatchRef.current
+    // Clear before dispatch so navigation or re-entrant updates cannot award twice.
     pendingWinnerDispatchRef.current = null
-    setPendingWinnerCeremony(null)
+    commit?.()
   }, [])
+
+  const handleWinnerCeremonyDone = useCallback(() => {
+    commitPendingWinner()
+    setPendingWinnerCeremony(null)
+  }, [commitPendingWinner])
+
+  // Continue has accepted this result. Leaving during its visual reveal must
+  // keep that accepted outcome rather than schedule a fresh competition.
+  useEffect(() => () => commitPendingWinner(), [commitPendingWinner])
 
   // Democracia substitutes the entire LOH competition. Persist only the skipped
   // day and its would-be LOH roster size so next day's eligible signature
@@ -221,15 +250,34 @@ export function useCompetitionFlow({
     setSpectatorLegacyPayload(null)
   }, [])
 
-  const handleChallengeDone = useCallback(
+  const processChallengeDone = useCallback(
     (rawValue: number, partial?: boolean, reactCompletion?: ReactMinigameCompletion) => {
       if (!pendingChallenge) return
+      const current = store.getState()
+      const livePending = current.challenge.pending
+      if (!livePending || livePending.id !== pendingChallenge.id) return
+      if ((livePending.attempt?.number ?? 0) !== (pendingChallenge.attempt?.number ?? 0)) return
+      if (livePending.attempt?.status === 'accepted' && !livePending.restored) return
+      if (
+        pendingChallenge.origin &&
+        (pendingChallenge.origin.gameId !== current.game.gameId ||
+          pendingChallenge.origin.week !== current.game.week)
+      )
+        return
+      const recoveringAccepted =
+        livePending.restored === true && livePending.attempt?.status === 'accepted'
+      const alreadyRecorded = current.challenge.history.some(
+        (run) => run.id === pendingChallenge.id
+      )
 
       // Capture challenge fields now — completeChallenge() will clear
       // pendingChallenge from Redux, but this closure still holds it.
       const capturedParticipants = pendingChallenge.participants
       const capturedGameKey = pendingChallenge.game.key
-      const scheduledWinnerId = pendingChallenge.forcedWinnerId
+      const scheduledWinnerId =
+        partial && pendingChallenge.forcedWinnerId === humanPlayer?.id
+          ? undefined
+          : pendingChallenge.forcedWinnerId
       // prizeType was recorded at challenge-start and is reliable even
       // after the phase advances (feature thunks can transition
       // loh_comp → loh_results before this callback fires).
@@ -243,7 +291,7 @@ export function useCompetitionFlow({
       // AI scores (appropriate for the selected game's metric kind).
       const rankingOnlyGame = isPlacementRankingGame(pendingChallenge.game)
       const rawResults =
-        partial && rankingOnlyGame
+        partial && rankingOnlyGame && !reactCompletion?.rawResults
           ? capturedParticipants
               .map((id) => ({
                 playerId: id,
@@ -287,15 +335,15 @@ export function useCompetitionFlow({
         reactCompletion.authoritativeLastPlaceId !== reportedWinnerId
           ? reactCompletion.authoritativeLastPlaceId
           : null
-      const pressurePlankRanking =
-        capturedGameKey === 'pressurePlank'
-          ? rankPressurePlankResults(
-              capturedParticipants,
-              Object.fromEntries(rawResults.map((result) => [result.playerId, result.rawValue])),
-              pendingChallenge.seed
-            )
-          : null
-      const explicitWinnerId = pressurePlankRanking?.[0]?.playerId ?? reportedWinnerId
+      const ranked = rankChallengeResults(pendingChallenge, rawResults, {
+        partial,
+        humanId: humanPlayer?.id,
+        authoritativeRankedIds: reactCompletion?.authoritativeRankedIds,
+      })
+      const pressurePlankRanking = capturedGameKey === 'pressurePlank' ? ranked : null
+      const explicitWinnerId = partial
+        ? (reportedWinnerId ?? ranked[0]?.playerId)
+        : (pressurePlankRanking?.[0]?.playerId ?? reportedWinnerId)
       const explicitLastPlaceId =
         pressurePlankRanking?.[pressurePlankRanking.length - 1]?.playerId ?? reportedLastPlaceId
       // An abandoned placement competition has no component-owned completion
@@ -308,6 +356,28 @@ export function useCompetitionFlow({
           ? (rawResults.find((result) => result.playerId !== humanPlayer?.id)?.playerId ?? null)
           : null
       const authoritativeWinnerId = explicitWinnerId ?? abandonedPlacementWinnerId
+      const featureAppliedWinnerBeforeCompletion =
+        capturedPrizeType === 'POS' ? current.game.posWinnerId : current.game.lohId
+      const expectedPhase = capturedPrizeType === 'POS' ? 'pos_comp' : 'loh_comp'
+      const featureAlreadyResolved =
+        !isF3MinigamePhase &&
+        current.game.phase !== expectedPhase &&
+        Boolean(
+          featureAppliedWinnerBeforeCompletion &&
+          capturedParticipants.includes(featureAppliedWinnerBeforeCompletion)
+        )
+
+      dispatch(
+        acceptChallengeResult({
+          id: pendingChallenge.id,
+          number: livePending.attempt?.number ?? 0,
+          result: {
+            rawValue,
+            partial: partial === true,
+            ...(reactCompletion ? { completion: reactCompletion } : {}),
+          },
+        })
+      )
 
       if (import.meta.env.DEV) {
         console.log('[LOH_CROWN] MinigameHost onDone — challenge completion', {
@@ -327,16 +397,30 @@ export function useCompetitionFlow({
         completeChallenge(rawResults, {
           authoritativeWinnerId: scheduledWinnerId ?? authoritativeWinnerId,
           partial: partial === true,
+          keepPending: true,
+          skipSeasonUpdate: featureAlreadyResolved,
+          authoritativeRankedIds: reactCompletion?.authoritativeRankedIds,
         })
       ) as string | null
 
       if (
+        !alreadyRecorded &&
         !partial &&
         capturedGameKey === 'batteryLow' &&
         reactCompletion?.batteryLowVoteEffects &&
         Object.keys(reactCompletion.batteryLowVoteEffects).length > 0
       ) {
         dispatch(registerBatteryLowVoteEffects(reactCompletion.batteryLowVoteEffects))
+      }
+      if (!alreadyRecorded && !partial && capturedGameKey === 'mysticChamber') {
+        const playerIds = new Set(game.players.map((player) => player.id))
+        for (const effect of reactCompletion?.mysticChamberRelationships ?? []) {
+          if (playerIds.has(effect.source) && playerIds.has(effect.target)) {
+            dispatch(
+              updateRelationship({ ...effect, actionSource: 'system', realityMeaningful: true })
+            )
+          }
+        }
       }
 
       if (import.meta.env.DEV) {
@@ -348,7 +432,7 @@ export function useCompetitionFlow({
       // Only record personal records for valid (non-early-exit) completions.
       // A partial=true exit uses rawValue=0 for the human and would
       // incorrectly set a "best" 0-score for lowerBetter games.
-      if (!partial) {
+      if (!alreadyRecorded && !partial) {
         dispatch(
           updateGamePRs({
             gameKey: capturedGameKey,
@@ -360,8 +444,15 @@ export function useCompetitionFlow({
 
       // ── Final 3 minigame completion ──────────────────────────────────
       // Apply the winner to the Final 3 part (no ceremony overlay for F3 parts).
-      if (isF3MinigamePhase) {
-        dispatch(applyF3MinigameWinner(scoreWinnerId ?? capturedParticipants[0]))
+      const originIsFinalThree = /^final3_comp[123]_minigame$/.test(
+        pendingChallenge.origin?.phase ?? ''
+      )
+      if (isF3MinigamePhase || originIsFinalThree) {
+        if (!originIsFinalThree || current.game.phase === pendingChallenge.origin?.phase) {
+          dispatch(applyF3MinigameWinner(scoreWinnerId ?? capturedParticipants[0]))
+        }
+        dispatch(clearChallengeIfCurrent(pendingChallenge.id))
+        void persistCompetitionCheckpoint()
         return
       }
 
@@ -404,24 +495,16 @@ export function useCompetitionFlow({
       const liveState = store.getState()
       const featureAppliedWinner = isHohComp ? liveState.game.lohId : liveState.game.posWinnerId
       const finalWinnerId =
+        (featureAlreadyResolved ? featureAppliedWinner : null) ??
         scheduledWinnerId ??
         explicitWinnerId ??
         (featureAppliedWinner && capturedParticipants.includes(featureAppliedWinner)
           ? featureAppliedWinner
           : (scoreWinnerId ?? capturedParticipants[0]))
 
-      const missionRanked =
-        pressurePlankRanking ??
-        computeScores(
-          pendingChallenge.game.scoringAdapter,
-          rawResults,
-          pendingChallenge.game.scoringParams ?? {}
-        )
+      const missionRanked = ranked
       const missionScores = Object.fromEntries(
-        missionRanked.map((result) => [
-          result.playerId,
-          'score' in result ? result.score : result.survivalSeconds,
-        ])
+        missionRanked.map((result) => [result.playerId, result.score])
       )
       const missionPlacements = missionRanked.map((result) => result.playerId)
       // The host has the only complete result table for this flow. Preserve it
@@ -482,18 +565,6 @@ export function useCompetitionFlow({
         return lastNonWinner?.playerId ?? null
       })()
 
-      if (partial) {
-        dispatch(
-          applyMinigameWinner({
-            winnerId: finalWinnerId,
-            lastPlaceId: compLastPlaceId,
-            skipSeasonUpdate: true,
-            ...missionReceipt,
-          })
-        )
-        return
-      }
-
       const winnerIds = expandCupidIds(
         game,
         scheduledWinnerId
@@ -502,20 +573,45 @@ export function useCompetitionFlow({
             ? reportedWinnerIds
             : [finalWinnerId]
       )
+      const commitWinner = () => {
+        const latest = store.getState()
+        if (latest.challenge.pending?.id !== pendingChallenge.id) return
+        if (
+          (latest.challenge.pending.attempt?.number ?? 0) !==
+          (pendingChallenge.attempt?.number ?? 0)
+        )
+          return
+        if (
+          pendingChallenge.origin &&
+          (pendingChallenge.origin.gameId !== latest.game.gameId ||
+            pendingChallenge.origin.week !== latest.game.week)
+        )
+          return
+        if (latest.game.phase === expectedPhase) {
+          dispatch(
+            applyMinigameWinner({
+              winnerId: finalWinnerId,
+              ...(reportedWinnerIds.length > 1 ? { coWinnerIds: reportedWinnerIds } : {}),
+              lastPlaceId: compLastPlaceId,
+              lastPlaceType: reactCompletion?.lastPlaceType,
+              skipSeasonUpdate: true,
+              ...missionReceipt,
+            })
+          )
+        }
+        dispatch(clearChallengeIfCurrent(pendingChallenge.id))
+        void persistCompetitionCheckpoint()
+      }
+      if (recoveringAccepted) {
+        commitWinner()
+        return
+      }
       const winnerPlayers = winnerIds
         .map((id) => game.players.find((player) => player.id === id))
         .filter((player): player is Player => Boolean(player))
       if (winnerPlayers.length === 0) {
         // Defensive fallback: an invalid winner cannot produce a ceremony.
-        dispatch(
-          applyMinigameWinner({
-            winnerId: finalWinnerId,
-            ...(reportedWinnerIds.length > 1 ? { coWinnerIds: reportedWinnerIds } : {}),
-            lastPlaceId: compLastPlaceId,
-            skipSeasonUpdate: true,
-            ...missionReceipt,
-          })
-        )
+        commitWinner()
         return
       }
       // Defer the store mutation until after the CeremonyOverlay completes.
@@ -550,17 +646,9 @@ export function useCompetitionFlow({
         badgeLabel: `${winnerPlayer.name} wins ${winLabel}`,
       }))
       const winnerNames = winnerPlayers.map((player) => player.name).join(' & ')
-      pendingWinnerDispatchRef.current = () =>
-        dispatch(
-          applyMinigameWinner({
-            winnerId: finalWinnerId,
-            ...(reportedWinnerIds.length > 1 ? { coWinnerIds: reportedWinnerIds } : {}),
-            lastPlaceId: compLastPlaceId,
-            skipSeasonUpdate: true,
-            ...missionReceipt,
-          })
-        )
-      setPendingWinnerCeremony({
+      pendingWinnerDispatchRef.current = commitWinner
+      void persistCompetitionCheckpoint()
+      return {
         winnerId: finalWinnerId,
         targetIds: winnerIds,
         // Geometry is deliberately absent: the lift animation resolves and
@@ -569,10 +657,51 @@ export function useCompetitionFlow({
         caption: `${winnerNames} ${isCupidArrowActive(game) ? 'win' : 'wins'} ${winLabel}!`,
         subtitle: winSymbol,
         ariaLabel: `${winnerNames} ${isCupidArrowActive(game) ? 'win' : 'wins'} ${winLabel}`,
-      })
+      }
     },
     [aliveIds.length, dispatch, game, humanPlayer, isF3MinigamePhase, pendingChallenge, store]
   )
+
+  const handleChallengeDone = useCallback(
+    (rawValue: number, partial?: boolean, reactCompletion?: ReactMinigameCompletion) => {
+      const ceremony = processChallengeDone(rawValue, partial, reactCompletion)
+      if (ceremony) setPendingWinnerCeremony(ceremony)
+    },
+    [processChallengeDone]
+  )
+
+  useEffect(() => {
+    if (!pendingChallenge) return
+    const origin = pendingChallenge.origin
+    if (origin && (origin.gameId !== game.gameId || origin.week !== game.week)) {
+      dispatch(clearChallengeIfCurrent(pendingChallenge.id))
+      return
+    }
+    if (!pendingChallenge.restored || !pendingChallenge.attempt) return
+    if (pendingChallenge.attempt.status === 'playing') {
+      dispatch(
+        checkpointChallengeResult({
+          id: pendingChallenge.id,
+          number: pendingChallenge.attempt.number,
+          result:
+            recoverCommittedChallengeResult(pendingChallenge, store.getState().game) ??
+            createAbandonedChallengeResult(pendingChallenge, humanPlayer?.id),
+        })
+      )
+      void persistCompetitionCheckpoint()
+    } else if (pendingChallenge.attempt.status === 'accepted') {
+      const result = pendingChallenge.attempt.result
+      processChallengeDone(result.rawValue, result.partial, result.completion)
+    }
+  }, [
+    dispatch,
+    game.gameId,
+    game.week,
+    processChallengeDone,
+    humanPlayer?.id,
+    pendingChallenge,
+    store,
+  ])
 
   return {
     pendingChallenge,

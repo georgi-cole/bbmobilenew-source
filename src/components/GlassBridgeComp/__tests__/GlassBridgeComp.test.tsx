@@ -13,6 +13,8 @@ import glassBridgeReducer, {
 } from '../../../features/glassBridge/glassBridgeSlice'
 import EntitlementAwareGlassBridgeComp from '../GlassBridgeComp'
 import { mulberry32 } from '../../../store/rng'
+import { installSafetyFixture } from '../../../safety/__tests__/safetyFixture'
+import { clearRewardHandler, initAdBridge } from '../../../services/ads/adsService'
 
 const playSafeStep = vi.fn()
 const playDeath = vi.fn()
@@ -78,7 +80,63 @@ describe('GlassBridgeComp', () => {
   })
 
   afterEach(() => {
+    clearRewardHandler('glass_bridge_hint')
+    delete window.GameAds
+    delete window.onAdRewardGranted
     vi.useRealTimers()
+  })
+
+  it('pauses the turn clock during a real hint ad and grants a hint only when earned', async () => {
+    installSafetyFixture(28, ['ads'])
+    initAdBridge()
+    let finish!: (earned: boolean) => void
+    window.GameAds = {
+      managesAdLifecycle: true,
+      showInterstitial: vi.fn(),
+      showRewarded: vi.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            finish = resolve
+          })
+      ),
+    }
+    const store = makeStore()
+    render(
+      <Provider store={store}>
+        <GlassBridgeComp
+          participantIds={['user', 'ai-1']}
+          participants={[
+            { id: 'user', name: 'You', isHuman: true },
+            { id: 'ai-1', name: 'AI One', isHuman: false },
+          ]}
+          seed={42}
+        />
+      </Provider>
+    )
+    await advance(0)
+    fireEvent.click(screen.getByRole('button', { name: /pick number 1/i }))
+    await act(async () => {
+      store.dispatch(recordNumberChoice({ playerId: 'ai-1', number: 2 }))
+      store.dispatch(finaliseOrderSelection())
+      store.dispatch(startPlaying({ now: Date.now() }))
+    })
+    fireEvent.click(screen.getByRole('button', { name: helpButtonPattern }))
+    await advance(30_000)
+    expect(store.getState().glassBridge.progress.user.forfeited).not.toBe(true)
+    expect(store.getState().glassBridge.progress.user.hintPenaltyMs ?? 0).toBe(0)
+    await act(async () => {
+      finish(false)
+    })
+    expect(screen.getByRole('button', { name: helpButtonPattern })).toBeEnabled()
+    expect(store.getState().glassBridge.progress.user.hintPenaltyMs ?? 0).toBe(0)
+
+    fireEvent.click(screen.getByRole('button', { name: helpButtonPattern }))
+    await advance(20_000)
+    await act(async () => {
+      finish(true)
+    })
+    expect(store.getState().glassBridge.progress.user.hintPenaltyMs).toBe(HINT_PENALTY_MS)
+    expect(store.getState().glassBridge.progress.user.forfeited).not.toBe(true)
   })
 
   it('keeps the original presentation for standard players', () => {

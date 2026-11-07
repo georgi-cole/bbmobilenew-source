@@ -31,6 +31,25 @@ export default function Legal() {
       </header>
 
       <section>
+        <h2>Players and parents</h2>
+        <p>
+          This version defaults to an 18+ player access policy pending content-rating review. Parent
+          permission cannot override the minimum age. The teen permission path is reserved for a
+          reviewed build with an appropriate lower minimum.
+        </p>
+        <p>
+          Play for under-13 players stays locked until a verified parent-consent service is
+          connected. Teen players need household permission for local play; this is not verified
+          parental consent for online data processing. Optional location sharing, usage measurement,
+          online services, ads, and store purchase or restore requests are unavailable for teen
+          players.
+        </p>
+        <button type="button" onClick={() => navigate('/player-privacy')}>
+          Player privacy &amp; family
+        </button>
+      </section>
+
+      <section>
         <h2>Privacy summary</h2>
         <p>
           Saves, settings, profiles, optional profile images, season history, and local Confessional
@@ -86,7 +105,7 @@ export default function Legal() {
         )}
       </section>
 
-      <p className="legal-screen__version">The Big Eye 1.0.0 · Updated July 30, 2026</p>
+      <p className="legal-screen__version">The Big Eye 1.0.0 · Updated October 27, 2026</p>
     </main>
   )
 }

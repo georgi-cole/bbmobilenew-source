@@ -7,17 +7,13 @@
  * mood, and off-screen house life without inventing a major event.
  */
 
-import {
-  applyWeekSeedBatch,
-  applyRealityAmbientMood,
-  applyRealityAmbientRelationship,
-  updateRelationship,
-} from './socialSlice'
+import { applyWeekSeedBatch } from './socialSlice'
 import type { WeekSeedBatch, WeekSeedOperation } from './socialSlice'
 import { getAll } from '../data/houseguests'
 import type { SocialMemoryEntry, SocialMemoryMap } from './types'
 import { getEffectiveSocialMode } from './socialMode'
-import { BELLA_ID } from '../features/twists/bellasWill'
+import { dampenBellaRelationship, getTwinRelationshipEchoes } from './relationshipUpdateEffects'
+import { measureGamePerformanceStep } from '../services/diagnostics/gamePerformanceDiagnostics'
 
 interface StoreAPI {
   dispatch: (action: unknown) => unknown
@@ -43,15 +39,6 @@ interface SeedState {
     entitlements?: { dramaMode?: boolean }
   }
 }
-
-const BELLA_COMMITMENT_TAGS = new Set([
-  'alliance',
-  'protection',
-  'shield',
-  'safety_promise',
-  'ride_or_die',
-  'promise_keeper',
-])
 
 function makeLcg(seed: number): () => number {
   let state = seed >>> 0
@@ -180,8 +167,7 @@ export function getAmbientRelationshipDelta(
  *   house life. Human-involved edges get a small early warmth bias, not immunity.
  * - Contestant mood, stress, and social energy settle a little each day.
  */
-export function seedWeekRelationships(store: StoreAPI): void {
-  const state = store.getState() as SeedState
+export function buildWeekSeedBatch(state: SeedState): WeekSeedBatch | null {
   const players = state.game?.players ?? []
   const week = state.game?.week ?? 1
   const gameSeed = state.game?.seed ?? 0
@@ -189,7 +175,7 @@ export function seedWeekRelationships(store: StoreAPI): void {
   const socialMemory = state.social?.socialMemory ?? {}
 
   const active = players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
-  if (active.length < 2) return
+  if (active.length < 2) return null
 
   const batch: WeekSeedBatch = { operations: [], moods: [] }
 
@@ -262,10 +248,14 @@ export function seedWeekRelationships(store: StoreAPI): void {
     })
   }
 
-  // Drama mode observes every relationship action for twin propagation, so it
-  // keeps the legacy action path. Normal mode has no per-update side effects;
-  // applying the same ordered reducer operations together keeps the resulting
-  // legacy relationships, canonical Reality domain, and moods unchanged.
+  return batch
+}
+
+export function seedWeekRelationships(store: StoreAPI): void {
+  const state = store.getState() as SeedState
+  const batch = measureGamePerformanceStep('week-seed/build', () => buildWeekSeedBatch(state))
+  if (!batch) return
+
   const current = store.getState() as SeedState
   if (
     getEffectiveSocialMode({
@@ -274,26 +264,33 @@ export function seedWeekRelationships(store: StoreAPI): void {
       vip: current.vip,
     }) === 'drama'
   ) {
+    const expandedOperations: WeekSeedOperation[] = []
     for (const operation of batch.operations) {
-      store.dispatch(
-        operation.kind === 'relationship'
-          ? updateRelationship(operation.payload)
-          : applyRealityAmbientRelationship(operation.payload)
-      )
+      if (operation.kind !== 'relationship') {
+        expandedOperations.push(operation)
+        continue
+      }
+      const payload = dampenBellaRelationship(operation.payload)
+      expandedOperations.push({ kind: 'relationship', payload })
+      for (const echo of getTwinRelationshipEchoes(
+        payload,
+        current.game.players,
+        current.game.week
+      )) {
+        expandedOperations.push({
+          kind: 'relationship',
+          payload: dampenBellaRelationship(echo),
+        })
+      }
     }
-    for (const mood of batch.moods) store.dispatch(applyRealityAmbientMood(mood))
+    batch.operations = expandedOperations
   } else {
     for (const operation of batch.operations) {
       if (operation.kind !== 'relationship') continue
-      const { payload } = operation
-      if (
-        payload.source === BELLA_ID &&
-        payload.delta > 0 &&
-        !(payload.tags ?? []).some((tag) => BELLA_COMMITMENT_TAGS.has(tag))
-      ) {
-        payload.delta = Math.max(1, Math.round(payload.delta * 0.45))
-      }
+      operation.payload = dampenBellaRelationship(operation.payload)
     }
-    store.dispatch(applyWeekSeedBatch(batch))
   }
+  measureGamePerformanceStep('week-seed/dispatch', () => {
+    store.dispatch(applyWeekSeedBatch(batch))
+  })
 }

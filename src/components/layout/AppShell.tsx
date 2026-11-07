@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useLayoutEffect, useRef } from 'react'
+import { Profiler, Suspense, useEffect, useLayoutEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import NavBar from './NavBar'
 import { useAppSelector } from '../../store/hooks'
@@ -11,6 +11,12 @@ import PortraitOrientationGuard from './PortraitOrientationGuard'
 import SaveRecoveryNotice from '../SaveRecoveryNotice/SaveRecoveryNotice'
 import PhonePreviewSystemChrome from './PhonePreviewSystemChrome'
 import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
+import { IS_RELEASE_BUILD } from '../../config/buildTarget'
+import { isDebugAccessGranted } from '../../utils/debugMode'
+import {
+  isGamePerformanceDiagnosticsEnabled,
+  recordGameRender,
+} from '../../services/diagnostics/gamePerformanceDiagnostics'
 import './AppShell.css'
 
 const lazy = lazyWithChunkRecovery
@@ -46,6 +52,15 @@ const LANDSCAPE_FRIENDLY_MINIGAMES = new Set([
  */
 export default function AppShell() {
   const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+  const phonePreview =
+    searchParams.get('phonePreview') === 'true' || window.name.startsWith('phone-preview:')
+  const debugToolsVisible =
+    !IS_RELEASE_BUILD &&
+    !phonePreview &&
+    ((window as Window & { __E2E__?: boolean }).__E2E__ === true ||
+      isDebugAccessGranted(searchParams, window.location.hostname))
+  const profileGameRender = isGamePerformanceDiagnosticsEnabled()
   const mainRef = useRef<HTMLElement>(null)
   const phase = useAppSelector((s) => s.game.phase)
   const gameMode = useAppSelector((s) => s.game.mode)
@@ -62,8 +77,8 @@ export default function AppShell() {
     (pendingMinigameKey != null && LANDSCAPE_FRIENDLY_MINIGAMES.has(pendingMinigameKey)) ||
     (pendingChallengeKey != null && LANDSCAPE_FRIENDLY_MINIGAMES.has(pendingChallengeKey))
 
-  // Gameplay owns the full Android display. Other screens restore the native
-  // status bar and continue to use the measured safe-area inset.
+  // Gameplay owns the full native display. Menus restore the phone controls;
+  // measured cutout and gesture insets still protect interactive content.
   useGameMode(location.pathname === '/game', allowsLandscape)
 
   // React Router keeps this persistent scroll container mounted between
@@ -155,31 +170,58 @@ export default function AppShell() {
         </aside>
       )}
       <main ref={mainRef} className="app-shell__main">
-        <Outlet />
+        {profileGameRender ? (
+          <Profiler id="game-route" onRender={recordGameRender}>
+            <Outlet />
+          </Profiler>
+        ) : (
+          <Outlet />
+        )}
       </main>
       <NavBar />
-      <Suspense fallback={null}>
-        <DebugPanel />
-        <QaManagerShortcuts />
-      </Suspense>
+      {debugToolsVisible && (
+        <Suspense fallback={null}>
+          <DebugPanel />
+          <QaManagerShortcuts />
+        </Suspense>
+      )}
       {/* Mount FinalFaceoff when entering jury so it can initialise the finale.
           Also remount it for the rare recovery case where jury voting already
           completed but the season finale overlay has not started yet. */}
-      {phase === 'jury' &&
+      {location.pathname === '/game' &&
+        phase === 'jury' &&
         seasonFinale == null &&
         (finale.isActive || !finale.hasStarted || finale.isComplete) && (
           <Suspense fallback={null}>
-            <FinalFaceoff />
+            {profileGameRender ? (
+              <Profiler id="tribunal-finale" onRender={recordGameRender}>
+                <FinalFaceoff />
+              </Profiler>
+            ) : (
+              <FinalFaceoff />
+            )}
           </Suspense>
         )}
-      {seasonFinale && (
+      {location.pathname === '/game' && seasonFinale && (
         <Suspense fallback={null}>
-          <SeasonFinaleOverlay />
+          {profileGameRender ? (
+            <Profiler id="season-finale" onRender={recordGameRender}>
+              <SeasonFinaleOverlay />
+            </Profiler>
+          ) : (
+            <SeasonFinaleOverlay />
+          )}
         </Suspense>
       )}
-      {!seasonFinale && voxPopuliActive && (
+      {location.pathname === '/game' && !seasonFinale && voxPopuliActive && (
         <Suspense fallback={null}>
-          <VoxPopuliFinaleOverlay />
+          {profileGameRender ? (
+            <Profiler id="vox-finale" onRender={recordGameRender}>
+              <VoxPopuliFinaleOverlay />
+            </Profiler>
+          ) : (
+            <VoxPopuliFinaleOverlay />
+          )}
         </Suspense>
       )}
       {!allowsLandscape && <PortraitOrientationGuard />}

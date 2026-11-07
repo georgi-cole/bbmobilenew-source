@@ -15,6 +15,7 @@
  * 'react') should not use LegacyMinigameWrapper."
  */
 
+import { startHostedMinigame } from './helpers/startHostedMinigame';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import { Provider } from 'react-redux';
@@ -106,9 +107,7 @@ describe('MinigameHost — EstimationGame routing (regression)', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('estimation-game-comp')).toBeTruthy();
     expect(screen.queryByTestId('legacy-wrapper')).toBeNull();
@@ -133,9 +132,7 @@ describe('MinigameHost — EstimationGame routing (regression)', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     expect(screen.queryByTestId('legacy-wrapper')).toBeNull();
     expect(screen.getByTestId('estimation-game-comp')).toBeTruthy();
@@ -157,9 +154,7 @@ describe('MinigameHost — EstimationGame routing (regression)', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     // Simulate EstimationGame calling onFinish with score 175
     await act(async () => {
@@ -204,9 +199,7 @@ describe('MinigameHost — EstimationGame routing (regression)', () => {
     // React 18 re-throws render errors from act(); catch and assert
     let caughtError: Error | undefined;
     try {
-      await act(async () => {
-        vi.runAllTimers();
-      });
+      await startHostedMinigame();
     } catch (err) {
       caughtError = err as Error;
     }

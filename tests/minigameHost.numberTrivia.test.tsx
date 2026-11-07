@@ -1,4 +1,5 @@
-import { act, render, screen } from '@testing-library/react';
+import { startHostedMinigame } from './helpers/startHostedMinigame';
+import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
@@ -54,9 +55,7 @@ describe('MinigameHost — number trivia routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('number-trivia-react-game')).toBeTruthy();
     expect(screen.queryByTestId('legacy-wrapper')).toBeNull();

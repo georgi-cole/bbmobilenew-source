@@ -10,6 +10,7 @@
  * mounts. This ensures exactly one server-driven countdown occurs and rules
  * are shown exactly once.
  */
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import type { RootState } from '../../store/store'
@@ -212,7 +213,6 @@ export default function HoldTheWallComp({
   const [roundStartKey, setRoundStartKey] = useState(0)
   const [narrativeMsg, setNarrativeMsg] = useState('Get ready to hold on for dear life…')
   const startTimeRef = useRef<number | null>(null)
-  const animFrameRef = useRef<number | null>(null)
   // Pointer-down and pointer-up can occur before React has committed the
   // isHolding state update. Keep the competition rule in a synchronous ref so
   // a quick release is still an immediate, authoritative fall.
@@ -488,7 +488,7 @@ export default function HoldTheWallComp({
     socialRelationships,
   ])
 
-  // ── Elapsed timer (requestAnimationFrame loop) ────────────────────────────
+  // Only the display and pressure meter need updates; scoring keeps its precise clock.
   useEffect(() => {
     if (htw.status !== 'active') return
 
@@ -496,12 +496,12 @@ export default function HoldTheWallComp({
       if (startTimeRef.current !== null) {
         setElapsedMs(Date.now() - startTimeRef.current)
       }
-      animFrameRef.current = requestAnimationFrame(tick)
     }
-    animFrameRef.current = requestAnimationFrame(tick)
+    tick()
+    const interval = window.setInterval(tick, 100)
 
     return () => {
-      if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current)
+      window.clearInterval(interval)
     }
   }, [htw.status])
 
@@ -525,6 +525,23 @@ export default function HoldTheWallComp({
     )
     return () => window.clearTimeout(t)
   }, [htw.status, htw.winnerId, htw.droppedIds, onComplete])
+
+  useCompetitionResultCheckpoint(
+    htw.status === 'complete'
+      ? {
+          rawValue: htw.winnerId ? 1 : 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: htw.winnerId,
+            authoritativeLastPlaceId: htw.droppedIds[0] ?? null,
+            lastPlaceType: 'survival',
+            authoritativeRankedIds: [htw.winnerId, ...htw.droppedIds.slice().reverse()].filter(
+              (id): id is string => Boolean(id)
+            ),
+          },
+        }
+      : null
+  )
 
   // ── Narration: start message + periodic holding updates ───────────────────
   useEffect(() => {

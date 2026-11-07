@@ -1,0 +1,86 @@
+[
+  {
+    "id": "preset-001",
+    "revision": 1,
+    "displayLabel": "Look 01",
+    "selectable": true,
+    "assets": {
+      "thumbnail": "assets/characters/preset-001/r1/thumbnail.webp",
+      "portrait": "assets/characters/preset-001/r1/portrait.webp",
+      "body": "assets/characters/preset-001/r1/body.webp"
+    },
+    "traits": {
+      "ageAppearance": "young-adult",
+      "build": "average",
+      "browShape": "straight",
+      "eyeColor": "other",
+      "facialHair": "stubble",
+      "hairColor": "dark",
+      "hairLength": "short",
+      "skinTone": "light-medium"
+    }
+  },
+  {
+    "id": "preset-002",
+    "revision": 1,
+    "displayLabel": "Look 02",
+    "selectable": true,
+    "assets": {
+      "thumbnail": "assets/characters/preset-002/r1/thumbnail.webp",
+      "portrait": "assets/characters/preset-002/r1/portrait.webp",
+      "body": "assets/characters/preset-002/r1/body.webp"
+    },
+    "traits": {
+      "ageAppearance": "middle-adult",
+      "build": "fuller",
+      "browShape": "arched",
+      "eyeColor": "other",
+      "facialHair": "none",
+      "hairColor": "dark",
+      "hairLength": "medium",
+      "skinTone": "deep"
+    }
+  },
+  {
+    "id": "preset-003",
+    "revision": 1,
+    "displayLabel": "Look 03",
+    "selectable": true,
+    "assets": {
+      "thumbnail": "assets/characters/preset-003/r1/thumbnail.webp",
+      "portrait": "assets/characters/preset-003/r1/portrait.webp",
+      "body": "assets/characters/preset-003/r1/body.webp"
+    },
+    "traits": {
+      "ageAppearance": "older-adult",
+      "build": "slim",
+      "browShape": "straight",
+      "eyeColor": "other",
+      "facialHair": "none",
+      "hairColor": "silver",
+      "hairLength": "short",
+      "skinTone": "light"
+    }
+  },
+  {
+    "id": "preset-004",
+    "revision": 1,
+    "displayLabel": "Look 04",
+    "selectable": true,
+    "assets": {
+      "thumbnail": "assets/characters/preset-004/r1/thumbnail.webp",
+      "portrait": "assets/characters/preset-004/r1/portrait.webp",
+      "body": "assets/characters/preset-004/r1/body.webp"
+    },
+    "traits": {
+      "ageAppearance": "middle-adult",
+      "build": "broad",
+      "browShape": "strong",
+      "eyeColor": "other",
+      "facialHair": "beard",
+      "hairColor": "other",
+      "hairLength": "bald",
+      "skinTone": "medium-deep"
+    }
+  }
+]

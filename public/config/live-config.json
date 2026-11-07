@@ -70,7 +70,7 @@
         "forceOnTv": true
       },
       "card.vox-final4-competition": {
-        "text": "No immunity is awarded today. Last place gets nominated; the other three each cast one secret vote.",
+        "text": "No immunity is awarded today. Last place gets nominated; all four cast one secret nomination vote each.",
         "title": "Final 4 Competition",
         "major": "vox_final4_immunity_comp",
         "type": "game",

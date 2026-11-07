@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { installSafetyFixture } from '../../../safety/__tests__/safetyFixture'
+import { declarePlayerAge, setOptionalPlayerFeature } from '../../../safety/playerSafety'
 import type { RootState } from '../../../store/store'
 import {
   canShowAd,
@@ -13,6 +15,7 @@ function makeState(
   vipOverrides?: Partial<RootState['vip']>
 ): RootState {
   return {
+    game: { players: [{ id: 'human', isUser: true }] },
     ads: {
       hasNoAdsPack: false,
       dailyUsage: {},
@@ -35,11 +38,36 @@ function makeState(
 }
 
 describe('adsService bridge guards', () => {
+  beforeEach(() => {
+    installSafetyFixture(28, ['ads'])
+  })
   afterEach(() => {
     vi.restoreAllMocks()
     clearRewardHandler('social_energy_recharge')
     delete window.GameAds
     delete window.onAdRewardGranted
+  })
+
+  it('does not call an ad bridge for a teen or grant an old pending adult reward', () => {
+    const bridge = vi.fn()
+    const reward = vi.fn()
+    window.GameAds = { showInterstitial: bridge, showRewarded: bridge }
+    initAdBridge()
+    expect(showRewarded('social_energy_recharge', makeState(), vi.fn(), reward)).toBe(true)
+    declarePlayerAge(15)
+    expect(showInterstitial('live_vote_auto', makeState(), vi.fn())).toBe(false)
+    expect(showRewarded('social_energy_recharge', makeState(), vi.fn(), reward)).toBe(false)
+    window.onAdRewardGranted?.('social_energy_recharge')
+    expect(bridge).toHaveBeenCalledOnce()
+    expect(reward).not.toHaveBeenCalled()
+  })
+
+  it('requires adult advertising opt-in', () => {
+    setOptionalPlayerFeature('ads', false)
+    const bridge = vi.fn()
+    window.GameAds = { showInterstitial: bridge, showRewarded: bridge }
+    expect(showInterstitial('live_vote_auto', makeState(), vi.fn())).toBe(false)
+    expect(bridge).not.toHaveBeenCalled()
   })
 
   it('does not record usage for interstitials when the native bridge is missing', () => {
@@ -56,7 +84,7 @@ describe('adsService bridge guards', () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it('records usage only when a rewarded ad request is sent through the native bridge', () => {
+  it('records rewarded usage only after completion, not merely a request', () => {
     const dispatch = vi.fn()
     const showRewardedBridge = vi.fn()
     window.GameAds = {
@@ -64,7 +92,10 @@ describe('adsService bridge guards', () => {
       showRewarded: showRewardedBridge,
     }
 
+    initAdBridge()
     expect(showRewarded('social_energy_recharge', makeState(), dispatch, vi.fn())).toBe(true)
+    expect(dispatch).not.toHaveBeenCalled()
+    window.onAdRewardGranted?.('social_energy_recharge')
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'ads/recordAdShown',
@@ -122,7 +153,7 @@ describe('adsService bridge guards', () => {
 
     expect(showRewarded('social_energy_recharge', makeState(), dispatch, vi.fn())).toBe(true)
     expect(showRewarded('social_energy_recharge', makeState(), dispatch, vi.fn())).toBe(false)
-    expect(dispatch).toHaveBeenCalledTimes(1)
+    expect(dispatch).not.toHaveBeenCalled()
     expect(showRewardedBridge).toHaveBeenCalledTimes(1)
   })
 
@@ -140,7 +171,63 @@ describe('adsService bridge guards', () => {
 
     window.GameAds.showRewarded = vi.fn()
     expect(showRewarded('social_energy_recharge', makeState(), dispatch, vi.fn())).toBe(true)
-    expect(dispatch).toHaveBeenCalledTimes(1)
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('releases a cancelled native reward without consuming its daily allowance', async () => {
+    const dispatch = vi.fn()
+    const onReward = vi.fn()
+    const onDismissed = vi.fn()
+    window.GameAds = { showInterstitial: vi.fn(), showRewarded: vi.fn().mockResolvedValue(false) }
+    initAdBridge()
+    expect(
+      showRewarded('social_energy_recharge', makeState(), dispatch, onReward, { onDismissed })
+    ).toBe(true)
+    await vi.waitFor(() => expect(onDismissed).toHaveBeenCalledOnce())
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(onReward).not.toHaveBeenCalled()
+    expect(showRewarded('social_energy_recharge', makeState(), dispatch, onReward)).toBe(true)
+    await Promise.resolve()
+  })
+
+  it('grants exactly once when the asynchronous native request earns its reward', async () => {
+    const dispatch = vi.fn()
+    const onReward = vi.fn()
+    window.GameAds = { showInterstitial: vi.fn(), showRewarded: vi.fn().mockResolvedValue(true) }
+    initAdBridge()
+    expect(showRewarded('social_energy_recharge', makeState(), dispatch, onReward)).toBe(true)
+    await vi.waitFor(() => expect(onReward).toHaveBeenCalledOnce())
+    window.onAdRewardGranted?.('social_energy_recharge')
+    expect(onReward).toHaveBeenCalledOnce()
+    expect(
+      dispatch.mock.calls.filter(([action]) => action.type === 'ads/recordAdShown')
+    ).toHaveLength(1)
+  })
+
+  it('does not grant a late native result to a replacement request', async () => {
+    let complete!: (earned: boolean) => void
+    window.GameAds = {
+      showInterstitial: vi.fn(),
+      showRewarded: vi.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            complete = resolve
+          })
+      ),
+    }
+    initAdBridge()
+    const oldReward = vi.fn()
+    const newReward = vi.fn()
+    showRewarded('social_energy_recharge', makeState(), vi.fn(), oldReward)
+    const oldComplete = complete
+    clearRewardHandler('social_energy_recharge')
+    showRewarded('social_energy_recharge', makeState(), vi.fn(), newReward)
+    oldComplete(true)
+    await Promise.resolve()
+    expect(oldReward).not.toHaveBeenCalled()
+    expect(newReward).not.toHaveBeenCalled()
+    complete(false)
+    await Promise.resolve()
   })
 
   it('recovers when the interstitial native bridge throws without recording usage', () => {

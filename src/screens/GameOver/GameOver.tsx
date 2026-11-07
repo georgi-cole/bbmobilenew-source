@@ -11,6 +11,7 @@ import {
   totalEyeoleanRewards,
 } from '../../economy/eyeoleans'
 import { SoundManager } from '../../services/sound/SoundManager'
+import { useRewardedAd } from '../../services/ads/useRewardedAd'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { resetGame, archiveSeason } from '../../store/gameSlice'
 import {
@@ -34,6 +35,7 @@ import {
   type AftermathIssue,
 } from './aftermath'
 import './GameOver.css'
+import '../../styles/gameOverResponsiveFixes.css'
 import './AftermathTabloid.css'
 
 const CAROUSEL_INTERVAL_MS = 5000
@@ -121,6 +123,7 @@ function buildArchive(
 type GameOverPanel = 'results' | 'adPrompt' | 'aftermath'
 
 export default function GameOver() {
+  const aftermathAd = useRewardedAd()
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const players = useAppSelector((s) => s.game.players)
@@ -256,9 +259,8 @@ export default function GameOver() {
     if (!isGuest && activeProfileId) {
       clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
     }
-    dispatch(resetGame())
     SoundManager.unlockFromGesture()
-    navigate('/', { state: { autoStartGame: true } })
+    navigate('/new-season?mode=classic')
   }
 
   function exitToHome() {
@@ -287,6 +289,7 @@ export default function GameOver() {
     setIsAftermathLoading(true)
 
     try {
+      if (window.GameAds && !(await aftermathAd.request('aftermath_unlock'))) return
       let issue = readPersistedAftermathIssue(issueStorageKey)
       if (!issue) {
         const config = await loadAftermathConfig()

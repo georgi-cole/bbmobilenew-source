@@ -1,3 +1,8 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import {
+  glassBridgeInitialState as initialState,
+  DEFAULT_ROWS_COUNT,
+} from '../../minigames/sessionInitialStates'
 /**
  * glassBridgeSlice.ts — Redux slice for "The Crystal Path"
  *
@@ -132,7 +137,6 @@ export interface GlassBridgeState {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEFAULT_ROWS_COUNT = 16
 /** Penalty applied to finish time for each hint used by a player (30 seconds). */
 export const HINT_PENALTY_MS = 30_000
 /** Maximum number of hints a player may use in a single run. */
@@ -298,27 +302,6 @@ export function buildPlacements(
 }
 
 // ─── Initial state ────────────────────────────────────────────────────────────
-
-const initialState: GlassBridgeState = {
-  phase: 'idle',
-  seed: 0,
-  competitionType: 'LOH',
-  participants: [],
-  rowsCount: DEFAULT_ROWS_COUNT,
-  rows: [],
-  challengeStartTimeMs: null,
-  chosenNumbers: {},
-  turnOrder: [],
-  currentTurnIndex: 0,
-  currentPlayerRow: 1,
-  progress: {},
-  eliminationOrder: [],
-  winnerId: null,
-  placements: [],
-  outcomeResolved: false,
-  humanPlayerId: null,
-  humanSpectating: false,
-}
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
@@ -705,7 +688,7 @@ export const {
   resetGlassBridge,
 } = glassBridgeSlice.actions
 
-export default glassBridgeSlice.reducer
+export default registerMinigameReducer('glassBridge', glassBridgeSlice.reducer)
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 

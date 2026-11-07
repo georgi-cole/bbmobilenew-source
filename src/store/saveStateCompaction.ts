@@ -16,6 +16,7 @@ export const PERSISTED_SOCIAL_LIMITS = {
   actionHistory: 240,
   incomingInteractionLogs: 80,
   resolvedIncomingInteractions: 60,
+  realityResolvedInteractions: 40,
   realityTrace: 80,
 } as const
 
@@ -67,13 +68,52 @@ function compactIncomingInteractions(
   )
 }
 
+function compactRealityInteractions(
+  state: SocialState
+): SocialState['reality']['interactions'] | null {
+  const interactions = state.reality?.interactions
+  if (!interactions || typeof interactions !== 'object') return null
+
+  const active = Object.entries(interactions).filter(
+    ([, interaction]) => interaction.status === 'PENDING' || interaction.status === 'AWAITING_HUMAN'
+  )
+  const protectedIds = new Set(
+    state.incomingInteractions
+      .filter((interaction) => !interaction.resolved)
+      .map((interaction) => interaction.payload?.realityInteractionId)
+      .filter((id): id is string => typeof id === 'string')
+  )
+  const resolved = Object.entries(interactions)
+    .filter(([, interaction]) => {
+      const isActive = interaction.status === 'PENDING' || interaction.status === 'AWAITING_HUMAN'
+      return !isActive
+    })
+    .sort(
+      ([leftId, left], [rightId, right]) =>
+        left.createdSequence - right.createdSequence || leftId.localeCompare(rightId)
+    )
+  const retained = new Map(active)
+
+  for (const [id, interaction] of resolved) {
+    if (protectedIds.has(id)) retained.set(id, interaction)
+  }
+  for (const [id, interaction] of resolved.slice(
+    -PERSISTED_SOCIAL_LIMITS.realityResolvedInteractions
+  )) {
+    retained.set(id, interaction)
+  }
+
+  return Object.fromEntries(retained)
+}
+
 /**
  * Return a compact, immutable persistence projection of SocialState.
  *
  * The deterministic RNG cursor, causal Reality domain, relationships, promises,
- * facts, memories and active interactions are preserved. Verbose debug/history
- * collections are bounded so a long season cannot turn every autosave into a
- * multi-megabyte synchronous JSON write.
+ * facts, memories and active interactions are preserved. Old resolved Reality
+ * interactions are history only; retain recent entries and anything referenced
+ * by an unresolved incoming interaction. Verbose debug/history collections are
+ * bounded so a long season cannot turn every autosave into a multi-megabyte write.
  */
 export function compactSocialStateForPersistence(state: SocialState): SocialState {
   // Old/partially-migrated saves may temporarily lack newer SocialState fields.
@@ -91,6 +131,7 @@ export function compactSocialStateForPersistence(state: SocialState): SocialStat
   const compactTrace = state.realitySimulation.trace
     .slice(-PERSISTED_SOCIAL_LIMITS.realityTrace)
     .map((entry) => ({ ...entry, candidates: undefined }))
+  const compactInteractions = compactRealityInteractions(state)
 
   return {
     ...state,
@@ -103,5 +144,8 @@ export function compactSocialStateForPersistence(state: SocialState): SocialStat
       ...state.realitySimulation,
       trace: compactTrace,
     },
+    ...(compactInteractions
+      ? { reality: { ...state.reality, interactions: compactInteractions } }
+      : {}),
   }
 }

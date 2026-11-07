@@ -1,0 +1,232 @@
+{
+  "ticket": "CS-01",
+  "item": {
+    "id": "soft-arc-brass",
+    "revision": "r1",
+    "source": "sources/eyewear/soft-arc-brass-r1.svg"
+  },
+  "fits": [
+    {
+      "fitId": "candidate-01-main-r1",
+      "itemId": "soft-arc-brass",
+      "itemRevision": "r1",
+      "characterId": "candidate-01",
+      "characterRevision": "CS00-identity-01-r1",
+      "state": "main",
+      "portraitSourceState": "main",
+      "coordinateSystem": "256x256 normalized export canvas; origin top-left; x/y in pixels",
+      "transform": {
+        "designViewBox": [96, 26],
+        "centerX": 137.8,
+        "centerY": 92.4,
+        "uniformScale": 0.84,
+        "rotationDegrees": -1.2
+      },
+      "personForeground": "layers/foregrounds/candidate-01-main-foreground.png",
+      "background": "layers/backgrounds/candidate-01-main-background-plate.png",
+      "basePortrait": "../cs-00/exports/identity-01-r1/main.webp",
+      "eyewearLayer": "sources/eyewear/soft-arc-brass-r1.svg",
+      "compositionOrder": [
+        "background",
+        "complete person portrait (or frozen opaque accepted base)",
+        "temple and front frame layer",
+        "exact source pixels restored by the state-specific hair/ear mask"
+      ],
+      "occlusionMask": "layers/occlusion-masks/candidate-01-main-r1-hair-restore.png",
+      "coverage": {
+        "eyesVisible": "reviewed",
+        "bridgeCentered": "reviewed",
+        "templesToHairOrEar": "reviewed",
+        "circularCrops": [32, 48, 64, 72],
+        "backgrounds": ["dark", "light", "saturated"]
+      },
+      "outputPortrait": "exports/identity-01/main-with-soft-arc-brass.png",
+      "fullResolutionOutput": "exports/identity-01/full-resolution/main-with-soft-arc-brass-1254.png"
+    },
+    {
+      "fitId": "candidate-01-grey-r1",
+      "itemId": "soft-arc-brass",
+      "itemRevision": "r1",
+      "characterId": "candidate-01",
+      "characterRevision": "CS00-identity-01-r1",
+      "state": "grey",
+      "portraitSourceState": "grey",
+      "coordinateSystem": "256x256 normalized export canvas; origin top-left; x/y in pixels",
+      "transform": {
+        "designViewBox": [96, 26],
+        "centerX": 137.8,
+        "centerY": 92.4,
+        "uniformScale": 0.84,
+        "rotationDegrees": -1.2
+      },
+      "personForeground": "layers/foregrounds/candidate-01-grey-foreground.png",
+      "background": "layers/backgrounds/candidate-01-grey-background-plate.png",
+      "basePortrait": "../cs-00/exports/identity-01-r1/grey.webp",
+      "eyewearLayer": "sources/eyewear/soft-arc-brass-r1.svg",
+      "compositionOrder": [
+        "background",
+        "complete person portrait (or frozen opaque accepted base)",
+        "temple and front frame layer",
+        "exact source pixels restored by the state-specific hair/ear mask"
+      ],
+      "occlusionMask": "layers/occlusion-masks/candidate-01-grey-r1-hair-restore.png",
+      "coverage": {
+        "eyesVisible": "reviewed",
+        "bridgeCentered": "reviewed",
+        "templesToHairOrEar": "reviewed",
+        "circularCrops": [32, 48, 64, 72],
+        "backgrounds": ["dark", "light", "saturated"]
+      },
+      "outputPortrait": "exports/identity-01/grey-with-soft-arc-brass.png",
+      "fullResolutionOutput": "exports/identity-01/full-resolution/grey-with-soft-arc-brass-1254.png"
+    },
+    {
+      "fitId": "candidate-01-sad-r1",
+      "itemId": "soft-arc-brass",
+      "itemRevision": "r1",
+      "characterId": "candidate-01",
+      "characterRevision": "CS00-identity-01-r1",
+      "state": "sad",
+      "portraitSourceState": "sad",
+      "coordinateSystem": "256x256 normalized export canvas; origin top-left; x/y in pixels",
+      "transform": {
+        "designViewBox": [96, 26],
+        "centerX": 137.4,
+        "centerY": 94.1,
+        "uniformScale": 0.83,
+        "rotationDegrees": -1.4
+      },
+      "personForeground": "layers/foregrounds/candidate-01-sad-foreground.png",
+      "background": "layers/backgrounds/candidate-01-sad-background-plate.png",
+      "basePortrait": "../cs-00/exports/identity-01-r1/sad.webp",
+      "eyewearLayer": "sources/eyewear/soft-arc-brass-r1.svg",
+      "compositionOrder": [
+        "background",
+        "complete person portrait (or frozen opaque accepted base)",
+        "temple and front frame layer",
+        "exact source pixels restored by the state-specific hair/ear mask"
+      ],
+      "occlusionMask": "layers/occlusion-masks/candidate-01-sad-r1-hair-restore.png",
+      "coverage": {
+        "eyesVisible": "reviewed",
+        "bridgeCentered": "reviewed",
+        "templesToHairOrEar": "reviewed",
+        "circularCrops": [32, 48, 64, 72],
+        "backgrounds": ["dark", "light", "saturated"]
+      },
+      "outputPortrait": "exports/identity-01/sad-with-soft-arc-brass.png",
+      "fullResolutionOutput": "exports/identity-01/full-resolution/sad-with-soft-arc-brass-1254.png"
+    },
+    {
+      "fitId": "candidate-03-main-r1",
+      "itemId": "soft-arc-brass",
+      "itemRevision": "r1",
+      "characterId": "candidate-03",
+      "characterRevision": "CS01-identity-03-portrait-r1",
+      "state": "main",
+      "portraitSourceState": "main",
+      "coordinateSystem": "256x256 normalized export canvas; origin top-left; x/y in pixels",
+      "transform": {
+        "designViewBox": [96, 26],
+        "centerX": 127.6,
+        "centerY": 82.2,
+        "uniformScale": 0.91,
+        "rotationDegrees": 0.4
+      },
+      "personForeground": "sources/candidate-03/identity-03-main-portrait-master.png",
+      "background": "layers/backgrounds/candidate-03-main-background.png",
+      "basePortrait": "exports/identity-03/main-base.png",
+      "eyewearLayer": "sources/eyewear/soft-arc-brass-r1.svg",
+      "compositionOrder": [
+        "background",
+        "complete person portrait (or frozen opaque accepted base)",
+        "temple and front frame layer",
+        "exact source pixels restored by the state-specific hair/ear mask"
+      ],
+      "occlusionMask": "layers/occlusion-masks/candidate-03-main-r1-hair-restore.png",
+      "coverage": {
+        "eyesVisible": "reviewed",
+        "bridgeCentered": "reviewed",
+        "templesToHairOrEar": "reviewed",
+        "circularCrops": [32, 48, 64, 72],
+        "backgrounds": ["dark", "light", "saturated"]
+      },
+      "outputPortrait": "exports/identity-03/main-with-soft-arc-brass.png",
+      "fullResolutionOutput": "exports/identity-03/full-resolution/main-with-soft-arc-brass-1254.png"
+    },
+    {
+      "fitId": "candidate-03-grey-r1",
+      "itemId": "soft-arc-brass",
+      "itemRevision": "r1",
+      "characterId": "candidate-03",
+      "characterRevision": "CS01-identity-03-portrait-r1",
+      "state": "grey",
+      "portraitSourceState": "main",
+      "coordinateSystem": "256x256 normalized export canvas; origin top-left; x/y in pixels",
+      "transform": {
+        "designViewBox": [96, 26],
+        "centerX": 127.6,
+        "centerY": 82.2,
+        "uniformScale": 0.91,
+        "rotationDegrees": 0.4
+      },
+      "personForeground": "sources/candidate-03/identity-03-main-portrait-master.png",
+      "background": "layers/backgrounds/candidate-03-grey-background.png",
+      "basePortrait": "exports/identity-03/grey-base.png",
+      "eyewearLayer": "sources/eyewear/soft-arc-brass-r1.svg",
+      "compositionOrder": [
+        "background",
+        "complete person portrait (or frozen opaque accepted base)",
+        "temple and front frame layer",
+        "exact source pixels restored by the state-specific hair/ear mask"
+      ],
+      "occlusionMask": "layers/occlusion-masks/candidate-03-grey-r1-hair-restore.png",
+      "coverage": {
+        "eyesVisible": "reviewed",
+        "bridgeCentered": "reviewed",
+        "templesToHairOrEar": "reviewed",
+        "circularCrops": [32, 48, 64, 72],
+        "backgrounds": ["dark", "light", "saturated"]
+      },
+      "outputPortrait": "exports/identity-03/grey-with-soft-arc-brass.png",
+      "fullResolutionOutput": "exports/identity-03/full-resolution/grey-with-soft-arc-brass-1254.png"
+    },
+    {
+      "fitId": "candidate-03-sad-r1",
+      "itemId": "soft-arc-brass",
+      "itemRevision": "r1",
+      "characterId": "candidate-03",
+      "characterRevision": "CS01-identity-03-portrait-r1",
+      "state": "sad",
+      "portraitSourceState": "sad",
+      "coordinateSystem": "256x256 normalized export canvas; origin top-left; x/y in pixels",
+      "transform": {
+        "designViewBox": [96, 26],
+        "centerX": 127.4,
+        "centerY": 83.8,
+        "uniformScale": 0.9,
+        "rotationDegrees": 0.2
+      },
+      "personForeground": "sources/candidate-03/identity-03-sad-portrait-master.png",
+      "background": "layers/backgrounds/candidate-03-sad-background.png",
+      "basePortrait": "exports/identity-03/sad-base.png",
+      "eyewearLayer": "sources/eyewear/soft-arc-brass-r1.svg",
+      "compositionOrder": [
+        "background",
+        "complete person portrait (or frozen opaque accepted base)",
+        "temple and front frame layer",
+        "exact source pixels restored by the state-specific hair/ear mask"
+      ],
+      "occlusionMask": "layers/occlusion-masks/candidate-03-sad-r1-hair-restore.png",
+      "coverage": {
+        "eyesVisible": "reviewed",
+        "bridgeCentered": "reviewed",
+        "templesToHairOrEar": "reviewed",
+        "circularCrops": [32, 48, 64, 72],
+        "backgrounds": ["dark", "light", "saturated"]
+      },
+      "outputPortrait": "exports/identity-03/sad-with-soft-arc-brass.png",
+      "fullResolutionOutput": "exports/identity-03/full-resolution/sad-with-soft-arc-brass-1254.png"
+    }
+  ]
+}

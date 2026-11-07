@@ -1040,3 +1040,12 @@
   color: #fff;
   border-color: rgba(233, 69, 96, 0.6);
 }
+.minigame-checkpoint-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(5 8 17 / 85%);
+}

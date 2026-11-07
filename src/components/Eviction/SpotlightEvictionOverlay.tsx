@@ -14,6 +14,10 @@ import { useResolvedAvatarSrc } from '../../hooks/useResolvedAvatarSrc'
 import { useAppDispatch } from '../../store/hooks'
 import { setEvictionOverlay, clearEvictionOverlay } from '../../store/gameSlice'
 import { getEvictionPresentationVariant } from './evictionPresentation'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
 import './SpotlightEvictionOverlay.css'
 import './SpotlightEvictionOverlayParity.css'
 
@@ -148,6 +152,10 @@ export default function SpotlightEvictionOverlay({
   devSkip,
   variant = 'eviction',
 }: Props) {
+  const { isOwner, hasOwner } = usePresentationOwner(
+    'eviction-spotlight',
+    PRESENTATION_PRIORITY.evictionSpotlight
+  )
   const dispatch = useAppDispatch()
   const { candidates: resolvedAvatarCandidates } = useResolvedAvatarSrc(evictee)
   const candidates = resolvedAvatarCandidates.flatMap(resolvePresentationAvatarCandidates)
@@ -202,6 +210,10 @@ export default function SpotlightEvictionOverlay({
     onDone()
   }, [onDone])
 
+  useEffect(() => {
+    if (hasOwner && !isOwner) fire()
+  }, [fire, hasOwner, isOwner])
+
   // Capture the live tile rectangle before the Redux overlay flag fades that
   // source tile out. The image URL is retained for diagnostics/future fallbacks,
   // while the hero itself uses the original grey presentation candidate above.
@@ -225,15 +237,16 @@ export default function SpotlightEvictionOverlay({
 
   // Warm the presentation candidate before the camera move.
   useEffect(() => {
-    if (!avatarSrc || typeof window === 'undefined') return
+    if (!isOwner || !avatarSrc || typeof window === 'undefined') return
     const image = new window.Image()
     image.src = avatarSrc
     if (typeof image.decode === 'function') {
       void image.decode().catch(() => undefined)
     }
-  }, [avatarSrc])
+  }, [avatarSrc, isOwner])
 
   useEffect(() => {
+    if (!isOwner) return undefined
     if (import.meta.env.DEV) {
       console.debug('[SpotlightEvictionOverlay] mount', {
         evicteeId: evictee.id,
@@ -251,9 +264,10 @@ export default function SpotlightEvictionOverlay({
     }
     // Stable for the lifetime of this overlay instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [isOwner])
 
   useEffect(() => {
+    if (!isOwner) return undefined
     if (isReturn || isBellaLastWill || typeof window === 'undefined') {
       setStampAssetState('error')
       return undefined
@@ -272,9 +286,13 @@ export default function SpotlightEvictionOverlay({
     return () => {
       active = false
     }
-  }, [isBellaLastWill, isReturn])
+  }, [isBellaLastWill, isOwner, isReturn])
 
   useEffect(() => {
+    if (!isOwner) {
+      if (hasOwner) fire()
+      return undefined
+    }
     const timers: ReturnType<typeof setTimeout>[] = []
     const t0 = Date.now()
     const dbg = import.meta.env.DEV
@@ -426,7 +444,7 @@ export default function SpotlightEvictionOverlay({
     return () => timers.forEach(clearTimeout)
     // Presentation preferences are intentionally captured once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fire, hasOwner, isOwner])
 
   function handleImgError() {
     if (usesSourceProfilePhoto) {
@@ -480,9 +498,12 @@ export default function SpotlightEvictionOverlay({
     .filter(Boolean)
     .join(' ')
 
+  if (!isOwner) return null
+
   return (
     <div
       className={rootClassName}
+      data-presentation-root="eviction-spotlight"
       role="dialog"
       aria-modal="true"
       aria-label={

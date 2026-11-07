@@ -6,6 +6,17 @@ export class SeededRandom {
     this.state = seed >>> 0
   }
 
+  snapshot(): number {
+    return this.state >>> 0
+  }
+
+  restore(state: number): void {
+    if (!Number.isInteger(state) || state < 0 || state > 0xffffffff) {
+      throw new Error(`Invalid simulation random state: ${state}`)
+    }
+    this.state = state >>> 0
+  }
+
   next(): number {
     let value = (this.state += 0x6d2b79f5)
     value = Math.imul(value ^ (value >>> 15), value | 1)

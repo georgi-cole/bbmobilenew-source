@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { createInitialRealityDomainState } from '../social/reality'
+import type { RealityInteraction } from '../social/reality'
 import type { SocialState } from '../social/types'
 import {
   compactGameStateForPersistence,
@@ -110,5 +112,73 @@ describe('saveStateCompaction', () => {
     expect(runtime.sessionLogs).toHaveLength(120)
     expect(runtime.realitySimulation.trace).toHaveLength(150)
     expect(runtime.realitySimulation.trace[0]?.candidates).toBeDefined()
+  })
+
+  it('keeps active Reality interactions and protects pending background replies', () => {
+    const reality = createInitialRealityDomainState()
+    for (
+      let sequence = 0;
+      sequence < PERSISTED_SOCIAL_LIMITS.realityResolvedInteractions + 8;
+      sequence += 1
+    ) {
+      reality.interactions[`resolved-${sequence}`] = {
+        id: `resolved-${sequence}`,
+        status: 'RESOLVED',
+        createdSequence: sequence,
+      } as RealityInteraction
+    }
+    reality.interactions['background-reply'] = {
+      id: 'background-reply',
+      status: 'RESOLVED',
+      createdSequence: -1,
+    } as RealityInteraction
+    reality.interactions.pending = {
+      id: 'pending',
+      status: 'PENDING',
+      createdSequence: 10_000,
+    } as RealityInteraction
+    reality.interactions.awaiting = {
+      id: 'awaiting',
+      status: 'AWAITING_HUMAN',
+      createdSequence: 10_001,
+    } as RealityInteraction
+    const incoming = {
+      id: 'incoming-background',
+      fromId: 'actor',
+      type: 'check_in' as const,
+      text: 'A recent background interaction needs your answer.',
+      payload: { realityInteractionId: 'background-reply' },
+      createdAt: 1,
+      createdWeek: 1,
+      expiresAtWeek: 2,
+      read: false,
+      requiresResponse: true,
+      resolved: false,
+    }
+    const runtime = {
+      reality,
+      incomingInteractions: [incoming],
+      sessionLogs: [],
+      incomingInteractionLogs: [],
+      realitySimulation: { version: 1, rng: { seed: 1, state: 2, cursor: 3 }, trace: [] },
+    } as unknown as SocialState
+
+    const compact = compactSocialStateForPersistence(runtime)
+    const compactInteractions = compact.reality.interactions
+
+    expect(Object.keys(compactInteractions)).toHaveLength(
+      PERSISTED_SOCIAL_LIMITS.realityResolvedInteractions + 3
+    )
+    expect(compactInteractions['resolved-0']).toBeUndefined()
+    expect(compactInteractions['resolved-8']).toBeDefined()
+    expect(
+      compactInteractions[`resolved-${PERSISTED_SOCIAL_LIMITS.realityResolvedInteractions + 7}`]
+    ).toBeDefined()
+    expect(compactInteractions['background-reply']).toBeDefined()
+    expect(compactInteractions.pending?.status).toBe('PENDING')
+    expect(compactInteractions.awaiting?.status).toBe('AWAITING_HUMAN')
+    expect(Object.keys(runtime.reality.interactions)).toHaveLength(
+      PERSISTED_SOCIAL_LIMITS.realityResolvedInteractions + 11
+    )
   })
 })

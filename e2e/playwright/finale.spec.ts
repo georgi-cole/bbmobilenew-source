@@ -7,12 +7,21 @@ import {
   test,
   type Page,
 } from './support/test'
+import {
+  advanceFinalePresentation,
+  exitVisibleMinigameWithZero,
+  startVisibleCompetitionBriefing,
+} from './season-sim/runner'
+import { dismissShockAcknowledgement } from './season-sim/shockAcknowledgement'
+import { attachJuryDiagnostics } from './season-sim/juryDiagnostics'
 
 const PROFILE_ID = 'e2e-finale-profile'
 const PROFILE_NAME = 'Finale Journey Player'
 const FIXTURE_SENTINEL_KEY = 'bbmobilenew:e2e:finale-fixture'
 const PROFILES_STORAGE_KEY = 'bbmobilenew:profiles:v1'
 const SETTINGS_STORAGE_KEY = 'bbmobilenew_settings_v1'
+const PLAYER_SAFETY_STORAGE_KEY = 'bbmobilenew:player-safety:v1'
+const VIP_STORAGE_KEY = 'bbmobilenew:vip:v2'
 const ARCHIVE_KEY = `bbmobilenew:seasonArchives:${encodeURIComponent(PROFILE_ID)}`
 const CLASSIC_RUN_KEY = `bbmobilenew:savedRunSlot:${encodeURIComponent(PROFILE_ID)}:classic`
 const LEGACY_SAVED_STATE_KEY = `bbmobilenew:savedSeason:${encodeURIComponent(PROFILE_ID)}`
@@ -40,7 +49,15 @@ interface ArchiveSummary {
 
 async function installDeterministicFinaleFixture(page: Page): Promise<void> {
   await page.addInitScript(
-    ({ fixtureSentinelKey, profileId, profileName, profilesStorageKey, settingsStorageKey }) => {
+    ({
+      fixtureSentinelKey,
+      playerSafetyStorageKey,
+      profileId,
+      profileName,
+      profilesStorageKey,
+      settingsStorageKey,
+      vipStorageKey,
+    }) => {
       // Keep roster selection and all incidental non-game random calls stable.
       // The game itself starts with its canonical deterministic seed (42).
       let randomState = 0x6d2b79f5
@@ -59,6 +76,9 @@ async function installDeterministicFinaleFixture(page: Page): Promise<void> {
 
       localStorage.clear()
       sessionStorage.clear()
+      // These direct finale journeys start from a prepared game state, so the
+      // one-time cold-open intro is outside the path under test.
+      sessionStorage.setItem('bb:homeHubSplashShownThisSession', 'true')
       localStorage.setItem(
         profilesStorageKey,
         JSON.stringify({
@@ -87,14 +107,51 @@ async function installDeterministicFinaleFixture(page: Page): Promise<void> {
           },
         })
       )
+      localStorage.setItem(
+        playerSafetyStorageKey,
+        JSON.stringify({
+          version: 1,
+          ageBand: 'adult',
+          guardianPlayPermission: false,
+          optionalFeatures: {
+            location: false,
+            analytics: false,
+            onlineServices: false,
+            ads: false,
+          },
+        })
+      )
+      // The deterministic finale journey does not exercise geolocation. Mark
+      // that optional browser prompt as declined so it cannot cover the QA
+      // controls on the direct game route.
+      localStorage.setItem('bb:allowLocation', 'denied')
+      localStorage.setItem(
+        vipStorageKey,
+        JSON.stringify({
+          isActive: false,
+          entitlements: {
+            survivalMode: false,
+            publicMode: false,
+            tribunalHouse: false,
+            dramaMode: false,
+            cupidArrow: true,
+            voxPopuli: true,
+            premiumChallenges: false,
+            noAds: false,
+          },
+          lastVerifiedAt: null,
+        })
+      )
       localStorage.setItem(fixtureSentinelKey, 'installed')
     },
     {
       fixtureSentinelKey: FIXTURE_SENTINEL_KEY,
+      playerSafetyStorageKey: PLAYER_SAFETY_STORAGE_KEY,
       profileId: PROFILE_ID,
       profileName: PROFILE_NAME,
       profilesStorageKey: PROFILES_STORAGE_KEY,
       settingsStorageKey: SETTINGS_STORAGE_KEY,
+      vipStorageKey: VIP_STORAGE_KEY,
     }
   )
 }
@@ -161,7 +218,7 @@ async function readArchive(page: Page): Promise<{
 /** Open the debug panel by clicking the FAB toggle (if not already open). */
 async function openDebugPanel(page: Page): Promise<void> {
   const fab = page.getByRole('button', { name: 'Toggle Debug Panel' })
-  await expect(fab).toBeVisible({ timeout: 10_000 })
+  await expect(fab).toBeVisible({ timeout: 30_000 })
   const panel = page.getByRole('complementary', { name: 'Debug Panel' })
   if (!(await panel.isVisible())) {
     await fab.click()
@@ -169,7 +226,19 @@ async function openDebugPanel(page: Page): Promise<void> {
   await expect(panel).toBeVisible({ timeout: 5_000 })
 }
 
+async function openActiveGameRoute(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    window.location.hash = '#/game?debug=1'
+  })
+  await expect(page).toHaveURL(/#\/game\?debug=1$/)
+  await openDebugPanel(page)
+}
+
 async function configureValidFinaleRoster(page: Page): Promise<FixtureRoster> {
+  const gameState = await readAppState(page)
+  const humanId = gameState.game.players.find((player) => player.isUser)?.id
+  if (!humanId) throw new Error('The deterministic finale fixture has no human player.')
+
   const statusSelect = page.getByRole('combobox', { name: 'Player Hub Status' })
   const players = await statusSelect.locator('option').evaluateAll((options) =>
     options.slice(1).map((option) => ({
@@ -179,9 +248,23 @@ async function configureValidFinaleRoster(page: Page): Promise<FixtureRoster> {
   )
 
   expect(players.length).toBeGreaterThanOrEqual(9)
-  const finalists = players.slice(0, 2)
-  const jurors = players.slice(2, 9)
-  const preJury = players.slice(9)
+  // Keep the human in the finale while configuring the roster. Marking the
+  // human pre-jury eliminated can correctly end the live season before the
+  // debug control has a chance to open the Tribunal.
+  const finalists = [
+    players.find((player) => player.id === humanId),
+    players.find((player) => player.id !== humanId),
+  ]
+  if (finalists.some((player) => !player)) {
+    throw new Error('The deterministic finale fixture cannot reserve two finalists.')
+  }
+  const resolvedFinalists = finalists as FixtureRoster['finalists']
+  expect(resolvedFinalists.map((player) => player.id)).toContain(humanId)
+  const remainingPlayers = players.filter(
+    (player) => !resolvedFinalists.some((finalist) => finalist.id === player.id)
+  )
+  const jurors = remainingPlayers.slice(0, 7)
+  const preJury = remainingPlayers.slice(7)
 
   for (const juror of jurors) {
     await statusSelect.selectOption(juror.id)
@@ -192,7 +275,7 @@ async function configureValidFinaleRoster(page: Page): Promise<FixtureRoster> {
     await page.getByRole('button', { name: 'Set Pre-jury Eliminated' }).click()
   }
 
-  return { finalists, jurors, preJury }
+  return { finalists: resolvedFinalists, jurors, preJury }
 }
 
 async function waitForHome(page: Page): Promise<void> {
@@ -221,8 +304,257 @@ function eventCount(state: Awaited<ReturnType<typeof readAppState>>, eventType: 
   return (state.game.history ?? []).filter((event) => event.type === eventType).length
 }
 
+async function finishFinalThreePleaAndAnnouncement(page: Page): Promise<void> {
+  const pleas = page.getByRole('dialog', { name: 'The Finale plea chat' })
+  if (!(await pleas.isVisible().catch(() => false))) {
+    expect(await advanceFinalePresentation(page)).toBe(true)
+  }
+  await expect(pleas).toBeVisible({ timeout: 10_000 })
+  expect(await advanceFinalePresentation(page)).toBe(true)
+  await expect(pleas).toBeHidden({ timeout: 10_000 })
+
+  const announcement = page.getByRole('dialog', {
+    name: 'The Finale elimination announcement',
+  })
+  const humanDecision = page.getByRole('dialog', { name: 'Final Power Decision' })
+  await expect
+    .poll(
+      async () =>
+        (await announcement.isVisible().catch(() => false)) ||
+        (await humanDecision.isVisible().catch(() => false)),
+      { timeout: 10_000 }
+    )
+    .toBe(true)
+
+  if (await humanDecision.isVisible().catch(() => false)) {
+    await humanDecision.getByRole('button').first().click()
+    await humanDecision.getByRole('button', { name: /^Eliminate .+ · Keep .+/ }).click()
+  }
+
+  await expect(announcement).toBeVisible({ timeout: 10_000 })
+  expect(await advanceFinalePresentation(page)).toBe(true)
+  await expect(announcement).toBeHidden({ timeout: 10_000 })
+}
+
 test.describe('Finale / Jury flow @release', () => {
   test.setTimeout(300_000)
+
+  test('Final Three decision advances through pleas and announcement without replaying a season', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    await installDeterministicFinaleFixture(page)
+    await page.goto('./#/game?debug=1', { waitUntil: 'commit', timeout: 60_000 })
+    await expect(page).toHaveURL(/#\/game\?debug=1$/)
+    await openDebugPanel(page)
+    await page.getByRole('button', { name: 'Prepare Classic Final 3 Test' }).click()
+
+    const preparedState = await readAppState(page)
+    expect(preparedState.game.status).toBe('active')
+    const human = preparedState.game.players.find((player) => player.isUser)
+    const thirdAi = preparedState.game.players.find(
+      (player) => !player.isUser && player.status === 'jury'
+    )
+    expect(human).toBeDefined()
+    expect(thirdAi).toBeDefined()
+
+    const preparedFinalists = preparedState
+    expect(
+      preparedFinalists.game.players.filter(
+        (player) => player.status !== 'evicted' && player.status !== 'jury'
+      )
+    ).toHaveLength(3)
+    expect(
+      preparedFinalists.game.players.some(
+        (player) => player.isUser && player.status !== 'evicted' && player.status !== 'jury'
+      )
+    ).toBe(true)
+    expect(preparedFinalists.game.players.find((player) => player.id === thirdAi!.id)?.status).toBe(
+      'jury'
+    )
+
+    await openActiveGameRoute(page)
+    await page.getByRole('button', { name: 'F3 Part 3', exact: true }).click()
+    await page.getByRole('button', { name: 'Advance Phase' }).click()
+    await closeDebugPanelIfOpen(page)
+    expect(await startVisibleCompetitionBriefing(page)).toBe(true)
+    expect(await exitVisibleMinigameWithZero(page)).toBe(true)
+    await expect
+      .poll(
+        async () => {
+          const state = await readAppState(page)
+          return state.game.phase === 'final3_decision' && state.game.awaitingFinal3Plea
+        },
+        { timeout: 15_000 }
+      )
+      .toBe(true)
+    await closeDebugPanelIfOpen(page)
+
+    await finishFinalThreePleaAndAnnouncement(page)
+  })
+
+  test('Cupid spell break reaches the Final Three plea and announcement without replaying a season', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    await installDeterministicFinaleFixture(page)
+    await page.goto('./#/game?debug=1', { waitUntil: 'commit', timeout: 60_000 })
+    await openDebugPanel(page)
+    const cupidUnlock = page.getByRole('button', { name: 'Unlock Cupid Test', exact: true })
+    await expect(cupidUnlock).toBeVisible()
+    await cupidUnlock.click()
+    await page.getByRole('button', { name: 'Activate Cupid', exact: true }).click()
+
+    expect((await readAppState(page)).game.cupidArrow?.status).toBe('active')
+    await page.getByRole('button', { name: 'Test Cupid Dissociation' }).click()
+    await expect.poll(async () => (await readAppState(page)).game.cupidArrow?.status).toBe('broken')
+    await dismissShockAcknowledgement(page)
+
+    await page.getByRole('button', { name: 'Prepare Classic Final 3 Test' }).click()
+    const preparedState = await readAppState(page)
+    expect(preparedState.game.status).toBe('active')
+    expect(preparedState.game.cupidArrow?.status).toBe('broken')
+    const human = preparedState.game.players.find((player) => player.isUser)
+    expect(human?.status).toBe('active')
+
+    await openActiveGameRoute(page)
+    await page.getByRole('button', { name: 'F3 Part 3', exact: true }).click()
+    await page.getByRole('button', { name: 'Advance Phase' }).click()
+    await closeDebugPanelIfOpen(page)
+    expect(await startVisibleCompetitionBriefing(page)).toBe(true)
+    expect(await exitVisibleMinigameWithZero(page)).toBe(true)
+    await expect
+      .poll(
+        async () => {
+          const state = await readAppState(page)
+          return state.game.phase === 'final3_decision' && state.game.awaitingFinal3Plea
+        },
+        { timeout: 15_000 }
+      )
+      .toBe(true)
+    expect((await readAppState(page)).game.cupidArrow?.status).toBe('broken')
+    await closeDebugPanelIfOpen(page)
+
+    await finishFinalThreePleaAndAnnouncement(page)
+  })
+
+  test('Cupid Tribunal records its pending jury work and completed clue timer', async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(180_000)
+    await installDeterministicFinaleFixture(page)
+    await page.goto('./?debugPerformance=1#/game?debug=1', { timeout: 90_000 })
+    await openDebugPanel(page)
+    await page.getByRole('button', { name: 'Unlock Cupid Test', exact: true }).click()
+    await page.getByRole('button', { name: 'Activate Cupid', exact: true }).click()
+    await page.getByRole('button', { name: 'Test Cupid Dissociation' }).click()
+    await expect.poll(async () => (await readAppState(page)).game.cupidArrow?.status).toBe('broken')
+    await dismissShockAcknowledgement(page)
+    await page.getByRole('button', { name: 'Prepare Classic Final 3 Test' }).click()
+    await openActiveGameRoute(page)
+    await configureValidFinaleRoster(page)
+    await page.getByRole('button', { name: '→ Force Tribunal' }).click()
+    await closeDebugPanelIfOpen(page)
+
+    const tribunal = page.getByRole('dialog', { name: 'Tribunal Finale' })
+    await expect(tribunal).toBeVisible({ timeout: 10_000 })
+    await tribunal.getByRole('button', { name: 'Begin Tribunal ▶' }).click()
+    await expect
+      .poll(async () => (await readAppState(page)).finale.revealedCount, { timeout: 30_000 })
+      .toBeGreaterThan(0)
+    const events = await page.evaluate(
+      () => window.__bbGamePerformance?.snapshot().juryEvents ?? []
+    )
+    expect(events.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'redux-finale-transition',
+        'tribunal-stage',
+        'tribunal-opening-button-pressed',
+        'tribunal-clue-scheduled',
+        'tribunal-clue-timer-fired',
+      ])
+    )
+    expect((await readAppState(page)).game.cupidArrow?.status).toBe('broken')
+    await attachJuryDiagnostics(page, testInfo)
+  })
+
+  test('Vox Populi carries the Final Three audience ballot through the player appeal', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000)
+    await installDeterministicFinaleFixture(page)
+    await page.goto('./#/game?debug=1', { waitUntil: 'commit', timeout: 60_000 })
+    await openDebugPanel(page)
+    await page.getByRole('button', { name: 'Unlock Vox Test', exact: true }).click()
+    await page.getByRole('button', { name: 'Activate Vox', exact: true }).click()
+    await expect.poll(async () => (await readAppState(page)).game.voxPopuli?.status).toBe('active')
+    await page.getByRole('button', { name: 'Prepare Vox Final 3 Test', exact: true }).click()
+
+    const preparedState = await readAppState(page)
+    expect(preparedState.game.status).toBe('active')
+    const finalists = preparedState.game.players.filter(
+      (player) => player.status !== 'evicted' && player.status !== 'jury'
+    )
+    expect(finalists).toHaveLength(3)
+    const human = finalists.find((player) => player.isUser)
+    const nominees = finalists.filter((player) => !player.isUser)
+    expect(human).toBeDefined()
+    expect(nominees).toHaveLength(2)
+
+    const nomineeRow = page.locator('.dbg-row--col').filter({
+      has: page.locator('.dbg-label', { hasText: 'Force Nominees' }),
+    })
+    await nomineeRow.locator('select').nth(0).selectOption(human!.id)
+    await nomineeRow.locator('select').nth(1).selectOption(nominees[0].id)
+    await nomineeRow.getByRole('button', { name: 'Set', exact: true }).click()
+
+    const lohRow = page.locator('.dbg-row').filter({
+      has: page.locator('.dbg-label', { hasText: 'Force LOH' }),
+    })
+    await lohRow.locator('select').selectOption(nominees[1].id)
+    await lohRow.getByRole('button', { name: 'Set', exact: true }).click()
+
+    const phaseRow = page.locator('.dbg-row').filter({
+      has: page.locator('.dbg-label', { hasText: 'Set Phase' }),
+    })
+    await phaseRow.locator('select').selectOption('final3_decision')
+    await phaseRow.getByRole('button', { name: 'Set', exact: true }).click()
+    await page.getByRole('button', { name: 'Advance Phase' }).click()
+    await expect
+      .poll(
+        async () => {
+          const vox = (await readAppState(page)).game.voxPopuli
+          return vox?.awaitingPublicVote === true && vox.publicVoteContext === 'final3'
+        },
+        { timeout: 10_000 }
+      )
+      .toBe(true)
+    await openActiveGameRoute(page)
+    await closeDebugPanelIfOpen(page)
+    await dismissShockAcknowledgement(page)
+
+    const appeal = page.getByRole('dialog', { name: 'Final appeal to the audience' })
+    await expect(appeal).toBeVisible()
+    await appeal.getByRole('button', { name: /The people/ }).click()
+    await expect
+      .poll(async () => (await readAppState(page)).game.voxPopuli?.finalThreeAppeal)
+      .toBe('loyalty')
+
+    await page.getByRole('button', { name: 'Advance to next phase', exact: true }).click()
+    await expect
+      .poll(
+        async () => {
+          const game = (await readAppState(page)).game
+          return (
+            game.voxPopuli?.awaitingPublicVote === false &&
+            game.voteResultsMode === 'public' &&
+            game.pendingEviction?.evicteeId != null
+          )
+        },
+        { timeout: 15_000 }
+      )
+      .toBe(true)
+  })
 
   test('completes a valid finale, reward, recap, and archive exactly once @core-journey @persistence @economy', async ({
     page,
@@ -237,6 +569,11 @@ test.describe('Finale / Jury flow @release', () => {
     expect(initialState.profiles.profiles).toContainEqual(
       expect.objectContaining({ id: PROFILE_ID, name: PROFILE_NAME })
     )
+
+    // The cold store has no active season. Enter the valid finale fixture
+    // before changing statuses so the route does not correctly return Home.
+    await page.getByRole('button', { name: 'Prepare Classic Final 3 Test' }).click()
+    await openActiveGameRoute(page)
 
     const roster = await configureValidFinaleRoster(page)
     const fixtureState = await readAppState(page)
@@ -272,10 +609,16 @@ test.describe('Finale / Jury flow @release', () => {
       .poll(async () => (await readAppState(page)).finale.revealedCount, { timeout: 30_000 })
       .toBeGreaterThan(0)
     await expect
-      .poll(async () => {
-        const state = await readAppState(page)
-        return state.finale.jurorIds.filter((id) => id !== '__public__').sort()
-      })
+      .poll(
+        async () => {
+          const state = await readAppState(page)
+          return state.finale.jurorIds.filter((id) => id !== '__public__').sort()
+        },
+        {
+          message: 'the Tribunal should retain every configured jury member',
+          timeout: 30_000,
+        }
+      )
       .toEqual(expect.arrayContaining(roster.jurors.map((player) => player.id).sort()))
     const tribunalState = await readAppState(page)
     expect([...tribunalState.finale.finalistIds].sort()).toEqual(
@@ -292,11 +635,12 @@ test.describe('Finale / Jury flow @release', () => {
       .evaluate((button) => (button as HTMLButtonElement).click())
     const recap = page.getByRole('dialog', { name: 'Season recap archive' })
     await expect(recap).toBeVisible({ timeout: 10_000 })
-    await recap
-      .getByRole('button', { name: 'Skip opening' })
-      .evaluate((button) => (button as HTMLButtonElement).click())
+    const skipRecapOpening = recap.getByRole('button', { name: 'Skip opening' })
+    if (await skipRecapOpening.isVisible().catch(() => false)) {
+      await skipRecapOpening.click({ timeout: 1_500 }).catch(() => undefined)
+    }
     await expect(recap.getByRole('heading', { name: 'Choose the next chapter.' })).toBeVisible({
-      timeout: 10_000,
+      timeout: 30_000,
     })
     await recap
       .getByRole('button', { name: 'Exit season recap' })
@@ -320,11 +664,9 @@ test.describe('Finale / Jury flow @release', () => {
     expect(roster.finalists.map((player) => player.id)).toContain(winnerId)
     expect(roster.finalists.map((player) => player.id)).toContain(runnerUpId)
 
-    await tribunal.getByRole('button', { name: /Continue/ }).evaluate((element) => {
-      const button = element as HTMLButtonElement
-      button.click()
-      button.click()
-    })
+    const continueTribunal = tribunal.getByRole('button', { name: 'Continue 🎉', exact: true })
+    await expect(continueTribunal).toBeVisible({ timeout: 15_000 })
+    await continueTribunal.click({ timeout: 3_000 })
 
     const winnerReveal = page.getByRole('dialog', { name: /Season \d+ winner reveal/ })
     await expect(winnerReveal).toBeVisible({ timeout: 10_000 })

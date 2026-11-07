@@ -1,4 +1,5 @@
 import type { ProfilesState } from '../store/profilesSlice'
+import { canUseAdultServices } from '../safety/playerSafety'
 
 export type RealityModePreset = 'casual' | 'tv' | 'adult'
 export type RealityAgeEligibility = 'adult' | 'minor' | 'unknown'
@@ -26,7 +27,7 @@ export const REALITY_MODE_PRESETS: ReadonlyArray<{
     value: 'adult',
     label: '18+',
     description:
-      'The strongest relationship and conflict intensity. Requires a verified adult profile.',
+      'The strongest relationship and conflict intensity. Requires an adult age declaration and adult profile.',
     minimumAge: 18,
   },
 ]
@@ -82,6 +83,7 @@ export function getRealityAgeEligibility(age: unknown): RealityAgeEligibility {
 export function getProfileRealityAgeEligibility(
   profiles: Pick<ProfilesState, 'profiles' | 'activeProfileId' | 'isGuest'> | undefined
 ): RealityAgeEligibility {
+  if (!canUseAdultServices()) return 'unknown'
   if (!profiles || profiles.isGuest || !profiles.activeProfileId) return 'unknown'
   const profile = profiles.profiles.find((entry) => entry.id === profiles.activeProfileId)
   return getRealityAgeEligibility(profile?.bio?.age)

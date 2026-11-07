@@ -6,10 +6,10 @@ Thank you for contributing! This guide covers everything you need to get up and 
 
 ## Prerequisites
 
-| Tool | Minimum version |
-|------|----------------|
-| Node.js | 18.x |
-| npm | 9.x |
+| Tool    | Minimum version |
+| ------- | --------------- |
+| Node.js | 22.x            |
+| npm     | 9.x             |
 
 ---
 
@@ -60,6 +60,8 @@ npm run dev        # Express API server (default port 4000)
 Run these before opening or finalising a PR. Only run the suites relevant to the area you touched; running the full suite is fine but not always required for focused changes.
 
 ```bash
+npm run check:pr       # Required before every push or PR update
+npm run check:marketplace # Paid-feature listing, documentation and access regressions
 npm run lint:ci        # ESLint, zero warnings allowed
 npm run typecheck      # TypeScript, no emit
 npm test               # Vitest unit/integration suite
@@ -75,22 +77,31 @@ npx playwright test    # or: npm run test:e2e if the script exists
 
 ## Repo map
 
-| Path | What lives here |
-|------|----------------|
-| `src/` | React + TypeScript app source |
-| `src/types/` | Shared TypeScript interfaces |
-| `src/store/` | Redux Toolkit store setup and slice reducers; `GameContext` is limited-scope/legacy |
-| `src/components/` | Reusable UI and layout components |
-| `src/screens/` | One folder per route/screen |
-| `src/features/` | Self-contained feature slices |
-| `src/minigames/` | Standalone mini-game implementations |
-| `server/` | Express API server (OpenAI proxy, diary routes) |
-| `docs/` | Architecture and design docs |
-| `e2e/` | Playwright end-to-end tests |
-| `tests/` | Vitest unit and integration tests |
-| `.github/workflows/` | CI, lint, deploy, and e2e workflow definitions |
+| Path                 | What lives here                                                                     |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| `src/`               | React + TypeScript app source                                                       |
+| `src/types/`         | Shared TypeScript interfaces                                                        |
+| `src/store/`         | Redux Toolkit store setup and slice reducers; `GameContext` is limited-scope/legacy |
+| `src/components/`    | Reusable UI and layout components                                                   |
+| `src/screens/`       | One folder per route/screen                                                         |
+| `src/features/`      | Self-contained feature slices                                                       |
+| `src/minigames/`     | Standalone mini-game implementations                                                |
+| `server/`            | Express API server (OpenAI proxy, diary routes)                                     |
+| `docs/`              | Architecture and design docs                                                        |
+| `e2e/`               | Playwright end-to-end tests                                                         |
+| `tests/`             | Vitest unit and integration tests                                                   |
+| `.github/workflows/` | CI, lint, deploy, and e2e workflow definitions                                      |
 
 ---
+
+## Marketplace and paid-feature maintenance
+
+Follow [the marketplace maintenance guide](docs/marketplace-maintenance.md) for paid modes,
+expansions, premium games, themes, ads, purchases, and Eyeolean powers. Premium Challenges
+and VIP both unlock every premium minigame version. Store counts, game benefits, shelves,
+and VIP bundle benefits derive from the runtime catalogs. Generate the catalog reference
+with `npm run generate:marketplace`; PR checks reject stale documentation and paid-feature
+changes without a marketplace review.
 
 ## Pull request expectations
 
@@ -125,10 +136,10 @@ All server-side env vars are documented in [`server/.env.example`](server/.env.e
 
 The following GitHub Actions workflows run on pull requests:
 
-| Workflow | What it checks |
-|----------|---------------|
-| `ci.yml` | Build |
-| `lint.yml` | ESLint (`lint:ci`) |
+| Workflow             | What it checks              |
+| -------------------- | --------------------------- |
+| `ci.yml`             | Build                       |
+| `lint.yml`           | ESLint (`lint:ci`)          |
 | `e2e-playwright.yml` | Playwright end-to-end tests |
 
 A PR should pass all CI checks before merging.

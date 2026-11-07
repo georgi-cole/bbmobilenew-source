@@ -21,6 +21,7 @@
  * TODO: Wire in cinematic overlay components at the TODO_OVERLAY markers below.
  */
 
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useReducer, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { trapAuctionReducer } from './trapAuctionReducer';
@@ -277,6 +278,14 @@ export default function TrapAuction({
 
   const alivePlayers = state.players.filter((p) => p.isAlive);
   const humanPlayer = state.players.find((p) => p.isHuman);
+
+  useCompetitionResultCheckpoint(state.phase === 'complete' && state.winner ? {
+    rawValue: 1, partial: false, completion: {
+      authoritativeWinnerId: state.winner.id,
+      authoritativeLastPlaceId: [...state.players].sort((a, b) => (a.placement ?? Number.MAX_SAFE_INTEGER) - (b.placement ?? Number.MAX_SAFE_INTEGER)).at(-1)?.id,
+      rawResults: Object.fromEntries(state.players.map((player) => [player.id, state.players.length - (player.placement ?? state.players.length) + 1])),
+    },
+  } : null);
 
   // ── Render by phase ─────────────────────────────────────────────────────────
 
@@ -756,4 +765,3 @@ function PersonalityMapModal({ players, round, onClose }: PersonalityMapModalPro
     </div>
   );
 }
-

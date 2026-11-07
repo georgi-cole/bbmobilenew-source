@@ -13,9 +13,12 @@
  */
 import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
+import CompetitionResultCheckpoint from '../../minigames/CompetitionResultCheckpoint';
+import type { CompetitionResult } from '../../minigames/competitionResult';
 import './minigameCommon.css';
 
 export interface MinigameCompleteWrapperProps {
+  result?: CompetitionResult;
   /** Hero / top content: title, trophy, winner name, etc. */
   children: ReactNode;
   /** Content rendered inside the scrollable placement list area. */
@@ -42,6 +45,7 @@ export interface MinigameCompleteWrapperProps {
 }
 
 export default function MinigameCompleteWrapper({
+  result,
   children,
   placementsNode,
   className,
@@ -66,6 +70,7 @@ export default function MinigameCompleteWrapper({
 
   return (
     <div className={rootClass}>
+      {result && <CompetitionResultCheckpoint result={result} />}
       {/* Hero: title, trophy, winner name, subtitle */}
       {children}
 

@@ -352,6 +352,14 @@ export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
     host: 'tests/unit/house-of-darkness/houseOfDarknessRegistry.test.ts',
     risk: 'Long multi-round completion still needs a real browser terminal-path driver.',
   },
+  gatesOfTheEye: {
+    input: 'pointer/touch choice from four reward-and-risk doors each round',
+    scoring: 'survival',
+    tie: 'One shared per-round collapse; tied all-player wipe restores one life to the full final group; regulation score ties continue into overtime.',
+    logic: 'src/components/GatesOfTheEye/gatesOfTheEyeLogic.ts',
+    component: 'src/components/GatesOfTheEye/GatesOfTheEye.tsx',
+    risk: 'No focused rule test or full hosted browser playthrough has been added yet.',
+  },
 }
 
 function describeTimeout(game: GameRegistryEntry): string {

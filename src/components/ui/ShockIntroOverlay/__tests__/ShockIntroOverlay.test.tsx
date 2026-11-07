@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ShockIntroOverlay from '../ShockIntroOverlay'
 
@@ -28,6 +28,26 @@ describe('ShockIntroOverlay', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'OK' }))
     expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('finishes Cupid’s spell break on time when the owner refreshes its callback', () => {
+    const firstComplete = vi.fn()
+    const latestComplete = vi.fn()
+    const { rerender } = render(
+      <ShockIntroOverlay active shockKey="cupid_arrow_broken" onComplete={firstComplete} />
+    )
+
+    act(() => vi.advanceTimersByTime(3_900))
+    rerender(<ShockIntroOverlay active shockKey="cupid_arrow_broken" onComplete={latestComplete} />)
+    act(() => vi.advanceTimersByTime(3_899))
+
+    expect(firstComplete).not.toHaveBeenCalled()
+    expect(latestComplete).not.toHaveBeenCalled()
+
+    act(() => vi.advanceTimersByTime(1))
+
+    expect(firstComplete).not.toHaveBeenCalled()
+    expect(latestComplete).toHaveBeenCalledOnce()
   })
 
   it('uses the staged Back 2 the Game announcement copy for battle back shock keys', () => {

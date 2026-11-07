@@ -17,6 +17,10 @@ import { resolveAvatar } from '../../utils/avatar'
 import { selectSettings } from '../../store/settingsSlice'
 import { setMusicScene } from '../../store/uiSlice'
 import { SoundManager } from '../../services/sound/SoundManager'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
 import FinalLightsOutSequence from '../FinalLightsOutSequence/FinalLightsOutSequence'
 import Credits from '../../screens/Credits/Credits'
 import { buildFinalGoodbyeMessages } from './finaleGoodbyes'
@@ -130,6 +134,7 @@ export default function SeasonFinaleOverlay() {
     () => game.players.find((player) => player.id === finale?.winnerId) ?? null,
     [finale?.winnerId, game.players]
   )
+  usePresentationOwner('season-finale', PRESENTATION_PRIORITY.finale, Boolean(finale && winner))
 
   const interviewLines = useMemo(
     () => (winner && finale ? buildInterviewLines(winner, finale.interviewIndex) : []),

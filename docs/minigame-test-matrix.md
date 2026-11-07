@@ -27,7 +27,7 @@ Responsive coverage mounts every playable entry, checks instructions, host exit/
 | Result shape       | Authoritative games return a finite value and participant-owned winner; raw games return a finite human value for host ranking.                   |
 | Season effects     | Result, announcement, reward, history, and phase transition are applied exactly once by the parent.                                               |
 
-The active registry currently omits game-specific participant bounds for most games. The runtime default is minimum 1 with no registry maximum, while the QA lab constrains interactive previews to 2?12. This is recorded as a shared design gap; the matrix does not pretend the default is a verified game-specific maximum.
+The active registry currently omits game-specific participant bounds for most games. The runtime default is minimum 1 with no registry maximum, while the QA lab constrains interactive previews to 2–16. This is recorded as a shared design gap; the matrix does not pretend the default is a verified game-specific maximum.
 
 ## Rules, input, timing, and ties
 
@@ -62,7 +62,7 @@ The active registry currently omits game-specific participant bounds for most ga
 | `glass_bridge_brutal`     | The Crystal Path             | path choice             | elimination | dynamic; 160 s base | survival and deterministic finish order                              |
 | `crystal_path_shattered`  | Crystal Path: Infinity       | path choice             | elimination |               160 s | authoritative survival/order                                         |
 | `trapAuction`             | Trap Auction                 | bid/target              | custom      |               owned | authoritative auction tie rule                                       |
-| `chainOfGreed`            | Chain of Greed               | split/steal/vote/duel   | placement   |               owned | only a genuinely tied vote enters deterministic duel                 |
+| `chainOfGreed`            | Chain of Greed               | split/steal/vote        | placement   |               owned | round leader resolves vote ties; score ties use deterministic duel   |
 | `batteryLow`              | Battery Low                  | charge allocation       | survival    |               owned | authoritative charge/elimination result                              |
 | `houseOfDarkness`         | Deck of Darkness             | memory-card selection   | survival    |               owned | rounds, lifespan, damage, mistakes, time, stable order               |
 | `castleRescueRemastered`  | Find Your Twin               | movement/touch          | higher      |               150 s | rescue score, deterministic tiebreaker                               |
@@ -70,6 +70,7 @@ The active registry currently omits game-specific participant bounds for most ga
 | `mysticChamber`           | Mystic Chamber               | powers/target/box       | higher      |               owned | final Power, Round 6 gain, seeded sigil                              |
 | `finalThreeCircuit`       | Final Three Circuit          | finale stages           | higher      |             dynamic | total score across six authoritative stages                          |
 | `downMemoryLane`          | Down Memory Lane             | buzz and answer         | custom      |               owned | first player to lose all five lives loses                            |
+| `gatesOfTheEye`           | Bigg Gates                   | choose a door           | placement   |               owned | shared collapse; tied final group restores a life unless one leads   |
 
 ?Owned? means the component has no registry-wide timeout; its round state machine owns timing. Late timers still cannot overwrite an accepted result.
 
@@ -114,6 +115,7 @@ The active registry currently omits game-specific participant bounds for most ga
 | `mysticChamber`           | seeded action/box matrix                  | ?                        | registry only               | B configured | six-round real-component completion and season result     |
 | `finalThreeCircuit`       | stage scoring and puzzles                 | FinalOverrideChallenge   | ?                           | B configured | every finale stage through the real host                  |
 | `downMemoryLane`          | life and question rules                   | ?                        | registry evidence           | B configured | five-life duel and season result                          |
+| `gatesOfTheEye`           | registry and completion contract          | ?                        | registry contract           | B configured | full seeded playthrough and device checks                 |
 
 ## Interpretation
 

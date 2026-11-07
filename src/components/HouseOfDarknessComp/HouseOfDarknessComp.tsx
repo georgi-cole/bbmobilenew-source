@@ -1312,6 +1312,19 @@ export default function HouseOfDarknessComp({
     return (
       <MinigameCompleteWrapper
         className={`hod-complete hod-final-results hod-complete--${premiumPresentation ? 'premium' : 'standard'}`}
+        result={{
+          rawValue: standings.some((state) => state.id === humanId)
+            ? (standings.length - standings.findIndex((state) => state.id === humanId)) * 1_000_000
+            : 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: standings[0].id,
+            authoritativeRankedIds: standings.map((state) => state.id),
+            rawResults: Object.fromEntries(
+              standings.map((state, index) => [state.id, (standings.length - index) * 1_000_000])
+            ),
+          },
+        }}
         onContinue={finish}
         continueLabel="Leave the deck"
         continueButtonClassName="hod-continue"

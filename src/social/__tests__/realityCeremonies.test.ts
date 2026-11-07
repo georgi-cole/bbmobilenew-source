@@ -134,13 +134,13 @@ describe('Reality jury knowledge boundaries', () => {
   it('builds jury scorecards without mutating a frozen relationship snapshot', () => {
     const state = createInitialRealityDomainState()
     recordRealityCeremonyOutcome(state, {
-      kind: 'POWER_WON',
-      day: 4,
-      phase: 'loh_results',
-      actorId: 'aria',
-      targetIds: [],
-      witnessIds: ['juror'],
-      publicEligible: true,
+      kind: 'EVICTION',
+      day: 6,
+      phase: 'eviction_results',
+      actorId: 'lux',
+      targetIds: ['juror'],
+      witnessIds: ['juror', 'lux', 'aria'],
+      publicEligible: false,
     })
     state.relationships.juror = Object.freeze({})
 

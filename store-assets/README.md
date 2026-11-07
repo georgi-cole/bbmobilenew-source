@@ -2,23 +2,30 @@
 
 Prepared for **The Big Eye** on 2026-07-22. Everything here is release material kept separate from application code.
 
-## Recommended upload-ready media
+## Media replacement required — 2026-11-07
+
+The owner confirmed that the screenshot sets below are obsolete and will provide
+replacement images in the release conversation. Do not upload these old sets or
+submit the existing store drafts for review. Replace the draft screenshots with
+the new owner-supplied images before submission.
+
+## Previous media package
 
 The final product-led sets use existing named housemates, real in-app interfaces, Public Mode, AI relationship gameplay, and current minigames. They deliberately avoid a physical reality-TV house aesthetic.
 
 ### Apple App Store
 
 - `apple/app-store-icon-1024.png` — 1024 × 1024 RGB PNG, no alpha.
-- `apple/iphone-6.9-product/` — **recommended**, six 1320 × 2868 screenshots.
-- `apple/ipad-13-product/` — **recommended**, six 2048 × 2732 screenshots.
+- `apple/iphone-6.9-product/` — obsolete, six 1320 × 2868 screenshots.
+- `apple/ipad-13-product/` — obsolete, six 2048 × 2732 screenshots.
 
 Apple permits one to ten screenshots. The iPad set is included because the Xcode target declares device family `1,2`. Replace the supplied tablet marketing compositions with direct native iPad captures if the final iPad UI differs materially.
 
 ### Google Play
 
 - `google-play/app-icon-512.png` — 512 × 512 RGBA PNG.
-- `google-play/feature-graphic-product-1024x500.png` — **recommended** canonical-housemate feature graphic.
-- `google-play/phone-product/` — **recommended**, six 1080 × 1920 screenshots.
+- `google-play/feature-graphic-product-1024x500.png` — previous canonical-housemate feature graphic; re-confirm with the new media.
+- `google-play/phone-product/` — obsolete, six 1080 × 1920 screenshots.
 - `google-play/alt-text.md` — accessibility descriptions for the recommended images.
 
 Folders without `-product` are earlier alternatives. Folders containing `-story` are rejected concept drafts and must not be uploaded.

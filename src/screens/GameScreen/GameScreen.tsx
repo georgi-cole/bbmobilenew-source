@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
 import { getTribunalMembers } from '../../rules/tribunalPolicy'
 import { LayoutGroup, AnimatePresence } from 'framer-motion'
 import { useStore } from 'react-redux'
@@ -25,7 +26,6 @@ import {
   revealVoxTemporaryAudienceVote,
   submitVoxFinalThreeAppeal,
   startVoxFinalVote,
-  resetGame,
 } from '../../store/gameSlice'
 import {
   completeChallenge,
@@ -50,18 +50,17 @@ import HouseguestInfoDialog from '../../components/HouseguestGrid/HouseguestInfo
 import TvDecisionModal from '../../components/TvDecisionModal/TvDecisionModal'
 import TvMultiSelectModal from '../../components/TvDecisionModal/TvMultiSelectModal'
 import TvBinaryDecisionModal from '../../components/TvBinaryDecisionModal/TvBinaryDecisionModal'
-import QuickTapRace from '../../components/QuickTapRace/QuickTapRace'
-import LaneRacersCanvasGame from '../../minigames/laneRacers/LaneRacersCanvasGame'
-import PressurePlank from '../../components/PressurePlank/PressurePlank'
 import { rankPressurePlankResults } from '../../components/PressurePlank/pressurePlankLogic'
-import BullseyeBlitz from '../../components/BullseyeBlitz/BullseyeBlitz'
-import TravelingDots from '../../components/TravelingDots/TravelingDots'
-import MinigameHost from '../../components/MinigameHost/MinigameHost'
 import type { HostPhase, MinigameParticipant } from '../../components/MinigameHost/MinigameHost'
+import MinigameHost from '../../components/MinigameHost/MinigameHost'
+import MinigameLoadingBoundary from '../../components/MinigameHost/MinigameLoadingBoundary'
 import type { MusicMinigameVariant } from '../../services/sound/musicConfig'
 import { computeScores } from '../../minigames/scoring'
 import FloatingActionBar from '../../components/FloatingActionBar/FloatingActionBar'
-import { shouldRenderGameControlDock } from './gameScreenUiGuards'
+import {
+  shouldEnableCupidSeasonTestSpectator,
+  shouldRenderGameControlDock,
+} from './gameScreenUiGuards'
 import WeekendPartyAtmosphere from '../../components/WeekendPartyAtmosphere/WeekendPartyAtmosphere'
 import { resolveWeekendVisualTheme } from '../../utils/weekendVisualTheme'
 import SpotlightEvictionOverlay from '../../components/Eviction/SpotlightEvictionOverlay'
@@ -79,7 +78,6 @@ import SurvivorAchievementCelebration from '../../components/SurvivorAchievement
 import { FEATURE_SOCIAL_V2, FEATURE_SPECTATOR_REACT } from '../../config/featureFlags'
 import SocialSummaryPopup from '../../components/SocialSummary/SocialSummaryPopup'
 import SpectatorView from '../../components/ui/SpectatorView'
-import Capitalization from '../../components/Capitalization/Capitalization'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import Final3Ceremony from '../../components/Final3Ceremony/Final3Ceremony'
 import FinalThreeBlockReveal from '../../components/FinalPowerBattle/FinalThreeBlockReveal'
@@ -89,9 +87,7 @@ import { getProfilePhotoAvatarId, joinPublicAssetPath, resolveAvatar } from '../
 import { statusBadgeImageSrc } from '../../utils/statusBadges'
 import type { Player } from '../../types'
 import { isSurvivorRunTerminal } from '../../modes/survivorRun'
-import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
 import { getImmediateAutoNomineeId } from './autoNomineeBadge'
-import PublicFavoriteOverlay from '../../components/PublicFavoriteOverlay/PublicFavoriteOverlay'
 import JuryPhaseRevealOverlay from '../../components/JuryPhaseRevealOverlay/JuryPhaseRevealOverlay'
 import TwinShockRevealOverlay from '../../components/TwinShockRevealOverlay/TwinShockRevealOverlay'
 import TwinShockIntroCinematic from '../../components/TwinShockIntroCinematic/TwinShockIntroCinematic'
@@ -158,6 +154,29 @@ export {
   POST_VOTE_ANNOUNCEMENT_MS,
 } from './flows/useEvictionFlow'
 import './GameScreen.css'
+
+const QuickTapRace = lazyWithChunkRecovery(
+  () => import('../../components/QuickTapRace/QuickTapRace')
+)
+const LaneRacersCanvasGame = lazyWithChunkRecovery(
+  () => import('../../minigames/laneRacers/LaneRacersCanvasGame')
+)
+const PressurePlank = lazyWithChunkRecovery(
+  () => import('../../components/PressurePlank/PressurePlank')
+)
+const BullseyeBlitz = lazyWithChunkRecovery(
+  () => import('../../components/BullseyeBlitz/BullseyeBlitz')
+)
+const TravelingDots = lazyWithChunkRecovery(
+  () => import('../../components/TravelingDots/TravelingDots')
+)
+const BattleBackCompetition = lazyWithChunkRecovery(
+  () => import('../../components/Capitalization/BattleBackCompetition')
+)
+
+const PublicFavoriteOverlay = lazyWithChunkRecovery(
+  () => import('../../components/PublicFavoriteOverlay/PublicFavoriteOverlay')
+)
 
 const LOH_BADGE_SRC = statusBadgeImageSrc('loh')
 const NOMINATION_BADGE_SRC = statusBadgeImageSrc('nominated')
@@ -426,6 +445,16 @@ export default function GameScreen() {
     game.voxPopuli.finalThreeAppealUsed !== true &&
     Boolean(humanPlayer && game.nomineeIds.includes(humanPlayer.id))
   const isVoxThirdPlace = isVoxPopuli && humanPlayer?.seasonPlacement === 3
+  const cupidSeasonTestFlag =
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    window.sessionStorage.getItem('bb:test:cupid-season-spectator') === 'true'
+  const cupidSeasonTestSpectatorEnabled = shouldEnableCupidSeasonTestSpectator(
+    import.meta.env.DEV,
+    cupidSeasonTestFlag
+  )
+  const canSpectateAfterElimination =
+    isVoxPopuli || (isCupidArrowActive(game) && cupidSeasonTestSpectatorEnabled)
   const preJuryGameOver =
     game.mode !== 'survival' &&
     humanPlayer?.status === 'evicted' &&
@@ -540,13 +569,8 @@ export default function GameScreen() {
     clearEliminatedRun()
     const continueVoxPopuli =
       game.voxPopuli?.status === 'active' || game.expansionMode === 'voxPopuli'
-    if (continueVoxPopuli) {
-      startNewVoxPopuliSeason(dispatch)
-    } else {
-      dispatch(resetGame())
-    }
     dispatch({ type: 'challenge/setPendingChallenge', payload: null })
-    navigate('/', { replace: true, state: { autoStartGame: true } })
+    navigate(`/new-season?mode=${continueVoxPopuli ? 'voxPopuli' : 'classic'}`, { replace: true })
   }, [clearEliminatedRun, dispatch, game.expansionMode, game.voxPopuli?.status, navigate])
   const handlePreJuryReturnHome = useCallback(() => {
     clearEliminatedRun()
@@ -1013,7 +1037,13 @@ export default function GameScreen() {
   // is pending and the human player is a participant in that challenge.
   const humanIsChallengeParticipant =
     !!pendingChallenge && !!humanPlayer && pendingChallenge.participants.includes(humanPlayer.id)
-  const showMinigameHost = humanIsChallengeParticipant
+  const showMinigameHost =
+    pendingChallenge?.attempt?.status !== 'accepted' &&
+    !(pendingChallenge?.restored && pendingChallenge.attempt?.status === 'playing') &&
+    (humanIsChallengeParticipant ||
+      Boolean(
+        pendingChallenge?.needsEditionReconciliation || pendingChallenge?.editionChangeNotice
+      ))
   const aiOnlyChallengeResolvedRef = useRef<string | null>(null)
   useEffect(() => {
     const isClassicCompetitionPhase =
@@ -1021,6 +1051,9 @@ export default function GameScreen() {
     if (
       !isClassicCompetitionPhase ||
       !pendingChallenge ||
+      pendingChallenge.attempt?.status === 'accepted' ||
+      pendingChallenge.needsEditionReconciliation ||
+      pendingChallenge.editionChangeNotice ||
       humanIsChallengeParticipant ||
       pendingChallenge.participants.length === 0 ||
       aiOnlyChallengeResolvedRef.current === pendingChallenge.id
@@ -1068,7 +1101,7 @@ export default function GameScreen() {
     )
   }, [dispatch, game.mode, game.phase, humanIsChallengeParticipant, pendingChallenge])
   /** True whenever a native React LOH/POS minigame overlay should be displayed. */
-  const showLohMinigame = !showMinigameHost && humanIsParticipant
+  const showLohMinigame = !pendingChallenge && !pendingWinnerCeremony && humanIsParticipant
   const showPressurePlank = showLohMinigame && pendingMinigame?.key === 'pressurePlank'
   const showBullseyeBlitz = showLohMinigame && pendingMinigame?.key === 'targetPractice'
   // TravelingDots is key-gated to its specific overlay component.
@@ -2101,7 +2134,7 @@ export default function GameScreen() {
                     onReward()
                     setAdPending(false)
                   },
-                  { isFinal3Week }
+                  { isFinal3Week, onDismissed: () => setAdPending(false) }
                 )
                 if (!requested) {
                   setAdPending(false)
@@ -2126,23 +2159,33 @@ export default function GameScreen() {
 
         {/* ── Native LOH/POS minigame overlays (routed by session key) ────────── */}
         {showQuickTapRace && pendingMinigame && (
-          <QuickTapRace session={pendingMinigame} players={game.players} />
+          <MinigameLoadingBoundary title="Quick Tap Race">
+            <QuickTapRace session={pendingMinigame} players={game.players} />
+          </MinigameLoadingBoundary>
         )}
         {showLaneRacers && pendingMinigame && (
-          <LaneRacersCanvasGame session={pendingMinigame} players={game.players} />
+          <MinigameLoadingBoundary title="Lane Racers">
+            <LaneRacersCanvasGame session={pendingMinigame} players={game.players} />
+          </MinigameLoadingBoundary>
         )}
         {showPressurePlank && pendingMinigame && (
-          <PressurePlank session={pendingMinigame} players={game.players} />
+          <MinigameLoadingBoundary title="Pressure Plank">
+            <PressurePlank session={pendingMinigame} players={game.players} />
+          </MinigameLoadingBoundary>
         )}
 
         {/* ── BullseyeBlitz minigame overlay ───────────────────────────────── */}
         {showBullseyeBlitz && pendingMinigame && (
-          <BullseyeBlitz session={pendingMinigame} players={game.players} />
+          <MinigameLoadingBoundary title="Bullseye Blitz">
+            <BullseyeBlitz session={pendingMinigame} players={game.players} />
+          </MinigameLoadingBoundary>
         )}
 
         {/* ── TravelingDots minigame overlay ───────────────────────────────── */}
         {showTravelingDots && pendingMinigame && (
-          <TravelingDots session={pendingMinigame} players={game.players} />
+          <MinigameLoadingBoundary title="Traveling Dots">
+            <TravelingDots session={pendingMinigame} players={game.players} />
+          </MinigameLoadingBoundary>
         )}
 
         {/* ── Winner tile lift — LOH / POS result without coordinate-space cutouts ── */}
@@ -2422,16 +2465,18 @@ export default function GameScreen() {
             className="game-screen__battle-back-minigame"
             aria-label="Back 2 the Game competition"
           >
-            <Capitalization
-              key={`${battleBackCandidateIds.join('-')}-bb-cap-${battleBackAttemptIndex}`}
-              context="battleBack"
-              participantIds={battleBackCandidateIds}
-              participants={battleBackCapitalizationParticipants}
-              seed={battleBackAttemptSeed}
-              onFinish={(_value, _tiebreakerMs, completion) => {
-                handleBattleBackComplete(completion?.authoritativeWinnerId ?? null)
-              }}
-            />
+            <MinigameLoadingBoundary title="Back 2 the Game">
+              <BattleBackCompetition
+                key={`${battleBackCandidateIds.join('-')}-bb-cap-${battleBackAttemptIndex}`}
+                attemptIndex={battleBackAttemptIndex}
+                participantIds={battleBackCandidateIds}
+                participants={battleBackCapitalizationParticipants}
+                seed={battleBackAttemptSeed}
+                onFinish={(_value, _tiebreakerMs, completion) => {
+                  handleBattleBackComplete(completion?.authoritativeWinnerId ?? null)
+                }}
+              />
+            </MinigameLoadingBoundary>
           </div>
         )}
         {showBattleBackOverlay && !useBattleBackMinigame && (
@@ -2451,32 +2496,38 @@ export default function GameScreen() {
           description={
             isVoxPopuli
               ? 'The audience eliminated you. You can keep watching the season as a spectator, return home, or begin a new season.'
-              : 'You were eliminated before the Tribunal began, so you cannot return to the game or cast a finale vote.'
+              : canSpectateAfterElimination && isCupidArrowActive(game)
+                ? 'You and your partner were eliminated together. You can keep watching, return home, or begin a new season, but you cannot return to the game or cast a finale vote.'
+                : 'You were eliminated before the Tribunal began, so you cannot return to the game or cast a finale vote.'
           }
           confirmLabel="Start New Season"
-          cancelLabel={isVoxPopuli ? 'Keep Spectating' : 'Return Home'}
-          secondaryLabel={isVoxPopuli ? 'Return Home' : undefined}
+          cancelLabel={canSpectateAfterElimination ? 'Keep Spectating' : 'Return Home'}
+          secondaryLabel={canSpectateAfterElimination ? 'Return Home' : undefined}
           onConfirm={handleStartNewSeason}
           onCancel={
-            isVoxPopuli ? () => setSpectatingAfterElimination(true) : handlePreJuryReturnHome
+            canSpectateAfterElimination
+              ? () => setSpectatingAfterElimination(true)
+              : handlePreJuryReturnHome
           }
-          onSecondary={isVoxPopuli ? handlePreJuryReturnHome : undefined}
+          onSecondary={canSpectateAfterElimination ? handlePreJuryReturnHome : undefined}
         />
 
         {/* ── Public's Favorite Player voting overlay ───────────────────────── */}
         {isPublicModeEnabled(game.mode) && showFavoriteVoting && favoritePlayer && (
-          <PublicFavoriteOverlay
-            candidates={game.players.filter((p) =>
-              (favoritePlayer.candidates ?? []).includes(p.id)
-            )}
-            seed={game.seed}
-            awardAmount={favoritePlayer.awardAmount}
-            onComplete={handleFavoriteComplete}
-            onAudienceSurgeRequest={handleFavoriteAudienceSurgeRequest}
-            onForecastAward={handleForecastAward}
-            canBankEyeoleans={!isGuest && Boolean(activeProfileId)}
-            forecastEventScope={game.gameId ?? `season-${game.season}-${game.seed}`}
-          />
+          <Suspense fallback={<div role="status">Preparing audience vote…</div>}>
+            <PublicFavoriteOverlay
+              candidates={game.players.filter((p) =>
+                (favoritePlayer.candidates ?? []).includes(p.id)
+              )}
+              seed={game.seed}
+              awardAmount={favoritePlayer.awardAmount}
+              onComplete={handleFavoriteComplete}
+              onAudienceSurgeRequest={handleFavoriteAudienceSurgeRequest}
+              onForecastAward={handleForecastAward}
+              canBankEyeoleans={!isGuest && Boolean(activeProfileId)}
+              forecastEventScope={game.gameId ?? `season-${game.season}-${game.seed}`}
+            />
+          </Suspense>
         )}
 
         {/* ── Social Phase Panel (human player actions) ────────────────────── */}
@@ -2514,11 +2565,15 @@ export default function GameScreen() {
                 unlockVoteBreakdown()
                 return
               }
-              const requested = showRewarded('eviction_vote_breakdown', state, dispatch, () =>
-                unlockVoteBreakdown()
+              const requested = showRewarded(
+                'eviction_vote_breakdown',
+                state,
+                dispatch,
+                () => unlockVoteBreakdown(),
+                { onDismissed: () => setAdPending(false) }
               )
               if (!requested) {
-                unlockVoteBreakdown()
+                setAdPending(false)
               }
             }}
             onSkip={handleVoteBreakdownSkip}
@@ -2546,9 +2601,10 @@ export default function GameScreen() {
                 'vox_nomination_breakdown',
                 state,
                 dispatch,
-                unlockVoxNominationReveal
+                unlockVoxNominationReveal,
+                { onDismissed: () => setAdPending(false) }
               )
-              if (!requested) unlockVoxNominationReveal()
+              if (!requested) setAdPending(false)
             }}
             onSkip={declineVoxNominationReveal}
             pending={adPending}
@@ -2577,9 +2633,10 @@ export default function GameScreen() {
                   'vox_audience_preview',
                   state,
                   dispatch,
-                  unlockVoxAudiencePreview
+                  unlockVoxAudiencePreview,
+                  { onDismissed: () => setAdPending(false) }
                 )
-                if (!requested) unlockVoxAudiencePreview()
+                if (!requested) setAdPending(false)
               }}
               onSkip={() => {
                 setShowVoxAudiencePreviewPrompt(false)
@@ -2647,10 +2704,16 @@ export default function GameScreen() {
               if (adPending) return
               setAdPending(true)
               const state = storeRef.current.getState()
-              const requested = showRewarded('social_energy_recharge', state, dispatch, () => {
-                setShowEnergyRechargePrompt(false)
-                setAdPending(false)
-              })
+              const requested = showRewarded(
+                'social_energy_recharge',
+                state,
+                dispatch,
+                () => {
+                  setShowEnergyRechargePrompt(false)
+                  setAdPending(false)
+                },
+                { onDismissed: () => setAdPending(false) }
+              )
               if (!requested) {
                 setAdPending(false)
               }
@@ -2697,7 +2760,8 @@ export default function GameScreen() {
                   }
                   setShowAudienceInsightPrompt(false)
                   setAdPending(false)
-                }
+                },
+                { onDismissed: () => setAdPending(false) }
               )
               if (!requested) {
                 setAdPending(false)
@@ -2733,7 +2797,7 @@ export default function GameScreen() {
                 state,
                 dispatch,
                 () => restartBattleBack(),
-                { isFinal3Week }
+                { isFinal3Week, onDismissed: () => setAdPending(false) }
               )
               if (!requested) {
                 setAdPending(false)
@@ -2831,13 +2895,10 @@ export default function GameScreen() {
         {/* ── Houseguest grid (alive + evicted in one grid) ────────────────── */}
         <HouseguestGrid
           houseguests={presentedRosterPlayers.map(playerToHouseguest)}
-          headerSelector=".tv-zone"
-          footerSelector=".nav-bar"
           overlaySelector=".game-control-dock"
           compact={responsiveGameLayout.compactRoster}
           rosterMode={responsiveGameLayout.rosterMode}
           headerMode={responsiveGameLayout.rosterHeaderMode}
-          layoutRevision={responsiveGameLayout.revision}
           occupancyLabel={inlineHouseFeedVisible ? undefined : housemateOccupancyLabel}
           returningPlayerId={battleBackReturnId}
           onReturnAnimationDone={handleBattleBackReturnDone}

@@ -6,6 +6,7 @@ import {
   commitNominees,
   declineDoubleVoteReward,
   declineMissionImmunityReward,
+  getEligibleReplacementNominees,
   selectAlivePlayers,
   setReplacementNominee,
   submitCoupReplacement,
@@ -651,40 +652,36 @@ function SaveTargetDecision({ presentation, onDecisionCommitted }: Omit<Props, '
 function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 'decision'>) {
   const dispatch = useAppDispatch()
   const game = useAppSelector((state) => state.game)
-  const alivePlayers = useAppSelector(selectAlivePlayers)
   const isDiamond = game.specialVeto?.awaitingHolderReplacement === true
   const isCoup1 = game.specialVeto?.awaitingCoupReplacement1 === true
   const isCoup2 = game.specialVeto?.awaitingCoupReplacement2 === true
-  const protectedIds = useMemo(() => new Set(game.povProtectedIds ?? []), [game.povProtectedIds])
-  const lohIds = new Set(expandCupidIds(game, game.lohId ? [game.lohId] : []))
-  const posIds = new Set(expandCupidIds(game, game.posWinnerId ? [game.posWinnerId] : []))
-
-  const standardBase = alivePlayers.filter(
-    (player) =>
-      !lohIds.has(player.id) &&
-      !posIds.has(player.id) &&
-      !game.nomineeIds.includes(player.id) &&
-      !isBellaHeirImmune(game, player.id)
+  const isCoup = isCoup1 || isCoup2
+  const protectedIds = useMemo(
+    () =>
+      new Set([
+        ...(game.povProtectedIds ?? []),
+        ...(game.storeNominationProtections ?? [])
+          .filter((protection) => protection.week === game.week)
+          .map((protection) => protection.targetId),
+      ]),
+    [game.povProtectedIds, game.storeNominationProtections, game.week]
   )
-  const standardUnprotected = standardBase.filter((player) => !protectedIds.has(player.id))
-  const standardOptions = standardUnprotected.length > 0 ? standardUnprotected : standardBase
-
-  const coupBase = alivePlayers.filter(
+  const options = getEligibleReplacementNominees(
+    game,
+    isCoup ? game.posWinnerId : (game.coLohReplacementOwnerId ?? game.lohId),
+    { allowLoh: isCoup, neededCount: isCoup1 ? 2 : 1 }
+  ).filter(
     (player) =>
-      !lohIds.has(player.id) &&
-      !posIds.has(player.id) &&
-      !game.nomineeIds.includes(player.id) &&
-      !isBellaHeirImmune(game, player.id) &&
-      player.id !== game.specialVeto?.coupReplacement1Id
+      !(game.coLohIds?.length && game.coLohIds.includes(player.id)) &&
+      !(isCoup2 && player.id === game.specialVeto?.coupReplacement1Id)
   )
-  const coupUnprotected = coupBase.filter((player) => !protectedIds.has(player.id))
-  const coupRequired = isCoup1 ? 2 : 1
-  const coupOptions = coupUnprotected.length >= coupRequired ? coupUnprotected : coupBase
-  const options = isDiamond ? standardOptions : isCoup1 || isCoup2 ? coupOptions : standardOptions
   const units = buildConfessionalDecisionUnits(game, options)
 
   return (
     <SingleUnitDecision
+      key={
+        isCoup1 ? 'detox-first-replacement' : isCoup2 ? 'detox-second-replacement' : 'replacement'
+      }
       units={units}
       presentation={presentation}
       reviewPrefix="Name as replacement:"
@@ -782,6 +779,7 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
 
 function TieBreakDecision({ presentation, onDecisionCommitted }: Omit<Props, 'decision'>) {
   const dispatch = useAppDispatch()
+  const store = useStore<RootState>()
   const game = useAppSelector((state) => state.game)
   const social = useAppSelector((state) => state.social)
   const alivePlayers = useAppSelector(selectAlivePlayers)
@@ -838,6 +836,10 @@ function TieBreakDecision({ presentation, onDecisionCommitted }: Omit<Props, 'de
     if (isMulti) dispatch(submitDoubleEvictionTieBreak(selectedIds))
     else if (game.awaitingPosTieBreak) dispatch(submitPosTieBreak(selectedIds[0]))
     else dispatch(submitTieBreak(selectedIds[0]))
+    if (store.getState().game.awaitingTieBreak) {
+      setCommitting(false)
+      return
+    }
     onDecisionCommitted(
       `Chose to eliminate ${formatNameList(selectedUnits.map((unit) => unit.label))}.`
     )

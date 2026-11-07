@@ -13,6 +13,12 @@ import {
 } from 'three';
 import type { TimelineState } from '../timeline/timeline';
 import { clamp01 } from '../utils/math';
+import {
+  OCEAN_HALF_WIDTH,
+  OCEAN_HORIZON_Z,
+  OCEAN_NEAR_EDGE_Z,
+  OCEAN_SURFACE_Y,
+} from './coastline';
 
 const SEA_VERTEX = `
   varying vec2 vUv;
@@ -28,16 +34,16 @@ const SEA_FRAGMENT = `
   uniform float uReveal;
   uniform float uGoldenHour;
   uniform float uSunset;
+  uniform float uReflection;
   varying vec2 vUv;
 
   void main() {
     float waveA = sin(vUv.y * 155.0 + uTime * 0.052 + sin(vUv.x * 31.0)) * 0.5 + 0.5;
     float waveB = sin(vUv.y * 91.0 - uTime * 0.037 + vUv.x * 47.0) * 0.5 + 0.5;
     float waveC = sin(vUv.y * 226.0 + uTime * 0.073 + sin(vUv.x * 18.0) * 1.8) * 0.5 + 0.5;
-    float revealNoise = (waveA - 0.5) * 0.024 + (waveB - 0.5) * 0.016;
     float revealFront = 1.0 - clamp(uReveal, 0.0, 1.0);
-    if (vUv.y + revealNoise < revealFront) discard;
-    float revealEdge = 1.0 - smoothstep(0.0, 0.045, abs(vUv.y + revealNoise - revealFront));
+    if (vUv.y < revealFront) discard;
+    float revealEdge = 1.0 - smoothstep(0.0, 0.045, abs(vUv.y - revealFront));
 
     float glint = smoothstep(0.91, 1.0, waveA * 0.46 + waveB * 0.3 + waveC * 0.24);
     float softCrest = smoothstep(0.76, 0.96, waveC * 0.62 + waveA * 0.38);
@@ -65,13 +71,12 @@ const SEA_FRAGMENT = `
     float sunPath = exp(-abs(vUv.x - reflectionCentre) * reflectionTightness);
     float reflectionScatter = exp(-abs(vUv.x - reflectionCentre) * mix(7.0, 22.0, horizon));
     float brokenLight = smoothstep(0.39, 0.88, waveA * 0.42 + waveB * 0.28 + waveC * 0.3);
-    float reflectionFade = 1.0 - smoothstep(0.82, 1.0, uSunset);
     float spill = (sunPath * (0.34 + brokenLight * 1.58) + reflectionScatter * glint * 0.36)
-      * (0.4 + horizon * 1.12) * reflectionFade * (0.88 + uGoldenHour * 0.42);
+      * (0.4 + horizon * 1.12) * uReflection * (0.88 + uGoldenHour * 0.42);
     vec3 reflectionWarm = mix(vec3(1.0, 0.75, 0.32), vec3(1.0, 0.18, 0.035), uSunset * 0.86);
     color += reflectionWarm * spill * 1.08;
     color += mix(vec3(1.0, 0.93, 0.66), vec3(1.0, 0.34, 0.08), uSunset)
-      * sunPath * glint * horizon * reflectionFade * 1.05;
+      * sunPath * glint * horizon * uReflection * 1.05;
     gl_FragColor = vec4(color, uOpacity);
   }
 `;
@@ -86,9 +91,6 @@ const COAST_SURFACE_VERTEX = `
 const COAST_SURFACE_FRAGMENT = `
   uniform vec3 uBaseColor;
   uniform float uOpacity;
-  uniform float uReveal;
-  uniform float uNearDepth;
-  uniform float uFarDepth;
   uniform float uRockiness;
   uniform float uSunset;
   varying vec3 vLocalPosition;
@@ -99,13 +101,9 @@ const COAST_SURFACE_FRAGMENT = `
 
   void main() {
     vec2 p = vLocalPosition.xz;
-    float depth = clamp((-vLocalPosition.z - uNearDepth) / (uFarDepth - uNearDepth), 0.0, 1.0);
     float grain = hash(floor(p * 2.7));
     float broad = hash(floor(p * 0.16));
     float windRipple = sin(p.x * 0.19 + sin(p.y * 0.075) * 2.1) * 0.5 + 0.5;
-    float revealNoise = 0.0;
-    float revealFront = 1.0 - clamp(uReveal, 0.0, 1.0);
-    if (depth + revealNoise < revealFront) discard;
 
     float fine = hash(floor(p * 7.5));
     float sandTexture = windRipple * 0.09 + (grain - 0.5) * 0.16 + (fine - 0.5) * 0.08;
@@ -114,9 +112,6 @@ const COAST_SURFACE_FRAGMENT = `
     vec3 color = uBaseColor * (0.9 + surfaceTexture);
     color += vec3(0.24, 0.17, 0.105) * smoothstep(0.86, 1.0, grain) * (1.0 - uRockiness) * 0.48;
     color *= 1.0 - uSunset * 0.16;
-
-    float edge = 1.0 - smoothstep(0.0, 0.055, abs(depth + revealNoise - revealFront));
-    color += mix(vec3(0.15, 0.22, 0.24), vec3(0.42, 0.29, 0.2), uSunset) * edge * 0.04;
     gl_FragColor = vec4(color, uOpacity);
   }
 `;
@@ -155,12 +150,12 @@ const CLOUD_FRAGMENT = `
 type ShorePoint = readonly [number, number];
 
 const BEACH_EDGE: readonly ShorePoint[] = [
-  [-360, -522],
-  [-220, -516],
-  [-92, -528],
-  [32, -520],
-  [168, -532],
-  [360, -523],
+  [-360, OCEAN_NEAR_EDGE_Z],
+  [-220, OCEAN_NEAR_EDGE_Z],
+  [-92, OCEAN_NEAR_EDGE_Z],
+  [32, OCEAN_NEAR_EDGE_Z],
+  [168, OCEAN_NEAR_EDGE_Z],
+  [360, OCEAN_NEAR_EDGE_Z],
 ] as const;
 
 const createBeachGeometry = (): BufferGeometry => {
@@ -553,7 +548,7 @@ export const FinalCoast = ({ frame, state }: { frame: number; state: TimelineSta
   const beachGeometry = useMemo(() => createBeachGeometry(), []);
   const beachSurf = useMemo(() => BEACH_EDGE.map(([x, z]) => new Vector3(x, 0.34, z)), []);
   const opacity = state.coastProgress;
-  const detailOpacity = clamp01((opacity - 0.38) / 0.62);
+  const detailOpacity = clamp01((opacity - 0.82) / 0.18);
   const sandColor = new Color('#c69a72')
     .lerp(new Color('#b66d50'), state.goldenHourProgress * 0.62)
     .lerp(new Color('#55303a'), state.sunsetProgress * 0.9);
@@ -563,45 +558,54 @@ export const FinalCoast = ({ frame, state }: { frame: number; state: TimelineSta
   // opening beat, rather than on the eye-to-sun transition.
   const isPrewarming = opacity <= 0.001;
   const revealOpacity = isPrewarming ? 0 : opacity;
-  const materialOpacity = isPrewarming ? 0 : 1;
+  const shoreOpacity = clamp01((revealOpacity - 0.9) / 0.1);
+  const oceanReveal = clamp01(state.oceanRevealProgress);
+  const isOceanPrewarming = oceanReveal <= 0.001;
+  const oceanOpacity = isOceanPrewarming ? 0 : 1;
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.09, -730]}>
-        <planeGeometry args={[780, 900, 1, 1]} />
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, OCEAN_SURFACE_Y, (OCEAN_NEAR_EDGE_Z + OCEAN_HORIZON_Z) / 2]}
+      >
+        <planeGeometry args={[OCEAN_HALF_WIDTH * 2, OCEAN_NEAR_EDGE_Z - OCEAN_HORIZON_Z, 1, 1]} />
         <shaderMaterial
           vertexShader={SEA_VERTEX}
           fragmentShader={SEA_FRAGMENT}
           uniforms={{
             uTime: { value: frame },
-            uOpacity: { value: materialOpacity },
-            uReveal: { value: revealOpacity },
+            uOpacity: { value: oceanOpacity },
+            uReveal: { value: oceanReveal },
             uGoldenHour: { value: state.goldenHourProgress },
             uSunset: { value: state.sunsetProgress },
+            uReflection: { value: state.sunReflectionProgress },
           }}
-          transparent={isPrewarming}
-          depthWrite={!isPrewarming}
+          // The shader discards the unrevealed part of the plane, so the
+          // visible water can write depth from its first appearance. This is
+          // what lets the waterline naturally cover the lower half of the sun.
+          transparent={isOceanPrewarming}
+          depthWrite={!isOceanPrewarming}
         />
       </mesh>
 
-      <mesh geometry={beachGeometry} renderOrder={4}>
-        <shaderMaterial
-          vertexShader={COAST_SURFACE_VERTEX}
-          fragmentShader={COAST_SURFACE_FRAGMENT}
-          uniforms={{
-            uBaseColor: { value: sandColor },
-            uOpacity: { value: materialOpacity },
-            uReveal: { value: clamp01((revealOpacity - 0.68) / 0.32) },
-            uNearDepth: { value: 324 },
-            uFarDepth: { value: 535 },
-            uRockiness: { value: 0 },
-            uSunset: { value: state.sunsetProgress },
-          }}
-          side={DoubleSide}
-          transparent={isPrewarming}
-          depthWrite={!isPrewarming}
-        />
-      </mesh>
+      {shoreOpacity > 0.001 && (
+        <mesh geometry={beachGeometry} renderOrder={4}>
+          <shaderMaterial
+            vertexShader={COAST_SURFACE_VERTEX}
+            fragmentShader={COAST_SURFACE_FRAGMENT}
+            uniforms={{
+              uBaseColor: { value: sandColor },
+              uOpacity: { value: shoreOpacity },
+              uRockiness: { value: 0 },
+              uSunset: { value: state.sunsetProgress },
+            }}
+            side={DoubleSide}
+            transparent={shoreOpacity < 0.999}
+            depthWrite={shoreOpacity >= 0.999}
+          />
+        </mesh>
+      )}
       <Line
         points={beachSurf}
         color="#f1e2cf"

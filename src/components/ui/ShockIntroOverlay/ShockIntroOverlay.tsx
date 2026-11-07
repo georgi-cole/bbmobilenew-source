@@ -1,4 +1,4 @@
-import { useContext, useEffect, type CSSProperties } from 'react'
+import { useContext, useEffect, useRef, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useReducedMotion } from 'framer-motion'
 import { ReactReduxContext } from 'react-redux'
@@ -237,6 +237,10 @@ export default function ShockIntroOverlay({
   onComplete,
 }: ShockIntroOverlayProps) {
   const prefersReducedMotion = useReducedMotion()
+  const onCompleteRef = useRef(onComplete)
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  }, [onComplete])
   const reduxContext = useContext(ReactReduxContext)
   const isCupidIntro = shockKey === 'cupid_arrow'
   const isCupidBreak = shockKey === 'cupid_arrow_broken'
@@ -314,11 +318,11 @@ export default function ShockIntroOverlay({
     // intentionally fades before the heart breaks, so never leave the player
     // behind a full-screen layer with no visible acknowledgement control.
     const timer = window.setTimeout(
-      onComplete,
+      () => onCompleteRef.current(),
       prefersReducedMotion ? 450 : CUPID_BREAK_DURATION_MS
     )
     return () => window.clearTimeout(timer)
-  }, [active, isCupidBreak, onComplete, prefersReducedMotion])
+  }, [active, isCupidBreak, prefersReducedMotion])
 
   if (!active || replayGuardAcknowledged || typeof document === 'undefined') return null
 

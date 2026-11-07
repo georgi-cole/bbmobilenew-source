@@ -134,7 +134,10 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
 
   const lohId = game.lohId
   const lohPlayer = game.players.find((p) => p.id === lohId) ?? null
-  const nominees = game.players.filter((p) => game.nomineeIds.includes(p.id))
+  const nominees = useMemo(
+    () => game.players.filter((player) => game.nomineeIds.includes(player.id)),
+    [game.nomineeIds, game.players]
+  )
   const humanPlayer = game.players.find((p) => p.isUser) ?? null
   const humanIsLoh = !!humanPlayer && humanPlayer.id === lohId
   const decisionReads = useMemo(

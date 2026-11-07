@@ -1,9 +1,16 @@
 # Store products release setup
 
-The release includes eight permanent, user-facing one-time products for iOS and Android, plus
+The release includes the permanent one-time iOS and Android products listed in the
+[generated catalog](MARKETPLACE_CATALOG.md#permanent-products), plus
 VIP upgrade SKUs used to honor credit from previously owned standalone products. Every product
 must be configured as **non-consumable** in Apple App Store Connect and as a **one-time,
 non-consumable product** in Google Play Console.
+
+The current product benefits and premium game inventory are generated in
+[MARKETPLACE_CATALOG.md](MARKETPLACE_CATALOG.md). Follow
+[marketplace-maintenance.md](marketplace-maintenance.md) for every paid-feature change.
+Premium Challenges and VIP both grant every premium minigame version, including
+Deck of Light, Deck of Darkness, both Quick Tap variants, and the Find Your Twin remasters.
 
 ## Before creating the store listings
 
@@ -20,16 +27,9 @@ available to No Ads and VIP owners; only automatic commercial breaks are suppres
 
 Use the same IDs on both platforms:
 
-| Product            | Product ID                                   | Grants                                        |
-| ------------------ | -------------------------------------------- | --------------------------------------------- |
-| The Big Eye VIP    | `com.georgicole.thebigeye.vip`               | All current standalone unlocks and VIP themes |
-| Survival Mode      | `com.georgicole.thebigeye.survival`          | Survival Mode only                            |
-| Public Mode        | `com.georgicole.thebigeye.publicmode`        | Public Mode only                              |
-| Reality Mode       | `com.georgicole.thebigeye.dramamode`         | Reality Mode only                             |
-| Cupid's Arrow      | `com.georgicole.thebigeye.cupidarrow`        | Cupid's Arrow seasonal expansion              |
-| Vox Populi         | `com.georgicole.thebigeye.voxpopuli`         | Vox Populi seasonal expansion                 |
-| Premium Challenges | `com.georgicole.thebigeye.premiumchallenges` | Remastered Find Your Twin 1 & 2               |
-| No Ads             | `com.georgicole.thebigeye.noads`             | Removes automatic commercial breaks           |
+Product titles, identifiers, availability, and grants come from the
+[generated permanent product catalog](MARKETPLACE_CATALOG.md#permanent-products).
+Use its **Released** entries when creating listings; reserved products stay hidden.
 
 The IDs can be overridden with the matching `VITE_*_PRODUCT_ID` values in the
 platform environment files. The app always displays the localized title and
@@ -40,37 +40,15 @@ VIP is a permanent bundle, not a subscription.
 
 ### Launch pricing and VIP upgrade credit
 
-The launch pricing model used by the app's upgrade resolver is:
+The [generated VIP upgrade pricing reference](MARKETPLACE_CATALOG.md#vip-upgrade-pricing)
+contains the current nominal product values, credit rate, minimum upgrade price,
+and every upgrade tier/product ID. These values come from `src/vip/vipUpgrade.ts`.
 
-| Product            | Nominal price |
-| ------------------ | ------------: |
-| Premium Challenges |          1.99 |
-| Public Mode        |          2.99 |
-| No Ads             |          2.99 |
-| Surveyeval Mode    |          3.99 |
-| Cupid's Arrow      |          3.99 |
-| Vox Populi         |          3.99 |
-| Reality Mode       |          4.99 |
-| The Big Eye VIP    |         14.99 |
+Qualifying standalone ownership earns credit toward a later VIP purchase. Credit
+stacks, but never grants VIP automatically. The calculated target maps to the
+nearest configured store tier and respects the configured minimum price.
 
-Qualifying standalone ownership earns **75% credit** toward a later VIP purchase. Credit stacks,
-but never grants VIP automatically. The calculated target is mapped to the nearest configured
-store tier and the upgrade cannot fall below 4.99.
-
-Configure these additional non-consumable VIP upgrade products on both platforms:
-
-| Nominal tier | Product ID                                 |
-| -----------: | ------------------------------------------ |
-|        13.49 | `com.georgicole.thebigeye.vip.upgrade1349` |
-|        12.99 | `com.georgicole.thebigeye.vip.upgrade1299` |
-|        11.99 | `com.georgicole.thebigeye.vip.upgrade1199` |
-|        10.99 | `com.georgicole.thebigeye.vip.upgrade1099` |
-|         9.99 | `com.georgicole.thebigeye.vip.upgrade999`  |
-|         8.99 | `com.georgicole.thebigeye.vip.upgrade899`  |
-|         7.99 | `com.georgicole.thebigeye.vip.upgrade799`  |
-|         6.99 | `com.georgicole.thebigeye.vip.upgrade699`  |
-|         5.99 | `com.georgicole.thebigeye.vip.upgrade599`  |
-|         4.99 | `com.georgicole.thebigeye.vip.upgrade499`  |
+Configure every listed VIP upgrade product as non-consumable on both platforms.
 
 Each upgrade SKU grants the same permanent VIP entitlement as the normal VIP SKU. The client
 selects the correct SKU from currently owned standalone entitlements immediately before purchase,
@@ -82,7 +60,7 @@ variables.
 ## Apple App Store Connect
 
 1. Accept the Paid Apps agreement and complete banking and tax information.
-2. Under the app's In-App Purchases, create the eight released products and all VIP upgrade SKUs as
+2. Under the app's In-App Purchases, create all released products from the generated catalog and all VIP upgrade SKUs as
    **Non-Consumable**.
 3. Add localization, price, review screenshot, and review notes to each product.
 4. In Xcode, confirm that the app target has the In-App Purchase capability.
@@ -96,7 +74,7 @@ https://developer.apple.com/help/app-store-connect/manage-in-app-purchases/creat
 ## Google Play Console
 
 1. Complete the payments profile.
-2. Under Monetize > Products > In-app products, create all eight released IDs plus the VIP
+2. Under Monetize > Products > In-app products, create all released IDs from the generated catalog plus the VIP
    upgrade IDs.
 3. Make each product active and assign its one-time price.
 4. Upload a signed build to an internal test track.

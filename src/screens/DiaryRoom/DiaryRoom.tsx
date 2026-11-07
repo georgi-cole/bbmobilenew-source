@@ -1560,9 +1560,10 @@ export default function DiaryRoom() {
               'vox_nomination_breakdown',
               state,
               dispatch,
-              revealVoxNominationsAfterAd
+              revealVoxNominationsAfterAd,
+              { onDismissed: () => setVoxNominationAdPending(false) }
             )
-            if (!requested) revealVoxNominationsAfterAd()
+            if (!requested) setVoxNominationAdPending(false)
           }}
           onSkip={() => {
             setShowVoxNominationAdPrompt(false)

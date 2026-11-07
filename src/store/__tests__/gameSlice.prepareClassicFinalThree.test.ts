@@ -19,6 +19,7 @@ describe('prepareClassicFinalThreeTest', () => {
     const tribunal = state.players.filter((player) => player.status === 'jury')
 
     expect(state.phase).toBe('final3')
+    expect(state.status).toBe('active')
     expect(finalists).toHaveLength(3)
     expect(finalists.some((player) => player.isUser)).toBe(true)
     expect(tribunal).toHaveLength(state.players.length - 3)
@@ -62,6 +63,7 @@ describe('prepareClassicFinalFourTest', () => {
     const nominees = state.players.filter((player) => state.nomineeIds.includes(player.id))
 
     expect(state.phase).toBe('final4_eviction')
+    expect(state.status).toBe('active')
     expect(finalists).toHaveLength(4)
     expect(finalists.some((player) => player.isUser)).toBe(true)
     expect(state.posWinnerId).toBe(finalists.find((player) => player.isUser)?.id)

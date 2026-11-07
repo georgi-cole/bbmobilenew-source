@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from 'react'
+import { memo, useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from 'react'
 import type { CupidArrowPair, Player } from '../../types'
 import { store } from '../../store/store'
 import { normalisePublicSaveVoteShares } from '../../publicOpinion/PublicSaveService'
@@ -78,6 +78,44 @@ function formatShare(value: number): string {
   return `${formatted}%`
 }
 
+const PublicSaveShareCount = memo(function PublicSaveShareCount({
+  label,
+  value,
+  phase,
+}: {
+  label: string
+  value: number
+  phase: AnimPhase
+}) {
+  const [displayedValue, setDisplayedValue] = useState(0)
+
+  useEffect(() => {
+    if (phase !== 'revealing') return undefined
+
+    let animationFrame = 0
+    const startedAt = performance.now()
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / COUNT_VALUES_MS)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setDisplayedValue(value * eased)
+      if (progress < 1) animationFrame = window.requestAnimationFrame(tick)
+      else setDisplayedValue(value)
+    }
+
+    animationFrame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [phase, value])
+
+  return (
+    <span
+      className={`psr__approval-value${phase === 'revealing' ? ' psr__approval-value--counting' : ''}`}
+      aria-label={`${label} save vote: ${phase === 'revealing' ? 'counting' : formatShare(value)}`}
+    >
+      {phase === 'entering' ? '—' : formatShare(phase === 'revealing' ? displayedValue : value)}
+    </span>
+  )
+})
+
 function NormalPublicSaveReveal({
   nominees,
   voteShares,
@@ -94,8 +132,6 @@ function NormalPublicSaveReveal({
   onDone: () => void
 }) {
   const [phase, setPhase] = useState<AnimPhase>('entering')
-  const [valuesRevealed, setValuesRevealed] = useState(false)
-  const [displayedShares, setDisplayedShares] = useState<Record<string, number>>({})
   const timersRef = useRef<number[]>([])
   const doneRef = useRef(false)
   const displayUnits = useMemo(
@@ -149,31 +185,10 @@ function NormalPublicSaveReveal({
     return clearTimers
   }, [clearTimers, fireDone])
 
-  useEffect(() => {
-    if (phase !== 'revealing') return undefined
-
-    let animationFrame = 0
-    const startedAt = performance.now()
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / COUNT_VALUES_MS)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      setDisplayedShares(
-        Object.fromEntries(displayUnits.map((unit) => [unit.id, unit.voteShare * eased]))
-      )
-      if (progress < 1) {
-        animationFrame = window.requestAnimationFrame(tick)
-      } else {
-        setValuesRevealed(true)
-      }
-    }
-
-    animationFrame = window.requestAnimationFrame(tick)
-    return () => window.cancelAnimationFrame(animationFrame)
-  }, [displayUnits, phase])
-
   return (
     <div
       className={`psr psr--${phase}`}
+      data-presentation-root="public-save-reveal"
       role="status"
       aria-live="assertive"
       aria-label={`Public Save: ${savedUnit?.label ?? ''} ${savedUnit?.members.length === 2 ? 'are' : 'is'} saved`}
@@ -191,8 +206,6 @@ function NormalPublicSaveReveal({
           {displayUnits.map((unit, index) => {
             const isSaved = unit.members.some((member) => member.id === savedId)
             const voteShare = unit.voteShare
-            const formattedShare = formatShare(voteShare)
-            const displayedShare = displayedShares[unit.id] ?? 0
             return (
               <div
                 key={unit.id}
@@ -224,14 +237,7 @@ function NormalPublicSaveReveal({
                   ))}
                 </div>
                 <span className="psr__name">{unit.label}</span>
-                <span
-                  className={`psr__approval-value${phase === 'revealing' ? ' psr__approval-value--counting' : ''}`}
-                  aria-label={`${unit.label} save vote: ${valuesRevealed ? formattedShare : 'counting'}`}
-                >
-                  {phase === 'entering'
-                    ? '—'
-                    : formatShare(valuesRevealed ? voteShare : displayedShare)}
-                </span>
+                <PublicSaveShareCount label={unit.label} value={voteShare} phase={phase} />
               </div>
             )
           })}

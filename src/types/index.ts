@@ -9,6 +9,7 @@ import type { ActivityChannel, ActivitySource } from '../services/activityServic
 import type { SeasonArchive } from '../store/seasonArchive'
 import type { AiGameIdentity } from '../ai/aiGameIdentity'
 import type { PregnancyStoryState } from '../social/reality/pregnancy'
+import type { SeasonContestant } from '../appearance/seasonContestant'
 
 export type PlayerStatus =
   | 'active'
@@ -160,6 +161,8 @@ export interface MinigameSession {
   participants: string[]
   seed: number
   options: { timeLimit: number }
+  /** Quick Tap / Seasons implementation selected when this session was created. */
+  quickTapVariant?: 'classic' | 'vip'
   /**
    * Pre-simulated deterministic scores for every non-human participant.
    * Empty (`{}`) for sessions created by the hybrid resolver path
@@ -407,6 +410,8 @@ export interface BattleBackState {
   activationSource?: 'human-guarantee' | 'ai-director' | 'legacy-random' | 'forced-debug' | 'manual'
   /** Zero-based run index. Incremented only after a rewarded replay is granted. */
   attemptIndex?: number
+  /** Durable state of the current interactive returnee competition. */
+  attemptCheckpoint?: import('../minigames/competitionResult').CompetitionAttempt
   /** Number of rewarded retries already consumed by the human this session. */
   retryCount?: number
   /** Persisted product cap; currently three rewarded retries. */
@@ -917,6 +922,8 @@ export interface PulseChronicle {
 }
 
 export interface GameState {
+  /** Contestant selected at launch. Profile edits never rewrite this run identity. */
+  seasonContestant?: SeasonContestant
   /** Stable unique identifier for this game instance. */
   gameId: string
   season: number

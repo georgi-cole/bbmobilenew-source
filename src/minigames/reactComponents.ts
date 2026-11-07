@@ -32,6 +32,7 @@
 import type { ComponentType, LazyExoticComponent } from 'react'
 import { lazyWithChunkRecovery } from '../utils/lazyWithChunkRecovery'
 import type { RelationshipsMap } from '../social/types'
+import type { ReactMinigameCompletion } from './competitionResult'
 
 /**
  * Minimal prop contract shared by all generic React minigame components.
@@ -41,26 +42,17 @@ import type { RelationshipsMap } from '../social/types'
  * seeded-RNG games start deterministically without an extra user click.
  */
 export interface GenericMinigameProps {
-  onFinish?: (
-    value: number,
-    tiebreakerMs?: number,
-    completion?: {
-      authoritativeWinnerId?: string | null
-      authoritativeWinnerIds?: string[]
-      authoritativeLastPlaceId?: string | null
-      authoritativeRankedIds?: string[]
-      rawValue?: number
-      rawResults?: Record<string, number>
-      tiebreakerMs?: number
-      batteryLowVoteEffects?: Record<string, 'doubleVote' | 'skipVote'>
-    }
-  ) => void
+  onFinish?: (value: number, tiebreakerMs?: number, completion?: ReactMinigameCompletion) => void
   /** Deterministic competition seed forwarded from gameOptions.seed. */
   seed?: number
   /** When true the game starts immediately on mount (no Start button needed). */
   autoStart?: boolean
   /** Host-selected VIP visual treatment; it must not change game state or RNG. */
   premiumPresentation?: boolean
+  /** Explicit Quick Tap / Seasons rules variant, selected at session start. */
+  vipQuickTap?: boolean
+  /** Development-only preview override; a real session variant otherwise stays frozen. */
+  quickTapVariantOverride?: 'classic' | 'vip'
   /** Development-only phase preview for the portrait finale stages. */
   previewStage?: 'final' | 'round6' | 'final2'
   /** Capitalization only: selects standard LOH or Back 2 the Game rules. */
@@ -118,8 +110,8 @@ const reactComponents: Record<string, LazyGenericMinigame> = {
       })
     )
   ),
-  QuickTapRace: lazyMinigame(() => import('./quickTapRace/QuickTapRaceCanvasGame')),
-  QuickTapSeasons: lazyMinigame(() => import('../screens/QuickTapSeasons/QuickTapSeasons')),
+  QuickTapRace: lazyMinigame(() => import('../components/QuickTapRace/QuickTapRace')),
+  QuickTapSeasons: lazyMinigame(() => import('../screens/QuickTapSeasons/QuickTapSeasonsEntry')),
   LaneRacers: lazyMinigame(() => import('./laneRacers/LaneRacersCanvasGame')),
   TravelingDots: lazyMinigame(() => import('../components/TravelingDots/TravelingDots')),
   EstimationGame: lazyMinigame(() => import('../components/EstimationGame/EstimationGame')),
@@ -149,6 +141,7 @@ const reactComponents: Record<string, LazyGenericMinigame> = {
     () => import('../components/FinalThreeCircuit/FinalThreeCircuit')
   ),
   DownMemoryLane: lazyMinigame(() => import('../components/DownMemoryLane/DownMemoryLane')),
+  GatesOfTheEye: lazyMinigame(() => import('../components/GatesOfTheEye/GatesOfTheEye')),
 }
 
 export default reactComponents

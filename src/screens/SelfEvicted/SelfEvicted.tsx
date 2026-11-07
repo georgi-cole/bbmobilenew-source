@@ -1,16 +1,16 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { resetGame } from '../../store/gameSlice';
-import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice';
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { resetGame } from '../../store/gameSlice'
+import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice'
 import {
   savedStateKeyForProfile,
   clearSeasonSnapshot,
   clearSavedRun,
   getSavedRunSlot,
-} from '../../store/saveStatePersistence';
-import { withRunAutosaveSuspended } from '../../store/runAutosaveGate';
-import './SelfEvicted.css';
+} from '../../store/saveStatePersistence'
+import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
+import './SelfEvicted.css'
 
 /**
  * SelfEvicted — shown when the human player voluntarily self-evicts from
@@ -18,50 +18,48 @@ import './SelfEvicted.css';
  * or assume the game has concluded; the player simply left mid-game.
  */
 export default function SelfEvicted() {
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const playerName = useAppSelector(
-    (s) => s.game.players.find((p) => p.isUser)?.name ?? 'Hubmate',
-  );
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
+  const playerName = useAppSelector((s) => s.game.players.find((p) => p.isUser)?.name ?? 'Hubmate')
   const administrativelyRemoved = useAppSelector((s) => {
-    const player = s.game.players.find((candidate) => candidate.isUser);
+    const player = s.game.players.find((candidate) => candidate.isUser)
     return (
       player?.confessionalMisconduct?.season === s.game.season &&
       player.confessionalMisconduct.administrativelyRemoved === true
-    );
-  });
-  const currentRunSlot = useAppSelector((s) => getSavedRunSlot(s.game));
-  const activeProfileId = useAppSelector(selectActiveProfileId);
-  const isGuest = useAppSelector(selectIsGuest);
+    )
+  })
+  const currentRunSlot = useAppSelector((s) => getSavedRunSlot(s.game))
+  const activeProfileId = useAppSelector(selectActiveProfileId)
+  const isGuest = useAppSelector(selectIsGuest)
 
   useEffect(() => {
-    if (isGuest || !activeProfileId) return;
+    if (isGuest || !activeProfileId) return
     // Self-eviction is terminal for this run. Clearing persistence immediately
     // also changes the autosave revision, so any queued pre-eviction snapshot
     // is rejected instead of recreating a Continue entry later.
-    clearSavedRun(activeProfileId, currentRunSlot);
-    clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId));
-  }, [activeProfileId, currentRunSlot, isGuest]);
+    clearSavedRun(activeProfileId, currentRunSlot)
+    clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
+  }, [activeProfileId, currentRunSlot, isGuest])
 
   function clearSelfEvictedRun() {
-    if (isGuest || !activeProfileId) return;
-    clearSavedRun(activeProfileId, currentRunSlot);
-    clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId));
+    if (isGuest || !activeProfileId) return
+    clearSavedRun(activeProfileId, currentRunSlot)
+    clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
   }
 
   function resetRuntimeAndReturnHome() {
-    withRunAutosaveSuspended(() => dispatch(resetGame()));
-    navigate('/');
+    withRunAutosaveSuspended(() => dispatch(resetGame()))
+    navigate('/')
   }
 
   function startNewSeason() {
-    clearSelfEvictedRun();
-    resetRuntimeAndReturnHome();
+    clearSelfEvictedRun()
+    navigate('/new-season?mode=classic')
   }
 
   function exitToHome() {
-    clearSelfEvictedRun();
-    resetRuntimeAndReturnHome();
+    clearSelfEvictedRun()
+    resetRuntimeAndReturnHome()
   }
 
   return (
@@ -78,20 +76,14 @@ export default function SelfEvicted() {
             : 'You chose to leave the Hub. The game continues without you — but your story ends here.'}
         </p>
         <div className="self-evicted-actions">
-          <button
-            className="self-evicted-btn self-evicted-btn--primary"
-            onClick={startNewSeason}
-          >
+          <button className="self-evicted-btn self-evicted-btn--primary" onClick={startNewSeason}>
             Start New Season
           </button>
-          <button
-            className="self-evicted-btn self-evicted-btn--ghost"
-            onClick={exitToHome}
-          >
+          <button className="self-evicted-btn self-evicted-btn--ghost" onClick={exitToHome}>
             Return to Home
           </button>
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -78,7 +78,7 @@ import { getProfileRealityAgeEligibility, resolveRealityModePreset } from '../mo
 import { BETRAYAL_TAG, hasAllianceBetween } from './socialAlliance'
 import { getEffectiveSocialMode } from './socialMode'
 import { evaluateRelationshipViolation } from './relationshipViolation'
-import { getFamilyGroupId } from './socialRuntimeConfig'
+import { dampenBellaRelationship, getTwinRelationshipEchoes } from './relationshipUpdateEffects'
 import {
   evaluateSocialCommitmentsForAction,
   voidOverdueSocialCommitments,
@@ -87,13 +87,13 @@ import {
 import { deriveRealitySimulationSeed, type RealitySimulationState } from './realitySimulation'
 import { recordSocialCeremony as recordCeremony } from './ceremonyRecorder'
 import { createIncomingInteraction } from './incomingInteractionFactory'
-import { BELLA_ID } from '../features/twists/bellasWill'
 import { getClassicEvictionTieBreakerId } from '../store/criticalGameRules'
 import { formatHistoricalIntel } from './intelligenceSystem'
 import { composePulseChronicle, getPulseChronicleIdentity } from './pulseChronicle'
 import { resolveWeatherDay } from '../weather/weatherEngine'
 import { getUnavailableRealityFactParticipantIds } from './intelligenceEligibility'
 import { buildTieBreakerCampaignPitch } from './tieBreakerStrategy'
+import { measureGamePerformanceStep } from '../services/diagnostics/gamePerformanceDiagnostics'
 
 const SOCIAL_PHASES = new Set<string>(['social_1', 'social_2'])
 
@@ -1068,27 +1068,41 @@ function isDramaModeEnabled(api: MiddlewareAPI): boolean {
 function handleWeekStart(api: MiddlewareAPI): void {
   const state = api.getState() as StateWithGame
   const week = state.game?.week ?? 1
-  api.dispatch(decaySocialMemory())
-  api.dispatch(autoResolveExpiredIncomingInteractionsForWeek(week))
-  voidOverdueSocialCommitments(api as unknown as CommitmentStore)
-  seedWeekRelationships(api)
-  api.dispatch(snapshotWeekRelationships())
-  scheduleIncomingInteractionsForPhase('week_start', api as unknown as AutonomyStore, {
-    lohId: state.game?.lohId ?? null,
-    prevHohId: state.game?.prevHohId ?? null,
-    nomineeIds: state.game?.nomineeIds ?? [],
-    posWinnerId: state.game?.posWinnerId ?? null,
-    povSavedId: state.game?.povSavedId ?? null,
-    votes: state.game?.votes ?? {},
-    pendingEvictionId: state.game?.pendingEviction?.evicteeId ?? null,
-    // eviction_results interactions fire before finalizePendingEviction commits the exit,
-    // so the pending evictee is also the best available “recent eviction” context.
-    recentEvicteeId: state.game?.pendingEviction?.evicteeId ?? null,
-    isDoubleEviction: state.game?.doubleEviction?.weekActive === true,
-    specialVeto: state.game?.specialVeto?.activeType ?? null,
+  measureGamePerformanceStep('week-start/decay-memory', () => {
+    api.dispatch(decaySocialMemory())
   })
-  deliverScheduledIncomingInteractionsForPhase('week_start', api as unknown as AutonomyStore, {
-    week,
+  measureGamePerformanceStep('week-start/resolve-interactions', () => {
+    api.dispatch(autoResolveExpiredIncomingInteractionsForWeek(week))
+  })
+  measureGamePerformanceStep('week-start/commitments', () => {
+    voidOverdueSocialCommitments(api as unknown as CommitmentStore)
+  })
+  measureGamePerformanceStep('week-start/relationships', () => {
+    seedWeekRelationships(api)
+  })
+  measureGamePerformanceStep('week-start/snapshot', () => {
+    api.dispatch(snapshotWeekRelationships())
+  })
+  measureGamePerformanceStep('week-start/schedule-interactions', () => {
+    scheduleIncomingInteractionsForPhase('week_start', api as unknown as AutonomyStore, {
+      lohId: state.game?.lohId ?? null,
+      prevHohId: state.game?.prevHohId ?? null,
+      nomineeIds: state.game?.nomineeIds ?? [],
+      posWinnerId: state.game?.posWinnerId ?? null,
+      povSavedId: state.game?.povSavedId ?? null,
+      votes: state.game?.votes ?? {},
+      pendingEvictionId: state.game?.pendingEviction?.evicteeId ?? null,
+      // eviction_results interactions fire before finalizePendingEviction commits the exit,
+      // so the pending evictee is also the best available “recent eviction” context.
+      recentEvicteeId: state.game?.pendingEviction?.evicteeId ?? null,
+      isDoubleEviction: state.game?.doubleEviction?.weekActive === true,
+      specialVeto: state.game?.specialVeto?.activeType ?? null,
+    })
+  })
+  measureGamePerformanceStep('week-start/deliver-interactions', () => {
+    deliverScheduledIncomingInteractionsForPhase('week_start', api as unknown as AutonomyStore, {
+      week,
+    })
   })
 }
 
@@ -1248,13 +1262,6 @@ function applyReplacementNomineeConsequences(
       )
     }
   }
-}
-
-function twinEchoFactor(source: string, target: string, week: number): number {
-  const value = `${source}|${target}|${week}`
-    .split('')
-    .reduce((hash, character) => (Math.imul(hash, 31) + character.charCodeAt(0)) | 0, 7)
-  return 0.55 + (Math.abs(value) % 16) / 100
 }
 
 /** Apply LOH-win energy bonus if the LOH changed. */
@@ -2019,25 +2026,33 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
   // ── Advance action (phase determined by comparing before/after state) ───────
   if (type === 'game/advance') {
     const prevState = api.getState() as StateWithGame
-    api.dispatch({
-      type: 'game/syncStrategicThreatReads',
-      payload: buildStrategicThreatSnapshot({
-        reality: prevState.social?.reality,
-        players: prevState.game?.players ?? [],
-      }),
+    measureGamePerformanceStep('social/threat-sync', () => {
+      api.dispatch({
+        type: 'game/syncStrategicThreatReads',
+        payload: buildStrategicThreatSnapshot({
+          reality: prevState.social?.reality,
+          players: prevState.game?.players ?? [],
+        }),
+      })
     })
-    api.dispatch({
-      type: 'game/syncStrategicRelationships',
-      payload: buildStrategicRelationshipSnapshot(prevState),
+    measureGamePerformanceStep('social/relationship-sync', () => {
+      api.dispatch({
+        type: 'game/syncStrategicRelationships',
+        payload: buildStrategicRelationshipSnapshot(prevState),
+      })
     })
-    api.dispatch({
-      type: 'game/syncStrategicAlliances',
-      payload: buildStrategicAllianceSnapshot(prevState),
+    measureGamePerformanceStep('social/alliance-sync', () => {
+      api.dispatch({
+        type: 'game/syncStrategicAlliances',
+        payload: buildStrategicAllianceSnapshot(prevState),
+      })
     })
     const prevPhase = prevState.game?.phase
-    api.dispatch({
-      type: 'game/setDramaSocialMode',
-      payload: getEffectiveSocialMode(prevState) === 'drama',
+    measureGamePerformanceStep('social/mode-sync', () => {
+      api.dispatch({
+        type: 'game/setDramaSocialMode',
+        payload: getEffectiveSocialMode(prevState) === 'drama',
+      })
     })
     const prevHohId = prevState.game?.lohId ?? null
     const prevPovId = prevState.game?.posWinnerId ?? null
@@ -2063,7 +2078,9 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     ) {
       clearCupidPairSocialLinks(api as unknown as MiddlewareAPI)
     }
-    recordPhaseCeremony(api as unknown as MiddlewareAPI, prevPhase, newPhase, prevState.game)
+    measureGamePerformanceStep('social/ceremony', () => {
+      recordPhaseCeremony(api as unknown as MiddlewareAPI, prevPhase, newPhase, prevState.game)
+    })
     if (prevPhase?.startsWith('final3') && newPhase === 'week_end') {
       const evictee = prevState.game.players.find((player) => {
         const current = afterState.game.players.find((candidate) => candidate.id === player.id)
@@ -2105,18 +2122,22 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
 
     // Social engine lifecycle
     if (prevPhase !== newPhase) {
-      api.dispatch(
-        autoResolveExpiredIncomingInteractionsForClock(
-          afterState.game?.week ?? 1,
-          newPhase
-        ) as never
-      )
+      measureGamePerformanceStep('social/resolve-interactions', () => {
+        api.dispatch(
+          autoResolveExpiredIncomingInteractionsForClock(
+            afterState.game?.week ?? 1,
+            newPhase
+          ) as never
+        )
+      })
       if (SOCIAL_PHASES.has(prevPhase)) {
         SocialEngine.endPhase(prevPhase)
       }
 
       if (newPhase === 'week_start') {
-        handleWeekStart(api as unknown as MiddlewareAPI)
+        measureGamePerformanceStep('social/week-start', () => {
+          handleWeekStart(api as unknown as MiddlewareAPI)
+        })
       }
 
       if (SOCIAL_PHASES.has(newPhase)) {
@@ -2125,11 +2146,17 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
 
       // Autonomy: schedule incoming interactions on eligible phase transitions.
       if (newPhase !== 'week_start' && ELIGIBLE_PHASES.has(newPhase)) {
-        handleAutonomyPhase(api as unknown as AutonomyStore, newPhase)
+        measureGamePerformanceStep('social/autonomy', () => {
+          handleAutonomyPhase(api as unknown as AutonomyStore, newPhase)
+        })
       }
       if (newPhase) {
-        runDramaPhase(api as unknown as MiddlewareAPI, newPhase)
-        maybeBroadcastVoxSocialBeat(api as unknown as MiddlewareAPI, newPhase)
+        measureGamePerformanceStep('social/drama-phase', () => {
+          runDramaPhase(api as unknown as MiddlewareAPI, newPhase)
+        })
+        measureGamePerformanceStep('social/vox-beat', () => {
+          maybeBroadcastVoxSocialBeat(api as unknown as MiddlewareAPI, newPhase)
+        })
       }
     }
 
@@ -2157,7 +2184,9 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       )
     }
 
-    syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
+    measureGamePerformanceStep('social/cleanup-interactions', () => {
+      syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
+    })
     if (newPhase === 'week_end' && prevPhase !== newPhase) {
       api.dispatch(settleSecretMissionDay({ day: afterState.game?.week ?? 1 }) as never)
       archiveCompletedPulseEpisode(api as unknown as MiddlewareAPI, afterState.game?.week ?? 1)
@@ -2246,25 +2275,12 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     // positive shifts in *her* view of somebody are dampened unless the event
     // carries a concrete loyalty/protection signal. Negative consequences stay
     // fully intact, so betrayal still matters immediately.
-    const bellaCommitmentTags = new Set([
-      'alliance',
-      'protection',
-      'shield',
-      'safety_promise',
-      'ride_or_die',
-      'promise_keeper',
-    ])
-    const demonstratesCommitment = (payload.tags ?? []).some((tag) => bellaCommitmentTags.has(tag))
-    let forwardedAction = action
-    if (
-      payload.source === BELLA_ID &&
-      typeof payload.delta === 'number' &&
-      payload.delta > 0 &&
-      !demonstratesCommitment
-    ) {
-      payload = { ...payload, delta: Math.max(1, Math.round(payload.delta * 0.45)) }
-      forwardedAction = { ...(action as object), payload } as unknown as typeof action
-    }
+    const effectivePayload = dampenBellaRelationship(payload)
+    const forwardedAction =
+      effectivePayload === payload
+        ? action
+        : ({ ...(action as object), payload: effectivePayload } as unknown as typeof action)
+    payload = effectivePayload
 
     const result = next(forwardedAction)
     if (
@@ -2274,60 +2290,10 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       payload.source !== payload.target
     ) {
       const state = api.getState() as StateWithGame
-      const aliveIds = new Set(
-        state.game.players
-          .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
-          .map((player) => player.id)
-      )
-      const familyMate = (playerId: string) => {
-        const groupId = getFamilyGroupId(playerId)
-        if (!groupId) return null
-        return (
-          state.game.players.find(
-            (player) =>
-              player.id !== playerId &&
-              aliveIds.has(player.id) &&
-              getFamilyGroupId(player.id) === groupId
-          )?.id ?? null
-        )
-      }
-      const sourceTwinId = familyMate(payload.source)
-      const targetTwinId = familyMate(payload.target)
-      const echoDelta = Math.round(
-        payload.delta * twinEchoFactor(payload.source, payload.target, state.game.week)
-      )
-      if (
-        echoDelta !== 0 &&
-        sourceTwinId &&
-        aliveIds.has(sourceTwinId) &&
-        payload.target !== sourceTwinId
-      ) {
+      for (const echo of getTwinRelationshipEchoes(payload, state.game.players, state.game.week)) {
         api.dispatch({
           type: 'social/updateRelationship',
-          payload: {
-            source: sourceTwinId,
-            target: payload.target,
-            delta: echoDelta,
-            actionSource: 'system',
-            twinPropagation: true,
-          },
-        })
-      }
-      if (
-        echoDelta !== 0 &&
-        targetTwinId &&
-        aliveIds.has(targetTwinId) &&
-        payload.source !== targetTwinId
-      ) {
-        api.dispatch({
-          type: 'social/updateRelationship',
-          payload: {
-            source: payload.source,
-            target: targetTwinId,
-            delta: echoDelta,
-            actionSource: 'system',
-            twinPropagation: true,
-          },
+          payload: echo,
         })
       }
     }

@@ -13,12 +13,14 @@ import GameScreen from '../../src/screens/GameScreen/GameScreen'
 import settingsReducer from '../../src/store/settingsSlice'
 import socialReducer from '../../src/social/socialSlice'
 import uiReducer from '../../src/store/uiSlice'
+import vipReducer from '../../src/store/vipSlice'
 
 vi.mock('../../src/minigames/LegacyMinigameWrapper', () => ({
   default: () => null,
 }))
 
-vi.mock('../../src/store/confessionalDecisionSelectors', () => ({
+vi.mock('../../src/store/confessionalDecisionSelectors', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/store/confessionalDecisionSelectors')>()),
   selectActiveConfessionalDecision: () => null,
 }))
 
@@ -55,6 +57,7 @@ function makeStore() {
       settings: settingsReducer,
       social: socialReducer,
       ui: uiReducer,
+      vip: vipReducer,
     },
     preloadedState: {
       game: {

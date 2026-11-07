@@ -1,4 +1,6 @@
+import { hostedMinigameReducers } from '../minigames/sessionReducers'
 import { configureStore } from '@reduxjs/toolkit'
+import { gameplayAnalyticsMiddleware } from '../services/backend/gameplayAnalyticsMiddleware'
 import gameReducer, {
   getNominationTargetScore,
   replaceBroadcastConfig,
@@ -55,20 +57,6 @@ import {
 } from './saveStatePersistence'
 import { createRunSnapshotAutosaveController } from './runSnapshotAutosave'
 import { isRunAutosaveSuspended } from './runAutosaveGate'
-import cwgoReducer from '../features/cwgo/cwgoCompetitionSlice'
-import holdTheWallReducer from '../features/holdTheWall/holdTheWallSlice'
-import biographyBlitzReducer from '../features/biographyBlitz/biography_blitz_logic'
-import famousFiguresReducer from '../features/famousFigures/famousFiguresSlice'
-import silentSaboteurReducer from '../features/silentSaboteur/silentSaboteurSlice'
-import majorityRulesReducer from '../features/majorityRules/majorityRulesSlice'
-import glassBridgeReducer from '../features/glassBridge/glassBridgeSlice'
-import blackjackTournamentReducer from '../features/blackjackTournament/blackjackTournamentSlice'
-import riskWheelReducer from '../features/riskWheel/riskWheelSlice'
-import wildcardWesternReducer from '../features/wildcardWestern/wildcardWesternSlice'
-import tetrisReducer from '../features/tetris/tetrisSlice'
-import tiltLabyrinthReducer from '../features/tiltLabyrinth/tiltLabyrinthSlice'
-import houseOfCardsReducer from '../features/houseOfCards/houseOfCardsSlice'
-import memoryColorsReducer from '../features/memoryColors/memoryColorsSlice'
 import { syncRuntimeAudioSettings } from '../services/sound/audioSettingsSync'
 import publicOpinionReducer from '../publicOpinion/publicOpinionSlice'
 import { publicOpinionMiddleware } from '../publicOpinion/publicOpinionMiddleware'
@@ -80,6 +68,8 @@ import { secretMissionMiddleware } from './secretMissionMiddleware'
 import { gameDiagnosticsMiddleware } from '../services/diagnostics/gameDiagnostics'
 import {
   gamePerformanceMiddleware,
+  gameStoreUpdatePerformanceMiddleware,
+  profileGameMiddleware,
   startGamePerformanceDiagnostics,
 } from '../services/diagnostics/gamePerformanceDiagnostics'
 import { minigameSessionMiddleware } from './minigameSessionMiddleware'
@@ -93,6 +83,7 @@ import {
 } from '../broadcasting/broadcastConfigPersistence'
 import { backdoorPresentationMiddleware } from '../broadcasting/backdoorPresentationMiddleware'
 import { setRuntimeSocialActionOverrides } from '../social/socialActionManager'
+import { reconcileProfileAge } from '../safety/playerSafety'
 
 const strategicGameReducer = withImmediateVoxPublicMode(
   withLohNominationPlanning(gameReducer, getNominationTargetScore)
@@ -112,8 +103,17 @@ const DEV_INVARIANT_IGNORED_PATHS = [
   'social.incomingInteractionLogs',
 ]
 
+// A diagnostic replay can approximate production dispatch cost while retaining
+// the development-only browser state probe and visible QA controls.
+const productionLikePerformanceProfile =
+  import.meta.env.DEV &&
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('debugPerformance') === '1' &&
+  new URLSearchParams(window.location.search).get('profileProduction') === '1'
+
 export const store = configureStore({
   reducer: {
+    ...hostedMinigameReducers,
     game: strategicGameReducer,
     finale: finaleReducer,
     challenge: challengeReducer,
@@ -122,20 +122,6 @@ export const store = configureStore({
     profiles: profilesReducer,
     social: socialReducer,
     ui: uiReducer,
-    cwgo: cwgoReducer,
-    holdTheWall: holdTheWallReducer,
-    biographyBlitz: biographyBlitzReducer,
-    famousFigures: famousFiguresReducer,
-    silentSaboteur: silentSaboteurReducer,
-    majorityRules: majorityRulesReducer,
-    glassBridge: glassBridgeReducer,
-    blackjackTournament: blackjackTournamentReducer,
-    riskWheel: riskWheelReducer,
-    wildcardWestern: wildcardWesternReducer,
-    tetris: tetrisReducer,
-    tiltLabyrinth: tiltLabyrinthReducer,
-    houseOfCards: houseOfCardsReducer,
-    memoryColors: memoryColorsReducer,
     publicOpinion: publicOpinionReducer,
     ads: adsReducer,
     remoteConfig: remoteConfigReducer,
@@ -151,49 +137,63 @@ export const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      immutableCheck: {
-        ignoredPaths: DEV_INVARIANT_IGNORED_PATHS,
-      },
-      serializableCheck: {
-        ignoredPaths: DEV_INVARIANT_IGNORED_PATHS,
-      },
+      immutableCheck: productionLikePerformanceProfile
+        ? false
+        : { ignoredPaths: DEV_INVARIANT_IGNORED_PATHS },
+      serializableCheck: productionLikePerformanceProfile
+        ? false
+        : { ignoredPaths: DEV_INVARIANT_IGNORED_PATHS },
     })
       .prepend(gamePerformanceMiddleware)
       .concat(
-        weekendSettingsMiddleware,
-        survivorMiddleware,
-        bellaProgressMiddleware,
-        eliminatedSeasonResolutionMiddleware,
-        tribunalEligibilityMiddleware,
-        evictedAiStateRetentionMiddleware,
-        realityIntegrityMiddleware,
-        depressionShockMiddleware,
-        backdoorPresentationMiddleware,
-        presentationConsistencyMiddleware,
-        voxPublicModeSyncMiddleware,
-        intelligenceMiddleware,
-        socialStrategyMiddleware,
-        relationshipResourcePolicyMiddleware,
-        socialMiddleware,
-        allianceManagementMiddleware,
-        soundMiddleware,
-        publicOpinionMiddleware,
-        dramaPublicSaveMiddleware,
-        adsMiddleware,
-        secretMissionMiddleware,
-        eyeoleanPowerMiddleware,
-        minigameSessionMiddleware,
-        gameDiagnosticsMiddleware
+        profileGameMiddleware('gameplayAnalytics', gameplayAnalyticsMiddleware),
+        profileGameMiddleware('weekendSettings', weekendSettingsMiddleware),
+        profileGameMiddleware('survivor', survivorMiddleware),
+        profileGameMiddleware('bellaProgress', bellaProgressMiddleware),
+        profileGameMiddleware('eliminatedSeasonResolution', eliminatedSeasonResolutionMiddleware),
+        profileGameMiddleware('tribunalEligibility', tribunalEligibilityMiddleware),
+        profileGameMiddleware('evictedAiStateRetention', evictedAiStateRetentionMiddleware),
+        profileGameMiddleware('realityIntegrity', realityIntegrityMiddleware),
+        profileGameMiddleware('depressionShock', depressionShockMiddleware),
+        profileGameMiddleware('backdoorPresentation', backdoorPresentationMiddleware),
+        profileGameMiddleware('presentationConsistency', presentationConsistencyMiddleware),
+        profileGameMiddleware('voxPublicModeSync', voxPublicModeSyncMiddleware),
+        profileGameMiddleware('intelligence', intelligenceMiddleware),
+        profileGameMiddleware('socialStrategy', socialStrategyMiddleware),
+        profileGameMiddleware('relationshipResourcePolicy', relationshipResourcePolicyMiddleware),
+        profileGameMiddleware('social', socialMiddleware),
+        profileGameMiddleware('allianceManagement', allianceManagementMiddleware),
+        profileGameMiddleware('sound', soundMiddleware),
+        profileGameMiddleware('publicOpinion', publicOpinionMiddleware),
+        profileGameMiddleware('dramaPublicSave', dramaPublicSaveMiddleware),
+        profileGameMiddleware('ads', adsMiddleware),
+        profileGameMiddleware('secretMission', secretMissionMiddleware),
+        profileGameMiddleware('eyeoleanPower', eyeoleanPowerMiddleware),
+        profileGameMiddleware('minigameSession', minigameSessionMiddleware),
+        profileGameMiddleware('gameDiagnostics', gameDiagnosticsMiddleware),
+        gameStoreUpdatePerformanceMiddleware
       ),
   // A long season can dispatch thousands of actions with a large state tree.
   // Bound Redux DevTools retention in development so gameplay QA does not turn
   // the extension itself into a progressive memory/performance tax.
-  devTools: import.meta.env.DEV ? { maxAge: 50, trace: false } : false,
+  devTools:
+    import.meta.env.DEV && !productionLikePerformanceProfile ? { maxAge: 50, trace: false } : false,
 })
 
 // Performance sampling is inert unless a browser is opened with
 // `?debugPerformance=1`. The opt-in probe stays bounded and pauses when hidden.
 startGamePerformanceDiagnostics()
+
+// Reconcile saved, selected, imported, and edited profiles before any mounted
+// controller can use optional services. Profile switching never lifts a restriction.
+function syncPlayerSafetyProfile() {
+  const profiles = store.getState().profiles
+  if (profiles.isGuest) return
+  const profile = profiles.profiles.find((entry) => entry.id === profiles.activeProfileId)
+  reconcileProfileAge(profile?.bio?.age)
+}
+syncPlayerSafetyProfile()
+store.subscribe(syncPlayerSafetyProfile)
 
 // Repair saves created by the old Vox behavior where Settings could persist
 // Public Mode = on while the active game ignored the request and stayed off.
@@ -306,6 +306,35 @@ const runSnapshotAutosave = createRunSnapshotAutosaveController(saveRunSnapshot)
 /** Flush pending campaign snapshots before leaving a profile adoption flow. */
 export function flushPendingRunSnapshots(): void {
   runSnapshotAutosave.flush()
+}
+
+/** Explicitly capture a completed launch or attach an intact guest run to its owner. */
+export function persistCurrentRunSnapshot(): void {
+  const current = store.getState()
+  if (
+    !current.profiles.isGuest &&
+    current.profiles.activeProfileId &&
+    hasMeaningfulGameProgress(current.game)
+  ) {
+    scheduleCurrentRunSnapshot(current.profiles.activeProfileId, current)
+  }
+  runSnapshotAutosave.flush()
+}
+
+/** Gameplay starts only after its campaign checkpoint reaches durable storage. */
+export async function persistCompetitionCheckpoint(): Promise<boolean> {
+  const current = store.getState()
+  if (current.profiles.isGuest) return true
+  const profileId = current.profiles.activeProfileId
+  if (!profileId || isRunAutosaveSuspended() || isSavePersistenceBlocked()) return false
+  // Replace a queued older projection of this slot with this exact checkpoint.
+  runSnapshotAutosave.discard(profileId, getSavedRunSlot(current.game))
+  try {
+    const saved = saveRunSnapshot(profileId, createSavedSeasonSnapshot(profileId, current))
+    return saved && (await flushSavePersistence())
+  } catch {
+    return false
+  }
 }
 
 function scheduleCurrentRunSnapshot(

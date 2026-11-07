@@ -16,6 +16,7 @@
  * are ranked by highest accumulated score.
  */
 
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { completeMinigame } from '../../store/gameSlice'
@@ -761,6 +762,22 @@ export default function SnakeGame({
       })
     }
   }, [dispatch, humanId, onFinish, scores, session])
+
+  useCompetitionResultCheckpoint(
+    gamePhase === 'results'
+      ? {
+          rawValue: normaliseScore(currentScoreRef.current),
+          partial: false,
+          completion: {
+            authoritativeWinnerId: scores[0]?.id ?? humanId,
+            authoritativeLastPlaceId: scores.at(-1)?.id,
+            authoritativeRankedIds: scores.map((entry) => entry.id),
+            rawResults: Object.fromEntries(scores.map((entry) => [entry.id, entry.score])),
+            tiebreakerMs: scores.find((entry) => entry.isHuman)?.completionMs,
+          },
+        }
+      : null
+  )
 
   const handleFastForward = useCallback(() => {
     if (gamePhase !== 'waiting' || isFastForwarding) return

@@ -1,3 +1,4 @@
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import {
   useCallback,
   useEffect,
@@ -982,6 +983,26 @@ export default function HangmanChallengeComp({
     onFinish,
     players,
   ])
+
+  useCompetitionResultCheckpoint(
+    (phase === 'finalResult' || phase === 'eliminated') && competitionWinnerId
+      ? {
+          rawValue: players.find((player) => player.id === human.id)?.cumulativeScore ?? 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: competitionWinnerId,
+            authoritativeLastPlaceId:
+              competitionLastPlaceId ??
+              finalState.finalists.find((id) => id !== competitionWinnerId) ??
+              [...players].sort(winnerSort).at(-1)?.id ??
+              null,
+            rawResults: Object.fromEntries(
+              players.map((player) => [player.id, player.cumulativeScore])
+            ),
+          },
+        }
+      : null
+  )
 
   const boardStyle = {
     '--pressure-backdrop-image': 'url(' + pressureBackdropAsset + ')',

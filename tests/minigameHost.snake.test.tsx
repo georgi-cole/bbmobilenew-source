@@ -7,8 +7,9 @@
  *  2. The snake registry entry is wired as a React game (not legacy).
  */
 
+import { startHostedMinigame } from './helpers/startHostedMinigame';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import gameReducer from '../src/store/gameSlice';
@@ -99,9 +100,7 @@ describe('MinigameHost — Snake routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('snake-game')).toBeTruthy();
     expect(screen.queryByTestId('legacy-wrapper')).toBeNull();
@@ -123,9 +122,7 @@ describe('MinigameHost — Snake routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('legacy-wrapper')).toBeTruthy();
     expect(screen.queryByTestId('snake-game')).toBeNull();

@@ -18,6 +18,8 @@ import { selectNextCompetitionGame } from '../ai/competition/scheduling'
 import { getClassicCampaignPoolForContext } from '../ai/competition/bracketTemplate'
 import { pickCompetitionDirectorGame } from '../ai/competition/competitionDirector'
 import { applyCompetitionSeasonUpdate, hydrateGame, selectAlivePlayers } from './gameSlice'
+import { hasEffectiveStoreEntitlement } from '../vip/effectiveEntitlements'
+import { simulateQuickTapVipAiRace } from '../minigames/quickTapRace/vip/quickTapVipLogic'
 import {
   pickRandomGame,
   getGame,
@@ -25,12 +27,12 @@ import {
   supportsPlayerCount,
 } from '../minigames/registry'
 import type { GameRegistryEntry, GameCategory } from '../minigames/registry'
-import { computeScores } from '../minigames/scoring'
 import type { RawResult } from '../minigames/scoring'
+import type { CompetitionAttempt, CompetitionResult } from '../minigames/competitionResult'
 import type { CwgoPrizeType } from '../features/cwgo/cwgoCompetitionSlice'
 import { TWIN_SHOCK_LIA_ID } from '../bb/twinShock'
 import type { MusicMinigameVariant } from '../services/sound/musicConfig'
-import { rankPressurePlankResults } from '../components/PressurePlank/pressurePlankLogic'
+import { rankChallengeResults } from './challengeResults'
 import { resolveGameManagerRule } from '../gameManager/gameManager'
 import {
   applyCompetitionIntentToScore,
@@ -124,6 +126,16 @@ export interface PendingChallenge {
   forcedWinnerId?: string
   /** Hidden intention chosen before scores are simulated. */
   competitionIntents?: Record<string, CompetitionIntent>
+  /** Edition and scores stay together for the lifetime of an attempt. */
+  quickTapVariant?: 'classic' | 'vip'
+  /** Explicit attempt checkpoints; visual phases alone never imply forfeiture. */
+  attempt?: CompetitionAttempt
+  origin?: { gameId: string; week: number; phase: string }
+  /** Set only on hydration, consumed before allowing any gameplay. */
+  restored?: boolean
+  /** A restored attempt waits for the current purchase check before play. */
+  needsEditionReconciliation?: boolean
+  editionChangeNotice?: string
 }
 
 const initialState: ChallengeState = {
@@ -148,7 +160,7 @@ const challengeSlice = createSlice({
     },
 
     setPendingPhase(state, action: PayloadAction<PendingChallenge['phase']>) {
-      if (state.pending) {
+      if (state.pending && state.pending.attempt?.status !== 'accepted') {
         state.pending.phase = action.payload
         if (action.payload !== 'playing') state.pending.musicVariant = 'normal'
       }
@@ -169,6 +181,7 @@ const challengeSlice = createSlice({
     },
 
     recordRun(state, action: PayloadAction<ChallengeRun>) {
+      if (state.history.some((run) => run.id === action.payload.id)) return
       // Keep at most 50 runs for telemetry.
       state.history = [action.payload, ...state.history].slice(0, 50)
     },
@@ -180,13 +193,91 @@ const challengeSlice = createSlice({
     clearDebugOverrides(state) {
       state.debug = {}
     },
+    acknowledgeChallengeEdition(state) {
+      if (state.pending) delete state.pending.editionChangeNotice
+    },
+    beginChallengeAttempt(state, action: PayloadAction<{ id: string; number: number }>) {
+      const pending = state.pending
+      if (!pending || pending.id !== action.payload.id) return
+      if (pending.attempt && pending.attempt.number !== action.payload.number) return
+      if (pending.attempt?.status === 'finished' || pending.attempt?.status === 'accepted') return
+      pending.attempt = { number: action.payload.number, status: 'playing' }
+      pending.restored = false
+    },
+    checkpointChallengeResult(
+      state,
+      action: PayloadAction<{ id: string; number: number; result: CompetitionResult }>
+    ) {
+      const pending = state.pending
+      if (!pending || pending.id !== action.payload.id) return
+      if (pending.attempt && pending.attempt.number !== action.payload.number) return
+      if (pending.attempt?.status === 'finished' || pending.attempt?.status === 'accepted') return
+      pending.attempt = {
+        number: action.payload.number,
+        status: 'finished',
+        result: action.payload.result,
+      }
+      pending.restored = false
+      pending.needsEditionReconciliation = false
+      delete pending.editionChangeNotice
+    },
+    acceptChallengeResult(
+      state,
+      action: PayloadAction<{ id: string; number: number; result: CompetitionResult }>
+    ) {
+      const pending = state.pending
+      if (!pending || pending.id !== action.payload.id) return
+      if (pending.attempt && pending.attempt.number !== action.payload.number) return
+      pending.attempt = {
+        number: action.payload.number,
+        status: 'accepted',
+        result: action.payload.result,
+      }
+      pending.restored = false
+      pending.phase = 'done'
+    },
+    prepareChallengeRetry(state, action: PayloadAction<{ id: string; number: number }>) {
+      const pending = state.pending
+      if (
+        !pending ||
+        pending.id !== action.payload.id ||
+        pending.attempt?.number !== action.payload.number ||
+        pending.attempt.status !== 'finished'
+      ) {
+        return
+      }
+      pending.attempt = { number: action.payload.number + 1, status: 'ready' }
+      pending.phase = 'rules'
+      pending.restored = false
+      pending.needsEditionReconciliation =
+        pending.game.key === 'quickTap' || pending.game.key === 'quickTapSeasons'
+    },
+    clearChallengeIfCurrent(state, action: PayloadAction<string>) {
+      if (state.pending?.id === action.payload) state.pending = null
+    },
     hydrateChallenge(_state, action: PayloadAction<ChallengeState>) {
       const restored = action.payload
+      const saved = restored.pending
+      const consumed = saved?.attempt && saved.attempt.status !== 'ready'
+      const pending = saved
+        ? {
+            ...saved,
+            phase:
+              saved.attempt?.status === 'accepted'
+                ? ('done' as const)
+                : saved.attempt?.status === 'finished'
+                  ? ('results' as const)
+                  : ('rules' as const),
+            musicVariant: 'normal' as const,
+            restored: Boolean(consumed),
+            needsEditionReconciliation:
+              !consumed && (saved.game.key === 'quickTap' || saved.game.key === 'quickTapSeasons'),
+          }
+        : null
+      if (pending && consumed) delete pending.editionChangeNotice
       return {
         ...restored,
-        pending: restored.pending
-          ? { ...restored.pending, phase: 'rules' as const, musicVariant: 'normal' as const }
-          : null,
+        pending,
       }
     },
   },
@@ -212,6 +303,12 @@ export const {
   setDebugOverrides,
   clearDebugOverrides,
   hydrateChallenge,
+  acknowledgeChallengeEdition,
+  beginChallengeAttempt,
+  checkpointChallengeResult,
+  acceptChallengeResult,
+  prepareChallengeRetry,
+  clearChallengeIfCurrent,
 } = challengeSlice.actions
 
 export default challengeSlice.reducer
@@ -604,10 +701,14 @@ export const startChallenge =
         : resolvedParticipants
     const finalParticipants =
       eligibleParticipants.length > 0 ? eligibleParticipants : resolvedParticipants
-    const forcedWinnerId =
-      managerRule?.outcome === 'player' &&
-      managerRule.winnerId &&
-      finalParticipants.includes(managerRule.winnerId)
+    const vipQuickTap =
+      gameEntry.premiumExperience === 'variant' &&
+      hasEffectiveStoreEntitlement(latestState.vip, 'premiumChallenges')
+    const forcedWinnerId = vipQuickTap
+      ? undefined
+      : managerRule?.outcome === 'player' &&
+          managerRule.winnerId &&
+          finalParticipants.includes(managerRule.winnerId)
         ? managerRule.winnerId
         : managerRule?.outcome === 'random' && finalParticipants.length > 0
           ? finalParticipants[
@@ -640,29 +741,41 @@ export const startChallenge =
           phase: gameState.phase,
           prizeType: opts.prizeType,
           playerStatus: player?.status,
-          forcedWinner: forcedWinnerId === pid,
+          forcedWinner: !vipQuickTap && forcedWinnerId === pid,
         })
         competitionIntents[pid] = intent
-        const simulatedScore = simulateMinigameAiScore({
-          gameKey: gameEntry.key,
-          minigameModel,
-          seed: perChallengeSeed,
-          playerId: pid,
-          participantIndex: index,
-          profile: player?.competitionProfile ?? getDefaultCompetitionProfile(),
-          seasonState: getCompetitionSeasonState(gameState?.competitionSeasonStateByPlayerId, pid),
-          aiGameIdentity: player?.aiGameIdentity,
-          identityMode,
-          timeLimitMs,
-          timeLimitSeconds: timeLimitMs ? timeLimitMs / 1000 : undefined,
-        })
-        aiScores[pid] = applyCompetitionIntentToScore(
-          simulatedScore,
-          minigameModel,
-          intent,
-          perChallengeSeed,
-          pid
-        )
+        if (vipQuickTap) {
+          aiScores[pid] = simulateQuickTapVipAiRace({
+            seed: perChallengeSeed,
+            playerId: pid,
+            profile: player?.competitionProfile ?? getDefaultCompetitionProfile(),
+            mode: gameEntry.key === 'quickTapSeasons' ? 'seasons' : 'race',
+          }).score
+        } else {
+          const simulatedScore = simulateMinigameAiScore({
+            gameKey: gameEntry.key,
+            minigameModel,
+            seed: perChallengeSeed,
+            playerId: pid,
+            participantIndex: index,
+            profile: player?.competitionProfile ?? getDefaultCompetitionProfile(),
+            seasonState: getCompetitionSeasonState(
+              gameState?.competitionSeasonStateByPlayerId,
+              pid
+            ),
+            aiGameIdentity: player?.aiGameIdentity,
+            identityMode,
+            timeLimitMs,
+            timeLimitSeconds: timeLimitMs ? timeLimitMs / 1000 : undefined,
+          })
+          aiScores[pid] = applyCompetitionIntentToScore(
+            simulatedScore,
+            minigameModel,
+            intent,
+            perChallengeSeed,
+            pid
+          )
+        }
       }
     })
 
@@ -705,6 +818,11 @@ export const startChallenge =
       prizeType: opts.prizeType,
       forcedWinnerId,
       competitionIntents,
+      attempt: { number: 0, status: 'ready' },
+      origin: { gameId: gameState.gameId, week: gameState.week, phase: gameState.phase },
+      ...(gameEntry.key === 'quickTap' || gameEntry.key === 'quickTapSeasons'
+        ? { quickTapVariant: vipQuickTap ? ('vip' as const) : ('classic' as const) }
+        : {}),
     }
 
     dispatch(setPendingChallenge(pending))
@@ -723,6 +841,9 @@ export const completeChallenge =
     options?: {
       authoritativeWinnerId?: string | null
       partial?: boolean
+      keepPending?: boolean
+      skipSeasonUpdate?: boolean
+      authoritativeRankedIds?: string[]
     }
   ) =>
   (dispatch: AppDispatch, getState: () => RootState): string | null => {
@@ -730,25 +851,20 @@ export const completeChallenge =
     const pending = state.challenge?.pending
     if (!pending) return null
 
+    const recorded = state.challenge.history.find((run) => run.id === pending.id)
+    if (recorded) {
+      if (!options?.keepPending) dispatch(clearChallengeIfCurrent(pending.id))
+      return recorded.winnerId
+    }
+
     const { game, seed, participants } = pending
 
-    const ranked =
-      game.key === 'pressurePlank'
-        ? rankPressurePlankResults(
-            participants,
-            Object.fromEntries(rawResults.map((result) => [result.playerId, result.rawValue])),
-            seed
-          ).map((result) => ({
-            ...(rawResults.find((raw) => raw.playerId === result.playerId) ?? {
-              playerId: result.playerId,
-              rawValue: result.survivalSeconds,
-            }),
-            rawValue: result.survivalSeconds,
-            score: result.survivalSeconds,
-            points: Math.round(result.survivalSeconds),
-            rank: result.rank,
-          }))
-        : computeScores(game.scoringAdapter, rawResults, game.scoringParams ?? {})
+    const humanId = state.game.players.find((player) => player.isUser)?.id
+    const ranked = rankChallengeResults(pending, rawResults, {
+      partial: options?.partial,
+      humanId,
+      authoritativeRankedIds: options?.authoritativeRankedIds,
+    })
 
     const canonicalScores: Record<string, number> = {}
     for (const r of ranked) canonicalScores[r.playerId] = r.score
@@ -758,13 +874,16 @@ export const completeChallenge =
     const positiveWinner = ranked.find((r) => r.score > 0)
     const winner = positiveWinner ?? ranked[0]
     const explicitWinnerId =
-      game.key !== 'pressurePlank' &&
+      (game.key !== 'pressurePlank' || options?.partial) &&
       options?.authoritativeWinnerId &&
+      !(options.partial && options.authoritativeWinnerId === humanId) &&
       participants.includes(options.authoritativeWinnerId)
         ? options.authoritativeWinnerId
         : null
     const scheduledWinnerId =
-      pending.forcedWinnerId && participants.includes(pending.forcedWinnerId)
+      pending.forcedWinnerId &&
+      !(options?.partial && pending.forcedWinnerId === humanId) &&
+      participants.includes(pending.forcedWinnerId)
         ? pending.forcedWinnerId
         : null
     const winnerId =
@@ -790,7 +909,9 @@ export const completeChallenge =
     }
 
     dispatch(recordRun(run))
-    if (scheduledWinnerId || explicitWinnerId) {
+    if (options?.skipSeasonUpdate) {
+      // Feature-owned games have already applied their campaign outcome.
+    } else if (scheduledWinnerId || explicitWinnerId) {
       // An authoritative React minigame winner may not align with the generic
       // challenge-score ranking, so apply only the winner boost here and avoid
       // placement bonuses based on fallback scores.
@@ -815,7 +936,7 @@ export const completeChallenge =
         })
       )
     }
-    dispatch(setPendingChallenge(null))
+    if (!options?.keepPending) dispatch(clearChallengeIfCurrent(pending.id))
 
     return winnerId
   }

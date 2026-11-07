@@ -18,6 +18,12 @@ jobs:
       dependencies: ${{ steps.impact.outputs.dependencies }}
       android: ${{ steps.impact.outputs.android }}
       ios: ${{ steps.impact.outputs.ios }}
+      formatting: ${{ steps.impact.outputs.formatting }}
+      hygiene: ${{ steps.impact.outputs.hygiene }}
+      lint: ${{ steps.impact.outputs.lint }}
+      typecheck: ${{ steps.impact.outputs.typecheck }}
+      marketplace: ${{ steps.impact.outputs.marketplace }}
+      core: ${{ steps.impact.outputs.core }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,6 +44,12 @@ jobs:
           dependencies=false
           android=false
           ios=false
+          formatting=false
+          hygiene=false
+          lint=false
+          typecheck=false
+          marketplace=false
+          core=false
 
           if grep -Eq '^(src/|public/|index\.html$|package(-lock)?\.json$|vite\.config\.[^/]+$|tsconfig[^/]*\.json$|capacitor\.config\.[^/]+$|scripts/(generate-(after-the-eye-config|audio-manifest|skins-manifest|native-brand-assets)\.(mjs|py)|check-production-debug-globals\.mjs|validate-after-the-eye-config\.mjs)$|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
             runtime=true
@@ -55,13 +67,51 @@ jobs:
             ios=true
           fi
 
+          if grep -Eiq '(^|/)\.prettierrc$|(^|/)\.prettierignore$|\.(cjs|cts|css|gql|graphql|html|js|jsx|json|jsonc|less|md|mdx|mjs|mts|scss|ts|tsx|yaml|yml)$' <<< "$changed_files"; then
+            formatting=true
+          fi
+
+          if grep -Eq '^(tests/|e2e/|src/.*\.(test|spec)\.[^/]+$|scripts/check-disabled-tests\.mjs$|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+            hygiene=true
+          fi
+
+          if grep -Eq '^(src/|tests/|e2e/|scripts/|package(-lock)?\.json$|eslint\.config\.[^/]+$|\.prettier[^/]*$|vitest\.config\.[^/]+$|playwright\.config\.[^/]+$|tsconfig[^/]*\.json$|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+            lint=true
+          fi
+
+          if grep -Eq '^(src/|package(-lock)?\.json$|tsconfig[^/]*\.json$|scripts/(generate-audio-manifest|generate-after-the-eye-config)\.mjs$|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+            typecheck=true
+          fi
+
+          if grep -Eq '^(src/(vip/|economy/|modes/|social/|publicOpinion/|appearance/|minigames/|components/(MinigameHost|StoreProductModal|GlassBridgeComp|CrystalPathShatteredGame|RiskWheelComp|HouseOfCardsComp|HouseOfDarknessComp|ChainOfGreed|QuickTapRace|Vox[^/]*|Tribunal[^/]*|BigSpender|FloatingActionBar)/|screens/(Store|Settings|QuickTapSeasons|Surviv[^/]*|GameOver|GameScreen|DiaryRoom)/|features/(twists|houseOfCards|glassBridge|riskWheel)/|services/.*[Aa]d|data/skinRegistry\.json$|hooks/useBackgroundTheme\.ts$|utils/backgroundTheme\.ts$)|src/store/(vipSlice|challengeSlice|gameSlice|settingsSlice|settingsHelpers|profilesSlice|vox[^/]*|surviv[^/]*)\.ts$|scripts/(configure-admob|validate-store-release-env|sync-marketplace-catalog|check-marketplace-review|marketplace-review-policy)\.|docs/(MARKETPLACE_CATALOG|marketplace-maintenance)\.md$|public/assets/(skins|minigames)/|package(-lock)?\.json$|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+            marketplace=true
+          fi
+
+          if grep -Eq '^(src/|tests/|scripts/validate-character-catalog\.|package(-lock)?\.json$|vitest\.config\.[^/]+$|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+            core=true
+          fi
+
           echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
           echo "dependencies=$dependencies" >> "$GITHUB_OUTPUT"
           echo "android=$android" >> "$GITHUB_OUTPUT"
           echo "ios=$ios" >> "$GITHUB_OUTPUT"
+          echo "formatting=$formatting" >> "$GITHUB_OUTPUT"
+          echo "hygiene=$hygiene" >> "$GITHUB_OUTPUT"
+          echo "lint=$lint" >> "$GITHUB_OUTPUT"
+          echo "typecheck=$typecheck" >> "$GITHUB_OUTPUT"
+          echo "marketplace=$marketplace" >> "$GITHUB_OUTPUT"
+          echo "core=$core" >> "$GITHUB_OUTPUT"
 
   static-quality:
     name: ${{ matrix.label }}
+    needs: changes
+    if: >-
+      (matrix.label == 'Formatting' && needs.changes.outputs.formatting == 'true') ||
+      (matrix.label == 'Test hygiene' && needs.changes.outputs.hygiene == 'true') ||
+      (matrix.label == 'ESLint' && needs.changes.outputs.lint == 'true') ||
+      (matrix.label == 'TypeScript' && needs.changes.outputs.typecheck == 'true') ||
+      (matrix.label == 'Marketplace consistency' && needs.changes.outputs.marketplace == 'true') ||
+      (matrix.label == 'Core regressions' && needs.changes.outputs.core == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -81,6 +131,9 @@ jobs:
           - label: TypeScript
             command: npm run typecheck
             fetch_depth: 1
+          - label: Marketplace consistency
+            command: npm run check:marketplace
+            fetch_depth: 0
           - label: Core regressions
             command: npm run test:pr-core
             fetch_depth: 1
@@ -165,14 +218,14 @@ jobs:
     name: iOS simulator build
     needs: changes
     if: needs.changes.outputs.ios == 'true'
-    runs-on: macos-15
+    runs-on: macos-26
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.4'
+          xcode-version: '26.6'
       - uses: actions/setup-node@v4
         with:
           node-version: 22

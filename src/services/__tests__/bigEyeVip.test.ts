@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  getBigEyeVipInstallationId,
-  getBigEyeVipStatus,
-  requestBigEyeVipReply,
-} from '../bigEyeVip'
+import { installSafetyFixture } from '../../safety/__tests__/safetyFixture'
+import { getBigEyeVipInstallationId, getBigEyeVipStatus, requestBigEyeVipReply } from '../bigEyeVip'
 
 const world = {
   season: 1,
@@ -21,7 +18,7 @@ const world = {
 
 describe('Big Eye VIP client', () => {
   beforeEach(() => {
-    localStorage.clear()
+    installSafetyFixture(28, ['onlineServices'])
     vi.stubEnv('VITE_BIG_EYE_VIP_API_URL', 'https://vip.example.workers.dev/')
   })
 

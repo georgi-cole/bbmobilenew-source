@@ -986,7 +986,11 @@ function automaticGoodbyeQuality(
     .find((event) => event.type === 'CEREMONY_EVICTION' && event.targetIds.includes(jurorId))
   if (!eviction) return 0
 
-  const relationship = getRealityRelationship(state, jurorId, finalistId)
+  // Jury scorecards are also built from Redux snapshots, which are frozen by
+  // Immer. Reading a missing edge here must not initialize it in the source
+  // state; the persisted evaluation path creates writable edges separately.
+  const relationship =
+    state.relationships[jurorId]?.[finalistId] ?? createDirectedRelationship(jurorId, finalistId)
   let score =
     relationship.warmth * 0.08 +
     relationship.trust * 0.08 +

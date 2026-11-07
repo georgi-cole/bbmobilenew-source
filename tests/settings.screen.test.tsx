@@ -109,7 +109,7 @@ describe('Settings screen', () => {
       (element) => element.getAttribute('aria-label') ?? element.id
     )
     expect(controls.filter((name) => name !== 'setting-language')).toEqual([
-      'Toggle House Feed',
+      'Toggle Hub Feed',
       'Toggle Public Mode',
       'Toggle Reality Mode',
       'setting-realityModePreset',

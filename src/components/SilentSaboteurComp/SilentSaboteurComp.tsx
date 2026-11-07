@@ -13,6 +13,7 @@
  * Timer expiry calls endVotingPhase (abstentions allowed — no auto-random vote).
  */
 
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -999,6 +1000,14 @@ export default function SilentSaboteurComp({
   // ─────────────────────────────────────────────────────────────────────────
   // Render (early-exit guard after all hooks)
   // ─────────────────────────────────────────────────────────────────────────
+
+  useCompetitionResultCheckpoint(sessionReady && (phase === 'winner' || phase === 'complete') && winnerId ? {
+    rawValue: 1, partial: false, completion: {
+      authoritativeWinnerId: winnerId,
+      authoritativeLastPlaceId: eliminatedIds[0] ?? null,
+      lastPlaceType: 'survival',
+    },
+  } : null);
 
   if (!ss) return null;
 
@@ -2346,4 +2355,3 @@ function InvestigationSpotlightGuide({
     </div>
   );
 }
-

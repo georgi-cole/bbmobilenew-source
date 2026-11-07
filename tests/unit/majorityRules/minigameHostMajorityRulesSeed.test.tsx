@@ -20,8 +20,9 @@
  *     they still receive the challenge seed.
  */
 
+import { startHostedMinigame } from '../../helpers/startHostedMinigame';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import gameReducer from '../../../src/store/gameSlice';
@@ -151,7 +152,7 @@ describe('MinigameHost — Majority Rules seed isolation', () => {
     );
 
     // Advance past countdown → playing phase
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
 
     // MajorityRulesComp should now be rendered
     expect(screen.getByTestId('mr-comp')).toBeTruthy();
@@ -174,7 +175,7 @@ describe('MinigameHost — Majority Rules seed isolation', () => {
       </Provider>,
     );
 
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
     expect(screen.getByTestId('mr-comp')).toBeTruthy();
     expect(capturedMajorityRulesSeed).toBeUndefined();
   });
@@ -194,7 +195,7 @@ describe('MinigameHost — Majority Rules seed isolation', () => {
       </Provider>,
     );
 
-    await act(async () => { vi.runAllTimers(); });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('cwgo-comp')).toBeTruthy();
     // CWGO is not affected — it still receives the challenge seed

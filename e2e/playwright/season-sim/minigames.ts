@@ -26,6 +26,7 @@ interface MinigameDriverProfile {
  * game requires choosing a real input family before the season matrix can run.
  */
 export const MINIGAME_DRIVER_PROFILES: Readonly<Record<string, MinigameDriverProfile>> = {
+  gatesOfTheEye: { kind: 'choice', primaryInput: 'choose and seal a door' },
   quickTap: { kind: 'tap', primaryInput: 'rapid tap target' },
   quickTapSeasons: { kind: 'tap', primaryInput: 'rapid tap target and season modifiers' },
   memoryMatch: { kind: 'memory', primaryInput: 'ordered colour buttons' },
@@ -2136,6 +2137,18 @@ export async function playVisibleMinigame(
     await closeResults.click({ force: true })
     await host.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => undefined)
     return { interacted: true, completed: true, primaryInput: profile.primaryInput }
+  }
+
+  if (gameKey === 'gatesOfTheEye') {
+    const doors = host.getByRole('radio').filter({ visible: true })
+    const count = await doors.count()
+    if (count > 0) await doors.nth(Math.floor(random.next() * count)).click()
+    const action = host
+      .getByRole('button', { name: /^(Seal Door|Round \d|Watch this round)/ })
+      .first()
+    const interacted = await action.isVisible().catch(() => false)
+    if (interacted) await action.click()
+    return { interacted, completed: false, primaryInput: profile.primaryInput }
   }
 
   if (gameKey === 'mysticChamber') {

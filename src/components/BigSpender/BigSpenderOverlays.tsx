@@ -9,6 +9,7 @@ export type BigSpenderBombDramaStage = 'impact' | 'cracked' | 'prompt' | null
 type RankedPlayer = BigSpenderPlayerState & { rank: number }
 
 type BigSpenderOverlaysProps = {
+  adLoading?: boolean
   bombDramaStage: BigSpenderBombDramaStage
   humanAdRescuePending: boolean
   zeroDramaVisible: boolean
@@ -39,6 +40,7 @@ function getPlayerLabel(player: BigSpenderPlayerState) {
 }
 
 export default function BigSpenderOverlays({
+  adLoading = false,
   bombDramaStage,
   humanAdRescuePending,
   zeroDramaVisible,
@@ -101,10 +103,10 @@ export default function BigSpenderOverlays({
               mandatory Second Chance Wallet.
             </p>
             <div className="big-spender__modal-actions">
-              <button type="button" onClick={() => onResolveAdRescue(true)}>
+              <button type="button" disabled={adLoading} onClick={() => onResolveAdRescue(true)}>
                 Watch ad
               </button>
-              <button type="button" onClick={() => onResolveAdRescue(false)}>
+              <button type="button" disabled={adLoading} onClick={() => onResolveAdRescue(false)}>
                 Skip
               </button>
             </div>

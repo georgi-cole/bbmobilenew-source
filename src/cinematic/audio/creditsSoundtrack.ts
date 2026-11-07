@@ -170,6 +170,14 @@ export const fadeOutCreditsSoundtrack = (durationMs: number) => {
   volumeAnimationFrame = window.requestAnimationFrame(fade)
 }
 
+/** Pause and yield music ownership without resetting the credits timestamp. */
+export const pauseCreditsSoundtrack = () => {
+  cancelVolumeAnimation()
+  if (soundtrack == null) return
+  soundtrack.pause()
+  SoundManager.releaseExternalMusic('cinematic:credits', soundtrack)
+}
+
 export const stopCreditsSoundtrack = () => {
   cancelVolumeAnimation()
   if (soundtrack == null) {

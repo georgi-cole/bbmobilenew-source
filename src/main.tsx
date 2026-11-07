@@ -14,23 +14,28 @@ import { applyVisualFreezeState } from './utils/visualFreeze'
 import { buildViewportMetaContent } from './components/layout/viewportMeta'
 import { store } from './store/store'
 import { initializeDurablePersistence } from './store/durablePersistence'
+import { initializeCloudBackend } from './services/backend/backendService'
 import { setAudio } from './store/settingsSlice'
 import { SocialEngine } from './social/SocialEngine'
 import { syncRuntimeAudioSettings } from './services/sound/audioSettingsSync'
 import { installAudioVisualSync } from './services/sound/audioVisualSync'
 import { SoundManager } from './services/sound/SoundManager'
-import { initAdBridge } from './services/ads/adsService'
+import { canShowAd, clearPendingAdRewards, initAdBridge } from './services/ads/adsService'
+import { installAdMobBridge, invalidateAdMobRequests } from './services/ads/admobBridge'
+import { canUseOptionalFeature } from './safety/playerSafety'
 import { installE2EStateProbe } from './testSupport/e2eStateProbe'
 import App from './App.tsx'
-import './styles/gameOverResponsiveFixes.css'
-import './styles/houseOfCardsInteractionFix.css'
-import './styles/houseOfCardsBrightTheme.css'
-import './styles/houseOfCardsBrightThemePriority.css'
 
 const BUILD_ID = import.meta.env.VITE_BUILD_ID ?? 'local'
 
 // Only non-sensitive build identifiers are exposed to the opt-in player feedback form.
 Object.assign(window, {
+  __bigEyePlayerPrivacy: {
+    canSendFeedback: () => canUseOptionalFeature('onlineServices'),
+    open: () => {
+      window.location.hash = '/player-privacy'
+    },
+  },
   __bigEyeFeedbackBuild: {
     version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
     buildId: BUILD_ID,
@@ -95,6 +100,16 @@ SocialEngine.init(store)
 // Register the window.onAdRewardGranted callback so native Android/iOS wrappers
 // can complete rewarded ad flows.
 initAdBridge()
+installAdMobBridge((placement) => canShowAd(placement, store.getState()))
+let adRunId = store.getState().game.gameId
+store.subscribe(() => {
+  const nextRunId = store.getState().game.gameId
+  if (nextRunId !== adRunId) {
+    adRunId = nextRunId
+    invalidateAdMobRequests()
+    clearPendingAdRewards()
+  }
+})
 
 // Browser journeys may observe a detached state snapshot in development, but
 // never receive the mutable Redux store or dispatch. The explicit flag is set
@@ -159,6 +174,8 @@ rootElement.dataset.buildId = BUILD_ID
 
 async function mountApp() {
   await initializeDurablePersistence()
+  const stopCloudBackend = initializeCloudBackend(store)
+  if (import.meta.hot) import.meta.hot.dispose(stopCloudBackend)
   createRoot(rootElement).render(
     <StrictMode>
       <App />

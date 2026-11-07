@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+beforeEach(() => {
+  Object.assign(window, { __bigEyePlayerPrivacy: { canSendFeedback: () => true, open: vi.fn() } })
+})
 
 const repoRoot = process.cwd()
 const introHubScript = readFileSync(path.join(repoRoot, 'public/js/ui/introHub.js'), 'utf8')
@@ -30,6 +34,7 @@ function loadIntroHub(gameOverrides: Record<string, unknown> = {}) {
 }
 
 afterEach(() => {
+  Reflect.deleteProperty(window, '__bigEyePlayerPrivacy')
   document.body.innerHTML = ''
   delete (window as Window & { game?: unknown }).game
   delete (window as Window & { game?: unknown }).HouseguestsModal
@@ -52,7 +57,9 @@ describe('IntroHub side utility buttons', () => {
     ).not.toBeNull()
     expect(document.querySelector('[data-hub-id="music"] .hub-chip__icon--music')).not.toBeNull()
     expect(document.querySelector('[data-hub-id="sounds"] .hub-chip__icon--sound')).not.toBeNull()
-    expect(document.querySelector('[data-hub-id="store"] .hub-chip__icon--shop')).not.toBeNull()
+    expect(
+      document.querySelector('[data-hub-id="leaderboard"] .hub-chip__icon--hall_of_fame')
+    ).not.toBeNull()
     expect(
       document.querySelector('[data-hub-id="feedback"] .hub-chip__icon--feedback')
     ).not.toBeNull()
@@ -83,7 +90,9 @@ describe('IntroHub side utility buttons', () => {
     expect(document.querySelector('[data-hub-id="feedback"]')).toHaveClass(
       'hub-chip--bottom-left-3'
     )
-    expect(document.querySelector('[data-hub-id="store"]')).toHaveClass('hub-chip--bottom-right')
+    expect(document.querySelector('[data-hub-id="leaderboard"]')).toHaveClass(
+      'hub-chip--bottom-right'
+    )
     expect(document.querySelector('[data-hub-id="settings"]')).toHaveClass(
       'hub-chip--bottom-right-2'
     )
@@ -149,7 +158,7 @@ describe('IntroHub side utility buttons', () => {
     expect(introHubCss).toContain('../assets/side_utilities_button/side_utility_shell_disabled.svg')
     expect(introHubCss).toContain('../assets/side_utilities_button/badge_alert_red.svg')
     expect(introHubCss).toContain('.hub-chip__icon--housemates')
-    expect(introHubCss).toContain('.hub-chip__icon--shop')
+    expect(introHubCss).toContain('.hub-chip__icon--hall_of_fame')
     expect(introHubCss).toContain('--floating-corner-top-base: 16px;')
     expect(introHubCss).toContain('--floating-corner-top-touch-base: 24px;')
     expect(introHubCss).toContain('--floating-corner-top-touch-safe-padding: 20px;')
@@ -237,6 +246,29 @@ describe('IntroHub side utility buttons', () => {
     expect(dialog?.querySelector('[data-feedback-action="copy"]')).not.toBeNull()
     expect(dialog?.querySelector('[data-feedback-action="email"]')).not.toBeNull()
     expect(openSpy).not.toHaveBeenCalled()
+  })
+
+  it('routes restricted players to privacy before collecting feedback', () => {
+    const open = vi.fn()
+    Object.assign(window, { __bigEyePlayerPrivacy: { canSendFeedback: () => false, open } })
+    loadIntroHub()
+    document.querySelector<HTMLButtonElement>('[data-hub-id="feedback"]')?.click()
+    expect(document.querySelector('[data-feedback-field="details"]')).toBeNull()
+    expect(open).toHaveBeenCalledOnce()
+  })
+
+  it('rechecks permission before opening an email from an existing composer', () => {
+    loadIntroHub()
+    document.querySelector<HTMLButtonElement>('[data-hub-id="feedback"]')?.click()
+    document.querySelector<HTMLTextAreaElement>('[data-feedback-field="details"]')!.value = 'Report'
+    const open = vi.fn()
+    Object.assign(window, { __bigEyePlayerPrivacy: { canSendFeedback: () => false, open } })
+    const link = document.querySelector<HTMLAnchorElement>('[data-feedback-action="email"]')!
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true })
+    link.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(link.href).not.toContain('mailto:')
+    expect(open).toHaveBeenCalledOnce()
   })
 
   it('requires a description and prepares a contextual report for the developer inbox', async () => {

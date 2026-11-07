@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useStore } from 'react-redux'
+import { useRewardedAd } from '../../services/ads/useRewardedAd'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   endFinaleReunionDebugPreview,
@@ -22,7 +23,6 @@ import {
   continueWeekendFeature,
   submitHubSaysVote,
   continueSurvivorAfterAd,
-  hydrateGame,
   revealSurvivorReplacement,
   setHasSeenConfessionalSpotlight,
   resetGame,
@@ -65,11 +65,7 @@ import {
   savedStateKeyForProfile,
   saveRunSnapshot,
 } from '../../store/saveStatePersistence'
-import {
-  createSurvivorRun,
-  getSurvivorCurrentDay,
-  isSurvivorRunTerminal,
-} from '../../modes/survivorRun'
+import { getSurvivorCurrentDay, isSurvivorRunTerminal } from '../../modes/survivorRun'
 import ConfirmExitModal from '../ConfirmExitModal/ConfirmExitModal'
 import AdPrompt from '../AdPrompt/AdPrompt'
 import GameControlDock from '../GameControlDock/GameControlDock'
@@ -126,6 +122,7 @@ export default function FloatingActionBar({
   const navigate = useNavigate()
   const location = useLocation()
   const reduxStore = useStore<RootState>()
+  const survivorAd = useRewardedAd()
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
   const pendingCount = useAppSelector(selectPendingIncomingInteractionCount)
@@ -198,6 +195,10 @@ export default function FloatingActionBar({
     game.aiReplacementWaiting ? 'waiting-for-replacement-render' : 'replacement-ready',
     game.specialVeto?.vipUseStage ?? 0,
     game.voxPopuli?.finalThreePacingSeen?.join(',') ?? 'no-final-three-pacing',
+    // Some special phases progress through multiple rounds without changing phase.
+    game.democracia?.round ?? 0,
+    game.democracia?.candidateIds.join(',') ?? 'no-democracia-candidates',
+    game.democracia?.resultDisplay ? 'democracia-results-ready' : 'no-democracia-results',
     isWaiting ? 'waiting-for-input' : 'ready',
     weekend?.active ? `${weekend.afterDay}:${weekend.stage}:${weekend.weekendDay}` : 'no-weekend',
   ].join(':')
@@ -738,13 +739,8 @@ export default function FloatingActionBar({
   }, [game.publicModeEnabled, navigate, onPublicMeterBlocked, publicRequestCount])
 
   const handleStartNewSurvivor = useCallback(() => {
-    if (!isGuest && activeProfileId) {
-      clearSavedRun(activeProfileId, 'survival')
-    }
-    dispatch({ type: 'challenge/setPendingChallenge', payload: null })
-    dispatch(hydrateGame(createSurvivorRun()))
-    navigate('/game', { replace: true })
-  }, [activeProfileId, dispatch, isGuest, navigate])
+    navigate('/new-season?mode=survival')
+  }, [navigate])
 
   const handleReturnHome = useCallback(() => {
     if (weekend?.debug) {
@@ -872,7 +868,8 @@ export default function FloatingActionBar({
       // On the game screen the nav is deliberately folded into the dock. Its
       // hidden rectangle must not become the dock's lower boundary.
       if (navRect.height <= 0) {
-        dock.style.bottom = `${Math.round(minimumGap)}px`
+        const bottom = `${Math.round(minimumGap)}px`
+        if (dock.style.bottom !== bottom) dock.style.bottom = bottom
         return
       }
       const bottomOffset = resolveBalancedDockBottom({
@@ -882,7 +879,8 @@ export default function FloatingActionBar({
         dockHeight: dockRect.height,
         minimumGap,
       })
-      dock.style.bottom = `${Math.round(bottomOffset)}px`
+      const bottom = `${Math.round(bottomOffset)}px`
+      if (dock.style.bottom !== bottom) dock.style.bottom = bottom
     }
     const scheduleBalance = () => {
       window.cancelAnimationFrame(frameId)
@@ -957,12 +955,13 @@ export default function FloatingActionBar({
             icon="⚡"
             watchLabel="Watch ad · Reassemble"
             skipLabel="Not now"
-            onWatch={() => {
+            onWatch={async () => {
+              if (window.GameAds && !(await survivorAd.request('survival_continue'))) return
               setShowSurvivorAdContinue(false)
               window.setTimeout(() => dispatch(continueSurvivorAfterAd()), 450)
             }}
             onSkip={() => setShowSurvivorAdContinue(false)}
-            pending={false}
+            pending={survivorAd.pending}
           />
         )}
       <GameControlDock

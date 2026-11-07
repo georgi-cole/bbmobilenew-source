@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { usePlayerSafety } from '../../safety/usePlayerSafety'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { setDisplay, setGameUX, setSim } from '../../store/settingsSlice'
 import {
@@ -29,6 +30,7 @@ function markRealityModeDefaultApplied(): void {
 }
 
 export default function VipEntitlementSync() {
+  const adultServices = usePlayerSafety()?.ageBand === 'adult'
   const dispatch = useAppDispatch()
   const storeState = useAppSelector(selectVip)
   const isVipActive = useAppSelector(selectIsVipActive)
@@ -45,8 +47,8 @@ export default function VipEntitlementSync() {
   const realityDefaultAppliedRef = useRef(false)
 
   useEffect(() => {
-    if (storeState.status === 'idle') void dispatch(initializeVip())
-  }, [dispatch, storeState.status])
+    if (adultServices && storeState.status === 'idle') void dispatch(initializeVip())
+  }, [adultServices, dispatch, storeState.status])
 
   useEffect(() => {
     if (storeState.status !== 'ready' && storeState.status !== 'error') return

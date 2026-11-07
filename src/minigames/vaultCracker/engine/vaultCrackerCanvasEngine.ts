@@ -1,18 +1,20 @@
+import { getMinigamePixelRatio } from '../../canvasQuality'
+
 import {
   CODE_LENGTH,
   evaluateGuess,
   generateSecretCode,
   type GuessResult,
-} from '../../../components/CodeBreakerComp/codeBreakerLogic';
-import { clamp, modulo } from '../utils/math';
-import { createVaultCrackerLayout } from './layout';
-import { hitTestTarget } from './input';
-import { computeVaultCrackerPressure } from './pressure';
-import { renderBackground } from './renderBackground';
-import { renderEffects } from './renderEffects';
-import { renderIndicators } from './renderIndicators';
-import { renderVault } from './renderVault';
-import { isInteractivePhase, setPhase } from './stateMachine';
+} from '../../../components/CodeBreakerComp/codeBreakerLogic'
+import { clamp, modulo } from '../utils/math'
+import { createVaultCrackerLayout } from './layout'
+import { hitTestTarget } from './input'
+import { computeVaultCrackerPressure } from './pressure'
+import { renderBackground } from './renderBackground'
+import { renderEffects } from './renderEffects'
+import { renderIndicators } from './renderIndicators'
+import { renderVault } from './renderVault'
+import { isInteractivePhase, setPhase } from './stateMachine'
 import type {
   Particle,
   PointerState,
@@ -21,11 +23,11 @@ import type {
   VaultCrackerLayout,
   VaultCrackerRuntimeState,
   VaultCrackerWinPayload,
-} from './types';
+} from './types'
 
-const DRAG_STEP_PX = 24;
-const SUCCESS_ANIMATION_MS = 1_500;
-const FAIL_ANIMATION_MS = 420;
+const DRAG_STEP_PX = 24
+const SUCCESS_ANIMATION_MS = 1_500
+const FAIL_ANIMATION_MS = 420
 
 function makePointerState(): PointerState {
   return {
@@ -36,12 +38,12 @@ function makePointerState(): PointerState {
     lastY: 0,
     dragRemainder: 0,
     moved: false,
-  };
+  }
 }
 
 function makeParticle(x: number, y: number, hue: number, spread = 1): Particle {
-  const angle = Math.random() * Math.PI * 2;
-  const speed = (0.04 + Math.random() * 0.1) * spread;
+  const angle = Math.random() * Math.PI * 2
+  const speed = (0.04 + Math.random() * 0.1) * spread
   return {
     x,
     y,
@@ -52,7 +54,7 @@ function makeParticle(x: number, y: number, hue: number, spread = 1): Particle {
     radius: 1.8 + Math.random() * 2.6,
     hue,
     alpha: 0.75 + Math.random() * 0.2,
-  };
+  }
 }
 
 function makeInitialState(seed: number, timeLimitMs?: number): VaultCrackerRuntimeState {
@@ -83,115 +85,119 @@ function makeInitialState(seed: number, timeLimitMs?: number): VaultCrackerRunti
     pointer: makePointerState(),
     submitPressed: false,
     validationMessage: null,
-  };
+  }
 }
 
 export class VaultCrackerCanvasEngine {
-  private readonly canvas: HTMLCanvasElement;
+  private readonly canvas: HTMLCanvasElement
 
-  private readonly ctx: CanvasRenderingContext2D;
+  private readonly ctx: CanvasRenderingContext2D
 
-  private readonly options: VaultCrackerEngineOptions;
+  private readonly options: VaultCrackerEngineOptions
 
-  private readonly state: VaultCrackerRuntimeState;
+  private readonly state: VaultCrackerRuntimeState
 
-  private layout: VaultCrackerLayout;
+  private layout: VaultCrackerLayout
 
-  private rafId = 0;
+  private rafId = 0
 
-  private lastTimestamp = 0;
+  private lastTimestamp = 0
 
-  private isRunning = false;
+  private isRunning = false
 
-  private isDestroyed = false;
+  private isDestroyed = false
 
-  private winReported = false;
+  private winReported = false
 
-  private loseReported = false;
+  private loseReported = false
 
-  private lastProgressSecond = -1;
+  private lastProgressSecond = -1
 
   constructor(canvas: HTMLCanvasElement, options: VaultCrackerEngineOptions) {
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d')
     if (!context) {
-      throw new Error('Vault Cracker canvas could not acquire a 2D context.');
+      throw new Error('Vault Cracker canvas could not acquire a 2D context.')
     }
 
-    this.canvas = canvas;
-    this.ctx = context;
-    this.options = options;
-    this.state = makeInitialState(options.seed, options.timeLimitMs);
-    this.layout = createVaultCrackerLayout(canvas.clientWidth || 320, canvas.clientHeight || 560, 1);
+    this.canvas = canvas
+    this.ctx = context
+    this.options = options
+    this.state = makeInitialState(options.seed, options.timeLimitMs)
+    this.layout = createVaultCrackerLayout(canvas.clientWidth || 320, canvas.clientHeight || 560, 1)
   }
 
   start(): void {
-    if (this.isDestroyed || this.rafId !== 0) return;
+    if (this.isDestroyed || this.rafId !== 0) return
     if (this.state.phase === 'idle') {
-      setPhase(this.state, 'active');
+      setPhase(this.state, 'active')
     }
-    this.isRunning = true;
-    this.lastTimestamp = 0;
-    this.render();
-    this.rafId = window.requestAnimationFrame(this.tick);
-    this.emitProgress(true);
+    this.isRunning = true
+    this.lastTimestamp = 0
+    this.render()
+    this.rafId = window.requestAnimationFrame(this.tick)
+    this.emitProgress(true)
   }
 
   pause(): void {
-    this.isRunning = false;
+    this.isRunning = false
     if (this.rafId !== 0) {
-      window.cancelAnimationFrame(this.rafId);
-      this.rafId = 0;
+      window.cancelAnimationFrame(this.rafId)
+      this.rafId = 0
     }
     if (this.state.phase !== 'completed' && this.state.phase !== 'failed') {
-      setPhase(this.state, 'paused');
+      setPhase(this.state, 'paused')
     }
   }
 
   resume(): void {
-    if (this.isDestroyed || this.rafId !== 0) return;
+    if (this.isDestroyed || this.rafId !== 0) return
     if (this.state.phase === 'paused') {
-      setPhase(this.state, 'active');
+      setPhase(this.state, 'active')
     }
-    this.isRunning = true;
-    this.lastTimestamp = 0;
-    this.rafId = window.requestAnimationFrame(this.tick);
+    this.isRunning = true
+    this.lastTimestamp = 0
+    this.rafId = window.requestAnimationFrame(this.tick)
   }
 
   destroy(): void {
-    this.isRunning = false;
+    this.isRunning = false
     if (this.rafId !== 0) {
-      window.cancelAnimationFrame(this.rafId);
-      this.rafId = 0;
+      window.cancelAnimationFrame(this.rafId)
+      this.rafId = 0
     }
-    this.isDestroyed = true;
-    this.state.pointer = makePointerState();
+    this.isDestroyed = true
+    this.state.pointer = makePointerState()
   }
 
   resize(width: number, height: number, dpr: number): void {
-    if (this.isDestroyed || width <= 0 || height <= 0) return;
-    const pixelRatio = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
-    this.layout = createVaultCrackerLayout(width, height, pixelRatio);
+    if (this.isDestroyed || width <= 0 || height <= 0) return
+    const pixelRatio = getMinigamePixelRatio(width, height, dpr)
+    this.layout = createVaultCrackerLayout(width, height, pixelRatio)
     // CSS controls the displayed canvas size; canvas.width/canvas.height only
     // control the internal rendering resolution for crisp high-DPI drawing.
-    this.canvas.width = Math.max(1, Math.round(width * pixelRatio));
-    this.canvas.height = Math.max(1, Math.round(height * pixelRatio));
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.ctx.scale(pixelRatio, pixelRatio);
-    this.render();
+    this.canvas.width = Math.max(1, Math.round(width * pixelRatio))
+    this.canvas.height = Math.max(1, Math.round(height * pixelRatio))
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0)
+    this.ctx.scale(pixelRatio, pixelRatio)
+    this.render()
   }
 
   getSnapshot(): VaultCrackerEngineSnapshot {
-    return this.makeSnapshot();
+    return this.makeSnapshot()
   }
 
   handlePointerDown(pointerId: number, point: { x: number; y: number }): void {
-    if (this.isDestroyed || this.state.pointer.pointerId !== null || !isInteractivePhase(this.state.phase)) {
-      return;
+    if (
+      this.isDestroyed ||
+      this.state.pointer.pointerId !== null ||
+      !isInteractivePhase(this.state.phase)
+    ) {
+      return
     }
-    const target = hitTestTarget(this.layout, point);
-    if (!target) return;
+    const target = hitTestTarget(this.layout, point)
+    if (!target) return
 
-    this.ensureTimerStarted();
+    this.ensureTimerStarted()
     this.state.pointer = {
       pointerId,
       target: target.kind,
@@ -200,85 +206,85 @@ export class VaultCrackerCanvasEngine {
       lastY: point.y,
       dragRemainder: 0,
       moved: false,
-    };
-    this.state.submitPressed = target.kind === 'submit';
+    }
+    this.state.submitPressed = target.kind === 'submit'
   }
 
   handlePointerMove(pointerId: number, point: { x: number; y: number }): void {
-    if (this.isDestroyed || this.state.pointer.pointerId !== pointerId) return;
-    if (this.state.pointer.target !== 'dial' || this.state.pointer.dialIndex === null) return;
+    if (this.isDestroyed || this.state.pointer.pointerId !== pointerId) return
+    if (this.state.pointer.target !== 'dial' || this.state.pointer.dialIndex === null) return
 
-    const deltaY = point.y - this.state.pointer.lastY;
-    this.state.pointer.lastY = point.y;
-    this.state.pointer.dragRemainder += deltaY;
+    const deltaY = point.y - this.state.pointer.lastY
+    this.state.pointer.lastY = point.y
+    this.state.pointer.dragRemainder += deltaY
     if (Math.abs(point.y - this.state.pointer.startY) > 4) {
-      this.state.pointer.moved = true;
+      this.state.pointer.moved = true
     }
 
     while (this.state.pointer.dragRemainder <= -DRAG_STEP_PX) {
-      this.state.pointer.dragRemainder += DRAG_STEP_PX;
-      this.adjustDigit(this.state.pointer.dialIndex, 1, true);
+      this.state.pointer.dragRemainder += DRAG_STEP_PX
+      this.adjustDigit(this.state.pointer.dialIndex, 1, true)
     }
     while (this.state.pointer.dragRemainder >= DRAG_STEP_PX) {
-      this.state.pointer.dragRemainder -= DRAG_STEP_PX;
-      this.adjustDigit(this.state.pointer.dialIndex, -1, true);
+      this.state.pointer.dragRemainder -= DRAG_STEP_PX
+      this.adjustDigit(this.state.pointer.dialIndex, -1, true)
     }
   }
 
   handlePointerUp(pointerId: number, point: { x: number; y: number }): void {
-    if (this.isDestroyed || this.state.pointer.pointerId !== pointerId) return;
-    const pointer = this.state.pointer;
+    if (this.isDestroyed || this.state.pointer.pointerId !== pointerId) return
+    const pointer = this.state.pointer
 
     if (pointer.target === 'dial' && pointer.dialIndex !== null && !pointer.moved) {
-      const slot = this.layout.dialSlots[pointer.dialIndex];
-      const delta = point.y <= slot.centerY ? 1 : -1;
-      this.adjustDigit(pointer.dialIndex, delta, false);
+      const slot = this.layout.dialSlots[pointer.dialIndex]
+      const delta = point.y <= slot.centerY ? 1 : -1
+      this.adjustDigit(pointer.dialIndex, delta, false)
     }
 
     if (pointer.target === 'submit' && hitTestTarget(this.layout, point)?.kind === 'submit') {
-      this.submitGuess();
+      this.submitGuess()
     }
 
-    this.state.pointer = makePointerState();
-    this.state.submitPressed = false;
+    this.state.pointer = makePointerState()
+    this.state.submitPressed = false
   }
 
   handlePointerCancel(pointerId: number): void {
-    if (this.state.pointer.pointerId !== pointerId) return;
-    this.state.pointer = makePointerState();
-    this.state.submitPressed = false;
+    if (this.state.pointer.pointerId !== pointerId) return
+    this.state.pointer = makePointerState()
+    this.state.submitPressed = false
   }
 
   private readonly tick = (timestamp: number) => {
     if (this.isDestroyed || !this.isRunning) {
-      this.rafId = 0;
-      return;
+      this.rafId = 0
+      return
     }
     if (this.lastTimestamp === 0) {
-      this.lastTimestamp = timestamp;
+      this.lastTimestamp = timestamp
     }
-    const rawDt = Math.max(0, timestamp - this.lastTimestamp || 16.67);
-    const dt = Math.min(48, rawDt);
-    this.lastTimestamp = timestamp;
-    this.update(dt, rawDt);
-    this.render();
+    const rawDt = Math.max(0, timestamp - this.lastTimestamp || 16.67)
+    const dt = Math.min(48, rawDt)
+    this.lastTimestamp = timestamp
+    this.update(dt, rawDt)
+    this.render()
     if (this.isDestroyed || !this.isRunning) {
-      this.rafId = 0;
-      return;
+      this.rafId = 0
+      return
     }
-    this.rafId = window.requestAnimationFrame(this.tick);
-  };
+    this.rafId = window.requestAnimationFrame(this.tick)
+  }
 
   private update(dt: number, elapsedDt: number): void {
-    const state = this.state;
-    state.phaseElapsedMs += dt;
-    state.idleMotion += dt;
+    const state = this.state
+    state.phaseElapsedMs += dt
+    state.idleMotion += dt
 
     if (state.timerStarted && state.phase !== 'completed' && state.phase !== 'failed') {
-      state.elapsedMs += elapsedDt;
+      state.elapsedMs += elapsedDt
       if (state.timeLimitMs !== null && state.elapsedMs >= state.timeLimitMs) {
-        state.elapsedMs = state.timeLimitMs;
-        this.failGame();
+        state.elapsedMs = state.timeLimitMs
+        this.failGame()
       }
     }
 
@@ -287,20 +293,20 @@ export class VaultCrackerCanvasEngine {
       bestBulls: state.bestBulls,
       elapsedMs: state.elapsedMs,
       timeLimitMs: state.timeLimitMs,
-    });
+    })
 
-    state.pulse = clamp(state.pulse + dt * 0.00018, 0.2, 1);
-    state.rejectPulse = Math.max(0, state.rejectPulse - dt * 0.0032);
-    state.successPulse = Math.max(0, state.successPulse - dt * 0.0014);
-    state.shake = Math.max(0, state.shake - dt * 0.0035);
-    state.glow = clamp(state.glow * 0.992 + state.successPulse * 0.012 + 0.002, 0.18, 1.15);
+    state.pulse = clamp(state.pulse + dt * 0.00018, 0.2, 1)
+    state.rejectPulse = Math.max(0, state.rejectPulse - dt * 0.0032)
+    state.successPulse = Math.max(0, state.successPulse - dt * 0.0014)
+    state.shake = Math.max(0, state.shake - dt * 0.0035)
+    state.glow = clamp(state.glow * 0.992 + state.successPulse * 0.012 + 0.002, 0.18, 1.15)
 
     state.dialAnimations.forEach((animation) => {
-      animation.offset += animation.velocity * dt;
-      animation.velocity *= 0.88;
-      animation.offset *= 0.84;
-      animation.glow = Math.max(0, animation.glow - dt * 0.0018);
-    });
+      animation.offset += animation.velocity * dt
+      animation.velocity *= 0.88
+      animation.offset *= 0.84
+      animation.glow = Math.max(0, animation.glow - dt * 0.0018)
+    })
 
     state.particles = state.particles
       .map((particle) => ({
@@ -310,118 +316,118 @@ export class VaultCrackerCanvasEngine {
         vy: particle.vy + dt * 0.00012,
         lifeMs: particle.lifeMs - dt,
       }))
-      .filter((particle) => particle.lifeMs > 0);
+      .filter((particle) => particle.lifeMs > 0)
 
     if (state.phase === 'successAnimating' && state.phaseElapsedMs >= SUCCESS_ANIMATION_MS) {
-      setPhase(state, 'completed');
-      this.emitProgress(true);
+      setPhase(state, 'completed')
+      this.emitProgress(true)
     }
 
     if (state.phase === 'failAnimating' && state.phaseElapsedMs >= FAIL_ANIMATION_MS) {
-      setPhase(state, 'active');
-      this.emitProgress(true);
+      setPhase(state, 'active')
+      this.emitProgress(true)
     }
 
-    this.emitProgress(false);
+    this.emitProgress(false)
   }
 
   private render(): void {
-    this.ctx.clearRect(0, 0, this.layout.width, this.layout.height);
-    renderBackground(this.ctx, this.state, this.layout);
-    renderVault(this.ctx, this.state, this.layout);
-    renderIndicators(this.ctx, this.state, this.layout);
-    renderEffects(this.ctx, this.state, this.layout);
+    this.ctx.clearRect(0, 0, this.layout.width, this.layout.height)
+    renderBackground(this.ctx, this.state, this.layout)
+    renderVault(this.ctx, this.state, this.layout)
+    renderIndicators(this.ctx, this.state, this.layout)
+    renderEffects(this.ctx, this.state, this.layout)
   }
 
   private ensureTimerStarted(): void {
     if (!this.state.timerStarted) {
-      this.state.timerStarted = true;
+      this.state.timerStarted = true
       if (this.state.phase === 'idle') {
-        setPhase(this.state, 'active');
+        setPhase(this.state, 'active')
       }
     }
   }
 
   private adjustDigit(index: number, delta: number, fromDrag: boolean): void {
-    if (!isInteractivePhase(this.state.phase)) return;
-    this.ensureTimerStarted();
-    this.state.digits[index] = modulo(this.state.digits[index] + delta, 10);
-    this.state.validationMessage = null;
-    this.state.pulse = 0.22;
-    this.state.glow = clamp(this.state.glow + 0.07, 0.18, 1.12);
-    this.state.dialAnimations[index].offset += delta * (fromDrag ? 9 : 14);
-    this.state.dialAnimations[index].velocity += delta * (fromDrag ? 0.0065 : 0.011);
-    this.state.dialAnimations[index].glow = 1;
+    if (!isInteractivePhase(this.state.phase)) return
+    this.ensureTimerStarted()
+    this.state.digits[index] = modulo(this.state.digits[index] + delta, 10)
+    this.state.validationMessage = null
+    this.state.pulse = 0.22
+    this.state.glow = clamp(this.state.glow + 0.07, 0.18, 1.12)
+    this.state.dialAnimations[index].offset += delta * (fromDrag ? 9 : 14)
+    this.state.dialAnimations[index].velocity += delta * (fromDrag ? 0.0065 : 0.011)
+    this.state.dialAnimations[index].glow = 1
   }
 
   private submitGuess(): void {
-    if (!isInteractivePhase(this.state.phase)) return;
-    this.ensureTimerStarted();
+    if (!isInteractivePhase(this.state.phase)) return
+    this.ensureTimerStarted()
 
-    const guess = [...this.state.digits];
+    const guess = [...this.state.digits]
     if (new Set(guess).size !== CODE_LENGTH) {
-      this.state.validationMessage = 'Use four different digits. Repeated digits are not allowed.';
-      this.state.rejectPulse = 1;
-      this.state.shake = 1;
-      setPhase(this.state, 'failAnimating');
-      this.emitProgress(true);
-      return;
+      this.state.validationMessage = 'Use four different digits. Repeated digits are not allowed.'
+      this.state.rejectPulse = 1
+      this.state.shake = 1
+      setPhase(this.state, 'failAnimating')
+      this.emitProgress(true)
+      return
     }
-    this.state.validationMessage = null;
-    const result = evaluateGuess(this.state.secretCode, guess);
-    this.state.lastGuess = result;
-    this.state.guessHistory = [...this.state.guessHistory, result];
-    this.state.bestBulls = Math.max(this.state.bestBulls, result.bulls);
+    this.state.validationMessage = null
+    const result = evaluateGuess(this.state.secretCode, guess)
+    this.state.lastGuess = result
+    this.state.guessHistory = [...this.state.guessHistory, result]
+    this.state.bestBulls = Math.max(this.state.bestBulls, result.bulls)
 
     if (result.bulls === CODE_LENGTH) {
-      this.handleWin(result);
-      return;
+      this.handleWin(result)
+      return
     }
 
-    this.state.rejectPulse = 1;
-    this.state.shake = 1;
-    this.state.glow = clamp(this.state.glow + 0.02, 0.18, 1.15);
-    setPhase(this.state, 'failAnimating');
-    this.spawnBurst(this.layout.vaultCenterX, this.layout.vaultCenterY, 10, 6);
-    this.emitProgress(true);
+    this.state.rejectPulse = 1
+    this.state.shake = 1
+    this.state.glow = clamp(this.state.glow + 0.02, 0.18, 1.15)
+    setPhase(this.state, 'failAnimating')
+    this.spawnBurst(this.layout.vaultCenterX, this.layout.vaultCenterY, 10, 6)
+    this.emitProgress(true)
   }
 
   private handleWin(result: GuessResult): void {
-    this.state.lastGuess = result;
-    this.state.successPulse = 1.2;
-    this.state.glow = 1.15;
-    this.state.shake = 0;
-    setPhase(this.state, 'successAnimating');
-    this.spawnBurst(this.layout.vaultCenterX, this.layout.vaultCenterY, 14, 152);
+    this.state.lastGuess = result
+    this.state.successPulse = 1.2
+    this.state.glow = 1.15
+    this.state.shake = 0
+    setPhase(this.state, 'successAnimating')
+    this.spawnBurst(this.layout.vaultCenterX, this.layout.vaultCenterY, 14, 152)
     if (!this.winReported) {
-      this.winReported = true;
+      this.winReported = true
       const payload: VaultCrackerWinPayload = {
         ...this.makeSnapshot(),
         phase: 'successAnimating',
         secretCode: [...this.state.secretCode],
-      };
-      this.options.onWin?.(payload);
+      }
+      this.options.onWin?.(payload)
     }
-    this.emitProgress(true);
+    this.emitProgress(true)
   }
 
   private failGame(): void {
-    if (this.loseReported) return;
-    this.loseReported = true;
-    this.state.rejectPulse = 1;
-    this.state.shake = 1;
-    setPhase(this.state, 'failed');
+    if (this.loseReported) return
+    this.loseReported = true
+    this.state.rejectPulse = 1
+    this.state.shake = 1
+    setPhase(this.state, 'failed')
     this.options.onLose?.({
       ...this.makeSnapshot(),
       phase: 'failed',
       secretCode: [...this.state.secretCode],
-    });
-    this.emitProgress(true);
+    })
+    this.emitProgress(true)
   }
 
   private spawnBurst(x: number, y: number, count: number, hue: number): void {
-    const particles = Array.from({ length: count }, () => makeParticle(x, y, hue, 1.1));
-    this.state.particles = [...this.state.particles, ...particles].slice(-48);
+    const particles = Array.from({ length: count }, () => makeParticle(x, y, hue, 1.1))
+    this.state.particles = [...this.state.particles, ...particles].slice(-48)
   }
 
   private makeSnapshot(): VaultCrackerEngineSnapshot {
@@ -431,17 +437,22 @@ export class VaultCrackerCanvasEngine {
       attempts: this.state.guessHistory.length,
       elapsedMs: Math.round(this.state.elapsedMs),
       bestBulls: this.state.bestBulls,
-      lastGuess: this.state.lastGuess ? { ...this.state.lastGuess, digits: [...this.state.lastGuess.digits] } : null,
-      guessHistory: this.state.guessHistory.map((guess) => ({ ...guess, digits: [...guess.digits] })),
+      lastGuess: this.state.lastGuess
+        ? { ...this.state.lastGuess, digits: [...this.state.lastGuess.digits] }
+        : null,
+      guessHistory: this.state.guessHistory.map((guess) => ({
+        ...guess,
+        digits: [...guess.digits],
+      })),
       pressure: this.state.pressure,
       validationMessage: this.state.validationMessage,
-    };
+    }
   }
 
   private emitProgress(force: boolean): void {
-    const second = Math.floor(this.state.elapsedMs / 1000);
-    if (!force && second === this.lastProgressSecond) return;
-    this.lastProgressSecond = second;
-    this.options.onProgress?.(this.makeSnapshot());
+    const second = Math.floor(this.state.elapsedMs / 1000)
+    if (!force && second === this.lastProgressSecond) return
+    this.lastProgressSecond = second
+    this.options.onProgress?.(this.makeSnapshot())
   }
 }

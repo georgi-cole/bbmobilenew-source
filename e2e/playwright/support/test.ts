@@ -1,6 +1,7 @@
 import { expect, test as base, type ConsoleMessage, type Page } from '@playwright/test'
 import type { RootState } from '../../../src/store/store'
-import { seedsForRepeat } from '../season-sim/seeds'
+import { fixtureSeedsForRepeat } from '../season-sim/seeds'
+import { attachJuryDiagnostics } from '../season-sim/juryDiagnostics'
 
 type BrowserErrorSource = 'console' | 'page'
 
@@ -40,6 +41,27 @@ async function installUnhandledRejectionReporter(
 ): Promise<void> {
   await page.addInitScript(
     ({ newSeasonFixture, skipUnloadAutosave }) => {
+      // The teardown blank document has no storage origin.
+      if (!/^https?:$/.test(location.protocol)) return
+      // Existing season journeys model an admitted adult who opted into the
+      // rewarded-ad feature. Admission itself is tested without this fixture in
+      // player-safety.spec.ts. Never replace a restrictive persisted record.
+      if (!localStorage.getItem('bbmobilenew:player-safety:v1')) {
+        localStorage.setItem(
+          'bbmobilenew:player-safety:v1',
+          JSON.stringify({
+            version: 1,
+            ageBand: 'adult',
+            guardianPlayPermission: false,
+            optionalFeatures: {
+              location: false,
+              analytics: false,
+              onlineServices: false,
+              ads: true,
+            },
+          })
+        )
+      }
       Object.defineProperty(window, '__E2E__', {
         configurable: false,
         enumerable: false,
@@ -269,8 +291,19 @@ export async function closeDebugPanelIfOpen(page: Page): Promise<void> {
 }
 
 export async function dismissPermissionPromptIfPresent(page: Page): Promise<void> {
+  const currentRoute = await page.evaluate(() => window.location.hash.slice(1).split('?')[0] || '/')
+  if (currentRoute === '/') {
+    // HomeHub renders this prompt alongside the menu only after its splash and
+    // assets finish loading. Wait for that ready state before deciding there is
+    // nothing to dismiss; an early isVisible() can miss a prompt that mounts a
+    // moment later and leaves the next menu click blocked by the modal.
+    await expect(page.getByRole('navigation', { name: 'Main menu' })).toBeVisible({
+      timeout: 30_000,
+    })
+  }
+
   const permissionPrompt = page.getByRole('dialog', { name: 'Allow location' })
-  if (!(await permissionPrompt.isVisible())) return
+  if (!(await permissionPrompt.isVisible().catch(() => false))) return
 
   await permissionPrompt
     .getByRole('checkbox', { name: 'Remember my choice' })
@@ -312,11 +345,9 @@ export const test = base.extend<{ browserErrors: BrowserErrorCollector }>({
         })
       })
       const repeatedSeeds = process.env.SEASON_SIM_BATCH_ID
-        ? seedsForRepeat(
-            {
-              ...E2E_NEW_SEASON_FIXTURE,
-              actor: optionalSeed('SEASON_SIM_ACTOR_SEED', 0x7a11ce42),
-            },
+        ? fixtureSeedsForRepeat(
+            E2E_NEW_SEASON_FIXTURE,
+            optionalSeed('SEASON_SIM_ACTOR_SEED', 0x7a11ce42),
             testInfo.repeatEachIndex
           )
         : null
@@ -329,6 +360,10 @@ export const test = base.extend<{ browserErrors: BrowserErrorCollector }>({
 
       await use({ errors })
 
+      if (testInfo.status !== 'passed' || errors.length > 0) {
+        await attachJuryDiagnostics(page, testInfo)
+      }
+
       page.off('console', onConsole)
       page.off('pageerror', onPageError)
 
@@ -337,6 +372,15 @@ export const test = base.extend<{ browserErrors: BrowserErrorCollector }>({
           body: JSON.stringify(errors, null, 2),
           contentType: 'application/json',
         })
+        const gameDiagnostic = await page
+          .evaluate(() => sessionStorage.getItem('bbmobilenew:lastGameDiagnostic'))
+          .catch(() => null)
+        if (gameDiagnostic) {
+          await testInfo.attach('last-game-diagnostic.json', {
+            body: gameDiagnostic,
+            contentType: 'application/json',
+          })
+        }
       }
 
       expect(

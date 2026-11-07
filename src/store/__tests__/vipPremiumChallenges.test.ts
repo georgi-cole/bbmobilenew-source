@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { RootState } from '../store'
 import { selectHasPremiumChallengesAccess } from '../vipSlice'
 import { createEmptyStoreEntitlements } from '../../vip/vipStorage'
+
+vi.hoisted(() => {
+  vi.stubEnv('VITE_VIP_DEV_ENTITLEMENT', 'false')
+  vi.stubEnv('VITE_BUILD_TARGET', 'release')
+})
 
 function stateWithAccess(isActive: boolean, premiumChallenges: boolean): RootState {
   return {

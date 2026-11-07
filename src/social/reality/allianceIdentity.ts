@@ -80,7 +80,7 @@ export function synchronizeAllianceOfficers(alliance: RealityAlliance): void {
   if (allianceKind(alliance) === 'PACT' || !isCurrentAlliance(alliance)) {
     alliance.leaderId = undefined
     alliance.coLeaderId = undefined
-    alliance.leaderIds = []
+    if (alliance.leaderIds?.length !== 0) alliance.leaderIds = []
     return
   }
   if (!alliance.leaderId || !alliance.memberIds.includes(alliance.leaderId)) {
@@ -100,21 +100,41 @@ export function synchronizeAllianceOfficers(alliance: RealityAlliance): void {
     (alliance.coLeaderId && !alliance.memberIds.includes(alliance.coLeaderId))
   )
     alliance.coLeaderId = undefined
-  alliance.leaderIds = [alliance.leaderId, alliance.coLeaderId].filter((id): id is string =>
+  const leaderIds = [alliance.leaderId, alliance.coLeaderId].filter((id): id is string =>
     Boolean(id)
   )
+  if (
+    alliance.leaderIds?.length !== leaderIds.length ||
+    leaderIds.some((id, index) => alliance.leaderIds[index] !== id)
+  ) {
+    alliance.leaderIds = leaderIds
+  }
 }
 
 export function rememberAllianceRoster(alliance: RealityAlliance): void {
   alliance.rosterKnowledgeByActor ??= {}
   for (const actorId of alliance.memberIds) {
-    alliance.rosterKnowledgeByActor[actorId] = {
+    const roster = {
       memberIds: [...alliance.memberIds],
       rosterRevision: alliance.rosterRevision ?? 0,
       name: alliance.name,
       leaderId: alliance.leaderId,
       coLeaderId: alliance.coLeaderId,
     }
+    const previous = alliance.rosterKnowledgeByActor[actorId]
+    if (
+      previous &&
+      Object.keys(previous).length === Object.keys(roster).length &&
+      previous.rosterRevision === roster.rosterRevision &&
+      previous.name === roster.name &&
+      previous.leaderId === roster.leaderId &&
+      previous.coLeaderId === roster.coLeaderId &&
+      previous.memberIds.length === roster.memberIds.length &&
+      previous.memberIds.every((id, index) => id === roster.memberIds[index])
+    ) {
+      continue
+    }
+    alliance.rosterKnowledgeByActor[actorId] = roster
   }
 }
 
@@ -145,13 +165,17 @@ export function normalizeAllianceIdentity(
   alliance.memberJoinSequence ??= Object.fromEntries(
     alliance.memberIds.map((id, index) => [id, index])
   )
-  const formationEvent = [...(alliance.history ?? []), ...state.events]
-    .filter(
-      (event) =>
-        event.type === 'ALLIANCE_FORMED' &&
-        (event.allianceId === alliance.id || event.allianceSnapshot?.id === alliance.id)
-    )
-    .sort((left, right) => left.sequence - right.sequence)[0]
+  const formationEvent =
+    alliance.createdById == null ||
+    (alliance.kind === 'GROUP' && alliance.leadershipTransferApproved == null)
+      ? [...(alliance.history ?? []), ...state.events]
+          .filter(
+            (event) =>
+              event.type === 'ALLIANCE_FORMED' &&
+              (event.allianceId === alliance.id || event.allianceSnapshot?.id === alliance.id)
+          )
+          .sort((left, right) => left.sequence - right.sequence)[0]
+      : undefined
   alliance.createdById ??=
     formationEvent?.actorId ??
     (alliance.provenance === 'LEGACY'
@@ -166,9 +190,13 @@ export function normalizeAllianceIdentity(
   if (alliance.kind === 'GROUP') {
     const creatorId = alliance.createdById
     const creatorIsCurrentMember = Boolean(creatorId && alliance.memberIds.includes(creatorId))
-    const allianceEvents = [...(alliance.history ?? []), ...state.events].filter(
-      (event) => event.allianceId === alliance.id || event.allianceSnapshot?.id === alliance.id
-    )
+    const allianceEvents =
+      alliance.leadershipTransferApproved == null || alliance.creatorPreviouslyLeft == null
+        ? [...(alliance.history ?? []), ...state.events].filter(
+            (event) =>
+              event.allianceId === alliance.id || event.allianceSnapshot?.id === alliance.id
+          )
+        : []
     alliance.leadershipTransferApproved ??= Boolean(
       creatorId &&
       allianceEvents.some(

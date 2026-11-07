@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { famousFiguresInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Famous Figures" trivia competition.
  *
@@ -92,34 +94,6 @@ export interface FamousFiguresState {
 export const FAMOUS_FIGURES: FigureRow[] = figuresData as FigureRow[]
 
 // â”€â”€â”€ Initial state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-const initialState: FamousFiguresState = {
-  competitionType: 'LOH',
-  status: 'idle',
-  currentRound: 0,
-  totalRounds: 6,
-  currentFigureIndex: 0,
-  hintsRevealed: 0,
-  playerScores: {},
-  playerRoundScores: {},
-  playerCorrect: {},
-  playerGuesses: {},
-  playerCorrectTimestamp: {},
-  correctPlayers: [],
-  figureOrder: [],
-  round: 0,
-  seed: 0,
-  outcomeResolved: false,
-  winnerId: null,
-  tieBreakOrder: [],
-  aiSubmissions: {},
-  timerPhase: 'clue',
-  roundComplete: false,
-  matchFigureOrder: [],
-  playerFigureQueues: {},
-  playerRoundCursor: {},
-  playerPersonalRoundScores: {},
-}
 
 // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -314,7 +288,10 @@ function determineWinner(
   }
 
   const priority = new Map(tieBreakOrder.map((id, index) => [id, index]))
-  return tiedWinners.sort((a, b) => (priority.get(a) ?? Number.MAX_SAFE_INTEGER) - (priority.get(b) ?? Number.MAX_SAFE_INTEGER))[0]
+  return tiedWinners.sort(
+    (a, b) =>
+      (priority.get(a) ?? Number.MAX_SAFE_INTEGER) - (priority.get(b) ?? Number.MAX_SAFE_INTEGER)
+  )[0]
 }
 
 /** Initialise per-round player state. */
@@ -393,10 +370,11 @@ const famousFiguresSlice = createSlice({
       const freshIndices = FAMOUS_FIGURES.flatMap((figure, index) =>
         recentNames.has(figure.canonicalName) ? [] : [index]
       )
-      const candidateIndices = freshIndices.length >= 6
-        ? freshIndices
-        : FAMOUS_FIGURES.map((_, index) => index)
-      const order = shuffleIndices(rng, candidateIndices.length).map((index) => candidateIndices[index])
+      const candidateIndices =
+        freshIndices.length >= 6 ? freshIndices : FAMOUS_FIGURES.map((_, index) => index)
+      const order = shuffleIndices(rng, candidateIndices.length).map(
+        (index) => candidateIndices[index]
+      )
 
       state.competitionType = competitionType
       state.status = 'round_active'
@@ -412,7 +390,9 @@ const famousFiguresSlice = createSlice({
       state.seed = seed
       state.outcomeResolved = false
       state.winnerId = null
-      state.tieBreakOrder = shuffleIndices(rng, participantIds.length).map((index) => participantIds[index])
+      state.tieBreakOrder = shuffleIndices(rng, participantIds.length).map(
+        (index) => participantIds[index]
+      )
       state.correctPlayers = []
       state.roundComplete = false
       state.timerPhase = 'clue'
@@ -452,7 +432,14 @@ const famousFiguresSlice = createSlice({
       if (state.roundComplete) return
       if (state.hintsRevealed >= MAX_VISIBLE_HINTS) return
       state.hintsRevealed += 1
-      const phases: FamousFiguresTimerPhase[] = ['clue', 'hint_1', 'hint_3', 'hint_4', 'hint_5', 'hint_6']
+      const phases: FamousFiguresTimerPhase[] = [
+        'clue',
+        'hint_1',
+        'hint_3',
+        'hint_4',
+        'hint_5',
+        'hint_6',
+      ]
       const phaseIdx = Math.min(state.hintsRevealed, phases.length - 1)
       state.timerPhase = phases[phaseIdx]
     },
@@ -666,7 +653,12 @@ const famousFiguresSlice = createSlice({
       if (nextRoundIndex >= state.totalRounds) {
         // All rounds complete â€” determine winner
         state.status = 'complete'
-        state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores, state.tieBreakOrder)
+        state.winnerId = determineWinner(
+          allIds,
+          state.playerScores,
+          state.playerRoundScores,
+          state.tieBreakOrder
+        )
         return
       }
 
@@ -824,7 +816,12 @@ const famousFiguresSlice = createSlice({
         // If this was the last round, determine winner and finish.
         if (roundIdx + 1 >= state.totalRounds) {
           state.status = 'complete'
-          state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores, state.tieBreakOrder)
+          state.winnerId = determineWinner(
+            allIds,
+            state.playerScores,
+            state.playerRoundScores,
+            state.tieBreakOrder
+          )
           return
         }
         // Otherwise, prepare state for the next iteration of the loop.
@@ -833,7 +830,12 @@ const famousFiguresSlice = createSlice({
 
       // Fallback: ensure we always end in complete state.
       state.status = 'complete'
-      state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores, state.tieBreakOrder)
+      state.winnerId = determineWinner(
+        allIds,
+        state.playerScores,
+        state.playerRoundScores,
+        state.tieBreakOrder
+      )
     },
 
     /** Idempotency guard â€” prevents outcome thunk from firing twice. */
@@ -887,4 +889,4 @@ export function getPlayerFigureIndex(
   return state.figureOrder[round] ?? state.currentFigureIndex
 }
 
-export default famousFiguresSlice.reducer
+export default registerMinigameReducer('famousFigures', famousFiguresSlice.reducer)

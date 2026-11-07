@@ -280,7 +280,7 @@ export default function TvAnnouncementOverlay({
   }
 
   return (
-    <div className="tv-announcement-wrap">
+    <div className="tv-announcement-wrap" data-presentation-root="tv-announcement">
       <div
         className={[
           'tv-announcement',

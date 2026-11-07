@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const persistenceMocks = vi.hoisted(() => ({
   saveRunSnapshot: vi.fn(() => true),
+  flushSavePersistence: vi.fn(async () => true),
 }))
 
 vi.mock('../saveStatePersistence', async () => {
@@ -10,6 +11,7 @@ vi.mock('../saveStatePersistence', async () => {
   return {
     ...actual,
     saveRunSnapshot: persistenceMocks.saveRunSnapshot,
+    flushSavePersistence: persistenceMocks.flushSavePersistence,
   }
 })
 
@@ -17,6 +19,8 @@ describe('store background persistence', () => {
   beforeEach(() => {
     vi.resetModules()
     persistenceMocks.saveRunSnapshot.mockClear()
+    persistenceMocks.saveRunSnapshot.mockReturnValue(true)
+    persistenceMocks.flushSavePersistence.mockReset().mockResolvedValue(true)
     localStorage.clear()
     localStorage.setItem(
       'bbmobilenew:profiles:v1',
@@ -79,5 +83,59 @@ describe('store background persistence', () => {
         version: 1,
       })
     )
+  })
+
+  it('does not confirm a competition checkpoint until the durable write completes', async () => {
+    const [{ store, persistCompetitionCheckpoint }, { hydrateGame }, { setPendingChallenge }] =
+      await Promise.all([import('../store'), import('../gameSlice'), import('../challengeSlice')])
+    const { getGame } = await import('../../minigames/registry')
+    store.dispatch(hydrateGame({ ...store.getState().game, week: 2, phase: 'loh_comp' }))
+    store.dispatch(
+      setPendingChallenge({
+        id: 'durable-start',
+        game: getGame('quickTap')!,
+        seed: 1,
+        participants: store.getState().game.players.map((player) => player.id),
+        phase: 'countdown',
+        aiScores: {},
+        attempt: { number: 0, status: 'playing' },
+      })
+    )
+    let completeWrite!: (ok: boolean) => void
+    persistenceMocks.flushSavePersistence.mockReturnValueOnce(
+      new Promise<boolean>((resolve) => {
+        completeWrite = resolve
+      })
+    )
+    let confirmed = false
+    const writing = persistCompetitionCheckpoint().then((saved) => {
+      confirmed = saved
+    })
+    await Promise.resolve()
+    expect(confirmed).toBe(false)
+    expect(persistenceMocks.saveRunSnapshot).toHaveBeenLastCalledWith(
+      'profile-background-save',
+      expect.objectContaining({
+        challenge: expect.objectContaining({
+          pending: expect.objectContaining({
+            id: 'durable-start',
+            attempt: { number: 0, status: 'playing' },
+          }),
+        }),
+      })
+    )
+    completeWrite(true)
+    await writing
+    expect(confirmed).toBe(true)
+  })
+
+  it('reports a failed checkpoint instead of allowing gameplay to rely on a failed save', async () => {
+    const { store, persistCompetitionCheckpoint, flushPendingRunSnapshots } =
+      await import('../store')
+    const { hydrateGame } = await import('../gameSlice')
+    store.dispatch(hydrateGame({ ...store.getState().game, week: 2, phase: 'loh_comp' }))
+    persistenceMocks.saveRunSnapshot.mockReturnValue(false)
+    expect(await persistCompetitionCheckpoint()).toBe(false)
+    flushPendingRunSnapshots()
   })
 })

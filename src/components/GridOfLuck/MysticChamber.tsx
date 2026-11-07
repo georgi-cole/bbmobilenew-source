@@ -1,4 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  CompetitionResultContext,
+  useCompetitionResultCheckpoint,
+} from '../../minigames/competitionResultContext'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
 import { isEmoji, resolveAvatarCandidates } from '../../utils/avatar'
 import { resolvePresentationAvatar } from '../../utils/presentationAvatar'
@@ -366,9 +370,9 @@ export default function MysticChamber(props: GenericMinigameProps) {
     return () => window.clearTimeout(timer)
   }, [advanceAfterResult, autoplay, humanPlayer?.id, state.lastEvent?.actorId, view])
 
-  const finishMinigame = () => {
-    if (!props.onFinish || completed || !rankedPlayers[0]) return
-    setCompleted(true)
+  const checkpoint = useContext(CompetitionResultContext)
+  const buildFinalCompletion = () => {
+    const relationshipEffects: Array<{ source: string; target: string; delta: number }> = []
     const latestHumanSocialChoice = new Map<string, 'positive' | 'negative'>()
     state.events.forEach((event) => {
       const choice = event.action === 'echo' ? event.copiedAction : event.action
@@ -395,34 +399,22 @@ export default function MysticChamber(props: GenericMinigameProps) {
       if (!humanPlayer || !seasonPlayerIds.has(humanPlayer.id) || !seasonPlayerIds.has(targetId))
         return
       if (action === 'negative') {
-        store.dispatch(
-          updateRelationship({
-            source: targetId,
-            target: humanPlayer.id,
-            delta: -4,
-            actionSource: 'system',
-            realityMeaningful: true,
-          })
-        )
+        relationshipEffects.push({
+          source: targetId,
+          target: humanPlayer.id,
+          delta: -4,
+        })
       } else {
-        store.dispatch(
-          updateRelationship({
-            source: humanPlayer!.id,
-            target: targetId,
-            delta: 3,
-            actionSource: 'system',
-            realityMeaningful: true,
-          })
-        )
-        store.dispatch(
-          updateRelationship({
-            source: targetId,
-            target: humanPlayer!.id,
-            delta: 2,
-            actionSource: 'system',
-            realityMeaningful: true,
-          })
-        )
+        relationshipEffects.push({
+          source: humanPlayer!.id,
+          target: targetId,
+          delta: 3,
+        })
+        relationshipEffects.push({
+          source: targetId,
+          target: humanPlayer!.id,
+          delta: 2,
+        })
       }
     })
     const winnerId = state.winnerId ?? rankedPlayers[0].id
@@ -430,13 +422,42 @@ export default function MysticChamber(props: GenericMinigameProps) {
       winnerId,
       ...rankedPlayers.map((player) => player.id).filter((id) => id !== winnerId),
     ]
-    props.onFinish(rankedPlayers[0].power, undefined, {
+    return {
       authoritativeWinnerId: winnerId,
       authoritativeLastPlaceId: rankedPlayers[rankedPlayers.length - 1]?.id ?? null,
       authoritativeRankedIds: rankedIds,
       rawValue: rankedPlayers[0].power,
       rawResults: Object.fromEntries(state.players.map((player) => [player.id, player.power])),
-    })
+      mysticChamberRelationships: relationshipEffects,
+    }
+  }
+
+  useCompetitionResultCheckpoint(
+    view === 'finished' && rankedPlayers[0]
+      ? {
+          rawValue: rankedPlayers[0].power,
+          partial: false,
+          completion: buildFinalCompletion(),
+        }
+      : null
+  )
+
+  const finishMinigame = () => {
+    if (!props.onFinish || completed || !rankedPlayers[0]) return
+    setCompleted(true)
+    const completion = buildFinalCompletion()
+    if (!checkpoint) {
+      completion.mysticChamberRelationships.forEach((effect) =>
+        store.dispatch(
+          updateRelationship({
+            ...effect,
+            actionSource: 'system',
+            realityMeaningful: true,
+          })
+        )
+      )
+    }
+    props.onFinish(rankedPlayers[0].power, undefined, completion)
   }
 
   const relationshipLabel = (player: ChamberPlayer) =>

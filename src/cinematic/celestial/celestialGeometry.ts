@@ -1,5 +1,5 @@
 import type { TimelineState } from '../timeline/timeline';
-import { lerp } from '../utils/math';
+import { clamp01, lerp, smootherstep } from '../utils/math';
 
 export const CELESTIAL_DISC_RADIUS = 12;
 export const CELESTIAL_EYE_SCALE = 0.92;
@@ -14,4 +14,10 @@ export const getCelestialEyePosition = (state: TimelineState): readonly [number,
     lerp(moonY, 15, state.sunPositionProgress),
     lerp(-540, -760, state.sunPositionProgress),
   ];
+};
+
+export const getVisibleSunFraction = (state: TimelineState): number => {
+  const morphWeight = smootherstep(clamp01((state.sunMorph - 0.18) / 0.68));
+  const horizonVisibleFraction = lerp(0.78, 0.5, state.sunHorizonProgress);
+  return lerp(1, horizonVisibleFraction, morphWeight) * (1 - clamp01(state.sunsetProgress));
 };

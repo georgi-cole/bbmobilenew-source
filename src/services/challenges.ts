@@ -1,22 +1,23 @@
 // API service helper for challenge submissions. Adapt to your app's fetch/axios wrapper.
 
-import { apiUrl } from '../utils/apiBase';
+import { apiUrl } from '../utils/apiBase'
+import { optionalPlayerFetch } from '../safety/optionalRequest'
 
 type EndurancePayload = {
-  challengeId: string;
-  elapsed_seconds: number;
-  metadata?: Record<string, unknown>;
-};
+  challengeId: string
+  elapsed_seconds: number
+  metadata?: Record<string, unknown>
+}
 
 export async function submitEnduranceResult(payload: EndurancePayload): Promise<unknown> {
-  const res = await fetch(apiUrl('/api/challenges/endurance'), {
+  const res = await optionalPlayerFetch('onlineServices', apiUrl('/api/challenges/endurance'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  });
+  })
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Submit failed ${res.status}: ${text}`);
+    const text = await res.text()
+    throw new Error(`Submit failed ${res.status}: ${text}`)
   }
-  return res.json();
+  return res.json()
 }

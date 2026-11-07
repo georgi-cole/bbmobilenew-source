@@ -244,7 +244,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'card.vox-final4-competition',
     'loh_comp_announcement',
     'Final 4 Competition',
-    'No immunity is awarded today. Last place begins on the block; the other three each cast one secret vote.',
+    'No immunity is awarded today. Last place begins on the block; all four cast one secret nomination vote each.',
     'vox_final4_immunity_comp',
     'Vox Populi Final 4 branch',
     'major',

@@ -13,6 +13,7 @@
  *  - Bug #4 fixed: Removed cluttered player-card sidebar; header layout
  *    fixed; festive round-summary leaderboard.
  */
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useEffect, useCallback, useRef, useState, type CSSProperties } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch } from '../../store/store'
@@ -616,6 +617,16 @@ export default function RiskWheelComp({
     // encapsulates the outcomeResolved signal and other prerequisites.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetsReady, shouldNotifyHostedCompletion])
+
+  useCompetitionResultCheckpoint(
+    isCompletePhase
+      ? {
+          rawValue: 1,
+          partial: false,
+          completion: { ...buildCompletion(), lastPlaceType: 'survival' },
+        }
+      : null
+  )
 
   const prevPhaseRef = useRef<string | null>(null)
   useEffect(() => {

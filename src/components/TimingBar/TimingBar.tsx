@@ -11,12 +11,14 @@
  *     screen so MinigameHost can advance straight to the ceremony.
  */
 
+import { CompetitionResultContext } from '../../minigames/competitionResultContext'
 import {
   useState,
   useEffect,
   useRef,
   useCallback,
   useMemo,
+  useContext,
 } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { completeMinigame } from '../../store/gameSlice';
@@ -651,7 +653,7 @@ export default function TimingBar({
   }, [aiSubmissionFn, allParticipants, effectiveSeed, recordRoundHistory, roundResult]);
 
   /** Done — dispatch outcome or call onFinish. */
-  const handleDone = useCallback(() => {
+  const buildFinalCompletion = useCallback(() => {
     // Derive the true final round result for winner / last place.
     // In the skip/spectate flow, finalResults contains all simulated rounds played
     // after the human was eliminated — the last entry is the actual final round.
@@ -677,28 +679,38 @@ export default function TimingBar({
     const winnerId = authoritativeRankedIds[0] ?? getTimingRoundWinner(lastResult)?.participantId;
     const lastPlaceId = authoritativeRankedIds.at(-1);
 
-    if (!session) {
-      if (onFinish) {
-        onFinish(averageScore, undefined, {
-          authoritativeWinnerId: winnerId ?? null,
-          authoritativeLastPlaceId: lastPlaceId ?? null,
-          authoritativeRankedIds,
-          rawValue: averageScore,
-          rawResults,
-        });
-      }
-      return;
-    }
-
-    const payload: CompleteMinigamePayload = {
-      humanScore: averageScore,
-      winnerId,
-      lastPlaceId,
+    return {
+      authoritativeWinnerId: winnerId ?? null,
+      authoritativeLastPlaceId: lastPlaceId ?? null,
       authoritativeRankedIds,
+      rawValue: averageScore,
       rawResults,
     };
+  }, [challengeParticipantId, effectiveHumanId, finalResults, roundResult]);
+
+  const checkpoint = useContext(CompetitionResultContext);
+  useEffect(() => {
+    if (!checkpoint) return;
+    if (gamePhase !== 'final_results' && !(gamePhase === 'round_results' && roundResult?.isFinalRound)) return;
+    const completion = buildFinalCompletion();
+    void checkpoint({ rawValue: completion.rawValue, partial: false, completion });
+  }, [buildFinalCompletion, checkpoint, gamePhase, roundResult?.isFinalRound]);
+
+  const handleDone = useCallback(() => {
+    const result = buildFinalCompletion();
+    if (!session) {
+      onFinish?.(result.rawValue, undefined, result);
+      return;
+    }
+    const payload: CompleteMinigamePayload = {
+      humanScore: result.rawValue,
+      winnerId: result.authoritativeWinnerId ?? undefined,
+      lastPlaceId: result.authoritativeLastPlaceId ?? undefined,
+      authoritativeRankedIds: result.authoritativeRankedIds,
+      rawResults: result.rawResults,
+    };
     dispatch(completeMinigame(payload));
-  }, [challengeParticipantId, dispatch, effectiveHumanId, finalResults, onFinish, roundResult, session]);
+  }, [buildFinalCompletion, dispatch, onFinish, session]);
 
   // ── Spectator auto-advance ────────────────────────────────────────────────
 

@@ -161,11 +161,16 @@ export function lazyWithChunkRecovery<P extends object>(
 ): LazyExoticComponent<ComponentType<P>> & { preload: () => Promise<void> } {
   let modulePromise: Promise<{ default: ComponentType<P> }> | null = null
   const load = () => {
-    modulePromise ??= Promise.resolve().then(loader)
+    modulePromise ??= Promise.resolve()
+      .then(loader)
+      .catch((error: unknown) => {
+        modulePromise = null
+        throw error
+      })
     return modulePromise
   }
 
-  const component = lazy(async () => {
+  const loadWithRecovery = async () => {
     try {
       const result = await load()
       clearRecoveryState()
@@ -178,9 +183,11 @@ export function lazyWithChunkRecovery<P extends object>(
       }
       throw error
     }
-  })
+  }
+
+  const component = lazy(loadWithRecovery)
 
   return Object.assign(component, {
-    preload: () => load().then(() => undefined),
+    preload: () => loadWithRecovery().then(() => undefined),
   })
 }

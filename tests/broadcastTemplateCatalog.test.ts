@@ -90,13 +90,13 @@ describe('broadcast template catalog', () => {
 
   it('captures dynamic values so edited copy can preserve them', () => {
     const match = matchBroadcastTemplate(
-      'Housemates congratulate Rune. Alliances are already forming… 💬',
+      'Hubmates congratulate Rune. Alliances are already forming… 💬',
       'social_1'
     )
     expect(match?.template.id).toBe('social.loh-congratulations')
-    expect(
-      renderBroadcastTemplate('The house congratulates {winner}.', match?.variables ?? [])
-    ).toBe('The house congratulates Rune.')
+    expect(renderBroadcastTemplate('The Hub congratulates {winner}.', match?.variables ?? [])).toBe(
+      'The Hub congratulates Rune.'
+    )
   })
 
   it('keeps only the approved P0 mechanical feeds log-only by default', () => {
@@ -116,7 +116,7 @@ describe('broadcast template catalog', () => {
 
   it('captures variables when a runtime event supplies an explicit template id', () => {
     const match = matchBroadcastTemplate(
-      'Ash has won Leader of the House! 👑',
+      'Ash has won Leader of the Hub! 👑',
       'loh_results',
       'loh.winner'
     )

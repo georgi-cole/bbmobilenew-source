@@ -4,12 +4,14 @@ import { Provider } from 'react-redux'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { STORE_PRODUCT_CATALOG } from '../../vip/vipConfig'
+import { PREMIUM_GAME_LABEL, PREMIUM_GAME_UPGRADES } from '../../vip/paidGameCatalog'
 import { createEmptyStoreEntitlements } from '../../vip/vipStorage'
 import { hasStoreProductIcon } from '../../components/StoreProductModal/storeProductIconUtils'
 import vipReducer, { type VipState } from '../../store/vipSlice'
 import profilesReducer from '../../store/profilesSlice'
 import gameReducer, { createInitialGameState } from '../../store/gameSlice'
 import Store from './Store'
+import { installSafetyFixture } from '../../safety/__tests__/safetyFixture'
 
 const purchaseStoreProductMock = vi.hoisted(() => vi.fn())
 const loadVipStoreSnapshotMock = vi.hoisted(() => vi.fn())
@@ -108,6 +110,7 @@ function openDramaMode() {
 
 describe('Store product presentation', () => {
   beforeEach(() => {
+    installSafetyFixture(28)
     purchaseStoreProductMock.mockReset()
     loadVipStoreSnapshotMock.mockReset()
   })
@@ -116,6 +119,19 @@ describe('Store product presentation', () => {
     for (const product of STORE_PRODUCT_CATALOG) {
       expect(hasStoreProductIcon(product.icon)).toBe(true)
     }
+  })
+
+  it('disables native purchases and restore for teens while keeping owned products available', () => {
+    installSafetyFixture(15)
+    renderStore(makeVipState({ owned: ['dramaMode'] }))
+    expect(
+      screen.getByText(/Real-money purchases and restoration require adult admission/)
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Restore Purchases' })).toBeDisabled()
+    openDramaMode()
+    expect(screen.getByRole('heading', { name: 'Reality Mode is unlocked' })).toBeInTheDocument()
+    expect(purchaseStoreProductMock).not.toHaveBeenCalled()
+    expect(loadVipStoreSnapshotMock).not.toHaveBeenCalled()
   })
 
   it('presents Cupid and Vox as dedicated season expansions', () => {
@@ -146,6 +162,21 @@ describe('Store product presentation', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(/75% of this purchase counts toward a future VIP upgrade/i)
+    ).toBeInTheDocument()
+  })
+
+  it('shows every premium game and the current count under Extras', () => {
+    renderStore()
+    fireEvent.click(screen.getByRole('button', { name: 'Extras' }))
+    expect(
+      screen.getByText(`${PREMIUM_GAME_LABEL}. Every premium version, one permanent unlock.`)
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open Premium Challenges Pack' }))
+    const dialog = within(screen.getByRole('dialog'))
+    for (const game of PREMIUM_GAME_UPGRADES)
+      expect(dialog.getByText(game.title)).toBeInTheDocument()
+    expect(
+      dialog.getByText(/every premium minigame version, including remasters/i)
     ).toBeInTheDocument()
   })
 

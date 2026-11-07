@@ -85,9 +85,13 @@ describe('WinnerTileLiftAnimation', () => {
     act(() => vi.advanceTimersByTime(1720))
     const liftedTile = document.querySelector<HTMLElement>('.winner-tile-lift__tile')
     expect(document.querySelector('[data-winner-tile-lift-phase="returning"]')).not.toBeNull()
-    expect(liftedTile?.style.left).toBe('108px')
-    expect(liftedTile?.style.top).toBe('226px')
-    expect(liftedTile?.style.width).toBe('64px')
+    expect(liftedTile?.style.left).toBe('22px')
+    expect(liftedTile?.style.top).toBe('48px')
+    expect(liftedTile?.style.width).toBe('72px')
+    expect(liftedTile?.dataset.winnerTargetLeft).toBe('108')
+    expect(liftedTile?.dataset.winnerTargetTop).toBe('226')
+    expect(liftedTile?.style.transform).toContain('translate3d(86px, 178px, 0)')
+    expect(liftedTile?.style.transform).toContain('scale(0.8888888888888888, 0.8888888888888888)')
 
     act(() => vi.advanceTimersByTime(560))
     expect(onDone).toHaveBeenCalledTimes(1)
@@ -189,10 +193,13 @@ describe('WinnerTileLiftAnimation', () => {
 
     const liftedTiles = [...document.querySelectorAll<HTMLElement>('.winner-tile-lift__tile')]
     expect(liftedTiles).toHaveLength(2)
-    expect(liftedTiles.map((tile) => tile.style.width)).toEqual(['112px', '112px'])
-    expect(Number.parseFloat(liftedTiles[0].style.left)).toBeGreaterThanOrEqual(7)
+    expect(liftedTiles.map((tile) => tile.style.width)).toEqual(['62px', '62px'])
+    expect(Number.parseFloat(liftedTiles[0].dataset.winnerTargetLeft ?? '')).toBeGreaterThanOrEqual(
+      7
+    )
     expect(
-      Number.parseFloat(liftedTiles[1].style.left) + Number.parseFloat(liftedTiles[1].style.width)
+      Number.parseFloat(liftedTiles[1].dataset.winnerTargetLeft ?? '') +
+        Number.parseFloat(liftedTiles[1].dataset.winnerTargetWidth ?? '')
     ).toBeLessThanOrEqual(327)
   })
 

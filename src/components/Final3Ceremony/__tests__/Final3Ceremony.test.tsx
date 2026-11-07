@@ -86,6 +86,7 @@ function renderPleaCeremony(onPlayAvailabilityChange = vi.fn()) {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.useRealTimers()
 })
 
@@ -115,6 +116,17 @@ describe('Final3Ceremony plea dialogue', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue →' }))
     act(() => vi.advanceTimersByTime(400))
     expect(screen.queryByRole('dialog', { name: 'The Finale plea chat' })).toBeNull()
+  })
+
+  it('keeps the plea dialogue stable instead of looping while its lines are revealed', () => {
+    vi.useFakeTimers()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    renderPleaCeremony()
+
+    act(() => vi.advanceTimersByTime(12_000))
+
+    expect(consoleError.mock.calls.flat().join(' ')).not.toContain('Maximum update depth exceeded')
+    expect(screen.getByRole('log').querySelectorAll('.chat-overlay__line')).toHaveLength(6)
   })
 
   it('makes the eviction consequence explicit and shows relationship history instead of a résumé', () => {

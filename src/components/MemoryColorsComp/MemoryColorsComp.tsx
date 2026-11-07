@@ -259,6 +259,13 @@ export default function MemoryColorsComp({
       <div className="mc-host mc-host--results">
         <MinigameCompleteWrapper
           className="mc-results-panel"
+          result={{ rawValue: mc.humanResult?.score ?? 0, partial: false, completion: {
+            rawValue: mc.humanResult?.score ?? 0,
+            rawResults: Object.fromEntries(Object.entries(allResults).map(([id, result]) => [id, result.score])),
+            authoritativeWinnerId: mc.winnerId,
+            authoritativeLastPlaceId: mc.lastPlaceId,
+            authoritativeRankedIds: ranking,
+          } }}
           onContinue={handleDone}
           continueLabel="Continue"
           continueButtonClassName="mc-btn mc-btn--primary mc-btn--done"

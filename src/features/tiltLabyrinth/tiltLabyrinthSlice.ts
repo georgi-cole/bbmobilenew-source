@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { tiltLabyrinthInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Tilt Labyrinth" scored minigame competition.
  *
@@ -19,66 +21,51 @@
  *  - outcomeResolved guard prevents double-dispatch.
  */
 
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { rankTiltLabyrinthResults } from '../../components/TiltLabyrinthComp/tiltLabyrinthCollision';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { rankTiltLabyrinthResults } from '../../components/TiltLabyrinthComp/tiltLabyrinthCollision'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type TiltLabyrinthPrizeType = 'LOH' | 'POS';
-export type TiltLabyrinthPhase = 'idle' | 'playing' | 'complete';
+export type TiltLabyrinthPrizeType = 'LOH' | 'POS'
+export type TiltLabyrinthPhase = 'idle' | 'playing' | 'complete'
 
 export interface TiltLabyrinthRunDetails {
-  rawTimeMs: number;
-  hazardHits: number;
-  hintUsed?: boolean;
-  adjustedTimeMs: number;
+  rawTimeMs: number
+  hazardHits: number
+  hintUsed?: boolean
+  adjustedTimeMs: number
 }
 
 export interface TiltLabyrinthParticipant {
-  id: string;
-  name: string;
-  isHuman: boolean;
+  id: string
+  name: string
+  isHuman: boolean
 }
 
 export interface TiltLabyrinthState {
-  phase: TiltLabyrinthPhase;
-  competitionType: TiltLabyrinthPrizeType;
-  seed: number;
+  phase: TiltLabyrinthPhase
+  competitionType: TiltLabyrinthPrizeType
+  seed: number
 
-  participants: TiltLabyrinthParticipant[];
-  humanPlayerId: string | null;
+  participants: TiltLabyrinthParticipant[]
+  humanPlayerId: string | null
 
   /** Pre-computed AI completion times in ms (keyed by player ID). Set on init. */
-  aiScores: Record<string, number>;
+  aiScores: Record<string, number>
   /** Human's actual completion time in ms, set when the game ends. */
-  humanScore: number | null;
+  humanScore: number | null
   /** All final scores (AI + human). Populated when phase transitions to 'complete'. */
-  finalScores: Record<string, number>;
-  runDetails: Record<string, TiltLabyrinthRunDetails>;
+  finalScores: Record<string, number>
+  runDetails: Record<string, TiltLabyrinthRunDetails>
 
-  winnerId: string | null;
-  lastPlaceId: string | null;
+  winnerId: string | null
+  lastPlaceId: string | null
 
   /** Guard: outcome thunk only fires once. */
-  outcomeResolved: boolean;
+  outcomeResolved: boolean
 }
 
 // ─── Initial state ────────────────────────────────────────────────────────────
-
-const initialState: TiltLabyrinthState = {
-  phase: 'idle',
-  competitionType: 'LOH',
-  seed: 0,
-  participants: [],
-  humanPlayerId: null,
-  aiScores: {},
-  humanScore: null,
-  finalScores: {},
-  runDetails: {},
-  winnerId: null,
-  lastPlaceId: null,
-  outcomeResolved: false,
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -94,33 +81,35 @@ const initialState: TiltLabyrinthState = {
 function deriveWinnerAndLastPlace(
   scores: Record<string, number>,
   participantIds: string[],
-  runDetails: Record<string, TiltLabyrinthRunDetails>,
+  runDetails: Record<string, TiltLabyrinthRunDetails>
 ): { winnerId: string | null; lastPlaceId: string | null } {
-  const eligible = participantIds.filter((id) => id in scores);
-  if (eligible.length === 0) return { winnerId: null, lastPlaceId: null };
-  const ranked = rankTiltLabyrinthResults(eligible.map((id) => ({
-    id,
-    rawTimeMs: runDetails[id]?.rawTimeMs ?? scores[id],
-    hazardHits: runDetails[id]?.hazardHits ?? 0,
-    adjustedTimeMs: scores[id],
-  })));
+  const eligible = participantIds.filter((id) => id in scores)
+  if (eligible.length === 0) return { winnerId: null, lastPlaceId: null }
+  const ranked = rankTiltLabyrinthResults(
+    eligible.map((id) => ({
+      id,
+      rawTimeMs: runDetails[id]?.rawTimeMs ?? scores[id],
+      hazardHits: runDetails[id]?.hazardHits ?? 0,
+      adjustedTimeMs: scores[id],
+    }))
+  )
   return {
     winnerId: ranked[0].id,
     lastPlaceId: ranked.length > 1 ? ranked[ranked.length - 1].id : null,
-  };
+  }
 }
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
 export interface InitTiltLabyrinthPayload {
-  participantIds: string[];
-  participantNames: Record<string, string>;
-  humanPlayerId: string | null;
-  competitionType: TiltLabyrinthPrizeType;
-  seed: number;
+  participantIds: string[]
+  participantNames: Record<string, string>
+  humanPlayerId: string | null
+  competitionType: TiltLabyrinthPrizeType
+  seed: number
   /** Pre-computed AI completion times in ms, keyed by player ID. Human's ID must NOT be included. */
-  aiScores: Record<string, number>;
-  aiRunDetails?: Record<string, TiltLabyrinthRunDetails>;
+  aiScores: Record<string, number>
+  aiRunDetails?: Record<string, TiltLabyrinthRunDetails>
 }
 
 const tiltLabyrinthSlice = createSlice({
@@ -132,26 +121,33 @@ const tiltLabyrinthSlice = createSlice({
      * Should be dispatched by TiltLabyrinthComp on mount (once).
      */
     initTiltLabyrinth(state, action: PayloadAction<InitTiltLabyrinthPayload>) {
-      const { participantIds, participantNames, humanPlayerId, competitionType, seed, aiScores, aiRunDetails } =
-        action.payload;
+      const {
+        participantIds,
+        participantNames,
+        humanPlayerId,
+        competitionType,
+        seed,
+        aiScores,
+        aiRunDetails,
+      } = action.payload
 
-      state.phase = 'playing';
-      state.competitionType = competitionType;
-      state.seed = seed;
-      state.humanPlayerId = humanPlayerId;
-      state.aiScores = aiScores;
-      state.humanScore = null;
-      state.finalScores = {};
-      state.runDetails = { ...aiRunDetails };
-      state.winnerId = null;
-      state.lastPlaceId = null;
-      state.outcomeResolved = false;
+      state.phase = 'playing'
+      state.competitionType = competitionType
+      state.seed = seed
+      state.humanPlayerId = humanPlayerId
+      state.aiScores = aiScores
+      state.humanScore = null
+      state.finalScores = {}
+      state.runDetails = { ...aiRunDetails }
+      state.winnerId = null
+      state.lastPlaceId = null
+      state.outcomeResolved = false
 
       state.participants = participantIds.map((id) => ({
         id,
         name: participantNames[id] ?? id,
         isHuman: id === humanPlayerId,
-      }));
+      }))
     },
 
     /**
@@ -159,53 +155,51 @@ const tiltLabyrinthSlice = createSlice({
      * Transitions phase to 'complete'.
      * Lower time = better (faster maze completion).
      */
-    setHumanScore(
-      state,
-      action: PayloadAction<number | TiltLabyrinthRunDetails>,
-    ) {
-      if (state.phase !== 'playing') return;
+    setHumanScore(state, action: PayloadAction<number | TiltLabyrinthRunDetails>) {
+      if (state.phase !== 'playing') return
 
-      const details = typeof action.payload === 'number'
-        ? { rawTimeMs: action.payload, hazardHits: 0, adjustedTimeMs: action.payload }
-        : action.payload;
-      const humanScore = details.adjustedTimeMs;
-      state.humanScore = humanScore;
-      if (state.humanPlayerId) state.runDetails[state.humanPlayerId] = details;
+      const details =
+        typeof action.payload === 'number'
+          ? { rawTimeMs: action.payload, hazardHits: 0, adjustedTimeMs: action.payload }
+          : action.payload
+      const humanScore = details.adjustedTimeMs
+      state.humanScore = humanScore
+      if (state.humanPlayerId) state.runDetails[state.humanPlayerId] = details
 
       // Build full score map: AI scores + human score
-      const allScores: Record<string, number> = { ...state.aiScores };
+      const allScores: Record<string, number> = { ...state.aiScores }
       if (state.humanPlayerId) {
-        allScores[state.humanPlayerId] = humanScore;
+        allScores[state.humanPlayerId] = humanScore
       }
-      state.finalScores = allScores;
+      state.finalScores = allScores
 
-      const participantIds = state.participants.map((p) => p.id);
+      const participantIds = state.participants.map((p) => p.id)
       const { winnerId, lastPlaceId } = deriveWinnerAndLastPlace(
         allScores,
         participantIds,
-        state.runDetails,
-      );
-      state.winnerId = winnerId;
-      state.lastPlaceId = lastPlaceId;
-      state.phase = 'complete';
+        state.runDetails
+      )
+      state.winnerId = winnerId
+      state.lastPlaceId = lastPlaceId
+      state.phase = 'complete'
     },
 
     /** Mark the outcome as resolved — prevents the thunk from dispatching twice. */
     markTiltLabyrinthOutcomeResolved(state) {
-      state.outcomeResolved = true;
+      state.outcomeResolved = true
     },
 
     /** Reset slice to initial state (called on component unmount or next competition). */
     resetTiltLabyrinth() {
-      return { ...initialState };
+      return { ...initialState }
     },
   },
-});
+})
 
 export const {
   initTiltLabyrinth,
   setHumanScore,
   markTiltLabyrinthOutcomeResolved,
   resetTiltLabyrinth,
-} = tiltLabyrinthSlice.actions;
-export default tiltLabyrinthSlice.reducer;
+} = tiltLabyrinthSlice.actions
+export default registerMinigameReducer('tiltLabyrinth', tiltLabyrinthSlice.reducer)

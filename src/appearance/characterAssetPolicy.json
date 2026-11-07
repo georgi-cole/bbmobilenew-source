@@ -1,0 +1,9 @@
+{
+  "format": "webp",
+  "catalogBudgetBytes": 8388608,
+  "roles": {
+    "thumbnail": { "width": 128, "height": 128, "maxBytes": 12288 },
+    "portrait": { "width": 256, "height": 256, "maxBytes": 40960 },
+    "body": { "width": 768, "height": 1152, "maxBytes": 409600 }
+  }
+}

@@ -16,6 +16,7 @@ import { createEmptyStoreEntitlements, type StoreEntitlements } from './vipStora
 import { getVipBillingProductId, isVipBillingProductId } from './vipUpgrade'
 import { TEMPORARY_STORE_UNLOCKS_ENABLED } from './effectiveEntitlements'
 import { IS_MOBILE_DEV_BUILD } from '../config/buildTarget'
+import { assertAdultServicesAllowed } from '../safety/playerSafety'
 
 export interface StoreProduct {
   key: StoreProductKey
@@ -97,6 +98,7 @@ function isNativeBillingPlatform(): boolean {
 async function loadProducts(
   entitlements: StoreEntitlements
 ): Promise<Partial<Record<StoreProductKey, StoreProduct>>> {
+  assertAdultServicesAllowed()
   const releasedProducts = STORE_PRODUCT_CATALOG.filter(
     (definition) => definition.availableInRelease
   )
@@ -140,6 +142,7 @@ async function loadOwnership(): Promise<{
   isActive: boolean
   entitlements: StoreEntitlements
 }> {
+  assertAdultServicesAllowed()
   const { purchases } = await NativePurchases.getPurchases({
     productType: PURCHASE_TYPE.INAPP,
     onlyCurrentEntitlements: true,
@@ -150,6 +153,7 @@ async function loadOwnership(): Promise<{
 export async function loadVipStoreSnapshot(options?: {
   restore?: boolean
 }): Promise<VipStoreSnapshot> {
+  assertAdultServicesAllowed()
   const verifiedAt = new Date().toISOString()
 
   // A locally installed mobile-dev build deliberately does not contact StoreKit
@@ -186,9 +190,13 @@ export async function loadVipStoreSnapshot(options?: {
     }
   }
 
+  assertAdultServicesAllowed()
   if (options?.restore) await NativePurchases.restorePurchases()
+  assertAdultServicesAllowed()
   const ownership = await loadOwnership()
+  assertAdultServicesAllowed()
   const products = await loadProducts(ownership.entitlements)
+  assertAdultServicesAllowed()
   return {
     billingAvailable: true,
     ...ownership,
@@ -198,6 +206,7 @@ export async function loadVipStoreSnapshot(options?: {
 }
 
 export async function purchaseStoreProduct(productKey: StoreProductKey): Promise<VipStoreSnapshot> {
+  assertAdultServicesAllowed()
   if (IS_MOBILE_DEV_BUILD) {
     throw new Error('Purchases are disabled in the mobile developer build.')
   }
@@ -213,6 +222,7 @@ export async function purchaseStoreProduct(productKey: StoreProductKey): Promise
     productKey === 'vip'
       ? getVipBillingProductId((await loadOwnership()).entitlements)
       : definition.productId
+  assertAdultServicesAllowed()
   const transaction = await NativePurchases.purchaseProduct({
     productIdentifier: billingProductId,
     productType: PURCHASE_TYPE.INAPP,
@@ -221,6 +231,7 @@ export async function purchaseStoreProduct(productKey: StoreProductKey): Promise
     autoAcknowledgePurchases: true,
   })
 
+  assertAdultServicesAllowed()
   if (
     transaction.productIdentifier !== billingProductId ||
     !isOwnedStoreTransaction(transaction, productKey)

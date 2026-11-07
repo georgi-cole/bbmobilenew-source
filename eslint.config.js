@@ -20,6 +20,8 @@ export default defineConfig([
     '**/.capacitor/**',
     '**/.wrangler/**',
     '**/android/**/build/**',
+    '**/android/app/src/main/assets/**',
+    '**/ios/App/App/public/**',
     '**/ios/**/DerivedData/**',
   ]),
   {

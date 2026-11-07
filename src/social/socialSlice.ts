@@ -2,6 +2,7 @@ import { isCurrentAlliance } from './reality/allianceIdentity'
 import { isBetrayalBetween } from './relationshipSemantics'
 import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
+import type { Draft } from 'immer'
 import type {
   IncomingInteraction,
   IncomingInteractionDecisionLogEntry,
@@ -530,6 +531,64 @@ export type WeekSeedBatch = {
   moods: WeekSeedMoodUpdate[]
 }
 
+function applyAmbientRelationshipToDraft(
+  state: Draft<SocialState>,
+  payload: WeekSeedAmbientRelationshipUpdate,
+  projectionIndex?: RealityProjectionIndex
+): void {
+  const { sourceId, targetId, socialDelta, day, phase = 'week_start' } = payload
+  if (sourceId === targetId) return
+  ensureRealityActors(state.reality as RealityDomainState, [sourceId, targetId])
+  const magnitude = Math.min(3, Math.abs(socialDelta))
+  const cooling = socialDelta > 0
+  const edge = state.reality.relationships[sourceId]?.[targetId]
+  const familiarityDelta = (edge?.lastAmbientFamiliarityDay ?? -1) >= day ? 0 : 1
+  const hasUnresolvedGrievance =
+    (state.reality.relationships[sourceId]?.[targetId]?.unresolvedGrievanceIds.length ?? 0) > 0
+  applyRealityRelationshipChange(state.reality as RealityDomainState, {
+    sourceId,
+    targetId,
+    day,
+    phase,
+    eventId: `ambient:${day}:${phase}:${sourceId}:${targetId}`,
+    meaningful: false,
+    deltas: {
+      ...(socialDelta === 0
+        ? {}
+        : cooling
+          ? {
+              warmth: magnitude,
+              trust: magnitude * 0.6,
+              resentment: hasUnresolvedGrievance ? 0 : -magnitude * 3,
+              suspicion: hasUnresolvedGrievance ? 0 : -magnitude * 2.5,
+              fear: hasUnresolvedGrievance ? 0 : -magnitude * 1.5,
+              perceivedThreat: -magnitude,
+            }
+          : {
+              warmth: -magnitude,
+              trust: -magnitude * 0.7,
+              resentment: magnitude * 6,
+              suspicion: magnitude * 4,
+              fear: magnitude * 2,
+              perceivedThreat: magnitude * 2,
+            }),
+      familiarity: familiarityDelta,
+    },
+  })
+  const updatedEdge = state.reality.relationships[sourceId][targetId]
+  updatedEdge.lastAmbientFamiliarityDay = Math.max(
+    updatedEdge.lastAmbientFamiliarityDay ?? day,
+    day
+  )
+  projectRealityEdgeIntoLegacy(
+    state.reality as RealityDomainState,
+    state.relationships,
+    sourceId,
+    targetId,
+    projectionIndex
+  )
+}
+
 const socialSlice = createSlice({
   name: 'social',
   initialState: SOCIAL_INITIAL_STATE,
@@ -807,59 +866,28 @@ const socialSlice = createSlice({
       state,
       action: PayloadAction<WeekSeedAmbientRelationshipUpdate>
     ) {
-      const { sourceId, targetId, socialDelta, day, phase = 'week_start' } = action.payload
-      if (sourceId === targetId) return
-      ensureRealityActors(state.reality as RealityDomainState, [sourceId, targetId])
-      const magnitude = Math.min(3, Math.abs(socialDelta))
-      const cooling = socialDelta > 0
-      const edge = state.reality.relationships[sourceId]?.[targetId]
-      const familiarityDelta = (edge?.lastAmbientFamiliarityDay ?? -1) >= day ? 0 : 1
-      const hasUnresolvedGrievance =
-        (state.reality.relationships[sourceId]?.[targetId]?.unresolvedGrievanceIds.length ?? 0) > 0
-      applyRealityRelationshipChange(state.reality as RealityDomainState, {
-        sourceId,
-        targetId,
-        day,
-        phase,
-        eventId: `ambient:${day}:${phase}:${sourceId}:${targetId}`,
-        meaningful: false,
-        deltas: {
-          ...(socialDelta === 0
-            ? {}
-            : cooling
-              ? {
-                  warmth: magnitude,
-                  trust: magnitude * 0.6,
-                  resentment: hasUnresolvedGrievance ? 0 : -magnitude * 3,
-                  suspicion: hasUnresolvedGrievance ? 0 : -magnitude * 2.5,
-                  fear: hasUnresolvedGrievance ? 0 : -magnitude * 1.5,
-                  perceivedThreat: -magnitude,
-                }
-              : {
-                  warmth: -magnitude,
-                  trust: -magnitude * 0.7,
-                  resentment: magnitude * 6,
-                  suspicion: magnitude * 4,
-                  fear: magnitude * 2,
-                  perceivedThreat: magnitude * 2,
-                }),
-          familiarity: familiarityDelta,
-        },
-      })
-      const updatedEdge = state.reality.relationships[sourceId][targetId]
-      updatedEdge.lastAmbientFamiliarityDay = Math.max(
-        updatedEdge.lastAmbientFamiliarityDay ?? day,
-        day
-      )
-      projectRealityEdgeIntoLegacy(
-        state.reality as RealityDomainState,
-        state.relationships,
-        sourceId,
-        targetId
-      )
+      applyAmbientRelationshipToDraft(state, action.payload)
     },
     /** Apply deterministic week-start relationship and mood changes in one store update. */
     applyWeekSeedBatch(state, action: PayloadAction<WeekSeedBatch>) {
+      // Week-seed updates only change relationship edges and moods. The
+      // alliances, promises, and history used for projected tags stay fixed
+      // throughout this batch, so index them once for every touched pair.
+      const projectedPairs: RelationshipPairSet = new Map()
+      for (const operation of action.payload.operations) {
+        if (operation.kind === 'ambientRelationship') {
+          addRelationshipPair(
+            projectedPairs,
+            operation.payload.sourceId,
+            operation.payload.targetId
+          )
+        }
+      }
+      const projectionIndex = createRealityProjectionIndex(
+        state.reality as RealityDomainState,
+        Object.values(state.reality.alliances) as RealityDomainState['alliances'][string][],
+        projectedPairs
+      )
       for (const operation of action.payload.operations) {
         if (operation.kind === 'relationship') {
           socialSlice.caseReducers.updateRelationship(state, {
@@ -867,10 +895,7 @@ const socialSlice = createSlice({
             payload: operation.payload,
           })
         } else {
-          socialSlice.caseReducers.applyRealityAmbientRelationship(state, {
-            type: applyRealityAmbientRelationship.type,
-            payload: operation.payload,
-          })
+          applyAmbientRelationshipToDraft(state, operation.payload, projectionIndex)
         }
       }
 

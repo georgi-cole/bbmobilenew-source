@@ -3,14 +3,19 @@ import { expect, type Page } from '@playwright/test'
 import { readAppState } from '../support/test'
 import type { SeasonSimulationMode } from './types'
 import type { RootState } from '../../../src/store/store'
+import { dismissShockAcknowledgement } from './shockAcknowledgement'
 
 const MODE_LAUNCH_TIMEOUT = 30_000
 
 export interface ModeAdapter {
   readonly mode: SeasonSimulationMode
   launch(page: Page): Promise<void>
-  isTerminal(page: Page, state?: RootState): Promise<boolean>
-  describeTerminal(page: Page, state?: RootState): Promise<string | null>
+  isTerminal(page: Page, state?: RootState, continueToSeasonComplete?: boolean): Promise<boolean>
+  describeTerminal(
+    page: Page,
+    state?: RootState,
+    continueToSeasonComplete?: boolean
+  ): Promise<string | null>
 }
 
 async function isSeasonCompleteUiVisible(page: Page): Promise<boolean> {
@@ -30,6 +35,10 @@ async function isHumanEliminatedUiVisible(page: Page): Promise<boolean> {
 function humanExitStatus(state: Awaited<ReturnType<typeof readAppState>>): string | null {
   const human = state.game.players.find((player) => player.isUser)
   return human && (human.status === 'evicted' || human.status === 'jury') ? human.status : null
+}
+
+function supportsSpectatorContinuation(mode: SeasonSimulationMode): boolean {
+  return mode === 'voxPopuli' || mode === 'cupidArrow'
 }
 
 async function openPlayMenu(page: Page): Promise<void> {
@@ -52,31 +61,70 @@ function finiteAdapter(
         .getByRole('navigation', { name: 'Play menu' })
         .getByRole('button', { name: label, exact: true })
         .click()
+      if (mode !== 'classic') {
+        await page
+          .getByTestId('shock-intro-overlay')
+          .waitFor({ state: 'visible', timeout: 5_000 })
+          .catch(() => undefined)
+        await dismissShockAcknowledgement(page)
+      }
+      const contestantHeading = page.getByRole('heading', { name: 'Choose your contestant' })
+      if (await contestantHeading.isVisible().catch(() => false)) {
+        await page.getByRole('button', { name: 'Start Season', exact: true }).click()
+      } else {
+        await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
+          timeout: MODE_LAUNCH_TIMEOUT,
+        })
+        const state = await readAppState(page)
+        const loadedRequestedMode =
+          mode === 'classic'
+            ? state.game.mode === 'classic' && state.game.expansionMode == null
+            : state.game.expansionMode === mode
+        expect(loadedRequestedMode, `the active game should match ${mode}`).toBe(true)
+        return
+      }
       await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
         timeout: MODE_LAUNCH_TIMEOUT,
       })
     },
-    async isTerminal(page, suppliedState) {
+    async isTerminal(page, suppliedState, continueToSeasonComplete = false) {
       const state = suppliedState ?? (await readAppState(page))
+      const human = state.game.players.find((player) => player.isUser)
+      const canContinueAsSpectator =
+        supportsSpectatorContinuation(mode) &&
+        continueToSeasonComplete &&
+        human?.status === 'evicted'
+      const humanCannotContinue =
+        !continueToSeasonComplete ||
+        (!supportsSpectatorContinuation(mode) && human?.status === 'evicted')
       const terminalByState =
-        humanExitStatus(state) !== null ||
-        state.game.status !== 'active' ||
+        (humanCannotContinue && humanExitStatus(state) !== null) ||
+        (state.game.status != null && state.game.status !== 'active' && !canContinueAsSpectator) ||
         state.game.seasonFinale?.phase === 'seasonComplete'
       if (suppliedState) return terminalByState
+      const eliminatedUiTerminal =
+        !continueToSeasonComplete ||
+        (!supportsSpectatorContinuation(mode) && human?.status === 'evicted')
       return (
         (await isSeasonCompleteUiVisible(page)) ||
-        (await isHumanEliminatedUiVisible(page)) ||
+        (eliminatedUiTerminal && (await isHumanEliminatedUiVisible(page))) ||
         terminalByState
       )
     },
-    async describeTerminal(page, suppliedState) {
+    async describeTerminal(page, suppliedState, continueToSeasonComplete = false) {
       const state = suppliedState ?? (await readAppState(page))
       const exitStatus = humanExitStatus(state)
-      if (exitStatus) return `human-out-of-game-${exitStatus}`
+      const humanCannotContinue =
+        !continueToSeasonComplete ||
+        (!supportsSpectatorContinuation(mode) &&
+          state.game.players.find((player) => player.isUser)?.status === 'evicted')
+      if (exitStatus && humanCannotContinue) return `human-out-of-game-${exitStatus}`
       if (await isSeasonCompleteUiVisible(page)) return 'season-complete-modal'
-      if (await isHumanEliminatedUiVisible(page)) return 'human-eliminated'
+      if (humanCannotContinue && (await isHumanEliminatedUiVisible(page))) return 'human-eliminated'
       if (state.game.seasonFinale?.phase === 'seasonComplete') return 'season-complete'
-      return state.game.status !== 'active' ? `run-${state.game.status}` : null
+      return state.game.status != null && state.game.status !== 'active'
+        ? `run-${state.game.status}`
+        : null
     },
   }
 }
@@ -89,12 +137,14 @@ const survivalAdapter: ModeAdapter = {
       .getByRole('navigation', { name: 'Play menu' })
       .getByRole('button', { name: 'Surveyeval', exact: true })
       .click()
-    const rules = page.getByRole('dialog', { name: /Surveyeval Mode/i })
+    const rules = page.getByRole('dialog', { name: 'How Surveyeval Works' })
     if (await rules.isVisible().catch(() => false)) {
-      const continueButton = rules.getByRole('button', { name: /continue|start/i }).last()
+      const continueButton = rules.getByRole('button', { name: 'Enter Surveyeval' }).last()
       await expect(continueButton).toBeVisible()
       await continueButton.click()
     }
+    await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
+    await page.getByRole('button', { name: 'Start Season', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
       timeout: MODE_LAUNCH_TIMEOUT,
     })

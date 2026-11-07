@@ -27,10 +27,10 @@ describe('VIP upgrade credit', () => {
     const offer = resolveVipUpgradeOffer(entitlements)
 
     expect(offer).not.toBeNull()
-    expect(offer?.eligibleSpendCents).toBe(399)
-    expect(offer?.creditCents).toBe(299)
-    expect(offer?.targetPriceCents).toBe(1_200)
-    expect(offer?.tier.priceCents).toBe(1_199)
+    expect(offer?.eligibleSpendCents).toBe(699)
+    expect(offer?.creditCents).toBe(524)
+    expect(offer?.targetPriceCents).toBe(1_475)
+    expect(offer?.tier.priceCents).toBe(1_549)
     expect(isVipBillingProductId(offer!.tier.productId)).toBe(true)
   })
 
@@ -41,10 +41,10 @@ describe('VIP upgrade credit', () => {
 
     const offer = resolveVipUpgradeOffer(entitlements)
 
-    expect(offer?.eligibleSpendCents).toBe(898)
-    expect(offer?.creditCents).toBe(674)
-    expect(offer?.targetPriceCents).toBe(825)
-    expect(offer?.tier.priceCents).toBe(799)
+    expect(offer?.eligibleSpendCents).toBe(1_198)
+    expect(offer?.creditCents).toBe(899)
+    expect(offer?.targetPriceCents).toBe(1_100)
+    expect(offer?.tier.priceCents).toBe(1_099)
   })
 
   it('includes No Ads in qualifying standalone spend', () => {
@@ -52,7 +52,7 @@ describe('VIP upgrade credit', () => {
     entitlements.noAds = true
 
     expect(getVipEligibleStandaloneSpendCents(entitlements)).toBe(299)
-    expect(resolveVipUpgradeOffer(entitlements)?.tier.priceCents).toBe(1_299)
+    expect(resolveVipUpgradeOffer(entitlements)?.tier.priceCents).toBe(1_849)
   })
 
   it('does not credit unreleased Tribunal ownership', () => {

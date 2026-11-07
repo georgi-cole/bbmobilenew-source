@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { riskWheelInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Risk Wheel" multi-round elimination competition.
  *
@@ -544,34 +546,6 @@ export function aiShouldStop(context: RiskWheelAiDecisionContext): boolean {
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
-const initialState: RiskWheelState = {
-  competitionType: 'LOH',
-  phase: 'idle',
-  allPlayerIds: [],
-  activePlayerIds: [],
-  eliminatedPlayerIds: [],
-  humanPlayerId: null,
-  initialPlayerCount: 0,
-  round: 1,
-  roundScores: {},
-  playersCompletedThisRound: [],
-  currentPlayerIndex: 0,
-  currentSpinCount: 0,
-  lastSectorIndex: null,
-  last666Effect: null,
-  eliminatedThisRound: [],
-  tieBreaker: null,
-  tieBreakerSummary: null,
-  winnerId: null,
-  seed: undefined,
-  rngCallCount: 0,
-  aiDecisionCallCount: 0,
-  aiPersonalities: {},
-  aiDecisionCounts: {},
-  outcomeResolved: false,
-  finalScores: undefined,
-}
-
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 /** Apply a sector result to the current player's round score and advance spin/phase. */
@@ -1100,4 +1074,4 @@ export const {
   resetRiskWheel,
 } = riskWheelSlice.actions
 
-export default riskWheelSlice.reducer
+export default registerMinigameReducer('riskWheel', riskWheelSlice.reducer)

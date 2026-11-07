@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
 import { useI18n } from '../../i18n'
 import MinigameRules from '../MinigameRules/MinigameRules'
-import { getGame } from '../../minigames/registry'
+import { getCapitalizationRules } from './capitalizationRules'
 import {
   CAPITALIZATION_CONTINENT_STYLES,
   CAPITALIZATION_LAND_SHAPES,
@@ -103,6 +104,7 @@ export default function Capitalization({
   participants,
   seed,
   context = 'loh',
+  autoStart = false,
 }: CapitalizationProps) {
   const { t } = useI18n()
   const resolvedParticipants = useMemo(
@@ -135,27 +137,10 @@ export default function Capitalization({
   const [scoreboard, setScoreboard] = useState<CapitalizationScoreboard | null>(null)
   const [nowMs, setNowMs] = useState(0)
   const [questionStartedAtMs, setQuestionStartedAtMs] = useState(0)
-  const [rulesOpen, setRulesOpen] = useState(context === 'battleBack')
+  const [rulesOpen, setRulesOpen] = useState(context === 'battleBack' && !autoStart)
   const questionStartedAtRef = useRef(0)
   const completionFiredRef = useRef(false)
-  const rulesGame = getGame('capitalization')
-  const rulesPresentationGame = useMemo(() => {
-    if (!rulesGame || context !== 'battleBack') return rulesGame
-    return {
-      ...rulesGame,
-      title: 'Capitalization — Back 2 the Game',
-      description:
-        'All return candidates play the complete Capitalization challenge. Scores carry across every continent.',
-      instructions: [
-        'The globe selects three continents, with three capital-city questions on each.',
-        'Every return candidate plays all nine questions.',
-        'Faster first-try answers score more; hints halve the question score and skips score zero.',
-        'Nobody is eliminated after Question 3 or Question 6 in Back 2 the Game.',
-        'Scores carry across all three continents.',
-        'After Question 9, the highest total score wins the right to return to the game.',
-      ],
-    }
-  }, [context, rulesGame])
+  const rulesPresentationGame = useMemo(() => getCapitalizationRules(context), [context])
 
   const currentQuestion = questionSet.questions[questionIndex]
   const currentContinentIndex =
@@ -203,11 +188,35 @@ export default function Capitalization({
 
       onFinish(humanRawValue, undefined, {
         authoritativeWinnerId: winner?.participantId ?? null,
+        authoritativeLastPlaceId: ranked.at(-1)?.participantId ?? null,
+        authoritativeRankedIds: ranked.map((entry) => entry.participantId),
         rawValue: humanRawValue,
         rawResults,
       })
     },
     [humanId, onFinish]
+  )
+
+  const checkpointStandings = scoreboard?.final
+    ? rankCapitalizationStandings(scoreboard.standings)
+    : []
+  const checkpointScores = scoreboard?.final
+    ? buildCapitalizationRawResults(scoreboard.standings)
+    : {}
+  useCompetitionResultCheckpoint(
+    scoreboard?.final
+      ? {
+          rawValue: checkpointScores[humanId] ?? checkpointStandings[0]?.cumulativeScore ?? 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: checkpointStandings[0]?.participantId,
+            authoritativeLastPlaceId: checkpointStandings.at(-1)?.participantId ?? null,
+            authoritativeRankedIds: checkpointStandings.map((entry) => entry.participantId),
+            rawValue: checkpointScores[humanId] ?? checkpointStandings[0]?.cumulativeScore ?? 0,
+            rawResults: checkpointScores,
+          },
+        }
+      : null
   )
 
   const resolveQuestion = useCallback(

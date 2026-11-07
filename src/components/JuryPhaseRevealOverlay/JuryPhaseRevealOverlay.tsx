@@ -23,6 +23,7 @@ import {
   isEmoji,
 } from '../../utils/avatar'
 import { preloadImages } from '../../utils/preload'
+import { recordGamePerformanceMarker } from '../../services/diagnostics/gamePerformanceDiagnostics'
 import './JuryPhaseRevealOverlay.css'
 
 // ── Timing constants (ms) ─────────────────────────────────────────────────────
@@ -112,6 +113,11 @@ export default function JuryPhaseRevealOverlay({ open, jurors, onEnterVote }: Pr
       : false
 
   const clearTimers = useCallback(() => {
+    if (timersRef.current.length > 0) {
+      recordGamePerformanceMarker('jury-reveal-timers-cleared', {
+        pendingTimers: timersRef.current.length,
+      })
+    }
     timersRef.current.forEach(clearTimeout)
     timersRef.current = []
   }, [])
@@ -119,6 +125,7 @@ export default function JuryPhaseRevealOverlay({ open, jurors, onEnterVote }: Pr
   /** Jump immediately to the fully-assembled final state (no animation). */
   const skipToFinal = useCallback(
     (jurorCount: number) => {
+      recordGamePerformanceMarker('jury-reveal-skipped', { jurorCount })
       clearTimers()
       setInstant(true)
       setShowOpeningLine(false)
@@ -146,7 +153,10 @@ export default function JuryPhaseRevealOverlay({ open, jurors, onEnterVote }: Pr
 
     // ── Animated sequence ──────────────────────────────────────────────────
     const push = (fn: () => void, delay: number) => {
-      const id = setTimeout(fn, delay)
+      const id = setTimeout(() => {
+        timersRef.current = timersRef.current.filter((pending) => pending !== id)
+        fn()
+      }, delay)
       timersRef.current.push(id)
     }
 
@@ -179,6 +189,10 @@ export default function JuryPhaseRevealOverlay({ open, jurors, onEnterVote }: Pr
 
     // Stage 5: actions appear
     push(() => setStage('actions'), titleCardAt + TITLE_CARD_SETTLE_MS + ACTIONS_REVEAL_DELAY_MS)
+    recordGamePerformanceMarker('jury-reveal-timers-scheduled', {
+      pendingTimers: timersRef.current.length,
+      actionsDueMs: titleCardAt + TITLE_CARD_SETTLE_MS + ACTIONS_REVEAL_DELAY_MS,
+    })
 
     return clearTimers
   }, [
@@ -193,6 +207,17 @@ export default function JuryPhaseRevealOverlay({ open, jurors, onEnterVote }: Pr
   const handleSkip = useCallback(() => {
     skipToFinal(jurors.length)
   }, [skipToFinal, jurors.length])
+
+  useEffect(() => {
+    if (!open) return
+    recordGamePerformanceMarker('jury-reveal-stage', {
+      stage: presentationOpen ? stage : 'suppressed',
+      visibleJurors: visibleJurorCount,
+      totalJurors: jurors.length,
+      pendingTimers: timersRef.current.length,
+      shockRecoveryOwnsFullscreen,
+    })
+  }, [open, presentationOpen, stage, visibleJurorCount, jurors.length, shockRecoveryOwnsFullscreen])
 
   if (!presentationOpen) return null
 
@@ -273,7 +298,14 @@ export default function JuryPhaseRevealOverlay({ open, jurors, onEnterVote }: Pr
         {/* Stage 5: actions */}
         {showActions && (
           <div className="jpro__actions">
-            <button className="jpro__btn-primary" type="button" onClick={onEnterVote}>
+            <button
+              className="jpro__btn-primary"
+              type="button"
+              onClick={() => {
+                recordGamePerformanceMarker('jury-reveal-enter-vote')
+                onEnterVote()
+              }}
+            >
               Enter Tribunal Vote
             </button>
           </div>

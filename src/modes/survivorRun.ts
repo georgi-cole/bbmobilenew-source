@@ -36,7 +36,32 @@ const ROBO_NAMES = [
 const SAVE_VERSION = 2
 export const SURVIVOR_STARTING_CAST_SIZE = 8
 
+function makeRunSeed(): number {
+  const fixture =
+    import.meta.env.DEV && typeof window !== 'undefined' && window.__E2E__
+      ? window.__bbE2ENewSeason
+      : undefined
+  return (
+    fixture?.seasonSeed ??
+    (Math.floor(Math.random() * 0x100000000) ^ (Date.now() & 0xffffffff)) >>> 0
+  )
+}
+
 function makeRunId(mode: 'classic' | 'survival'): string {
+  if (
+    import.meta.env.DEV &&
+    mode === 'survival' &&
+    typeof window !== 'undefined' &&
+    window.__E2E__
+  ) {
+    const fixture = window.__bbE2ENewSeason
+    if (fixture) {
+      const key = 'bb:e2e:survival-run-sequence'
+      const sequence = Number(window.sessionStorage.getItem(key) ?? '0') + 1
+      window.sessionStorage.setItem(key, String(sequence))
+      return `survival-e2e-${fixture.rosterSeed.toString(16).padStart(8, '0')}-${fixture.seasonSeed.toString(16).padStart(8, '0')}-${sequence}`
+    }
+  }
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `${mode}-${crypto.randomUUID()}`
   }
@@ -198,7 +223,7 @@ export function createSurvivorModeState(startingCastSize: number): SurvivorModeS
 }
 
 export function createSurvivorRun(): GameState {
-  const base = createInitialGameState()
+  const base = createInitialGameState({ seed: makeRunSeed() })
   const runId = makeRunId('survival')
   const human = base.players.find((player) => player.isUser) ?? base.players[0]
   const startingCastSize = SURVIVOR_STARTING_CAST_SIZE

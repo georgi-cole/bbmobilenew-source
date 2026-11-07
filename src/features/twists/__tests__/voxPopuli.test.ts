@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PlayerPublicProfile } from '../../../publicOpinion/types'
+import { VOX_POPULI_RULES } from '../../../rules/voxPopuliGuide'
 import gameReducer, {
   advance,
   applyMinigameWinner,
@@ -27,6 +28,41 @@ import {
 } from '../voxPopuli'
 
 describe('Vox Populi rules', () => {
+  it('gives all four finalists one ballot, including the automatic nominee described in the guide', () => {
+    let state = createInitialGameState({ seed: 407 })
+    state.players = state.players.slice(0, 4)
+    const human = state.players.find((player) => player.isUser)!
+    const others = state.players.filter((player) => !player.isUser)
+    state.phase = 'nominations'
+    state.lohId = others[0].id
+    state.lastHohCompFinisherId = human.id
+    state.voxPopuli = {
+      ...createInitialVoxPopuliState(state.season),
+      status: 'active',
+      activatedSeason: state.season,
+      autoNomineeId: human.id,
+      immunityWinnerId: null,
+    }
+    state = gameReducer(state, advance())
+    expect(state.awaitingNominations).toBe(true)
+    expect(Object.keys(state.voxPopuli!.nominationBallots)).toHaveLength(3)
+    state = gameReducer(state, commitNominees([human.id]))
+    expect(state.awaitingNominations).toBe(true)
+    state = gameReducer(state, commitNominees([others[1].id]))
+    expect(state.awaitingNominations).toBe(false)
+    expect(Object.values(state.voxPopuli!.nominationBallots)).toHaveLength(4)
+    for (const [voterId, choices] of Object.entries(state.voxPopuli!.nominationBallots)) {
+      expect(choices).toHaveLength(1)
+      expect(choices).not.toContain(voterId)
+      expect(choices).not.toContain(human.id)
+    }
+    const finalFourRule = VOX_POPULI_RULES.flatMap((section) => section.cards).find(
+      (card) => card.kicker === 'FINAL 4'
+    )!
+    expect(finalFourRule.copy).toContain('All four cast one secret nomination vote')
+    expect(finalFourRule.copy).toContain('nobody is immune')
+  })
+
   it('adds the automatic nominee without consuming either secret-ballot place', () => {
     const result = resolveVoxNominations({
       activeIds: ['a', 'b', 'c', 'd', 'e'],
@@ -625,6 +661,7 @@ describe('Vox Populi rules', () => {
     )
     expect(alive).toHaveLength(3)
     expect(state.phase).toBe('final3')
+    expect(state.status).toBe('active')
     expect(state.lohId).toBeNull()
     expect(state.posWinnerId).toBeNull()
     expect(state.nomineeIds).toEqual([])

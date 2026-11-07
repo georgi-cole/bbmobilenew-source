@@ -8,7 +8,7 @@
  *   Act 2  'recap'       — SeasonRecapCinematic plays (movie-like, auto-advancing).
  *   Act 3  'revealVotes' — Return to tribunal; vote chips + counters animate in.
  */
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import type { Player } from '../../types'
 import useSound from '../../hooks/useSound'
@@ -26,6 +26,10 @@ import {
 import { finalizeGame, startWinnerCinematic } from '../../store/gameSlice'
 import { selectSettings } from '../../store/settingsSlice'
 import { setMusicScene } from '../../store/uiSlice'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
 import { tallyVotes } from '../../utils/juryUtils'
 import {
   resolveAvatarCandidates,
@@ -43,6 +47,7 @@ import SeasonRecapCinematic from '../SeasonRecapCinematic/SeasonRecapCinematic'
 import TribunalMemberStage from '../TribunalMemberStage/TribunalMemberStage'
 import { splitFinalePlayers } from './finaleEligibility'
 import { getTribunalMembers } from '../../rules/tribunalPolicy'
+import { recordGamePerformanceMarker } from '../../services/diagnostics/gamePerformanceDiagnostics'
 import {
   FIRST_CLUE_DELAY_MS,
   clueReadingHoldMs,
@@ -61,6 +66,7 @@ export default function FinalFaceoff() {
   const settings = useAppSelector(selectSettings)
   const publicOpinion = useAppSelector(selectPublicOpinion)
   const socialReality = useAppSelector((s) => s.social?.reality ?? SOCIAL_INITIAL_STATE.reality)
+  usePresentationOwner('season-finale', PRESENTATION_PRIORITY.finale, finale.isActive)
   const { play } = useSound()
 
   useEffect(() => {
@@ -82,7 +88,8 @@ export default function FinalFaceoff() {
   // 'recap'       → season recap cinematic
   // 'revealVotes' → vote chips + tally animate in
   type Phase = 'clues' | 'recap' | 'revealVotes'
-  const [phase, setPhase] = useState<Phase>('clues')
+  const [localPhase, setPhase] = useState<Phase>('clues')
+  const phase: Phase = finale.isComplete && localPhase === 'clues' ? 'revealVotes' : localPhase
   const [tribunalOpeningReady, setTribunalOpeningReady] = useState(false)
   const previousPhaseRef = useRef<Phase>('clues')
   const winnerPersistedRef = useRef(false)
@@ -105,13 +112,17 @@ export default function FinalFaceoff() {
     if (!winnerAlreadyMarked || !runnerUpAlreadyMarked) {
       dispatch(finalizeGame({ winnerId: finale.winnerId, runnerUpId: finale.runnerUpId }))
     }
-    dispatch(
-      startWinnerCinematic({
-        winnerId: finale.winnerId,
-        seed: game.seed,
-        publicFavoriteEnabled,
-      })
-    )
+    // A resumed run may already be in the winner presentation. Preserve its
+    // progress instead of restarting the cinematic after restoring the ballot.
+    if (game.seasonFinale?.winnerId !== finale.winnerId) {
+      dispatch(
+        startWinnerCinematic({
+          winnerId: finale.winnerId,
+          seed: game.seed,
+          publicFavoriteEnabled,
+        })
+      )
+    }
     dispatch(dismissFinale())
   }, [
     dispatch,
@@ -119,6 +130,7 @@ export default function FinalFaceoff() {
     finale.winnerId,
     game.players,
     game.seed,
+    game.seasonFinale?.winnerId,
     settings.sim.enableFavoritePlayer,
     settings.sim.enableTwists,
   ])
@@ -131,6 +143,7 @@ export default function FinalFaceoff() {
   const voteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const flashTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const handleRecapComplete = useCallback(() => {
+    recordGamePerformanceMarker('tribunal-recap-complete')
     setVoteVisible({})
     setFlashingJurorId(null)
     setPhase('revealVotes')
@@ -183,6 +196,7 @@ export default function FinalFaceoff() {
       const delay = VOTE_REVEAL_INITIAL_DELAY_MS + idx * VOTE_REVEAL_STAGGER_MS
       voteTimersRef.current[r.jurorId] = setTimeout(() => {
         delete voteTimersRef.current[r.jurorId]
+        recordGamePerformanceMarker('tribunal-vote-chip-shown', { jurorId: r.jurorId })
         setVoteVisible((prev) => ({ ...prev, [r.jurorId]: true }))
         play('ui:tribunal_vote_reveal')
         setFlashingJurorId(r.jurorId)
@@ -191,6 +205,9 @@ export default function FinalFaceoff() {
           setFlashingJurorId((cur) => (cur === r.jurorId ? null : cur))
         }, 800)
       }, delay)
+    })
+    recordGamePerformanceMarker('tribunal-vote-chips-scheduled', {
+      pendingTimers: Object.keys(voteTimersRef.current).length,
     })
   }, [phase, revealed, play])
 
@@ -248,12 +265,16 @@ export default function FinalFaceoff() {
   // ── ACT 1: Auto-advance juror clue reveals every 3 s ──────────────────
   // Pauses while waiting for a human juror to cast their vote.
   // Transitions to 'recap' once all jurors are revealed.
-  const humanIds = game.players.filter((p) => p.isUser).map((p) => p.id)
+  const humanIds = useMemo(
+    () => game.players.filter((player) => player.isUser).map((player) => player.id),
+    [game.players]
+  )
   useEffect(() => {
     if (phase !== 'clues' || finale.revealedCount !== 0 || tribunalOpeningReady) return
 
     const beginDeliberation = (event: Event) => {
       event.preventDefault()
+      recordGamePerformanceMarker('tribunal-opening-cue-received')
       setTribunalOpeningReady(true)
     }
 
@@ -274,8 +295,17 @@ export default function FinalFaceoff() {
         lastRevealedJurorId === PUBLIC_JUROR_ID
           ? PUBLIC_VOTE_RECAP_HOLD_MS
           : clueReadingHoldMs(finalPhrase)
-      const t = setTimeout(() => setPhase('recap'), recapDelayMs)
-      return () => clearTimeout(t)
+      recordGamePerformanceMarker('tribunal-recap-scheduled', { delayMs: recapDelayMs })
+      let fired = false
+      const t = setTimeout(() => {
+        fired = true
+        recordGamePerformanceMarker('tribunal-recap-timer-fired')
+        setPhase('recap')
+      }, recapDelayMs)
+      return () => {
+        clearTimeout(t)
+        if (!fired) recordGamePerformanceMarker('tribunal-recap-timer-cancelled')
+      }
     }
 
     // Pause auto-advance while human juror needs to vote
@@ -284,10 +314,27 @@ export default function FinalFaceoff() {
     const latestPhrase = revealed[revealed.length - 1]?.phrase ?? ''
     const holdMs =
       finale.revealedCount === 0 ? FIRST_CLUE_DELAY_MS : clueReadingHoldMs(latestPhrase)
+    recordGamePerformanceMarker('tribunal-clue-scheduled', {
+      delayMs: holdMs,
+      revealed: finale.revealedCount,
+      total: finale.revealOrder.length,
+    })
+    let fired = false
     const t = setTimeout(() => {
+      fired = true
+      recordGamePerformanceMarker('tribunal-clue-timer-fired', {
+        revealed: finale.revealedCount,
+      })
       dispatch(revealNextJuror({ humanPlayerIds: humanIds }))
     }, holdMs)
-    return () => clearTimeout(t)
+    return () => {
+      clearTimeout(t)
+      if (!fired) {
+        recordGamePerformanceMarker('tribunal-clue-timer-cancelled', {
+          revealed: finale.revealedCount,
+        })
+      }
+    }
   }, [
     phase,
     finale.isActive,
@@ -308,6 +355,27 @@ export default function FinalFaceoff() {
     }
   }
   const visibleVoteCount = Object.keys(visibleVotesMap).length
+
+  useEffect(() => {
+    recordGamePerformanceMarker('tribunal-stage', {
+      stage: phase,
+      openingReady: tribunalOpeningReady,
+      revealed: finale.revealedCount,
+      total: finale.revealOrder.length,
+      awaitingHuman: finale.awaitingHumanJurorId ?? '',
+      visibleVotes: visibleVoteCount,
+      pendingVoteTimers: Object.keys(voteTimersRef.current).length,
+      complete: finale.isComplete,
+    })
+  }, [
+    phase,
+    tribunalOpeningReady,
+    finale.revealedCount,
+    finale.revealOrder.length,
+    finale.awaitingHumanJurorId,
+    finale.isComplete,
+    visibleVoteCount,
+  ])
 
   // ── Auto-finalize once all vote chips have actually been shown ─────────
   // We deliberately defer this until the reveal animations have completed so
@@ -335,10 +403,19 @@ export default function FinalFaceoff() {
   useEffect(() => {
     if (phase === 'clues' || phase === 'recap') return
     if (finale.isComplete && finale.winnerId && finale.runnerUpId && !winnerPersistedRef.current) {
+      recordGamePerformanceMarker('tribunal-winner-handoff-scheduled', {
+        delayMs: WINNER_CINEMATIC_DELAY_MS,
+      })
+      let fired = false
       const t = setTimeout(() => {
+        fired = true
+        recordGamePerformanceMarker('tribunal-winner-handoff-timer-fired')
         persistWinnerToSeasonFinale()
       }, WINNER_CINEMATIC_DELAY_MS)
-      return () => clearTimeout(t)
+      return () => {
+        clearTimeout(t)
+        if (!fired) recordGamePerformanceMarker('tribunal-winner-handoff-timer-cancelled')
+      }
     }
   }, [phase, finale.isComplete, finale.winnerId, finale.runnerUpId, persistWinnerToSeasonFinale])
 
@@ -347,9 +424,12 @@ export default function FinalFaceoff() {
   // directly into the winner cinematic instead of leaving the player stuck.
   useEffect(() => {
     if (game.phase !== 'jury') return
-    if (game.seasonFinale != null) return
-    if (finale.isActive) return
     if (!finale.isComplete || !finale.winnerId || !finale.runnerUpId) return
+    if (game.seasonFinale?.winnerId === finale.winnerId) {
+      persistWinnerToSeasonFinale()
+      return
+    }
+    if (game.seasonFinale != null || finale.isActive) return
 
     persistWinnerToSeasonFinale()
   }, [
@@ -436,6 +516,7 @@ export default function FinalFaceoff() {
 
   function handleBeginTribunal() {
     if (phase !== 'clues' || finale.revealedCount !== 0) return
+    recordGamePerformanceMarker('tribunal-opening-button-pressed')
     setTribunalOpeningReady(true)
   }
 
@@ -445,6 +526,10 @@ export default function FinalFaceoff() {
   }
 
   function handleDismiss() {
+    if (finale.isComplete) {
+      persistWinnerToSeasonFinale()
+      return
+    }
     dispatch(setMusicScene('none'))
     dispatch(dismissFinale())
   }

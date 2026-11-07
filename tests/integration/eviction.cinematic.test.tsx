@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import { Provider } from 'react-redux'
+import { MotionConfig } from 'framer-motion'
 import { MemoryRouter } from 'react-router'
 import { configureStore } from '@reduxjs/toolkit'
 import gameReducer from '../../src/store/gameSlice'
@@ -259,7 +260,48 @@ describe('SpotlightEvictionOverlay – cinematic timing', () => {
         variant="return"
       />
     )
-    expect(screen.getByRole('dialog', { name: /Alice is returning to the house/i })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: /Alice is returning to the Hub/i })).toBeTruthy()
+  })
+
+  it('clears the return strike without replaying an announcement before roster handoff', async () => {
+    const onDone = vi.fn()
+    const evictee: Player = {
+      id: 'p2',
+      name: 'Alice',
+      avatar: 'assets/skins/Alice_avatar.webp',
+      status: 'jury',
+      isUser: false,
+    }
+    const view = renderOverlay(
+      <MotionConfig skipAnimations>
+        <SpotlightEvictionOverlay
+          evictee={evictee}
+          layoutId="avatar-tile-p2"
+          onDone={onDone}
+          variant="return"
+        />
+      </MotionConfig>
+    )
+    const strike = () => view.container.querySelector('img[src$="evictionmark.png"]')
+    const portrait = view.container.querySelector<HTMLImageElement>('.seo__photo')!
+    expect(strike()).not.toBeNull()
+    expect(portrait).toHaveAttribute('alt', 'Alice')
+
+    await act(async () => {
+      vi.advanceTimersByTime(650)
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(550)
+    })
+    expect(strike()).toBeNull()
+    expect(portrait).toBeInTheDocument()
+    expect(screen.queryByText(/LIVE|ELIMINATED|RETURNED/)).toBeNull()
+    expect(onDone).not.toHaveBeenCalled()
+
+    await act(async () => {
+      vi.advanceTimersByTime(RETURN_DONE_AT - 1200)
+    })
+    expect(onDone).toHaveBeenCalledTimes(1)
   })
 
   it('shows a season/day lower-third while keeping the eliminated stamp copy', async () => {
@@ -696,6 +738,8 @@ describe('GameScreen – Battle Back completion guards', () => {
     players[2].status = 'jury'
     const store = makeStore({
       phase: 'eviction_results',
+      // Older saves can omit this optional field; absence must not block prompts.
+      dayStartShock: undefined,
       twistActive: true,
       battleBack: {
         used: false,
@@ -750,6 +794,7 @@ describe('GameScreen – Battle Back completion guards', () => {
     players[2].status = 'jury'
     const store = makeStore({
       phase: 'eviction_results',
+      dayStartShock: null,
       twistActive: true,
       battleBack: {
         used: false,

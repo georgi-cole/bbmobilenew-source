@@ -247,10 +247,18 @@
   letter-spacing: 0.085em;
 }
 
-.big-eye-credits__card--closing {
-  margin-top: -380px;
+.big-eye-credits__card--closing-part-one,
+.big-eye-credits__card--closing-part-two {
+  margin-top: -1200px;
 }
 
-.big-eye-credits__card--closing .big-eye-credits__signal {
+.big-eye-credits__card--closing-part-one .big-eye-credits__line--body,
+.big-eye-credits__card--closing-part-two .big-eye-credits__line--body {
+  font-size: 25px;
+  letter-spacing: 0.025em;
+}
+
+.big-eye-credits__card--closing-part-one .big-eye-credits__signal,
+.big-eye-credits__card--closing-part-two .big-eye-credits__signal {
   opacity: 0.95;
 }

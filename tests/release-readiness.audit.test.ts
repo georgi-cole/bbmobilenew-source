@@ -442,8 +442,17 @@ describe('release readiness metadata', () => {
   })
 
   it('ships branded native art and bundled legal surfaces', () => {
-    expect(readFileSync(IOS_APP_ICON).equals(readFileSync(STORE_APP_ICON))).toBe(true)
-    expect(statSync(IOS_APP_ICON).size).toBeGreaterThan(500_000)
+    // The storefront retains the static eye brand while the native launcher
+    // starts the user's ordered story-icon sequence. Both must meet Apple's
+    // 1024px RGB PNG requirement; the artwork is intentionally different.
+    for (const iconFile of [IOS_APP_ICON, STORE_APP_ICON]) {
+      const icon = readFileSync(iconFile)
+      expect(icon.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+      expect(icon.readUInt32BE(16)).toBe(1024)
+      expect(icon.readUInt32BE(20)).toBe(1024)
+      expect(icon[25]).toBe(2)
+      expect(statSync(iconFile).size).toBeGreaterThan(500_000)
+    }
     expect(existsSync(LEGAL_SCREEN)).toBe(true)
     expect(existsSync(PUBLIC_PRIVACY_POLICY)).toBe(true)
     expect(existsSync(PUBLIC_TERMS)).toBe(true)

@@ -33,3 +33,11 @@ export const FEATURE_SPECTATOR_REACT: boolean =
  */
 export const FEATURE_LOCALIZATION_SETTINGS: boolean =
   (import.meta.env.VITE_FEATURE_LOCALIZATION_SETTINGS ?? 'false') === 'true'
+
+/**
+ * Pre-rendered Twin Shock background pilot. Keep opt-in until Android and iPhone
+ * playback plus post-cinematic gameplay pass the PP-13 device gate.
+ */
+export function isTwinShockVideoPilotEnabled(): boolean {
+  return (import.meta.env.VITE_FEATURE_TWIN_SHOCK_VIDEO_PILOT ?? 'false') === 'true'
+}

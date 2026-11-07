@@ -31,6 +31,14 @@ export interface PublicSaveContext {
   nominationCounts?: Record<string, number>
 }
 
+interface PublicSaveBallot {
+  nomineeIds: string[]
+  profiles: Record<string, PlayerPublicProfile>
+  context?: PublicSaveContext
+  /** Active partnerships compete as one audience ballot entry. */
+  nomineeGroups?: readonly (readonly string[])[]
+}
+
 /** Floating-point tolerance for score comparisons. */
 const FLOAT_EQUALITY_EPSILON = 0.001
 /** Store shares to four decimal places while allocating the remainder. */
@@ -270,6 +278,98 @@ function decisiveReason(
   return advantages.sort((left, right) => right[1] - left[1])[0]?.[0] ?? 'audience_mix'
 }
 
+function resolveGroupedPublicSave(params: PublicSaveBallot): PublicSaveResult {
+  const { nomineeIds, profiles } = params
+  const { mix, componentsByPlayerId } = buildComponents(params)
+  const scoreByPlayerId = buildPublicSaveScores(params)
+  const nomineeSet = new Set(nomineeIds)
+  const consumed = new Set<string>()
+  const units = nomineeIds.flatMap((nomineeId) => {
+    if (consumed.has(nomineeId)) return []
+    const group = params.nomineeGroups?.find((members) => members.includes(nomineeId))
+    const memberIds = [...new Set(group ?? [nomineeId])]
+      .filter((id) => nomineeSet.has(id) && !consumed.has(id))
+      .sort((left, right) => left.localeCompare(right))
+    memberIds.forEach((id) => consumed.add(id))
+    const memberProfiles = memberIds.flatMap((id) => (profiles[id] ? [profiles[id]] : []))
+    return [
+      {
+        id: memberIds[0],
+        memberIds,
+        score: memberIds.reduce((sum, id) => sum + scoreByPlayerId[id], 0),
+        hasProfile: memberProfiles.length > 0,
+        seasonAverage: memberProfiles.length
+          ? memberProfiles.reduce((sum, profile) => sum + seasonAverage(profile), 0) /
+            memberProfiles.length
+          : 0,
+        completedDirections: memberProfiles.reduce(
+          (sum, profile) => sum + profile.completedDirectionCount,
+          0
+        ),
+      },
+    ]
+  })
+  const scoreByUnitId = Object.fromEntries(units.map((unit) => [unit.id, unit.score]))
+  const shareByUnitId = normalisePublicSaveVoteShares(
+    units.map((unit) => unit.id),
+    scoreByUnitId
+  )
+  const voteShareByPlayerId: Record<string, number> = {}
+  for (const unit of units) {
+    // Portrait shares are a projection of the one pair ballot, never a second
+    // election. Allocate whole display units so the pair total stays exact.
+    const shareUnits = Math.round(shareByUnitId[unit.id] * 10_000)
+    const memberUnits = Math.floor(shareUnits / unit.memberIds.length)
+    const remainder = shareUnits % unit.memberIds.length
+    unit.memberIds.forEach((id, index) => {
+      voteShareByPlayerId[id] = (memberUnits + (index < remainder ? 1 : 0)) / 10_000
+    })
+  }
+  const ranked = [...units].sort((left, right) => {
+    const scoreDifference = right.score - left.score
+    if (Math.abs(scoreDifference) > FLOAT_EQUALITY_EPSILON) return scoreDifference
+    if (left.hasProfile !== right.hasProfile) return left.hasProfile ? -1 : 1
+    const averageDifference = right.seasonAverage - left.seasonAverage
+    if (Math.abs(averageDifference) > FLOAT_EQUALITY_EPSILON) return averageDifference
+    return right.completedDirections - left.completedDirections || left.id.localeCompare(right.id)
+  })
+  const winner = ranked[0]
+  const runnerUp = ranked[1]
+  const tieBreakUsed = Boolean(
+    runnerUp && Math.abs(winner.score - runnerUp.score) <= FLOAT_EQUALITY_EPSILON
+  )
+  const componentsByUnitId = Object.fromEntries(
+    units.map((unit) => [
+      unit.id,
+      unit.memberIds.reduce<PublicSaveComponents>(
+        (total, id) => {
+          const member = componentsByPlayerId[id]
+          return {
+            audienceMix: total.audienceMix + member.audienceMix,
+            momentum: total.momentum + member.momentum,
+            storyline: total.storyline + member.storyline,
+            underdog: total.underdog + member.underdog,
+            approval: total.approval + member.approval,
+            noise: total.noise + member.noise,
+          }
+        },
+        { audienceMix: 0, momentum: 0, storyline: 0, underdog: 0, approval: 0, noise: 0 }
+      ),
+    ])
+  )
+  const winningShare = shareByUnitId[winner.id]
+  return {
+    savedId: winner.id,
+    tieBreakUsed,
+    voteShareByPlayerId,
+    winningShare,
+    winningMargin: Math.max(0, winningShare - (runnerUp ? shareByUnitId[runnerUp.id] : 0)),
+    scoreByPlayerId,
+    decisiveReason: decisiveReason(winner.id, runnerUp?.id, componentsByUnitId, tieBreakUsed),
+    audienceMix: mix,
+  }
+}
+
 /**
  * Resolve a Public Save ballot.
  *
@@ -277,11 +377,10 @@ function decisiveReason(
  * The save uses a seeded audience mix, current momentum, visible story beats,
  * repeated-nomination underdog support and a small stable polling uncertainty.
  */
-export function resolvePublicSaveNominee(params: {
-  nomineeIds: string[]
-  profiles: Record<string, PlayerPublicProfile>
-  context?: PublicSaveContext
-}): PublicSaveResult {
+export function resolvePublicSaveNominee(params: PublicSaveBallot): PublicSaveResult {
+  if (params.nomineeIds.length > 0 && params.nomineeGroups?.length) {
+    return resolveGroupedPublicSave(params)
+  }
   const { nomineeIds, profiles } = params
   const { mix, componentsByPlayerId } = buildComponents(params)
   const scoreByPlayerId = buildPublicSaveScores(params)

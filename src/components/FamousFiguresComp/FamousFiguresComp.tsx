@@ -797,6 +797,14 @@ export default function FamousFiguresComp({
             <span className="ff-round-badge">Final Results</span>
           </div>
           <MinigameCompleteWrapper
+            result={{
+              rawValue: ff.playerScores[humanId ?? ''] ?? 0,
+              partial: false,
+              completion: {
+                rawResults: ff.playerScores,
+                authoritativeWinnerId: ff.winnerId,
+              },
+            }}
             onContinue={() => onComplete?.()}
             continueLabel="Continue ›"
             continueButtonClassName="ff-continue-btn"
@@ -825,6 +833,14 @@ export default function FamousFiguresComp({
     return (
       <div className="ff-container ff-container--complete" aria-live="assertive">
         <MinigameCompleteWrapper
+          result={{
+            rawValue: ff.playerScores[humanId ?? ''] ?? 0,
+            partial: false,
+            completion: {
+              rawResults: ff.playerScores,
+              authoritativeWinnerId: ff.winnerId,
+            },
+          }}
           onContinue={() => onComplete?.()}
           continueLabel="Continue ›"
           continueButtonClassName="ff-continue-btn"

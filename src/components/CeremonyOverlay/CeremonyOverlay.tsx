@@ -663,7 +663,12 @@ export default function CeremonyOverlay({
   ) : null
 
   return createPortal(
-    <div ref={surfaceRef} className="ceremony-overlay-surface" data-ceremony-overlay-surface="true">
+    <div
+      ref={surfaceRef}
+      className="ceremony-overlay-surface"
+      data-ceremony-overlay-surface="true"
+      data-presentation-root="ceremony"
+    >
       {contents}
     </div>,
     document.body

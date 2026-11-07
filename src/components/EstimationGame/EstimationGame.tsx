@@ -22,6 +22,7 @@
  *  - Winner = participant with highest final average accuracy
  */
 
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { completeMinigame } from '../../store/gameSlice'
@@ -486,6 +487,18 @@ export default function EstimationGame({
   )
 
   // ── Proceed after feedback ─────────────────────────────────────────────────
+
+  useCompetitionResultCheckpoint(
+    roundResults.length === ROUND_CONFIG.length && (phase === 'feedback' || phase === 'results')
+      ? {
+          rawValue: computeAverageAccuracy(roundResults.map((result) => result.score)),
+          partial: false,
+          completion: {
+            tiebreakerMs: roundResults.reduce((total, result) => total + result.responseMs, 0),
+          },
+        }
+      : null
+  )
 
   const handleNextRound = useCallback(() => {
     const nextIdx = roundIndex + 1

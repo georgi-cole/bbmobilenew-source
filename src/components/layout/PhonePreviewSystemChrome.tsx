@@ -73,14 +73,16 @@ function BatteryIcon() {
 export default function PhonePreviewSystemChrome() {
   const location = useLocation()
   const platform = getPreviewPlatform(location.search)
-  const hidesAndroidStatusBar = platform === 'android' && location.pathname === '/game'
+  const immersive = location.pathname === '/game'
 
   useEffect(() => {
     if (!platform) return undefined
 
     const root = document.documentElement
     const insets = PREVIEW_INSETS[platform]
-    const topInset = hidesAndroidStatusBar ? 0 : insets.top
+    // Hiding phone chrome does not remove the physical camera cutout.
+    const topInset = insets.top
+    const bottomInset = immersive && platform === 'android' ? 0 : insets.bottom
     const properties = [
       '--safe-area-inset-top',
       '--safe-area-inset-right',
@@ -102,10 +104,10 @@ export default function PhonePreviewSystemChrome() {
 
     root.style.setProperty('--safe-area-inset-top', `${topInset}px`)
     root.style.setProperty('--safe-area-inset-right', '0px')
-    root.style.setProperty('--safe-area-inset-bottom', `${insets.bottom}px`)
+    root.style.setProperty('--safe-area-inset-bottom', `${bottomInset}px`)
     root.style.setProperty('--safe-area-inset-left', '0px')
     root.style.setProperty('--app-safe-area-top-fallback', `${topInset}px`)
-    root.classList.toggle('is-native-status-bar-hidden', hidesAndroidStatusBar)
+    root.classList.toggle('is-native-status-bar-hidden', immersive)
     root.classList.add(...previewClasses)
 
     window.dispatchEvent(new Event('resize'))
@@ -120,13 +122,13 @@ export default function PhonePreviewSystemChrome() {
       root.classList.remove('is-native-status-bar-hidden')
       window.dispatchEvent(new Event('resize'))
     }
-  }, [hidesAndroidStatusBar, platform])
+  }, [immersive, platform])
 
   if (!platform) return null
 
   return (
     <>
-      {!hidesAndroidStatusBar && (
+      {!immersive && (
         <div
           className={`phone-preview-chrome phone-preview-chrome--${platform}`}
           aria-label={`${platform === 'iphone' ? 'iPhone' : 'Android'} simulated status bar`}
@@ -142,10 +144,12 @@ export default function PhonePreviewSystemChrome() {
           </div>
         </div>
       )}
-      <div
-        className={`phone-preview-chrome__home phone-preview-chrome__home--${platform}`}
-        aria-hidden="true"
-      />
+      {!immersive && (
+        <div
+          className={`phone-preview-chrome__home phone-preview-chrome__home--${platform}`}
+          aria-hidden="true"
+        />
+      )}
     </>
   )
 }

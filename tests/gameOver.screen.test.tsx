@@ -8,6 +8,8 @@ import gameReducer from '../src/store/gameSlice'
 import settingsReducer from '../src/store/settingsSlice'
 import profilesReducer from '../src/store/profilesSlice'
 import type { Player } from '../src/types'
+import { installSafetyFixture } from '../src/safety/__tests__/safetyFixture'
+import { clearRewardHandler, initAdBridge } from '../src/services/ads/adsService'
 
 class TestImage {
   onload: (() => void) | null = null
@@ -25,6 +27,9 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  clearRewardHandler('aftermath_unlock')
+  delete window.GameAds
+  delete window.onAdRewardGranted
   vi.unstubAllGlobals()
 })
 
@@ -68,6 +73,30 @@ function makeStore(gameOverrides: Record<string, unknown> = {}) {
 }
 
 describe('GameOver screen', () => {
+  it('keeps Aftermath locked when a native ad is dismissed, then allows a successful retry', async () => {
+    installSafetyFixture(28, ['ads'])
+    initAdBridge()
+    const bridge = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    window.GameAds = { managesAdLifecycle: true, showInterstitial: vi.fn(), showRewarded: bridge }
+    const store = makeStore()
+    render(
+      <Provider store={store}>
+        <MemoryRouter>
+          <GameOver />
+        </MemoryRouter>
+      </Provider>
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^aftermath$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^watch ad$/i }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /^watch ad$/i })).toBeEnabled())
+    expect(screen.getByText('Aftermath Special')).toBeInTheDocument()
+    expect(screen.queryByText('Late Edition')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^watch ad$/i }))
+    await waitFor(() => expect(screen.getByText('Late Edition')).toBeInTheDocument(), {
+      timeout: 6_000,
+    })
+    expect(bridge).toHaveBeenCalledTimes(2)
+  })
   it('archives the completed season and resets finale state before exiting home', async () => {
     const store = makeStore({
       week: 8,
@@ -111,7 +140,7 @@ describe('GameOver screen', () => {
     expect(store.getState().game.seasonFinale).toBeNull()
   })
 
-  it('resets the current game before starting a new season', async () => {
+  it('archives the completed game and opens contestant selection before starting another season', async () => {
     const store = makeStore({
       week: 7,
       phase: 'nominations',
@@ -121,7 +150,7 @@ describe('GameOver screen', () => {
       <Provider store={store}>
         <MemoryRouter initialEntries={['/gameover']}>
           <Routes>
-            <Route path="/" element={<div>Home route</div>} />
+            <Route path="/new-season" element={<div>Choose your contestant</div>} />
             <Route path="/gameover" element={<GameOver />} />
           </Routes>
         </MemoryRouter>
@@ -131,11 +160,10 @@ describe('GameOver screen', () => {
     fireEvent.click(screen.getByRole('button', { name: /^new season$/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('Home route')).toBeInTheDocument()
+      expect(screen.getByText('Choose your contestant')).toBeInTheDocument()
     })
 
-    expect(store.getState().game.week).toBe(1)
-    expect(store.getState().game.phase).toBe('season_start')
+    expect(store.getState().game.week).toBe(7)
 
     const archives = store.getState().game.seasonArchives ?? []
     expect(archives).toHaveLength(1)

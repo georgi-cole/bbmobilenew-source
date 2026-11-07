@@ -712,9 +712,23 @@
   font-size: 0.76rem;
 }
 
-.hoc-standing-row > strong:last-child {
-  color: var(--hoc-gold);
+.hoc-standing-scores {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   font-variant-numeric: tabular-nums;
+}
+
+.hoc-standing-scores strong {
+  color: var(--hoc-gold);
+  font-size: 1rem;
+}
+
+.hoc-standing-scores span {
+  color: var(--hoc-muted);
+  font-size: 0.68rem;
 }
 
 .hoc-complete-continue {

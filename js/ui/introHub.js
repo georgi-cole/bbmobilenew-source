@@ -435,6 +435,10 @@
   }
 
   function openFeedbackComposer() {
+    if (!global.__bigEyePlayerPrivacy?.canSendFeedback()) {
+      global.__bigEyePlayerPrivacy?.open()
+      return
+    }
     openHubDialog({
       title: 'Report a bug',
       icon: '💬',
@@ -614,6 +618,11 @@
         emailLink.dataset.feedbackAction = 'email'
         emailLink.href = '#'
         emailLink.addEventListener('click', function (event) {
+          if (!global.__bigEyePlayerPrivacy?.canSendFeedback()) {
+            event.preventDefault()
+            global.__bigEyePlayerPrivacy?.open()
+            return
+          }
           const report = reportOrExplain()
           if (!report) {
             event.preventDefault()

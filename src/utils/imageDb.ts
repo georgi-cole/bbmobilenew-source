@@ -4,34 +4,34 @@
 // Falls back gracefully when IndexedDB is unavailable (private browsing,
 // security restrictions, quota exceeded, etc.).
 
-const DB_NAME = 'bbmobilenew_db';
-const DB_VERSION = 1;
-const STORE_NAME = 'images';
+const DB_NAME = 'bbmobilenew_db'
+const DB_VERSION = 1
+const STORE_NAME = 'images'
 
-let dbPromise: Promise<IDBDatabase> | null = null;
+let dbPromise: Promise<IDBDatabase> | null = null
 
 function openDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
+  if (dbPromise) return dbPromise
   dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
     try {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      const req = indexedDB.open(DB_NAME, DB_VERSION)
       req.onupgradeneeded = (e) => {
-        const db = (e.target as IDBOpenDBRequest).result;
+        const db = (e.target as IDBOpenDBRequest).result
         if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME);
+          db.createObjectStore(STORE_NAME)
         }
-      };
-      req.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result);
+      }
+      req.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result)
       req.onerror = () => {
-        dbPromise = null;
-        reject(req.error);
-      };
+        dbPromise = null
+        reject(req.error)
+      }
     } catch (err) {
-      dbPromise = null;
-      reject(err);
+      dbPromise = null
+      reject(err)
     }
-  });
-  return dbPromise;
+  })
+  return dbPromise
 }
 
 /**
@@ -40,14 +40,14 @@ function openDb(): Promise<IDBDatabase> {
  * (Callers that do not need error handling can catch and ignore.)
  */
 export async function saveImage(id: string, blob: Blob): Promise<void> {
-  const db = await openDb();
+  const db = await openDb()
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    const req = store.put(blob, id);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    const store = tx.objectStore(STORE_NAME)
+    const req = store.put(blob, id)
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+  })
 }
 
 /**
@@ -56,16 +56,16 @@ export async function saveImage(id: string, blob: Blob): Promise<void> {
  */
 export async function loadImage(id: string): Promise<Blob | null> {
   try {
-    const db = await openDb();
+    const db = await openDb()
     return await new Promise<Blob | null>((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(id);
-      req.onsuccess = () => resolve((req.result as Blob | undefined) ?? null);
-      req.onerror = () => resolve(null);
-    });
+      const tx = db.transaction(STORE_NAME, 'readonly')
+      const store = tx.objectStore(STORE_NAME)
+      const req = store.get(id)
+      req.onsuccess = () => resolve((req.result as Blob | undefined) ?? null)
+      req.onerror = () => resolve(null)
+    })
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -75,16 +75,53 @@ export async function loadImage(id: string): Promise<Blob | null> {
  */
 export async function deleteImage(id: string): Promise<void> {
   try {
-    const db = await openDb();
+    const db = await openDb()
     await new Promise<void>((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      store.delete(id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    });
+      const tx = db.transaction(STORE_NAME, 'readwrite')
+      const store = tx.objectStore(STORE_NAME)
+      store.delete(id)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => resolve()
+    })
   } catch {
     // Silently ignore
+  }
+}
+
+/** Reclaim old profile photo revisions while retaining portraits referenced by runs. */
+export async function pruneProfilePhotos(
+  profileId: string,
+  keepIds: readonly string[],
+  legacyIds: readonly string[] = []
+): Promise<void> {
+  try {
+    const db = await openDb()
+    const keep = new Set(keepIds)
+    const legacy = new Set(legacyIds)
+    const revisionPrefix = `photo-${profileId}-`
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite')
+      const cursor = tx.objectStore(STORE_NAME).openKeyCursor()
+      cursor.onsuccess = () => {
+        const entry = cursor.result
+        if (!entry) return
+        const key = entry.key
+        if (
+          typeof key === 'string' &&
+          !keep.has(key) &&
+          ((key.startsWith(revisionPrefix) && /^\d+$/.test(key.slice(revisionPrefix.length))) ||
+            legacy.has(key))
+        ) {
+          tx.objectStore(STORE_NAME).delete(key)
+        }
+        entry.continue()
+      }
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => resolve()
+      tx.onabort = () => resolve()
+    })
+  } catch {
+    // A photo cleanup failure must never discard a saved contestant or profile.
   }
 }
 
@@ -93,12 +130,12 @@ export async function deleteImage(id: string): Promise<void> {
  * Returns null when the image is not found or on error.
  */
 export async function imageIdToDataUrl(id: string): Promise<string | null> {
-  const blob = await loadImage(id);
-  if (!blob) return null;
+  const blob = await loadImage(id)
+  if (!blob) return null
   return new Promise<string | null>((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(blob);
-  });
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = () => resolve(null)
+    reader.readAsDataURL(blob)
+  })
 }

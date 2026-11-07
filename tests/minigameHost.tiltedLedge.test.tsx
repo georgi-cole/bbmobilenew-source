@@ -11,6 +11,7 @@
  *  4. A warning is emitted if reactComponentKey is missing or not found in the map.
  */
 
+import { startHostedMinigame } from './helpers/startHostedMinigame';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import { Provider } from 'react-redux';
@@ -144,9 +145,7 @@ describe('MinigameHost — TiltedLedge routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('tilted-ledge-comp')).toBeTruthy();
     expect(screen.queryByTestId('legacy-wrapper')).toBeNull();
@@ -170,9 +169,7 @@ describe('MinigameHost — TiltedLedge routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     // Simulate TiltedLedge calling onFinish with 42 seconds
     await act(async () => {
@@ -207,9 +204,7 @@ describe('MinigameHost — TiltedLedge routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('tilted-ledge-comp-authoritative'));
@@ -235,9 +230,7 @@ describe('MinigameHost — TiltedLedge routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('tilted-ledge-comp'));
@@ -263,9 +256,7 @@ describe('MinigameHost — TiltedLedge routing', () => {
       </Provider>,
     );
 
-    await act(async () => {
-      vi.runAllTimers();
-    });
+    await startHostedMinigame();
 
     expect(screen.getByTestId('legacy-wrapper')).toBeTruthy();
     expect(screen.queryByTestId('tilted-ledge-comp')).toBeNull();
@@ -297,9 +288,7 @@ describe('MinigameHost — TiltedLedge routing', () => {
     // React 18 re-throws render errors from act(); catch and assert
     let caughtError: Error | undefined;
     try {
-      await act(async () => {
-        vi.runAllTimers();
-      });
+      await startHostedMinigame();
     } catch (err) {
       caughtError = err as Error;
     }

@@ -29,6 +29,69 @@ function profile(
 }
 
 describe('public save vote shares', () => {
+  it('saves the pair with the highest combined ballot rather than the strongest individual', () => {
+    const profiles = {
+      a1: profile('a1', 60, 0),
+      a2: profile('a2', 60, 100),
+      b1: profile('b1', 66),
+      b2: profile('b2', 66),
+      c1: profile('c1', 10),
+      c2: profile('c2', 10),
+    }
+    const params = {
+      nomineeIds: Object.keys(profiles),
+      profiles,
+      context: { seed: 1, week: 1 },
+    }
+    expect(resolvePublicSaveNominee(params).savedId).toBe('a1')
+    const groups = [
+      ['a1', 'a2'],
+      ['b1', 'b2'],
+      ['c1', 'c2'],
+    ]
+    const result = resolvePublicSaveNominee({ ...params, nomineeGroups: groups })
+    expect(result.savedId).toBe('b1')
+    const shares = groups.map((members) =>
+      members.reduce((sum, id) => sum + result.voteShareByPlayerId[id], 0)
+    )
+    expect(shares[1]).toBeGreaterThan(shares[0])
+    expect(result.winningShare).toBe(shares[1])
+    expect(shares.reduce((sum, share) => sum + share, 0)).toBeCloseTo(100, 4)
+    expect(
+      resolvePublicSaveNominee({
+        ...params,
+        nomineeIds: [...params.nomineeIds].reverse(),
+        nomineeGroups: groups.map((members) => [...members].reverse()).reverse(),
+      })
+    ).toEqual(result)
+  })
+
+  it('breaks a tied pair ballot using shared season history and then completed audience goals', () => {
+    const profiles = {
+      a1: { ...profile('a1', 60), seasonApprovals: [20, 60] },
+      a2: { ...profile('a2', 60), seasonApprovals: [20, 60] },
+      b1: { ...profile('b1', 60), seasonApprovals: [90, 60] },
+      b2: { ...profile('b2', 60), seasonApprovals: [90, 60] },
+    }
+    const ballot = {
+      nomineeIds: Object.keys(profiles),
+      profiles,
+      nomineeGroups: [
+        ['a1', 'a2'],
+        ['b1', 'b2'],
+      ],
+    }
+    const historyWinner = resolvePublicSaveNominee(ballot)
+    expect(historyWinner.savedId).toBe('b1')
+    expect(historyWinner.tieBreakUsed).toBe(true)
+    expect(historyWinner.decisiveReason).toBe('tiebreak')
+    for (const entry of Object.values(profiles)) entry.seasonApprovals = [60, 60]
+    profiles.a2.completedDirectionCount = 3
+    expect(resolvePublicSaveNominee(ballot).savedId).toBe('a1')
+    profiles.a2.completedDirectionCount = 0
+    expect(resolvePublicSaveNominee(ballot).savedId).toBe('a1')
+  })
+
   it('normalises arbitrary scores to exactly 100.0%', () => {
     const shares = normalisePublicSaveVoteShares(['a', 'b', 'c'], { a: 61, b: 47, c: 39 })
 

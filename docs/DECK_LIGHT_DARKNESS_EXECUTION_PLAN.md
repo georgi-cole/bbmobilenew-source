@@ -171,7 +171,7 @@ Apply the art direction to mode selection, choice screens, active board, tool us
 ### Technical presentation contract
 
 - Add an optional `premiumPresentation` prop to both games. Feed it from `MinigameHost`'s existing `usePremiumPresentation`, including the generic Darkness path through `GenericMinigameProps`.
-- Production follows the existing effective VIP selector. The standalone Premium Challenges entitlement is not itself a VIP visual entitlement. Do not add a new purchase, replacement game key, or permanent unlock mechanism.
+- Production follows Premium Challenges access: both the standalone Premium Challenges pack and VIP unlock the premium presentation. Do not add a new purchase, replacement game key, or permanent unlock mechanism.
 - In Lab, the existing `premiumPresentationOverride` and `vipPreview` remain authoritative. They must support explicit true and false regardless of the developer entitlement bypass.
 - Give every game surface, including both kinds of result screen, an explicit classic/premium marker. Scope the current Light priority CSS to classic presentation so it cannot override VIP; ensure the standard appearance remains intact.
 - Share game state and handlers between both skins. Do not create parallel engines, change RNG, or alter reveal durations, hit boxes, font legibility, or available information to make VIP feel special.

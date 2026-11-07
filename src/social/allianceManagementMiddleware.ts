@@ -9,6 +9,7 @@ import { commitRealityDomainUpdate, recordSocialAction } from './socialSlice'
 import { hasCanonicalLiveAlliance } from './relationshipSemantics'
 import { canSeeAllianceRequest } from './reality/allianceManagement'
 import type { RealityAllianceRequest } from './reality/types'
+import { measureGamePerformanceStep } from '../services/diagnostics/gamePerformanceDiagnostics'
 
 function allianceRequestUpdateNarrative(
   request: RealityAllianceRequest,
@@ -43,23 +44,31 @@ export const allianceManagementMiddleware: Middleware = (api) => (next) => (acti
   const type = (action as { type?: string }).type
   if (type === 'game/advance') {
     const state = api.getState() as RootState
-    const context = allianceManagementContext(state)
+    const context = measureGamePerformanceStep('alliance/context', () =>
+      allianceManagementContext(state)
+    )
     // The in-memory domain has already passed hydration normalization. A draft
     // keeps untouched Reality branches shared while these time-based systems
     // update requests and alliance autonomy, avoiding a full structured clone
     // and a second full normalization on every game advance.
-    const domainDraft = createDraft(state.social.reality)
-    const requestsChanged = advanceAllianceRequests(domainDraft, context)
-    const autonomyChanged = evaluateAllianceAutonomy(domainDraft, context)
+    const domainDraft = measureGamePerformanceStep('alliance/create-draft', () =>
+      createDraft(state.social.reality)
+    )
+    const requestsChanged = measureGamePerformanceStep('alliance/requests', () =>
+      advanceAllianceRequests(domainDraft, context)
+    )
+    const autonomyChanged = measureGamePerformanceStep('alliance/autonomy', () =>
+      evaluateAllianceAutonomy(domainDraft, context)
+    )
     if (requestsChanged || autonomyChanged) {
-      api.dispatch(
-        commitRealityDomainUpdate({
-          domain: finishDraft(domainDraft),
-          projectAllRelationships: true,
-        })
+      const domain = measureGamePerformanceStep('alliance/finish-draft', () =>
+        finishDraft(domainDraft)
       )
+      measureGamePerformanceStep('alliance/commit', () => {
+        api.dispatch(commitRealityDomainUpdate({ domain, projectAllRelationships: true }))
+      })
     } else {
-      finishDraft(domainDraft)
+      measureGamePerformanceStep('alliance/finish-draft', () => finishDraft(domainDraft))
     }
   }
   if (

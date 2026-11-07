@@ -44,6 +44,8 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
   await expect(page.getByRole('heading', { name: /Profiles/ })).toBeVisible()
 
   await page.getByRole('button', { name: /Create New Profile/ }).click()
+  await page.getByLabel('Player age').fill('28')
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   const nameField = page.getByPlaceholder('Enter display name')
   const fieldMetrics = await nameField.evaluate((element) => ({
     coarsePointer: window.matchMedia('(pointer: coarse)').matches,
@@ -51,7 +53,6 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
   }))
   if (fieldMetrics.coarsePointer) expect(fieldMetrics.fontSize).toBeGreaterThanOrEqual(16)
   await nameField.fill(playerName)
-  await page.getByLabel('Age').fill('28')
   await page.getByLabel('Sex (Reality storylines)').selectOption('Male')
 
   // Reproduce the persistent-container failure: the long picker is scrolled
@@ -102,6 +103,8 @@ async function startCampaignFromHome(page: Page, playerName: string): Promise<vo
   const playMenu = page.getByRole('navigation', { name: 'Play menu' })
   await expect(playMenu).toBeVisible()
   await playMenu.getByRole('button', { name: 'Classic', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
+  await page.getByRole('button', { name: 'Start Season', exact: true }).click()
   await assertCampaignReady(page, playerName)
 }
 

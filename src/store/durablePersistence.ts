@@ -104,6 +104,10 @@ class IndexedDbBackend implements DurableStorageBackend {
   readonly kind = 'indexeddb' as const
   private readonly dbPromise = openIndexedDb()
 
+  async ready(): Promise<void> {
+    await this.dbPromise
+  }
+
   async loadAll(): Promise<Map<string, string>> {
     const db = await this.dbPromise
     return new Promise((resolve, reject) => {
@@ -246,7 +250,9 @@ async function chooseBackend(): Promise<DurableStorageBackend> {
 
   try {
     const candidate = new IndexedDbBackend()
-    await candidate.loadAll()
+    // Opening the database establishes availability. Read the records once,
+    // during initialization, rather than scanning every saved profile twice.
+    await candidate.ready()
     return candidate
   } catch (error) {
     console.warn('[persistence] IndexedDB unavailable; using localStorage fallback.', error)

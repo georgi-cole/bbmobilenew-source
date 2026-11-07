@@ -4,6 +4,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
 import TimingBar from '../../../src/components/TimingBar/TimingBar'
+import { CompetitionResultContext } from '../../../src/minigames/competitionResultContext'
+import type { CompetitionResult } from '../../../src/minigames/competitionResult'
 import type { MinigameSession, Player } from '../../../src/types'
 
 vi.mock('../../../src/components/TimingBar/TimingBar.css', () => ({}))
@@ -26,7 +28,10 @@ vi.mock('../../../src/components/TimingBar/timingBarAi', () => ({
 
 function renderTimingBar(
   props: Partial<ComponentProps<typeof TimingBar>> = {},
-  storePlayers: Player[] = [{ id: 'p0', name: 'You', avatar: '🙂', status: 'active', isUser: true }]
+  storePlayers: Player[] = [
+    { id: 'p0', name: 'You', avatar: '🙂', status: 'active', isUser: true },
+  ],
+  checkpoint: ((result: CompetitionResult) => Promise<boolean>) | null = null
 ) {
   const store = configureStore({
     reducer: {
@@ -40,7 +45,9 @@ function renderTimingBar(
 
   return render(
     <Provider store={store}>
-      <TimingBar seed={42} onFinish={vi.fn()} {...props} />
+      <CompetitionResultContext.Provider value={checkpoint}>
+        <TimingBar seed={42} onFinish={vi.fn()} {...props} />
+      </CompetitionResultContext.Provider>
     </Provider>
   )
 }
@@ -150,6 +157,7 @@ describe('TimingBar', () => {
     vi.stubGlobal('cancelAnimationFrame', vi.fn())
 
     const onFinish = vi.fn()
+    const checkpoint = vi.fn(async () => true)
     const players: Player[] = [
       { id: 'human', name: 'You', avatar: '🙂', status: 'active', isUser: true },
       {
@@ -186,7 +194,8 @@ describe('TimingBar', () => {
         onFinish,
         participantIds: ['human', 'opponent'],
       },
-      players
+      players,
+      checkpoint
     )
 
     expect(screen.getByRole('heading', { name: 'Round 1' })).toBeInTheDocument()
@@ -209,11 +218,29 @@ describe('TimingBar', () => {
       await vi.advanceTimersByTimeAsync(1400)
     })
 
+    expect(onFinish).not.toHaveBeenCalled()
+    expect(checkpoint).toHaveBeenLastCalledWith({
+      rawValue: expect.any(Number),
+      partial: false,
+      completion: expect.objectContaining({
+        authoritativeWinnerId: 'opponent',
+        authoritativeLastPlaceId: 'human',
+        authoritativeRankedIds: ['opponent', 'human'],
+      }),
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Continue ▶' }))
 
     expect(onFinish).toHaveBeenCalledTimes(1)
-    expect(onFinish.mock.calls[0]?.[2]).toEqual({
+    expect(onFinish.mock.calls[0]?.[2]).toMatchObject({
       authoritativeWinnerId: 'opponent',
+      authoritativeLastPlaceId: 'human',
+      authoritativeRankedIds: ['opponent', 'human'],
+      rawResults: { human: expect.any(Number), opponent: expect.any(Number) },
+    })
+    expect(checkpoint).toHaveBeenLastCalledWith({
+      rawValue: onFinish.mock.calls[0][0],
+      partial: false,
+      completion: onFinish.mock.calls[0][2],
     })
   })
 })

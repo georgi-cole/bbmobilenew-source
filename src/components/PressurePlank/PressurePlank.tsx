@@ -17,6 +17,7 @@
  *  - The component derives lastPlaceId authoritatively and passes it to the store.
  */
 
+import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslate } from '../../i18n'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -471,6 +472,20 @@ export default function PressurePlank({
       rawResults,
     })
   }, [dispatch, results, session])
+
+  useCompetitionResultCheckpoint(
+    gamePhase === 'results'
+      ? {
+          rawValue: results.find((entry) => entry.isHuman)?.score ?? 0,
+          partial: false,
+          completion: {
+            authoritativeWinnerId: results[0]?.id,
+            authoritativeLastPlaceId: results.at(-1)?.id,
+            rawResults: Object.fromEntries(results.map((entry) => [entry.id, entry.score])),
+          },
+        }
+      : null
+  )
 
   // ── Derived UI values ──────────────────────────────────────────────────────
 

@@ -1,0 +1,1293 @@
+{
+  "ticket": "CS-01",
+  "status": "awaiting-user-visual-acceptance",
+  "exportScript": "export_pilot.mjs",
+  "runtimeIntegration": false,
+  "fitCoverage": {
+    "expected": 6,
+    "actual": 6,
+    "states": ["main", "grey", "sad"],
+    "characters": ["candidate-01", "candidate-03"]
+  },
+  "pixelAudit": [
+    {
+      "fitId": "candidate-01-main-foreground-background-reconstruction",
+      "changedPixelsAtAntialiasedEdge": 1227,
+      "changedPixelsOutsideEdge": 0,
+      "maxChannelDelta": 1,
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "fitId": "candidate-01-grey-foreground-background-reconstruction",
+      "changedPixelsAtAntialiasedEdge": 1007,
+      "changedPixelsOutsideEdge": 0,
+      "maxChannelDelta": 1,
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "fitId": "candidate-01-sad-foreground-background-reconstruction",
+      "changedPixelsAtAntialiasedEdge": 1239,
+      "changedPixelsOutsideEdge": 0,
+      "maxChannelDelta": 1,
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "fitId": "candidate-01-main-r1",
+      "changedPixelsInsideLayer": 1009,
+      "changedPixelsOutsideLayer": 0,
+      "width": 256,
+      "height": 256
+    },
+    {
+      "fitId": "candidate-01-grey-r1",
+      "changedPixelsInsideLayer": 1008,
+      "changedPixelsOutsideLayer": 0,
+      "width": 256,
+      "height": 256
+    },
+    {
+      "fitId": "candidate-01-sad-r1",
+      "changedPixelsInsideLayer": 981,
+      "changedPixelsOutsideLayer": 0,
+      "width": 256,
+      "height": 256
+    },
+    {
+      "fitId": "candidate-03-main-r1",
+      "changedPixelsInsideLayer": 1220,
+      "changedPixelsOutsideLayer": 0,
+      "width": 256,
+      "height": 256
+    },
+    {
+      "fitId": "candidate-03-grey-r1",
+      "changedPixelsInsideLayer": 1221,
+      "changedPixelsOutsideLayer": 0,
+      "width": 256,
+      "height": 256
+    },
+    {
+      "fitId": "candidate-03-sad-r1",
+      "changedPixelsInsideLayer": 1170,
+      "changedPixelsOutsideLayer": 0,
+      "width": 256,
+      "height": 256
+    },
+    {
+      "fitId": "candidate-01-main-r1-1254",
+      "changedPixelsInsideLayer": 22150,
+      "changedPixelsOutsideLayer": 0,
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "fitId": "candidate-01-grey-r1-1254",
+      "changedPixelsInsideLayer": 22134,
+      "changedPixelsOutsideLayer": 0,
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "fitId": "candidate-01-sad-r1-1254",
+      "changedPixelsInsideLayer": 21741,
+      "changedPixelsOutsideLayer": 0,
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "fitId": "candidate-03-main-r1-1254",
+      "changedPixelsInsideLayer": 26884,
+      "changedPixelsOutsideLayer": 0,
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "fitId": "candidate-03-grey-r1-1254",
+      "changedPixelsInsideLayer": 26956,
+      "changedPixelsOutsideLayer": 0,
+      "width": 1254,
+      "height": 1254
+    },
+    {
+      "fitId": "candidate-03-sad-r1-1254",
+      "changedPixelsInsideLayer": 26311,
+      "changedPixelsOutsideLayer": 0,
+      "width": 1254,
+      "height": 1254
+    }
+  ],
+  "freeProfileFramePortraitPixelDiff": 0,
+  "alphaSummary": [
+    {
+      "path": "sources/candidate-01/identity-01-main-background-extraction-mask-source.png",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 686901,
+      "partialAlphaPixels": 885118,
+      "opaquePixels": 497,
+      "alphaBounds": [0, 11, 1254, 1254]
+    },
+    {
+      "path": "layers/foregrounds/candidate-01-main-foreground.png",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 686901,
+      "partialAlphaPixels": 885118,
+      "opaquePixels": 497,
+      "alphaBounds": [0, 11, 1254, 1254]
+    },
+    {
+      "path": "layers/backgrounds/candidate-01-main-background-plate.png",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 497,
+      "partialAlphaPixels": 0,
+      "opaquePixels": 1572019,
+      "alphaBounds": [0, 0, 1254, 1254]
+    },
+    {
+      "path": "layers/foregrounds/candidate-01-grey-foreground.png",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 686901,
+      "partialAlphaPixels": 885118,
+      "opaquePixels": 497,
+      "alphaBounds": [0, 11, 1254, 1254]
+    },
+    {
+      "path": "layers/backgrounds/candidate-01-grey-background-plate.png",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 497,
+      "partialAlphaPixels": 0,
+      "opaquePixels": 1572019,
+      "alphaBounds": [0, 0, 1254, 1254]
+    },
+    {
+      "path": "layers/foregrounds/candidate-01-sad-foreground.png",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 686901,
+      "partialAlphaPixels": 885118,
+      "opaquePixels": 497,
+      "alphaBounds": [0, 11, 1254, 1254]
+    },
+    {
+      "path": "layers/backgrounds/candidate-01-sad-background-plate.png",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 497,
+      "partialAlphaPixels": 0,
+      "opaquePixels": 1572019,
+      "alphaBounds": [0, 0, 1254, 1254]
+    },
+    {
+      "path": "sources/candidate-03/identity-03-main-portrait-master.png",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 693559,
+      "partialAlphaPixels": 878686,
+      "opaquePixels": 271,
+      "alphaBounds": [0, 18, 1254, 1254]
+    },
+    {
+      "path": "sources/candidate-03/identity-03-main-portrait-master.png",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 693559,
+      "partialAlphaPixels": 878686,
+      "opaquePixels": 271,
+      "alphaBounds": [0, 18, 1254, 1254]
+    },
+    {
+      "path": "sources/candidate-03/identity-03-sad-portrait-master.png",
+      "width": 1254,
+      "height": 1254,
+      "transparentPixels": 693069,
+      "partialAlphaPixels": 879273,
+      "opaquePixels": 174,
+      "alphaBounds": [0, 19, 1254, 1254]
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-01-main-r1-hair-restore.png",
+      "width": 256,
+      "height": 256,
+      "transparentPixels": 65061,
+      "partialAlphaPixels": 149,
+      "opaquePixels": 326,
+      "alphaBounds": [99, 77, 175, 110]
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-01-grey-r1-hair-restore.png",
+      "width": 256,
+      "height": 256,
+      "transparentPixels": 65061,
+      "partialAlphaPixels": 149,
+      "opaquePixels": 326,
+      "alphaBounds": [99, 77, 175, 110]
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-01-sad-r1-hair-restore.png",
+      "width": 256,
+      "height": 256,
+      "transparentPixels": 65081,
+      "partialAlphaPixels": 150,
+      "opaquePixels": 305,
+      "alphaBounds": [99, 78, 174, 111]
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-03-main-r1-hair-restore.png",
+      "width": 256,
+      "height": 256,
+      "transparentPixels": 65341,
+      "partialAlphaPixels": 80,
+      "opaquePixels": 115,
+      "alphaBounds": [80, 73, 175, 88]
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-03-grey-r1-hair-restore.png",
+      "width": 256,
+      "height": 256,
+      "transparentPixels": 65341,
+      "partialAlphaPixels": 80,
+      "opaquePixels": 115,
+      "alphaBounds": [80, 73, 175, 88]
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-03-sad-r1-hair-restore.png",
+      "width": 256,
+      "height": 256,
+      "transparentPixels": 65343,
+      "partialAlphaPixels": 79,
+      "opaquePixels": 114,
+      "alphaBounds": [80, 74, 174, 90]
+    }
+  ],
+  "sourceLedger": [
+    {
+      "name": "nova-in-game-gold-treatment-reference",
+      "path": "../../../public/assets/skins/Nova_avatar.webp",
+      "bytes": 33718,
+      "sha256": "96433bef0a8e3a3a864f539aba60d3f5d3a1d2e144cf77bfdf3b6f7040aa3067",
+      "width": 512,
+      "height": 512,
+      "format": "webp",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "name": "ali-in-game-grey-treatment-reference",
+      "path": "../../../public/assets/skins/backup-grey-lux/Ali_avatar.webp",
+      "bytes": 125018,
+      "sha256": "26286d121e8b0177ef84e78c585f36e4d6fd9451abc986156988b0f9ccb545d6",
+      "width": 1100,
+      "height": 1100,
+      "format": "webp",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "name": "candidate-03-main-foreground",
+      "path": "sources/candidate-03/identity-03-main-portrait-master.png",
+      "bytes": 1947763,
+      "sha256": "f96a33883b3d92c7648f34201c379d56e25fa0855e1bfcbf7424941aaa3951f8",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "name": "candidate-03-sad-foreground",
+      "path": "sources/candidate-03/identity-03-sad-portrait-master.png",
+      "bytes": 1813325,
+      "sha256": "a9a6ccebbbf6078bd0fc253cabfab9dacdd7f8c4cc7722e06228796fcfb1b4c4",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "name": "candidate-03-original-body-identity-reference",
+      "path": "../look-pilot/masters/identity-03-everyday-body.png",
+      "bytes": 1782953,
+      "sha256": "76615a2300f1df5c989140241608de34204eedfa901241aeef1f20e835462d7c",
+      "width": 1024,
+      "height": 1536,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "name": "candidate-03-main-raw-iteration-01",
+      "path": "sources/candidate-03/iterations/candidate-03-main-raw-01.png",
+      "bytes": 1971271,
+      "sha256": "6b1436a42ece694a657fb9c26a5ee6355333385f5f48b6c1c52ea142dbc7943d",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "name": "candidate-03-main-edge-edit-iteration-02",
+      "path": "sources/candidate-03/iterations/candidate-03-main-edge-edit-02.png",
+      "bytes": 1875008,
+      "sha256": "50b3f6e1c294f592765f487c67f9b0a141419f2b4888e698d94c2ddacd4e63ee",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "name": "candidate-03-main-selected-iteration-03",
+      "path": "sources/candidate-03/iterations/candidate-03-main-reprompt-03.png",
+      "bytes": 1947763,
+      "sha256": "f96a33883b3d92c7648f34201c379d56e25fa0855e1bfcbf7424941aaa3951f8",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "name": "candidate-03-sad-edit-output",
+      "path": "sources/candidate-03/iterations/candidate-03-sad-identity-edit-01.png",
+      "bytes": 1813325,
+      "sha256": "a9a6ccebbbf6078bd0fc253cabfab9dacdd7f8c4cc7722e06228796fcfb1b4c4",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "name": "candidate-01-main-mask-source",
+      "path": "sources/candidate-01/identity-01-main-background-extraction-mask-source.png",
+      "bytes": 1864119,
+      "sha256": "f47d2e011bff752382981d0aa8943ddf966438ac7d8847e00a7f0fae4c7ba3fd",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "name": "candidate-01-main-master",
+      "path": "../cs-00/masters/identity-01-main-portrait-master.png",
+      "bytes": 2732943,
+      "sha256": "cc629f7fa87f012ff35375edd730fb2e71583136b53866f82d8dd27aa7bec1fc",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "name": "candidate-01-grey-master",
+      "path": "../cs-00/masters/identity-01-grey-portrait-master.png",
+      "bytes": 2250207,
+      "sha256": "30e2a1187dff0f3ac0b80c967b5b6368b99ce855243df093ab48c488441e9246",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "name": "candidate-01-sad-master",
+      "path": "../cs-00/masters/identity-01-sad-portrait-master.png",
+      "bytes": 2491290,
+      "sha256": "d7e75655a0cad7ba1d1ad35b1e9a29dbf12d079c5a5ad3cb30b22cacfe0349bf",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "name": "candidate-01-main-delivery",
+      "path": "../cs-00/exports/identity-01-r1/main.webp",
+      "bytes": 17538,
+      "sha256": "49904bd29b63fc0d641cd1557961cac79bcbec9bb677bf830535d464b7446422",
+      "width": 256,
+      "height": 256,
+      "format": "webp",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "name": "candidate-01-grey-delivery",
+      "path": "../cs-00/exports/identity-01-r1/grey.webp",
+      "bytes": 12238,
+      "sha256": "064ce770855e8b7f6202d8ed0f92e2b8bc33493da8b4252ab12509ee9090f7ef",
+      "width": 256,
+      "height": 256,
+      "format": "webp",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "name": "candidate-01-sad-delivery",
+      "path": "../cs-00/exports/identity-01-r1/sad.webp",
+      "bytes": 17188,
+      "sha256": "034b9bf8f9a2a28b9e54b61f4fe305ed397f7bed9be69e892962098515ca327b",
+      "width": 256,
+      "height": 256,
+      "format": "webp",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "name": "glasses-svg",
+      "path": "sources/eyewear/soft-arc-brass-r1.svg",
+      "bytes": 1842,
+      "sha256": "fab9e0c55edf91f2a2f1ab337c22640f7c66cbcc1860726d674ad888387731c7"
+    },
+    {
+      "name": "candidate-03-main-background-svg",
+      "path": "sources/backgrounds/candidate-03-main-gold-particles-r1.svg",
+      "bytes": 4674,
+      "sha256": "a67c6edbd4f8084174bb1154091a749ea8b993ca1ae95a786f7821acd9da40b4"
+    },
+    {
+      "name": "candidate-03-grey-background-svg",
+      "path": "sources/backgrounds/candidate-03-grey-soft-vignette-r1.svg",
+      "bytes": 795,
+      "sha256": "2665c83aa690c6ea95af87d2dfc2a5bd46aef4ecef5271edf6c08871d5814d67"
+    },
+    {
+      "name": "profile-frame-svg",
+      "path": "sources/eyewear/free-profile-frame-r1.svg",
+      "bytes": 720,
+      "sha256": "e379c7bd0d9e986ca3f267272da85e518b2fee281f6f30a80e6a8092b7fa50a1"
+    }
+  ],
+  "files": [
+    {
+      "path": "../../../public/assets/skins/Nova_avatar.webp",
+      "bytes": 33718,
+      "sha256": "96433bef0a8e3a3a864f539aba60d3f5d3a1d2e144cf77bfdf3b6f7040aa3067",
+      "width": 512,
+      "height": 512,
+      "format": "webp",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "../../../public/assets/skins/backup-grey-lux/Ali_avatar.webp",
+      "bytes": 125018,
+      "sha256": "26286d121e8b0177ef84e78c585f36e4d6fd9451abc986156988b0f9ccb545d6",
+      "width": 1100,
+      "height": 1100,
+      "format": "webp",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "sources/candidate-03/identity-03-main-portrait-master.png",
+      "bytes": 1947763,
+      "sha256": "f96a33883b3d92c7648f34201c379d56e25fa0855e1bfcbf7424941aaa3951f8",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "sources/candidate-03/identity-03-sad-portrait-master.png",
+      "bytes": 1813325,
+      "sha256": "a9a6ccebbbf6078bd0fc253cabfab9dacdd7f8c4cc7722e06228796fcfb1b4c4",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "../look-pilot/masters/identity-03-everyday-body.png",
+      "bytes": 1782953,
+      "sha256": "76615a2300f1df5c989140241608de34204eedfa901241aeef1f20e835462d7c",
+      "width": 1024,
+      "height": 1536,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "sources/candidate-03/iterations/candidate-03-main-raw-01.png",
+      "bytes": 1971271,
+      "sha256": "6b1436a42ece694a657fb9c26a5ee6355333385f5f48b6c1c52ea142dbc7943d",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "sources/candidate-03/iterations/candidate-03-main-edge-edit-02.png",
+      "bytes": 1875008,
+      "sha256": "50b3f6e1c294f592765f487c67f9b0a141419f2b4888e698d94c2ddacd4e63ee",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "sources/candidate-03/iterations/candidate-03-main-reprompt-03.png",
+      "bytes": 1947763,
+      "sha256": "f96a33883b3d92c7648f34201c379d56e25fa0855e1bfcbf7424941aaa3951f8",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "sources/candidate-03/iterations/candidate-03-sad-identity-edit-01.png",
+      "bytes": 1813325,
+      "sha256": "a9a6ccebbbf6078bd0fc253cabfab9dacdd7f8c4cc7722e06228796fcfb1b4c4",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "sources/candidate-01/identity-01-main-background-extraction-mask-source.png",
+      "bytes": 1864119,
+      "sha256": "f47d2e011bff752382981d0aa8943ddf966438ac7d8847e00a7f0fae4c7ba3fd",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "../cs-00/masters/identity-01-main-portrait-master.png",
+      "bytes": 2732943,
+      "sha256": "cc629f7fa87f012ff35375edd730fb2e71583136b53866f82d8dd27aa7bec1fc",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "../cs-00/masters/identity-01-grey-portrait-master.png",
+      "bytes": 2250207,
+      "sha256": "30e2a1187dff0f3ac0b80c967b5b6368b99ce855243df093ab48c488441e9246",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "../cs-00/masters/identity-01-sad-portrait-master.png",
+      "bytes": 2491290,
+      "sha256": "d7e75655a0cad7ba1d1ad35b1e9a29dbf12d079c5a5ad3cb30b22cacfe0349bf",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "../cs-00/exports/identity-01-r1/main.webp",
+      "bytes": 17538,
+      "sha256": "49904bd29b63fc0d641cd1557961cac79bcbec9bb677bf830535d464b7446422",
+      "width": 256,
+      "height": 256,
+      "format": "webp",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "../cs-00/exports/identity-01-r1/grey.webp",
+      "bytes": 12238,
+      "sha256": "064ce770855e8b7f6202d8ed0f92e2b8bc33493da8b4252ab12509ee9090f7ef",
+      "width": 256,
+      "height": 256,
+      "format": "webp",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "../cs-00/exports/identity-01-r1/sad.webp",
+      "bytes": 17188,
+      "sha256": "034b9bf8f9a2a28b9e54b61f4fe305ed397f7bed9be69e892962098515ca327b",
+      "width": 256,
+      "height": 256,
+      "format": "webp",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "sources/eyewear/soft-arc-brass-r1.svg",
+      "bytes": 1842,
+      "sha256": "fab9e0c55edf91f2a2f1ab337c22640f7c66cbcc1860726d674ad888387731c7"
+    },
+    {
+      "path": "sources/backgrounds/candidate-03-main-gold-particles-r1.svg",
+      "bytes": 4674,
+      "sha256": "a67c6edbd4f8084174bb1154091a749ea8b993ca1ae95a786f7821acd9da40b4"
+    },
+    {
+      "path": "sources/backgrounds/candidate-03-grey-soft-vignette-r1.svg",
+      "bytes": 795,
+      "sha256": "2665c83aa690c6ea95af87d2dfc2a5bd46aef4ecef5271edf6c08871d5814d67"
+    },
+    {
+      "path": "sources/eyewear/free-profile-frame-r1.svg",
+      "bytes": 720,
+      "sha256": "e379c7bd0d9e986ca3f267272da85e518b2fee281f6f30a80e6a8092b7fa50a1"
+    },
+    {
+      "path": "exports/identity-01/main-base.png",
+      "bytes": 119289,
+      "sha256": "b029156e61c0d70234ff6ae90a4f6120eb86a9be699f9f1bde69be247a6ac388",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "exports/identity-01/main-with-soft-arc-brass.png",
+      "bytes": 119732,
+      "sha256": "33bfe8f8043fb3c562df503cd0a71eb5047f4202d504b356d0bcad7c13cf442c",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-01-main-r1-hair-restore.png",
+      "bytes": 927,
+      "sha256": "684da2a2604ef525f4bbfd86fb623e5b7a1f148149744606e4ddba14cba34f61",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-01/grey-base.png",
+      "bytes": 93672,
+      "sha256": "514f82aac0e52240f4ee265bc0094a91ef13e37b330a8f2808d23577c1af2d53",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "exports/identity-01/grey-with-soft-arc-brass.png",
+      "bytes": 93081,
+      "sha256": "79c0faf0455554575fe8f3af68ed083071d681606b67aa02bdfdabb3920bb07f",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-01-grey-r1-hair-restore.png",
+      "bytes": 927,
+      "sha256": "684da2a2604ef525f4bbfd86fb623e5b7a1f148149744606e4ddba14cba34f61",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-01/sad-base.png",
+      "bytes": 117280,
+      "sha256": "40a29777c99b9b8802797d4026bc87c9b517b683dce0c36e1899db0e2683aff5",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "exports/identity-01/sad-with-soft-arc-brass.png",
+      "bytes": 118091,
+      "sha256": "e0be8c067a83a0274919b93aed335cd45803d88f1ad413b71f5f8cd3395d0805",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-01-sad-r1-hair-restore.png",
+      "bytes": 844,
+      "sha256": "910e99bf69a28f741d5dcb32caffd939d2930ea4d1a5764693cc2f6973d321b2",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/main-base.png",
+      "bytes": 109542,
+      "sha256": "b618bea2bb755f07ee18f35dcc6370e65c9ab00679efcfe472f2b8b739fffaed",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/main-with-soft-arc-brass.png",
+      "bytes": 108943,
+      "sha256": "738818f4e4af59c979a1d85e8dfaeb542789a84351b9f5226c9a513366573380",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-03-main-r1-hair-restore.png",
+      "bytes": 682,
+      "sha256": "df4c2c76d497e9ecb4ce4bea5bf1ba9dd1012587056844675a2836095fb93d48",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/grey-base.png",
+      "bytes": 135938,
+      "sha256": "0ccabb177e4878c14e9a85066300000eb1645052684502e6e69cc78c8ac37b49",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/grey-with-soft-arc-brass.png",
+      "bytes": 135396,
+      "sha256": "8221bc245cec73c5f97b8b4dbba36ed405d43666d9624b24b80ef8f9eb98c0ff",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-03-grey-r1-hair-restore.png",
+      "bytes": 682,
+      "sha256": "df4c2c76d497e9ecb4ce4bea5bf1ba9dd1012587056844675a2836095fb93d48",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/sad-base.png",
+      "bytes": 111072,
+      "sha256": "b1719987090af6ea6a1745ab06b70f6ebc5550c381a018e2352e61259c53b96b",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/sad-with-soft-arc-brass.png",
+      "bytes": 110540,
+      "sha256": "16f53250c205b270596dbd94f49974e2b55d327d399431b9e937b85f7e27c0f0",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/occlusion-masks/candidate-03-sad-r1-hair-restore.png",
+      "bytes": 690,
+      "sha256": "be96e3f60ce565e59a6feda63bdff9ab4184e920d0bca22c15f60a4ed4bdb2e0",
+      "width": 256,
+      "height": 256,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-01/full-resolution/main-base-1254.png",
+      "bytes": 2732943,
+      "sha256": "cc629f7fa87f012ff35375edd730fb2e71583136b53866f82d8dd27aa7bec1fc",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "exports/identity-01/full-resolution/main-with-soft-arc-brass-1254.png",
+      "bytes": 3516147,
+      "sha256": "fc1f932472df5f2e40272bfbe785e35d8b5e00b5a8feac65fe92bc477440e131",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-01-main-r1-base-crop.png",
+      "bytes": 493224,
+      "sha256": "887f39dbc753bc5da1bb161356773623d0714858841eca64cf6cda51b4115871",
+      "width": 570,
+      "height": 340,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-01-main-r1-with-eyewear-crop.png",
+      "bytes": 493405,
+      "sha256": "e448d6e20e8e5bc2c1c3c01faaefdd68a7bed67eaddca1022b9b7960be182264",
+      "width": 570,
+      "height": 340,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-01/full-resolution/grey-base-1254.png",
+      "bytes": 2250207,
+      "sha256": "30e2a1187dff0f3ac0b80c967b5b6368b99ce855243df093ab48c488441e9246",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "exports/identity-01/full-resolution/grey-with-soft-arc-brass-1254.png",
+      "bytes": 2979583,
+      "sha256": "96fc532b044ef5c27612d989fb3eea6f127ee58ed71bb32ff20149c4a0099da7",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-01-grey-r1-base-crop.png",
+      "bytes": 478575,
+      "sha256": "5d7cff3664ff6b95f81d643aaa9965c911e6f23a844e5b1a7c4fdff188f67ca9",
+      "width": 570,
+      "height": 340,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-01-grey-r1-with-eyewear-crop.png",
+      "bytes": 478704,
+      "sha256": "f8887f60e72cd9e42bf76e2514e23dad9b4a4a756ea216a9322ffbd4a2689986",
+      "width": 570,
+      "height": 340,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-01/full-resolution/sad-base-1254.png",
+      "bytes": 2491290,
+      "sha256": "d7e75655a0cad7ba1d1ad35b1e9a29dbf12d079c5a5ad3cb30b22cacfe0349bf",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "exports/identity-01/full-resolution/sad-with-soft-arc-brass-1254.png",
+      "bytes": 3309494,
+      "sha256": "26f30450bbf23e090eb7fde1fb894f4987d7f8a98504259c0e6cc4db88ece3c0",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-01-sad-r1-base-crop.png",
+      "bytes": 474708,
+      "sha256": "61dfb5ab36baaf112a0300157a2806d40296489e765b7666b8c69ea4c08d066c",
+      "width": 570,
+      "height": 340,
+      "format": "png",
+      "channels": 3,
+      "hasAlpha": false
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-01-sad-r1-with-eyewear-crop.png",
+      "bytes": 472375,
+      "sha256": "09bbf58e76232ed143c3e59fb8e64c0eaf0ef3eb5f8146a589f2e6e7e95d4a9f",
+      "width": 570,
+      "height": 340,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/full-resolution/main-base-1254.png",
+      "bytes": 2418832,
+      "sha256": "5e65c6d139cf9b797f9f9961cbf1b8f23de4dbfd6a7fb9c71cca12d93cc0ad2b",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/full-resolution/main-with-soft-arc-brass-1254.png",
+      "bytes": 2387180,
+      "sha256": "8ac4015dcff598c25f82a4285f86a64e8a5a9b2e706439630295b2864411d9df",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-03-main-r1-base-crop.png",
+      "bytes": 544231,
+      "sha256": "ff2dea7ae28cb05392a9cd11a132d8519e9836dbe094a5462436d137b60e4110",
+      "width": 694,
+      "height": 340,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-03-main-r1-with-eyewear-crop.png",
+      "bytes": 513799,
+      "sha256": "6da383ffa09c6162a311def775e66c225371eac6d9b853af4a7f93cb8e068813",
+      "width": 694,
+      "height": 340,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/full-resolution/grey-base-1254.png",
+      "bytes": 2637139,
+      "sha256": "4f38d5a94e0ccc52170123b5878217a70685f550cd89897d08c0297c6df471de",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/full-resolution/grey-with-soft-arc-brass-1254.png",
+      "bytes": 2605065,
+      "sha256": "ec9f6c5587c7d1feb55201be85d0f2d636da94c33c1f268d1e95a33f2b697d43",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-03-grey-r1-base-crop.png",
+      "bytes": 564054,
+      "sha256": "fff177a2cc3ed48b1be73eeef7aa8f6c0bbd7c44313dc582fad6dbf762e86dd5",
+      "width": 694,
+      "height": 340,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-03-grey-r1-with-eyewear-crop.png",
+      "bytes": 533470,
+      "sha256": "6630a7e6aa2ca1d9f6fd69db1524f3fb04c9dc5a9f46c24266070fa18838cfc3",
+      "width": 694,
+      "height": 340,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/full-resolution/sad-base-1254.png",
+      "bytes": 2360250,
+      "sha256": "25a2f48dd6732382b2be9edc4d62966192e153cfeb6948d9cf6de184d4b525bf",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "exports/identity-03/full-resolution/sad-with-soft-arc-brass-1254.png",
+      "bytes": 2330771,
+      "sha256": "405a018d8702f6076677d7a8bf2ae3edc52aea6e88b6fd8cf0081f684d92f709",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-03-sad-r1-base-crop.png",
+      "bytes": 534799,
+      "sha256": "0d2aa496cfbaae6cb80c72fe0c5b77cec1dd0a5f4ca36c11cc206b12b0d0c98f",
+      "width": 694,
+      "height": 340,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/full-resolution-details/candidate-03-sad-r1-with-eyewear-crop.png",
+      "bytes": 506422,
+      "sha256": "6044082dd8f01d952447c605343080cbf15f3ae4e62dabd894f0412458b4f3da",
+      "width": 694,
+      "height": 340,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/foregrounds/candidate-01-main-foreground.png",
+      "bytes": 3665391,
+      "sha256": "3510250fcba23ee7a6b3b10e770966dfd4855f36cc987cad316e26c55abe80b5",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/backgrounds/candidate-01-main-background-plate.png",
+      "bytes": 3540596,
+      "sha256": "33d6974f3091aad480649c8c436049628606126ec0e84b82402c7cbd609993bb",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/foregrounds/candidate-01-grey-foreground.png",
+      "bytes": 3074116,
+      "sha256": "2ae421d882f95a59cd4ca7476916b8ec848cce63383182728f996860546968ee",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/backgrounds/candidate-01-grey-background-plate.png",
+      "bytes": 3003043,
+      "sha256": "76f372153fa0577606e0fbb11bd1e2a37ecc426b284e4fa79525fe7ad68dacb6",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/foregrounds/candidate-01-sad-foreground.png",
+      "bytes": 3451373,
+      "sha256": "20c0311a00b065d88ef5d9bf07db68d64d1fa3a995aeae48395a202f218fa1b7",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/backgrounds/candidate-01-sad-background-plate.png",
+      "bytes": 3332946,
+      "sha256": "df93b174c37ad67100da613e9e05eb792acb4acfc3e08e8f514e856003294d4a",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/backgrounds/candidate-03-main-background.png",
+      "bytes": 92472,
+      "sha256": "3bf7bc35cb48b36a4044251fd3b236af4a940409a1ccf995b214c673e0b27d3a",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/backgrounds/candidate-03-grey-background.png",
+      "bytes": 411895,
+      "sha256": "863b39c3f3c33504638101ffc784a553cea644b16095a241d621e36ad878c9be",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "layers/backgrounds/candidate-03-sad-background.png",
+      "bytes": 92472,
+      "sha256": "3bf7bc35cb48b36a4044251fd3b236af4a940409a1ccf995b214c673e0b27d3a",
+      "width": 1254,
+      "height": 1254,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/six-fits-base-vs-composed.png",
+      "bytes": 774674,
+      "sha256": "7284ac16e6a75137935376e70b561e96bb71c977acf87a0f778c29e79545dbff",
+      "width": 512,
+      "height": 1680,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/six-composed-portraits.png",
+      "bytes": 686650,
+      "sha256": "ea6f5ce12d45f8fc4c1ba6271ce71d3d2b59a3d74cad75e974a0e7fe0691a995",
+      "width": 768,
+      "height": 560,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/candidate-03-main-vs-nova-reference-256.png",
+      "bytes": 228354,
+      "sha256": "7cc063fad72b8a63d854e60ef02da717aee19835e1ec2aa8fb1e9ebd0d72fa32",
+      "width": 512,
+      "height": 280,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/candidate-03-grey-vs-ali-reference-256.png",
+      "bytes": 266608,
+      "sha256": "cb08997496cd48661fd3b20375fc8f7a5542b31c94557e9aaaf80e67f34c5b0e",
+      "width": 512,
+      "height": 280,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/six-foregrounds-dark-light-saturated.png",
+      "bytes": 1773288,
+      "sha256": "67fc198f18325c436504f83911961573ee1fab5a7d4bac4b7bb68472898f1272",
+      "width": 768,
+      "height": 1536,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/free-profile-frame-container-preview.png",
+      "bytes": 116301,
+      "sha256": "d1fdd6fd7daea11ed0e8710a002e6adbe78e520c291eb0791469d5038f6206de",
+      "width": 336,
+      "height": 336,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/six-hair-ear-occlusion-masks.png",
+      "bytes": 694973,
+      "sha256": "0c8e25350bfda9521729bfd18e147d2521df83b60df341e2b62b2775f4371f51",
+      "width": 768,
+      "height": 560,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/full-resolution-temple-hair-review.png",
+      "bytes": 3665628,
+      "sha256": "7aa9244b682f837c0d1fa62213c10e0d030f0057ce5099d73279d57ca138593a",
+      "width": 1388,
+      "height": 2184,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "fit-records.json",
+      "bytes": 10306,
+      "sha256": "afc093ca0ece116cfa20ce155e7794c28071260eb111ea91f61bb3da1f77720f"
+    },
+    {
+      "path": "evidence/crops/circular-32px-six-fits.png",
+      "bytes": 18723,
+      "sha256": "23cecca44b6cdb9b31a2718aca559a11dc124cde1aa0528b1f2f35a35ec0ce70",
+      "width": 174,
+      "height": 128,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/crops/circular-48px-six-fits.png",
+      "bytes": 35142,
+      "sha256": "b7cd347e962f9d09bc3daf8bdad5fd9198a4f7f65373225419f167026a416ee7",
+      "width": 222,
+      "height": 160,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/crops/circular-64px-six-fits.png",
+      "bytes": 56098,
+      "sha256": "23fccf3243284b8de42abd9853d6dffff7c56d14628ae60acd711f0862905398",
+      "width": 270,
+      "height": 192,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    },
+    {
+      "path": "evidence/crops/circular-72px-six-fits.png",
+      "bytes": 68765,
+      "sha256": "b6fa452a18e35471fa5030c4b0432265c1bf4e094ce56bc9718779bfcd811e99",
+      "width": 294,
+      "height": 208,
+      "format": "png",
+      "channels": 4,
+      "hasAlpha": true
+    }
+  ],
+  "toolVersions": {
+    "node": "v26.3.0",
+    "sharp": "0.35.5",
+    "libvips": "8.18.7"
+  }
+}

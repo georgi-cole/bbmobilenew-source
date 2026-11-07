@@ -350,6 +350,7 @@ export default function GameControlDock({
         <button
           className={`dock-hit-area hit-play dock-hit-area--play${primaryPulse ? ' dock-hit-area--pulse dock-node--pulse' : ''}`}
           type="button"
+          data-testid="game-primary-action"
           aria-label={primaryLabel}
           disabled={effectivePrimaryDisabled}
           onClick={effectivePrimaryDisabled ? undefined : handlePrimaryAction}

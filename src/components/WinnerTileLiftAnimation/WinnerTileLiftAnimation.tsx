@@ -7,8 +7,13 @@ import {
   useState,
   type CSSProperties,
 } from 'react'
+import { useReducedMotion } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import type { CeremonyTile } from '../CeremonyOverlay/CeremonyOverlay'
+import {
+  PRESENTATION_PRIORITY,
+  usePresentationOwner,
+} from '../../services/presentation/presentationOwnership'
 import rosterStyles from '../HouseguestGrid/HouseguestGrid.module.css'
 import './WinnerTileLiftAnimation.css'
 
@@ -95,9 +100,6 @@ function hideLiftedSource(element: HTMLElement) {
   element.style.setProperty('clip-path', 'inset(50%)', 'important')
   element.style.setProperty('-webkit-clip-path', 'inset(50%)', 'important')
   element.style.setProperty('pointer-events', 'none', 'important')
-  // Force the native compositor to observe the paint suppression before the
-  // fixed snapshot starts its first frame.
-  element.getBoundingClientRect()
 }
 
 function restoreLiftedSourceStyles(element: HTMLElement, styles: LiftedSourceStyles) {
@@ -182,6 +184,15 @@ function rectStyle(rect: DOMRect): CSSProperties {
   }
 }
 
+function transformBetweenRects(source: DOMRect, destination: DOMRect): string {
+  if (source.width <= 0 || source.height <= 0) return 'none'
+  const translateX = destination.left - source.left
+  const translateY = destination.top - source.top
+  const scaleX = destination.width / source.width
+  const scaleY = destination.height / source.height
+  return `translate3d(${translateX}px, ${translateY}px, 0) scale(${scaleX}, ${scaleY})`
+}
+
 export default function WinnerTileLiftAnimation({
   targetIds,
   tiles,
@@ -192,6 +203,11 @@ export default function WinnerTileLiftAnimation({
   resolveTarget,
   onDone,
 }: WinnerTileLiftAnimationProps) {
+  const prefersReducedMotion = useReducedMotion() ?? false
+  const { isOwner, hasOwner } = usePresentationOwner(
+    'winner-award',
+    PRESENTATION_PRIORITY.winnerAward
+  )
   const [targets, setTargets] = useState<LiftTarget[]>([])
   const [phase, setPhase] = useState<LiftPhase>('captured')
   const targetsRef = useRef<LiftTarget[]>([])
@@ -212,13 +228,22 @@ export default function WinnerTileLiftAnimation({
     onDone()
   }, [onDone, restoreOriginals])
 
+  useEffect(() => {
+    if (hasOwner && !isOwner) finish()
+  }, [finish, hasOwner, isOwner])
+
   useLayoutEffect(() => {
+    if (!isOwner) return undefined
     let frame = 0
     let raf = 0
     let cancelled = false
 
     const capture = () => {
       if (cancelled) return
+      if (prefersReducedMotion || document.body.classList.contains('no-animations')) {
+        finish()
+        return
+      }
       const elements = targetIds.map((targetId) => resolveTarget(targetId))
       if (elements.every(isMeasurable)) {
         const currentRects = elements.map((element) => element.getBoundingClientRect())
@@ -238,6 +263,10 @@ export default function WinnerTileLiftAnimation({
             compact: Boolean(source.closest(`.${rosterStyles.compact}`)),
           }
         })
+        // Batch source paint suppression and force at most one style/layout
+        // flush after all reads. Repeated per-tile reads here caused N flushes.
+        captured.forEach(({ source }) => hideLiftedSource(source))
+        void document.documentElement.offsetHeight
         targetsRef.current = captured
         setTargets(captured)
         return
@@ -257,10 +286,10 @@ export default function WinnerTileLiftAnimation({
       cancelAnimationFrame(raf)
       restoreOriginals()
     }
-  }, [finish, resolveTarget, restoreOriginals, targetIds, tiles])
+  }, [finish, isOwner, prefersReducedMotion, resolveTarget, restoreOriginals, targetIds, tiles])
 
   useEffect(() => {
-    if (targets.length === 0) return
+    if (!isOwner || targets.length === 0) return
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     let secondFrame = 0
@@ -291,11 +320,11 @@ export default function WinnerTileLiftAnimation({
       window.clearTimeout(returnTimer)
       window.clearTimeout(doneTimer)
     }
-  }, [durationMs, finish, targets.length])
+  }, [durationMs, finish, isOwner, targets.length])
 
   const stageRects = useMemo(() => calculateStageRects(targets), [targets])
 
-  if (targets.length === 0 || typeof document === 'undefined') return null
+  if (!isOwner || targets.length === 0 || typeof document === 'undefined') return null
 
   return createPortal(
     <div
@@ -304,6 +333,7 @@ export default function WinnerTileLiftAnimation({
       aria-live="assertive"
       aria-label={ariaLabel ?? caption}
       data-winner-tile-lift-phase={phase}
+      data-presentation-root="winner-tile-lift"
     >
       <div className="winner-tile-lift__backdrop" aria-hidden="true" />
       {targets.map((target, index) => {
@@ -313,13 +343,21 @@ export default function WinnerTileLiftAnimation({
             : phase === 'returning'
               ? target.returnRect
               : stageRects[index]
+        const tileStyle: CSSProperties = {
+          ...rectStyle(target.sourceRect),
+          transform: transformBetweenRects(target.sourceRect, destination),
+        }
         const badgeActive = phase === 'awarded' || phase === 'returning'
         return (
           <div
             key={target.id}
             className="winner-tile-lift__tile"
-            style={rectStyle(destination)}
+            style={tileStyle}
             data-winner-tile-id={target.id}
+            data-winner-target-left={destination.left}
+            data-winner-target-top={destination.top}
+            data-winner-target-width={destination.width}
+            data-winner-target-height={destination.height}
           >
             <FrozenTile snapshot={target.snapshot} />
             <div className="winner-tile-lift__glow" aria-hidden="true" />

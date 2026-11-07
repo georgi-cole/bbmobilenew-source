@@ -9,6 +9,7 @@ type RgbSplitGlitchTextProps = {
   enterFrame: number;
   exitFrame: number;
   seed: number;
+  cameraFly?: boolean;
   style?: CSSProperties;
 };
 
@@ -19,16 +20,30 @@ export const RgbSplitGlitchText = ({
   enterFrame,
   exitFrame,
   seed,
+  cameraFly = false,
   style,
 }: RgbSplitGlitchTextProps) => {
-  const glitch = getRgbSplitGlitchState({ frame, enterFrame, exitFrame, seed });
+  const glitch = getRgbSplitGlitchState({
+    frame,
+    enterFrame,
+    exitFrame,
+    seed,
+    exitDurationFrames: cameraFly ? 36 : undefined,
+  });
   const direction = seed % 2 === 0 ? 1 : -1;
   const opacity = glitch.amount * (0.58 + glitch.burst * 0.32);
   const shadowOpacity = glitch.amount * 0.72;
   const displacement = glitch.displacement * direction;
-
+  const cameraProgress = cameraFly ? glitch.exitProgress : 0;
   const rootStyle = {
     ...style,
+    ...(cameraFly
+      ? {
+          opacity: typeof style?.opacity === 'number' ? style.opacity * (1 - cameraProgress) : style?.opacity,
+          filter: `${style?.filter ?? ''} blur(${cameraProgress * 3.5}px)`,
+          transform: `${style?.transform ?? ''} scale(${1 + cameraProgress * 1.9})`,
+        }
+      : {}),
     '--credit-glitch-opacity': opacity,
     '--credit-glitch-shadow-opacity': shadowOpacity,
     '--credit-glitch-base-x': `${glitch.amount * glitch.burst * direction * 1.3}px`,

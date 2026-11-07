@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Capitalization from '../../../src/components/Capitalization/Capitalization';
+import { CompetitionResultContext } from '../../../src/minigames/competitionResultContext';
 
 const participants = [
   { id: 'human', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
@@ -57,9 +58,14 @@ describe('Capitalization component', () => {
     vi.restoreAllMocks();
   });
 
-  it('plays through nine skipped questions and reports an authoritative winner', () => {
+  it('saves an eliminated player’s final result after all nine questions before Continue', () => {
     const onFinish = vi.fn();
-    render(<Capitalization seed={44} participants={participants} onFinish={onFinish} />);
+    const checkpoint = vi.fn(async () => true);
+    render(
+      <CompetitionResultContext.Provider value={checkpoint}>
+        <Capitalization seed={44} participants={participants} onFinish={onFinish} />
+      </CompetitionResultContext.Provider>,
+    );
 
     expect(screen.getByText('Globe spin')).toBeInTheDocument();
 
@@ -68,8 +74,14 @@ describe('Capitalization component', () => {
         vi.advanceTimersByTime(2700);
       });
 
-      expect(screen.getByLabelText('Capital city answer')).not.toBeDisabled();
-      fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+      const answer = screen.queryByLabelText('Capital city answer');
+      if (answer) {
+        expect(answer).not.toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+      } else {
+        // An eliminated human watches the remaining AI questions finish.
+        act(() => vi.advanceTimersByTime(650));
+      }
       expect(screen.getByText(`Question ${question} complete`)).toBeInTheDocument();
       expect(screen.queryByLabelText('Live standings')).not.toBeInTheDocument();
 
@@ -82,6 +94,13 @@ describe('Capitalization component', () => {
         expect(screen.queryByLabelText('Round standings')).not.toBeInTheDocument();
       }
 
+      if (question < 9) {
+        expect(checkpoint).not.toHaveBeenCalled();
+      } else {
+        expect(checkpoint).toHaveBeenCalled();
+        expect(onFinish).not.toHaveBeenCalled();
+      }
+
       fireEvent.click(
         screen.getByRole('button', {
           name: question === 9 ? 'Crown LOH' : 'Continue',
@@ -92,7 +111,14 @@ describe('Capitalization component', () => {
     expect(onFinish).toHaveBeenCalledTimes(1);
     expect(onFinish.mock.calls[0][2]).toMatchObject({
       authoritativeWinnerId: expect.any(String),
+      authoritativeLastPlaceId: 'human',
+      authoritativeRankedIds: expect.arrayContaining(participants.map((player) => player.id)),
       rawResults: expect.any(Object),
+    });
+    expect(checkpoint).toHaveBeenLastCalledWith({
+      rawValue: onFinish.mock.calls[0][0],
+      partial: false,
+      completion: onFinish.mock.calls[0][2],
     });
   });
 
@@ -154,7 +180,7 @@ describe('Capitalization component', () => {
         expect(
           screen.getByText(/all contestants remain in play/i),
         ).toBeInTheDocument();
-        expect(screen.getAllByText('In play', { exact: false })).toHaveLength(3);
+        expect(screen.getAllByText(/^In play ·/)).toHaveLength(3);
         expect(screen.queryByText(/Out Q\d+/)).not.toBeInTheDocument();
         expect(screen.queryByText(/^Eliminated$/)).not.toBeInTheDocument();
       }

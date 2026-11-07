@@ -1,0 +1,220 @@
+{
+  "ticket": "CS-00",
+  "pack": "candidate-01-r1",
+  "generationDate": "2026-10-25",
+  "tool": "built-in Codex image generation",
+  "toolModelVersion": "not exposed in returned metadata",
+  "referencePolicy": "Only candidate-01 own sources were used for identity continuity. No existing cast image was supplied as a generation reference. Existing cast was consulted only for style/framing and side-by-side review.",
+  "reusedSources": [
+    {
+      "role": "casual",
+      "source": {
+        "path": "docs/character-customization/look-pilot/masters/identity-01-everyday-body.png",
+        "bytes": 1838878,
+        "sha256": "802a380b42ac4286f5e85f01dabf6917466bef508a40ec32d079589bb2aa0bf4"
+      },
+      "retainedCopy": {
+        "path": "masters/identity-01-casual-body-master.png",
+        "bytes": 1838878,
+        "sha256": "802a380b42ac4286f5e85f01dabf6917466bef508a40ec32d079589bb2aa0bf4"
+      },
+      "byteIdentical": true
+    },
+    {
+      "role": "main",
+      "source": {
+        "path": "docs/character-customization/look-pilot/masters/identity-01-everyday-portrait.png",
+        "bytes": 2732943,
+        "sha256": "cc629f7fa87f012ff35375edd730fb2e71583136b53866f82d8dd27aa7bec1fc"
+      },
+      "retainedCopy": {
+        "path": "masters/identity-01-main-portrait-master.png",
+        "bytes": 2732943,
+        "sha256": "cc629f7fa87f012ff35375edd730fb2e71583136b53866f82d8dd27aa7bec1fc"
+      },
+      "byteIdentical": true
+    }
+  ],
+  "generatedOutputs": [
+    {
+      "role": "formal",
+      "identityReference": "candidate-01 casual body only",
+      "rawOutput": {
+        "path": "C:/Users/georg/.codex/generated_images/01a17506-4b0b-7430-8437-636eec5e359b/exec-f457b474-223d-4945-9062-9812cf306bbc.png",
+        "bytes": 1438736,
+        "sha256": "4200509b964f6131ed86085dc2befdbadd4504b0a53d339899a8c4397f1a6d4d"
+      },
+      "retainedMaster": {
+        "path": "masters/identity-01-formal-body-master.png",
+        "bytes": 1438736,
+        "sha256": "4200509b964f6131ed86085dc2befdbadd4504b0a53d339899a8c4397f1a6d4d"
+      },
+      "byteIdentical": true
+    },
+    {
+      "role": "grey",
+      "identityReference": "candidate-01 main portrait only",
+      "rawOutput": {
+        "path": "C:/Users/georg/.codex/generated_images/01a17506-4b0b-7430-8437-636eec5e359b/exec-c3f61c7a-cf44-4f04-9c7b-966e27cf6d8c.png",
+        "bytes": 2250207,
+        "sha256": "30e2a1187dff0f3ac0b80c967b5b6368b99ce855243df093ab48c488441e9246"
+      },
+      "retainedMaster": {
+        "path": "masters/identity-01-grey-portrait-master.png",
+        "bytes": 2250207,
+        "sha256": "30e2a1187dff0f3ac0b80c967b5b6368b99ce855243df093ab48c488441e9246"
+      },
+      "byteIdentical": true
+    },
+    {
+      "role": "sad",
+      "identityReference": "candidate-01 main portrait only",
+      "rawOutput": {
+        "path": "C:/Users/georg/.codex/generated_images/01a17506-4b0b-7430-8437-636eec5e359b/exec-84b1b91c-eff9-4466-9019-b14710c6c144.png",
+        "bytes": 2491290,
+        "sha256": "d7e75655a0cad7ba1d1ad35b1e9a29dbf12d079c5a5ad3cb30b22cacfe0349bf"
+      },
+      "retainedMaster": {
+        "path": "masters/identity-01-sad-portrait-master.png",
+        "bytes": 2491290,
+        "sha256": "d7e75655a0cad7ba1d1ad35b1e9a29dbf12d079c5a5ad3cb30b22cacfe0349bf"
+      },
+      "byteIdentical": true
+    },
+    {
+      "role": "paparazzi",
+      "identityReference": "candidate-01 casual body only",
+      "rawOutput": {
+        "path": "C:/Users/georg/.codex/generated_images/01a17506-4b0b-7430-8437-636eec5e359b/exec-0b3b2e15-6d70-4f3e-9878-e78855eb7ca5.png",
+        "bytes": 2318507,
+        "sha256": "072f6d153fdd9431edf02c0503ec32428e7de570c2c1ae1bffeba31ae9eb7ce4"
+      },
+      "retainedMaster": {
+        "path": "masters/identity-01-paparazzi-master.png",
+        "bytes": 2318507,
+        "sha256": "072f6d153fdd9431edf02c0503ec32428e7de570c2c1ae1bffeba31ae9eb7ce4"
+      },
+      "byteIdentical": true
+    }
+  ],
+  "styleOnlyCastReferences": [
+    {
+      "path": "public/assets/skins/Nova_avatar.webp",
+      "bytes": 33718,
+      "sha256": "96433bef0a8e3a3a864f539aba60d3f5d3a1d2e144cf77bfdf3b6f7040aa3067"
+    },
+    {
+      "path": "public/assets/skins/Bea_avatar.webp",
+      "bytes": 23534,
+      "sha256": "9a131c4fb5f79f817fb6458b8ec45fffa5708aff2654843225e04a6232f1f719"
+    },
+    {
+      "path": "public/assets/skins/Ash_avatar.webp",
+      "bytes": 24986,
+      "sha256": "846131807e2857751103db7e7352bdbf823bf0e0f5c18de25208397cea38fd5f"
+    },
+    {
+      "path": "public/assets/skins/Ali_lia_avatar_grey.webp",
+      "bytes": 23180,
+      "sha256": "4c4ffacdccdb01a9df3099429b9092e084ee34ed68b8f108107dd82e4180fd44"
+    }
+  ],
+  "documents": {
+    "prompts": {
+      "path": "prompts.md",
+      "bytes": 11903,
+      "sha256": "1b668713627e84770541f7427f17db38bb6e6bd270e62c6601ba6aba9f541292"
+    },
+    "identitySheet": {
+      "path": "identity-sheet.md",
+      "bytes": 2858,
+      "sha256": "d8cb7ed3dda06e1c0d2c1adea297e1955cbdeb493b22e8c961265dbae7d58cfb"
+    },
+    "review": {
+      "path": "review.md",
+      "bytes": 6345,
+      "sha256": "2247dc666217440baa92e2873c7a5d3ea668162dfce8e36ac00184656db20d3e"
+    },
+    "sourcePromptRecord": {
+      "path": "docs/character-customization/look-pilot/source-prompts.md",
+      "bytes": 13562,
+      "sha256": "f76a0324f396205a4a12c02415301127e0979597470c4804ea69a8aa8e36b3c1"
+    },
+    "exporter": {
+      "path": "prepare_pack.py",
+      "bytes": 27203,
+      "sha256": "7d87be0a9aebd2040ef7070b80209d22c98ccfb3961c88ebb02782d8ac7ffe2b"
+    }
+  },
+  "masters": [
+    {
+      "path": "masters/identity-01-casual-body-master.png",
+      "bytes": 1838878,
+      "sha256": "802a380b42ac4286f5e85f01dabf6917466bef508a40ec32d079589bb2aa0bf4"
+    },
+    {
+      "path": "masters/identity-01-formal-body-master.png",
+      "bytes": 1438736,
+      "sha256": "4200509b964f6131ed86085dc2befdbadd4504b0a53d339899a8c4397f1a6d4d"
+    },
+    {
+      "path": "masters/identity-01-grey-portrait-master.png",
+      "bytes": 2250207,
+      "sha256": "30e2a1187dff0f3ac0b80c967b5b6368b99ce855243df093ab48c488441e9246"
+    },
+    {
+      "path": "masters/identity-01-main-portrait-master.png",
+      "bytes": 2732943,
+      "sha256": "cc629f7fa87f012ff35375edd730fb2e71583136b53866f82d8dd27aa7bec1fc"
+    },
+    {
+      "path": "masters/identity-01-paparazzi-master.png",
+      "bytes": 2318507,
+      "sha256": "072f6d153fdd9431edf02c0503ec32428e7de570c2c1ae1bffeba31ae9eb7ce4"
+    },
+    {
+      "path": "masters/identity-01-sad-portrait-master.png",
+      "bytes": 2491290,
+      "sha256": "d7e75655a0cad7ba1d1ad35b1e9a29dbf12d079c5a5ad3cb30b22cacfe0349bf"
+    }
+  ],
+  "delivery": [
+    {
+      "path": "exports/identity-01-r1/casual.webp",
+      "bytes": 105012,
+      "sha256": "869399056ed8e285181328a4342bff13588b679eaa410e03ec0e56a3fd5f29d3"
+    },
+    {
+      "path": "exports/identity-01-r1/formal.webp",
+      "bytes": 70410,
+      "sha256": "030274ccec933cd32f889f6e88ab21228ce5c8925d9f54ee365e45e4759fd534"
+    },
+    {
+      "path": "exports/identity-01-r1/grey.webp",
+      "bytes": 12238,
+      "sha256": "064ce770855e8b7f6202d8ed0f92e2b8bc33493da8b4252ab12509ee9090f7ef"
+    },
+    {
+      "path": "exports/identity-01-r1/main.webp",
+      "bytes": 17538,
+      "sha256": "49904bd29b63fc0d641cd1557961cac79bcbec9bb677bf830535d464b7446422"
+    },
+    {
+      "path": "exports/identity-01-r1/paparazzi.webp",
+      "bytes": 132130,
+      "sha256": "3f9d3a97c9fb3583eac27e923bebaf8c55a71dca20c7a6fd0e941e411f6ce292"
+    },
+    {
+      "path": "exports/identity-01-r1/sad.webp",
+      "bytes": 17188,
+      "sha256": "034b9bf8f9a2a28b9e54b61f4fe305ed397f7bed9be69e892962098515ca327b"
+    },
+    {
+      "path": "exports/identity-01-r1/thumbnail.webp",
+      "bytes": 4448,
+      "sha256": "211a122fa5f387e78c6ff3b362c6ecc11c82c58f7f812307108fabde2e2a2481"
+    }
+  ],
+  "authoritativeReport": "exports/identity-01-r1/report-v3.json",
+  "rightsNote": "Built-in image-generation output does not guarantee exclusivity or third-party rights. Review current commercial-use terms and accidental marks before commercial release."
+}

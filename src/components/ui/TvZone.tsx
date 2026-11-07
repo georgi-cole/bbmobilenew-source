@@ -183,7 +183,7 @@ function buildAnnouncement(
     ? `${finalFourWinnerMatch[1]} Wins the Final 4 Competition`
     : null
   const migratedFinalFourSubtitle = finalFourWinnerMatch
-    ? 'There is no immunity today. Last place begins on the block, and the other three hubmates will each cast one secret vote.'
+    ? 'There is no immunity today. Last place begins on the block, and all four hubmates cast one secret nomination vote each.'
     : null
   const registryTemplate = phase ? getPhaseCardTemplate(phase, key) : undefined
   const registryOverride = registryTemplate ? overrides?.[registryTemplate.id] : undefined
@@ -1510,6 +1510,7 @@ export default function TvZone(props: TvZoneProps) {
     const phaseMeasure = phaseMeasureRef.current
     if (!header || !pills || !actions || !phaseMeasure) return
 
+    let frameId = 0
     const measure = () => {
       // Full phase text + chip padding, status-chip content, action controls,
       // header padding and inter-column gaps. Shorten only if that real total
@@ -1519,18 +1520,25 @@ export default function TvZone(props: TvZoneProps) {
       const shouldCompact = requiredWidth > header.clientWidth + 0.5
       setCompactPhaseChip((current) => (current === shouldCompact ? current : shouldCompact))
     }
+    const scheduleMeasurement = () => {
+      window.cancelAnimationFrame(frameId)
+      frameId = window.requestAnimationFrame(measure)
+    }
+    // Settle the first layout before paint; later observer notifications can
+    // share a frame without shifting the roster during its entrance animation.
     measure()
-    const observer = new ResizeObserver(measure)
+    const observer = new ResizeObserver(scheduleMeasurement)
     observer.observe(header)
     observer.observe(pills)
     observer.observe(actions)
     observer.observe(phaseMeasure)
     for (const item of [...pills.children, ...actions.children]) observer.observe(item)
-    const contentObserver = new MutationObserver(measure)
+    const contentObserver = new MutationObserver(scheduleMeasurement)
     for (const container of [pills, actions]) {
       contentObserver.observe(container, { childList: true, subtree: true, characterData: true })
     }
     return () => {
+      window.cancelAnimationFrame(frameId)
       observer.disconnect()
       contentObserver.disconnect()
     }
@@ -2044,7 +2052,11 @@ export default function TvZone(props: TvZoneProps) {
       {/* ── Shock announcement sequence ───────────────────────────────────── */}
       {/* Phase A: full-screen cinematic stinger */}
       <ShockIntroOverlay
-        key={activeAnnouncementSequenceId}
+        key={
+          activeAnnouncement?.key === 'cupid_arrow_broken'
+            ? 'cupid-arrow-break'
+            : activeAnnouncementSequenceId
+        }
         active={shockIntroActive}
         shockKey={activeAnnouncement?.key ?? ''}
         announcement={displayedAnnouncement}

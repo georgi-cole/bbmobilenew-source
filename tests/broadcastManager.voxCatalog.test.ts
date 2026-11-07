@@ -6,6 +6,12 @@ import {
 } from '../src/broadcasting/broadcastTemplateCatalog'
 
 describe('Broadcast Manager Vox catalog', () => {
+  it('explains that all four finalists retain a secret nomination ballot', () => {
+    const card = getBroadcastTemplate('card.vox-final4-competition')
+    expect(card?.text).toContain('all four cast one secret nomination vote each')
+    expect(card?.text).toContain('No immunity')
+  })
+
   it('shows only General and Vox definitions when Vox Populi is selected', () => {
     const visible = BROADCAST_TEMPLATE_CATALOG.filter((template) =>
       matchesBroadcastCampaign(template, 'vox_populi')

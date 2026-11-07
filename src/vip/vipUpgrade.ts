@@ -1,7 +1,7 @@
 import { VIP_PRODUCT_ID, type StoreEntitlementKey } from './vipConfig'
 import type { StoreEntitlements } from './vipStorage'
 
-export const VIP_BASE_PRICE_CENTS = 1_499
+export const VIP_BASE_PRICE_CENTS = 1_999
 export const VIP_MIN_UPGRADE_PRICE_CENTS = 499
 export const VIP_UPGRADE_CREDIT_RATE = 0.75
 
@@ -16,7 +16,7 @@ export const VIP_STANDALONE_NOMINAL_PRICE_CENTS: Readonly<
   premiumChallenges: 199,
   publicMode: 299,
   noAds: 299,
-  survivalMode: 399,
+  survivalMode: 699,
   cupidArrow: 399,
   voxPopuli: 399,
   dramaMode: 499,
@@ -46,24 +46,38 @@ function envProductId(value: string | undefined, fallback: string): string {
  */
 export const VIP_UPGRADE_TIERS: readonly VipUpgradeTier[] = [
   {
-    priceCents: 1_349,
+    priceCents: 1_849,
     productId: envProductId(
-      import.meta.env.VITE_VIP_UPGRADE_1349_PRODUCT_ID,
-      'com.georgicole.thebigeye.vip.upgrade1349'
+      import.meta.env.VITE_VIP_UPGRADE_1849_PRODUCT_ID,
+      'com.georgicole.thebigeye.vip.upgrade1849'
     ),
   },
   {
-    priceCents: 1_299,
+    priceCents: 1_699,
     productId: envProductId(
-      import.meta.env.VITE_VIP_UPGRADE_1299_PRODUCT_ID,
-      'com.georgicole.thebigeye.vip.upgrade1299'
+      import.meta.env.VITE_VIP_UPGRADE_1699_PRODUCT_ID,
+      'com.georgicole.thebigeye.vip.upgrade1699'
     ),
   },
   {
-    priceCents: 1_199,
+    priceCents: 1_549,
     productId: envProductId(
-      import.meta.env.VITE_VIP_UPGRADE_1199_PRODUCT_ID,
-      'com.georgicole.thebigeye.vip.upgrade1199'
+      import.meta.env.VITE_VIP_UPGRADE_1549_PRODUCT_ID,
+      'com.georgicole.thebigeye.vip.upgrade1549'
+    ),
+  },
+  {
+    priceCents: 1_399,
+    productId: envProductId(
+      import.meta.env.VITE_VIP_UPGRADE_1399_PRODUCT_ID,
+      'com.georgicole.thebigeye.vip.upgrade1399'
+    ),
+  },
+  {
+    priceCents: 1_249,
+    productId: envProductId(
+      import.meta.env.VITE_VIP_UPGRADE_1249_PRODUCT_ID,
+      'com.georgicole.thebigeye.vip.upgrade1249'
     ),
   },
   {
@@ -74,17 +88,10 @@ export const VIP_UPGRADE_TIERS: readonly VipUpgradeTier[] = [
     ),
   },
   {
-    priceCents: 999,
+    priceCents: 949,
     productId: envProductId(
-      import.meta.env.VITE_VIP_UPGRADE_999_PRODUCT_ID,
-      'com.georgicole.thebigeye.vip.upgrade999'
-    ),
-  },
-  {
-    priceCents: 899,
-    productId: envProductId(
-      import.meta.env.VITE_VIP_UPGRADE_899_PRODUCT_ID,
-      'com.georgicole.thebigeye.vip.upgrade899'
+      import.meta.env.VITE_VIP_UPGRADE_949_PRODUCT_ID,
+      'com.georgicole.thebigeye.vip.upgrade949'
     ),
   },
   {
@@ -95,17 +102,10 @@ export const VIP_UPGRADE_TIERS: readonly VipUpgradeTier[] = [
     ),
   },
   {
-    priceCents: 699,
+    priceCents: 649,
     productId: envProductId(
-      import.meta.env.VITE_VIP_UPGRADE_699_PRODUCT_ID,
-      'com.georgicole.thebigeye.vip.upgrade699'
-    ),
-  },
-  {
-    priceCents: 599,
-    productId: envProductId(
-      import.meta.env.VITE_VIP_UPGRADE_599_PRODUCT_ID,
-      'com.georgicole.thebigeye.vip.upgrade599'
+      import.meta.env.VITE_VIP_UPGRADE_649_PRODUCT_ID,
+      'com.georgicole.thebigeye.vip.upgrade649'
     ),
   },
   {

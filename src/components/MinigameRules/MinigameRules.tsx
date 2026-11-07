@@ -16,6 +16,7 @@ interface Props {
   confirmLabel?: string
   /** Reference mode is used when the player reopens rules during a competition. */
   mode?: 'intro' | 'reference'
+  attemptNotice?: string
 }
 
 interface LocalizedRegistryMetadata {
@@ -43,6 +44,7 @@ export default function MinigameRules({
   onSkip,
   confirmLabel,
   mode = 'intro',
+  attemptNotice,
 }: Props) {
   const { t } = useI18n()
   // Silent Saboteur has a persistent hidden role; never render an older
@@ -68,7 +70,9 @@ export default function MinigameRules({
       aria-label={`${resolvedGame.title} rules`}
     >
       <div
-        className={`minigame-rules-modal ${isReference ? 'minigame-rules-modal--reference' : ''}`}
+        className={`minigame-rules-modal ${isReference ? 'minigame-rules-modal--reference' : ''} ${
+          resolvedGame.key === 'gatesOfTheEye' ? 'minigame-rules-modal--obsidian' : ''
+        }`}
       >
         <p className="minigame-rules-kicker">
           {isReference ? 'Quick reference' : 'Competition briefing'}
@@ -103,6 +107,9 @@ export default function MinigameRules({
             </button>
           )}
         </div>
+        {!isReference && attemptNotice && (
+          <p className="minigame-rules-description">{attemptNotice}</p>
+        )}
       </div>
     </div>
   )

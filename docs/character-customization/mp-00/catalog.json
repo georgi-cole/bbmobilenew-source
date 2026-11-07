@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "pilotId": "MP-00",
+  "revision": "mp00-r1",
+  "canvas": { "width": 1024, "height": 1536, "aspect": "2:3", "transparent": true },
+  "anchors": {
+    "centerX": 512,
+    "crownY": 0,
+    "jawY": 220,
+    "neckJoinY": 224,
+    "shoulderLineY": 264,
+    "handsBaselineY": 820,
+    "feetBaselineY": 1494
+  },
+  "layers": ["hair-back", "body-fit", "face", "facial-hair", "glasses", "hair-front"],
+  "parts": {
+    "faces": {
+      "face-a": {
+        "label": "Face A",
+        "file": "assets/face-a.webp",
+        "skinMask": "assets/masks/face-a-skin.png",
+        "grant": "free"
+      },
+      "face-b": {
+        "label": "Face B",
+        "file": "assets/face-b.webp",
+        "skinMask": "assets/masks/face-b-skin.png",
+        "grant": "free"
+      }
+    },
+    "bodySteps": {
+      "regular": { "label": "Regular", "authored": true },
+      "broad": { "label": "Broad", "authored": true }
+    },
+    "outfits": {
+      "lavender-denim": {
+        "label": "Lavender top and light denim",
+        "fits": {
+          "regular": {
+            "file": "assets/body-regular-outfit-a.webp",
+            "skinMask": "assets/masks/body-regular-outfit-a-skin.png"
+          },
+          "broad": {
+            "file": "assets/body-broad-outfit-a.webp",
+            "skinMask": "assets/masks/body-broad-outfit-a-skin.png"
+          }
+        },
+        "grant": "free"
+      },
+      "teal-overshirt": {
+        "label": "Teal overshirt and charcoal trousers",
+        "fits": {
+          "regular": {
+            "file": "assets/body-regular-outfit-b.webp",
+            "skinMask": "assets/masks/body-regular-outfit-b-skin.png"
+          },
+          "broad": {
+            "file": "assets/body-broad-outfit-b.webp",
+            "skinMask": "assets/masks/body-broad-outfit-b-skin.png"
+          }
+        },
+        "grant": "free"
+      }
+    },
+    "hair": {
+      "short-waves": {
+        "label": "Short waves",
+        "file": "assets/hair-short-waves.webp",
+        "frontFile": "assets/hair-short-waves-front.webp",
+        "frontOnly": true,
+        "mask": "assets/masks/hair-short-waves-colour.png",
+        "grant": "free"
+      },
+      "coily-shoulder": {
+        "label": "Coily shoulder length",
+        "file": "assets/hair-coily-shoulder.webp",
+        "frontFile": "assets/hair-coily-shoulder-front.webp",
+        "mask": "assets/masks/hair-coily-shoulder-colour.png",
+        "grant": "free"
+      },
+      "straight-shoulder": {
+        "label": "Straight shoulder length",
+        "file": "assets/hair-straight-shoulder.webp",
+        "frontFile": "assets/hair-straight-shoulder-front.webp",
+        "mask": "assets/masks/hair-straight-shoulder-colour.png",
+        "grant": "free"
+      },
+      "braids-try-on": {
+        "label": "Shoulder braids (locked try-on)",
+        "file": "assets/hair-braids-shoulder.webp",
+        "frontFile": "assets/hair-braids-shoulder-front.webp",
+        "mask": "assets/masks/hair-braids-shoulder-colour.png",
+        "grant": "locked",
+        "offerId": "demo-premium-hair"
+      }
+    },
+    "skinStops": [
+      { "id": "skin-light", "label": "Light", "h": 27, "s": 0.5, "l": 0.68, "swatch": "#D9AA84" },
+      {
+        "id": "skin-medium",
+        "label": "Medium",
+        "h": 23,
+        "s": 0.48,
+        "l": 0.55,
+        "swatch": "#BD805E"
+      },
+      { "id": "skin-deep", "label": "Deep", "h": 22, "s": 0.42, "l": 0.34, "swatch": "#784932" }
+    ],
+    "hairStops": [
+      {
+        "id": "hair-dark",
+        "label": "Natural black",
+        "h": 25,
+        "s": 0.22,
+        "l": 0.14,
+        "swatch": "#302720"
+      },
+      {
+        "id": "hair-brown",
+        "label": "Natural brown",
+        "h": 27,
+        "s": 0.43,
+        "l": 0.27,
+        "swatch": "#68442D"
+      },
+      {
+        "id": "hair-honey",
+        "label": "Natural honey",
+        "h": 35,
+        "s": 0.48,
+        "l": 0.49,
+        "swatch": "#B08A4F"
+      }
+    ],
+    "facialHair": {
+      "short-beard": {
+        "label": "Short beard",
+        "file": "assets/short-beard.svg",
+        "grant": "free",
+        "compatibleFaces": ["face-a", "face-b"]
+      }
+    },
+    "glasses": {
+      "round-frame": {
+        "label": "Round glasses",
+        "file": "assets/round-glasses.svg",
+        "grant": "free",
+        "compatibleFaces": ["face-a", "face-b"]
+      }
+    }
+  },
+  "starters": [
+    {
+      "id": "starter-lavender-waves",
+      "label": "Lavender waves",
+      "recipe": {
+        "face": "face-a",
+        "bodyStep": "regular",
+        "outfit": "lavender-denim",
+        "hair": "short-waves",
+        "skinStop": "skin-medium",
+        "hairStop": "hair-brown",
+        "facialHair": null,
+        "glasses": null
+      }
+    },
+    {
+      "id": "starter-teal-straight",
+      "label": "Teal straight",
+      "recipe": {
+        "face": "face-b",
+        "bodyStep": "broad",
+        "outfit": "teal-overshirt",
+        "hair": "straight-shoulder",
+        "skinStop": "skin-deep",
+        "hairStop": "hair-dark",
+        "facialHair": null,
+        "glasses": "round-frame"
+      }
+    }
+  ],
+  "simulatedOffers": [
+    {
+      "id": "demo-premium-hair",
+      "label": "Premium hair try-on",
+      "price": null,
+      "billing": false,
+      "grant": false
+    }
+  ]
+}

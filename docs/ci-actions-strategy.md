@@ -4,13 +4,16 @@ The repository uses three quality tiers so routine pull requests do not pay for 
 
 ## Pull request gate
 
-Every pull request keeps the named static checks:
+Static and test checks run only when their inputs change:
 
-- Formatting
-- Test hygiene
-- ESLint
-- TypeScript
-- Core regressions
+- Formatting runs when a Prettier-supported file changes.
+- Test hygiene runs when tests, Playwright specs, its checker, or the PR workflow change.
+- ESLint runs for source, test, script, dependency, and lint configuration changes.
+- TypeScript runs for application source, TypeScript configuration, dependency, and code-generation changes.
+- Marketplace consistency runs for paid-feature/catalog paths, marketplace policy files, and dependency or PR-workflow changes.
+- Core regressions run for application source, core regression tests, character catalog validation, dependency, or PR-workflow changes.
+
+This keeps documentation-only and unrelated asset changes from reinstalling dependencies and running source checks. The path classifier is in `.github/workflows/ci.yml`; update it when validation inputs move or new paid-feature paths are added. Local `npm run check:pr` remains the full validation command.
 
 Runtime builds run only when runtime/build inputs changed.
 

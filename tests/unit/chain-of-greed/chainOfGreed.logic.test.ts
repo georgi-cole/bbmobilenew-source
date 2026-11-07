@@ -7,11 +7,14 @@ import {
   createInitialChainState,
   createChainOfGreedRng,
   drawNextNumber,
+  buildAiVoteRecords,
   decideAiAction,
   getNextNumberOdds,
   getRemainingNumberCount,
+  getChainVoteRelationship,
   getStandardRoundEliminationCount,
   getStandardRoundTurnCap,
+  rankPlayersByRoundPerformance,
   rankSoloRushPlayers,
   resolveChainAction,
   resolvePawnedRoundBank,
@@ -57,6 +60,33 @@ function buildPlayer(id: string): ChainOfGreedPlayerState {
 }
 
 describe('chainOfGreedLogic', () => {
+  it('ranks the strongest round performer by clean play, then banked value', () => {
+    const ranking = rankPlayersByRoundPerformance([
+      {
+        ...buildPlayer('clean-small-bank'),
+        roundContribution: 40,
+        roundCorrectGuesses: 3,
+      },
+      {
+        ...buildPlayer('clean-large-bank'),
+        roundContribution: 110,
+        roundCorrectGuesses: 1,
+      },
+      {
+        ...buildPlayer('risky-large-bank'),
+        roundContribution: 500,
+        roundCorrectGuesses: 8,
+        roundWrongGuesses: 1,
+      },
+    ])
+
+    expect(ranking.map((player) => player.id)).toEqual([
+      'clean-large-bank',
+      'clean-small-bank',
+      'risky-large-bank',
+    ])
+  })
+
   it('doubles a pawned Round Bank on a hit and clears it on a miss', () => {
     expect(resolvePawnedRoundBank(250, 250, true)).toBe(500)
     expect(resolvePawnedRoundBank(250, 250, false)).toBe(0)
@@ -371,6 +401,62 @@ describe('chainOfGreedLogic', () => {
 
     expect(elimination.eliminatedIds).toEqual(['ai-1'])
     expect(elimination.tieBreaks).toEqual([])
+  })
+
+  it('protects seeded allies from AI votes while still targeting poor performance', () => {
+    const voter = buildPlayer('voter')
+    const ally = { ...buildPlayer('ally'), roundContribution: 90 }
+    const weak = { ...buildPlayer('weak'), roundWrongGuesses: 2 }
+    const seed = Array.from({ length: 2_000 }, (_, index) => index + 1).find(
+      (candidateSeed) =>
+        getChainVoteRelationship(candidateSeed, voter.id, ally.id) === 'ally' &&
+        getChainVoteRelationship(candidateSeed, voter.id, weak.id) === 'neutral'
+    )
+    expect(seed).toBeDefined()
+
+    const votes = buildAiVoteRecords({
+      activePlayers: [voter, ally, weak],
+      roundNumber: 1,
+      seed: seed!,
+    })
+    const voterRecord = votes.find((vote) => vote.voterId === voter.id)
+
+    expect(voterRecord?.targetId).toBe(weak.id)
+    expect(voterRecord?.reason).toMatch(/tough calls/i)
+  })
+
+  it('lets the strongest human player decide a vote-count tie for elimination', () => {
+    const human = {
+      ...buildPlayer('human'),
+      roundContribution: 500,
+      roundBanked: 250,
+      roundCorrectGuesses: 5,
+    }
+    const players = [human, buildPlayer('a'), buildPlayer('b'), buildPlayer('c')]
+    const vote = (voterId: string, targetId: string) => ({
+      voterId,
+      voterName: voterId,
+      targetId,
+      targetName: targetId,
+      reason: 'Round record',
+    })
+    const result = resolveVoteElimination({
+      activePlayers: players,
+      votes: [vote('human', 'a'), vote('b', 'a'), vote('c', 'b'), vote('a', 'b')],
+      eliminateCount: 1,
+      rng: () => 0.5,
+    })
+
+    expect(result.eliminatedIds).toEqual([])
+    expect(result.tieBreaks[0]).toMatchObject({
+      type: 'decision',
+      candidateIds: ['a', 'b'],
+      deciderId: 'human',
+      eliminationCount: 1,
+      decisionPending: true,
+    })
+    expect(result.tieBreaks[0]?.message).toMatch(/a and b tied.*human decides/i)
+    expect(result.updatedPlayers.every((player) => !player.isEliminated)).toBe(true)
   })
 
   it('prevents AI from banking twice in the same turn', () => {

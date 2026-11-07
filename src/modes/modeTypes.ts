@@ -17,6 +17,8 @@ export interface SurvivorModeState {
   nextRoboIndex: number
   adContinueCount?: number
   replacementPending?: SurvivorReplacementPending | null
+  /** Later arrivals wait behind the legacy, currently presented replacement. */
+  replacementQueue?: SurvivorReplacementPending[]
   replacementTransition?: SurvivorReplacementTransition | null
   competitionRotation: {
     usedKeys: string[]

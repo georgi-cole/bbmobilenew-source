@@ -588,6 +588,8 @@ describe('Detox — Human POS holder names two replacements', () => {
       lohId: 'p0',
       posWinnerId: 'p1',
       nomineeIds: [],
+      replacementNeeded: true,
+      replacementNomineeIds: [],
       players,
       specialVeto: {
         ...INITIAL_SPECIAL_VETO,
@@ -601,6 +603,8 @@ describe('Detox — Human POS holder names two replacements', () => {
     const state = store.getState().game;
     expect(state.nomineeIds).toContain('p2');
     expect(state.nomineeIds).toContain('p3');
+    expect(state.replacementNeeded).toBe(false);
+    expect(state.replacementNomineeIds).toEqual(['p2', 'p3']);
     expect(state.specialVeto?.awaitingCoupReplacement2).toBe(false);
     expect(state.specialVeto?.coupReplacement1Id).toBeNull();
   });
