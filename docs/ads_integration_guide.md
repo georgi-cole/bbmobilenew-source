@@ -33,8 +33,17 @@ not account credentials:
 
 One rewarded unit serves the existing voluntary placements. The game chooses the
 reward for each placement; the AdMob reward amount/item does not change it.
-Create separate Android app and ad unit records before configuring Android live
-ads; iOS IDs cannot be reused there.
+The separate Android records were created on 2026-11-07:
+
+| Environment key              | Android value                            |
+| ---------------------------- | ---------------------------------------- |
+| `VITE_ADMOB_APP_ID`          | `ca-app-pub-9243398419153145~5346758611` |
+| `VITE_ADMOB_INTERSTITIAL_ID` | `ca-app-pub-9243398419153145/9393581690` |
+| `VITE_ADMOB_REWARDED_ID`     | `ca-app-pub-9243398419153145/8525167242` |
+
+European and US regulations messages are published for both The Big Eye app
+entries. The European message includes a direct **Do not consent** choice.
+Store linking, app review and app-ads.txt verification still need completion.
 
 ### Before switching to live ads
 

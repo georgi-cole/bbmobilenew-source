@@ -11,10 +11,10 @@ describe('Final Three Circuit presentation contract', () => {
     const component = source('src/components/FinalThreeCircuit/FinalThreeCircuit.tsx')
 
     expect(component).toContain("setView('final')")
-    expect(component).toContain('Final Three Circuit complete')
-    expect(component).toContain('Part 1 is decided')
-    expect(component).toContain('advances directly to Final HOH Part 3')
-    expect(component).toContain('Final HOH Part 2')
+    expect(component).toContain('aria-label="Final Three Circuit results"')
+    expect(component).toContain('Part {finalPart} is decided')
+    expect(component).toContain('advances to Final LOH Part 3')
+    expect(component).toContain('Final LOH Part 2')
     expect(component).toContain('Confirm results')
   })
 
@@ -26,7 +26,7 @@ describe('Final Three Circuit presentation contract', () => {
     expect(component).toContain('f3-circuit__player-token')
     expect(component).toContain('f3-circuit__warden-token')
     expect(component).toContain('f3-circuit__exit-token')
-    expect(component).toContain('Guard moves 2 tiles')
+    expect(component).toMatch(/<small>Guard<\/small>\s*<strong>2 tiles<\/strong>/)
     expect(css).toContain('.f3-circuit__player-token')
     expect(css).toContain('.f3-circuit__warden-token')
     expect(css).toContain('.f3-circuit__warden-grid button.is-valid-move')

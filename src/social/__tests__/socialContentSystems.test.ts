@@ -160,12 +160,12 @@ describe('Drama social content system', () => {
     ).toBeNull()
   })
 
-  it('enforces credible affinity floors and ceilings for named relationships', () => {
+  it('preserves alliance sentiment and enforces the rivalry ceiling', () => {
     let state = socialReducer(
       undefined,
       updateRelationship({ source: 'user', target: 'ally', delta: 0, tags: ['alliance'] })
     )
-    expect(state.relationships.user.ally.affinity).toBe(50)
+    expect(state.relationships.user.ally).toMatchObject({ affinity: 0, tags: ['alliance'] })
 
     state = socialReducer(
       state,
@@ -174,14 +174,14 @@ describe('Drama social content system', () => {
     expect(state.relationships.user.rival.affinity).toBe(-30)
   })
 
-  it('repairs contradictory relationship tags when an older save is loaded', () => {
+  it('preserves a neutral alliance when an older save is loaded', () => {
     const baseline = socialReducer(undefined, { type: 'test/init' })
     const saved = {
       ...baseline,
       relationships: { user: { ally: { affinity: 0, tags: ['alliance'] } } },
     }
     const hydrated = socialReducer(saved, hydrateSocial(saved))
-    expect(hydrated.relationships.user.ally.affinity).toBe(50)
+    expect(hydrated.relationships.user.ally).toMatchObject({ affinity: 0, tags: ['alliance'] })
   })
   it('rotates immediate outcome copy instead of parroting one summary', () => {
     const summaries = Array.from({ length: 4 }, () =>

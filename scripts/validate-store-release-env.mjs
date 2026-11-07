@@ -35,6 +35,20 @@ function isProductionHttpsUrl(value) {
   }
 }
 
+function isPublishableSupabaseKey(value) {
+  if (/^sb_publishable_[a-zA-Z0-9_-]{20,}$/.test(value)) return true
+  try {
+    const parts = value.split('.')
+    return (
+      parts.length === 3 &&
+      parts.every((part) => /^[a-zA-Z0-9_-]+$/.test(part)) &&
+      JSON.parse(Buffer.from(parts[1], 'base64url').toString()).role === 'anon'
+    )
+  } catch {
+    return false
+  }
+}
+
 for (const key of requiredPublicUrls) {
   if (!isProductionHttpsUrl(values[key] ?? '')) {
     issues.push(`${key} must be a real public HTTPS URL (not example.com).`)
@@ -45,8 +59,21 @@ if (values.VITE_VIP_DEV_ENTITLEMENT === 'true') {
   issues.push('VITE_VIP_DEV_ENTITLEMENT must not be true in a store build.')
 }
 
-if (values.VITE_BUILD_TARGET === 'mobile-dev') {
-  issues.push('VITE_BUILD_TARGET=mobile-dev must not be used in a store build.')
+if (values.VITE_BUILD_TARGET && values.VITE_BUILD_TARGET !== 'release') {
+  issues.push(
+    'VITE_BUILD_TARGET must be release in a store build; developer targets unlock paid features.'
+  )
+}
+
+for (const flag of ['VITE_SUPABASE_ENABLED', 'VITE_PLAYER_ACCOUNTS_ENABLED']) {
+  if (values[flag] !== 'true') issues.push(`${flag} must be true for store cloud profiles.`)
+}
+const supabaseUrl = values.VITE_SUPABASE_URL?.trim() ?? ''
+if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(supabaseUrl)) {
+  issues.push('VITE_SUPABASE_URL must be the HTTPS URL of the deployed Supabase project.')
+}
+if (!isPublishableSupabaseKey(values.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '')) {
+  issues.push('VITE_SUPABASE_PUBLISHABLE_KEY must be a publishable or legacy anon key.')
 }
 
 const adsMode = values.VITE_ADMOB_MODE || 'off'
@@ -82,9 +109,6 @@ if (values.VITE_BIG_EYE_AI_ENABLED === 'true') {
   if (!isProductionHttpsUrl(values[apiKey] ?? '')) {
     issues.push(`${apiKey} is required and must use production HTTPS when online AI is enabled.`)
   }
-  issues.push(
-    'Online AI is enabled: update the privacy policy, privacy manifest, retention/deletion documentation, and both store privacy forms.'
-  )
 }
 
 if (issues.length > 0) {

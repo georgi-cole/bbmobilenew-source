@@ -35,6 +35,7 @@ import { DEFAULT_SETTINGS, setAudio } from '../../store/settingsSlice'
 import { setMusicMix } from '../../store/uiSlice'
 import type { RootState } from '../../store/store'
 import { normalizePlayerFacingCopy } from '../../utils/playerFacingCopy'
+import { LIVE_VOTE_PITCHES_EVENT_KEY } from '../../constants/tvEvents'
 
 const tvZoneGameEquality = createGameFieldEquality([
   'battleBack',
@@ -417,12 +418,22 @@ export default function TvZone(props: TvZoneProps) {
         extractMajorKey(event) === 'vox_public_vote'),
     [gameState.voxPopuli?.status]
   )
+  const isObsoleteTvMessage = useCallback(
+    (event: TvEvent) =>
+      (gameState.phase === 'live_vote' && event.meta?.key === LIVE_VOTE_PITCHES_EVENT_KEY) ||
+      ((event.meta?.major ?? event.major) === 'vox_populi_final_three_vote' &&
+        (alivePlayers.length !== 3 || gameState.voxPopuli?.publicVoteContext !== 'final3')),
+    [alivePlayers.length, gameState.phase, gameState.voxPopuli?.publicVoteContext]
+  )
   // The post-vote result is the canonical Vox verdict card. Hide the earlier
   // generic intro from both live TV and the compact log while Vox is active.
   const tvVisibleFeed = useMemo(
     () =>
-      gameState.tvFeed.filter((event) => isVisibleOnTv(event) && !isRedundantVoxVoteIntro(event)),
-    [gameState.tvFeed, isRedundantVoxVoteIntro]
+      gameState.tvFeed.filter(
+        (event) =>
+          isVisibleOnTv(event) && !isRedundantVoxVoteIntro(event) && !isObsoleteTvMessage(event)
+      ),
+    [gameState.tvFeed, isObsoleteTvMessage, isRedundantVoxVoteIntro]
   )
   // Filter entries for the main-screen log strip (excludes DR-only events and
   // the redundant Vox pre-vote card).
@@ -436,7 +447,7 @@ export default function TvZone(props: TvZoneProps) {
   const queuedBroadcastEvent = useMemo(() => {
     for (const queuedId of gameState.broadcastQueue ?? []) {
       const event = gameState.tvFeed.find((candidate) => candidate.id === queuedId) ?? null
-      if (event && isRedundantVoxVoteIntro(event)) continue
+      if (event && (isRedundantVoxVoteIntro(event) || isObsoleteTvMessage(event))) continue
       if (isCurrentPhaseBroadcastEvent(event, gameState.phase, gameState.week)) return event
     }
     return null
@@ -445,6 +456,7 @@ export default function TvZone(props: TvZoneProps) {
     gameState.phase,
     gameState.tvFeed,
     gameState.week,
+    isObsoleteTvMessage,
     isRedundantVoxVoteIntro,
   ])
   // Season-start expansion activations must outrank the onboarding welcome in
@@ -472,12 +484,19 @@ export default function TvZone(props: TvZoneProps) {
     if (
       !event ||
       !isVisibleOnTv(event) ||
+      isObsoleteTvMessage(event) ||
       event.meta?.phase !== gameState.phase ||
       event.meta?.week !== gameState.week
     )
       return null
     return event
-  }, [gameState.lastPlainBroadcastEventId, gameState.phase, gameState.tvFeed, gameState.week])
+  }, [
+    gameState.lastPlainBroadcastEventId,
+    gameState.phase,
+    gameState.tvFeed,
+    gameState.week,
+    isObsoleteTvMessage,
+  ])
   const mainLogMaxVisible = props.mainLogMaxVisible ?? 2
   const houseFeedEnabled = props.houseFeedEnabled ?? false
   const occupancyChip = props.occupancyChip ?? null
@@ -636,15 +655,9 @@ export default function TvZone(props: TvZoneProps) {
         return false
       }
       const transitionPhase = getDailyTransitionPhase(event)
-      return (
-        (transitionPhase === null || transitionPhase === gameState.phase) &&
-        !(
-          extractMajorKey(event) === 'vox_populi_final_three_vote' &&
-          (alivePlayers.length !== 3 || gameState.voxPopuli?.publicVoteContext !== 'final3')
-        )
-      )
+      return transitionPhase === null || transitionPhase === gameState.phase
     },
-    [alivePlayers.length, gameState.phase, gameState.voxPopuli?.publicVoteContext]
+    [gameState.phase]
   )
   // A critical broadcast is a single viewing experience: once the player has
   // dismissed its major card, do not immediately replay the identical copy as

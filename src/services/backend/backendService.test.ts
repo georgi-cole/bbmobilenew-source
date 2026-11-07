@@ -85,6 +85,15 @@ describe('backend event buffering', () => {
     expect(JSON.parse(sessionStorage.getItem('bbmobilenew:supabase-events:v1')!)).toHaveLength(1)
     profiles = { ...profiles, profiles: [] }
     hooks.changed?.()
+    hooks.event?.(
+      {
+        name: 'session_active',
+        occurredAt: new Date().toISOString(),
+        sessionId: 'session',
+        properties: { active_seconds: 1 },
+      },
+      'profile-1'
+    )
     window.dispatchEvent(new Event('pagehide'))
     expect(JSON.parse(sessionStorage.getItem('bbmobilenew:supabase-events:v1')!)).toEqual([])
     stop()
@@ -165,6 +174,32 @@ describe('backend event buffering', () => {
       expect.objectContaining({ owner_id: 'analytics-guest', profile_id: null }),
     ])
     stop()
+  })
+
+  it('backs up a profile while the separate analytics identity is unavailable', async () => {
+    const upsert = vi.fn(() => ({ abortSignal: async () => ({ error: null }) }))
+    vi.mocked(authenticatedBackend).mockImplementation(async (purpose) => {
+      if (purpose === 'analytics') throw new Error('analytics unavailable')
+      return { ownerId: 'backup-owner', client: { from: () => ({ upsert }) } } as never
+    })
+    const profiles = {
+      profiles: [{ id: 'profile-1' }],
+      activeProfileId: 'profile-1',
+      isGuest: false,
+    }
+    const stop = initializeCloudBackend({
+      getState: () => ({ profiles }),
+      subscribe: () => vi.fn(),
+    } as never)
+    try {
+      await vi.advanceTimersByTimeAsync(1200)
+      expect(upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ owner_id: 'backup-owner', profile_id: 'profile-1' }),
+        { onConflict: 'owner_id,profile_id' }
+      )
+    } finally {
+      stop()
+    }
   })
 
   it('keeps legacy database batches valid until the new event migration is enabled', () => {

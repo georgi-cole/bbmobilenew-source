@@ -377,7 +377,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
         expected: {
           route: 'deterministic',
           knowledgeQuery: 'remaining',
-          localTextIncludes: ['7'],
+          localTextIncludes: ['9 hubmates remain', 'Nico', 'Finn'],
         },
       },
     ],
@@ -429,7 +429,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
         expected: {
           route: 'deterministic',
           knowledgeQuery: 'recent_events',
-          localTextIncludes: ['nominated', 'Safety'],
+          localTextIncludes: ['Kian won Leader of the Hub', 'Alex and Lia were nominated'],
         },
       },
     ],
@@ -446,7 +446,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
         expected: {
           route: 'deterministic',
           knowledgeQuery: 'phase',
-          localTextIncludes: ['Day 6', 'pre elimination'],
+          localTextIncludes: ['Day 6', 'pre eviction'],
         },
       },
     ],
@@ -973,7 +973,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
           route: 'deterministic',
           knowledgeQuery: 'recent_eviction',
           action: null,
-          localTextIncludes: ['Rhea', 'confirmed elimination'],
+          localTextIncludes: ['Rhea', 'confirmed eviction'],
         },
       },
     ],

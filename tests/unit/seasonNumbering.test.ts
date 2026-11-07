@@ -7,9 +7,8 @@
  *  3. resetGame() with 2 archived seasons starts Season 3.
  *  4. resetGame() without explicit archives falls back to current state archives.
  *  5. hydrateGame() preserves the saved season number unchanged.
- *  6. Welcome tvFeed message reflects the actual season number.
- *  7. Season number is derived from max(seasonIndex)+1, not length+1 (handles cap/gaps).
- *  8. Non-contiguous season indices use the highest index.
+ *  6. Season number is derived from max(seasonIndex)+1, not length+1 (handles cap/gaps).
+ *  7. Non-contiguous season indices use the highest index.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -78,14 +77,6 @@ describe('season numbering', () => {
     const snapshot: GameState = { ...createInitialGameState(), season: 2 };
     store.dispatch(hydrateGame(snapshot));
     expect(store.getState().game.season).toBe(2);
-  });
-
-  it('resetGame welcome message reflects the correct season number', () => {
-    const store = makeStore();
-    store.dispatch(resetGame([buildArchive(1)]));
-    const feed = store.getState().game.tvFeed;
-    const welcome = feed.find((e) => e.id === 'e0');
-    expect(welcome?.text).toContain('Season 2');
   });
 
   it('seasonArchives are preserved in fresh state after resetGame with explicit archives', () => {

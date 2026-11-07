@@ -532,7 +532,7 @@ describe('Reality alliance ceremony consequences', () => {
     expect(state.events.some((event) => event.type === 'ALLIANCE_PLAN_DEFIED')).toBe(false)
   })
 
-  it('reacts to declared alliance dissent less harshly than a surprise plan defection', () => {
+  it('penalizes surprise plan defection and respects previously declared dissent', () => {
     const buildState = (declaredDissent: boolean) => {
       const state = createInitialRealityDomainState()
       const alliance = createRealityAlliance(state, {
@@ -575,13 +575,9 @@ describe('Reality alliance ceremony consequences', () => {
 
     const surpriseDrop = surpriseBefore - surprise.alliance.memberCommitment.ava
     const declaredDrop = declaredBefore - declared.alliance.memberCommitment.ava
-    expect(declaredDrop).toBeGreaterThan(0)
-    expect(declaredDrop).toBeLessThan(surpriseDrop)
-    expect(
-      declared.state.events.some(
-        (event) => event.type === 'ALLIANCE_PLAN_DEFIED' && event.tags.includes('DECLARED_DISSENT')
-      )
-    ).toBe(true)
+    expect(surpriseDrop).toBeGreaterThan(0)
+    expect(declaredDrop).toBe(0)
+    expect(declared.state.events.some((event) => event.type === 'ALLIANCE_PLAN_DEFIED')).toBe(false)
   })
 
   it('records an actual vote against an ally as a distinct alliance betrayal', () => {

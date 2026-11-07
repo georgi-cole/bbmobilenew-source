@@ -405,27 +405,27 @@ describe('release readiness branding', () => {
     [
       'GitHub Pages',
       'https://georgi-cole.github.io/bbmobilenew/manifest.json',
-      'https://georgi-cole.github.io/bbmobilenew/favicon.svg?v=embroidered-4d338174',
+      'https://georgi-cole.github.io/bbmobilenew/favicon.svg?v=embroidered-clean-20261102',
     ],
     [
       'QA',
       'https://georgi-cole.github.io/bbmobilenew/qa/manifest.json',
-      'https://georgi-cole.github.io/bbmobilenew/qa/favicon.svg?v=embroidered-4d338174',
+      'https://georgi-cole.github.io/bbmobilenew/qa/favicon.svg?v=embroidered-clean-20261102',
     ],
     [
       'root deployment',
       'https://example.com/manifest.json',
-      'https://example.com/favicon.svg?v=embroidered-4d338174',
+      'https://example.com/favicon.svg?v=embroidered-clean-20261102',
     ],
     [
       'iOS',
       'capacitor://localhost/manifest.json',
-      'capacitor://localhost/favicon.svg?v=embroidered-4d338174',
+      'capacitor://localhost/favicon.svg?v=embroidered-clean-20261102',
     ],
     [
       'Android',
       'https://localhost/manifest.json',
-      'https://localhost/favicon.svg?v=embroidered-4d338174',
+      'https://localhost/favicon.svg?v=embroidered-clean-20261102',
     ],
   ])(
     'resolves the manifest favicon inside the %s deployment',
@@ -482,13 +482,20 @@ describe('release readiness metadata', () => {
     )
     expect(androidStrings).not.toContain('com.bbmobilenew.app')
     expect(androidManifest).toContain('android.permission.ACCESS_COARSE_LOCATION')
-    expect(androidManifest).toContain('android.permission.ACCESS_FINE_LOCATION')
+    expect(androidManifest).not.toContain('android.permission.ACCESS_FINE_LOCATION')
     expect(iosInfo).toContain('<key>NSLocationWhenInUseUsageDescription</key>')
   })
 
   it('ships branded native art and bundled legal surfaces', () => {
-    expect(readFileSync(IOS_APP_ICON).equals(readFileSync(STORE_APP_ICON))).toBe(true)
-    expect(statSync(IOS_APP_ICON).size).toBeGreaterThan(500_000)
+    // The native app intentionally uses the first story icon. The store has a
+    // separate static gold icon; validate their upload format independently.
+    for (const iconPath of [IOS_APP_ICON, STORE_APP_ICON]) {
+      const icon = readFileSync(iconPath)
+      expect(icon.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true)
+      expect(icon.readUInt32BE(16)).toBe(1024)
+      expect(icon.readUInt32BE(20)).toBe(1024)
+      expect(icon[25]).toBe(2)
+    }
     expect(existsSync(LEGAL_SCREEN)).toBe(true)
     expect(existsSync(PUBLIC_PRIVACY_POLICY)).toBe(true)
     expect(existsSync(PUBLIC_TERMS)).toBe(true)
@@ -500,15 +507,15 @@ describe('release readiness metadata', () => {
       'https://georgi-cole.github.io/big-eye-legal/terms-of-use.html',
       'https://georgi-cole.github.io/big-eye-legal/support.html',
     ]
-    const releaseSurfaces = [
-      readText(ANDROID_ENV_EXAMPLE),
-      readText(IOS_ENV_EXAMPLE),
-      readText(LEGAL_SCREEN),
-    ]
+    const releaseSurfaces = [readText(ANDROID_ENV_EXAMPLE), readText(IOS_ENV_EXAMPLE)]
 
     for (const url of expectedUrls) {
       for (const surface of releaseSurfaces) expect(surface).toContain(url)
     }
+    // Store builds supply the hosted policy through the verified platform env.
+    // Offline previews may use the equivalent bundled privacy policy.
+    expect(readText(LEGAL_SCREEN)).toContain('externalUrl(import.meta.env.VITE_PRIVACY_POLICY_URL)')
+    expect(readText(LEGAL_SCREEN)).toContain('legal/privacy-policy.html')
     expect(readText(LEGAL_SCREEN)).toContain('kolequant@gmail.com')
   })
 

@@ -128,9 +128,9 @@ describe('normalizeActionCosts', () => {
     expect(normalizeActionCosts(action)).toEqual({ energy: 1, influence: 0, info: 0 });
   });
 
-  it('proposeAlliance ({ energy: 3, info: 2.0 }) has energy=3, influence=0, info=200', () => {
+  it('personal pact proposals cost two Energy with no Influence or Info', () => {
     const action = SOCIAL_ACTIONS.find((a) => a.id === 'proposeAlliance')!;
-    expect(normalizeActionCosts(action)).toEqual({ energy: 3, influence: 0, info: 200 });
+    expect(normalizeActionCosts(action)).toEqual({ energy: 2, influence: 0, info: 0 });
   });
 
   it('rumor ({ energy: 2, info: 1.0 }) has energy=2, influence=0, info=100', () => {
@@ -204,9 +204,9 @@ describe('normalizeActionYields', () => {
     expect(normalizeActionYields(action)).toEqual({ influence: 0, info: 100 });
   });
 
-  it('proposeAlliance yields influence: 6 pts (0.06 × 100)', () => {
+  it('personal pact proposals have no automatic currency reward', () => {
     const action = SOCIAL_ACTIONS.find((a) => a.id === 'proposeAlliance')!;
-    expect(normalizeActionYields(action)).toEqual({ influence: 6, info: 0 });
+    expect(normalizeActionYields(action)).toEqual({ influence: 0, info: 0 });
   });
 
   it('vote_rally yields influence: 4 pts (0.04 × 100)', () => {

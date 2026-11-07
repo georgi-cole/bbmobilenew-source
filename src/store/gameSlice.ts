@@ -7523,10 +7523,13 @@ const gameSlice = createSlice({
       // voteResults was already shown before the tie-break prompt; clear it now.
       state.voteResults = null
       // Defer the eviction commit until the cinematic overlay completes.
-      state.pendingEviction = {
+      const eviction = {
         evicteeId: nomineeId,
         evictionMessage: `${posHolder?.name ?? 'The Power of Safety holder'} breaks the tie as a special exception, voting to eliminate ${evictee.name}. ${evictee.name} has been eliminated from the Hub. 🗳️`,
       }
+      if (state.doubleEviction?.weekActive && state.pendingEviction)
+        state.doubleEviction.pendingSecondEviction = eviction
+      else state.pendingEviction = eviction
       // Keep the phase at eviction_results. The shared cinematic completion
       // handler finalizes the eviction and advances to week_end.
     },
@@ -8847,8 +8850,7 @@ const gameSlice = createSlice({
     ) {
       const { hohWinnerId, evicteeId } = action.payload
 
-      // Validate evictee is a current nominee.
-      if (!state.nomineeIds.includes(evicteeId)) return
+      if (state.phase !== 'final3_decision' || !state.nomineeIds.includes(evicteeId)) return
 
       const hoh = state.players.find((p) => p.id === hohWinnerId)
       const evictee = state.players.find((p) => p.id === evicteeId)

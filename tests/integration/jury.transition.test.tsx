@@ -82,7 +82,7 @@ function renderGameScreen(store: ReturnType<typeof makeStore>) {
       <MemoryRouter>
         <GameScreen />
       </MemoryRouter>
-    </Provider>,
+    </Provider>
   )
 }
 
@@ -112,14 +112,14 @@ describe('Jury phase transition', () => {
     expect(screen.getByRole('button', { name: /Skip sequence/i })).toBeTruthy()
   })
 
-  it('reveals Enter Tribunal Vote and Spy Tribunal after skipping the sequence', async () => {
+  it('reveals the Tribunal vote entry after skipping the sequence', async () => {
     const store = makeStore()
     renderGameScreen(store)
     await act(async () => {})
 
     fireEvent.click(screen.getByRole('button', { name: /Skip sequence/i }))
     expect(screen.getByRole('button', { name: /Enter Tribunal Vote/i })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Spy Tribunal/i })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Skip sequence/i })).toBeNull()
   })
 
   it('auto-advances to jury phase when animations are disabled (body.no-animations)', async () => {
@@ -131,9 +131,7 @@ describe('Jury phase transition', () => {
       await act(async () => {})
 
       expect(store.getState().game.phase).toBe('jury')
-      expect(
-        screen.queryByRole('dialog', { name: /The Tribunal Takes Control/i }),
-      ).toBeNull()
+      expect(screen.queryByRole('dialog', { name: /The Tribunal Takes Control/i })).toBeNull()
     } finally {
       document.body.classList.remove('no-animations')
     }
@@ -150,4 +148,3 @@ describe('Jury phase transition', () => {
     expect(store.getState().game.phase).toBe('jury')
   })
 })
-

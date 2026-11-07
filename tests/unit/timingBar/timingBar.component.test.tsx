@@ -213,7 +213,11 @@ describe('TimingBar', () => {
 
     expect(onFinish).toHaveBeenCalledTimes(1)
     expect(onFinish.mock.calls[0]?.[2]).toEqual({
+      rawValue: 0,
+      rawResults: { human: 0, opponent: 100 },
       authoritativeWinnerId: 'opponent',
+      authoritativeLastPlaceId: 'human',
+      authoritativeRankedIds: ['opponent', 'human'],
     })
   })
 })

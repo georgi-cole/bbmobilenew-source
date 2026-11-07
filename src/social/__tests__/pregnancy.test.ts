@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { withSeasonContestant } from '../../appearance/seasonContestant'
 import {
   advancePregnancyWeekendDay,
   createInitialPregnancyStoryState,
@@ -240,7 +241,7 @@ describe('Reality pregnancy lifecycle', () => {
     })
     expect(result).toEqual({
       eligible: false,
-      reason: 'Both housemates must be 18 or older.',
+      reason: 'Both hubmates must be 18 or older.',
     })
   })
 
@@ -609,41 +610,28 @@ describe('Reality pregnancy lifecycle', () => {
     expect(resolveProfileAge('52')).toBe(52)
   })
 
-  it('uses a newly edited profile age for an in-progress adult romance', () => {
-    const game = createInitialGameState({ seed: 9082 })
-    const human = game.players.find((player) => player.isUser)!
-    const partner = game.players.find((player) => !player.isUser && player.sex !== human.sex)!
-    delete human.age
+  it('uses the locked contestant age when checking an in-progress adult romance', () => {
+    const game = withSeasonContestant(
+      { version: 1, name: 'You', avatar: '🙂', bio: { age: '28', sex: 'Male' } },
+      () => createInitialGameState({ seed: 9082 })
+    )
+    const adult = game.players.find((player) => player.isUser)!
+    expect(adult.age).toBe(28)
 
     const updated = gameReducer(
       game,
-      updateUserPlayerIdentity({ name: human.name, avatar: human.avatar, age: '28' })
-    )
-    const adult = updated.players.find((player) => player.isUser)!
-    expect(adult.age).toBe(28)
-    expect(
-      getPregnancyEligibility({
-        actor: adult,
-        target: partner,
-        currentDay: 4,
-        story: createInitialPregnancyStoryState(),
-        romanceActive: true,
-      }).reason
-    ).not.toBe('Both housemates must be 18 or older.')
-
-    const minor = gameReducer(
-      updated,
       updateUserPlayerIdentity({ name: adult.name, avatar: adult.avatar, age: '17' })
     )
+    expect(updated.players.find((player) => player.isUser)?.age).toBe(28)
     expect(
       getPregnancyEligibility({
-        actor: minor.players.find((player) => player.isUser)!,
-        target: partner,
+        actor: updated.players.find((player) => player.isUser)!,
+        target: female,
         currentDay: 4,
         story: createInitialPregnancyStoryState(),
         romanceActive: true,
       }).eligible
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('resolves profile sex only when explicit or unambiguous reproductive metadata exists', () => {
@@ -658,49 +646,34 @@ describe('Reality pregnancy lifecycle', () => {
     ).toBeUndefined()
   })
 
-  it('synchronizes edited age, sex, and reproductive metadata into the live human player', () => {
-    const state = createInitialGameState({ seed: 9081 })
-    const human = state.players.find((player) => player.isUser)!
-    delete human.age
-    delete human.sex
-    delete human.reproductiveProfile
-
-    const updated = gameReducer(
-      state,
-      updateUserPlayerIdentity({
-        name: human.name,
-        avatar: human.avatar,
-        age: 30,
-        sex: 'Male',
-        reproductiveProfile: {
-          canBecomePregnant: false,
-          canCausePregnancy: true,
-        },
-      })
-    )
-    expect(updated.players.find((player) => player.isUser)).toMatchObject({
-      age: 30,
+  it('installs the chosen reproductive metadata at season launch and keeps it for that run', () => {
+    const chosenBio = {
+      age: '30',
       sex: 'Male',
-      reproductiveProfile: {
-        canBecomePregnant: false,
-        canCausePregnancy: true,
-      },
-    })
+      reproductiveProfile: { canBecomePregnant: false, canCausePregnancy: true },
+    }
+    const started = withSeasonContestant(
+      { version: 1, name: 'You', avatar: '🙂', bio: chosenBio },
+      () => createInitialGameState({ seed: 9081 })
+    )
+    const expected = {
+      age: 30,
+      sex: chosenBio.sex,
+      reproductiveProfile: chosenBio.reproductiveProfile,
+    }
+    expect(started.players.find((player) => player.isUser)).toMatchObject(expected)
 
     const cleared = gameReducer(
-      updated,
+      started,
       updateUserPlayerIdentity({
-        name: human.name,
-        avatar: human.avatar,
+        name: 'You',
+        avatar: '🙂',
         age: null,
         sex: null,
         reproductiveProfile: null,
       })
     )
-    const clearedHuman = cleared.players.find((player) => player.isUser)!
-    expect(clearedHuman.age).toBeUndefined()
-    expect(clearedHuman.sex).toBeUndefined()
-    expect(clearedHuman.reproductiveProfile).toBeUndefined()
+    expect(cleared.players.find((player) => player.isUser)).toMatchObject(expected)
   })
 
   it('normalizes persisted story state and preserves the hidden conception lock', () => {

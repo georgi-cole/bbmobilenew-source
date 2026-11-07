@@ -11,6 +11,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @CapacitorPlugin(name = "StoryIconRotation")
 public final class StoryIconRotationPlugin extends Plugin {
@@ -71,8 +72,12 @@ public final class StoryIconRotationPlugin extends Plugin {
     }
 
     private ComponentName aliasComponent(int stage) {
-        String aliasName = getContext().getPackageName() + ".StoryIconStage" + String.format("%02d", stage);
+        String aliasName = getContext().getPackageName() + stageAliasSuffix(stage);
         return new ComponentName(getContext(), aliasName);
+    }
+
+    static String stageAliasSuffix(int stage) {
+        return String.format(Locale.ROOT, ".StoryIconStage%02d", stage);
     }
 
     private void resolve(PluginCall call, int stage) {

@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { MemoryRouter } from 'react-router'
 import { configureStore } from '@reduxjs/toolkit'
-import gameReducer from '../../src/store/gameSlice'
+import gameReducer, { syncPhaseBroadcasts } from '../../src/store/gameSlice'
 import challengeReducer from '../../src/store/challengeSlice'
 import socialReducer from '../../src/social/socialSlice'
 import uiReducer from '../../src/store/uiSlice'
@@ -12,6 +12,7 @@ import profilesReducer from '../../src/store/profilesSlice'
 import adsReducer from '../../src/store/adsSlice'
 import remoteConfigReducer from '../../src/remoteConfig/remoteConfigSlice'
 import publicOpinionReducer from '../../src/publicOpinion/publicOpinionSlice'
+import { presentationConsistencyMiddleware } from '../../src/store/presentationConsistencyMiddleware'
 import GameScreen from '../../src/screens/GameScreen/GameScreen'
 import type { GameState } from '../../src/types'
 
@@ -19,11 +20,12 @@ vi.mock('../../src/minigames/LegacyMinigameWrapper', () => ({
   default: () => null,
 }))
 
-vi.mock('../../src/store/confessionalDecisionSelectors', () => ({
+vi.mock('../../src/store/confessionalDecisionSelectors', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/store/confessionalDecisionSelectors')>()),
   selectActiveConfessionalDecision: () => null,
 }))
 
-vi.mock('../../src/components/CeremonyOverlay/CeremonyOverlay', () => ({
+vi.mock('../../src/cinematic/ceremonies/ceremony.jsx', () => ({
   default: ({
     caption,
     resolveTiles,
@@ -56,6 +58,8 @@ function makeStore(gameOverrides: Partial<GameState> = {}) {
       remoteConfig: remoteConfigReducer,
       publicOpinion: publicOpinionReducer,
     },
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware().concat(presentationConsistencyMiddleware),
     preloadedState: { game: { ...base, ...gameOverrides } },
   })
 }
@@ -140,18 +144,24 @@ describe("GameScreen Cupid's Arrow presentation", () => {
     const partner = base.players.find((player) => player.id === partnerId)!
     const store = makeStore(
       makeCupidOverrides({
-        phase: 'loh_comp',
+        phase: 'loh_comp_announcement',
         prevHohId: human.id,
       }),
     )
 
-    renderGameScreen(store)
+    store.dispatch(
+      syncPhaseBroadcasts({
+        phase: 'loh_comp_announcement',
+        cardMajor: 'loh_comp_announcement',
+      })
+    )
 
-    expect(
-      screen.getByText(
-        `As the outgoing LOH pair, you and ${partner.name} are not eligible to compete.`,
-      ),
-    ).toBeInTheDocument()
+    const eligibilityCard = store
+      .getState()
+      .game.tvFeed.find((event) => event.meta?.broadcastTemplateId === 'card.loh')
+    expect(eligibilityCard?.text).toContain(
+      `As the outgoing LOH pair, ${human.name} & ${partner.name} are sitting this competition out.`
+    )
   })
 
   it('explains that the human LOH nominates two pairs', () => {
@@ -186,6 +196,6 @@ describe("GameScreen Cupid's Arrow presentation", () => {
 
     renderGameScreen(store)
 
-    expect(screen.getByText(/ win Leader of the House!$/)).toBeInTheDocument()
+    expect(screen.getByText(/ win Leader of the Hub!$/)).toBeInTheDocument()
   })
 })

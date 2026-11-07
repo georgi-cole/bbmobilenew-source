@@ -2015,7 +2015,9 @@ export function executeGroupAction(
   actionId: string,
   options?: ExecuteActionOptions
 ): ExecuteActionResult {
-  const currentEnergy = SocialEnergyBank.get(actorId)
+  const state = _store?.getState() as (StateForManeuvers & { social: SocialState }) | undefined
+  const weekendWallet = getWeekendWallet(state, actorId)
+  const currentEnergy = weekendWallet?.energy ?? state?.social.energyBank[actorId] ?? 0
   const unavailable = (summary: string): ExecuteActionResult => ({
     success: false,
     delta: 0,
@@ -2024,21 +2026,12 @@ export function executeGroupAction(
     score: 0,
     label: 'Unavailable',
   })
-  if (!_store) return unavailable('Store not initialised')
+  if (!_store || !state) return unavailable('Store not initialised')
 
   const action = getActionById(actionId)
   if (!action) return unavailable('Unknown action')
 
   const targetIds = [...new Set(rawTargetIds)].filter((id) => id && id !== actorId)
-  const state = _store.getState() as {
-    social: SocialState
-    game?: ManeuverGameState
-    settings?: { gameUX?: { dramaMode?: boolean; realityModePreset?: string } }
-    vip?: {
-      isActive?: boolean
-      entitlements?: { dramaMode?: boolean }
-    }
-  }
   const dramaMode = getEffectiveSocialMode(state) === 'drama'
   const realityPreset = state.settings?.gameUX?.realityModePreset
   if (realityPreset && !isActionAllowedForRealityPreset(action, realityPreset)) {
@@ -2050,7 +2043,7 @@ export function executeGroupAction(
     action,
     actorId,
     targetIds,
-    phase: state.game?.phase,
+    phase: getWeekendEligibilityPhase(state.game),
     players: state.game?.players,
     nomineeIds: state.game?.nomineeIds,
     relationships: state.social.relationships,
@@ -2064,7 +2057,7 @@ export function executeGroupAction(
   if (!eligibility.eligible) return unavailable(eligibility.reason)
 
   const costs = options?.costOverride ?? normalizeActionCosts(action, targetIds.length, dramaMode)
-  if (!canAfford(actorId, costs)) {
+  if (!canAfford(actorId, costs, state)) {
     return {
       ...unavailable(
         'Not enough resources: Group Chat needs ' +
@@ -2089,7 +2082,7 @@ export function executeGroupAction(
       targetId,
       actionId,
       state.game?.week,
-      state.game?.phase
+      getSocialActivityPhase(state.game)
     )
     const baseDelta = computeOutcomeDelta(actionId, actorId, targetId, targetOutcome)
     const repeated =
@@ -2126,14 +2119,18 @@ export function executeGroupAction(
     }
   }
 
-  const newEnergy = SocialEnergyBank.add(actorId, -costs.energy)
-  const currentInfluence = state.social.influenceBank[actorId] ?? 0
-  const currentInfo = state.social.infoBank[actorId] ?? 0
-  if (costs.influence > 0) {
-    _store.dispatch(applyInfluenceDelta({ playerId: actorId, delta: -costs.influence }))
-  }
-  if (costs.info > 0) {
-    _store.dispatch(applyInfoDelta({ playerId: actorId, delta: -costs.info }))
+  const currentInfluence = weekendWallet?.influence ?? state.social.influenceBank[actorId] ?? 0
+  const currentInfo = weekendWallet?.info ?? state.social.infoBank[actorId] ?? 0
+  if (weekendWallet) {
+    _store.dispatch({ type: 'game/spendWeekendSocialResources', payload: costs })
+  } else {
+    SocialEnergyBank.add(actorId, -costs.energy)
+    if (costs.influence > 0) {
+      _store.dispatch(applyInfluenceDelta({ playerId: actorId, delta: -costs.influence }))
+    }
+    if (costs.info > 0) {
+      _store.dispatch(applyInfoDelta({ playerId: actorId, delta: -costs.info }))
+    }
   }
 
   const effect = getSocialResourceEffect(
@@ -2145,11 +2142,17 @@ export function executeGroupAction(
     influence: clampResourceAdjustment(effect.influence, currentInfluence - costs.influence),
     info: clampResourceAdjustment(effect.info, currentInfo - costs.info),
   }
-  if (appliedEffect.influence !== 0) {
-    _store.dispatch(applyInfluenceDelta({ playerId: actorId, delta: appliedEffect.influence }))
-  }
-  if (appliedEffect.info !== 0) {
-    _store.dispatch(applyInfoDelta({ playerId: actorId, delta: appliedEffect.info }))
+  if (weekendWallet) {
+    if (appliedEffect.influence !== 0 || appliedEffect.info !== 0) {
+      _store.dispatch({ type: 'game/adjustWeekendSocialResources', payload: appliedEffect })
+    }
+  } else {
+    if (appliedEffect.influence !== 0) {
+      _store.dispatch(applyInfluenceDelta({ playerId: actorId, delta: appliedEffect.influence }))
+    }
+    if (appliedEffect.info !== 0) {
+      _store.dispatch(applyInfoDelta({ playerId: actorId, delta: appliedEffect.info }))
+    }
   }
 
   for (const targetId of targetIds) {
@@ -2163,10 +2166,13 @@ export function executeGroupAction(
     )
   }
 
-  const stateAfter = _store.getState() as {
-    social: SocialState
-    game?: { week?: number; phase?: string }
+  const stateAfter = _store.getState() as StateForManeuvers
+  const balancesAfter = getWeekendWallet(stateAfter, actorId) ?? {
+    energy: stateAfter.social.energyBank[actorId] ?? 0,
+    influence: stateAfter.social.influenceBank?.[actorId] ?? 0,
+    info: stateAfter.social.infoBank?.[actorId] ?? 0,
   }
+  const newEnergy = balancesAfter.energy
   const entry: SocialActionLogEntry = {
     actionId,
     actorId,
@@ -2178,11 +2184,7 @@ export function executeGroupAction(
     delta: averageDelta,
     outcome,
     newEnergy,
-    balancesAfter: {
-      energy: stateAfter.social.energyBank[actorId] ?? 0,
-      influence: stateAfter.social.influenceBank[actorId] ?? 0,
-      info: stateAfter.social.infoBank[actorId] ?? 0,
-    },
+    balancesAfter,
     yieldsApplied: {
       ...(appliedEffect.influence !== 0 ? { influence: appliedEffect.influence } : {}),
       ...(appliedEffect.info !== 0 ? { info: appliedEffect.info } : {}),
@@ -2193,7 +2195,7 @@ export function executeGroupAction(
       ' hubmates into one conversation; each reacted according to your history with them.',
     timestamp: Date.now(),
     week: stateAfter.game?.week,
-    phase: stateAfter.game?.phase,
+    phase: getSocialActivityPhase(stateAfter.game),
     score: finalScore,
     label: finalLabel,
     source: options?.source ?? 'system',

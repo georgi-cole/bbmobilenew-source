@@ -98,6 +98,20 @@ const WEIGHTS_MEMORY_SPEED: CompetitionSkillWeights = {
 }
 
 export const minigameAiRegistry: Record<string, MinigameAiModel> = {
+  boxedOut: {
+    key: 'boxedOut',
+    category: 'hybrid',
+    scoreDirection: 'higher-is-better',
+    volatility: VOLATILITY_LUCK,
+    weights: WEIGHTS_LUCK,
+  },
+  percentagePanic: {
+    key: 'percentagePanic',
+    category: 'mental',
+    scoreDirection: 'higher-is-better',
+    volatility: VOLATILITY_TRIVIA,
+    weights: WEIGHTS_MENTAL_PRECISION,
+  },
   countHouse: {
     key: 'countHouse',
     category: 'mental',

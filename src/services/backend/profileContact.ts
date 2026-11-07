@@ -19,6 +19,8 @@ export type ProfileContactInput = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+const isContactConflict = (code?: string) => code === 'PT409' || code === '40001'
+
 export const isProfileContactConfigured = () =>
   getBackendConfig() !== null && import.meta.env.VITE_PLAYER_ACCOUNTS_ENABLED === 'true'
 
@@ -38,7 +40,7 @@ export function isValidContactEmail(value: string): boolean {
 
 function contactError(error: unknown, writeMayHaveCompleted = false): Error {
   const code = (error as { code?: string } | null)?.code
-  if (code === '40001')
+  if (isContactConflict(code))
     return Object.assign(new Error('Email preferences changed. Reload them before saving again.'), {
       code: 'contact_conflict',
       uncertainSave: false,
@@ -132,7 +134,7 @@ export async function saveProfileContact(
       p_updates_opt_in: input.updatesOptIn === true,
       p_expected_revision: input.expectedRevision,
     })
-    if (error?.code === '40001') {
+    if (isContactConflict(error?.code)) {
       // A write can succeed while its response is lost. Accept a retry only if
       // the server already has this exact choice; never overwrite an unsubscribe.
       const current = await client.rpc('get_player_profile_contact', { p_profile_id: profile.id })

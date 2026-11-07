@@ -559,14 +559,17 @@ describe('startChallenge – compSelection modes', () => {
     expect(typeof pending?.game.key).toBe('string')
   })
 
-  it('survivor mode rotates through all roster-safe non-retired games, independently of Classic', () => {
+  it('survivor mode rotates through the roster-safe games approved for its own pool', () => {
     const store = makeSurvivorStore()
     const playerCount = store
       .getState()
       .game.players.filter(
         (player) => player.status !== 'evicted' && player.status !== 'jury'
       ).length
-    const availableKeys = getPoolByFilter({ retired: false })
+    const availableKeys = [
+      ...getPoolByFilter({ retired: false }),
+      ...getPoolByFilter({ retired: true }).filter((game) => game.survivalModeEligible),
+    ]
       .filter((game) => supportsPlayerCount(game, playerCount))
       .filter((game) => game.key !== 'rescueTheKing')
       .filter((game) => game.key !== 'capitalization')
@@ -585,7 +588,7 @@ describe('startChallenge – compSelection modes', () => {
         )
       )
       const pending = store.getState().challenge.pending
-      expect(pending?.game.retired).toBe(false)
+      expect(availableKeys).toContain(pending?.game.key)
       selectedKeys.add(pending?.game.key ?? '')
       store.dispatch(setPendingChallenge(null))
     })

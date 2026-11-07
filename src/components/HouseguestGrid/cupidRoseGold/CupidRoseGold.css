@@ -7,7 +7,7 @@
 body.body--cupid-shock .game-screen--cupid-revealed [class*='avatarWrap'] {
   background:
     linear-gradient(rgba(79, 42, 54, 0.14), rgba(79, 42, 54, 0.14)),
-    url('/bbmobilenew/assets/skins/cupid-love/rose-gold-unified.png') center / cover no-repeat;
+    url('/assets/skins/cupid-love/rose-gold-unified.png') center / cover no-repeat;
   border-color: rgba(74, 42, 55, 0.9);
   box-shadow:
     0 7px 18px rgba(30, 12, 20, 0.34),
@@ -37,15 +37,32 @@ body.body--cupid-shock .game-screen--cupid-revealed [class*='cupidPairMarker'] {
 }
 
 @keyframes cupidColorStorm {
-  0% { opacity: 0; transform: scale(0.45) rotate(-20deg); }
-  35% { opacity: 0.72; }
-  100% { opacity: 0; transform: scale(1.3) rotate(26deg); }
+  0% {
+    opacity: 0;
+    transform: scale(0.45) rotate(-20deg);
+  }
+  35% {
+    opacity: 0.72;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.3) rotate(26deg);
+  }
 }
 
 @keyframes cupidCapLand {
-  0% { opacity: 0; transform: translate(12px, -12px) rotate(18deg) scale(0.55); }
-  70% { opacity: 1; transform: translate(-2px, 2px) rotate(1deg) scale(1.08); }
-  100% { opacity: 1; transform: rotate(3deg) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translate(12px, -12px) rotate(18deg) scale(0.55);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-2px, 2px) rotate(1deg) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(3deg) scale(1);
+  }
 }
 
 body.body--cupid-shock .game-screen--cupid-revealed [class*='avatarWrap'] [class*='avatar'] {

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import { configureStore } from '@reduxjs/toolkit'
 import { Provider } from 'react-redux'
 import { MemoryRouter, useLocation } from 'react-router'
@@ -18,7 +18,8 @@ vi.mock('../../src/minigames/LegacyMinigameWrapper', () => ({
   default: () => null,
 }))
 
-vi.mock('../../src/store/confessionalDecisionSelectors', () => ({
+vi.mock('../../src/store/confessionalDecisionSelectors', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/store/confessionalDecisionSelectors')>()),
   selectActiveConfessionalDecision: () => null,
 }))
 
@@ -135,11 +136,13 @@ describe('GameScreen public meter gating', () => {
     await act(async () => {})
 
     act(() => {
-      screen.getByRole('button', { name: 'Social' }).click()
+      within(screen.getByRole('toolbar', { name: 'Game actions' }))
+        .getByRole('button', { name: 'Social' })
+        .click()
     })
 
     expect(screen.getByTestId('tv-zone-announcement')).toHaveTextContent(
-      'Everybody is currently waiting to vote or be voted, so no time for chit-chat now.'
+      'Players are now being called to the confessional for the elimination. Try again later.'
     )
     expect(store.getState().game.tvFeed).toEqual(initialFeed)
 
@@ -168,7 +171,11 @@ describe('GameScreen public meter gating', () => {
         'You were eliminated before the Tribunal began, so you cannot return to the game or cast a finale vote.'
       )
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Social' })).toHaveAttribute('aria-disabled', 'true')
+    expect(
+      within(screen.getByRole('toolbar', { name: 'Game actions' })).getByRole('button', {
+        name: 'Social',
+      })
+    ).toHaveAttribute('aria-disabled', 'true')
     expect(store.getState().game.tvFeed).toEqual(initialFeed)
   })
 })

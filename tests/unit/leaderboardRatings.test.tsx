@@ -7,7 +7,7 @@ import Leaderboard from '../../src/screens/Leaderboard/Leaderboard'
 import gameReducer, { createInitialGameState } from '../../src/store/gameSlice'
 
 describe('Hall of Fame season ratings', () => {
-  it('shows the archived public rating on the season card and expanded details', () => {
+  it('keeps the archived public rating visible when season details are expanded', () => {
     const initial = createInitialGameState({ seed: 8801 })
     const human = initial.players.find((player) => player.isUser)
     if (!human) throw new Error('Expected a human player')
@@ -49,12 +49,13 @@ describe('Hall of Fame season ratings', () => {
       </Provider>
     )
 
-    expect(screen.getByText('★ Public rating: 83%')).toBeTruthy()
+    const card = screen.getByRole('button', { name: /season 1.*public rating: 83%/i })
+    expect(screen.getByText('★ 83%')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: /season 1/i }))
+    fireEvent.click(card)
 
-    expect(screen.getByText('Your public rating')).toBeTruthy()
-    expect(screen.getAllByText('83%').length).toBeGreaterThan(0)
+    expect(screen.getByText('Runner-up')).toBeTruthy()
+    expect(screen.getByText('★ 83%')).toBeTruthy()
   })
 
   it('uses a clear placeholder for archives created before ratings were stored', () => {
@@ -92,6 +93,7 @@ describe('Hall of Fame season ratings', () => {
       </Provider>
     )
 
-    expect(screen.getByText('★ Public rating: Not recorded')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /public rating: not recorded/i })).toBeTruthy()
+    expect(screen.getByText('★ Not recorded')).toBeTruthy()
   })
 })

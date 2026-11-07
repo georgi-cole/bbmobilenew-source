@@ -293,7 +293,7 @@ async function installContactFixture(page: Page, options: FixtureOptions = {}) {
       if (options.saveFailure) return json({ code: 'XX000', message: 'Demo offline save' }, 500)
       const current = contacts.get(body.p_profile_id)
       if ((current?.revision ?? null) !== body.p_expected_revision)
-        return json({ code: '40001', message: 'Demo stale revision' }, 400)
+        return json({ code: 'PT409', message: 'Demo stale revision' }, 409)
       const contact = {
         email: body.p_email,
         updatesOptIn: body.p_updates_opt_in,

@@ -117,15 +117,15 @@ describe('generateOfflineBigBrotherReply', () => {
     expect(res.text).toContain('Jordan');
   });
 
-  it('uses "Houseguest" when no playerName is provided', async () => {
+  it('uses "Hubmate" when no playerName is provided', async () => {
     // Collect a few replies across different seeds to account for pool variation
     const texts: string[] = [];
     for (let seed = 0; seed < 20; seed++) {
       const r = await generateOfflineBigBrotherReply({ diaryText: 'I miss my parents', seed });
       texts.push(r.text);
     }
-    // All replies should use the default "Houseguest" placeholder
-    expect(texts.every((t) => t.includes('Houseguest'))).toBe(true);
+    // All replies should use the default "Hubmate" placeholder
+    expect(texts.every((t) => t.includes('Hubmate'))).toBe(true);
   });
 
   it('is deterministic: same text + same seed returns same reply', async () => {

@@ -34,6 +34,8 @@ import GameScreen from '../../src/screens/GameScreen/GameScreen'
 import DiaryRoom from '../../src/screens/DiaryRoom/DiaryRoom'
 import ConfessionalDecisionPanel from '../../src/screens/DiaryRoom/ConfessionalDecisionPanel'
 import ConfessionalRoute from '../../src/screens/DiaryRoom/ConfessionalRoute'
+import RequiredConfessionalDecision from '../../src/screens/DiaryRoom/RequiredConfessionalDecision'
+import { getRequiredConfessionalPresentation } from '../../src/screens/DiaryRoom/requiredConfessionalPresentation'
 import type { SecretMissionState } from '../../src/bb/secretMission'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -609,7 +611,7 @@ describe('DiaryRoom — confessional decision panel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm save target' }))
 
     expect(store.getState().game.awaitingPovSaveTarget).toBe(false)
-    expect(screen.getByText(/Return to the House to continue the ceremony/i)).toBeTruthy()
+    expect(screen.getByText(/Return to the Hub to continue the ceremony/i)).toBeTruthy()
     expect(screen.queryByTestId('required-confessional-decision')).toBeNull()
     expect(screen.queryByText('Select a pair')).toBeNull()
   })
@@ -631,7 +633,7 @@ describe('DiaryRoom — confessional decision panel', () => {
       humanDoubleVoteActive: true,
     })
     renderDiaryRoom(store)
-    expect(screen.getByText(/Choose your two eviction votes/i)).toBeTruthy()
+    expect(screen.getByText(/Choose your two elimination votes/i)).toBeTruthy()
   })
 })
 
@@ -872,4 +874,51 @@ describe('ConfessionalDecisionPanel — Democracia POS tie-break', () => {
     expect(game.pendingEviction?.evictionMessage).toContain('breaks the tie as a special exception')
     expect(game.phase).toBe('eviction_results')
   })
+
+  it.each(['panel', 'required session'] as const)(
+    'preserves the first double elimination when Safety breaks the tie in the %s',
+    (entry) => {
+      const players = buildPlayers()
+      players[0].status = 'pos'
+      for (const player of players.slice(1, 4)) player.status = 'nominated'
+      const firstEviction = { evicteeId: 'p2', evictionMessage: 'Player 2 was eliminated.' }
+      const store = makeStore({
+        phase: 'eviction_results',
+        players,
+        lohId: 'p2',
+        posWinnerId: 'p1',
+        nomineeIds: ['p2', 'p3', 'p4'],
+        tiedNomineeIds: ['p3', 'p4'],
+        pendingEviction: firstEviction,
+        doubleEviction: { weekActive: true, usedCount: 1, pendingSecondEviction: null },
+        awaitingTieBreak: true,
+        awaitingPosTieBreak: true,
+      })
+      const decision = { type: 'tie_break', week: 2, phase: 'eviction_results' } as const
+      const presentation = getRequiredConfessionalPresentation(decision, store.getState().game)
+
+      render(
+        <Provider store={store}>
+          {entry === 'panel' ? (
+            <ConfessionalDecisionPanel decision={decision} />
+          ) : (
+            <RequiredConfessionalDecision
+              decision={decision}
+              presentation={presentation}
+              onDecisionCommitted={vi.fn()}
+            />
+          )}
+        </Provider>
+      )
+      fireEvent.click(screen.getByRole('button', { name: /Player 3/i }))
+      if (entry === 'required session')
+        fireEvent.click(screen.getByRole('button', { name: presentation.confirmLabel }))
+
+      const game = store.getState().game
+      expect(game.awaitingTieBreak).toBe(false)
+      expect(game.awaitingPosTieBreak).toBe(false)
+      expect(game.pendingEviction).toEqual(firstEviction)
+      expect(game.doubleEviction?.pendingSecondEviction?.evicteeId).toBe('p3')
+    }
+  )
 })
