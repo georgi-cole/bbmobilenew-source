@@ -33,9 +33,7 @@ export function resolvePresentationAvatarCandidates(source: string | null | unde
   }
 
   const prefix = `${source.slice(0, markerIndex)}${marker}backup-grey-lux/`
-  const suffix = source.slice(source.indexOf(assetName) + assetName.length)
-  const stem = assetName.slice(0, -'.webp'.length)
-  return [`${prefix}${stem}.webp${suffix}`, `${prefix}${stem}.png${suffix}`]
+  return [`${prefix}${assetName}`, source]
 }
 
 /** Resolves the preferred grey presentation asset. The caller may advance to

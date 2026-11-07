@@ -170,7 +170,11 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     }, 1200)
   }
   async function flush() {
-    if (stopped || busy) return
+    if (stopped) return
+    if (busy) {
+      resyncAfterFlush = true
+      return
+    }
     busy = true
     const signal = controller.signal
     try {
@@ -190,30 +194,6 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
         const { client, ownerId } = await authenticatedBackend('profile_backup')
         if (signal.aborted || stopped) return
         backupOwnerId = ownerId
-        const { client: analyticsClient, ownerId: analyticsOwnerId } =
-          await authenticatedBackend('analytics')
-        if (signal.aborted || stopped) return
-        for (const id of preferences.deletedProfiles) {
-          const { error: analyticsDeleteError } = await analyticsClient
-            .from('player_events')
-            .delete()
-            .eq('owner_id', analyticsOwnerId)
-            .eq('profile_id', id)
-            .abortSignal(signal)
-          if (analyticsDeleteError) throw analyticsDeleteError
-          const { error } = await client
-            .from('player_profiles')
-            .delete()
-            .eq('owner_id', ownerId)
-            .eq('profile_id', id)
-            .abortSignal(signal)
-          if (error) throw error
-          const latest = readPreferences()
-          latest.deletedProfiles = latest.deletedProfiles.filter((entry) => entry !== id)
-          latest.knownProfiles = latest.knownProfiles.filter((entry) => entry !== id)
-          localStorage.setItem(PREFERENCES_KEY, JSON.stringify(latest))
-          uploaded.delete(id)
-        }
         for (const profile of pendingUploads) {
           const snapshot = serializeProfileBackup(profile)
           const { error } = await client
@@ -230,6 +210,32 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
             lastSynced = new Date().toISOString()
             setStatus('synced')
           }
+        }
+        for (const id of preferences.deletedProfiles) {
+          const { error } = await client
+            .from('player_profiles')
+            .delete()
+            .eq('owner_id', ownerId)
+            .eq('profile_id', id)
+            .abortSignal(signal)
+          if (error) throw error
+          if (signal.aborted || stopped) return
+          const { client: analyticsClient, ownerId: analyticsOwnerId } =
+            await authenticatedBackend('analytics')
+          if (signal.aborted || stopped) return
+          const { error: analyticsDeleteError } = await analyticsClient
+            .from('player_events')
+            .delete()
+            .eq('owner_id', analyticsOwnerId)
+            .eq('profile_id', id)
+            .abortSignal(signal)
+          if (analyticsDeleteError) throw analyticsDeleteError
+          if (signal.aborted || stopped) return
+          const latest = readPreferences()
+          latest.deletedProfiles = latest.deletedProfiles.filter((entry) => entry !== id)
+          latest.knownProfiles = latest.knownProfiles.filter((entry) => entry !== id)
+          localStorage.setItem(PREFERENCES_KEY, JSON.stringify(latest))
+          uploaded.delete(id)
         }
       }
 
@@ -337,6 +343,13 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
   const unsubscribeEvents = subscribeProductEvents((event, profileId) => {
     if (!analyticsAllowed()) return
     if (!eventIsDeployed(event.name)) return
+    // An async action can finish after its profile was deleted. Do not recreate
+    // linked analytics for that profile after the deletion has been queued.
+    if (
+      profileId &&
+      !store.getState().profiles.profiles.some((profile) => profile.id === profileId)
+    )
+      return
     const safe = sanitizeAnalyticsEvent(event)
     if (!safe) return
     writeEvents([

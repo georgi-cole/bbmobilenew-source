@@ -48,7 +48,8 @@ import {
   executeGroupAction,
 } from '../../src/social/SocialManeuvers'
 import { socialMiddleware } from '../../src/social/socialMiddleware'
-import { relationshipResourcePolicyMiddleware } from '../../src/social/relationshipResourcePolicyMiddleware'
+import { executeAllianceManagementCommand } from '../../src/social/allianceManagementActions'
+import { getCurrentPact } from '../../src/social/reality/allianceIdentity'
 import { socialConfig } from '../../src/social/socialConfig'
 import { MIN_ALLIANCE_AFFINITY, hasAllianceBetween } from '../../src/social/socialAlliance'
 import { executeHumanRealityAction } from '../../src/social/reality/humanFlow'
@@ -380,152 +381,68 @@ describe('Reality compatibility outcome semantics', () => {
   })
 })
 
-describe('Reality human alliance proposal acceptance', () => {
-  function makeAllianceProposalStore(seed: number) {
+describe('Reality human personal pact proposals', () => {
+  function offerPersonalPact() {
     const store = makeStoreWithSocialMiddleware(true, [
-      { id: 'p1', name: 'Player', status: 'active' as const, isUser: true },
-      { id: 'p2', name: 'Kian', status: 'active' as const },
+      { id: 'p1', name: 'Player', status: 'active', isUser: true },
+      { id: 'p2', name: 'Kian', status: 'active', isUser: true },
     ])
     initManeuvers(store)
     store.dispatch(setPhase('social_1'))
-    store.dispatch(initializeRealitySimulation({ seed, force: true }))
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
     store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 300 }))
-    store.dispatch(
-      updateRelationship({
-        source: 'p1',
-        target: 'p2',
-        delta: 10,
-        actionSource: 'system',
-      })
-    )
-    store.dispatch(
-      updateRelationship({
-        source: 'p2',
-        target: 'p1',
-        delta: 10,
-        actionSource: 'system',
-      })
-    )
-    return store
+    const propose = () =>
+      executeHumanRealityAction({ actorId: 'p1', targetId: 'p2', actionId: 'proposeAlliance' })(
+        store.dispatch as never,
+        store.getState as never
+      )
+    expect(propose().success).toBe(true)
+    const reality = store.getState().social.reality
+    expect(getCurrentPact(reality, 'p1', 'p2')).toBeUndefined()
+    const [request] = Object.values(reality.allianceManagement.requests)
+    expect(request).toMatchObject({ status: 'CONSENT', kind: 'PACT' })
+    const respond = (accept: boolean) =>
+      executeAllianceManagementCommand({
+        type: 'RESPOND',
+        actorId: 'p2',
+        requestId: request.id,
+        accept,
+      })(store.dispatch as never, store.getState as never)
+    return { store, propose, respond, request }
   }
 
-  it('does not manufacture an alliance tag when the target only counters the proposal', () => {
-    // Seed 8 makes the second persisted Reality draw land in the counteroffer
-    // band for this relationship state.
-    const store = makeAllianceProposalStore(8)
-
-    const result = executeHumanRealityAction({
-      actorId: 'p1',
-      targetId: 'p2',
-      actionId: 'proposeAlliance',
-    })(store.dispatch as never, store.getState as never)
-
-    expect(result.label).toBe('COUNTER')
-    expect(result.summary).toMatch(/counteroffer/i)
-    expect(Object.values(store.getState().social.reality.alliances)).toHaveLength(0)
-    expect(store.getState().social.relationships.p1?.p2?.tags ?? []).not.toContain('alliance')
-    expect(store.getState().social.relationships.p2?.p1?.tags ?? []).not.toContain('alliance')
-
-    const afterCounter = store.getState()
-    const energyAfterCounter = afterCounter.social.energyBank.p1
-    const infoAfterCounter = afterCounter.social.infoBank.p1
-    const eventCountAfterCounter = afterCounter.social.reality.events.length
-    const rngCursorAfterCounter = afterCounter.social.realitySimulation.rng?.cursor
-
-    const retry = executeHumanRealityAction({
-      actorId: 'p1',
-      targetId: 'p2',
-      actionId: 'proposeAlliance',
-    })(store.dispatch as never, store.getState as never)
-
-    expect(retry.success).toBe(false)
-    expect(retry.label).toBe('Already approached')
-    expect(store.getState().social.energyBank.p1).toBe(energyAfterCounter)
-    expect(store.getState().social.infoBank.p1).toBe(infoAfterCounter)
-    expect(store.getState().social.reality.events).toHaveLength(eventCountAfterCounter)
-    expect(store.getState().social.realitySimulation.rng?.cursor).toBe(rngCursorAfterCounter)
-
+  it('keeps a declined proposal out of the alliance roster and its projection', () => {
+    const { store, respond, request } = offerPersonalPact()
+    expect(respond(false).status).toBe('APPLIED')
     store.dispatch(setPhase('week_start'))
-
-    expect(Object.values(store.getState().social.reality.alliances)).toHaveLength(0)
-    expect(store.getState().social.relationships.p1?.p2?.tags ?? []).not.toContain('alliance')
-    expect(store.getState().social.relationships.p2?.p1?.tags ?? []).not.toContain('alliance')
+    const { reality, relationships } = store.getState().social
+    expect(reality.allianceManagement.requests[request.id].status).toBe('DECLINED')
+    expect(getCurrentPact(reality, 'p1', 'p2')).toBeUndefined()
+    expect(hasAllianceBetween(relationships, 'p1', 'p2')).toBe(false)
   })
 
-  it('pays the calibrated alliance reward exactly once after Reality projection repair', () => {
-    const initialGame = gameReducer(undefined, { type: '@@test/init' })
-    const store = configureStore({
-      reducer: { game: gameReducer, social: socialReducer, settings: settingsReducer },
-      preloadedState: {
-        game: {
-          ...initialGame,
-          players: [
-            { id: 'p1', name: 'Player', status: 'active' as const, isUser: true },
-            { id: 'p2', name: 'Kian', status: 'active' as const },
-          ],
-        },
-      } as never,
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware().concat(relationshipResourcePolicyMiddleware, socialMiddleware),
-    })
-    store.dispatch(setGameUX({ dramaMode: true }))
-    initManeuvers(store)
-    store.dispatch(setPhase('social_1'))
-    store.dispatch(initializeRealitySimulation({ seed: 1, force: true }))
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 300 }))
-    store.dispatch(
-      updateRelationship({
-        source: 'p1',
-        target: 'p2',
-        delta: 10,
-        actionSource: 'system',
-      })
-    )
-    store.dispatch(
-      updateRelationship({
-        source: 'p2',
-        target: 'p1',
-        delta: 10,
-        actionSource: 'system',
-      })
-    )
-
-    const result = executeHumanRealityAction({
-      actorId: 'p1',
-      targetId: 'p2',
-      actionId: 'proposeAlliance',
-    })(store.dispatch as never, store.getState as never)
-
-    expect(result.success).toBe(true)
-    expect(Object.values(store.getState().social.reality.alliances)).toHaveLength(1)
-    expect(store.getState().social.energyBank.p1).toBe(6)
-    expect(store.getState().social.infoBank.p1).toBe(200)
-    expect(store.getState().social.influenceBank.p1).toBe(20)
-    expect(store.getState().social.influenceBank.p2).toBe(20)
+  it('charges two Energy once and prevents a duplicate personal pact', () => {
+    const { store, propose, respond } = offerPersonalPact()
+    expect(respond(true).status).toBe('APPLIED')
+    expect(propose().success).toBe(false)
+    const { energyBank, infoBank, influenceBank, reality } = store.getState().social
+    expect(energyBank.p1).toBe(8)
+    expect(infoBank.p1).toBe(300)
+    expect(influenceBank.p1 ?? 0).toBe(0)
+    expect(Object.values(reality.alliances)).toHaveLength(1)
   })
 
-  it('keeps a genuinely accepted human alliance through the next day projection', () => {
-    // Seed 1 makes the target accept this otherwise identical proposal.
-    const store = makeAllianceProposalStore(1)
-
-    executeHumanRealityAction({
-      actorId: 'p1',
-      targetId: 'p2',
-      actionId: 'proposeAlliance',
-    })(store.dispatch as never, store.getState as never)
-
-    const alliance = Object.values(store.getState().social.reality.alliances)[0]
-    expect(alliance?.memberIds).toEqual(expect.arrayContaining(['p1', 'p2']))
-    expect(store.getState().social.relationships.p1?.p2?.tags ?? []).toContain('alliance')
-    expect(store.getState().social.relationships.p2?.p1?.tags ?? []).toContain('alliance')
+  it('preserves an accepted personal pact through the next day projection', () => {
+    const { store, respond } = offerPersonalPact()
+    expect(respond(true).status).toBe('APPLIED')
+    const acceptedPact = getCurrentPact(store.getState().social.reality, 'p1', 'p2')
+    expect(acceptedPact?.memberIds).toEqual(expect.arrayContaining(['p1', 'p2']))
 
     store.dispatch(setPhase('week_start'))
-
-    expect(Object.values(store.getState().social.reality.alliances)).toHaveLength(1)
-    expect(store.getState().social.relationships.p1?.p2?.tags ?? []).toContain('alliance')
-    expect(store.getState().social.relationships.p2?.p1?.tags ?? []).toContain('alliance')
+    const { reality, relationships } = store.getState().social
+    expect(getCurrentPact(reality, 'p1', 'p2')?.id).toBe(acceptedPact?.id)
+    expect(relationships.p1?.p2?.tags ?? []).toContain('alliance')
+    expect(relationships.p2?.p1?.tags ?? []).toContain('alliance')
   })
 })
 

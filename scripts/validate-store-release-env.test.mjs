@@ -10,7 +10,10 @@ const validator = fileURLToPath(new URL('./validate-store-release-env.mjs', impo
 const releaseEnvironment = {
   VITE_BUILD_TARGET: 'release',
   VITE_VIP_DEV_ENTITLEMENT: 'false',
-  VITE_SUPABASE_ENABLED: 'false',
+  VITE_SUPABASE_ENABLED: 'true',
+  VITE_PLAYER_ACCOUNTS_ENABLED: 'true',
+  VITE_SUPABASE_URL: 'https://store-profiles.supabase.co',
+  VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_123456789012345678901234',
   VITE_BIG_EYE_AI_ENABLED: 'false',
   VITE_ADMOB_MODE: 'off',
   VITE_PRIVACY_POLICY_URL: 'https://game.example.org/privacy',
@@ -45,13 +48,13 @@ function validate(platform, overrides = {}, localOverrides = {}) {
 }
 
 for (const platform of ['android', 'ios']) {
-  test(`${platform}: accepts an offline release and explicit platform overrides of developer defaults`, () => {
+  test(`${platform}: accepts a cloud profile release and explicit platform overrides of developer defaults`, () => {
     const result = validate(
       platform,
       {},
       {
         VITE_VIP_DEV_ENTITLEMENT: 'true',
-        VITE_SUPABASE_ENABLED: 'true',
+        VITE_SUPABASE_ENABLED: 'false',
       }
     )
     assert.equal(result.status, 0, result.output)
@@ -65,19 +68,29 @@ for (const platform of ['android', 'ios']) {
     })
   }
 
-  test(`${platform}: rejects inherited cloud collection even when AI is disabled`, () => {
-    const result = validate(platform, { VITE_SUPABASE_ENABLED: 'true' })
-    assert.equal(result.status, 1)
-    assert.match(result.output, /Cloud backup and analytics are enabled/)
-  })
-
-  test(`${platform}: rejects a Diary Room endpoint independently of the AI flag`, () => {
+  test(`${platform}: rejects disabling cloud profiles`, () => {
     const result = validate(platform, {
-      VITE_BIG_EYE_VIP_API_URL: 'https://api.example.org',
-      VITE_BIG_EYE_AI_ENABLED: 'false',
+      VITE_SUPABASE_ENABLED: 'false',
+      VITE_PLAYER_ACCOUNTS_ENABLED: 'false',
     })
     assert.equal(result.status, 1)
-    assert.match(result.output, /online Diary Room endpoint must be unset/)
+    assert.match(result.output, /VITE_SUPABASE_ENABLED must be true/)
+    assert.match(result.output, /VITE_PLAYER_ACCOUNTS_ENABLED must be true/)
+  })
+
+  test(`${platform}: rejects placeholder Supabase URLs and private keys`, () => {
+    const result = validate(platform, {
+      VITE_SUPABASE_URL: 'https://YOUR_PROJECT.supabase.co',
+      VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_secret_123456789012345678901234',
+    })
+    assert.equal(result.status, 1)
+    assert.match(result.output, /VITE_SUPABASE_URL must be/)
+    assert.match(result.output, /VITE_SUPABASE_PUBLISHABLE_KEY must be/)
+  })
+
+  test(`${platform}: accepts a configured HTTPS Diary Room endpoint`, () => {
+    const result = validate(platform, { VITE_BIG_EYE_VIP_API_URL: 'https://api.example.org' })
+    assert.equal(result.status, 0, result.output)
   })
 
   test(`${platform}: rejects development entitlements and demo advertising`, () => {

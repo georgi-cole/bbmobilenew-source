@@ -832,41 +832,54 @@ describe('Final 3 flow — human player participating in minigame', () => {
     expect(state.minigameContext?.participants).toContain('user');
   });
 
-  it('applyF3MinigameWinner with human winning Part 3 → sets LOH, awaitingFinal3Eviction, phase final3_decision', () => {
+  it('opens the final ceremony for the human Final LOH before accepting their decision', () => {
     const store = makeFinal3HumanStore({
       phase: 'final3_comp3_minigame',
       f3Part1WinnerId: 'user',
       f3Part2WinnerId: 'p2',
       minigameContext: { phaseKey: 'final3_comp3', participants: ['user', 'p2'], seed: 99 },
-    });
-    store.dispatch(applyF3MinigameWinner('user'));
-    const state = store.getState().game;
-    expect(state.lohId).toBe('user');
-    expect(state.awaitingFinal3Eviction).toBe(true);
-    expect(state.phase).toBe('final3_decision');
-    expect(state.minigameContext).toBeNull();
+    })
+    store.dispatch(applyF3MinigameWinner('user'))
+    const state = store.getState().game
+    expect(state.lohId).toBe('user')
+    expect(state.awaitingFinal3Plea).toBe(true)
+    expect(state.phase).toBe('final3_decision')
+    expect(state.minigameContext).toBeNull()
     // Nominees should be set for the eviction decision
-    expect(state.nomineeIds.length).toBeGreaterThan(0);
-    expect(state.nomineeIds).not.toContain('user');
-  });
+    expect(state.nomineeIds.length).toBeGreaterThan(0)
+    expect(state.nomineeIds).not.toContain('user')
+    store.dispatch(advance())
+    expect(store.getState().game.phase).toBe('final3_decision')
+    const [evicteeId, remainingFinalistId] = state.nomineeIds
+    store.dispatch(finalizeFinal3Decision({ hohWinnerId: 'user', evicteeId }))
+    const completed = store.getState().game
+    expect(completed.phase).toBe('week_end')
+    expect(completed.awaitingFinal3Plea).toBe(false)
+    expect(completed.finalThree?.evicteeId).toBe(evicteeId)
+    store.dispatch(finalizeFinal3Decision({ hohWinnerId: 'user', evicteeId: remainingFinalistId }))
+    expect(store.getState().game).toBe(completed)
+  })
 
-  it('applyF3MinigameWinner with AI winning Part 3 → AI evicts, phase becomes week_end', () => {
+  it('opens the same ceremony for an AI Final LOH and completes it with two finalists', () => {
     const store = makeFinal3HumanStore({
       phase: 'final3_comp3_minigame',
       f3Part1WinnerId: 'p1',
       f3Part2WinnerId: 'user',
       minigameContext: { phaseKey: 'final3_comp3', participants: ['p1', 'user'], seed: 99 },
-    });
-    store.dispatch(applyF3MinigameWinner('p1')); // AI wins Part 3
-    const state = store.getState().game;
-    expect(state.lohId).toBe('p1');
-    expect(state.phase).toBe('week_end');
-    expect(state.minigameContext).toBeNull();
-    // AI already evicted someone; exactly 2 alive players should remain
-    const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury');
-    expect(alive).toHaveLength(2);
-  });
-});
+    })
+    store.dispatch(applyF3MinigameWinner('p1')) // AI wins Part 3
+    const state = store.getState().game
+    expect(state.lohId).toBe('p1')
+    expect(state.phase).toBe('final3_decision')
+    expect(state.awaitingFinal3Plea).toBe(true)
+    expect(state.minigameContext).toBeNull()
+    store.dispatch(finalizeFinal3Decision({ hohWinnerId: 'p1', evicteeId: state.nomineeIds[0] }))
+    const completed = store.getState().game
+    expect(completed.phase).toBe('week_end')
+    const alive = completed.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
+    expect(alive).toHaveLength(2)
+  })
+})
 
 // ── Regression: eviction_results never evicts to 1 player ────────────────────
 

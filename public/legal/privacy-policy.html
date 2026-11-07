@@ -70,9 +70,10 @@
         development) so test activity can be distinguished. Guest events have no profile ID and are
         grouped by the anonymous installation identifier. Guest history is not retroactively merged
         into a newly created profile. Activity groups describe records, not a verified count of
-        unique people. Deleting a profile also removes its linked backup and analytics rows. Other
-        analytics rows remain until removed by the project owner or in response to a deletion
-        request. For access or deletion requests, email
+        unique people. Deleting a profile on its original installation queues removal of its online
+        backup, contact details, and linked analytics. The app must reconnect to complete the
+        removal. Other analytics rows remain until removed by the project owner or in response to a
+        deletion request. For access or deletion requests, email
         <a href="mailto:kolequant@gmail.com">kolequant@gmail.com</a>.
       </p>
       <h2>Optional profile email and game updates</h2>

@@ -6,12 +6,12 @@ import {
 import { getPresentationAvatarPreloadUrls } from './avatarPreloadCandidates'
 
 describe('presentation avatar assets', () => {
-  it('prefers the grey WebP and exposes the PNG fallback', () => {
+  it('prefers the grey WebP and falls back to the existing original', () => {
     const source = '/assets/skins/Finn_avatar.webp'
     expect(resolvePresentationAvatar(source)).toBe('/assets/skins/backup-grey-lux/Finn_avatar.webp')
     expect(resolvePresentationAvatarCandidates(source)).toEqual([
       '/assets/skins/backup-grey-lux/Finn_avatar.webp',
-      '/assets/skins/backup-grey-lux/Finn_avatar.png',
+      source,
     ])
   })
 
@@ -24,13 +24,12 @@ describe('presentation avatar assets', () => {
     )
   })
 
-  it('includes grey WebP and PNG candidates in gameplay preload URLs', () => {
+  it('preloads the grey and original WebPs without requesting absent grey PNGs', () => {
     const urls = getPresentationAvatarPreloadUrls([{ id: 'finn', name: 'Finn', avatar: '' }])
     expect(
       urls.some((url) => url.includes('/backup-grey-lux/') && url.endsWith('_avatar.webp'))
     ).toBe(true)
-    expect(
-      urls.some((url) => url.includes('/backup-grey-lux/') && url.endsWith('_avatar.png'))
-    ).toBe(true)
+    expect(urls.some((url) => url.endsWith('/skins/Finn_avatar.webp'))).toBe(true)
+    expect(urls.some((url) => url.endsWith('_avatar.png'))).toBe(false)
   })
 })

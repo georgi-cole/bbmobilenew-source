@@ -488,8 +488,11 @@ describe('AI LOH POS replacement flow', () => {
 
   it('AI replacement never re-nominates the saved player', () => {
     const store = makeAiHohReplacementStore()
-    // AI LOH (p1) holds POS; saving p2 triggers automatic AI replacement selection
+    // Saving p2 opens the staged AI replacement checkpoint.
     store.dispatch(submitPovSaveTarget('p2'))
+    expect(store.getState().game.nomineeIds).toEqual(['p3'])
+    store.dispatch(advance()) // Selecting a backup announcement
+    store.dispatch(advance()) // Resolve the backup
     const state = store.getState().game
     // The saved player must not appear among the final nominees
     expect(state.nomineeIds).not.toContain('p2')

@@ -1,10 +1,15 @@
 # Release 1.0 privacy disclosures
 
-These answers describe the offline-first 1.0 mobile binary. Reconfirm them against the exact signed build before completing either store form. Supabase builds also need the disclosures below before submission.
+These answers describe the planned 1.0 mobile builds with Supabase profile backups and contact preferences. Confirm against the exact signed build before completing either store form.
 
 ## Supabase profile backup and analytics
 
-When configured, the app automatically sends a limited profile backup (profile ID, display name, avatar, selected appearance, achievements, and unlock progress) and pseudonymous gameplay events to Supabase. Events include screen visits and visible time, game mode and day, minigame duration/placement/exits, Social usage and action categories, selected gameplay decisions, elimination and season placement, marketplace product choices and purchase outcomes, and session activity. Purchase prices are not sent. Profile photos, biographies, wallet data, player names, and conversation text are not sent. The analytics profile ID can be joined to a profile backup and display name. Separate anonymous installation identities are used for backup and analytics. The app does not currently provide cross-device account recovery. Assess store categories for user content and usage data against the final signed build and the applicable store forms.
+The app automatically sends a limited profile backup (profile ID, display name, avatar, selected appearance, achievements, and unlock progress) and pseudonymous gameplay events to Supabase. Events include screen visits and visible time, game mode and day, minigame duration/placement/exits, Social usage and action categories, selected gameplay decisions, elimination and season placement, marketplace product choices and purchase outcomes, session activity, and coarse device context. Analytics may include guest activity. Purchase prices, profile photos, biographies, wallet data, and conversation text stay out of these payloads. The analytics profile ID can be joined to a profile backup and display name. Separate anonymous installation identities are used for backup and analytics. Profiles and seasons cannot currently be recovered on another device through the service.
+
+Players can optionally save an unverified contact email. A separate, initially unchecked choice permits game news and playtest invitations. Supabase stores the address and preference privately, outside the backup and event payloads. Players can clear the email or switch off updates in Edit Profile. Deleting a profile queues deletion of its backup, contact, and linked gameplay events for the current installation. Players can also request access or deletion through the public support page.
+
+- Apple: disclose Name, Email Address, User ID, Gameplay Content, Purchase History, Product Interaction, and Other Data Types as linked where associated with an installation or profile. Use the purposes declared in `ios/App/App/PrivacyInfo.xcprivacy`. Supabase is not used for cross-app tracking.
+- Google: disclose display name, optional email address, user IDs and other identifiers, gameplay interactions and other player-generated data, and marketplace purchase outcomes. Use app functionality and analytics as applicable. The optional updates choice adds developer communications for the email address. Review deletion answers against the installation-scoped data and actual in-app and public request paths.
 
 ## On-device data
 

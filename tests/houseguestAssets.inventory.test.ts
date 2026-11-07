@@ -22,7 +22,7 @@ function normalizeAssetStem(name: string): string {
     .toLowerCase()
     .replace(/\.[^.]+$/, '')
     .replace(/_avatar$/, '')
-    .replace(/_informal\d*$/, '')
+    .replace(/_informal(?:_v)?\d*$/, '')
     .replace(/_formal.*$/, '')
     .replace(/_tabloid\d*$/, '');
 }

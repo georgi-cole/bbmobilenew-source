@@ -23,7 +23,6 @@ import gameReducer, {
   tryActivatePendingForcedDoubleEviction,
   commitNominees,
   finalizePendingEviction,
-  submitTieBreak,
   submitDoubleEvictionTieBreak,
 } from '../src/store/gameSlice';
 import settingsReducer, { DEFAULT_SETTINGS } from '../src/store/settingsSlice';
@@ -123,7 +122,7 @@ function makeStore(
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('activateDoubleEviction', () => {
-  it('sets weekActive=true, increments usedCount, twistActivatedThisWeek=true, and pushes a TV event', () => {
+  it('activates the twist without duplicating the announcement owned by the nominations card', () => {
     const store = makeStore();
     store.dispatch(activateDoubleEviction());
     const { doubleEviction, tvFeed, twistActive, twistActivatedThisWeek } = store.getState().game;
@@ -135,9 +134,7 @@ describe('activateDoubleEviction', () => {
     expect(twistActivatedThisWeek).toBe(true);
 
     const event = tvFeed.find((e) => e.major === 'double_eviction');
-    expect(event).toBeDefined();
-    expect(event!.type).toBe('twist');
-    expect(event!.text).toMatch(/DOUBLE ELIMINATION/i);
+    expect(event).toBeUndefined();
   });
 
   it('initialises doubleEviction when the field is absent (legacy state)', () => {
@@ -612,7 +609,7 @@ describe('advance() — eviction_results with Double Eviction', () => {
     expect(doubleEviction?.pendingSecondEviction).toBeNull();
   });
 
-  it('submitTieBreak queues the second eviction instead of replacing the first during double eviction', () => {
+  it('queues the second eviction through the double-elimination tie resolver', () => {
     const store = makeEvictionStore({
       v0: 'p1', v1: 'p1', v2: 'p1', v3: 'p1', v4: 'p1',
       v5: 'p2',
@@ -620,14 +617,14 @@ describe('advance() — eviction_results with Double Eviction', () => {
     }, { publicModeEnabled: true });
 
     store.dispatch(advance());
-    store.dispatch(submitTieBreak('p2'));
+    store.dispatch(submitDoubleEvictionTieBreak(['p2']));
 
     const { awaitingTieBreak, pendingEviction, doubleEviction } = store.getState().game;
     expect(awaitingTieBreak).toBe(false);
     expect(pendingEviction?.evicteeId).toBe('p1');
     expect(doubleEviction?.pendingSecondEviction?.evicteeId).toBe('p2');
     expect(doubleEviction?.pendingSecondEviction?.evictionMessage).toContain(
-      'There was a tie between Nominee 2 and Nominee 3 for the second eviction.',
+      'There was a tie between Nominee 2 and Nominee 3 for the second elimination.',
     );
     expect(doubleEviction?.pendingSecondEviction?.evictionMessage).toContain(
       'Public approval had to decide between Nominee 2 and Nominee 3 and chose to eliminate Nominee 2.',

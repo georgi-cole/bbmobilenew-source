@@ -148,14 +148,14 @@ describe('private optional profile email', () => {
 
   it('recovers a lost save response without writing again or reviving a withdrawn subscription', async () => {
     mocks.rpc
-      .mockResolvedValueOnce({ data: null, error: { code: '40001' } })
+      .mockResolvedValueOnce({ data: null, error: { code: 'PT409' } })
       .mockResolvedValueOnce({ data: { ...contact, updatesOptIn: true }, error: null })
     await expect(
       saveProfileContact(profile, { ...contact, updatesOptIn: true, expectedRevision: null })
     ).resolves.toMatchObject({ updatesOptIn: true })
 
     mocks.rpc
-      .mockResolvedValueOnce({ data: null, error: { code: '40001' } })
+      .mockResolvedValueOnce({ data: null, error: { code: 'PT409' } })
       .mockResolvedValueOnce({ data: contact, error: null })
     await expect(
       saveProfileContact(profile, { ...contact, updatesOptIn: true, expectedRevision: revision })

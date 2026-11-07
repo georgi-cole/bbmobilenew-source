@@ -26,7 +26,7 @@ function makeProfile(
 }
 
 describe('finaleSlice public juror', () => {
-  it('uses the public vote as the decisive winner when the final tally is tied', () => {
+  it('preserves the Tribunal majority when the public vote ties the combined tally', () => {
     let state = finaleReducer(
       undefined,
       startFinale({
@@ -35,6 +35,7 @@ describe('finaleSlice public juror', () => {
         preJuryIds: [],
         humanPlayerIds: [],
         seed: 42,
+        cfg: { publicFinalVoteEnabled: true },
         publicApprovalProfiles: {
           f1: makeProfile('f1', 60),
           f2: makeProfile('f2', 75),
@@ -55,8 +56,9 @@ describe('finaleSlice public juror', () => {
     state = finaleReducer(state, finalizeFinale({ seed: 42 }));
 
     expect(state.votes[PUBLIC_JUROR_ID]).toBe('f2');
-    expect(state.winnerId).toBe('f2');
-    expect(state.runnerUpId).toBe('f1');
+    expect(state.winnerId).toBe('f1');
+    expect(state.runnerUpId).toBe('f2');
+    expect(state.tieBreakReason).toBe('tribunal_majority');
   });
 
   it('uses a dedicated rotating public phrase for the public juror and normal phrases for regular jurors', () => {
@@ -68,6 +70,7 @@ describe('finaleSlice public juror', () => {
         preJuryIds: [],
         humanPlayerIds: [],
         seed: 42,
+        cfg: { publicFinalVoteEnabled: true },
         publicApprovalProfiles: {
           f1: makeProfile('f1', 60),
           f2: makeProfile('f2', 75),
