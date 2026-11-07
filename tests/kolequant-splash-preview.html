@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#02030a" />
+    <link rel="preload" as="image" href="%BASE_URL%assets/kolequant.png" />
+    <title>The Big Eye — Splash Preview</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement, Fragment, useEffect, useRef, useState } from 'react'
+      import { createRoot } from 'react-dom/client'
+      import '../src/index.css'
+      import '../src/screens/HomeHub/HomeHub.css'
+      import KolequantSplash from '../src/components/KolequantSplash/KolequantSplash.tsx'
+
+      const background = `${import.meta.env.BASE_URL}assets/skins/daily-background.jpg`
+
+      function PreviewSplash({ frame, onFinish }) {
+        const [progress, setProgress] = useState(18)
+        useEffect(() => {
+          const timers = [
+            window.setTimeout(() => setProgress(58), 450),
+            window.setTimeout(() => setProgress(86), 950),
+            window.setTimeout(() => setProgress(100), 1450),
+          ]
+          return () => timers.forEach((timer) => window.clearTimeout(timer))
+        }, [])
+
+        return createElement(KolequantSplash, {
+          duration: 5000,
+          ready: progress === 100,
+          progress,
+          status: progress === 100 ? 'Opening the house doors.' : 'Loading the house exterior.',
+          introHub: { frame, url: background },
+          onFinish,
+        })
+      }
+
+      function Preview() {
+        const frame = useRef(null)
+        const [playing, setPlaying] = useState(true)
+
+        return createElement(
+          Fragment,
+          null,
+          playing && createElement(PreviewSplash, { frame, onFinish: () => setPlaying(false) }),
+          createElement(
+            'main',
+            { className: 'homehub-shell' },
+            createElement(
+              'div',
+              { className: 'homehub-frame', ref: frame },
+              createElement('div', {
+                className: 'homehub-intro-bg homehub-intro-bg--active homehub-intro-bg--visible',
+                style: { backgroundImage: `url("${background}")` },
+                'aria-hidden': true,
+              }),
+              !playing &&
+                createElement(
+                  'button',
+                  {
+                    className: 'game-button',
+                    style: { position: 'absolute', bottom: 'max(28px, var(--safe-bottom))' },
+                    onClick: () => setPlaying(true),
+                  },
+                  'Replay intro'
+                )
+            )
+          )
+        )
+      }
+
+      createRoot(document.getElementById('root')).render(createElement(Preview))
+    </script>
+  </body>
+</html>

@@ -328,6 +328,7 @@ export default function HomeHub() {
     currentVisible: false,
     ready: false,
   })
+  const hubFrame = useRef<HTMLDivElement>(null)
   const displayedBackgroundUrl = useRef<string | null>(null)
   const clearPreviousBackgroundTimer = useRef<number | undefined>(undefined)
 
@@ -868,6 +869,13 @@ export default function HomeHub() {
             ready={hubAssetState.ready}
             progress={hubAssetState.progress}
             status={hubAssetState.status}
+            introHub={{
+              frame: hubFrame,
+              url:
+                backgroundLayers.currentVisible && !backgroundLayers.previousUrl
+                  ? backgroundLayers.currentUrl
+                  : null,
+            }}
             onFinish={handleSplashFinish}
           />
         ) : (
@@ -934,7 +942,7 @@ export default function HomeHub() {
       )}
 
       <div className="homehub-shell">
-        <div className="homehub-frame">
+        <div ref={hubFrame} className="homehub-frame">
           {backgroundLayers.previousUrl && (
             <div
               className={`homehub-intro-bg homehub-intro-bg--previous${backgroundLayers.currentVisible ? ' homehub-intro-bg--fading' : ''}`}
