@@ -1,7 +1,12 @@
 import { normalizeAffinity } from './affinityUtils'
 import { getIncomingActionOutcome } from './incomingOutcomeMatrix'
 import { FALLBACK_SCENE, SCENE_DEFINITIONS } from './incomingSceneDefinitionBank'
-import { SCENE_CHOICES, SCENE_FAMILY_CHOICES } from './incomingSceneChoiceBank'
+import {
+  BACKGROUND_ACTION_CHOICES,
+  ROMANCE_ACTION_CHOICES,
+  SCENE_CHOICES,
+  SCENE_FAMILY_CHOICES,
+} from './incomingSceneChoiceBank'
 import { getSocialPersonality } from './socialPersonalityBank'
 import { isProtectionClarification } from './pactProtectionContinuity'
 import type { SocialMemoryDelta } from './socialMemory'
@@ -84,7 +89,32 @@ export function getContextualIncomingChoices(
     ]
   }
 
-  const scenarioKey = interaction.payload?.scenarioKey
+  const actionId = interaction.payload?.originActionId
+  const romanceChoices = typeof actionId === 'string' ? ROMANCE_ACTION_CHOICES[actionId] : undefined
+  if (romanceChoices) {
+    const responses = responseTypesFor(interaction.type)
+    return romanceChoices.map((label, index) => {
+      const responseType =
+        actionId === 'try_for_baby' && index === 0 ? 'neutral' : responses[index]!
+      return { label, responseType, style: styleForResponse(responseType) }
+    })
+  }
+
+  const backgroundChoices =
+    typeof actionId === 'string' && Object.hasOwn(BACKGROUND_ACTION_CHOICES, actionId)
+      ? BACKGROUND_ACTION_CHOICES[actionId]
+      : undefined
+  if (backgroundChoices) {
+    const responses = responseTypesFor(interaction.type)
+    return backgroundChoices.labels.map((label, index) => {
+      const responseType =
+        backgroundChoices.opensWithQuestion && index === 0 ? 'neutral' : responses[index]!
+      return { label, responseType, style: styleForResponse(responseType) }
+    })
+  }
+
+  const scenarioKey =
+    actionId === 'nominate' ? 'background_nominate_human' : interaction.payload?.scenarioKey
   if (typeof scenarioKey !== 'string') return null
   const subjectName =
     typeof interaction.payload?.subjectName === 'string'
@@ -144,13 +174,13 @@ export function getContextualIncomingChoices(
     ],
     alliance_nomination_pitch: [
       [
-        `Consider targeting ${subjectName}`,
+        `Recommend nominating ${subjectName}`,
         `Ask why ${subjectName} is the priority`,
         'Keep my nomination read private',
         'End the strategy pitch',
       ],
       [
-        `Hear the case against ${subjectName}`,
+        `Back nominating ${subjectName}`,
         'Ask what changed',
         'Make no nomination commitment',
         'Leave the conversation',
@@ -158,13 +188,13 @@ export function getContextualIncomingChoices(
     ],
     alliance_safety_pitch: [
       [
-        `Consider replacing with ${subjectName}`,
+        `Recommend replacing with ${subjectName}`,
         `Ask why ${subjectName} is the backup`,
         'Keep my Safety read private',
         'End the strategy pitch',
       ],
       [
-        `Hear the case for ${subjectName}`,
+        `Back the replacement pick of ${subjectName}`,
         'Ask what the LOH has disclosed',
         'Make no replacement commitment',
         'Leave the conversation',
@@ -172,7 +202,7 @@ export function getContextualIncomingChoices(
     ],
     alliance_vote_pitch: [
       [
-        `Vote with me on ${subjectName}`,
+        `Back voting out ${subjectName}`,
         `Ask why ${subjectName} is the vote`,
         'Keep your ballot private',
         'End the vote conversation',
@@ -204,7 +234,10 @@ export function getContextualIncomingChoices(
         `${interaction.id}:${interaction.fromId}:${scenarioKey}:${String(interaction.payload?.subjectId ?? '')}`
       ) % variants.length
     ]
-  const responseTypes = responseTypesFor(interaction.type)
+  const responseTypes =
+    scenarioKey === 'background_nominate_human'
+      ? (['neutral', 'neutral', 'negative', 'dismiss'] as const)
+      : responseTypesFor(interaction.type)
   return labels.map((label, index) => {
     // A question about what a nominee needs is *not* an endorsement or a
     // commitment, even when its authored variant happens to occupy slot one.

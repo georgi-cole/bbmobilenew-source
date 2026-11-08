@@ -713,6 +713,8 @@ describe('incoming interaction invalidation', () => {
       pushIncomingInteraction(
         makeInteraction({
           id: 'veto-live',
+          createdWeek: 3,
+          expiresAtWeek: 3,
           fromId: nominee.id,
           type: 'deal_offer',
           payload: { scenarioKey: 'nominee_veto_pitch', phase: 'pos_results' },
@@ -723,6 +725,8 @@ describe('incoming interaction invalidation', () => {
       scheduleIncomingInteraction({
         interaction: makeInteraction({
           id: 'veto-scheduled',
+          createdWeek: 3,
+          expiresAtWeek: 3,
           fromId: nominee.id,
           type: 'deal_offer',
           payload: { scenarioKey: 'nominee_veto_pitch', phase: 'pos_results' },
@@ -730,7 +734,7 @@ describe('incoming interaction invalidation', () => {
         priority: 'high',
         scheduledAt: 100,
         scheduledForWeek: 3,
-        scheduledForPhase: 'social_2',
+        scheduledForPhase: 'pos_ceremony_results',
       })
     )
 
@@ -765,6 +769,8 @@ describe('incoming interaction invalidation', () => {
       pushIncomingInteraction(
         makeInteraction({
           id: 'eviction-live',
+          createdWeek: 4,
+          expiresAtWeek: 4,
           fromId: nominee.id,
           type: 'check_in',
           payload: { scenarioKey: 'nominee_campaign', phase: 'social_2' },
@@ -775,6 +781,8 @@ describe('incoming interaction invalidation', () => {
       scheduleIncomingInteraction({
         interaction: makeInteraction({
           id: 'eviction-scheduled',
+          createdWeek: 4,
+          expiresAtWeek: 4,
           fromId: nominee.id,
           type: 'check_in',
           payload: { scenarioKey: 'nominee_campaign', phase: 'social_2' },
@@ -782,7 +790,7 @@ describe('incoming interaction invalidation', () => {
         priority: 'medium',
         scheduledAt: 100,
         scheduledForWeek: 4,
-        scheduledForPhase: 'week_start',
+        scheduledForPhase: 'live_vote',
       })
     )
 
@@ -817,6 +825,8 @@ describe('incoming interaction invalidation', () => {
       ...buildSocialState([
         makeInteraction({
           id: 'gossip-about-two-people',
+          createdWeek: 4,
+          expiresAtWeek: 5,
           fromId: loh.id,
           type: 'warning',
           text: `I heard ${loh.name} and ${nominee.name} are meeting privately.`,
@@ -873,6 +883,8 @@ describe('incoming interaction invalidation', () => {
       pushIncomingInteraction(
         makeInteraction({
           id: 'stale-response',
+          createdWeek: 5,
+          expiresAtWeek: 5,
           fromId: nominee.id,
           type: 'check_in',
         })

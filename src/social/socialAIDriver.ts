@@ -29,9 +29,12 @@ import {
   assignDeliverySlot,
   buildDeliverySlotCounts,
   buildPendingIncomingInteractions,
+  deliverScheduledIncomingInteractionsForPhase,
   getInteractionDedupeReason,
   getIncomingInteractionPriority,
 } from './incomingInteractionScheduler'
+import { isScheduledIncomingInteractionInvalidated } from './incomingInteractionValidity'
+import { getIncomingInteractionValidityRule } from './incomingInteractionValidityBank'
 import { createIncomingInteraction } from './incomingInteractionFactory'
 import { createDeterministicSocialRandom, validateSocialExecution } from './socialExecutionGuard'
 import { getPersistentSocialHistory, type SocialStateWithHistory } from './socialHistory'
@@ -884,6 +887,7 @@ function routeHumanFacingAction(
     subjectName,
     deterministicSequence
   )
+  const directDecision = getIncomingInteractionValidityRule(content.scenarioKey)?.directDecision
   const interaction = createIncomingInteraction({
     id: `ai-action-${actionId}-${actorId}-${deterministicSequence}`,
     fromId: actorId,
@@ -899,10 +903,18 @@ function routeHumanFacingAction(
       variantId: content.variantId,
       source: 'background_social',
       ...(actionId === 'group_chat' ? { groupScene: true } : {}),
+      ...(actionId === 'ask_safety_plan' ||
+      actionId === 'ask_hold_safety' ||
+      directDecision === 'vote'
+        ? { nominationBlockIds: [...(current.game.nomineeIds ?? [])] }
+        : {}),
       ...(subjectId ? { subjectId } : {}),
     },
   })
-  const priority = getIncomingInteractionPriority(type)
+  const priority = getIncomingInteractionPriority(
+    type,
+    directDecision ? content.scenarioKey : undefined
+  )
   if (
     getInteractionDedupeReason({
       interaction,
@@ -924,11 +936,21 @@ function routeHumanFacingAction(
     week,
     priority,
     slotCounts: buildDeliverySlotCounts(scheduled, phase, week, deliveredThisPhase),
+    interaction,
     visibleActiveCount: (current.social.incomingInteractions ?? []).filter(
       (entry) => !entry.resolved && isIncomingInteractionActionable(entry)
     ).length,
   })
   if (!slot) return 'deferred'
+  const scheduledInteraction = { ...slot, interaction, priority, scheduledAt: now }
+  if (
+    isScheduledIncomingInteractionInvalidated(
+      scheduledInteraction,
+      current.game,
+      current.social.reality
+    )
+  )
+    return 'blocked'
 
   let simulation = current.social.realitySimulation
   if (!simulation.rng) {
@@ -983,16 +1005,13 @@ function routeHumanFacingAction(
   if (costs.info > 0) {
     _store.dispatch(applyInfoDelta({ playerId: actorId, delta: -costs.info }))
   }
-  _store.dispatch(
-    scheduleIncomingInteraction({
-      interaction,
-      priority,
-      scheduledAt: now,
-      scheduledForWeek: slot.scheduledForWeek,
-      scheduledForPhase: slot.scheduledForPhase,
-      deliveryReason: slot.deliveryReason,
+  _store.dispatch(scheduleIncomingInteraction(scheduledInteraction))
+  if (directDecision && slot.scheduledForWeek === week && slot.scheduledForPhase === phase) {
+    deliverScheduledIncomingInteractionsForPhase(phase, {
+      dispatch: _store.dispatch,
+      getState: () => _store!.getState() as DriverState,
     })
-  )
+  }
   return 'scheduled'
 }
 

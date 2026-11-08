@@ -10,6 +10,7 @@ import {
   respondToIncomingInteraction,
   autoResolveExpiredIncomingInteractionsForWeek,
 } from '../../src/social/incomingInteractions'
+import { getIncomingInteractionResponseOptions } from '../../src/social/incomingInteractionPresentation'
 import { socialConfig } from '../../src/social/socialConfig'
 import type { IncomingInteraction, SocialState } from '../../src/social/types'
 import {
@@ -66,6 +67,91 @@ describe('social memory integration for incoming interactions', () => {
     const expected = socialConfig.socialMemoryConfig.incomingInteractionDeltas.positive.gratitude
     expect(entry.gratitude).toBe(expected)
     expect(entry.recentEvents[0].type).toBe('appreciated_compliment')
+  })
+
+  it.each([
+    { explicit: false, outcome: 'COUNTERED' },
+    { explicit: true, outcome: 'SUCCESS' },
+  ])('only accepts a linked kiss with explicit consent ($explicit)', ({ explicit, outcome }) => {
+    const store = makeStore()
+    const game = { ...store.getState().game, phase: 'social_1' as const }
+    store.dispatch(hydrateGame(game))
+    const human = game.players.find((player) => player.isUser)!
+    const ai = game.players.find((player) => !player.isUser)!
+    const actorIds = [ai.id, human.id]
+    const pending = runRealityOpportunity({
+      domain: createInitialRealityDomainState(),
+      simulation: createInitialRealitySimulationState(71),
+      opportunity: {
+        actorId: ai.id,
+        direction: 'AI_TO_HUMAN',
+        context: {
+          day: game.week,
+          phase: game.phase,
+          gameMode: 'CLASSIC',
+          socialIntensity: 'REALITY',
+          audienceMode: 'OFF',
+          feedPerspective: 'PLAYER_LIMITED',
+          activeActorIds: actorIds,
+          rolesByActor: Object.fromEntries(actorIds.map((id) => [id, ['active']])),
+          atRiskActorIds: [],
+          powerHolderIds: [],
+          romanceEnabled: true,
+        },
+        actors: Object.fromEntries(
+          actorIds.map((id) => [
+            id,
+            {
+              id,
+              isHuman: id === human.id,
+              active: true,
+              roles: ['active'],
+              resources: { energy: 20, influence: 1_000, info: 1_000 },
+            },
+          ])
+        ),
+        candidates: [
+          { action: REALITY_ACTION_BY_ID.get('kiss_under_covers')!, targetIds: [human.id] },
+        ],
+      },
+    })
+    expect(pending.interaction?.status).toBe('AWAITING_HUMAN')
+    const realityInteractionId = pending.interaction!.id
+    const interaction = makeInteraction({
+      id: 'kiss-consent',
+      fromId: ai.id,
+      type: 'deal_offer',
+      text: 'Can I kiss you?',
+      createdWeek: game.week,
+      expiresAtWeek: game.week + 1,
+      payload: {
+        modeAtCreation: 'drama',
+        scenarioKey: 'relationship_romance_check_in',
+        source: 'background_social',
+        originActionId: 'kiss_under_covers',
+        realityInteractionId,
+      },
+    })
+    store.dispatch(replaceRealityDomain(pending.domain))
+    store.dispatch(pushIncomingInteraction(interaction))
+
+    const explicitChoice = getIncomingInteractionResponseOptions('deal_offer', interaction).find(
+      (choice) => choice.label === 'Yes, you can kiss me'
+    )!
+    const submission = explicit
+      ? { interactionId: interaction.id, choiceId: explicitChoice.id }
+      : {
+          interactionId: interaction.id,
+          responseType: 'accept' as const,
+          responseLabel: 'See where this goes',
+        }
+    store.dispatch(respondToIncomingInteraction(submission) as never)
+    expect(
+      store
+        .getState()
+        .social.reality.events.find((event) => event.interactionId === realityInteractionId)
+        ?.outcome
+    ).toBe(outcome)
   })
 
   it('settles a background AI action when the human-facing Reality scene resolves', () => {

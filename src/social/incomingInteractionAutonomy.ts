@@ -683,9 +683,7 @@ function canSendInteractionType(
 ): boolean {
   switch (type) {
     case 'nomination_plea':
-      return (
-        constraints.actorIsNominee && (constraints.playerIsHoh || constraints.playerHasSafetyPower)
-      )
+      return !constraints.actorIsNominee && constraints.playerIsHoh
     case 'deal_offer':
       // The current LOH may initiate one specific strategic consultation when
       // the human holds Safety; ordinary HOH deal offers remain blocked.
@@ -1167,9 +1165,10 @@ function resolveIncomingInteractionPlan(
         scenarioKey: 'nominee_veto_pitch',
       }
     } else if (
-      constraints.actorIsNominee &&
+      !constraints.actorIsNominee &&
       context.phase === 'nominations' &&
-      constraints.playerIsHoh
+      constraints.playerIsHoh &&
+      signals.isMildEnemy
     ) {
       plan = { type: 'nomination_plea', scenarioKey: 'nominee_hoh_plea' }
     } else if (
@@ -2492,6 +2491,7 @@ function scheduleIncomingInteractionsForPhaseInternal(
           priority,
           slotCounts,
           visibleActiveCount,
+          interaction,
           deliveryConfigOverride: context.voxPopuliActive
             ? { maxActiveVisible: 7, maxMajorActiveVisible: 7, maxDeliveredPerPhase: 3 }
             : undefined,

@@ -38,6 +38,22 @@ function makeStore() {
   })
 }
 
+const nominationPlayers: Player[] = [
+  { id: 'user', name: 'You', avatar: '🙂', status: 'loh', isUser: true },
+  { id: 'ai1', name: 'Rae', avatar: '🙂', status: 'active' },
+  { id: 'ai2', name: 'Ash', avatar: '🙂', status: 'active' },
+]
+
+function makeNominationStore(week: number) {
+  return makeStore({
+    phase: 'nominations',
+    week,
+    players: nominationPlayers,
+    lohId: 'user',
+    nomineeIds: [],
+  })
+}
+
 /**
  * A simple seeded Linear Congruential Generator (Park-Miller).
  * Constants: multiplier=16807, modulus=2147483647 (Mersenne prime 2^31-1).
@@ -67,7 +83,7 @@ describe('incomingInteractionAutonomy – direct scheduling', () => {
       ],
       week: 2,
       relationships: {
-        ai1: { user: { affinity: 60, tags: [] } },
+        ai1: { user: { affinity: -60, tags: [] } },
         ai2: { user: { affinity: -40, tags: [] } },
       },
       phase: 'nominations',
@@ -102,7 +118,7 @@ describe('incomingInteractionAutonomy – direct scheduling', () => {
       ],
       week: 1,
       relationships: {
-        ai1: { user: { affinity: 70, tags: [] } },
+        ai1: { user: { affinity: -70, tags: [] } },
       },
       phase: 'nominations',
       lohId: 'user',

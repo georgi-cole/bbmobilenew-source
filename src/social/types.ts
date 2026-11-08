@@ -201,6 +201,8 @@ export interface SocialActionReceipt {
 export interface SocialActionLogEntry {
   /** Authoritative action provenance; absent on legacy logs. */
   realityEventId?: string
+  /** Causal reactions for this entry's recipients, when available. */
+  targetReactions?: Record<string, import('./reality/types').RealityResponseKind>
   visibility?: import('./reality/types').RealityVisibility
   /** Stable identity for finalizing display copy without recording the action twice. */
   id?: string
@@ -342,6 +344,11 @@ export interface IntelligenceDelivery {
   recipientId?: string
 }
 
+export interface IncomingInteractionReceipt {
+  kind: 'gameplay' | 'promise' | 'relationship' | 'intel' | 'availability'
+  text: string
+}
+
 export interface IncomingInteraction {
   id: string
   fromId: string
@@ -362,6 +369,8 @@ export interface IncomingInteraction {
   resolvedWeek?: number
   resolvedWith?: IncomingInteractionResponseType
   resolvedLabel?: string
+  resolvedChoiceId?: string
+  receipt?: IncomingInteractionReceipt
   /** Short authored character reaction shown beside the action consequence. */
   reactionText?: string
   outcomeText?: string

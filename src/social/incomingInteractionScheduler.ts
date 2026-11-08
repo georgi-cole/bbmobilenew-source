@@ -3,7 +3,16 @@ import { normalizeAffinity } from './affinityUtils'
 import { INCOMING_INTERACTION_PHASE_ORDER } from './incomingInteractionPhases'
 import { applyScheduledIncomingInteractionDelivery } from './socialSlice'
 import { logIncomingInteractionDecision } from './incomingInteractionLogging'
-import { isIncomingInteractionInvalidated } from './incomingInteractionValidity'
+import {
+  getScheduledIncomingInteractionClock,
+  isIncomingInteractionOverdue,
+} from './incomingInteractionDeadline'
+import {
+  isIncomingInteractionPhaseAllowed,
+  isScheduledIncomingInteractionInvalidated,
+  type InteractionValidityGameState,
+} from './incomingInteractionValidity'
+import { getIncomingInteractionValidityRule } from './incomingInteractionValidityBank'
 import { isIncomingInteractionActionable } from './socialRuntimeConfig'
 import type {
   IncomingInteraction,
@@ -34,17 +43,7 @@ interface SchedulerStore {
       relationships?: Record<string, Record<string, { affinity: number; tags: string[] }>>
       reality?: RealityDomainState
     }
-    game?: {
-      week?: number
-      phase?: string
-      lohId?: string | null
-      posWinnerId?: string | null
-      nomineeIds?: string[]
-      awaitingPovDecision?: boolean
-      awaitingPovSaveTarget?: boolean
-      players?: Array<{ id: string; status: string; isUser?: boolean }>
-      voxPopuli?: { status?: string } | null
-    }
+    game?: InteractionValidityGameState
   }
 }
 
@@ -112,8 +111,10 @@ export function buildDeliverySlotCounts(
 ): Map<string, number> {
   const slotCounts = new Map<string, number>()
   for (const entry of scheduled) {
-    const slotWeek = entry.scheduledForWeek ?? week
-    const slotPhase = entry.scheduledForPhase ?? phase
+    const { day: slotWeek, phase: slotPhase } = getScheduledIncomingInteractionClock(entry, {
+      day: week,
+      phase,
+    })
     const key = buildSlotKey(slotWeek, slotPhase)
     slotCounts.set(key, (slotCounts.get(key) ?? 0) + 1)
   }
@@ -130,6 +131,7 @@ export function getIncomingInteractionPriority(
   // the normal spam controls even when their generic interaction type is a
   // warning or snide remark.
   if (
+    getIncomingInteractionValidityRule(scenarioKey ?? null)?.directDecision ||
     [
       'nominee_confronts_loh',
       'replacement_nominee_reacts_to_loh',
@@ -278,6 +280,7 @@ export function assignDeliverySlot({
   priority,
   slotCounts,
   visibleActiveCount,
+  interaction,
   deliveryConfigOverride,
 }: {
   phase: string
@@ -285,6 +288,7 @@ export function assignDeliverySlot({
   priority: IncomingInteractionPriority
   slotCounts: Map<string, number>
   visibleActiveCount: number
+  interaction?: IncomingInteraction
   deliveryConfigOverride?: Partial<{
     maxActiveVisible: number
     maxMajorActiveVisible: number
@@ -304,10 +308,28 @@ export function assignDeliverySlot({
     minOffset = Math.max(minOffset, 1)
   }
 
-  for (let offset = minOffset; offset < deliveryConfig.maxFutureSlots; offset += 1) {
+  let lastViableSlot: ReturnType<typeof computeSlotFromOffset> | undefined
+  let earlyAvailableSlot: ReturnType<typeof computeSlotFromOffset> | undefined
+  for (let offset = 0; offset < deliveryConfig.maxFutureSlots; offset += 1) {
     const slot = computeSlotFromOffset(week, phaseIndex, offset)
+    if (
+      interaction &&
+      isIncomingInteractionOverdue(interaction, { day: slot.week, phase: slot.phase })
+    )
+      break
+    if (interaction && !isIncomingInteractionPhaseAllowed(interaction, slot.phase)) continue
     const key = buildSlotKey(slot.week, slot.phase)
     const count = slotCounts.get(key) ?? 0
+    if (offset < minOffset) {
+      if (
+        interaction &&
+        visibleActiveCount < deliveryConfig.maxActiveVisible &&
+        count < deliveryConfig.maxDeliveredPerPhase
+      )
+        earlyAvailableSlot = slot
+      continue
+    }
+    lastViableSlot = slot
     if (count < deliveryConfig.maxDeliveredPerPhase) {
       slotCounts.set(key, count + 1)
       const reason = offset === 0 ? 'deliver_now' : 'spaced'
@@ -319,21 +341,14 @@ export function assignDeliverySlot({
     }
   }
 
-  if (priority === 'low') {
-    return null
-  }
-
-  const fallback = computeSlotFromOffset(
-    week,
-    phaseIndex,
-    Math.max(0, deliveryConfig.maxFutureSlots - 1)
-  )
+  const fallback = earlyAvailableSlot ?? (priority === 'low' ? undefined : lastViableSlot)
+  if (!fallback) return null
   const fallbackKey = buildSlotKey(fallback.week, fallback.phase)
   slotCounts.set(fallbackKey, (slotCounts.get(fallbackKey) ?? 0) + 1)
   return {
     scheduledForWeek: fallback.week,
     scheduledForPhase: fallback.phase,
-    deliveryReason: 'queued',
+    deliveryReason: earlyAvailableSlot ? 'before_deadline' : 'queued',
   }
 }
 
@@ -394,6 +409,7 @@ export function deliverScheduledIncomingInteractionsForPhase(
 
   const eligible: ScheduledIncomingInteraction[] = []
   const remaining: ScheduledIncomingInteraction[] = []
+  const invalidatedIds: string[] = []
 
   const logDecision = (
     entry: ScheduledIncomingInteraction,
@@ -418,8 +434,13 @@ export function deliverScheduledIncomingInteractionsForPhase(
 
   for (const entry of scheduled) {
     if (
-      isIncomingInteractionInvalidated(entry.interaction, state.game ?? {}, state.social?.reality)
+      isScheduledIncomingInteractionInvalidated(
+        entry,
+        { ...state.game, week, phase },
+        socialState.reality
+      )
     ) {
+      invalidatedIds.push(entry.interaction.id)
       logDecision(entry, 'expiration', 'invalidated_before_delivery')
       continue
     }
@@ -444,12 +465,14 @@ export function deliverScheduledIncomingInteractionsForPhase(
         continue
       }
     }
-    if (entry.interaction.expiresAtWeek < week) {
+    if (isIncomingInteractionOverdue(entry.interaction, { day: week, phase })) {
       logDecision(entry, 'expiration', 'expired_before_delivery')
       continue
     }
-    const scheduledWeek = entry.scheduledForWeek ?? week
-    const scheduledPhase = entry.scheduledForPhase ?? phase
+    const { day: scheduledWeek, phase: scheduledPhase } = getScheduledIncomingInteractionClock(
+      entry,
+      { day: week, phase }
+    )
     const scheduledIndex = getDeliveryPhaseIndex(scheduledPhase)
     if (scheduledIndex === null) {
       logDecision(entry, 'expiration', 'invalid_scheduled_phase')
@@ -518,8 +541,10 @@ export function deliverScheduledIncomingInteractionsForPhase(
       remainingPhaseSlots <= 0 ||
       (actionable && remainingActionableSlots <= 0 && !canUseMajorLane)
     ) {
-      const scheduledWeek = entry.scheduledForWeek ?? week
-      const scheduledPhase = entry.scheduledForPhase ?? phase
+      const { day: scheduledWeek, phase: scheduledPhase } = getScheduledIncomingInteractionClock(
+        entry,
+        { day: week, phase }
+      )
       const overduePhases = computePhaseDistance(
         { week: scheduledWeek, phase: scheduledPhase },
         { week, phase }
@@ -561,6 +586,7 @@ export function deliverScheduledIncomingInteractionsForPhase(
     applyScheduledIncomingInteractionDelivery({
       deliveries,
       remainingScheduled: remaining,
+      invalidatedIds,
       phase,
       week,
     })

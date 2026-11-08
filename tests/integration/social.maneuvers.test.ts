@@ -157,7 +157,10 @@ function makeStoreWithSocialMiddleware(
 
 describe('Classic social isolation', () => {
   it('executes a complete Classic action without writing Reality events or traces', () => {
-    const store = makeStoreWithSocialMiddleware()
+    const store = makeStoreWithSocialMiddleware(false, [
+      { id: 'p1', name: 'P1', status: 'active', isUser: true },
+      { id: 'p2', name: 'P2', status: 'active' },
+    ])
     initManeuvers(store)
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 5 }))
 

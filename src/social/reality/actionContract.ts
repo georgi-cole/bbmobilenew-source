@@ -4,6 +4,7 @@ import type { SocialActionDefinition } from '../socialActions'
 import { normalizeActionCosts } from '../smExecNormalize'
 import { getCanonicalRelationshipTags, isRepairableRelationship } from '../relationshipSemantics'
 import { actorHasBelief, isExposableRealitySecretType } from './knowledge'
+import { getSocialRulesPhase } from './clock'
 import {
   getDefaultRealityEffects,
   getRuntimeSocialActionById,
@@ -11,6 +12,7 @@ import {
   type EffectiveRealityEffects,
 } from '../socialActionManager'
 import type {
+  RealityClock,
   RealityContext,
   RealityDirection,
   RealityDomainState,
@@ -310,6 +312,18 @@ function projectedAffinity(reality: RealityDomainState, actorId: string, targetI
   )
 }
 
+export function hasRealityActionCooldown(
+  reality: RealityDomainState | undefined,
+  actorId: string,
+  actionId: string,
+  at: RealityClock
+): boolean {
+  const cooldown = reality?.cooldowns[actorId]?.[actionId]
+  return Boolean(
+    cooldown && (cooldown.day > at.day || (cooldown.day === at.day && cooldown.phase === at.phase))
+  )
+}
+
 export function evaluateRealityCandidate({
   action,
   actor,
@@ -341,7 +355,10 @@ export function evaluateRealityCandidate({
   if (!action.allowedIntensities.includes(context.socialIntensity)) {
     blockedReasons.push('intensity_not_allowed')
   }
-  if (!action.allowedPhases.includes('*') && !action.allowedPhases.includes(context.phase)) {
+  if (
+    !action.allowedPhases.includes('*') &&
+    !action.allowedPhases.includes(getSocialRulesPhase(context.phase))
+  ) {
     blockedReasons.push('phase_not_allowed')
   }
   const mode = context.socialIntensity === 'REALITY' ? action.dramaTargetMode : action.targetMode
@@ -426,12 +443,10 @@ export function evaluateRealityCandidate({
   if (actor.resources.energy < costs.energy) blockedReasons.push('insufficient_energy')
   if (actor.resources.influence < costs.influence) blockedReasons.push('insufficient_influence')
   if (actor.resources.info < costs.info) blockedReasons.push('insufficient_information')
-  const cooldown = reality.cooldowns[actor.id]?.[action.id]
   if (
-    cooldown &&
     direction !== 'HUMAN_TO_AI' &&
-    (cooldown.day > context.day ||
-      (cooldown.day === context.day && cooldown.phase === context.phase))
+    !(actor.isHuman && action.id === 'consult_alliance') &&
+    hasRealityActionCooldown(reality, actor.id, action.id, context)
   ) {
     blockedReasons.push('cooldown_active')
   }

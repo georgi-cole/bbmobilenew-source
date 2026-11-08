@@ -5,6 +5,8 @@ export type IncomingActionStance = 'positive' | 'neutral' | 'negative' | 'dismis
 export interface IncomingActionContent {
   /** Shared scene family that supplies game context and the relationship effect category. */
   scenarioKey: string
+  /** Scene key used by pending background cards from earlier saves. */
+  legacyScenarioKey?: string
   /** Stable editorial family, also useful for auditing related action routes. */
   family: string
   interactionType: IncomingInteractionType
@@ -302,12 +304,12 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     ],
     replies: {
       positive: [
-        'They accept the apology and offer a small opening to rebuild trust.',
-        'They appreciate that you named the harm without asking them to forget it.',
+        'They thank you for hearing their apology and ask for a chance to rebuild trust.',
+        'They understand your acceptance is a first step. The harm still matters.',
       ],
       neutral: [
-        'They hear you, but wait to see whether your next move matches the apology.',
-        'They accept the words without calling the issue fixed.',
+        'They accept that you need time and offer to show you what they will change.',
+        'They hear that you are willing to listen and leave the next step up to you.',
       ],
       negative: [
         'They recognise you are not ready to accept the apology and stop pressing.',
@@ -455,7 +457,8 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     },
   },
   pitch_target: {
-    scenarioKey: 'alliance_nomination_pitch',
+    scenarioKey: 'direct_nomination_pitch',
+    legacyScenarioKey: 'alliance_nomination_pitch',
     family: 'nomination',
     interactionType: 'warning',
     openings: [
@@ -465,10 +468,10 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     replies: {
       positive: [
         'They lay out their case against {subject}, while leaving the nomination decision with the LOH.',
-        'They take your openness as permission to share the reasons behind the target.',
+        'They take your support as a recommendation and leave the final slate to you.',
       ],
       neutral: [
-        'They answer your questions but do not mistake listening for a vote.',
+        'They explain why they are pitching {subject} and leave you to weigh the case.',
         'They keep the pitch alive and ask you to judge the evidence yourself.',
       ],
       negative: [
@@ -482,21 +485,22 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     },
   },
   suggest_replacement: {
-    scenarioKey: 'alliance_safety_pitch',
+    scenarioKey: 'direct_replacement_pitch',
+    legacyScenarioKey: 'alliance_safety_pitch',
     family: 'safety',
     interactionType: 'warning',
     openings: [
-      'If Safety is used, I think {subject} is the fairest replacement option. Can I explain?',
+      'For a replacement, I think {subject} makes the most sense. Want to hear why?',
       'The block may change tonight. I want you to consider {subject} before locking a backup.',
     ],
     replies: {
       positive: [
-        'They explain the backup case and leave the final replacement choice with the power holder.',
-        'They appreciate the hearing, but know you have not promised the nomination.',
+        'They explain the backup case and leave the choice to whoever has replacement authority.',
+        'They appreciate the support and treat it as a recommendation for the replacement seat.',
       ],
       neutral: [
-        'They keep the pitch conditional on Safety being used.',
-        'They share their reasoning and wait for the board to change before pressing further.',
+        'They explain why they would put {subject} on the block as a replacement.',
+        'They share their reasoning and give you room to weigh it.',
       ],
       negative: [
         'They hear your objection and stop treating {subject} as a shared choice.',
@@ -536,7 +540,7 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     },
   },
   ask_safety_plan: {
-    scenarioKey: 'hoh_safety_request',
+    scenarioKey: 'safety_plan_inquiry',
     family: 'safety',
     interactionType: 'check_in',
     openings: [
@@ -546,7 +550,7 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     replies: {
       positive: [
         'They tell you which option they currently favour and what could change their mind.',
-        'They share a candid read, while keeping the final Safety choice theirs.',
+        'They share a candid read. You still make the Safety decision at the ceremony.',
       ],
       neutral: [
         'They give you a broad answer without promising a specific move.',
@@ -563,7 +567,7 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     },
   },
   ask_hold_safety: {
-    scenarioKey: 'hoh_safety_request',
+    scenarioKey: 'safety_hold_request',
     family: 'safety',
     interactionType: 'deal_offer',
     openings: [
@@ -572,8 +576,8 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     ],
     replies: {
       positive: [
-        'They agree to leave the nominations intact, subject to the rules and the final ceremony.',
-        'They treat your answer as support for holding the block, not a promise beyond it.',
+        'They heard you promise to leave Safety unused at this ceremony.',
+        'They know you intend to keep this block in place. The promise applies to this Safety decision.',
       ],
       neutral: [
         'They leave room to decide when the ceremony arrives.',
@@ -644,7 +648,8 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     },
   },
   ask_loh_target: {
-    scenarioKey: 'alliance_nomination_pitch',
+    scenarioKey: 'loh_target_inquiry',
+    legacyScenarioKey: 'alliance_nomination_pitch',
     family: 'nomination',
     interactionType: 'gossip',
     openings: [
@@ -653,25 +658,26 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     ],
     replies: {
       positive: [
-        'They share the name they are considering and what could still change it.',
-        'They give you their current target, while making clear the slate is not locked.',
+        'They listen to your nomination read and understand the slate can still change.',
+        'They take your answer as an early read and wait for your final slate.',
       ],
       neutral: [
-        'They describe the factors they are weighing without naming a final choice.',
-        'They tell you the plan is still moving and offer no false certainty.',
+        'They explain why they asked and leave you room to keep your slate open.',
+        'They hear what you are weighing and wait for the nomination ceremony.',
       ],
       negative: [
-        'They keep the target private after you press them.',
-        'They hear the question as a way to steer them and hold their read back.',
+        'They hear that you want to keep your slate private.',
+        'They accept that you want to keep your options private.',
       ],
       dismiss: [
-        'They let the question pass and keep their nomination plan to themself.',
-        'They stop the conversation before revealing a name.',
+        'They let the question pass and wait for you to announce the slate.',
+        'They drop the subject and leave your nomination plans private.',
       ],
     },
   },
   ask_nomination_advice: {
-    scenarioKey: 'alliance_nomination_pitch',
+    scenarioKey: 'nomination_advice_inquiry',
+    legacyScenarioKey: 'alliance_nomination_pitch',
     family: 'nomination',
     interactionType: 'check_in',
     openings: [
@@ -680,20 +686,20 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     ],
     replies: {
       positive: [
-        'They give you a name and the reason behind it, not just a convenient target.',
-        'They share their read and accept that the final nomination is yours.',
+        'They listen to your read and weigh it against their other nomination options.',
+        'They ask what matters most in your advice. The final nomination is still theirs.',
       ],
       neutral: [
         'They offer a cautious read without pretending they know every alliance.',
         'They point to the risk factors and leave the decision open.',
       ],
       negative: [
-        'They refuse to give you an easy target to use against them later.',
-        'They keep their advice to themself after sensing the question is a test.',
+        'They hear that you want to keep your read private and weigh the slate on their own.',
+        'They stop pressing for names and keep the nomination decision with them.',
       ],
       dismiss: [
-        'They let the moment pass and do not put a name on your slate.',
-        'They leave you to make the nomination call without their recommendation.',
+        'They end the conversation and weigh their own options.',
+        'They make their own nomination call without a recommendation from you.',
       ],
     },
   },
@@ -779,7 +785,8 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     },
   },
   rally_votes_against: {
-    scenarioKey: 'alliance_vote_pitch',
+    scenarioKey: 'direct_vote_pitch',
+    legacyScenarioKey: 'alliance_vote_pitch',
     family: 'eviction_vote',
     interactionType: 'warning',
     openings: [
@@ -788,8 +795,8 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     ],
     replies: {
       positive: [
-        'They count your support for the plan, while knowing each person still casts their own vote.',
-        'They coordinate the next check-in without claiming the eviction is guaranteed.',
+        'They take your support as encouragement and leave the official ballot to the ceremony.',
+        'They take your answer as support for the case against {subject}.',
       ],
       neutral: [
         'They know you are still weighing it and keep working other votes.',
@@ -1004,11 +1011,11 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     ],
     replies: {
       positive: [
-        'They hear your yes as permission to discuss the choice, not as a decision already made.',
+        'They appreciate that you are willing to talk it through. You have made no decision about trying.',
         'They are relieved you will talk it through and ask to confirm every practical step together.',
       ],
       neutral: [
-        'They accept that this needs more thought and make no attempt without a clear yes.',
+        'They agree that the two of you can talk it over before either person makes a decision.',
         'They let the question stay open until you are both sure.',
       ],
       negative: [
@@ -1224,12 +1231,12 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
         'They explain the lie they want repeated and make clear it could be traced back to both of you.',
       ],
       neutral: [
-        'They leave the story unspoken until you decide whether the risk is worth it.',
-        'They tell you enough to understand the plan, but no rumor is carried yet.',
+        'They explain what they are trying to gain. You have agreed to nothing.',
+        'They explain the plan, and you make no agreement to repeat the story.',
       ],
       negative: [
-        'They stop the lie from spreading through you and look for another route.',
-        'They hear your refusal and keep the false story to themself.',
+        'They hear that you will not help plant the story.',
+        'They hear your refusal and leave you out of their pitch.',
       ],
       dismiss: [
         'They drop the plan with you and do not treat silence as agreement.',
@@ -1248,7 +1255,7 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     replies: {
       positive: [
         'They exchange the available lead and keep the source chain clear.',
-        'They share one useful fact and receive the information you offered in return.',
+        'They ask what lead you can offer in return before calling it a fair trade.',
       ],
       neutral: [
         'They hear each other out, but neither side gives up information yet.',
@@ -1278,16 +1285,16 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
         'They share the evidence they have and let you judge whether exposure is justified.',
       ],
       neutral: [
-        'They hold the secret for now and leave the decision open.',
-        'They give you the context without publishing anything yet.',
+        'They explain what they believe they know. You leave the decision with them.',
+        'They explain why they considered a public reveal. You have not endorsed one.',
       ],
       negative: [
-        'They agree not to expose it through you and reconsider the harm it could cause.',
-        'They hear your objection and keep the information private for now.',
+        'They hear your objection. You did not agree to help expose it.',
+        'They hear why you want it kept private. You leave the choice with them.',
       ],
       dismiss: [
         'They take the decision elsewhere and do not ask you to carry it.',
-        'They leave the secret untouched in this conversation.',
+        'They let you step away without asking you to endorse the reveal.',
       ],
     },
   },
@@ -1359,8 +1366,8 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
         'They let the temperature drop and leave room to rebuild trust slowly.',
       ],
       neutral: [
-        'They agree to pause the feud, but keep their guard up.',
-        'They accept a truce for now without calling the relationship repaired.',
+        'They explain what they would change and wait to hear whether you want a truce.',
+        'They leave the truce undecided while you talk through what would have to change.',
       ],
       negative: [
         'They stop asking for a reset and accept the conflict is still active.',
@@ -1400,9 +1407,9 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     },
   },
   nominate: {
-    scenarioKey: 'nomination_aftershock',
+    scenarioKey: 'background_nominate_human',
     family: 'nomination',
-    interactionType: 'nomination_plea',
+    interactionType: 'warning',
     openings: [
       'I am thinking about putting your name on the block, {player}. Tell me what I am missing.',
       'Your name is in my nomination plan. I wanted to give you a chance to answer me directly.',
@@ -1427,29 +1434,30 @@ export const INCOMING_ACTION_CONTENT_BANK: Record<string, IncomingActionContent>
     },
   },
   vote_rally: {
-    scenarioKey: 'alliance_vote_pitch',
+    scenarioKey: 'vote_rally_warning',
+    legacyScenarioKey: 'alliance_vote_pitch',
     family: 'eviction_vote',
     interactionType: 'warning',
     openings: [
-      'I am organising votes against you, {player}. I wanted to give you a chance to hear it directly.',
-      'Your name is the target in my vote plan. I am not going to pretend otherwise.',
+      'I’ve been asking for votes against you, {player}. I wanted you to hear it from me.',
+      'You’re the one I’ve been campaigning against. I figured you should know.',
     ],
     replies: {
       positive: [
         'They explain the vote plan without promising that every voter will follow it.',
-        'They give you the current count and leave room for the numbers to change.',
+        'They describe the support they think they have before the result is official.',
       ],
       neutral: [
-        'They tell you what they know and keep the final vote uncertain.',
-        'They answer carefully without handing over every name.',
+        'They talk you through their thinking and admit they are still guessing about the result.',
+        'They give you their read on the campaign, carefully separating what they know from what they suspect.',
       ],
       negative: [
         'They accept your challenge and stand by the vote plan.',
         'They stop trying to make the target sound personal and focus on the numbers.',
       ],
       dismiss: [
-        'They leave to secure the remaining votes without you.',
-        'They close the conversation and keep their ballot plan to themself.',
+        'They leave the conversation there.',
+        'They end the conversation and let the vote speak for itself.',
       ],
     },
   },

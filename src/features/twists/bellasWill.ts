@@ -227,7 +227,7 @@ export function chooseBellaHeir(
   )
 }
 
-function activePlayerCount(state: GameState): number {
+function activePlayerCount(state: { players: readonly { status: string }[] }): number {
   return state.players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
     .length
 }
@@ -266,7 +266,10 @@ export function activateBellaInheritance(state: GameState): void {
   }
 }
 
-export function isBellaHeirImmune(state: GameState, playerId: string): boolean {
+export function isBellaHeirImmune(
+  state: Pick<GameState, 'week' | 'bellaWill'> & Parameters<typeof activePlayerCount>[0],
+  playerId: string
+): boolean {
   const will = state.bellaWill
   if (!will?.active || !will.inherited || will.heirId !== playerId) return false
   if (will.expiredAtEndgame) return false

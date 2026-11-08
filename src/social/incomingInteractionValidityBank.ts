@@ -11,7 +11,11 @@ export interface IncomingInteractionValidityRule {
   humanMustBeNominee?: boolean
   humanMustBeEligibleVoter?: boolean
   humanMustBreakTie?: boolean
+  nominationWindow?: 'setup' | 'aftermath'
   subjectMustBeInHouse?: boolean
+  /** Direct conversations use the current decision, without alliance membership. */
+  directDecision?: 'nomination' | 'replacement' | 'vote'
+  requiresDecisionTarget?: boolean
   allowedPhases?: readonly string[]
   invalidPhases?: readonly string[]
 }
@@ -24,13 +28,64 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
   nominee_veto_pitch: {
     senderMustBeNominee: true,
     humanMustHoldSafety: true,
+    allowedPhases: ['pos_results', 'pos_ceremony', 'pos_ceremony_results'],
   },
   nominee_hoh_plea: {
-    senderMustBeNominee: true,
+    senderMustBeNominee: false,
     humanMustBeHoh: true,
+    nominationWindow: 'setup',
+    allowedPhases: ['loh_results', 'social_1', 'nominations', 'nomination_results'],
+  },
+  background_nominate_human: {
+    senderMustBeHoh: true,
+    humanMustBeHoh: false,
+    humanMustBeOffBlock: true,
+    nominationWindow: 'setup',
+    allowedPhases: ['loh_results', 'social_1', 'nominations'],
+  },
+  direct_nomination_pitch: {
+    directDecision: 'nomination',
+    humanMustBeHoh: true,
+    requiresDecisionTarget: true,
+    allowedPhases: ['loh_results', 'social_1', 'nominations', 'nomination_results'],
+  },
+  loh_target_inquiry: {
+    directDecision: 'nomination',
+    humanMustBeHoh: true,
+    allowedPhases: ['loh_results', 'social_1', 'nominations', 'nomination_results'],
+  },
+  nomination_advice_inquiry: {
+    directDecision: 'nomination',
+    senderMustBeHoh: true,
+    allowedPhases: ['loh_results', 'social_1', 'nominations', 'nomination_results'],
+  },
+  direct_replacement_pitch: {
+    directDecision: 'replacement',
+    requiresDecisionTarget: true,
+    allowedPhases: [
+      'nomination_results',
+      'pre_veto_public_save',
+      'pos_comp_announcement',
+      'pos_comp',
+      'pos_results',
+      'pos_ceremony',
+      'pos_ceremony_results',
+    ],
+  },
+  direct_vote_pitch: {
+    directDecision: 'vote',
+    humanMustBeEligibleVoter: true,
+    requiresDecisionTarget: true,
+    allowedPhases: ['pos_ceremony_results', 'social_2', 'live_vote'],
+  },
+  vote_rally_warning: {
+    directDecision: 'vote',
+    humanMustBeNominee: true,
+    allowedPhases: ['pos_ceremony_results', 'social_2', 'live_vote'],
   },
   nomination_aftershock: {
     senderMustBeNominee: true,
+    nominationWindow: 'aftermath',
     invalidPhases: ['live_vote', 'eviction_results', 'week_end', 'week_start'],
   },
   nominee_campaign: {
@@ -62,24 +117,38 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
   hoh_safety_request: {
     senderMustBeNominee: false,
     humanMustBeHoh: true,
+    nominationWindow: 'setup',
+    allowedPhases: ['loh_results', 'social_1', 'nominations', 'nomination_results'],
   },
   allied_loh_plan_check_in: {
     senderMustBeNominee: false,
     humanMustBeHoh: true,
-    allowedPhases: ['social_1', 'nominations', 'loh_results'],
+    nominationWindow: 'setup',
+    allowedPhases: ['loh_results', 'social_1', 'nominations', 'nomination_results'],
   },
   co_nominee_check_in: {
     senderMustBeNominee: true,
     humanMustBeNominee: true,
     allowedPhases: ['social_2', 'live_vote'],
   },
+  safety_plan_inquiry: {
+    humanMustHoldSafety: true,
+    allowedPhases: ['pos_results', 'pos_ceremony', 'pos_ceremony_results'],
+  },
+  safety_hold_request: {
+    senderMustBeHoh: true,
+    humanMustHoldSafety: true,
+    allowedPhases: ['pos_results', 'pos_ceremony', 'pos_ceremony_results'],
+  },
   safety_holder_consults_loh: {
     senderMustHoldSafety: true,
     humanMustBeHoh: true,
+    allowedPhases: ['pos_results', 'pos_ceremony'],
   },
   loh_consults_safety_holder: {
     senderMustBeHoh: true,
     humanMustHoldSafety: true,
+    allowedPhases: ['pos_results', 'pos_ceremony', 'pos_ceremony_results'],
   },
   nominee_understands_loh: {
     senderMustBeNominee: true,
@@ -93,6 +162,7 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
   },
   automatic_nominee_reaction: {
     senderMustBeNominee: true,
+    nominationWindow: 'aftermath',
     allowedPhases: ['nomination_results'],
   },
   nominee_confronts_loh: {
@@ -108,6 +178,7 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
   },
   alliance_nomination_pitch: {
     humanMustBeHoh: true,
+    nominationWindow: 'setup',
     subjectMustBeInHouse: true,
     allowedPhases: ['loh_results', 'social_1', 'nominations'],
   },
@@ -128,6 +199,7 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
   },
   alliance_power_nomination_huddle: {
     senderMustBeHoh: true,
+    nominationWindow: 'setup',
     subjectMustBeInHouse: true,
     allowedPhases: ['loh_results', 'social_1', 'nominations'],
   },

@@ -48,6 +48,7 @@ function makeFullStore(phase = 'social_1', targetIsUser = true) {
           players: [
             { id: 'ai1', status: 'active', isUser: false },
             { id: 'p_human', status: 'active', isUser: targetIsUser },
+            { id: 'ai2', status: 'active', isUser: false },
           ],
           seed: 42,
           week: 1,
@@ -192,6 +193,8 @@ describe('socialAIDriver – canAfford gating', () => {
     vi.advanceTimersByTime(socialConfig.tickIntervalMs)
 
     expect(getStatus().actionsExecuted).toBeGreaterThan(0)
+    expect(store.getState().social.scheduledIncomingInteractions).toHaveLength(1)
+    expect(store.getState().social.energyBank.ai1).toBe(2)
   })
 })
 

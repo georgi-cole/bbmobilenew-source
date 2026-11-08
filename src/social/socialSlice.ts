@@ -6,6 +6,7 @@ import type { PayloadAction } from '@reduxjs/toolkit'
 import type {
   IncomingInteraction,
   IncomingInteractionDecisionLogEntry,
+  IncomingInteractionReceipt,
   IncomingInteractionResponseType,
   IntelligenceDelivery,
   ScheduledIncomingInteraction,
@@ -48,7 +49,12 @@ import {
   type SocialStateWithHistory,
 } from './socialHistory'
 import { clampSocialResource, migrateSocialState } from './socialStateMigration'
-import { getIncomingInteractionResponsePolicy, getSocialRuntimeConfig } from './socialRuntimeConfig'
+import {
+  getIncomingInteractionResponsePolicy,
+  getSocialRuntimeConfig,
+  isIncomingInteractionActionable,
+} from './socialRuntimeConfig'
+import { isIncomingInteractionOverdue } from './incomingInteractionDeadline'
 import {
   appendRealitySimulationTrace,
   createInitialRealitySimulationState,
@@ -552,6 +558,19 @@ export type WeekSeedOperation =
 export type WeekSeedBatch = {
   operations: WeekSeedOperation[]
   moods: WeekSeedMoodUpdate[]
+}
+
+function closeLinkedIncomingInteraction(
+  state: SocialState,
+  interaction: IncomingInteraction,
+  status: 'EXPIRED' | 'INVALIDATED'
+): void {
+  const id = interaction.payload?.realityInteractionId
+  if (typeof id !== 'string') return
+  const linked = state.reality.interactions[id]
+  if (linked?.status === 'AWAITING_HUMAN' && linked.actorId === interaction.fromId) {
+    linked.status = status
+  }
 }
 
 const socialSlice = createSlice({
@@ -1074,6 +1093,12 @@ const socialSlice = createSlice({
     pushIncomingInteraction(state, action: PayloadAction<IncomingInteraction>) {
       state.incomingInteractions.unshift(action.payload)
     },
+    closeUndeliveredIncomingInteraction(
+      state,
+      action: PayloadAction<{ interaction: IncomingInteraction; status: 'EXPIRED' | 'INVALIDATED' }>
+    ) {
+      closeLinkedIncomingInteraction(state, action.payload.interaction, action.payload.status)
+    },
     /** Schedule an incoming interaction for a future delivery window. */
     scheduleIncomingInteraction(state, action: PayloadAction<ScheduledIncomingInteraction>) {
       state.scheduledIncomingInteractions.push(action.payload)
@@ -1115,11 +1140,25 @@ const socialSlice = createSlice({
       action: PayloadAction<{
         deliveries: ScheduledIncomingInteraction[]
         remainingScheduled: ScheduledIncomingInteraction[]
+        invalidatedIds?: string[]
         phase: string
         week: number
       }>
     ) {
-      const { deliveries, remainingScheduled, phase, week } = action.payload
+      const { deliveries, remainingScheduled, invalidatedIds, phase, week } = action.payload
+      const retainedIds = new Set(
+        [...deliveries, ...remainingScheduled].map(({ interaction }) => interaction.id)
+      )
+      const invalidated = new Set(invalidatedIds)
+      for (const { interaction } of state.scheduledIncomingInteractions) {
+        if (!retainedIds.has(interaction.id)) {
+          closeLinkedIncomingInteraction(
+            state,
+            interaction,
+            invalidated.has(interaction.id) ? 'INVALIDATED' : 'EXPIRED'
+          )
+        }
+      }
       state.scheduledIncomingInteractions = remainingScheduled
       if (deliveries.length > 0) {
         const deliveredInteractions = deliveries.map((entry) => ({
@@ -1164,6 +1203,8 @@ const socialSlice = createSlice({
         interactionId: string
         resolvedWith: IncomingInteractionResponseType
         resolvedLabel?: string
+        resolvedChoiceId?: string
+        receipt?: IncomingInteractionReceipt
         reactionText?: string
         outcomeText?: string
         resolvedAt?: number
@@ -1174,6 +1215,8 @@ const socialSlice = createSlice({
         interactionId,
         resolvedWith,
         resolvedLabel,
+        resolvedChoiceId,
+        receipt,
         reactionText,
         outcomeText,
         resolvedAt,
@@ -1189,6 +1232,8 @@ const socialSlice = createSlice({
       entry.resolvedWeek = resolvedWeek
       entry.resolvedWith = resolvedWith
       entry.resolvedLabel = resolvedLabel
+      entry.resolvedChoiceId = resolvedChoiceId
+      entry.receipt = receipt
       entry.reactionText = reactionText
       entry.outcomeText = outcomeText
     },
@@ -1243,6 +1288,11 @@ const socialSlice = createSlice({
       entry.resolvedAt = action.payload.resolvedAt ?? Date.now()
       entry.resolvedWeek = action.payload.resolvedWeek
       entry.resolvedWith = 'dismiss'
+      entry.resolvedLabel = 'No longer available'
+      if (entry.type === 'alliance_proposal') {
+        entry.outcomeText = 'This personal pact offer is no longer available. No pact was formed.'
+      }
+      closeLinkedIncomingInteraction(state, entry, 'INVALIDATED')
     },
     /** Resolve invalidated interactions and remove matching scheduled entries. */
     invalidateIncomingInteractions(
@@ -1251,13 +1301,20 @@ const socialSlice = createSlice({
         interactionIds: string[]
         resolvedAt?: number
         resolvedWeek?: number
+        scheduledStatus?: 'EXPIRED' | 'INVALIDATED'
         retiredIntelHistory?: Record<
           string,
           { text: string; outcomeText: string; resolvedLabel: string }
         >
       }>
     ) {
-      const { interactionIds, resolvedAt, resolvedWeek, retiredIntelHistory } = action.payload
+      const {
+        interactionIds,
+        resolvedAt,
+        resolvedWeek,
+        retiredIntelHistory,
+        scheduledStatus = 'INVALIDATED',
+      } = action.payload
       if (interactionIds.length === 0) return
       const ids = new Set(interactionIds)
       const resolvedTimestamp = resolvedAt ?? Date.now()
@@ -1269,6 +1326,7 @@ const socialSlice = createSlice({
           interaction.resolvedAt = resolvedTimestamp
           interaction.resolvedWeek = resolvedWeek
           interaction.resolvedWith = 'dismiss'
+          closeLinkedIncomingInteraction(state, interaction, 'INVALIDATED')
           const historicalLead = retiredIntelHistory?.[interaction.id]
           if (historicalLead) {
             interaction.text = historicalLead.text
@@ -1279,7 +1337,11 @@ const socialSlice = createSlice({
       })
 
       state.scheduledIncomingInteractions = state.scheduledIncomingInteractions.filter(
-        (entry) => !ids.has(entry.interaction.id)
+        ({ interaction }) => {
+          if (!ids.has(interaction.id)) return true
+          closeLinkedIncomingInteraction(state, interaction, scheduledStatus)
+          return false
+        }
       )
     },
     /**
@@ -1307,9 +1369,13 @@ const socialSlice = createSlice({
           interaction.resolvedAt = now
           interaction.resolvedWeek = week
           interaction.resolvedWith = 'dismiss'
+          closeLinkedIncomingInteraction(state, interaction, 'INVALIDATED')
         }
       }
 
+      for (const { interaction } of state.scheduledIncomingInteractions) {
+        closeLinkedIncomingInteraction(state, interaction, 'INVALIDATED')
+      }
       state.scheduledIncomingInteractions = []
       state.panelOpen = false
       state.incomingInboxOpen = false
@@ -1322,7 +1388,8 @@ const socialSlice = createSlice({
       const { week, resolvedAt } = action.payload
       const resolvedTimestamp = resolvedAt ?? Date.now()
       state.incomingInteractions.forEach((interaction) => {
-        if (!interaction.resolved && interaction.expiresAtWeek < week) {
+        if (isIncomingInteractionOverdue(interaction, { day: week, phase: 'week_start' })) {
+          closeLinkedIncomingInteraction(state, interaction, 'EXPIRED')
           interaction.resolved = true
           interaction.read = true
           interaction.resolvedAt = resolvedTimestamp
@@ -1353,6 +1420,7 @@ const socialSlice = createSlice({
         action.payload.day * 1_000_000 + Math.max(0, action.payload.phase.length * 100)
       state.incomingInteractions.forEach((interaction) => {
         if (ids.has(interaction.id) && !interaction.resolved) {
+          closeLinkedIncomingInteraction(state, interaction, 'EXPIRED')
           interaction.resolved = true
           interaction.read = true
           interaction.resolvedAt = resolvedTimestamp
@@ -1596,6 +1664,7 @@ export const {
   applyDramaAction,
   applyDramaIncomingResponse,
   pushIncomingInteraction,
+  closeUndeliveredIncomingInteraction,
   scheduleIncomingInteraction,
   recordIncomingInteractionDecision,
   recordIncomingInteractionDecisions,
@@ -1676,7 +1745,14 @@ export const selectIncomingInteractionDeliveryState = (state: { social: SocialSt
 export const selectUnreadIncomingInteractionCount = (state: { social: SocialState }) =>
   selectIncomingInteractions(state).filter((interaction) => !interaction.read).length
 export const selectPendingIncomingInteractionCount = (state: { social: SocialState }) =>
-  selectIncomingInteractions(state).filter((interaction) => !interaction.resolved).length
+  selectIncomingInteractions(state).filter(
+    (interaction) => !interaction.resolved && isIncomingInteractionActionable(interaction)
+  ).length
+export const selectUnreadIncomingNoticeCount = (state: { social: SocialState }) =>
+  selectIncomingInteractions(state).filter(
+    (interaction) =>
+      !interaction.resolved && !interaction.read && !isIncomingInteractionActionable(interaction)
+  ).length
 export const selectActiveIncomingInteractions = (state: { social: SocialState }) =>
   selectIncomingInteractions(state).filter((interaction) => !interaction.resolved)
 export const selectScheduledIncomingInteractionCount = (state: { social: SocialState }) =>

@@ -29,7 +29,14 @@ import {
   deriveRealitySimulationSeed,
 } from '../realitySimulation'
 import { getRealityActionContract, type RealityActorSnapshot } from './actionContract'
-import { runRealityOpportunity } from './orchestrator'
+import { runRealityOpportunity, type RealityOrchestrationResult } from './orchestrator'
+import type { RealityResponseRepetition } from './response'
+import {
+  SOCIAL_ACTION_REACTION_COPY,
+  SOCIAL_CATEGORY_REACTION_COPY,
+} from '../socialNarrativeConfig'
+import type { SocialActionDefinition } from '../socialActions'
+import type { SocialActionLogEntry, SocialActionReceipt } from '../types'
 import {
   findRealityAllianceForConsultation,
   holdRealityAllianceStrategyMeeting,
@@ -43,7 +50,7 @@ import { formatLohSafetyConsultation } from '../lohSafetyConsultation'
 import type { RealityAlliance } from './types'
 import { getRealityModeAdapter } from './modeAdapters'
 import { applyRealityRelationshipChange, projectRealityAffinity } from './relationships'
-import type { RealityContext } from './types'
+import type { RealityContext, RealityResponseKind, RealitySocialEvent } from './types'
 import { getCupidPartnerId } from '../../features/twists/cupidArrow'
 import {
   chooseAiEvictionVote,
@@ -53,7 +60,7 @@ import {
   getSafetyRelationshipScore,
 } from '../../store/gameSlice'
 import { shouldDepressionShockRefuseConversation } from '../../features/twists/depressionShock'
-import { validateSocialExecution } from '../socialExecutionGuard'
+import { createDeterministicSocialRandom, validateSocialExecution } from '../socialExecutionGuard'
 import { isLohReplacementPending } from '../lohReplacementWindow'
 import {
   createInitialPregnancyStoryState,
@@ -86,6 +93,7 @@ export interface HumanRealityActionInput {
   consultationScope?: 'selected' | 'alliance'
   consultationAllianceId?: string
   subjectId?: string
+  /** Legacy caller quote. Execution reprices using the current game state. */
   costOverride?: { energy: number; influence: number; info: number }
 }
 
@@ -125,21 +133,37 @@ function getHumanRepetitionSuccessChances(actionId: string): readonly number[] |
   return null
 }
 
-function getPhaseRepetitionChance(
+function getPhaseRepetition(
   state: RootState,
-  input: HumanRealityActionInput
-): number | undefined {
+  input: HumanRealityActionInput,
+  targetIds: readonly string[]
+): Record<string, RealityResponseRepetition> | undefined {
   const successChances = getHumanRepetitionSuccessChances(input.actionId)
   if (!successChances) return undefined
-  const priorAttempts = (state.social.actionHistory ?? []).filter(
-    (entry) =>
+  const initialChance = successChances[0]
+  const phase = getWeekendActivityPhase(state)
+  const attemptsByTarget = new Map<string, number>()
+  for (const entry of state.social.actionHistory ?? []) {
+    if (
       entry.actorId === input.actorId &&
-      entry.targetId === input.targetId &&
       entry.actionId === input.actionId &&
       entry.week === state.game.week &&
-      entry.phase === getWeekendActivityPhase(state)
-  ).length
-  return successChances[priorAttempts] ?? 0.02
+      entry.phase === phase
+    ) {
+      for (const targetId of entry.targetIds ?? [entry.targetId]) {
+        attemptsByTarget.set(targetId, (attemptsByTarget.get(targetId) ?? 0) + 1)
+      }
+    }
+  }
+  return Object.fromEntries(
+    targetIds.map((targetId) => [
+      targetId,
+      {
+        initialChance,
+        factor: (successChances[attemptsByTarget.get(targetId) ?? 0] ?? 0.02) / initialChance,
+      },
+    ])
+  )
 }
 
 export function isProtectionPromiseContradicted(
@@ -1752,6 +1776,103 @@ export function buildLohConsultationSummary(
   return `Right now, ${disclosedName} is the person I am watching most closely.`
 }
 
+type HumanActionResolution = {
+  outcome: RealitySocialEvent['outcome']
+  reactions: Record<string, RealityResponseKind>
+}
+
+type HumanActionResult = ExecuteActionResult & { resolution?: HumanActionResolution }
+
+const REACTION_RECEIPTS: Partial<
+  Record<RealityResponseKind, Pick<SocialActionReceipt, 'outcomeLabel' | 'tone'>>
+> = {
+  REJECT: { outcomeLabel: 'Declined', tone: 'negative' },
+  COUNTER: { outcomeLabel: 'Asked for different terms', tone: 'neutral' },
+  QUESTION: { outcomeLabel: 'Uncertain response', tone: 'neutral' },
+  LIE: { outcomeLabel: 'Uncertain response', tone: 'neutral' },
+  WALK_AWAY: { outcomeLabel: 'Walked away', tone: 'warning' },
+  ESCALATE: { outcomeLabel: 'Escalated', tone: 'warning' },
+  DE_ESCALATE: { outcomeLabel: 'Cooled the exchange', tone: 'neutral' },
+}
+
+function getResolvedReceipt(
+  resolution: HumanActionResolution | undefined
+): Pick<SocialActionReceipt, 'outcomeLabel' | 'tone'> | undefined {
+  if (!resolution) return undefined
+  const reactions = [...new Set(Object.values(resolution.reactions))]
+  if (resolution.outcome === 'PARTIAL' && reactions.length > 1) {
+    return { outcomeLabel: 'Mixed result', tone: 'neutral' }
+  }
+  if (reactions.length > 1) return { outcomeLabel: 'Mixed reactions', tone: 'neutral' }
+  return REACTION_RECEIPTS[reactions[0]]
+}
+
+function formatRealityResponse(
+  state: RootState,
+  input: HumanRealityActionInput,
+  action: SocialActionDefinition,
+  orchestration: RealityOrchestrationResult,
+  compatibility: ExecuteActionResult
+): string {
+  const responses = orchestration.targetResponses ?? []
+  if (responses.length > 1) {
+    const namesByReaction = new Map<RealityResponseKind, string[]>()
+    for (const { targetId, response } of responses) {
+      const names = namesByReaction.get(response.kind) ?? []
+      names.push(playerName(state, targetId))
+      namesByReaction.set(response.kind, names)
+    }
+    return [...namesByReaction]
+      .map(([kind, names]) => {
+        const namesText = formatPlayerNames(names)
+        if (kind === 'ACCEPT') return `${namesText} welcomed the conversation.`
+        if (kind === 'WALK_AWAY') return `${namesText} walked away.`
+        if (kind === 'ESCALATE') return `${namesText} pushed back and the exchange got heated.`
+        if (kind === 'DE_ESCALATE') return `${namesText} tried to defuse the exchange.`
+        if (kind === 'COUNTER') return `${namesText} asked for different terms.`
+        if (kind === 'QUESTION' || kind === 'LIE') return `${namesText} held back.`
+        return `${namesText} did not take to the approach.`
+      })
+      .join(' ')
+  }
+  const response = responses[0]?.response
+  const targetId = responses[0]?.targetId ?? input.targetId
+  const name = playerName(state, targetId)
+  if (targetId === input.actorId) {
+    return (
+      compatibility.contextualSummary ??
+      (action.id === 'observe'
+        ? 'You watched the room and took note of who was talking.'
+        : `You took some time for ${action.title.toLowerCase()}.`)
+    )
+  }
+  if (response?.kind === 'WALK_AWAY')
+    return `${name} walked away before the exchange could go further.`
+  if (response?.kind === 'ESCALATE') return `${name} pushed back and the exchange got heated.`
+  if (response?.kind === 'DE_ESCALATE')
+    return `${name} tried to defuse the exchange instead of arguing back.`
+  if (response?.kind === 'COUNTER')
+    return `${name} asked for different terms before making a commitment.`
+  if (response?.kind === 'QUESTION' || response?.kind === 'LIE')
+    return `${name} stayed guarded and left you without a clear answer.`
+  if (compatibility.contextualSummary) return compatibility.contextualSummary
+  const outcome = response?.accepted ? 'success' : 'failure'
+  const variants =
+    SOCIAL_ACTION_REACTION_COPY[action.id]?.[outcome] ??
+    SOCIAL_CATEGORY_REACTION_COPY[action.category][outcome]
+  const random = createDeterministicSocialRandom([
+    state.game.seed,
+    orchestration.event?.id,
+    targetId,
+  ])
+  return variants[Math.floor(random() * variants.length)]
+    .replaceAll('{target}', name)
+    .replaceAll(
+      '{subject}',
+      input.subjectId ? playerName(state, input.subjectId) : 'another hubmate'
+    )
+}
+
 export function executeHumanRealityAction(input: HumanRealityActionInput) {
   return (dispatch: AppDispatch, getState: () => RootState): ExecuteActionResult => {
     const beforeState = getState()
@@ -1794,7 +1915,8 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
         )
         continue
       }
-      const relationshipStrain = Object.values(entry.targetDeltas ?? {}).some((delta) => delta < 0)
+      const relationshipStrain = Object.values(relationshipShifts).some((delta) => delta < 0)
+      const resolvedReceipt = getResolvedReceipt(outcome.resolution)
       const tone = mixedOutcome
         ? 'neutral'
         : entry.outcome === 'failure'
@@ -1817,12 +1939,14 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
                   ? 'Succeeded with relationship strain'
                   : 'Completed',
             tone,
+            ...resolvedReceipt,
           },
         })
       )
     }
     return {
       ...outcome,
+      relationshipShifts,
       receiptRecorded: entries.length > 0,
       ...(entries[0]?.id ? { receiptId: entries[0].receipt?.groupId ?? entries[0].id } : {}),
     }
@@ -1858,12 +1982,16 @@ function getDisplayedRelationshipScores(state: RootState, actorId: string): Map<
 }
 
 function performHumanRealityAction(input: HumanRealityActionInput) {
-  return (dispatch: AppDispatch, getState: () => RootState): ExecuteActionResult => {
+  return (dispatch: AppDispatch, getState: () => RootState): HumanActionResult => {
     const state = getState()
     const action = getActionById(input.actionId)
     const effectiveResources = getEffectiveHumanResources(state, input.actorId)
     const energy = effectiveResources.energy
     if (!action) return result(false, 'Unknown action', energy)
+    const actor = state.game.players.find((player) => player.id === input.actorId)
+    if (!actor?.isUser || actor.status === 'evicted' || actor.status === 'jury') {
+      return result(false, 'This player cannot use Social right now.', energy, 0, 'Unavailable')
+    }
     if (['proposeAlliance', 'ally', 'break_alliance'].includes(input.actionId)) {
       if ((input.targetIds?.length ?? 1) > 1)
         return result(
@@ -1881,57 +2009,19 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       actionTargetMode === 'none'
         ? []
         : [...new Set(requestedTargetIds.filter((targetId) => Boolean(targetId)))]
-    const resolvedRequiredTargetStatus = dramaMode
-      ? (action.dramaRequiredTargetStatus ?? action.requiredTargetStatus)
-      : action.requiredTargetStatus
+    if (actionTargetMode !== 'none' && !targetIds.includes(input.targetId)) {
+      return result(false, 'Choose a valid recipient first.', energy, 0, 'Unavailable')
+    }
     const isPrimaryBatch = actionTargetMode === 'primary' && targetIds.length > 1
-    const batchCompatible =
-      actionTargetMode === 'primary' &&
-      !resolvedRequiredTargetStatus &&
-      input.actionId !== 'proposeAlliance' &&
-      input.actionId !== 'consult_alliance'
-
-    if (isPrimaryBatch && !batchCompatible) {
-      return result(
-        false,
-        'This action can only target one hubmate at a time.',
-        energy,
-        0,
-        'Invalid selection'
-      )
-    }
-
-    const executionState = {
-      game: state.game,
-      settings: state.settings,
-      vip: state.vip,
-      social: state.social,
-    }
-    if (isPrimaryBatch) {
-      for (const targetId of targetIds) {
-        const eligibility = validateSocialExecution(executionState, {
-          action,
-          actorId: input.actorId,
-          targetIds: [targetId],
-          subjectId: input.subjectId,
-          requireCompleteSelection: true,
-        })
-        if (!eligibility.eligible) {
-          return result(false, eligibility.reason, energy, 0, 'Unavailable')
-        }
-      }
-    } else {
-      const eligibility = validateSocialExecution(executionState, {
-        action,
-        actorId: input.actorId,
-        targetIds,
-        subjectId: input.subjectId,
-        requireCompleteSelection: true,
-      })
-      if (!eligibility.eligible) {
-        return result(false, eligibility.reason, energy, 0, 'Unavailable')
-      }
-    }
+    const eligibility = validateSocialExecution(state, {
+      action,
+      actorId: input.actorId,
+      targetIds,
+      subjectId: input.subjectId,
+      requireCompleteSelection: true,
+      allowPrimaryBatch: true,
+    })
+    if (!eligibility.eligible) return result(false, eligibility.reason, energy, 0, 'Unavailable')
 
     const baseExecutionCosts = getDynamicInquiryCosts(
       action,
@@ -1946,14 +2036,15 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
         dramaMode
       )
     )
-    const defaultExecutionCosts = isPrimaryBatch
+    // Reprice against current state so a stale preview or direct caller cannot
+    // underpay a multi-recipient move.
+    const executionCosts = isPrimaryBatch
       ? {
           energy: baseExecutionCosts.energy * targetIds.length,
           influence: baseExecutionCosts.influence * targetIds.length,
           info: baseExecutionCosts.info * targetIds.length,
         }
       : baseExecutionCosts
-    const requestedExecutionCosts = input.costOverride ?? defaultExecutionCosts
 
     // During Depression Shock, a housemate may simply shut the conversation
     // down. Resolve this before affordability/execution so a refusal costs the
@@ -1983,6 +2074,16 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       )
     }
 
+    const { influence, info } = effectiveResources
+    if (
+      input.actionId !== 'ask_nemesis_reason' &&
+      (energy < executionCosts.energy ||
+        influence < executionCosts.influence ||
+        info < executionCosts.info)
+    ) {
+      return result(false, 'Insufficient resources. Nothing was spent.', energy, 0, 'Unavailable')
+    }
+
     // Classic is a complete, independent social ruleset. It must never create
     // premium Reality events, causal memories, or simulation traces.
     if (!dramaMode) {
@@ -1990,7 +2091,7 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       if (mode === 'multi') {
         return executeGroupAction(input.actorId, targetIds, input.actionId, {
           source: 'manual',
-          costOverride: requestedExecutionCosts,
+          costOverride: executionCosts,
         })
       }
       if (targetIds.length > 1) {
@@ -1999,9 +2100,10 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
             executeAction(input.actorId, targetId, input.actionId, {
               source: 'manual',
               subjectId: input.subjectId,
+              conversationRefusalAlreadyResolved: true,
+              batchSelectionAlreadyValidated: true,
               waiveCosts: index > 0,
-              costOverride:
-                index === 0 ? requestedExecutionCosts : { energy: 0, influence: 0, info: 0 },
+              costOverride: index === 0 ? executionCosts : { energy: 0, influence: 0, info: 0 },
             })
           )
           .reduce<ExecuteActionResult>(
@@ -2030,7 +2132,7 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
         {
           source: 'manual',
           subjectId: input.subjectId,
-          costOverride: requestedExecutionCosts,
+          costOverride: executionCosts,
         }
       )
       return {
@@ -2247,22 +2349,6 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       )
     }
 
-    // The Reality contract stores a representative one-target price. Dynamic
-    // multi-target actions (notably Group Chat) must be checked against their
-    // full atomic price before the causal Reality domain is allowed to mutate.
-    // Otherwise a large group action could create memories/relationship effects
-    // and only discover afterward that the player could not afford it.
-    const executionCosts = requestedExecutionCosts
-    const influence = effectiveResources.influence
-    const info = effectiveResources.info
-    if (
-      energy < executionCosts.energy ||
-      influence < executionCosts.influence ||
-      info < executionCosts.info
-    ) {
-      return result(false, 'Insufficient resources. Nothing was spent.', energy, 0, 'Unavailable')
-    }
-
     // Inquiry responses use their durable answer history to govern candour,
     // repeat pressure, and walkaways. Keep that same resolution in Reality
     // Mode, while recording a private causal event for the conversation.
@@ -2332,14 +2418,15 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
         candidates: [
           {
             action: contract,
-            targetIds: executionTargetIds,
+            targetIds: direction === 'GROUP' ? [...executionTargetIds].sort() : executionTargetIds,
             subjectId: input.subjectId,
             // An active alliance huddle is a convened group meeting. Disagreement
             // belongs in each member's strategic read, not in a random refusal by
             // whichever member the player tapped to identify the alliance.
-            acceptanceChanceOverride: consultationAlliance
-              ? 1
-              : getPhaseRepetitionChance(state, input),
+            acceptanceChanceOverride: consultationAlliance ? 1 : undefined,
+            repetitionByTarget: consultationAlliance
+              ? undefined
+              : getPhaseRepetition(state, input, executionTargetIds),
             promiseContradicted:
               input.actionId === 'protect'
                 ? isProtectionPromiseContradicted(state, input.actorId, input.targetId)
@@ -2361,7 +2448,6 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
               : 'No action was selected.'
       return result(false, reason, energy, 0, orchestration.response?.kind ?? 'Unavailable')
     }
-    const resolved = orchestration.event.outcome !== 'FAILURE'
     // Compatibility "success" is intentionally stricter than "the conversation
     // produced a Reality event". COUNTERED and PARTIAL outcomes still cost the
     // action and remain in Reality memory, but they must not receive full legacy
@@ -2422,7 +2508,7 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       allianceConsultationSummary = consultationPlan.summary
     }
     const dangerWarningDiscovered =
-      resolved &&
+      resolvedAsSuccess &&
       input.actionId === 'warn_about_danger' &&
       Boolean(state.game.lohId) &&
       state.game.lohId !== input.actorId &&
@@ -2438,17 +2524,24 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
         anchor: 'negative',
       })
     }
+    const deferredLogs: SocialActionLogEntry[] = []
+    const compatibilityOptions = {
+      source: 'manual' as const,
+      repetitionAlreadyResolved: true,
+      conversationRefusalAlreadyResolved: true,
+      batchSelectionAlreadyValidated: isPrimaryBatch,
+      deferLog: (entry: SocialActionLogEntry) => deferredLogs.push(entry),
+    }
     const compatibility = consultationAlliance
       ? executeAction(input.actorId, input.targetId, input.actionId, {
-          source: 'manual',
+          ...compatibilityOptions,
           subjectId: input.subjectId,
           outcome: resolvedAsSuccess ? 'success' : 'failure',
-          repetitionAlreadyResolved: true,
           costOverride: executionCosts,
         })
       : direction === 'GROUP' && actionTargetMode === 'multi'
         ? executeGroupAction(input.actorId, executionTargetIds, input.actionId, {
-            source: 'manual',
+            ...compatibilityOptions,
             outcome: resolvedAsSuccess ? 'success' : 'failure',
             targetOutcomes: Object.fromEntries(
               executionTargetIds.map((targetId) => [
@@ -2462,10 +2555,9 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
           ? executionTargetIds
               .map((targetId, index) =>
                 executeAction(input.actorId, targetId, input.actionId, {
-                  source: 'manual',
+                  ...compatibilityOptions,
                   subjectId: input.subjectId,
                   outcome: targetCompatibilitySucceeded(targetId) ? 'success' : 'failure',
-                  repetitionAlreadyResolved: true,
                   waiveCosts: index > 0,
                   costOverride: index === 0 ? executionCosts : { energy: 0, influence: 0, info: 0 },
                 })
@@ -2493,18 +2585,43 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
               direction === 'SELF' ? input.actorId : input.targetId,
               input.actionId,
               {
-                source: 'manual',
+                ...compatibilityOptions,
                 subjectId: input.subjectId,
                 outcome: resolvedAsSuccess ? 'success' : 'failure',
-                repetitionAlreadyResolved: true,
                 costOverride: executionCosts,
               }
             )
-    // Legacy execution preserves specialized ceremony copy and existing game
-    // adapters. Restore the causal v3 world afterward so its directed result
-    // is not counted a second time by the compatibility relationship write.
+    if (!compatibility.success) {
+      finishDraft(resolvedDomain)
+      return compatibility
+    }
+    // Legacy spends and direct relationship writes run first. Publish action
+    // logs only after projecting the causal world so downstream strategies and
+    // intel can add their effects without a later replacement erasing them.
     dispatch(replaceRealityDomain(finishDraft(resolvedDomain)))
     dispatch(replaceRealitySimulation(orchestration.simulation))
+    const reactions = Object.fromEntries(
+      (orchestration.targetResponses ?? []).map(({ targetId, response }) => [
+        targetId,
+        response.kind,
+      ])
+    )
+    for (const entry of deferredLogs) {
+      const recipientIds = entry.targetIds ?? [entry.targetId]
+      const targetReactions = Object.fromEntries(
+        recipientIds.flatMap((id) => (reactions[id] ? [[id, reactions[id]]] : []))
+      )
+      dispatch(
+        recordSocialAction({
+          entry: {
+            ...entry,
+            realityEventId: orchestration.event.id,
+            visibility: orchestration.event.visibility,
+            targetReactions,
+          },
+        })
+      )
+    }
     // An accepted human alliance is authoritative in both relationship models.
     // Projecting the Reality domain can otherwise leave one legacy direction
     // just below the threshold used by badges and action eligibility.
@@ -2544,12 +2661,14 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       : null
     const allianceProposalCountered =
       input.actionId === 'proposeAlliance' && orchestration.response?.kind === 'COUNTER'
-    let baseSummary = allianceConsultationSummary ?? compatibility.summary
+    let baseSummary =
+      allianceConsultationSummary ??
+      formatRealityResponse(state, input, action, orchestration, compatibility)
     if (allianceProposalCountered) {
       const targetName =
         state.game.players.find((player) => player.id === input.targetId)?.name ?? 'They'
       baseSummary = `${targetName} made a counteroffer. No alliance was formed yet.`
-    } else if (input.actionId === 'warn_about_danger' && resolved) {
+    } else if (input.actionId === 'warn_about_danger' && resolvedAsSuccess) {
       const targetName =
         state.game.players.find((player) => player.id === input.targetId)?.name ?? 'They'
       baseSummary = dangerWarningDiscovered
@@ -2566,6 +2685,7 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       }`,
       label: orchestration.response?.kind ?? compatibility.label,
       score: orchestration.score?.total ?? compatibility.score,
+      resolution: { outcome: orchestration.event.outcome, reactions },
     }
   }
 }

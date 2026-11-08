@@ -12,6 +12,7 @@ import {
   writeDurableItem,
 } from './support/test'
 import { openProfileCreationForm } from './support/profile'
+import { incomingDockButton, replyToOptionalIncoming } from './support/incomingSocial'
 
 const JOURNEY_TIMEOUT_MS = 90_000
 const SCREEN_TIMEOUT_MS = 30_000
@@ -797,6 +798,69 @@ test.describe('Real player core journeys', () => {
         .getByRole('dialog', { name: 'Social Phase' })
         .getByLabel(`Energy: ${remainingEnergy}`, { exact: true })
     ).toBeVisible()
+  })
+
+  test('an incoming reply reaches Social and survives save and resume @incoming-social @mobile @release', async ({
+    page,
+  }) => {
+    await startFreshCampaign(page, 'Incoming Journey Player')
+    await advanceToFirstSocialPhase(page)
+    const before = await readAppState(page)
+    const result = await replyToOptionalIncoming(page, before)
+    expect(result).not.toBeNull()
+    const { candidate, resolved, after } = result!
+    const human = before.game.players.find((player) => player.isUser)!
+    const sender = before.game.players.find((player) => player.id === candidate.fromId)!
+    const affinity = (state: typeof before, sourceId: string, targetId: string) =>
+      state.social.relationships[sourceId]?.[targetId]?.affinity ?? 0
+    const directions = (state: typeof before) => [
+      affinity(state, sender.id, human.id),
+      affinity(state, human.id, sender.id),
+    ]
+    expect(resolved?.resolvedWith).toBe('positive')
+    expect(directions(after)[0]).toBeGreaterThan(directions(before)[0])
+    expect(directions(after)[1]).toBeGreaterThan(directions(before)[1])
+    expect(after.game.phase).toBe(before.game.phase)
+
+    const social = page.getByRole('dialog', { name: 'Social Phase' })
+    await page
+      .getByRole('toolbar', { name: 'Game actions' })
+      .getByRole('button', { name: /^Social(?: \(\d+\))?$/ })
+      .click()
+    const tutorial = page.getByTestId('reality-social-tutorial-prompt')
+    if (await tutorial.isVisible()) await tutorial.getByRole('button', { name: 'Skip' }).click()
+    const roster = social.getByLabel('Player roster')
+    await roster.getByText(sender.name, { exact: true }).click()
+    await expect(social.getByRole('heading', { name: sender.name, exact: true })).toBeVisible()
+    const displayedAffinity = Math.round((directions(after)[0] + directions(after)[1]) / 2)
+    const meterWidth = Math.max(6, Math.min(94, (displayedAffinity + 100) / 2))
+    await expect(social.getByLabel(/ relationship$/).locator('span')).toHaveAttribute(
+      'style',
+      `width: ${meterWidth}%;`
+    )
+    await social.getByText('Recent incoming reply', { exact: true }).click()
+    await expect(
+      social.getByText(resolved?.receipt?.text ?? resolved!.reactionText!, { exact: true })
+    ).toBeVisible()
+    await social.getByRole('button', { name: 'Close social panel' }).click()
+
+    await saveAndReturnHome(page)
+    await page.reload()
+    await waitForHome(page)
+    await resumeLastRun(page, 'Social phase')
+    const resumed = await readAppState(page)
+    expect(directions(resumed)).toEqual(directions(after))
+    expect(
+      resumed.social.incomingInteractions.find((entry) => entry.id === candidate.id)
+    ).toMatchObject({ resolvedWith: 'positive', reactionText: resolved?.reactionText })
+
+    await incomingDockButton(page).click()
+    const inbox = page.getByRole('dialog', { name: 'Incoming interactions' })
+    await inbox.locator('summary').filter({ hasText: 'History' }).click()
+    await expect(inbox.getByText(candidate.text, { exact: true })).toBeVisible()
+    await expect(
+      inbox.locator('.inbox-item').filter({ hasText: candidate.text }).getByRole('button')
+    ).toHaveCount(0)
   })
 
   test('a legacy save migrates and a corrupt current save recovers without harming another profile @persistence @release', async ({
