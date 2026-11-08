@@ -2,22 +2,24 @@ import { describe, expect, it } from 'vitest'
 import { validateSocialExecution } from '../socialExecutionGuard'
 import { SOCIAL_ACTIONS } from '../socialActions'
 
-const voxOnlyActions = [
+const classicCeremonyActions = [
   'pitch_target',
   'suggest_replacement',
   'ask_hold_safety',
   'warn_about_danger',
   'ask_why_nominated',
   'ask_loh_target',
+  'ask_nomination_advice',
   'rally_votes_against',
+  'vote_rally',
 ]
 
 const action = (id: string) => SOCIAL_ACTIONS.find((candidate) => candidate.id === id)!
 
 describe('Vox Populi social actions', () => {
   it('marks every LOH, replacement, and house-vote action unavailable', () => {
-    expect(voxOnlyActions.map((id) => action(id).unavailableInVox)).toEqual(
-      voxOnlyActions.map(() => true)
+    expect(classicCeremonyActions.map((id) => action(id).unavailableInVox)).toEqual(
+      classicCeremonyActions.map(() => true)
     )
   })
 

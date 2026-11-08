@@ -197,12 +197,12 @@ describe('computeIncomingInteractionEngagementScore', () => {
 // ── chooseIncomingInteractionType ──────────────────────────────────────────
 
 describe('chooseIncomingInteractionType', () => {
-  it('returns nomination_plea for ally during nominations', () => {
+  it('returns nomination_plea for an at-risk hubmate before nominations lock', () => {
     const ctx = makeContext({
       phase: 'nominations',
       lohId: 'user',
-      nomineeIds: ['actor1'],
-      relationships: { actor1: { user: { affinity: 60, tags: [] } } },
+      nomineeIds: [],
+      relationships: { actor1: { user: { affinity: -60, tags: [] } } },
     })
     expect(chooseIncomingInteractionType('actor1', 'user', ctx)).toBe('nomination_plea')
   })

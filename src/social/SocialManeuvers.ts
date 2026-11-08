@@ -1023,6 +1023,12 @@ export interface ExecuteActionOptions {
   costOverride?: { energy: number; influence: number; info: number }
   /** Reality orchestration already resolved the phase-scoped repetition roll. */
   repetitionAlreadyResolved?: boolean
+  /** The human action boundary already resolved whether the conversation can start. */
+  conversationRefusalAlreadyResolved?: boolean
+  /** Every recipient was validated together against the pre-action state. */
+  batchSelectionAlreadyValidated?: boolean
+  /** Publish after the authoritative Reality state has been committed. */
+  deferLog?: (entry: SocialActionLogEntry) => void
   /**
    * Optional per-recipient outcome map for Reality group actions. The top-level
    * outcome still controls whole-action rewards/logging, while this map keeps
@@ -1049,6 +1055,10 @@ export interface ExecuteActionResult {
   /** Human-readable outcome label (e.g. 'Good', 'Bad'). */
   /** Per-recipient deltas for an atomic multi-target action. */
   targetDeltas?: Record<string, number>
+  /** Actual change to the player-visible relationship meter. */
+  relationshipShifts?: Record<string, number>
+  /** Authored outcome with concrete contextual details, when available. */
+  contextualSummary?: string
   label: string
 }
 
@@ -1215,23 +1225,25 @@ export function executeAction(
     }
   }
 
-  const eligibility = evaluateSocialActionEligibility({
-    action,
-    actorId,
-    targetIds: resolveActionTargetMode(action, dramaMode) === 'none' ? [] : [targetId],
-    subjectId: options?.subjectId,
-    phase: getWeekendEligibilityPhase(state.game),
-    players: state.game?.players,
-    nomineeIds: state.game?.nomineeIds,
-    relationships: state.social.relationships,
-    dramaNetwork: state.social.dramaNetwork,
-    reality: state.social.reality,
-    pregnancyStory: state.game?.pregnancyStory,
-    dramaMode,
-    requireCompleteSelection: true,
-    allowAIOnly: true,
-  })
-  if (!eligibility.eligible) {
+  const eligibility = options?.batchSelectionAlreadyValidated
+    ? undefined
+    : evaluateSocialActionEligibility({
+        action,
+        actorId,
+        targetIds: resolveActionTargetMode(action, dramaMode) === 'none' ? [] : [targetId],
+        subjectId: options?.subjectId,
+        phase: getWeekendEligibilityPhase(state.game),
+        players: state.game?.players,
+        nomineeIds: state.game?.nomineeIds,
+        relationships: state.social.relationships,
+        dramaNetwork: state.social.dramaNetwork,
+        reality: state.social.reality,
+        pregnancyStory: state.game?.pregnancyStory,
+        dramaMode,
+        requireCompleteSelection: true,
+        allowAIOnly: true,
+      })
+  if (eligibility && !eligibility.eligible) {
     return {
       success: false,
       delta: 0,
@@ -1246,7 +1258,7 @@ export function executeAction(
   const depressionActive = (state.game?.depressionShock?.activeDay ?? 0) > 0
   // A depressed housemate sometimes simply cannot engage. This costs nothing
   // and is intentionally evaluated only after ordinary eligibility checks.
-  if (depressionActive && random() < 0.18) {
+  if (depressionActive && !options?.conversationRefusalAlreadyResolved && random() < 0.18) {
     return {
       success: false,
       delta: 0,
@@ -1905,7 +1917,8 @@ export function executeAction(
     )
   }
 
-  _store.dispatch(recordSocialAction({ entry }))
+  if (options?.deferLog) options.deferLog(entry)
+  else _store.dispatch(recordSocialAction({ entry }))
   if (inquiryAnswer && inquiryKind && inquiryTopicKey) {
     _store.dispatch(
       recordSocialInquiry({
@@ -1991,6 +2004,9 @@ export function executeAction(
           kind: outcomeKind,
           delta: relationshipDelta,
         }),
+      ...(narrative || contextualSummary
+        ? { contextualSummary: narrative ?? contextualSummary ?? undefined }
+        : {}),
       score: finalScore,
       label: finalLabel,
     }
@@ -2200,7 +2216,8 @@ export function executeGroupAction(
     label: finalLabel,
     source: options?.source ?? 'system',
   }
-  _store.dispatch(recordSocialAction({ entry }))
+  if (options?.deferLog) options.deferLog(entry)
+  else _store.dispatch(recordSocialAction({ entry }))
 
   return {
     success: true,

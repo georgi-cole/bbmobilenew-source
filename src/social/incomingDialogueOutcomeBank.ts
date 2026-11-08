@@ -325,6 +325,60 @@ const POWER_BEATS: BeatSet = {
   ],
 }
 
+const ALLIANCE_NOMINATION_PITCH_BEATS: BeatSet = {
+  positive: [
+    '"Then we agree on recommending {subject}. I will back that read, and the slate is yours to set."',
+    '"I will treat {subject} as our shared recommendation. Tell me if your final slate changes."',
+  ],
+  neutral: [
+    '"{subject} is where I would start. If there is someone you trust less, I want to hear your reasoning before you set the slate."',
+    '"I am asking you to consider {subject} as a strategic target. I will leave your position open until you decide."',
+  ],
+  negative: [
+    '"Fair. I will keep {subject} as my own read and leave the nomination call to you."',
+    '"I hear your objection. I will look again at the alternatives before I bring you another name."',
+  ],
+  dismiss: [
+    '"I will drop the recommendation. You can set the slate without my input."',
+    '"Understood. I will leave the decision with you and keep my suggestion private."',
+  ],
+}
+
+const ALLIANCE_SAFETY_PITCH_BEATS: BeatSet = {
+  positive: [
+    '"We agree on {subject} as a possible replacement. You still decide whether to use Safety, and the LOH sets the replacement."',
+    '"I will treat {subject} as our recommendation if you open a seat. The replacement is still the LOH’s call."',
+  ],
+  neutral: [
+    '"My suggestion is {subject} if a seat opens. I have not asked the LOH to lock that choice in."',
+    '"I am giving you a backup to consider if you use Safety. {subject} is a recommendation for the LOH."',
+  ],
+  negative: [
+    '"Fair. I will keep {subject} as my own read and leave your Safety decision to you."',
+    '"I hear you. I will hold off on treating {subject} as a plan we share."',
+  ],
+  dismiss: [
+    '"I will leave that backup with you. You decide whether a seat opens at all."',
+    '"Understood. I will keep the suggestion to myself unless the LOH asks for it."',
+  ],
+}
+
+const AUTOMATIC_NOMINEE_BEATS: BeatSet = {
+  positive: [
+    '"Thanks for hearing me out. Finishing last put me here. I have to work out how I get off the block."',
+    '"I appreciate you seeing what happened. I am frustrated with the result, and I want to focus on what I can still do."',
+  ],
+  neutral: [
+    '"The result is settled. I am thinking about Safety first and the vote after that."',
+    '"I am still processing the finish. I could use a clearer read on where the votes might go."',
+  ],
+  negative: ['"I understand. I will work out my next move and ask around for help."'],
+  dismiss: [
+    '"I will take a minute and get back to figuring out how to stay."',
+    '"All right. I will leave it there and focus on the next decision."',
+  ],
+}
+
 const ALLIANCE_NOMINATION_BEATS: BeatSet = {
   positive: [
     '"I hear you. {subject} is the target we are recommending, but the LOH still owns the final slate."',
@@ -564,16 +618,16 @@ const BEATS_BY_SCENE: Record<string, BeatSet> = {
   week_start_alliance_lock: ALLIANCE_BEATS,
   co_nominee_check_in: CO_NOMINEE_BEATS,
   alliance_reassurance: ALLIANCE_BEATS,
-  alliance_nomination_pitch: ALLIANCE_NOMINATION_BEATS,
+  alliance_nomination_pitch: ALLIANCE_NOMINATION_PITCH_BEATS,
   alliance_power_nomination_huddle: ALLIANCE_NOMINATION_BEATS,
-  alliance_safety_pitch: ALLIANCE_SAFETY_BEATS,
+  alliance_safety_pitch: ALLIANCE_SAFETY_PITCH_BEATS,
   alliance_power_safety_huddle: ALLIANCE_SAFETY_BEATS,
   alliance_vote_pitch: ALLIANCE_VOTE_BEATS,
   relationship_alliance_follow_up: ALLIANCE_BEATS,
   nomination_aftershock: REPAIR_BEATS,
   nominee_understands_loh: NOMINEE_UNDERSTANDS_BEATS,
   unavoidable_nominee_reaction: POWER_BEATS,
-  automatic_nominee_reaction: POWER_BEATS,
+  automatic_nominee_reaction: AUTOMATIC_NOMINEE_BEATS,
   nominee_confronts_loh: NOMINEE_CONFRONTATION_BEATS,
   replacement_nominee_reacts_to_loh: REPLACEMENT_NOMINEE_BEATS,
   ignored_warning: REPAIR_BEATS,

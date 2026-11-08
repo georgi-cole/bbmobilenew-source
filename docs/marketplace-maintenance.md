@@ -44,6 +44,17 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-08: Reviewed direct nomination, Safety replacement, and house-vote
+  conversations in Classic, Reality, and the Cupid and Vox formats. The routing
+  and saved inbox changes restore the existing conversations within each
+  format's rules. The Reality offer and its access rules are unchanged.
+
+- 2026-11-08: Reviewed Incoming and Social fixes across Classic and Reality,
+  including Safety advice, explicit promises and consent, linked relationship
+  and intel effects, and saved conversation continuity. The changes repair
+  existing scenes and gameplay effects. Reality Mode's access, benefits, price,
+  and Store copy continue to describe the existing offer.
+
 - 2026-11-07: Reviewed the iOS signed store export and all 18 App Store purchase
   price schedules against the existing release catalog. Filled the missing
   $7.99 US price schedule for the existing VIP upgrade tier and verified the

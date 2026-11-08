@@ -33,6 +33,7 @@ import {
   openSocialPanel,
   selectEnergyBank,
   selectPendingIncomingInteractionCount,
+  selectUnreadIncomingNoticeCount,
 } from '../../social/socialSlice'
 import {
   allianceRequestDecisionActors,
@@ -54,6 +55,7 @@ import {
   getBlockedSocialModuleAnnouncementMessage,
   getIncomingSocialModuleAvailability,
   getSocialModuleAvailability,
+  isWeekendSocialAvailable,
   logBlockedSocialModuleOpen,
   type SocialModuleAvailability,
 } from '../../social/socialModuleAvailability'
@@ -140,6 +142,7 @@ export default function FloatingActionBar({
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
   const pendingCount = useAppSelector(selectPendingIncomingInteractionCount)
+  const unreadNoticeCount = useAppSelector(selectUnreadIncomingNoticeCount)
   const pendingAllianceDecisionCount = useAppSelector((state) => {
     const humanId = state.game.players.find((player) => player.isUser)?.id
     if (!humanId) return 0
@@ -149,6 +152,7 @@ export default function FloatingActionBar({
         allianceRequestDecisionActors(request).includes(humanId)
     ).length
   })
+  const incomingBadgeCount = pendingCount + unreadNoticeCount + pendingAllianceDecisionCount
   const confessionalAlertCount = useAppSelector(selectConfessionalAlertCount)
   const canUseSocialModules = useAppSelector(selectHumanCanUseSocialModules)
   const canUseIncomingSocialModule = useAppSelector(selectHumanCanUseIncomingSocialModule)
@@ -192,12 +196,7 @@ export default function FloatingActionBar({
   )
   const canPersistActiveRun = !isGuest && Boolean(activeProfileId) && weekend?.debug !== true
   const weekendSocialActive =
-    weekend?.active === true &&
-    !reunionDepartureInProgress &&
-    (weekend.stage === 'social' ||
-      weekend.stage === 'finale_reunion_social' ||
-      (weekend.finaleWeekend &&
-        (weekend.stage === 'tribunal_invitation' || weekend.stage === 'tribunal_glimpse')))
+    weekend?.active === true && !reunionDepartureInProgress && isWeekendSocialAvailable(weekend)
   const weekendSocialSpotlightKey = weekendSocialActive
     ? `${game.gameId ?? game.season}:${weekend.weekendNumber ?? weekend.afterDay}:${weekend.afterDay}`
     : null
@@ -260,12 +259,8 @@ export default function FloatingActionBar({
     () => getIncomingSocialModuleAvailability(game),
     [game]
   )
-  const socialModulesUnavailable =
-    reunionDepartureInProgress || !canUseSocialModules || (weekend?.active && !weekendSocialActive)
-  const incomingSocialModuleUnavailable =
-    reunionDepartureInProgress ||
-    !canUseIncomingSocialModule ||
-    (weekend?.active && !weekendSocialActive)
+  const socialModulesUnavailable = reunionDepartureInProgress || !canUseSocialModules
+  const incomingSocialModuleUnavailable = reunionDepartureInProgress || !canUseIncomingSocialModule
   const survivorDay = getSurvivorCurrentDay(game)
   const bestSurvivorRecord = useMemo(
     () =>
@@ -465,6 +460,7 @@ export default function FloatingActionBar({
   }, [dispatch, hasSeenConfessionalSpotlight])
 
   const handleChatClick = useCallback(() => {
+    if (reunionDepartureInProgress) return
     if (!canUseSocialModules) {
       logBlockedSocialModuleOpen(
         'Outgoing social module',
@@ -486,11 +482,13 @@ export default function FloatingActionBar({
     dispatch,
     isSurvivorMode,
     onSocialModuleBlocked,
+    reunionDepartureInProgress,
     showSurvivorBlockedMessage,
     socialModuleAvailability,
   ])
 
   const handleIncomingRequestsClick = useCallback(() => {
+    if (reunionDepartureInProgress) return
     if (!canUseIncomingSocialModule) {
       logBlockedSocialModuleOpen(
         'Incoming social module',
@@ -513,6 +511,7 @@ export default function FloatingActionBar({
     incomingSocialModuleAvailability,
     isSurvivorMode,
     onSocialModuleBlocked,
+    reunionDepartureInProgress,
     showSurvivorBlockedMessage,
   ])
 
@@ -1095,8 +1094,8 @@ export default function FloatingActionBar({
         }
         chatFlash={!socialModulesUnavailable && isFlashing}
         incomingRequestsBadgeCount={
-          !incomingSocialModuleUnavailable && pendingCount + pendingAllianceDecisionCount > 0
-            ? pendingCount + pendingAllianceDecisionCount
+          !incomingSocialModuleUnavailable && incomingBadgeCount > 0
+            ? incomingBadgeCount
             : undefined
         }
         publicMeterBadgeCount={

@@ -6,6 +6,7 @@ import {
 } from './socialRuntimeConfig'
 import type { IncomingInteraction, IncomingInteractionType } from './types'
 import { deriveIncomingDeadline, getIncomingDeadline } from './incomingInteractionDeadline'
+import { getIncomingActionContent } from './incomingActionContentBank'
 
 export interface IncomingInteractionFactoryInput {
   id: string
@@ -28,9 +29,52 @@ export interface IncomingInteractionFactoryInput {
  * metadata become authoritative for new UI and resolution code.
  */
 export function normalizeIncomingInteractionContract(
-  interaction: IncomingInteraction,
+  saved: IncomingInteraction,
   fallbackMode: SocialMode = 'normal'
 ): IncomingInteraction {
+  const isPendingBackground = !saved.resolved && saved.payload?.source === 'background_social'
+  const action = saved.payload?.originActionId
+  const scenario = saved.payload?.scenarioKey
+  const content =
+    isPendingBackground && typeof action === 'string' ? getIncomingActionContent(action) : undefined
+  // Only the old direct background routes omitted a faction. Keep any real
+  // alliance card on its original rules, even if it has an origin action.
+  const directScenario =
+    content?.legacyScenarioKey &&
+    content.legacyScenarioKey === scenario &&
+    typeof saved.payload?.allianceId !== 'string' &&
+    saved.payload?.allianceGroupHuddle !== true
+      ? content.scenarioKey
+      : undefined
+  const isLegacyNominationWarning =
+    isPendingBackground && action === 'nominate' && scenario === 'nomination_aftershock'
+  const safetyScenario =
+    isPendingBackground && scenario === 'hoh_safety_request'
+      ? action === 'ask_safety_plan'
+        ? 'safety_plan_inquiry'
+        : action === 'ask_hold_safety'
+          ? 'safety_hold_request'
+          : undefined
+      : undefined
+  const interaction: IncomingInteraction = isLegacyNominationWarning
+    ? {
+        ...saved,
+        type: 'warning',
+        payload: {
+          ...saved.payload,
+          scenarioKey: 'background_nominate_human',
+          responsePolicy: 'optional',
+        },
+      }
+    : safetyScenario
+      ? {
+          ...saved,
+          deadline: undefined,
+          payload: { ...saved.payload, scenarioKey: safetyScenario },
+        }
+      : directScenario
+        ? { ...saved, payload: { ...saved.payload, scenarioKey: directScenario } }
+        : saved
   const runtime = getSocialRuntimeConfig()
   const authoredMode = interaction.payload?.modeAtCreation
   const mode: SocialMode =
@@ -41,19 +85,30 @@ export function normalizeIncomingInteractionContract(
         : fallbackMode
   const responsePolicy = getIncomingInteractionResponsePolicy(interaction)
   const isLegacyClock = interaction.createdDay === undefined && interaction.deadline === undefined
-  const deadline = isLegacyClock
-    ? getIncomingDeadline(interaction)
-    : (interaction.deadline ??
-      deriveIncomingDeadline({
-        day: interaction.createdDay ?? interaction.createdWeek,
-        phase:
-          interaction.createdPhase ??
-          (typeof interaction.payload?.phase === 'string' ? interaction.payload.phase : 'social_1'),
-        type: interaction.type,
-        payload: interaction.payload,
-        required: responsePolicy === 'required',
-      }) ??
-      getIncomingDeadline(interaction))
+  const fallbackDeadline = getIncomingDeadline({
+    ...interaction,
+    // Repair saves where the factory shortened the legacy field after setting the deadline.
+    deadline:
+      responsePolicy === 'readOnly' && (interaction.deadline?.day ?? 0) > interaction.expiresAtWeek
+        ? undefined
+        : interaction.deadline,
+  })
+  const deadline =
+    isLegacyClock || responsePolicy === 'readOnly'
+      ? fallbackDeadline
+      : (interaction.deadline ??
+        deriveIncomingDeadline({
+          day: interaction.createdDay ?? interaction.createdWeek,
+          phase:
+            interaction.createdPhase ??
+            (typeof interaction.payload?.phase === 'string'
+              ? interaction.payload.phase
+              : 'social_1'),
+          type: interaction.type,
+          payload: interaction.payload,
+          required: responsePolicy === 'required',
+        }) ??
+        fallbackDeadline)
 
   return {
     ...interaction,
@@ -61,7 +116,7 @@ export function normalizeIncomingInteractionContract(
     createdPhase:
       interaction.createdPhase ??
       (typeof interaction.payload?.phase === 'string' ? interaction.payload.phase : 'social_1'),
-    deadline,
+    deadline: getIncomingDeadline({ ...interaction, deadline }),
     payload: {
       ...interaction.payload,
       modeAtCreation: mode,
@@ -110,7 +165,18 @@ export function createIncomingInteraction(
     },
     createdAt: input.createdAt ?? stableTimestamp,
     createdWeek: input.week,
-    expiresAtWeek: input.expiresAtWeek ?? input.week + 1,
+    expiresAtWeek:
+      input.expiresAtWeek ??
+      (getIncomingInteractionResponsePolicy({
+        type: input.type,
+        requiresResponse: false,
+        payload: {
+          ...input.payload,
+          responsePolicy: input.responsePolicy ?? input.payload?.responsePolicy,
+        },
+      }) === 'readOnly'
+        ? input.week
+        : input.week + 1),
     createdDay: input.week,
     createdPhase: input.phase,
     read: false,
@@ -118,14 +184,5 @@ export function createIncomingInteraction(
     resolved: false,
   }
 
-  const normalized = normalizeIncomingInteractionContract(draft, input.mode)
-  // Passive house notes close at the next week boundary and never linger long
-  // enough to crowd out conversations. Explicit expiries remain authoritative.
-  if (
-    input.expiresAtWeek === undefined &&
-    getIncomingInteractionResponsePolicy(normalized) === 'readOnly'
-  ) {
-    normalized.expiresAtWeek = input.week
-  }
-  return normalized
+  return normalizeIncomingInteractionContract(draft, input.mode)
 }

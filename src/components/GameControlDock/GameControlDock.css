@@ -4,6 +4,8 @@
 }
 
 .game-control-dock {
+  --dock-column-step: max(13%, 44px);
+  --dock-side-hit-width: max(11%, 44px);
   position: absolute;
   /* Keep every dock hit target above the native home-indicator inset. The
      responsive layout writes the measured value for native/preview frames;
@@ -186,19 +188,16 @@ body.mode-surveyeval .fab-play {
 }
 
 .fab-icon.social {
-  left: 24%;
   top: 50.5%;
 }
 
 .fab-icon.home {
-  left: 11%;
   top: 50.5%;
 }
 
 .fab-more-glyph {
   position: absolute;
   z-index: 2;
-  left: 89%;
   top: 50.5%;
   display: inline-flex;
   align-items: center;
@@ -220,17 +219,14 @@ body.mode-surveyeval .fab-play {
 }
 
 .fab-icon.requests {
-  left: 37%;
   top: 50.5%;
 }
 
 .fab-icon.stats {
-  left: 63%;
   top: 50.5%;
 }
 
 .fab-icon.confessional {
-  left: 76%;
   top: 50.5%;
 }
 body.mode-surveyeval .fab-icon.confessional {
@@ -250,66 +246,94 @@ body.mode-surveyeval .fab-icon.confessional {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  transition:
-    transform 120ms ease,
-    opacity 120ms ease;
+  translate: -50% 0;
   z-index: 3;
 }
 
+.fab-icon,
+.fab-more-glyph,
+.dock-hit-area {
+  left: calc(50% + var(--dock-column, 0) * var(--dock-column-step));
+}
+
+.fab-icon.home,
+.hit-home {
+  --dock-column: -3;
+}
+
+.fab-icon.social,
 .hit-social {
-  left: 18.5%;
+  --dock-column: -2;
+}
+
+.fab-icon.requests,
+.hit-requests {
+  --dock-column: -1;
+}
+
+.fab-icon.stats,
+.hit-stats {
+  --dock-column: 1;
+}
+
+.fab-icon.confessional,
+.hit-confessional {
+  --dock-column: 2;
+}
+
+.fab-more-glyph,
+.hit-more {
+  --dock-column: 3;
+}
+
+.hit-social {
   top: 31%;
-  width: 11%;
+  width: var(--dock-side-hit-width);
   height: 34%;
   --dock-badge-x: 72%;
   --dock-badge-y: 22%;
 }
 
 .hit-home {
-  left: 5.5%;
   top: 31%;
-  width: 11%;
+  width: var(--dock-side-hit-width);
   height: 34%;
 }
 
 .hit-requests {
-  left: 31.5%;
   top: 31%;
-  width: 11%;
+  width: var(--dock-side-hit-width);
   height: 34%;
   --dock-badge-x: 72%;
   --dock-badge-y: 22%;
 }
 
 .hit-play {
-  left: 39%;
   top: 0;
-  width: 22%;
+  /* Keep Play's wider target inside the gap between Incoming and Public Meter. */
+  width: min(22%, calc(2 * var(--dock-column-step) - var(--dock-side-hit-width)));
   height: 66%;
 }
 
 .hit-stats {
-  left: 57.5%;
   top: 31%;
-  width: 11%;
+  width: var(--dock-side-hit-width);
   height: 34%;
   --dock-badge-x: 72%;
   --dock-badge-y: 22%;
 }
 
 .hit-confessional {
-  left: 70.5%;
   top: 31%;
-  width: 11%;
+  width: var(--dock-side-hit-width);
   height: 34%;
   --dock-badge-x: 72%;
   --dock-badge-y: 22%;
 }
 
 .hit-more {
-  left: 83.5%;
   top: 31%;
-  width: 11%;
+  width: var(--dock-side-hit-width);
   height: 34%;
 }
 
@@ -382,14 +406,6 @@ body.mode-surveyeval .fab-icon.confessional {
     opacity: 0;
     scale: 1.08;
   }
-}
-
-.dock-hit-area:hover {
-  transform: scale(1.02);
-}
-
-.dock-hit-area:active {
-  transform: scale(0.985);
 }
 
 .dock-hit-area:disabled,

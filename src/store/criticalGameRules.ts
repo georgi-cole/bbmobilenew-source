@@ -1,5 +1,6 @@
 import type { ForcedShockType, GameState } from '../types'
-import { expandCupidIds } from '../features/twists/cupidArrow'
+import { expandCupidIds, isSameCupidPair } from '../features/twists/cupidArrow'
+import { TWIN_SHOCK_ALI_ID, TWIN_SHOCK_LIA_ID } from '../bb/twinShock'
 
 export type CriticalRuleDimension =
   | 'nomination_authority'
@@ -132,9 +133,43 @@ export const FORMAT_CRITICAL_RULES = {
   },
 } as const satisfies Record<string, CriticalRuleDeclaration>
 
-function isActivePlayer(state: GameState, playerId: string): boolean {
-  const player = state.players.find((candidate) => candidate.id === playerId)
+interface PlayerRoster {
+  players?: readonly { id: string; status: string }[]
+}
+
+function isActivePlayer(state: PlayerRoster, playerId: string): boolean {
+  const player = state.players?.find((candidate) => candidate.id === playerId)
   return Boolean(player && player.status !== 'evicted' && player.status !== 'jury')
+}
+
+type TwinPairState = PlayerRoster & Pick<GameState, 'twinShockResolution'>
+
+export function isTwinShockActivePair(state: TwinPairState): boolean {
+  return (
+    state.twinShockResolution === 'mission_success' &&
+    isActivePlayer(state, TWIN_SHOCK_LIA_ID) &&
+    isActivePlayer(state, TWIN_SHOCK_ALI_ID)
+  )
+}
+
+export function isTwinAlliancePair(
+  state: TwinPairState,
+  firstId: string | null | undefined,
+  secondId: string | null | undefined
+): boolean {
+  return (
+    ((firstId === TWIN_SHOCK_LIA_ID && secondId === TWIN_SHOCK_ALI_ID) ||
+      (firstId === TWIN_SHOCK_ALI_ID && secondId === TWIN_SHOCK_LIA_ID)) &&
+    isTwinShockActivePair(state)
+  )
+}
+
+export function canPlayerTargetPlayer(
+  state: TwinPairState & Parameters<typeof isSameCupidPair>[0],
+  actorId: string | null | undefined,
+  targetId: string
+): boolean {
+  return !isTwinAlliancePair(state, actorId, targetId) && !isSameCupidPair(state, actorId, targetId)
 }
 
 /**

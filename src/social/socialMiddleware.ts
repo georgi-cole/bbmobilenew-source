@@ -33,6 +33,7 @@ import {
   applyEnergyDelta,
   decaySocialMemory,
   drainEvictedPlayerSocial,
+  closeUndeliveredIncomingInteraction,
   invalidateIncomingInteractions,
   applyDramaAction,
   replaceDramaNetwork,
@@ -60,7 +61,12 @@ import { deliverScheduledIncomingInteractionsForPhase } from './incomingInteract
 import {
   collectInvalidIncomingInteractionIds,
   isIncomingInteractionInvalidated,
+  isScheduledIncomingInteractionInvalidated,
 } from './incomingInteractionValidity'
+import {
+  getScheduledIncomingInteractionClock,
+  isIncomingInteractionOverdue,
+} from './incomingInteractionDeadline'
 import type {
   DramaSocialNetwork,
   IncomingInteraction,
@@ -1292,9 +1298,34 @@ function syncInvalidIncomingInteractions(api: MiddlewareAPI): void {
   const reality = state.social?.reality
   if (!state.social || !state.game || !reality) return
 
+  const clock = { day: state.game.week, phase: state.game.phase }
+  const scheduled = state.social.scheduledIncomingInteractions ?? []
+  const expiredScheduledIds = new Set(
+    scheduled
+      .filter(
+        (entry) =>
+          isIncomingInteractionOverdue(entry.interaction, clock) ||
+          isIncomingInteractionOverdue(
+            entry.interaction,
+            getScheduledIncomingInteractionClock(entry, clock)
+          )
+      )
+      .map(({ interaction }) => interaction.id)
+  )
+  if (expiredScheduledIds.size > 0) {
+    api.dispatch(
+      invalidateIncomingInteractions({
+        interactionIds: [...expiredScheduledIds],
+        scheduledStatus: 'EXPIRED',
+      })
+    )
+  }
+
   const interactionIds = collectInvalidIncomingInteractionIds({
     incomingInteractions: state.social.incomingInteractions ?? [],
-    scheduledIncomingInteractions: state.social.scheduledIncomingInteractions ?? [],
+    scheduledIncomingInteractions: scheduled.filter(
+      ({ interaction }) => !expiredScheduledIds.has(interaction.id)
+    ),
     game: state.game,
     reality,
   })
@@ -1589,6 +1620,29 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       'interaction' in payload
         ? (payload as { interaction?: IncomingInteraction }).interaction
         : (payload as IncomingInteraction | undefined)
+    const scheduled =
+      type === 'social/scheduleIncomingInteraction'
+        ? (payload as ScheduledIncomingInteraction | undefined)
+        : undefined
+    const clock = { day: state.game.week, phase: state.game.phase }
+    const expired = Boolean(
+      interaction &&
+      (isIncomingInteractionOverdue(interaction, clock) ||
+        (scheduled &&
+          isIncomingInteractionOverdue(
+            interaction,
+            getScheduledIncomingInteractionClock(scheduled, clock)
+          )))
+    )
+    if (
+      interaction &&
+      [
+        ...(state.social?.incomingInteractions ?? []),
+        ...(state.social?.scheduledIncomingInteractions ?? []).map((entry) => entry.interaction),
+      ].some((entry) => entry.id === interaction.id)
+    )
+      return action
+
     const sender = interaction
       ? state.game?.players.find((player) => player.id === interaction.fromId)
       : undefined
@@ -1614,8 +1668,19 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       recipient.status === 'evicted' ||
       recipient.status === 'jury' ||
       sender.id === recipient.id ||
-      isIncomingInteractionInvalidated(interaction, state.game, state.social?.reality)
+      expired ||
+      (scheduled
+        ? isScheduledIncomingInteractionInvalidated(scheduled, state.game, state.social?.reality)
+        : isIncomingInteractionInvalidated(interaction, state.game, state.social?.reality))
     ) {
+      if (interaction && typeof interaction.payload?.realityInteractionId === 'string') {
+        api.dispatch(
+          closeUndeliveredIncomingInteraction({
+            interaction,
+            status: expired ? 'EXPIRED' : 'INVALIDATED',
+          })
+        )
+      }
       return action
     }
   }
@@ -2077,6 +2142,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
         type,
         (action as unknown as { payload: unknown }).payload
       )
+    syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
     return result
   }
 
@@ -2473,12 +2539,18 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
   if (
     type === 'game/finalizeNominations' ||
     type === 'game/commitNominees' ||
-    type === 'game/setReplacementNominee' ||
+    type === 'game/submitCoLohNomination' ||
+    type === 'game/submitDiamondReplacement' ||
+    type === 'game/submitCoupReplacement' ||
+    type === 'game/submitVipSecondUseDecision' ||
+    type === 'game/submitVipSecondSaveTarget' ||
     type === 'game/hydrateGame' ||
     type === 'social/hydrateSocial'
   ) {
     const result = next(action)
     if (type === 'social/hydrateSocial') {
+      const { game } = api.getState() as StateWithGame
+      api.dispatch(autoResolveExpiredIncomingInteractionsForClock(game.week, game.phase) as never)
       ensureRealitySimulationSeed(api as unknown as MiddlewareAPI)
       queueWeekendSocialArrival(api as unknown as MiddlewareAPI)
     }

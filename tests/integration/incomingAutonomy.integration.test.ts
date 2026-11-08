@@ -42,7 +42,7 @@ function makeStore(gameOverrides: Partial<GameState> = {}) {
 
 const nominationPlayers: Player[] = [
   { id: 'user', name: 'You', avatar: '🙂', status: 'loh', isUser: true },
-  { id: 'ai1', name: 'Rae', avatar: '🙂', status: 'nominated' },
+  { id: 'ai1', name: 'Rae', avatar: '🙂', status: 'active' },
   { id: 'ai2', name: 'Ash', avatar: '🙂', status: 'active' },
 ]
 
@@ -52,7 +52,7 @@ function makeNominationStore(week: number) {
     week,
     players: nominationPlayers,
     lohId: 'user',
-    nomineeIds: ['ai1'],
+    nomineeIds: [],
   })
 }
 
@@ -79,7 +79,7 @@ describe('incomingInteractionAutonomy – direct scheduling', () => {
     scheduleIncomingInteractionsForPhase('nominations', store, {
       random: makeSeededRng(42),
       relationships: {
-        ai1: { user: { affinity: 60, tags: [] } },
+        ai1: { user: { affinity: -60, tags: [] } },
         ai2: { user: { affinity: -40, tags: [] } },
       },
     })
@@ -108,7 +108,7 @@ describe('incomingInteractionAutonomy – direct scheduling', () => {
     scheduleIncomingInteractionsForPhase('nominations', store, {
       random: makeSeededRng(1),
       relationships: {
-        ai1: { user: { affinity: 70, tags: [] } },
+        ai1: { user: { affinity: -70, tags: [] } },
       },
     })
 

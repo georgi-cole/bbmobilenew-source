@@ -167,11 +167,17 @@ export function areDistinctCupidPairs(game: CupidGame, ids: readonly string[]): 
 }
 
 export function isSameCupidPair(
-  game: CupidGame,
+  game: {
+    cupidArrow?: {
+      status?: NonNullable<CupidGame['cupidArrow']>['status']
+      pairs?: readonly Pick<CupidArrowPair, 'memberIds'>[]
+    } | null
+  },
   firstId: string | null | undefined,
   secondId: string | null | undefined
 ): boolean {
-  if (!firstId || !secondId || firstId === secondId || !isCupidArrowActive(game)) return false
-  const pair = getCupidPair(game, firstId)
+  if (!firstId || !secondId || firstId === secondId || game.cupidArrow?.status !== 'active')
+    return false
+  const pair = game.cupidArrow.pairs?.find(({ memberIds }) => memberIds.includes(firstId))
   return pair?.memberIds.includes(secondId) === true
 }
