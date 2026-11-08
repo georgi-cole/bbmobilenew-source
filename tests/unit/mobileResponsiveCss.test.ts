@@ -20,7 +20,7 @@ describe('Reality Mode mobile layout contracts', () => {
     expect(phoneRules).toContain('env(safe-area-inset-bottom)')
   })
 
-  it('keeps My Pulse full-screen with four equal phone tabs', () => {
+  it('keeps My Pulse full-screen with three equal phone tabs', () => {
     const css = readStylesheet('src/components/HousePulse/HousePulse.css')
     const phoneRules = css.slice(
       css.indexOf('@media (max-width: 699px)'),
@@ -29,7 +29,7 @@ describe('Reality Mode mobile layout contracts', () => {
 
     expect(phoneRules).toContain('height: 100dvh')
     expect(phoneRules).toContain('max-height: 100dvh')
-    expect(phoneRules).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))')
+    expect(phoneRules).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))')
     expect(phoneRules).toContain('env(safe-area-inset-top)')
     expect(phoneRules).toContain('env(safe-area-inset-bottom)')
   })

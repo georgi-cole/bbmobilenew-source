@@ -7,8 +7,6 @@
     <string>ca-app-pub-9243398419153145~3393385791</string>
     <key>GADDelayAppMeasurementInit</key>
     <true/>
-    <key>NSUserTrackingUsageDescription</key>
-    <string>If you allow it, Google AdMob can use your device identifier to support advertising.</string>
     <key>SKAdNetworkItems</key>
     <array>
         <dict>

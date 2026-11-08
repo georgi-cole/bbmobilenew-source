@@ -1,4 +1,5 @@
 import type { BroadcastEditorialMetadata } from '../broadcasting/broadcastEditorialPolicy'
+import { getBroadcastTemplate } from '../broadcasting/broadcastTemplateCatalog'
 
 /**
  * activityService — channel-based activity routing for bbmobilenew.
@@ -110,6 +111,19 @@ export function isVisibleOnTv(ev: ActivityVisibilityEvent): boolean {
   // instruction for all current content. The legacy startup templates above
   // are the sole retired exception.
   if (ev.meta?.forceOnTv === true) return true
+  // Explicitly log-only managed items stay in history. Other manager-tagged
+  // entries retain legacy TV visibility; many current-phase story events are
+  // manager-tagged for ordering without being authored as log-only content.
+  const templateId = ev.meta?.broadcastTemplateId
+  const managedTemplate = typeof templateId === 'string' ? getBroadcastTemplate(templateId) : null
+  if (
+    ev.meta?.broadcastManaged === true &&
+    (ev.meta?.forceOnTv === false ||
+      managedTemplate?.forceOnTv === false ||
+      (typeof ev.meta?.customBroadcastId === 'string' && ev.meta?.forceOnTv !== true))
+  ) {
+    return false
+  }
   if (ev.meta?.editorial?.presentationMode === 'log_only') return false
   if (isServiceConfigurationEvent(ev)) return false
   if (isBattleBackReturnResultEvent(ev)) return false

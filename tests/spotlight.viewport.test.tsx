@@ -184,11 +184,11 @@ describe('SpotlightAnimation — viewport tracking with measureA', () => {
     });
 
     // Explicitly mock rAF/cAF so we control when the queued callback fires.
-    let rafCallback: FrameRequestCallback | null = null;
+    const rafCallbacks: FrameRequestCallback[] = [];
     const rafSpy = vi
       .spyOn(window, 'requestAnimationFrame')
       .mockImplementation((cb: FrameRequestCallback): number => {
-        rafCallback = cb;
+        rafCallbacks.push(cb);
         return 1;
       });
     const cafSpy = vi
@@ -209,7 +209,7 @@ describe('SpotlightAnimation — viewport tracking with measureA', () => {
 
       // Reset call count; the initial remeasure may already have run.
       callCount = 0;
-      rafCallback = null;
+      rafCallbacks.length = 0;
 
       // Simulate a visualViewport resize event.
       await act(async () => {
@@ -217,9 +217,9 @@ describe('SpotlightAnimation — viewport tracking with measureA', () => {
       });
 
       // Flush the scheduled rAF callback explicitly.
-      expect(rafCallback).not.toBeNull();
+      expect(rafCallbacks.length).toBeGreaterThan(0);
       await act(async () => {
-        if (rafCallback) rafCallback(0 as unknown as DOMHighResTimeStamp);
+        rafCallbacks.splice(0).forEach((callback) => callback(0 as unknown as DOMHighResTimeStamp));
       });
 
       expect(callCount).toBeGreaterThan(0);
@@ -237,11 +237,11 @@ describe('SpotlightAnimation — viewport tracking with measureA', () => {
     });
 
     // Explicitly mock rAF so we can flush it deterministically.
-    let rafCallback: FrameRequestCallback | null = null;
+    const rafCallbacks: FrameRequestCallback[] = [];
     const rafSpy = vi
       .spyOn(window, 'requestAnimationFrame')
       .mockImplementation((cb: FrameRequestCallback): number => {
-        rafCallback = cb;
+        rafCallbacks.push(cb);
         return 1;
       });
     const cafSpy = vi
@@ -262,7 +262,7 @@ describe('SpotlightAnimation — viewport tracking with measureA', () => {
 
       // Reset so the initial remeasure doesn't inflate the count.
       callCount = 0;
-      rafCallback = null;
+      rafCallbacks.length = 0;
 
       // Dispatch a capture-phase scroll event on window.
       await act(async () => {
@@ -270,9 +270,9 @@ describe('SpotlightAnimation — viewport tracking with measureA', () => {
       });
 
       // Flush the rAF callback so remeasure actually runs.
-      expect(rafCallback).not.toBeNull();
+      expect(rafCallbacks.length).toBeGreaterThan(0);
       await act(async () => {
-        if (rafCallback) rafCallback(0 as unknown as DOMHighResTimeStamp);
+        rafCallbacks.splice(0).forEach((callback) => callback(0 as unknown as DOMHighResTimeStamp));
       });
 
       // measureA should have been called by the scroll-triggered remeasure.

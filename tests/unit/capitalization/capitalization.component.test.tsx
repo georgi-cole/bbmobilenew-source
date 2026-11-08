@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Capitalization from '../../../src/components/Capitalization/Capitalization';
+import { buildCapitalizationQuestionSet } from '../../../src/components/Capitalization/capitalizationUtils';
 
 const participants = [
   { id: 'human', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
@@ -57,9 +58,10 @@ describe('Capitalization component', () => {
     vi.restoreAllMocks();
   });
 
-  it('plays through nine skipped questions and reports an authoritative winner', () => {
+  it('plays all nine correct answers and reports an authoritative winner', () => {
     const onFinish = vi.fn();
     render(<Capitalization seed={44} participants={participants} onFinish={onFinish} />);
+    const questions = buildCapitalizationQuestionSet(44).questions;
 
     expect(screen.getByText('Globe spin')).toBeInTheDocument();
 
@@ -69,7 +71,10 @@ describe('Capitalization component', () => {
       });
 
       expect(screen.getByLabelText('Capital city answer')).not.toBeDisabled();
-      fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+      fireEvent.change(screen.getByLabelText('Capital city answer'), {
+        target: { value: questions[question - 1].capital },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
       expect(screen.getByText(`Question ${question} complete`)).toBeInTheDocument();
       expect(screen.queryByLabelText('Live standings')).not.toBeInTheDocument();
 
@@ -154,7 +159,7 @@ describe('Capitalization component', () => {
         expect(
           screen.getByText(/all contestants remain in play/i),
         ).toBeInTheDocument();
-        expect(screen.getAllByText('In play', { exact: false })).toHaveLength(3);
+        expect(screen.getAllByText(/^In play · \d+ hints?$/)).toHaveLength(3);
         expect(screen.queryByText(/Out Q\d+/)).not.toBeInTheDocument();
         expect(screen.queryByText(/^Eliminated$/)).not.toBeInTheDocument();
       }

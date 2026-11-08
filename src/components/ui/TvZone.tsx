@@ -506,13 +506,24 @@ export default function TvZone(props: TvZoneProps) {
     tvVisibleFeed.find(
       (event) =>
         event.meta?.broadcastConsumed !== true &&
-        !(gameState.phase === 'season_start' && isFinalThreeResultAnnouncement(event))
+        !(gameState.phase === 'season_start' && isFinalThreeResultAnnouncement(event)) &&
+        ((event.meta?.phase === undefined && event.meta?.week === undefined) ||
+          (event.meta?.phase === gameState.phase && event.meta?.week === gameState.week) ||
+          getDailyTransitionPhase(event) === gameState.phase)
     ) ?? null
   // Final Three result cards stay in history but cannot own the Faux TV once a
   // fresh season starts, where they otherwise overshadow the season welcome.
   const latestExplicitMajorEvent =
     latestEvent &&
     extractMajorKey(latestEvent) &&
+    // Managed broadcasts are presented in the order selected by Broadcast
+    // Manager. Promoting the newest event here can surface a later critical
+    // item ahead of earlier manager entries, bypassing the queue entirely. A
+    // manager event may use this compatibility path only when the active queue
+    // has no earlier eligible message (or when it is itself the queue head).
+    (latestEvent.meta?.broadcastManaged !== true ||
+      !queuedBroadcastEvent ||
+      queuedBroadcastEvent.id === latestEvent.id) &&
     latestEvent.meta?.broadcastConsumed !== true &&
     !(gameState.phase === 'season_start' && isFinalThreeResultAnnouncement(latestEvent))
       ? latestEvent
@@ -585,6 +596,7 @@ export default function TvZone(props: TvZoneProps) {
   const cupidOutlinePulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const detoxMessageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const detoxSequenceInitializedRef = useRef(false)
   const detoxSequenceLatestIdRef = useRef<string | null>(null)
   const shockSequenceLatestIdRef = useRef<string | null>(null)
   const seenShockEventIdsRef = useRef(new Set<string>())
@@ -681,7 +693,10 @@ export default function TvZone(props: TvZoneProps) {
             (extractMajorKey(event) !== null &&
               event.meta?.phase === undefined &&
               event.meta?.week === undefined)) &&
-          (event.meta?.broadcastManaged !== true || event.meta?.forceOnTv === true) &&
+          // Manager-owned messages are selected only through the ordered
+          // broadcast queue. Falling back to the newest managed item here
+          // makes later announcements jump ahead of earlier entries.
+          (event.meta?.broadcastManaged !== true || event.meta?.forceOnTv !== true) &&
           !(event.meta?.broadcastPriority === 'critical' && dismissedPriorityEventIds.has(event.id))
       ) ?? null,
     [dismissedPriorityEventIds, gameState.phase, gameState.week, isBroadcastRelevant, tvVisibleFeed]
@@ -695,7 +710,7 @@ export default function TvZone(props: TvZoneProps) {
       tvVisibleFeed.find(
         (event) =>
           (event.meta?.broadcastConsumed !== true ||
-            getTvPresentationBroadcastLevel(event) !== 'minor') &&
+            getTvPresentationBroadcastLevel(event) === 'major') &&
           ((event.meta?.phase === gameState.phase && event.meta?.week === gameState.week) ||
             (extractMajorKey(event) !== null &&
               event.meta?.phase === undefined &&
@@ -711,12 +726,20 @@ export default function TvZone(props: TvZoneProps) {
         .find(
           (event) =>
             event.meta?.broadcastPriority === 'critical' &&
-            event.meta?.broadcastManaged !== true &&
+            (event.meta?.broadcastManaged !== true ||
+              !queuedBroadcastEvent ||
+              queuedBroadcastEvent.id === event.id) &&
             event.meta?.week === gameState.week &&
             isBroadcastRelevant(event) &&
             !dismissedPriorityEventIds.has(event.id)
         ) ?? null,
-    [dismissedPriorityEventIds, gameState.week, isBroadcastRelevant, tvVisibleFeed]
+    [
+      dismissedPriorityEventIds,
+      gameState.week,
+      isBroadcastRelevant,
+      queuedBroadcastEvent,
+      tvVisibleFeed,
+    ]
   )
   const displayedEvent =
     activeDetoxEvent ??
@@ -1108,10 +1131,17 @@ export default function TvZone(props: TvZoneProps) {
     const previousLatestId = detoxSequenceLatestIdRef.current
     detoxSequenceLatestIdRef.current = latestVisibleId
 
-    if (previousLatestId === null || latestVisibleId === previousLatestId) return
+    if (!detoxSequenceInitializedRef.current) {
+      detoxSequenceInitializedRef.current = true
+      return
+    }
+    if (latestVisibleId === previousLatestId) return
 
-    const previousIndex = tvVisibleFeed.findIndex((event) => event.id === previousLatestId)
-    const newEventCount = previousIndex === -1 ? 1 : previousIndex
+    const previousIndex = previousLatestId
+      ? tvVisibleFeed.findIndex((event) => event.id === previousLatestId)
+      : -1
+    const newEventCount =
+      previousLatestId === null || previousIndex === -1 ? tvVisibleFeed.length : previousIndex
     const newEvents = tvVisibleFeed.slice(0, newEventCount)
     const detoxEvents = newEvents.filter(isDetoxSequenceEvent)
     if (detoxEvents.length === 0) return
@@ -1422,6 +1452,13 @@ export default function TvZone(props: TvZoneProps) {
     const handlePlay = (event: Event) => {
       // A full-screen sequence owns Play; don't also consume an older TV card.
       if (props.playOwnedExternally) return
+      // The shock prelude must own its acknowledgement. Otherwise the central
+      // Play action can dismiss and consume the broadcast before its full-screen
+      // cinematic has completed and handed the event to the Faux TV.
+      if (shockIntroActive) {
+        event.preventDefault()
+        return
+      }
       // A final appeal is a modal decision.  The global Play button must not
       // dismiss a TV card or advance the season underneath it.
       if (document.querySelector('[aria-label="Final appeal to the audience"]')) {
@@ -1506,6 +1543,7 @@ export default function TvZone(props: TvZoneProps) {
     gameState.broadcastQueue?.length,
     cupidFollowUpVisible,
     props.playOwnedExternally,
+    shockIntroActive,
   ])
 
   const handleModalClose = useCallback(() => setModalOpen(false), [])

@@ -518,8 +518,8 @@ export default function Settings() {
           onClick={() => navigate('/player-privacy', { state: { fromSettings: true } })}
         >
           <span>
-            <strong>Advertising privacy</strong>
-            <small>Optional ads and Google privacy choices</small>
+            <strong>Player privacy &amp; family</strong>
+            <small>Cloud backup, usage measurement, and optional ads</small>
           </span>
           <span aria-hidden="true">&rsaquo;</span>
         </button>

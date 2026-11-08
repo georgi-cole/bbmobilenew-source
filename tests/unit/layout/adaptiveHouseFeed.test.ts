@@ -35,15 +35,16 @@ describe('adaptive House Feed allocation', () => {
     expect(budget.rosterMode).toBe('normal')
   })
 
-  it('adds two feed rows on a medium-height phone when they fit cleanly', () => {
+  it('adds one feed row on a medium-height phone when more would crowd the roster', () => {
     const budget = computeResponsiveGameLayout(
       makeInput({
+        viewportHeight: 780,
         stageHeight: 780,
       })
     )
 
-    expect(budget.tvLogRows).toBe(2)
-    expect(budget.cssVars).toMatchObject({ '--game-tv-log-rows': '2' })
+    expect(budget.tvLogRows).toBe(1)
+    expect(budget.cssVars).toMatchObject({ '--game-tv-log-rows': '1' })
   })
 
   it('caps the inline feed at three rows on a tall phone', () => {
@@ -76,10 +77,10 @@ describe('adaptive House Feed allocation', () => {
     expect(budget.tvLogRows).toBeGreaterThanOrEqual(1)
   })
 
-  it('expands the TV viewport with sub-row surplus instead of leaving a dead gap', () => {
+  it('keeps the minimum TV viewport when the roster uses all available height', () => {
     const budget = computeResponsiveGameLayout(makeInput())
 
     expect(budget.tvLogRows).toBe(0)
-    expect(readCssPx(budget, '--game-screen-tv-viewport-min-height')).toBeGreaterThan(144)
+    expect(readCssPx(budget, '--game-screen-tv-viewport-min-height')).toBe(144)
   })
 })

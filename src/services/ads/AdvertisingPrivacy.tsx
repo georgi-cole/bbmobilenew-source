@@ -24,9 +24,9 @@ export default function AdvertisingPrivacy() {
   }
   return (
     <main className="player-safety">
-      <section className="player-safety__card" aria-labelledby="advertising-privacy-title">
+      <section className="player-safety__card" aria-labelledby="player-privacy-title">
         <p className="player-safety__eyebrow">THE BIG EYE</p>
-        <h1 id="advertising-privacy-title">Advertising privacy</h1>
+        <h1 id="player-privacy-title">Player privacy &amp; family</h1>
         {!record ? (
           <form onSubmit={submitAge}>
             <p>
@@ -53,6 +53,39 @@ export default function AdvertisingPrivacy() {
             <label className="player-safety__check">
               <input
                 type="checkbox"
+                checked={record.optionalFeatures.onlineServices}
+                onChange={(event) =>
+                  setOptionalPlayerFeature('onlineServices', event.target.checked)
+                }
+              />
+              <span>
+                <strong>Cloud profile backup</strong>
+                <small>
+                  Sync your profile name, avatar, appearance, achievements, and unlock progress to
+                  Supabase. Seasons and saves remain on this device. Turning this off stops future
+                  sync; delete the profile or contact support to remove its online copy.
+                </small>
+              </span>
+            </label>
+            <label className="player-safety__check">
+              <input
+                type="checkbox"
+                checked={record.optionalFeatures.analytics}
+                onChange={(event) => setOptionalPlayerFeature('analytics', event.target.checked)}
+              />
+              <span>
+                <strong>Optional usage measurement</strong>
+                <small>
+                  Send pseudonymous gameplay and session events to Supabase to understand which
+                  features are used. Events can be linked to this profile. No profile photos,
+                  biographies, or Confessional text are included. Turning this off clears events
+                  that have not been sent.
+                </small>
+              </span>
+            </label>
+            <label className="player-safety__check">
+              <input
+                type="checkbox"
                 checked={record.optionalFeatures.ads}
                 onChange={(event) => setOptionalPlayerFeature('ads', event.target.checked)}
               />
@@ -60,8 +93,8 @@ export default function AdvertisingPrivacy() {
                 <strong>Optional advertising</strong>
                 <small>
                   Allow Google AdMob ads in supported mobile builds. Google may receive device
-                  information, your IP address, and ad interactions. You can switch this off at any
-                  time.
+                  information, your IP address, approximate location, diagnostics, and ad
+                  interactions. You can switch this off at any time.
                 </small>
               </span>
             </label>
@@ -82,7 +115,18 @@ export default function AdvertisingPrivacy() {
             )}
           </>
         ) : (
-          <p>Advertising is unavailable for players under 18.</p>
+          <p>
+            Cloud profile backup, usage measurement, and advertising are available only to adults.
+            Your local game can still be played without enabling them.
+          </p>
+        )}
+        {record?.ageBand === 'adult' && (
+          <p className="player-safety__detail">
+            Weather location is requested separately. If allowed, the device provides location for a
+            weather lookup and matching background. The app rounds coordinates to an about 11 km
+            area before sending them through The Big Eye's proxy to MET Norway. You can deny or
+            revoke location in device settings.
+          </p>
         )}
         {notice && <p role="status">{notice}</p>}
         <div className="player-safety__actions">

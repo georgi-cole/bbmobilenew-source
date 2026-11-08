@@ -19,6 +19,7 @@ const releaseEnvironment = {
   VITE_PRIVACY_POLICY_URL: 'https://game.example.org/privacy',
   VITE_TERMS_URL: 'https://game.example.org/terms',
   VITE_SUPPORT_URL: 'https://game.example.org/support',
+  VITE_WEATHER_API_URL: 'https://weather.example.org/v1/current-weather',
 }
 
 function validate(platform, overrides = {}, localOverrides = {}) {
@@ -86,6 +87,18 @@ for (const platform of ['android', 'ios']) {
     assert.equal(result.status, 1)
     assert.match(result.output, /VITE_SUPABASE_URL must be/)
     assert.match(result.output, /VITE_SUPABASE_PUBLISHABLE_KEY must be/)
+  })
+
+  test(`${platform}: rejects a missing or placeholder weather proxy`, () => {
+    const missing = validate(platform, { VITE_WEATHER_API_URL: '' })
+    assert.equal(missing.status, 1)
+    assert.match(missing.output, /VITE_WEATHER_API_URL must be/)
+
+    const placeholder = validate(platform, {
+      VITE_WEATHER_API_URL: 'https://example.com/weather',
+    })
+    assert.equal(placeholder.status, 1)
+    assert.match(placeholder.output, /VITE_WEATHER_API_URL must be/)
   })
 
   test(`${platform}: accepts a configured HTTPS Diary Room endpoint`, () => {

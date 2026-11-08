@@ -1,49 +1,53 @@
 # Release 1.0 privacy disclosures
 
-These answers describe the planned 1.0 mobile builds with Supabase profile backups and contact preferences. Confirm against the exact signed build before completing either store form.
+Prepared 2026-11-08 from the current mobile release configuration and privacy settings. Reconcile every answer against the final signed binary, SDK privacy report, and current store form before submission.
 
-## Supabase profile backup and analytics
+## Adult-controlled optional features
 
-The app automatically sends a limited profile backup (profile ID, display name, avatar, selected appearance, achievements, and unlock progress) and pseudonymous gameplay events to Supabase. Events include screen visits and visible time, game mode and day, minigame duration/placement/exits, Social usage and action categories, selected gameplay decisions, elimination and season placement, marketplace product choices and purchase outcomes, session activity, and coarse device context. Analytics may include guest activity. Purchase prices, profile photos, biographies, wallet data, and conversation text stay out of these payloads. The analytics profile ID can be joined to a profile backup and display name. Separate anonymous installation identities are used for backup and analytics. Profiles and seasons cannot currently be recovered on another device through the service.
+The build requires a self-declared minimum age of 18. Age group and optional-feature choices are stored locally on the device. Cloud profile backup, gameplay measurement, advertising, and weather location are independent choices; local gameplay remains available when the player declines them.
 
-Players can optionally save an unverified contact email. A separate, initially unchecked choice permits game news and playtest invitations. Supabase stores the address and preference privately, outside the backup and event payloads. Players can clear the email or switch off updates in Edit Profile. Deleting a profile queues deletion of its backup, contact, and linked gameplay events for the current installation. Players can also request access or deletion through the public support page.
+- **Cloud profile backup** starts off. When an adult enables it in Settings → Player privacy & family, profile ID, display name, avatar, selected appearance, achievements, and unlock progress are sent to Supabase. Seasons and game saves remain on device. Each installation uses an anonymous identity; the service does not restore those profiles on a different device. Turning the setting off stops future uploads, while an existing online copy remains until the profile is deleted or a deletion request is completed.
+- **Usage measurement** starts off. When an adult enables it in the same screen, pseudonymous gameplay and session events are sent to Supabase. Events can include profile ID, screen visits and visible time, modes and days reached, minigame duration/placement/exits, Social usage and action categories, selected decisions, elimination timing and placement, product choices and purchase outcomes, session duration, broad device family, operating system, browser, and a build label. Purchase prices, photos, biographies, full user-agent strings, and Confessional text are excluded. Guest events use a separate installation identifier and are not merged into a later profile. Turning measurement off clears unsent events and stops new events.
+- Deleting a profile queues removal of its cloud backup, optional contact record, and linked gameplay events for that installation. The device must reconnect to complete the request. Other analytics rows remain until a project-owner deletion or a valid deletion request. Public support instructions also permit deletion requests.
+- **Optional email** is submitted only when a player enters and saves it. The unverified address is stored privately in Supabase and is not a sign-in or recovery credential. The separate, initially unchecked updates choice controls email news/playtest messages.
 
-- Apple: disclose Name, Email Address, User ID, Gameplay Content, Purchase History, Product Interaction, and Other Data Types as linked where associated with an installation or profile. Use the purposes declared in `ios/App/App/PrivacyInfo.xcprivacy`. Supabase is not used for cross-app tracking.
-- Google: disclose display name, optional email address, user IDs and other identifiers, gameplay interactions and other player-generated data, and marketplace purchase outcomes. Use app functionality and analytics as applicable. The optional updates choice adds developer communications for the email address. Review deletion answers against the installation-scoped data and actual in-app and public request paths.
+## Google Play Data safety
 
-## On-device data
+The current declaration selects these required data types:
 
-Game saves, settings, player profiles, optional profile photos, season archives, ad-state flags, and Diary Room session history are stored on the device. Data that never leaves the device is not collected under the store definitions. Operating-system backup may include app data according to the player's Apple or Google backup settings.
+- Personal info: Name, Email address, User IDs.
+- Financial info: Purchase history (product and purchase outcome; no payment-card details).
+- Location: Approximate location. Android requests `ACCESS_COARSE_LOCATION`; it does not request precise location. The app rounds the weather tile to 0.1° before sending it through the Cloudflare Worker to MET Norway. AdMob may also derive approximate location from IP/device information.
+- App activity: App interactions.
+- App info and performance: Crash logs, Diagnostics, Other app performance data.
+- Device or other IDs: Device or other IDs.
 
-## Optional location
+The app's profile and measurement data go to Supabase only after their respective adult opt-ins. Email is sent only after explicit save. Weather location is optional and shared with the weather proxy/provider for app functionality. Ads require a separate adult choice and Google consent state. SDK-collected data types must still be included when their SDK runs. Data is encrypted in transit. The current Data safety deletion URL points to the public support page's delete-data instructions.
 
-If the player grants location access, latitude and longitude are sent to Open-Meteo to obtain current weather for an ambient background. The game does not intentionally retain coordinates after the request.
+## Apple App Privacy
 
-- Apple: Location / Precise Location, used for App Functionality and Product Personalization, not linked to identity, and not used for tracking.
-- Google: Precise location, optional, transmitted for app functionality and personalization, not used for advertising, and not sold.
+Review the final App Privacy report, including Google's SDK manifest. App-owned data types include Name, Email Address, User ID, Gameplay Content, Purchase History, Product Interaction, Other Data, and Coarse Location for weather personalization (the app rounds coordinates on-device before network transfer). Cloud backup and measurement are optional adult choices; email is explicitly submitted; weather location and advertising are optional. The GMA SDK may also collect Product Interaction, Device ID, Advertising Data, Coarse Location, Crash Data, Performance Data, and Other Diagnostic Data. Apple's nutrition label remains the developer's responsibility and must reflect the final binary's SDK practices.
 
-## Diary Room
+The game does not request Apple's App Tracking Transparency authorization. Do not claim tracking without evidence that the exact final binary performs cross-app tracking.
 
-The 1.0 release leaves the online Diary Room flags and endpoint unset. Diary Room text is processed on-device and is not collected.
+## Location and weather provider
 
-If a later build enables the online service, update the policy and store forms before release. That build would need to disclose Diary Room text and player display name as user content, along with its encryption, retention, logging, access-control, and deletion behavior.
+Weather location is optional and only selects an ambient background. The app rounds coordinates to a 0.1° area (about 11 km north-south) before sending them to The Big Eye's Cloudflare Worker. The Worker requests current forecast data from MET Norway and caches the rounded area and normalized result for at least three hours, honoring a later provider expiry and using the provider's last-modified time when revalidating. Cloudflare receives the request IP and serves as the proxy; MET Norway receives the rounded coordinates and the Worker request IP. The Worker does not intentionally log the coordinate request body. The game does not use weather location for ads, analytics, or tracking. The in-app Legal screen and privacy policy credit MET Norway.
 
-## Purchases, advertising, and tracking
+MET Norway provides global forecast data for commercial use under its open-data terms, with attribution required. The current API terms require clients to identify themselves, avoid unnecessary requests, follow cache headers and product-specific intervals, and route mobile-app traffic through a proxy. The implementation has no paid weather subscription, API key, or external database. Do not enable billing or upgrade Cloudflare; keep the Worker on the free plan.
 
-The 1.0 release includes native, one-time store purchases. Apple or Google processes payment and the app reads product and entitlement status to unlock and restore purchases. The developer does not receive payment-card details.
+## Google Mobile Ads and UMP
 
-Native projects now include Google Mobile Ads and UMP through the Capacitor AdMob
-plugin. Advertising is off unless configured; the current local iOS configuration
-uses Google demo ads. Live initialization requires adult advertising opt-in and
-UMP permission. The app requests non-personalized ads; this does not mean the SDK
-collects no data. Google may receive IP addresses, device identifiers, diagnostic
-information, and ad interaction data. Review Google's current SDK disclosures
-and complete both store privacy forms against the exact signed binary before
-release. Do not claim that the binary contains no advertising SDK.
+The native iOS and Android projects include Google's Mobile Ads SDK and User Messaging Platform through `@capacitor-community/admob`. Live publisher IDs are configured. The app initializes the live SDK only after an adult separately enables advertising and Google's consent state permits requests; ad requests set `npa: true`. Non-personalized requests do not mean the SDK collects no data.
 
-Do not activate No Ads for a binary that cannot show ads. No Ads/VIP suppress
-automatic breaks; voluntary rewarded opportunities remain available. Publish the
-updated policy on the separately hosted legal site before live ads. Apple
-tracking may remain false only if the final configuration does not introduce
-cross-app tracking. See `docs/ads_integration_guide.md` for configuration and the
-remaining AdMob/consent/store steps.
+Google's current SDK disclosures say the SDK may collect or share IP address, app/ad interactions, diagnostics/performance data, and device or account identifiers. The iOS disclosure also includes advertising data and coarse location derived from IP or approximate-location services. Google lists advertising, analytics, SDK performance, and fraud prevention as possible uses; Android data is encrypted in transit. Reconcile the forms with the exact uploaded binary and consent configuration.
+
+- Google Play: include Approximate location, App interactions, App info and performance, and Device or other IDs when the AdMob SDK is available and used.
+- Apple: verify Product Interaction, Device ID, Advertising Data, Coarse Location, Crash Data, Performance Data, and Other Diagnostic Data against the SDK report.
+- The current iOS plugin pins Google Mobile Ads SDK 13.11.0; Android resolves from its 25.4.+ dependency range. Recheck Google's disclosures when the SDK changes.
+
+## Diary Room and purchases
+
+Online AI flags and endpoints are unset in release builds. Diary Room text is processed on-device and is not sent to the developer or an AI provider.
+
+Apple or Google processes one-time purchases. The app reads product and entitlement status to unlock and restore purchases; the developer does not receive payment-card details. Supabase analytics can receive product choices and purchase outcomes only when adult usage measurement is enabled.

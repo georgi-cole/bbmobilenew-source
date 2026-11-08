@@ -46,6 +46,7 @@ screenshots/
 .codex-worktrees/
 .cupid-pr*/
 coverage/
+coverage-targeted/
 playwright-report/
 test-results/
 artifacts/release-*/

@@ -38,20 +38,25 @@ export default function Legal() {
           local data.
         </p>
         <p>
-          When the online backend is enabled, profile display names, avatars, selected appearance,
-          achievements, and unlock progress are automatically backed up to Supabase. Gameplay events
-          include a profile ID so they can be joined to the matching profile backup; events record
-          screen visits and visible time, game modes and days reached, minigame duration, placements
-          and exits, Social usage and action categories, selected gameplay decisions, elimination
-          timing and season placement, marketplace product choices and purchase outcomes, and
-          session time. Session events also include broad device type and family, operating system,
-          and browser; an exact device model is included only when the browser provides it. A full
-          browser user-agent string is not sent. Events carry a build label (QA, production, or
-          development) so test activity can be distinguished. Purchase prices are not collected.
-          Photos, biographies, and conversation text are not sent. Guest activity uses a separate
-          installation identifier without a profile ID; it is not retroactively merged into a
-          profile when you create one. Saved seasons and other device-only data cannot yet be
-          restored on another device. Contact support for data access or deletion requests.
+          Cloud profile backup and usage measurement are separate adult-only choices in Player
+          privacy &amp; family. If enabled, a profile backup sends its display name, avatar,
+          selected appearance, achievements, and unlock progress to Supabase. It does not back up
+          seasons or game saves. Turning backup off stops future uploads; delete the profile or
+          contact support to remove its online copy. If usage measurement is enabled, pseudonymous
+          gameplay events are sent to Supabase. They record screen visits and visible time, game
+          modes and days reached, minigame duration, placements and exits, Social usage and action
+          categories, selected gameplay decisions, elimination timing and season placement,
+          marketplace product choices and purchase outcomes, and session time. Saved-profile events
+          include the profile ID and can be joined to the matching profile backup. Session events
+          also include broad device type and family, operating system, and browser; an exact device
+          model is included only when the browser provides it. A full browser user-agent string is
+          not sent. Events carry a build label (QA, production, or development) so test activity can
+          be distinguished. Purchase prices are not collected. Photos, biographies, and conversation
+          text are not sent. Turning measurement off clears unsent events and stops new events.
+          Guest activity uses a separate installation identifier without a profile ID; it is not
+          retroactively merged into a profile when you create one. Saved seasons and other
+          device-only data cannot yet be restored on another device. Contact support for data access
+          or deletion requests.
         </p>
         <p>
           Email is optional when creating or editing a profile. It is stored privately in Supabase
@@ -64,9 +69,25 @@ export default function Legal() {
           automatically subscribes you or combines profiles that share an address.
         </p>
         <p>
-          Location is optional. If you allow it, coordinates are sent to Open-Meteo to request
-          current weather and choose a matching background. The game does not use location for
-          advertising or tracking and does not intentionally retain coordinates after that request.
+          Weather location is optional and requested separately from these settings. If you allow
+          it, the app rounds the device location to a 0.1° area (about 11 km north-south) before
+          sending it through The Big Eye's Cloudflare weather proxy. The proxy requests current
+          conditions from MET Norway and caches the rounded area and response for at least three
+          hours, honoring a later provider expiry and using the provider's last-modified time when
+          refreshing. Cloudflare receives the request's IP address; MET Norway receives the rounded
+          coordinates through Cloudflare rather than your device IP. The game does not use this data
+          for advertising or tracking. Weather data is from{' '}
+          <a href="https://api.met.no/" target="_blank" rel="noreferrer">
+            MET Norway
+          </a>{' '}
+          under its open-data licence.
+        </p>
+        <p>
+          Native mobile builds include Google AdMob and its User Messaging Platform. Advertising is
+          optional and available only to adults who enable it in Player privacy &amp; family. Google
+          may process device identifiers, IP-derived approximate location, ad interactions, and
+          diagnostics when ads are requested. Requests are configured as non-personalized; this does
+          not mean the SDK collects no data. Google consent choices are available in Settings.
         </p>
         <p>Confessional text is processed on-device. It is not sent to Supabase.</p>
         {privacyUrl && (
@@ -108,7 +129,7 @@ export default function Legal() {
         )}
       </section>
 
-      <p className="legal-screen__version">The Big Eye 1.0.0 · Updated November 1, 2026</p>
+      <p className="legal-screen__version">The Big Eye 1.0.0 · Updated November 7, 2026</p>
     </main>
   )
 }

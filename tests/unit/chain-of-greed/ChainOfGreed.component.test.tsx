@@ -244,13 +244,14 @@ describe('ChainOfGreed component', () => {
     expect(profile).toHaveTextContent('Match earned')
   })
 
-  it('offers a compact playback speed button and can pause the live AI turn', async () => {
+  it('offers a compact playback speed button and can pause the live AI turn', () => {
+    vi.useFakeTimers()
     const aiFirstParticipants = [participants[1], participants[0], ...participants.slice(2)]
     renderSharedGame(aiFirstParticipants)
     expect(screen.queryByRole('button', { name: 'Speed up AI playback' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Start round' }))
 
-    const speedButton = await screen.findByRole('button', { name: 'Speed up AI playback' })
+    const speedButton = screen.getByRole('button', { name: 'Speed up AI playback' })
 
     expect(speedButton).toBeInTheDocument()
     fireEvent.click(speedButton)
@@ -259,7 +260,13 @@ describe('ChainOfGreed component', () => {
       'true'
     )
     fireEvent.click(screen.getByRole('button', { name: 'Pause watch' }))
-    expect(await screen.findByRole('button', { name: 'Resume watch' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Resume watch' })).toBeInTheDocument()
+    expect(screen.getByTestId('chain-participant-panel')).toHaveTextContent(
+      /Mira is reading the board/i
+    )
+    act(() => {
+      vi.advanceTimersByTime(5_000)
+    })
     expect(screen.getByTestId('chain-participant-panel')).toHaveTextContent(
       /Mira is reading the board/i
     )

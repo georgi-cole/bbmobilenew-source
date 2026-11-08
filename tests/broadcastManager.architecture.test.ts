@@ -8,7 +8,11 @@ function sourceFiles(directory: string): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const target = path.join(directory, entry.name)
     if (entry.isDirectory()) return sourceFiles(target)
-    return /\.(?:ts|tsx)$/.test(entry.name) && !target.includes('__tests__') ? [target] : []
+    return /\.(?:ts|tsx)$/.test(entry.name) &&
+      !target.includes('__tests__') &&
+      !/\.(?:test|spec)\.(?:ts|tsx)$/.test(entry.name)
+      ? [target]
+      : []
   })
 }
 
@@ -20,7 +24,10 @@ describe('Broadcast Manager architecture', () => {
   it('does not directly dispatch raw tvFeed replacement events', () => {
     const offenders = sourceFiles(root).flatMap((file) => {
       const source = fs.readFileSync(file, 'utf8')
-      if (!/tvFeed\s*:\s*\[/.test(source)) return []
+      // A state clone may legitimately copy the current feed with
+      // `tvFeed: [...state.tvFeed]`. Flag arrays that construct an event
+      // object directly, which bypasses addTvEvent and broadcast management.
+      if (!/tvFeed\s*:\s*\[\s*\{\s*(?:id|text|type)\s*:/.test(source)) return []
       if (file.endsWith(path.join('store', 'gameSlice.ts'))) return []
       if (
         file.endsWith(path.join('modes', 'survivorRun.ts')) &&

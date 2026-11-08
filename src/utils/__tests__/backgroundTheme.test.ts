@@ -115,9 +115,13 @@ describe('current weather background resolution', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(localDate(12))
+    vi.stubEnv(
+      'VITE_WEATHER_API_URL',
+      'https://the-big-eye-weather-proxy.example.workers.dev/v1/current-weather'
+    )
     vi.spyOn(console, 'info').mockImplementation(() => {})
     vi.mocked(getWeatherLocation).mockResolvedValue({
-      coordinates: { latitude: 42.7, longitude: 23.3 },
+      coordinates: { latitude: 42.7123, longitude: 23.3478 },
       permissionStatus: 'granted',
       error: null,
     })
@@ -127,11 +131,12 @@ describe('current weather background resolution', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
     vi.unstubAllGlobals()
     vi.useRealTimers()
   })
 
-  it('requests current rain, showers, and snowfall and uses rain despite a cloudy code', async () => {
+  it('sends rounded coordinates through the proxy and uses current precipitation', async () => {
     fetchWeather.mockResolvedValue(
       weatherResponse({ weather_code: 2, wind_speed_10m: 5, rain: 0.2, showers: 0, snowfall: 0 })
     )
@@ -140,11 +145,14 @@ describe('current weather background resolution', () => {
       key: 'weather:rain:day',
       reason: 'weather:2:rain',
     })
-    const requested = new URL(String(fetchWeather.mock.calls[0][0]))
-    expect(requested.searchParams.get('current')).toBe(
-      'weather_code,wind_speed_10m,rain,showers,snowfall'
+    expect(fetchWeather.mock.calls[0][0]).toBe(
+      'https://the-big-eye-weather-proxy.example.workers.dev/v1/current-weather'
     )
-    expect(requested.searchParams.get('wind_speed_unit')).toBe('kmh')
+    expect(fetchWeather.mock.calls[0][1]).toMatchObject({ method: 'POST' })
+    expect(JSON.parse(String(fetchWeather.mock.calls[0][1]?.body))).toEqual({
+      latitude: 42.7,
+      longitude: 23.3,
+    })
     expect(vi.getTimerCount()).toBe(0)
   })
 
@@ -176,6 +184,12 @@ describe('current weather background resolution', () => {
       weatherResponse({ weather_code: 3, wind_speed_10m: '40', rain: '1', showers: Infinity })
     )
     expect(await resolveTheme()).toMatchObject({ key: 'day', reason: 'weather:3:timeofday' })
+  })
+
+  it('falls back to time-of-day when no weather proxy is configured', async () => {
+    vi.stubEnv('VITE_WEATHER_API_URL', '')
+    expect(await resolveTheme()).toMatchObject({ key: 'day', reason: 'fallback:weather' })
+    expect(fetchWeather).not.toHaveBeenCalled()
   })
 
   it('falls back on HTTP and JSON errors and clears the request deadline', async () => {

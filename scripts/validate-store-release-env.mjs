@@ -20,7 +20,12 @@ if (!existsSync(filePath) && !existsSync(`${filePath}.local`)) {
 const values = { ...loadEnv(platform, process.cwd(), ''), ...process.env }
 
 const issues = []
-const requiredPublicUrls = ['VITE_PRIVACY_POLICY_URL', 'VITE_TERMS_URL', 'VITE_SUPPORT_URL']
+const requiredPublicUrls = [
+  'VITE_PRIVACY_POLICY_URL',
+  'VITE_TERMS_URL',
+  'VITE_SUPPORT_URL',
+  'VITE_WEATHER_API_URL',
+]
 
 function isProductionHttpsUrl(value) {
   try {

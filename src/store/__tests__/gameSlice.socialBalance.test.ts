@@ -7,6 +7,7 @@ import gameReducer, {
   getSafetyRelationshipScore,
 } from '../gameSlice'
 import { createInitialPregnancyStoryState } from '../../social/reality/pregnancy'
+import { getDefaultCompetitionSeasonState } from '../../ai/competition'
 
 describe('early Reality Mode player balance', () => {
   it('does not make a socially neutral human the automatic early eviction', () => {
@@ -57,6 +58,13 @@ describe('early Reality Mode player balance', () => {
     ai.stats = { lohWins: 0, posWins: 0, timesNominated: 0 }
     human.competitionProfile = undefined
     ai.competitionProfile = undefined
+    human.aiGameIdentity = undefined
+    ai.aiGameIdentity = undefined
+    state.competitionSeasonStateByPlayerId = {
+      ...state.competitionSeasonStateByPlayerId,
+      [human.id]: getDefaultCompetitionSeasonState(),
+      [ai.id]: getDefaultCompetitionSeasonState(),
+    }
     state.strategicRelationships = {
       [loh.id]: {
         [human.id]: { affinity: 0, tags: [] },

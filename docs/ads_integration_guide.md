@@ -15,7 +15,7 @@ platforms. No custom Swift/Java advertising bridge is needed.
    `npm run sync:android` and `npx cap open android` for Android. These platform
    sync commands configure the native app ID as well as copying the web build.
    Use platform-specific sync commands for advertising builds.
-3. On the device, open **Settings → Advertising privacy**, enter your real age, and enable
+3. On the device, open **Settings → Player privacy & family**, enter your real age, and enable
    **Optional advertising** for an adult player. Visit an existing reward prompt.
    Test completion, early dismissal, no connection, and several repeated rewards.
    Confirm No Ads/VIP suppress automatic breaks while rewards remain opt-in.
@@ -56,8 +56,9 @@ Store linking, app review and app-ads.txt verification still need completion.
 - Publish the updated policy to the separately hosted legal site; editing this
   repository's policy copies does not publish that site. Review store privacy
   forms against the signed binary, including Google's SDK data disclosures.
-- If enabling an IDFA explainer, configure it through UMP. Do not additionally
-  request tracking in app code. The bridge does not request ATT itself.
+- This app does not request Apple's App Tracking Transparency authorization. If
+  changing that behavior, configure the explanation through UMP and update the
+  privacy manifest, App Store privacy answers, and public policy.
 - Info.plist includes the 50 SKAdNetwork identifiers listed in Google's iOS setup
   guide on 2026-10-28. Review the list again when changing ad providers or SDKs.
   Complete AdMob app verification/store linking and
@@ -68,7 +69,7 @@ Store linking, app review and app-ads.txt verification still need completion.
 
 AdMob SDK initialization is deferred until an adult permits advertising. Both
 native platforms delay app measurement initialization. Google privacy choices
-are available in **Settings → Advertising privacy** for live builds, including when
+are available in **Settings → Player privacy & family** for live builds, including when
 the local advertising toggle is off. Withdrawal blocks further requests and
 invalidates pending rewards. Changing runs also clears pending rewards.
 

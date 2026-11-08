@@ -21,11 +21,13 @@ vi.mock('@capacitor/geolocation', () => ({
 
 let getWeatherLocation: typeof import('./locationAccess').getWeatherLocation
 let shouldShowWeatherPermissionRationale: typeof import('./locationAccess').shouldShowWeatherPermissionRationale
+let deferWeatherPermissionRationale: typeof import('./locationAccess').deferWeatherPermissionRationale
 
 async function loadLocationService(): Promise<void> {
   const service = await import('./locationAccess')
   getWeatherLocation = service.getWeatherLocation
   shouldShowWeatherPermissionRationale = service.shouldShowWeatherPermissionRationale
+  deferWeatherPermissionRationale = service.deferWeatherPermissionRationale
 }
 
 const coordinates = { latitude: 42.6977, longitude: 23.3219 }
@@ -87,6 +89,20 @@ describe('weather location access', () => {
     expect((await getWeatherLocation(100)).coordinates).toBeNull()
     expect(getCurrentPosition).not.toHaveBeenCalled()
     expect(shouldShowWeatherPermissionRationale()).toBe(true)
+  })
+
+  it('defers the first-launch rationale for a day without recording a permission denial', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const now = Date.now()
+
+    expect(shouldShowWeatherPermissionRationale()).toBe(true)
+    deferWeatherPermissionRationale()
+    expect(shouldShowWeatherPermissionRationale()).toBe(false)
+    expect(localStorage.getItem('bb:allowLocation')).toBeNull()
+
+    vi.setSystemTime(now + 24 * 60 * 60 * 1000 + 1)
+    expect(shouldShowWeatherPermissionRationale()).toBe(true)
+    expect(localStorage.getItem('bb:locationRationaleDeferredAt')).toBeNull()
   })
 
   it('automatically recovers an old interrupted attempt instead of treating it as a lifetime block', async () => {
@@ -157,6 +173,20 @@ describe('weather location access', () => {
       expect(getCurrentPosition).toHaveBeenCalledOnce()
     }
   )
+
+  it('does not replay an interrupted native permission prompt automatically on launch', async () => {
+    locationMocks.isNative = true
+    locationMocks.checkPermissions.mockResolvedValue({
+      location: 'prompt',
+      coarseLocation: 'prompt',
+    })
+    localStorage.setItem('bb:locationPermissionRequested', 'true')
+
+    expect(shouldShowWeatherPermissionRationale()).toBe(true)
+    expect((await getWeatherLocation(100)).coordinates).toBeNull()
+    expect(locationMocks.requestPermissions).not.toHaveBeenCalled()
+    expect(locationMocks.getCurrentPosition).not.toHaveBeenCalled()
+  })
 
   it('does not turn an old remembered decline into a new prompt without a live grant', async () => {
     setBrowserPermission('prompt')

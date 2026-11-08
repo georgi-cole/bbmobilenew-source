@@ -49,8 +49,7 @@ export const CANDIDATES: Record<ThemeKey, string[]> = Object.fromEntries(
 ) as Record<ThemeKey, string[]>
 
 /**
- * Maps Open-Meteo WMO weathercode to a theme key.
- * https://open-meteo.com/en/docs#weathervariables
+ * Maps WMO weather codes returned by the MET Norway weather proxy to a theme key.
  */
 export function mapWeatherCodeToTheme(weathercode: number): WeatherThemeKey | null {
   if (weathercode === 0 || weathercode === 1) return null // clear — fall through to time-of-day
@@ -124,23 +123,31 @@ interface CurrentWeather {
   snowfall?: number
 }
 
-/** Queries Open-Meteo for current model conditions, including precipitation. */
+/** Queries the no-cost, app-owned proxy for current conditions. */
 async function fetchCurrentWeather(lat: number, lon: number): Promise<CurrentWeather> {
-  const url =
-    `https://api.open-meteo.com/v1/forecast` +
-    `?latitude=${lat}&longitude=${lon}` +
-    `&current=weather_code,wind_speed_10m,rain,showers,snowfall&wind_speed_unit=kmh`
+  const weatherApiUrl = import.meta.env.VITE_WEATHER_API_URL?.trim() ?? ''
+  if (!weatherApiUrl) throw new Error('Weather proxy is not configured')
+
+  // Weather only selects a background, so a 0.1° tile is precise enough and
+  // prevents sending a household-level coordinate to the proxy or provider.
+  const latitude = Math.round(lat * 10) / 10
+  const longitude = Math.round(lon * 10) / 10
   const controller = new AbortController()
   let timeout: ReturnType<typeof setTimeout> | undefined
   const deadline = new Promise<never>((_, reject) => {
     timeout = setTimeout(() => {
       controller.abort()
-      reject(new Error('Open-Meteo request timed out'))
+      reject(new Error('Weather request timed out'))
     }, 8000)
   })
   const readConditions = async (): Promise<CurrentWeather> => {
-    const res = await fetch(url, { signal: controller.signal })
-    if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`)
+    const res = await fetch(weatherApiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ latitude, longitude }),
+      signal: controller.signal,
+    })
+    if (!res.ok) throw new Error(`Weather proxy HTTP ${res.status}`)
     const data = (await res.json()) as { current?: Record<string, unknown> }
     const current = data?.current
     const finiteValue = (value: unknown): number | undefined =>

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { initializeCloudBackend } from './backendService'
 import { authenticatedBackend } from './supabaseTransport'
+import { declarePlayerAge, setOptionalPlayerFeature } from '../../safety/playerSafety'
 
 const hooks = vi.hoisted(() => ({
   event: undefined as undefined | ((event: unknown, profileId?: string | null) => void),
@@ -37,6 +38,9 @@ describe('backend event buffering', () => {
     vi.mocked(authenticatedBackend).mockReset().mockRejectedValue(new Error('offline'))
     sessionStorage.clear()
     localStorage.clear()
+    declarePlayerAge(28)
+    setOptionalPlayerFeature('onlineServices', true)
+    setOptionalPlayerFeature('analytics', true)
   })
   afterEach(() => {
     vi.restoreAllMocks()
@@ -173,6 +177,73 @@ describe('backend event buffering', () => {
     expect(upsert.mock.calls[0][0]).toEqual([
       expect.objectContaining({ owner_id: 'analytics-guest', profile_id: null }),
     ])
+    stop()
+  })
+
+  it('does not upload profiles or usage events until the adult enables each option', async () => {
+    localStorage.clear()
+    sessionStorage.clear()
+    const profiles = {
+      profiles: [{ id: 'profile-1' }],
+      activeProfileId: 'profile-1',
+      isGuest: false,
+    }
+    const stop = initializeCloudBackend({
+      getState: () => ({ profiles }),
+      subscribe: () => vi.fn(),
+    } as never)
+    const event = {
+      name: 'session_active',
+      occurredAt: new Date().toISOString(),
+      sessionId: 'session',
+      properties: { active_seconds: 1 },
+    }
+    hooks.event?.(event, 'profile-1')
+    await vi.advanceTimersByTimeAsync(1200)
+    expect(authenticatedBackend).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem('bbmobilenew:supabase-events:v1')).toBeNull()
+
+    declarePlayerAge(28)
+    setOptionalPlayerFeature('onlineServices', true)
+    await vi.advanceTimersByTimeAsync(1200)
+    expect(authenticatedBackend).toHaveBeenCalledWith('profile_backup')
+    expect(authenticatedBackend).not.toHaveBeenCalledWith('analytics')
+    stop()
+  })
+
+  it('clears unsent events and stops collecting when usage measurement is withdrawn', async () => {
+    const stop = initializeCloudBackend({
+      getState: () => ({
+        profiles: { profiles: [], activeProfileId: null, isGuest: true },
+      }),
+      subscribe: () => vi.fn(),
+    } as never)
+    hooks.event?.(
+      {
+        name: 'session_active',
+        occurredAt: new Date().toISOString(),
+        sessionId: 'session',
+        properties: { active_seconds: 1 },
+      },
+      null
+    )
+    expect(
+      JSON.parse(sessionStorage.getItem('bbmobilenew:supabase-events:v1') ?? '[]')
+    ).toHaveLength(0)
+    setOptionalPlayerFeature('analytics', false)
+    hooks.event?.(
+      {
+        name: 'session_active',
+        occurredAt: new Date().toISOString(),
+        sessionId: 'session',
+        properties: { active_seconds: 1 },
+      },
+      null
+    )
+    window.dispatchEvent(new Event('pagehide'))
+    await vi.advanceTimersByTimeAsync(1200)
+    expect(sessionStorage.getItem('bbmobilenew:supabase-events:v1')).toBeNull()
+    expect(authenticatedBackend).not.toHaveBeenCalledWith('analytics')
     stop()
   })
 

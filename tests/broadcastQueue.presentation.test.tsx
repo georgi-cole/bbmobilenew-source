@@ -1,5 +1,5 @@
 import React from 'react'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { configureStore } from '@reduxjs/toolkit'
 import { Provider } from 'react-redux'
 import { MemoryRouter } from 'react-router'
@@ -70,11 +70,11 @@ describe('manager-driven faux-TV queue', () => {
   })
 
   it.each([
-    ['vox_populi', 'VOX POPULI is now in force.'],
-    ['cupid_arrow', 'Cupid has chosen the pairs.'],
+    ['vox_populi', 'VOX POPULI is now in force.', 'announcement'],
+    ['cupid_arrow', 'Cupid has chosen the pairs.', 'shock'],
   ] as const)(
-    'shows %s fullscreen before the forced season welcome reaches the faux TV',
-    async (major, activationText) => {
+    'shows the %s activation before the forced season welcome reaches the faux TV',
+    async (major, activationText, presentation) => {
       const store = makeStore()
       for (const id of store.getState().game.broadcastQueue ?? []) {
         store.dispatch(consumeBroadcastEvent(id))
@@ -122,8 +122,19 @@ describe('manager-driven faux-TV queue', () => {
       )
 
       await waitFor(() => {
-        expect(screen.getByTestId('shock-intro-overlay')).toBeInTheDocument()
+        if (presentation === 'shock') {
+          expect(screen.getByTestId('shock-intro-overlay')).toBeInTheDocument()
+        } else {
+          expect(
+            screen.getByRole('dialog', { name: /Announcement: VOX POPULI/i })
+          ).toBeInTheDocument()
+        }
       })
+      if (presentation === 'shock') {
+        act(() => {
+          fireEvent.click(screen.getByRole('button', { name: 'OK' }))
+        })
+      }
       act(() => {
         window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
       })
@@ -228,7 +239,12 @@ describe('manager-driven faux-TV queue', () => {
       </I18nContext.Provider>
     )
 
-    expect(store.getState().game.broadcastQueue).toHaveLength(1)
+    const state = store.getState().game
+    const queuedTexts = (state.broadcastQueue ?? [])
+      .map((id) => state.tvFeed.find((event) => event.id === id)?.text)
+      .filter((text): text is string => Boolean(text))
+    expect(queuedTexts).toContain('This is the next eligible message')
+    expect(queuedTexts).not.toContain('This belongs only in the log')
     const viewport = screen.getByRole('region', { name: 'Live game events display' })
     expect(viewport).not.toHaveTextContent('This belongs only in the log')
     expect(viewport).toHaveTextContent('This is the next eligible message')
@@ -495,7 +511,6 @@ describe('manager-driven faux-TV queue', () => {
       })
     )
     store.dispatch(syncPhaseBroadcasts({ phase: 'season_start' }))
-
     render(
       <I18nContext.Provider value={TEST_I18N}>
         <Provider store={store}>
@@ -526,7 +541,7 @@ describe('manager-driven faux-TV queue', () => {
     })
     expect(accepted).toBe(false)
     await waitFor(() => {
-      expect(screen.getByTestId('tv-shock-prelude')).toHaveTextContent('Critical title')
+      expect(screen.getByTestId('shock-intro-overlay')).toHaveTextContent('Critical title')
     })
   })
 })

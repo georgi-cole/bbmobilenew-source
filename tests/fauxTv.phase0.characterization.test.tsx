@@ -67,7 +67,7 @@ describe('Faux TV Phase 0 characterization', () => {
     vi.clearAllMocks()
   })
 
-  it('keeps critical managed broadcasts ahead of ordinary foreground messages', () => {
+  it('keeps the manager sequence when a later message is critical', () => {
     const store = makeStore()
     clearManagedQueue(store)
     const { phase, week } = store.getState().game
@@ -108,7 +108,7 @@ describe('Faux TV Phase 0 characterization', () => {
     const ordinary = state.tvFeed.find((event) => event.text === 'Ordinary foreground beat')
     expect(critical).toBeTruthy()
     expect(ordinary).toBeTruthy()
-    expect(state.broadcastQueue?.slice(0, 2)).toEqual([critical!.id, ordinary!.id])
+    expect(state.broadcastQueue?.slice(0, 2)).toEqual([ordinary!.id, critical!.id])
   })
 
   it('retains a consumed minor id while its event remains scoped to the original phase', () => {

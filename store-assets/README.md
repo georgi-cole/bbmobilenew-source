@@ -1,6 +1,6 @@
 # Store submission package
 
-Prepared for **The Big Eye** on 2026-07-22. Everything here is release material kept separate from application code.
+Prepared for **The Big Eye** on 2026-11-08. Everything here is release material kept separate from application code.
 
 ## Recommended upload-ready media
 

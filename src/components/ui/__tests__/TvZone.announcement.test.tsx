@@ -125,7 +125,7 @@ function makePlayer(id: string, name: string): Player {
 }
 
 const POST_DISMISS_SETTLE_MS = 400
-const SHOCK_INTRO_SETTLE_MS = 2320
+const SHOCK_INTRO_SETTLE_MS = 3400
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -174,7 +174,6 @@ describe('TvZone — announcement overlay', () => {
         )
       )
     })
-
     // Overlay should be visible with the correct title
     expect(screen.getByRole('dialog', { name: /Announcement: Nomination Ceremony/i })).toBeDefined()
   })
@@ -236,7 +235,7 @@ describe('TvZone — announcement overlay', () => {
   })
 
   it('keeps a critical game result on the faux TV until Play dismisses it', () => {
-    const store = makeStore()
+    const store = makeStore({ phase: 'nomination_results' })
 
     act(() => {
       store.dispatch(
@@ -244,7 +243,14 @@ describe('TvZone — announcement overlay', () => {
           makeEvent({
             id: 'critical-nomination-result',
             text: 'Lia is nominated with 6 votes. Ivy is nominated with 4 votes.',
-            meta: { week: 1, broadcastPriority: 'critical', forceOnTv: true },
+            meta: {
+              phase: 'nomination_results',
+              week: 1,
+              broadcastPriority: 'critical',
+              broadcastLevel: 'critical',
+              forceOnTv: true,
+              broadcastManaged: true,
+            },
           })
         )
       )
@@ -253,7 +259,7 @@ describe('TvZone — announcement overlay', () => {
           makeEvent({
             id: 'later-social-beat',
             text: 'A conversation is unfolding in the kitchen.',
-            meta: { week: 1 },
+            meta: { phase: 'nomination_results', week: 1 },
           })
         )
       )
@@ -265,6 +271,10 @@ describe('TvZone — announcement overlay', () => {
       'Lia is nominated with 6 votes'
     )
 
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'OK' }))
+    })
+
     let playWasAccepted = true
     act(() => {
       playWasAccepted = window.dispatchEvent(
@@ -272,16 +282,21 @@ describe('TvZone — announcement overlay', () => {
       )
     })
 
+    // The full-screen shock was acknowledged above. This is the final queued
+    // TV item, so its Play press may also advance the game.
     expect(playWasAccepted).toBe(true)
 
-    expect(document.querySelector('.tv-zone__now')?.textContent).toContain(
+    expect(document.querySelector('.tv-zone__now')?.textContent).not.toContain(
       'Lia is nominated with 6 votes'
+    )
+    expect(document.querySelector('.tv-zone__now')?.textContent).toContain(
+      'A conversation is unfolding in the kitchen.'
     )
   })
 
   it('does not replay a dismissed critical major broadcast as ordinary TV copy', () => {
     vi.useFakeTimers()
-    const store = makeStore()
+    const store = makeStore({ phase: 'final3_decision', week: 1 })
 
     act(() => {
       store.dispatch(
@@ -291,6 +306,7 @@ describe('TvZone — announcement overlay', () => {
             text: 'Ash has final immunity. Zed and Ivy now face the audience.',
             meta: {
               week: 1,
+              phase: 'final3_decision',
               major: 'vox_final3_result',
               broadcastPriority: 'critical',
               announcementTitle: 'FINAL IMMUNITY: ASH',
@@ -303,7 +319,7 @@ describe('TvZone — announcement overlay', () => {
 
     renderTvZone(store)
 
-    expect(screen.getByRole('dialog', { name: /Announcement: FINAL IMMUNITY: ASH/i })).toBeDefined()
+    expect(screen.getByRole('dialog', { name: /Announcement: Final Three Result/i })).toBeDefined()
 
     act(() => {
       window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
@@ -348,8 +364,18 @@ describe('TvZone — announcement overlay', () => {
     ).toBeNull()
   })
 
-  it('keeps the finale-ready call to action on screen until its own Play press', () => {
-    const store = makeStore()
+  it('shows the finale-ready call to action and lets its Play press open the next beat', () => {
+    vi.useFakeTimers()
+    const initialGame = gameReducer(undefined, { type: '@@init' })
+    const store = makeStore({
+      phase: 'final3_decision',
+      week: 1,
+      voxPopuli: {
+        ...initialGame.voxPopuli!,
+        status: 'active',
+        finaleStage: 'ready',
+      },
+    })
     act(() => {
       store.dispatch(
         addTvEvent(
@@ -357,15 +383,22 @@ describe('TvZone — announcement overlay', () => {
             id: 'vox-finale-ready',
             text: 'Ready for the Finale? Make your move.',
             meta: {
+              phase: 'final3_decision',
               week: 1,
               major: 'vox_populi_finale_ready',
+              broadcastLevel: 'critical',
               broadcastPriority: 'critical',
+              forceOnTv: true,
             },
           })
         )
       )
     })
     renderTvZone(store)
+
+    act(() => {
+      vi.advanceTimersByTime(SHOCK_INTRO_SETTLE_MS)
+    })
 
     expect(
       screen.getByRole('dialog', { name: 'Announcement: Ready for the Finale?' })
@@ -378,8 +411,9 @@ describe('TvZone — announcement overlay', () => {
       )
     })
 
-    expect(playWasAccepted).toBe(false)
+    expect(playWasAccepted).toBe(true)
     expect(screen.queryByRole('dialog', { name: 'Announcement: Ready for the Finale?' })).toBeNull()
+    vi.useRealTimers()
   })
 
   it('drops an obsolete Final 3 vote warning after the Final 2 has formed', () => {
@@ -451,17 +485,17 @@ describe('TvZone — announcement overlay', () => {
     expect(document.body.classList.contains('body--shock-active')).toBe(true)
 
     act(() => {
-      vi.advanceTimersByTime(1500)
+      vi.advanceTimersByTime(2600)
     })
     expect(nowMessage()).toBe('Aria used Detox and cleared Aria and Ivy from the block! ⚡')
 
     act(() => {
-      vi.advanceTimersByTime(1500)
+      vi.advanceTimersByTime(2600)
     })
     expect(nowMessage()).toBe('Aria named Echo and Georgi as the new nominees. ⚡')
 
     act(() => {
-      vi.advanceTimersByTime(1500)
+      vi.advanceTimersByTime(2600)
     })
     expect(screen.getByLabelText('Game action zone').className).not.toContain(
       'tv-zone--detox-stream'
@@ -851,9 +885,9 @@ describe('TvZone — announcement overlay', () => {
     vi.useRealTimers()
   })
 
-  it('plays the Tribunal phase shock before revealing the queued day-start message', () => {
+  it('shows the Tribunal announcement before the day-start weather transition', () => {
     vi.useFakeTimers()
-    const store = makeStore()
+    const store = makeStore({ week: 5 })
     renderTvZone(store)
 
     act(() => {
@@ -884,7 +918,7 @@ describe('TvZone — announcement overlay', () => {
     expect(document.body.querySelector('[data-testid="shock-intro-overlay"]')).toBeNull()
 
     expect(
-      screen.getByRole('dialog', { name: /Congrats all, you've just made it to tribunal/i })
+      screen.getByRole('dialog', { name: /Announcement: Welcome to the Tribunal/i })
     ).toBeDefined()
 
     act(() => {
@@ -893,7 +927,7 @@ describe('TvZone — announcement overlay', () => {
     })
 
     expect(screen.queryByRole('dialog', { name: /made it to tribunal/i })).toBeNull()
-    expect(document.querySelector('.tv-zone__now')).toHaveTextContent('Day 5 begins!')
+    expect(document.querySelector('.tv-zone__now')).toHaveTextContent('Day 5')
     vi.useRealTimers()
   })
 
@@ -1600,7 +1634,11 @@ describe('TvZone — phase-based announcement triggers', () => {
     })
 
     expect(screen.queryByRole('dialog', { name: /Announcement: Nomination Ceremony/i })).toBeNull()
-    expect(document.body.querySelector('[data-testid="shock-intro-overlay"]')).toBeNull()
+    expect(document.body.querySelector('[data-testid="shock-intro-overlay"]')).not.toBeNull()
+
+    act(() => {
+      vi.advanceTimersByTime(SHOCK_INTRO_SETTLE_MS + 50)
+    })
 
     expect(screen.getByRole('dialog', { name: /Announcement: Double Elimination!/i })).toBeDefined()
     vi.useRealTimers()
@@ -1691,6 +1729,10 @@ describe('TvZone — phase-based announcement triggers', () => {
     expect(screen.getByRole('dialog', { name: /Announcement: Double Trouble!/i })).toBeDefined()
 
     act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'OK' }))
+    })
+
+    act(() => {
       window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
     })
 
@@ -1742,6 +1784,9 @@ describe('TvZone — phase-based announcement triggers', () => {
     expect(store.getState().game.broadcastQueue).not.toContain(legacyShock?.id)
     act(() => {
       vi.advanceTimersByTime(SHOCK_INTRO_SETTLE_MS + 50)
+      fireEvent.click(screen.getByRole('button', { name: 'OK' }))
+    })
+    act(() => {
       window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
     })
 
@@ -1878,7 +1923,8 @@ describe('TvZone — phase-based announcement triggers', () => {
       store.dispatch(setPhase('final3'))
     })
 
-    expect(screen.getByRole('dialog', { name: /Announcement: The Finale/i })).toBeDefined()
+    expect(screen.queryByRole('dialog', { name: /Announcement: The Finale/i })).toBeNull()
+    expect(screen.getByLabelText(/Finale/i)).toBeDefined()
   })
 
   it('shows Final LOH Decision overlay when phase transitions to final3_decision', () => {
@@ -2244,7 +2290,7 @@ describe('TvZone — phase-based announcement triggers', () => {
 
     const nowEl = document.querySelector('.tv-zone__now')
     expect(nowEl).not.toHaveStyle({ opacity: '0' })
-    expect(nowEl).toHaveTextContent('players compare notes before the next ceremony.')
+    expect(nowEl).toHaveTextContent('Hubmates compare notes before the next ceremony.')
   })
 
   it('keeps an acknowledged Major phase card as steady viewport copy', () => {
@@ -2262,7 +2308,7 @@ describe('TvZone — phase-based announcement triggers', () => {
 
     const nowEl = document.querySelector('.tv-zone__now')
     expect(nowEl).not.toHaveStyle({ opacity: '0' })
-    expect(nowEl).toHaveTextContent('The hub will vote to eliminate.')
+    expect(nowEl).toHaveTextContent('The Hub will vote to eliminate.')
   })
 })
 

@@ -85,7 +85,7 @@ describe('RiskWheelComp styles', () => {
     expect(source).toContain('const LABEL_R = premium ? 78 : 72')
     expect(css).toContain('/* ─── VIP composition refinement')
     expect(css).toContain('/* ─── VIP showroom + wheel clarity pass')
-    expect(host).toContain('premiumPresentation={isVipActive}')
+    expect(host).toContain('premiumPresentation={usePremiumPresentation}')
     expect(statSync(stagePath).size).toBeLessThan(50_000)
     generatedAssets.forEach((assetPath) => {
       expect(statSync(assetPath).size).toBeLessThan(50_000)

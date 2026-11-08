@@ -191,6 +191,44 @@ function fmtOrdinal(value: number): string {
   return `${value}th`
 }
 
+type LeaderboardEntry = MinigameParticipant & { score: number; isPR: boolean }
+
+// eslint-disable-next-line react-refresh/only-export-components -- pure ranking seam for regression tests
+export function sortLeaderboardEntries(
+  entries: LeaderboardEntry[],
+  finalCompletion: ReactMinigameCompletion | null,
+  lowerBetter: boolean,
+  competitionRetryEnabled: boolean,
+  wasPartial: boolean
+): LeaderboardEntry[] {
+  return [...entries].sort((a, b) => {
+    const tiedGroup = finalCompletion?.authoritativeTiedGroups?.find(
+      (group) => group.includes(a.id) && group.includes(b.id)
+    )
+    if (tiedGroup) return 0
+    const authoritativeRank = finalCompletion?.authoritativeRankedIds
+    if (authoritativeRank?.length) {
+      const rankA = authoritativeRank.indexOf(a.id)
+      const rankB = authoritativeRank.indexOf(b.id)
+      if (rankA >= 0 && rankB >= 0 && rankA !== rankB) return rankA - rankB
+      if (rankA >= 0) return -1
+      if (rankB >= 0) return 1
+    }
+    if (finalCompletion?.authoritativeWinnerId && a.id !== b.id) {
+      if (a.id === finalCompletion.authoritativeWinnerId) return -1
+      if (b.id === finalCompletion.authoritativeWinnerId) return 1
+    }
+    if (finalCompletion?.authoritativeLastPlaceId && a.id !== b.id) {
+      if (a.id === finalCompletion.authoritativeLastPlaceId) return 1
+      if (b.id === finalCompletion.authoritativeLastPlaceId) return -1
+    }
+    if (competitionRetryEnabled && wasPartial) {
+      if (a.isHuman !== b.isHuman) return a.isHuman ? 1 : -1
+    }
+    return lowerBetter ? a.score - b.score : b.score - a.score
+  })
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MinigameHost({
@@ -721,33 +759,13 @@ export default function MinigameHost({
         p.previousPR === null || (lowerBetter ? score < p.previousPR : score > p.previousPR)
       return { ...p, score, isPR }
     })
-    entries.sort((a, b) => {
-      const tiedGroup = finalCompletion?.authoritativeTiedGroups?.find(
-        (group) => group.includes(a.id) && group.includes(b.id)
-      )
-      if (tiedGroup) return 0
-      const authoritativeRank = finalCompletion?.authoritativeRankedIds
-      if (authoritativeRank?.length) {
-        const rankA = authoritativeRank.indexOf(a.id)
-        const rankB = authoritativeRank.indexOf(b.id)
-        if (rankA >= 0 && rankB >= 0 && rankA !== rankB) return rankA - rankB
-        if (rankA >= 0) return -1
-        if (rankB >= 0) return 1
-      }
-      if (finalCompletion?.authoritativeWinnerId && a.id !== b.id) {
-        if (a.id === finalCompletion.authoritativeWinnerId) return -1
-        if (b.id === finalCompletion.authoritativeWinnerId) return 1
-      }
-      if (finalCompletion?.authoritativeLastPlaceId && a.id !== b.id) {
-        if (a.id === finalCompletion.authoritativeLastPlaceId) return 1
-        if (b.id === finalCompletion.authoritativeLastPlaceId) return -1
-      }
-      if (competitionRetryEnabled && wasPartial) {
-        if (a.isHuman !== b.isHuman) return a.isHuman ? 1 : -1
-      }
-      return lowerBetter ? a.score - b.score : b.score - a.score
-    })
-    return entries
+    return sortLeaderboardEntries(
+      entries,
+      finalCompletion,
+      lowerBetter,
+      competitionRetryEnabled,
+      wasPartial
+    )
   }, [
     competitionRetryEnabled,
     finalCompletion,

@@ -1,5 +1,6 @@
 import { isMissionOpeningProtected, isMissionBackupProtected } from '../bb/missionPowers'
 import type { Reducer, UnknownAction } from '@reduxjs/toolkit'
+import { addTvEvent } from './gameSlice'
 import type { GameState, Player, TvEvent } from '../types'
 import { getCompetitionPerceptionRead } from '../ai/competition'
 import { TWIN_SHOCK_ALI_ID, TWIN_SHOCK_LIA_ID } from '../bb/twinShock'
@@ -714,22 +715,23 @@ function reconcileBackdoorReplacement(previous: GameState, state: GameState): Ga
   return cloned
 }
 
-function buildBackdoorRevealEvent(state: GameState, plan: LohNominationPlan): TvEvent | null {
+function buildBackdoorRevealEvent(
+  state: GameState,
+  plan: LohNominationPlan
+): Omit<TvEvent, 'id' | 'timestamp'> | null {
   if (!isLohAmbushPlan(plan) || plan.status !== 'executed') return null
   const loh = state.players.find((player) => player.id === plan.lohId)
   const target = state.players.find((player) => player.id === plan.targetId)
   if (!target) return null
-  const id = `backdoor:${state.gameId}:${state.week}:${plan.targetId}`
-  if (state.tvFeed.some((event) => event.id === id)) return null
   return {
-    id,
     text: `${loh?.name ?? 'The LOH'} kept ${target.name} off the opening block. Safety is decided, and the ambush is sprung.`,
     type: 'game',
-    timestamp: Date.now(),
     meta: {
       major: 'backdoor',
       week: state.week,
       phase: state.phase,
+      broadcastTemplateId: 'loh.backdoor-reveal',
+      broadcastLevel: 'major',
       broadcastPriority: 'major',
       forceOnTv: true,
       announcementTitle: 'AMBUSH',
@@ -743,16 +745,26 @@ function buildBackdoorRevealEvent(state: GameState, plan: LohNominationPlan): Tv
 function maybePublishBackdoorReveal(
   previous: GameState,
   state: GameState,
-  action: UnknownAction
+  action: UnknownAction,
+  baseReducer: Reducer<GameState>
 ): GameState {
   const plan = state.lohNominationPlan
   if (action.type !== 'game/advance' || !plan?.revealPending || plan.revealed) return state
   if (previous.phase !== 'pos_ceremony_results') return state
+  const alreadyPublished = state.tvFeed.some(
+    (event) =>
+      event.meta?.broadcastTemplateId === 'loh.backdoor-reveal' &&
+      event.meta?.week === state.week &&
+      event.meta?.backdoorTargetId === plan.targetId
+  )
+  if (alreadyPublished) {
+    return { ...state, lohNominationPlan: { ...plan, revealPending: false, revealed: true } }
+  }
   const event = buildBackdoorRevealEvent(state, plan)
   if (!event) return state
+  const withBroadcast = baseReducer(state, addTvEvent(event))
   return {
-    ...state,
-    tvFeed: [event, ...state.tvFeed],
+    ...withBroadcast,
     lohNominationPlan: { ...plan, revealPending: false, revealed: true },
   }
 }
@@ -831,7 +843,11 @@ function recordSafetyField(previous: GameState, state: GameState): GameState {
  * normal Safety decision model, where trust and the holder's own interests can
  * still outweigh it.
  */
-function deliverBackdoorSafetyPitch(previous: GameState, state: GameState): GameState {
+function deliverBackdoorSafetyPitch(
+  previous: GameState,
+  state: GameState,
+  baseReducer: Reducer<GameState>
+): GameState {
   const plan = state.lohNominationPlan
   if (
     previous.phase === state.phase ||
@@ -862,7 +878,7 @@ function deliverBackdoorSafetyPitch(previous: GameState, state: GameState): Game
     state.lohSafetyAdvice.source === 'ai_ambush_pitch'
   if (alreadyPitched) return state
 
-  const cloned = cloneForPlayerMutation(state)
+  let cloned = cloneForPlayerMutation(state)
   cloned.lohSafetyAdvice = {
     week: state.week,
     lohId: loh.id,
@@ -870,12 +886,11 @@ function deliverBackdoorSafetyPitch(previous: GameState, state: GameState): Game
     advice: 'use',
     source: 'ai_ambush_pitch',
   }
-  cloned.tvFeed = [
-    {
-      id: `safety-pitch:${state.gameId}:${state.week}:${loh.id}:${holder.id}`,
+  cloned = baseReducer(
+    cloned,
+    addTvEvent({
       text: `${loh.name} pulled ${holder.name} aside before the Safety Ceremony, urging them to use Safety and promising a bigger move.`,
       type: 'game',
-      timestamp: Date.now(),
       meta: {
         week: state.week,
         phase: state.phase,
@@ -883,9 +898,8 @@ function deliverBackdoorSafetyPitch(previous: GameState, state: GameState): Game
         safetyHolderId: holder.id,
         privateSafetyPitch: true,
       },
-    },
-    ...state.tvFeed,
-  ]
+    })
+  )
   return cloned
 }
 
@@ -959,9 +973,9 @@ export function withLohNominationPlanning(
     next = establishPlan(next, scoreFn, previous)
     next = reconcileInitialAiNominations(previous, next)
     next = recordSafetyField(previous, next)
-    next = deliverBackdoorSafetyPitch(previous, next)
+    next = deliverBackdoorSafetyPitch(previous, next, baseReducer)
     next = reconcileBackdoorReplacement(previous, next)
-    next = maybePublishBackdoorReveal(previous, next, action)
+    next = maybePublishBackdoorReveal(previous, next, action, baseReducer)
 
     if (action.type === 'game/setLohSocialPlan') {
       next = reconcileCanonicalSocialDisclosure(previous, next)

@@ -32,12 +32,12 @@ describe('advertising privacy controls', () => {
   })
   afterEach(cleanup)
 
-  it('requires an adult declaration and explicit opt-in, and keeps Google choices accessible after opt-out', () => {
+  it('requires an adult declaration and explicit ad opt-in, and keeps Google choices accessible after opt-out', () => {
     renderPrivacy()
     expect(canUseOptionalFeature('ads')).toBe(false)
     fireEvent.change(screen.getByLabelText('Your age'), { target: { value: '28' } })
     fireEvent.click(screen.getByText('Continue'))
-    const toggle = screen.getByRole('checkbox')
+    const toggle = screen.getByRole('checkbox', { name: /Optional advertising/i })
     expect(canUseOptionalFeature('ads')).toBe(false)
     fireEvent.click(toggle)
     expect(canUseOptionalFeature('ads')).toBe(true)
@@ -45,6 +45,25 @@ describe('advertising privacy controls', () => {
     expect(canUseOptionalFeature('ads')).toBe(false)
     fireEvent.click(screen.getByText('Advertising privacy choices'))
     expect(privacy.open).toHaveBeenCalledOnce()
+  })
+
+  it('keeps cloud profile backup and usage measurement separate, adult-only opt-ins', () => {
+    renderPrivacy()
+    fireEvent.change(screen.getByLabelText('Your age'), { target: { value: '28' } })
+    fireEvent.click(screen.getByText('Continue'))
+
+    const backup = screen.getByRole('checkbox', { name: /Cloud profile backup/i })
+    const measurement = screen.getByRole('checkbox', { name: /Optional usage measurement/i })
+    expect(canUseOptionalFeature('onlineServices')).toBe(false)
+    expect(canUseOptionalFeature('analytics')).toBe(false)
+
+    fireEvent.click(backup)
+    fireEvent.click(measurement)
+    expect(canUseOptionalFeature('onlineServices')).toBe(true)
+    expect(canUseOptionalFeature('analytics')).toBe(true)
+
+    fireEvent.click(measurement)
+    expect(canUseOptionalFeature('analytics')).toBe(false)
   })
 
   it('does not enable advertising or Google requests for a minor', () => {
@@ -77,8 +96,10 @@ describe('advertising privacy controls', () => {
       </Provider>
     )
     fireEvent.click(screen.getByRole('link', { name: 'Open settings' }))
-    fireEvent.click(await screen.findByRole('button', { name: /Advertising privacy/ }))
-    expect(await screen.findByRole('heading', { name: 'Advertising privacy' })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: /Player privacy & family/ }))
+    expect(
+      await screen.findByRole('heading', { name: 'Player privacy & family' })
+    ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Privacy policy' })).toHaveAttribute('target', '_blank')
     fireEvent.click(screen.getByRole('button', { name: 'Back to settings' }))
     fireEvent.click(await screen.findByRole('button', { name: /go back/i }))

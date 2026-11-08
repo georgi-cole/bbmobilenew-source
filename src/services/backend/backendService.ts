@@ -10,6 +10,7 @@ import { sanitizeAnalyticsEvent } from './analyticsSchema'
 import { readDeviceAnalyticsContext } from './deviceContext'
 import { serializeProfileBackup } from './profileBackup'
 import { authenticatedBackend, subscribeBackendAuth } from './supabaseTransport'
+import { canUseOptionalFeature, subscribePlayerSafety } from '../../safety/playerSafety'
 
 const PREFERENCES_KEY = 'bbmobilenew:supabase-profiles:v1'
 const EVENTS_KEY = 'bbmobilenew:supabase-events:v1'
@@ -138,6 +139,18 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     // immediately available to uploads/deletion and drained on lifecycle exit.
     if (!eventsTimer) eventsTimer = setTimeout(persistEvents, 1200)
   }
+  const clearBufferedEvents = () => {
+    clearTimeout(eventsTimer)
+    eventsTimer = undefined
+    events = []
+    eventsDirty = false
+    expiresAt = Infinity
+    try {
+      sessionStorage.removeItem(EVENTS_KEY)
+    } catch {
+      /* Analytics is optional and must not survive a failed local purge. */
+    }
+  }
   let timer: ReturnType<typeof setTimeout> | undefined
   let busy = false
   let stopped = false
@@ -157,7 +170,11 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
       : state.profiles.find((profile) => profile.id === state.activeProfileId)
   }
   const currentSubjectId = () => currentProfile()?.id ?? null
-  const analyticsAllowed = () => !stopped
+  const analyticsAllowed = () => !stopped && canUseOptionalFeature('analytics')
+  const profileSyncAllowed = () => !stopped && canUseOptionalFeature('onlineServices')
+  let previousAnalyticsAllowed = analyticsAllowed()
+  let previousProfileSyncAllowed = profileSyncAllowed()
+  if (!previousAnalyticsAllowed) clearBufferedEvents()
   function setStatus(next: BackupStatus) {
     status = next
     notify()
@@ -180,13 +197,14 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     try {
       const state = store.getState().profiles
       const preferences = readPreferences()
-      const pendingUploads = state.isGuest
-        ? []
-        : state.profiles.filter(
-            (profile) =>
-              !preferences.deletedProfiles.includes(profile.id) &&
-              uploaded.get(profile.id) !== JSON.stringify(serializeProfileBackup(profile))
-          )
+      const pendingUploads =
+        state.isGuest || !profileSyncAllowed()
+          ? []
+          : state.profiles.filter(
+              (profile) =>
+                !preferences.deletedProfiles.includes(profile.id) &&
+                uploaded.get(profile.id) !== JSON.stringify(serializeProfileBackup(profile))
+            )
 
       if (preferences.deletedProfiles.length || pendingUploads.length) {
         if (pendingUploads.some((profile) => profile.id === state.activeProfileId))
@@ -204,7 +222,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
             )
             .abortSignal(signal)
           if (error) throw error
-          if (signal.aborted || stopped) return
+          if (signal.aborted || !profileSyncAllowed()) return
           uploaded.set(profile.id, JSON.stringify(snapshot))
           if (profile.id === store.getState().profiles.activeProfileId) {
             lastSynced = new Date().toISOString()
@@ -300,11 +318,13 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
         setStatus('error')
       }
     }
-    writeEvents(
-      readEvents().filter(
-        (event) => !event.profileId || !preferences.deletedProfiles.includes(event.profileId)
+    if (analyticsAllowed()) {
+      writeEvents(
+        readEvents().filter(
+          (event) => !event.profileId || !preferences.deletedProfiles.includes(event.profileId)
+        )
       )
-    )
+    } else clearBufferedEvents()
     if (profiles.activeProfileId !== activeId || profiles.isGuest !== previousProfiles.isGuest) {
       activeId = profiles.activeProfileId
       controller.abort()
@@ -317,21 +337,23 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     if (!measuredSession) {
       measuredSession = true
       activeSince = Date.now()
-      const sessionProfileId = currentSubjectId()
-      void readDeviceAnalyticsContext().then((deviceContext) => {
-        if (stopped || !analyticsAllowed() || currentSubjectId() !== sessionProfileId) return
-        trackProductEvent(
-          'session_started',
-          {
-            platform: 'web',
-            app_version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
-            ...deviceContext,
-          },
-          sessionProfileId
-        )
-      })
+      if (analyticsAllowed()) {
+        const sessionProfileId = currentSubjectId()
+        void readDeviceAnalyticsContext().then((deviceContext) => {
+          if (stopped || !analyticsAllowed() || currentSubjectId() !== sessionProfileId) return
+          trackProductEvent(
+            'session_started',
+            {
+              platform: 'web',
+              app_version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
+              ...deviceContext,
+            },
+            sessionProfileId
+          )
+        })
+      }
     }
-    if (!profile) setStatus('disabled')
+    if (!profile || !profileSyncAllowed()) setStatus('disabled')
     else if (
       status !== 'synced' ||
       uploaded.get(profile.id) !== JSON.stringify(serializeProfileBackup(profile))
@@ -389,6 +411,31 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
       contextChanged()
     }
   }
+  const onSafetyChange = () => {
+    const nextAnalyticsAllowed = analyticsAllowed()
+    const nextProfileSyncAllowed = profileSyncAllowed()
+    const changed =
+      nextAnalyticsAllowed !== previousAnalyticsAllowed ||
+      nextProfileSyncAllowed !== previousProfileSyncAllowed
+    if (!changed) return
+
+    if (!nextAnalyticsAllowed) clearBufferedEvents()
+    else measuredSession = false
+
+    if (nextProfileSyncAllowed !== previousProfileSyncAllowed) {
+      const profile = currentProfile()
+      lastSynced = null
+      if (!nextProfileSyncAllowed || profile)
+        setStatus(nextProfileSyncAllowed ? 'pending' : 'disabled')
+    }
+
+    previousAnalyticsAllowed = nextAnalyticsAllowed
+    previousProfileSyncAllowed = nextProfileSyncAllowed
+    if (busy) resyncAfterFlush = true
+    controller.abort()
+    controller = new AbortController()
+    contextChanged()
+  }
   const onVisibility = () => {
     if (analyticsAllowed() && document.visibilityState === 'hidden')
       trackProductEvent(
@@ -413,6 +460,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
   window.addEventListener('pagehide', persistEvents)
   window.addEventListener('storage', onStorage)
   document.addEventListener('visibilitychange', onVisibility)
+  const unsubscribeSafety = subscribePlayerSafety(onSafetyChange)
   contextChanged()
 
   return () => {
@@ -424,6 +472,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     unsubscribeEvents()
     unsubscribeStore()
     unsubscribeAccount()
+    unsubscribeSafety()
     window.removeEventListener('online', schedule)
     window.removeEventListener('pagehide', persistEvents)
     window.removeEventListener('storage', onStorage)

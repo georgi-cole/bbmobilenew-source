@@ -1153,6 +1153,17 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'vox_populi'
   ),
   feed(
+    'vox.final3-ready',
+    'final3_decision',
+    'Ready for the Finale? Make your move.',
+    'game',
+    'critical',
+    'vox_populi_finale_ready',
+    'Vox Populi final audience-vote call-to-action.',
+    true,
+    'vox_populi'
+  ),
+  feed(
     'final3.part2-minigame',
     'final3_comp2_minigame',
     'Interactive Final 3 Part 2 competition',

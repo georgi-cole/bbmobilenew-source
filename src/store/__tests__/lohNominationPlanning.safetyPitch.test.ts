@@ -47,9 +47,8 @@ describe('AI LOH Ambush Safety pitch', () => {
     } as GameState
     const baseReducer: Reducer<GameState, UnknownAction> = (currentState, action) => {
       const resolvedState = currentState ?? state
-      return action.type === 'test/finish-pos'
-        ? { ...resolvedState, phase: 'pos_results' }
-        : resolvedState
+      if (action.type === 'test/finish-pos') return { ...resolvedState, phase: 'pos_results' }
+      return gameReducer(resolvedState, action)
     }
     const reducer = withLohNominationPlanning(baseReducer, getNominationTargetScore)
 
@@ -62,7 +61,10 @@ describe('AI LOH Ambush Safety pitch', () => {
       advice: 'use',
       source: 'ai_ambush_pitch',
     })
-    expect(result.tvFeed[0]?.text).toContain(`${loh.name} pulled ${holder.name} aside`)
+    expect(
+      result.tvFeed.find((event) => event.text.includes(`${loh.name} pulled ${holder.name} aside`))
+        ?.text
+    ).toContain(`${loh.name} pulled ${holder.name} aside`)
     expect(result.nomineeIds).toEqual([pawnA.id, pawnB.id])
     expect(result.lohNominationPlan?.status).toBe('initial_block_set')
   })
@@ -160,9 +162,8 @@ describe('AI LOH Ambush Safety pitch', () => {
     } as GameState
     const baseReducer: Reducer<GameState, UnknownAction> = (currentState, action) => {
       const resolvedState = currentState ?? state
-      return action.type === 'test/finish-pos'
-        ? { ...resolvedState, phase: 'pos_results' }
-        : resolvedState
+      if (action.type === 'test/finish-pos') return { ...resolvedState, phase: 'pos_results' }
+      return gameReducer(resolvedState, action)
     }
     const reducer = withLohNominationPlanning(baseReducer, getNominationTargetScore)
 

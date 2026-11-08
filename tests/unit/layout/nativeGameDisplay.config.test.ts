@@ -17,9 +17,16 @@ describe('installed game display configuration', () => {
   it('identifies Android as a game with a portrait launch and keyboard resizing', () => {
     const manifest = readXml('android/app/src/main/AndroidManifest.xml')
     expect(manifest.querySelector('application')?.getAttribute('android:appCategory')).toBe('game')
-    const activity = manifest.querySelector('activity')
+    const activity = [...manifest.querySelectorAll('application > activity')].find(
+      (candidate) => candidate.getAttribute('android:name') === '.MainActivity'
+    )
     expect(activity?.getAttribute('android:screenOrientation')).toBe('portrait')
     expect(activity?.getAttribute('android:windowSoftInputMode')).toBe('adjustResize')
+    expect(
+      [...manifest.querySelectorAll('application > activity-alias')].every(
+        (alias) => alias.getAttribute('android:targetActivity') === '.LauncherEntryActivity'
+      )
+    ).toBe(true)
   })
 
   it('opts iOS into Game Mode and permits the landscape minigames on phones and tablets', () => {

@@ -80,10 +80,8 @@ describe('Depression Shock chocolate presentation', () => {
     const store = makeStore()
     const week = store.getState().game.week
 
-    // Reproduce the real failure mode: a plain managed message owns the queue,
-    // while the later major chocolate event is discoverable as an announcement.
-    // Previously the major card could be shown early, then return when it later
-    // became the queue head, firing the chocolate cinematic a second time.
+    // An earlier managed message owns the queue. The later chocolate card must
+    // wait for its own turn, then be consumed once with its cinematic handoff.
     act(() => {
       store.dispatch(
         addTvEvent({
@@ -124,7 +122,18 @@ describe('Depression Shock chocolate presentation', () => {
     window.addEventListener('depression-shock:chocolate-presented', chocolatePresented)
     renderHarness(store)
 
-    expect(screen.getByRole('dialog', { name: /Announcement: A small comfort/i })).toBeDefined()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('region', { name: 'Live game events display' })).toHaveTextContent(
+      'A quiet social beat is already waiting on the Faux TV.'
+    )
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /Announcement: A small comfort/i })).toBeDefined()
+    })
 
     act(() => {
       window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
@@ -155,7 +164,7 @@ describe('Depression Shock chocolate presentation', () => {
     window.removeEventListener('depression-shock:chocolate-presented', chocolatePresented)
   })
 
-  it('consumes the recognized fight source once when a major card jumps ahead of a minor', async () => {
+  it('presents an earlier minor before consuming the queued Depression Shock card once', async () => {
     const store = makeStore()
     const week = store.getState().game.week
     act(() => {
@@ -171,6 +180,7 @@ describe('Depression Shock chocolate presentation', () => {
             forceOnTv: true,
             broadcastLevel: 'minor',
             broadcastOrder: -100,
+            broadcastManaged: true,
           },
         })
       )
@@ -188,6 +198,7 @@ describe('Depression Shock chocolate presentation', () => {
             broadcastLevel: 'major',
             forceOnTv: true,
             depressionShockQueued: true,
+            broadcastManaged: true,
           },
         })
       )
@@ -197,7 +208,27 @@ describe('Depression Shock chocolate presentation', () => {
     expect(fightEventId).toBeTruthy()
     renderHarness(store)
 
-    expect(screen.getByRole('dialog')).toHaveTextContent(FIGHT_TEXT)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('region', { name: 'Live game events display' })).toHaveTextContent(
+      'An ordinary conversation is waiting on the Faux TV.'
+    )
+    act(() => {
+      window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('dialog', { name: /Announcement: The storm is getting to everyone/i })
+      ).toHaveTextContent(FIGHT_TEXT)
+    })
+
+    expect(
+      store
+        .getState()
+        .game.broadcastQueue?.map(
+          (id) => store.getState().game.tvFeed.find((event) => event.id === id)?.text
+        )
+    ).toContain(FIGHT_TEXT)
     act(() => {
       window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
     })

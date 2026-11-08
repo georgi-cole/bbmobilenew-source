@@ -34,6 +34,21 @@ describe('service broadcast routing', () => {
     expect(isVisibleOnTv(event)).toBe(true)
   })
 
+  it('keeps explicitly log-only managed messages in history only', () => {
+    const event = {
+      text: 'This belongs only in the log',
+      type: 'game',
+      meta: {
+        broadcastManaged: true,
+        forceOnTv: false,
+        editorial: { importance: 'required' as const, presentationMode: 'log_only' as const },
+      },
+    }
+
+    expect(isVisibleOnTv(event)).toBe(false)
+    expect(isVisibleInMainLog(event)).toBe(true)
+  })
+
   it('routes editorial log-only content to history/Game Log but not the TV viewport', () => {
     const event = {
       text: 'Mechanical ceremony setup',

@@ -234,11 +234,11 @@ describe('HomeHub', () => {
     await waitForMenuReady()
   })
 
-  it('explains local weather before the first location prompt and requests it once', async () => {
+  it('explains local weather and waits for a player action before requesting permission', async () => {
     vi.useFakeTimers()
     localStorage.removeItem('bb:locationPermissionRequested')
     expect(shouldShowWeatherPermissionRationale()).toBe(true)
-    const view = renderHomeHub()
+    renderHomeHub()
 
     fireEvent.click(screen.getByTestId('kolequant-splash'))
     await act(async () => {
@@ -248,23 +248,54 @@ describe('HomeHub', () => {
       await vi.advanceTimersByTimeAsync(0)
     })
     expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Allow approximate location to match the Home Hub to your local weather. Coordinates go to Open-Meteo only to fetch weather for the background.'
+    expect(screen.getByRole('group', { name: 'Local weather permission' })).toHaveTextContent(
+      "Allow approximate location to match the Home Hub to local weather. The app rounds your location to an about 11 km area and uses MET Norway data through The Big Eye's weather proxy only for the background."
     )
     expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(650)
     })
-    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
 
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Enable local weather' }))
+      await Promise.resolve()
+    })
+    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('group', { name: 'Local weather permission' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
+
+    expect(shouldShowWeatherPermissionRationale()).toBe(false)
+    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
+  })
+
+  it('lets a player defer local weather without opening the Android permission dialog', async () => {
+    vi.useFakeTimers()
+    localStorage.removeItem('bb:locationPermissionRequested')
+    const view = renderHomeHub()
+
+    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(screen.getByRole('group', { name: 'Local weather permission' })).toBeInTheDocument()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
+    })
+
+    expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
+    expect(shouldShowWeatherPermissionRationale()).toBe(false)
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
     view.rerender(
       <MemoryRouter>
         <HomeHub />
       </MemoryRouter>
     )
-    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('group', { name: 'Local weather permission' })).toBeNull()
   })
 
   it('opens a later season menu without repeating launch artwork', async () => {

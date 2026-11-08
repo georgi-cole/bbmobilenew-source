@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GameRegistryEntry } from '../../../minigames/registry'
-import MinigameHost from '../MinigameHost'
+import MinigameHost, { sortLeaderboardEntries } from '../MinigameHost'
+import type { ReactMinigameCompletion } from '../MinigameHost'
 import TwinShockIntroCinematic from '../../TwinShockIntroCinematic/TwinShockIntroCinematic'
 import { getPresentationOwner } from '../../../services/presentation/presentationOwnership'
 
@@ -110,6 +111,10 @@ const makeParticipants = (humanScore: number, aiScore: number) => [
     previousPR: null,
   },
 ]
+
+function leaderboardEntry(id: string, isHuman: boolean, score: number) {
+  return { id, name: id, isHuman, precomputedScore: score, previousPR: null, score, isPR: false }
+}
 
 function exitMinigame() {
   fireEvent.click(screen.getByRole('button', { name: 'Open minigame menu' }))
@@ -352,6 +357,123 @@ describe('MinigameHost competition retry', () => {
 
     expect(onDone).toHaveBeenCalledTimes(1)
     expect(onDone).toHaveBeenCalledWith(5, false)
+  })
+
+  it('uses correct ordinal labels for teen and compound leaderboard places', () => {
+    const participants = Array.from({ length: 23 }, (_, index) => ({
+      id: index === 0 ? 'human' : `ai-${index}`,
+      name: index === 0 ? 'You' : `CPU ${index}`,
+      isHuman: index === 0,
+      precomputedScore: 100 - index,
+      previousPR: null,
+    }))
+    const placementGame = { ...baseGame, resultMode: 'placement' } as GameRegistryEntry
+
+    render(
+      <MinigameHost
+        game={placementGame}
+        onDone={vi.fn()}
+        skipRules
+        skipCountdown
+        participants={participants}
+      />
+    )
+
+    act(() => vi.runAllTimers())
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Test Game' }))
+
+    for (const place of ['11th', '12th', '13th', '21st', '22nd', '23rd']) {
+      expect(screen.getByText(place)).toBeInTheDocument()
+    }
+  })
+
+  it('keeps authoritative ties while ordering the remaining placements', () => {
+    const completion: ReactMinigameCompletion = {
+      authoritativeRankedIds: ['winner', 'tie-a', 'tie-b', 'human'],
+      authoritativeTiedGroups: [['tie-a', 'tie-b']],
+      authoritativeWinnerId: 'winner',
+      authoritativeLastPlaceId: 'human',
+    }
+    const entries = [
+      leaderboardEntry('winner', false, 1),
+      leaderboardEntry('tie-b', false, 100),
+      leaderboardEntry('tie-a', false, 0),
+      leaderboardEntry('human', true, 50),
+    ]
+
+    const ranked = sortLeaderboardEntries(entries, completion, false, false, false)
+
+    expect(ranked[0]?.id).toBe('winner')
+    expect(ranked.at(-1)?.id).toBe('human')
+    expect(new Set(ranked.slice(1, 3).map((entry) => entry.id))).toEqual(
+      new Set(['tie-a', 'tie-b'])
+    )
+  })
+
+  it('uses winner and last-place hints when authoritative ranks do not decide a pair', () => {
+    const winner = { authoritativeWinnerId: 'winner' } satisfies ReactMinigameCompletion
+    const last = { authoritativeLastPlaceId: 'last' } satisfies ReactMinigameCompletion
+    const sortPair = (ids: [string, string], completion: ReactMinigameCompletion) =>
+      sortLeaderboardEntries(
+        ids.map((id, index) => leaderboardEntry(id, false, index)),
+        completion,
+        false,
+        false,
+        false
+      ).map((entry) => entry.id)
+
+    expect(sortPair(['winner', 'other'], winner)).toEqual(['winner', 'other'])
+    expect(sortPair(['other', 'winner'], winner)).toEqual(['winner', 'other'])
+    expect(sortPair(['other-a', 'other-b'], winner)).toEqual(['other-b', 'other-a'])
+    expect(sortPair(['last', 'other'], last)).toEqual(['other', 'last'])
+    expect(sortPair(['other', 'last'], last)).toEqual(['other', 'last'])
+    expect(sortPair(['other-a', 'other-b'], last)).toEqual(['other-b', 'other-a'])
+  })
+
+  it('puts known ranks ahead of unranked entries and partial AI results ahead of the human', () => {
+    const rankedCompletion: ReactMinigameCompletion = { authoritativeRankedIds: ['known'] }
+    const sortPair = (ids: [string, string]) =>
+      sortLeaderboardEntries(
+        ids.map((id, index) => leaderboardEntry(id, false, index)),
+        rankedCompletion,
+        false,
+        false,
+        false
+      ).map((entry) => entry.id)
+
+    expect(sortPair(['known', 'unknown'])).toEqual(['known', 'unknown'])
+    expect(sortPair(['unknown', 'known'])).toEqual(['known', 'unknown'])
+    expect(sortPair(['unknown-a', 'unknown-b'])).toEqual(['unknown-b', 'unknown-a'])
+
+    const partialPairs = [
+      [leaderboardEntry('human', true, 0), leaderboardEntry('ai', false, 100)],
+      [leaderboardEntry('ai', false, 100), leaderboardEntry('human', true, 0)],
+    ]
+    for (const pair of partialPairs) {
+      expect(
+        sortLeaderboardEntries(pair, null, false, true, true).map((entry) => entry.id)
+      ).toEqual(['ai', 'human'])
+    }
+    expect(
+      sortLeaderboardEntries(
+        [leaderboardEntry('ai-a', false, 1), leaderboardEntry('ai-b', false, 2)],
+        null,
+        false,
+        true,
+        true
+      ).map((entry) => entry.id)
+    ).toEqual(['ai-b', 'ai-a'])
+  })
+
+  it('sorts lower-is-better times ascending and higher-is-better scores descending', () => {
+    const entries = [leaderboardEntry('slower', false, 9), leaderboardEntry('faster', false, 2)]
+
+    expect(
+      sortLeaderboardEntries(entries, null, true, false, false).map((entry) => entry.id)
+    ).toEqual(['faster', 'slower'])
+    expect(
+      sortLeaderboardEntries(entries, null, false, false, false).map((entry) => entry.id)
+    ).toEqual(['slower', 'faster'])
   })
 
   it('starts a fresh run when a challenge repeats the same minigame key', () => {

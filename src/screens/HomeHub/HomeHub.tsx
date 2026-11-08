@@ -63,7 +63,10 @@ import useHomeHubAssets from '../../hooks/useHomeHubAssets'
 import useIntroHubBackground from '../../hooks/useIntroHubBackground'
 import { preloadImage } from '../../utils/preload'
 import { getHolidayTheme } from '../../utils/backgroundTheme'
-import { shouldShowWeatherPermissionRationale } from '../../services/locationAccess'
+import {
+  deferWeatherPermissionRationale,
+  shouldShowWeatherPermissionRationale,
+} from '../../services/locationAccess'
 import {
   hasShownHomeHubSplashThisSession,
   markHomeHubSplashSeenForGame,
@@ -151,10 +154,13 @@ interface HomeHubAssetLayerProps {
   splashDone: boolean
   backgroundReady: boolean
   showWeatherPermissionRationale: boolean
+  weatherPermissionBusy: boolean
   holidayTheme: ReturnType<typeof getHolidayTheme>
   playSelectionOpen: boolean
   playSelectionButtons: PlaySelectionButton[]
   onPlay: () => void
+  onRequestWeatherPermission: () => void
+  onDeferWeatherPermission: () => void
   onOpenHousemates: () => void
   onNavigate: NavigateFunction
   onAssetStateChange: (state: HubAssetState) => void
@@ -164,10 +170,13 @@ function HomeHubAssetLayer({
   splashDone,
   backgroundReady,
   showWeatherPermissionRationale,
+  weatherPermissionBusy,
   holidayTheme,
   playSelectionOpen,
   playSelectionButtons,
   onPlay,
+  onRequestWeatherPermission,
+  onDeferWeatherPermission,
   onOpenHousemates,
   onNavigate,
   onAssetStateChange,
@@ -194,10 +203,33 @@ function HomeHubAssetLayer({
       <div className="homehub-content home-hub">
         <div className="home-hub__hero" aria-hidden="true" />
         {splashDone && assetReady && showWeatherPermissionRationale && (
-          <p className="home-hub__weather-permission-note" role="status" aria-live="polite">
-            Allow approximate location to match the Home Hub to your local weather. Coordinates go
-            to Open-Meteo only to fetch weather for the background.
-          </p>
+          <section
+            className="home-hub__weather-permission-note"
+            role="group"
+            aria-label="Local weather permission"
+          >
+            <p>
+              Allow approximate location to match the Home Hub to local weather. The app rounds your
+              location to an about 11 km area and uses MET Norway data through The Big Eye's weather
+              proxy only for the background.
+            </p>
+            <div className="home-hub__weather-permission-actions">
+              <button
+                type="button"
+                disabled={weatherPermissionBusy}
+                onClick={onRequestWeatherPermission}
+              >
+                {weatherPermissionBusy ? 'Checking location…' : 'Enable local weather'}
+              </button>
+              <button
+                type="button"
+                disabled={weatherPermissionBusy}
+                onClick={onDeferWeatherPermission}
+              >
+                Not now
+              </button>
+            </div>
+          </section>
         )}
         {splashDone && assetReady && (
           <nav
@@ -391,6 +423,7 @@ export default function HomeHub() {
   })
   const splashDone = splashExitRequested && hubAssetState.ready
   const [showWeatherPermissionRationale, setShowWeatherPermissionRationale] = useState(false)
+  const [weatherPermissionBusy, setWeatherPermissionBusy] = useState(false)
   const [preloading, setPreloading] = useState(autoStartGame)
   const shouldRestorePlayMenu = new URLSearchParams(location.search).get('menu') === 'play'
   const [playSelectionOpen, setPlaySelectionOpen] = useState(shouldRestorePlayMenu)
@@ -408,19 +441,30 @@ export default function HomeHub() {
     const rationaleTimer = window.setTimeout(() => {
       if (!cancelled) setShowWeatherPermissionRationale(true)
     }, 0)
-    const requestTimer = window.setTimeout(() => {
-      if (cancelled) return
-      void requestWeatherLocation().finally(() => {
-        if (!cancelled) setShowWeatherPermissionRationale(false)
-      })
-    }, 650)
 
     return () => {
       cancelled = true
       window.clearTimeout(rationaleTimer)
-      window.clearTimeout(requestTimer)
     }
-  }, [requestWeatherLocation, splashDone])
+  }, [splashDone])
+
+  const handleRequestWeatherPermission = useCallback(async () => {
+    if (weatherPermissionBusy) return
+    setWeatherPermissionBusy(true)
+    try {
+      await requestWeatherLocation()
+    } catch (error) {
+      console.warn('[HomeHub] local weather permission request failed', error)
+    } finally {
+      setWeatherPermissionBusy(false)
+      setShowWeatherPermissionRationale(false)
+    }
+  }, [requestWeatherLocation, weatherPermissionBusy])
+
+  const handleDeferWeatherPermission = useCallback(() => {
+    deferWeatherPermissionRationale()
+    setShowWeatherPermissionRationale(false)
+  }, [])
 
   const savedRuns = useMemo(
     () => (!isGuest && activeProfileId ? loadSavedRunProfile(activeProfileId) : null),
@@ -970,10 +1014,13 @@ export default function HomeHub() {
             splashDone={splashDone}
             backgroundReady={backgroundLayers.ready}
             showWeatherPermissionRationale={showWeatherPermissionRationale}
+            weatherPermissionBusy={weatherPermissionBusy}
             holidayTheme={playButtonHolidayTheme}
             playSelectionOpen={playSelectionOpen}
             playSelectionButtons={playSelectionButtons}
             onPlay={handlePlay}
+            onRequestWeatherPermission={() => void handleRequestWeatherPermission()}
+            onDeferWeatherPermission={handleDeferWeatherPermission}
             onOpenHousemates={() => {
               SoundManager.unlockFromGesture()
               setHousematesBioOpen(true)

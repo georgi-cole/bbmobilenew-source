@@ -18,24 +18,29 @@ describe('PR1556 mobile layout regressions', () => {
     expect(mobile).toContain('margin-top: auto;')
   })
 
-  it('gives Weekend Social resources their own unclipped mobile row', () => {
+  it('keeps Weekend Social resources compact beside the title on phones', () => {
     const css = read('src/components/SocialPanelV2/SocialPanelV2.css')
-    const mobile = css.slice(css.indexOf('/* ─── Weekend resource header fit hardening'))
+    const mobile = css.slice(css.indexOf('/* Keep weekend resources compact beside the title'))
 
-    expect(mobile).toContain("'resources resources'")
+    expect(mobile).toContain('@media (max-width: 699px)')
+    expect(mobile).toContain('display: flex;')
+    expect(mobile).toContain('align-items: center;')
     expect(mobile).toContain('.sp2-modal--weekend .sp2-header__resources')
-    expect(mobile).toContain('width: 100%;')
+    expect(mobile).toContain('width: auto;')
     expect(mobile).toContain('overflow: visible;')
-    expect(mobile).toContain('flex: 1 1 0;')
+    expect(mobile).toContain('justify-content: flex-end;')
   })
 
   it('lets an expanded relationship read grow inside the Social scroll area', () => {
     const css = read('src/components/SocialPanelV2/SocialPanelV2.css')
-    const expandedRead = css.slice(css.indexOf('.sp2-focus:has(.sp2-focus__full-read[open])'))
+    const mobile = css.slice(css.indexOf('/* Keep move categories and Execute visible'))
 
-    expect(expandedRead).toContain('height: auto;')
-    expect(expandedRead).toContain('overflow: visible;')
-    expect(expandedRead).toContain('.sp2-focus:has(.sp2-focus__full-read[open])::after')
+    expect(mobile).toContain('.sp2-body')
+    expect(mobile).toContain('overflow-y: auto;')
+    expect(mobile).toContain('.sp2-body > .sp2-focus')
+    expect(mobile).toContain('flex: 0 0 auto;')
+    expect(mobile).toContain('overflow: visible;')
+    expect(css).toContain('.sp2-focus__full-read {')
   })
 
   it('keeps VIP Risk Wheel controls and scores inside normal phone heights', () => {

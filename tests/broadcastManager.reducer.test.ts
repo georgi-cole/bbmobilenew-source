@@ -67,17 +67,22 @@ describe('broadcast manager reducers', () => {
 
   it('persists an unchecked faux-TV override and removes even a critical message from the queue', () => {
     let state = gameReducer(undefined, { type: 'init' })
-    const intro = state.tvFeed.find((event) => event.meta?.broadcastTemplateId === 'season.welcome')
+    state = { ...state, phase: 'loh_comp_announcement' }
+    state = gameReducer(
+      state,
+      syncPhaseBroadcasts({ phase: 'loh_comp_announcement', cardMajor: 'loh_comp_announcement' })
+    )
+    const intro = state.tvFeed.find((event) => event.meta?.broadcastTemplateId === 'card.loh')
 
     state = gameReducer(
       state,
       setBroadcastOverride({
-        id: 'season.welcome',
+        id: 'card.loh',
         changes: { level: 'critical', forceOnTv: false },
       })
     )
 
-    expect(state.broadcastOverrides?.['season.welcome']).toMatchObject({
+    expect(state.broadcastOverrides?.['card.loh']).toMatchObject({
       level: 'critical',
       forceOnTv: false,
     })
@@ -211,8 +216,10 @@ describe('broadcast manager reducers', () => {
 
     expect(state.phase).toBe('season_start')
     expect(state.week).toBe(1)
+    // The polished welcome is created by SeasonStartOnboardingController, not
+    // by the pure game reducer's season transition.
     expect(state.tvFeed.some((event) => event.meta?.broadcastTemplateId === 'season.welcome')).toBe(
-      true
+      false
     )
     expect(
       state.tvFeed.some((event) => event.meta?.broadcastTemplateId === 'season.public-mode-rule')
@@ -224,7 +231,7 @@ describe('broadcast manager reducers', () => {
     expect(state.week).toBe(1)
     expect(
       state.tvFeed.filter((event) => event.meta?.broadcastTemplateId === 'season.welcome')
-    ).toHaveLength(1)
+    ).toHaveLength(0)
     expect(state.tvFeed[0]).toMatchObject({
       text: 'Day 1 has begun. Get ready.',
       meta: { phase: 'week_start', broadcastTemplateId: 'week.day-start' },
@@ -540,7 +547,10 @@ describe('broadcast manager reducers', () => {
     const queueCopy = state.broadcastQueue ?? []
     const queuedTexts = queueCopy.map((id) => state.tvFeed.find((event) => event.id === id)?.text)
     expect(queuedTexts[0]).toBe('Opening first.')
-    expect(queuedTexts.some((text) => text?.startsWith('Welcome to The Big Eye house!'))).toBe(true)
+    // The onboarding controller adds the welcome once the game screen mounts.
+    expect(queuedTexts.some((text) => text?.startsWith('Welcome to The Big Eye house!'))).toBe(
+      false
+    )
 
     const firstId = queueCopy[0]
     state = gameReducer(state, consumeBroadcastEvent(firstId))

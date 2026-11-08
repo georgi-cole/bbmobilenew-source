@@ -141,6 +141,41 @@ body:has(.homehub-shell) .app-shell {
   animation: hub-nav-enter 240ms ease both;
 }
 
+.home-hub__weather-permission-note p {
+  margin: 0;
+}
+
+.home-hub__weather-permission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.home-hub__weather-permission-actions button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid rgba(221, 230, 255, 0.28);
+  border-radius: 999px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.1);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.home-hub__weather-permission-actions button:first-child {
+  border-color: rgba(198, 235, 255, 0.68);
+  background: rgba(106, 163, 232, 0.34);
+}
+
+.home-hub__weather-permission-actions button:disabled {
+  cursor: progress;
+  opacity: 0.68;
+}
+
 .home-hub__title {
   margin: 0;
   font-size: 2rem;

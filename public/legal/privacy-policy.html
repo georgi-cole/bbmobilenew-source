@@ -37,7 +37,7 @@
   <body>
     <main>
       <h1>The Big Eye Privacy Policy</h1>
-      <p class="updated">Last updated: November 1, 2026</p>
+      <p class="updated">Last updated: November 7, 2026</p>
       <p>This policy explains how The Big Eye handles information when you use the mobile game.</p>
       <h2>Information stored on your device</h2>
       <p>
@@ -48,33 +48,35 @@
       </p>
       <h2>Profile backup and gameplay analytics</h2>
       <p>
-        When the online backend is enabled for this version, saved profiles are automatically backed
-        up to Supabase. The backup includes the profile identifier, display name, avatar, selected
-        appearance, achievements, and unlock progress. Photos, biographies, wallet data, season
-        archives, and saved games remain on the device. The backup uses an anonymous account stored
-        by this installation. Adding an optional contact email does not change this identity or
-        provide restoration of device-only data on another device.
+        Cloud profile backup is an optional adult choice in Player privacy &amp; family. When
+        enabled, profile snapshots are sent to Supabase and include the profile identifier, display
+        name, avatar, selected appearance, achievements, and unlock progress. Photos, biographies,
+        wallet data, season archives, and saved games remain on the device. The backup uses an
+        anonymous account stored by this installation and does not provide restoration on another
+        device. Turning backup off stops future uploads; an existing online copy remains until the
+        profile is deleted or a deletion request is completed.
       </p>
       <p>
-        The app automatically sends pseudonymous gameplay events to Supabase, including guest
-        activity. Saved-profile events include the installation-local profile ID, selected
-        appearance, screen visits and visible time, game modes and numbered days reached, minigame
-        duration, placements and exits, Social module use and action categories, selected gameplay
-        decisions, elimination timing and season placement, marketplace product choices and purchase
-        outcomes, and session duration. Purchase prices are not collected. The profile ID lets the
-        project owner join gameplay events to that profile's backup and display name. Analytics uses
-        a separate anonymous installation identifier. Session events also include broad device type
-        and family, operating system, and browser; an exact device model is included only when the
-        browser provides it. A full browser user-agent string is not sent. Analytics does not
-        include biographies or conversation text. Events carry a build label (QA, production, or
+        Optional usage measurement is a separate adult choice in Player privacy &amp; family. When
+        enabled, the app sends pseudonymous gameplay events to Supabase, including guest activity.
+        Saved-profile events include the installation-local profile ID, selected appearance, screen
+        visits and visible time, game modes and numbered days reached, minigame duration, placements
+        and exits, Social module use and action categories, selected gameplay decisions, elimination
+        timing and season placement, marketplace product choices and purchase outcomes, and session
+        duration. Purchase prices are not collected. The profile ID lets the project owner join
+        gameplay events to that profile's backup and display name. Analytics uses a separate
+        anonymous installation identifier. Session events also include broad device type and family,
+        operating system, and browser; an exact device model is included only when the browser
+        provides it. A full browser user-agent string is not sent. Analytics does not include
+        biographies or conversation text. Events carry a build label (QA, production, or
         development) so test activity can be distinguished. Guest events have no profile ID and are
         grouped by the anonymous installation identifier. Guest history is not retroactively merged
-        into a newly created profile. Activity groups describe records, not a verified count of
-        unique people. Deleting a profile on its original installation queues removal of its online
-        backup, contact details, and linked analytics. The app must reconnect to complete the
-        removal. Other analytics rows remain until removed by the project owner or in response to a
-        deletion request. For access or deletion requests, email
-        <a href="mailto:kolequant@gmail.com">kolequant@gmail.com</a>.
+        into a newly created profile. Turning measurement off clears unsent events and stops new
+        events. Activity groups describe records, not a verified count of unique people. Deleting a
+        profile on its original installation queues removal of its online backup, contact details,
+        and linked analytics. The app must reconnect to complete the removal. Other analytics rows
+        remain until removed by the project owner or in response to a deletion request. For access
+        or deletion requests, email <a href="mailto:kolequant@gmail.com">kolequant@gmail.com</a>.
       </p>
       <h2>Optional profile email and game updates</h2>
       <p>
@@ -104,10 +106,17 @@
       </p>
       <h2>Optional location</h2>
       <p>
-        If you grant location access, the app may send coordinates to Open-Meteo to request current
-        weather and select a matching ambient visual theme. Location is optional, is not required to
-        play, and is not used for advertising or cross-app tracking. The app does not intentionally
-        retain coordinates after the request.
+        Weather location is optional. If you allow it, the app rounds the device location to a 0.1°
+        area (about 11 km north-south) before sending it through The Big Eye's Cloudflare weather
+        proxy. The proxy requests current conditions from MET Norway and caches the rounded area and
+        response for at least three hours, honoring a later provider expiry and using the provider's
+        last-modified time when refreshing. Cloudflare receives the request's IP address; MET Norway
+        receives the rounded coordinates through Cloudflare rather than your device IP. The proxy
+        does not intentionally log coordinate request bodies. Provider logs and processing are
+        governed by their own privacy terms. The game does not use this data for advertising or
+        tracking. Weather data is from
+        <a href="https://api.met.no/" target="_blank" rel="noreferrer">MET Norway</a> under its
+        open-data licence.
       </p>
       <h2>Diary Room responses</h2>
       <p>
@@ -124,14 +133,17 @@
       </p>
       <p>
         Supported mobile builds include Google AdMob and Google's User Messaging Platform.
-        Advertising is optional and requires an adult player's separate choice in Settings →
-        Advertising privacy. When enabled, Google may receive device information and identifiers, IP
-        addresses, diagnostic information, and ad interactions to deliver ads, prevent fraud, and
-        measure performance. The app requests non-personalized ads and asks for Google's required
-        privacy choices before requesting live ads. Non-personalized advertising can still involve
-        data processing. You can turn advertising off and revisit Advertising privacy choices in
-        Settings → Advertising privacy. Test builds can use Google's sample ads. No Ads and VIP
-        remove automatic breaks; voluntary rewarded ads remain available by choice. See
+        Advertising is optional and requires an adult player's separate choice in Settings → Player
+        privacy &amp; family. The app asks for Google's consent choices before live ad requests and
+        sends non-personalized ad requests. When the SDK runs, Google may collect or share the
+        device's IP address (which can indicate approximate location), app and ad interactions,
+        device identifiers, diagnostic information, user-associated performance data, and
+        information about ads shown. Google describes these data uses for advertising, analytics,
+        performance, and fraud prevention. Non-personalized requests still involve data processing.
+        Advertising can be turned off and Google's privacy choices can be revisited in Settings →
+        Player privacy &amp; family. Test builds can use Google's sample ads. This release does not
+        request Apple's App Tracking Transparency permission. No Ads and VIP remove automatic
+        breaks; voluntary rewarded ads remain available by choice. See
         <a href="https://policies.google.com/technologies/ads"
           >Google's advertising privacy information</a
         >.
@@ -144,8 +156,9 @@
       </p>
       <h2>Children</h2>
       <p>
-        The Big Eye is not directed to children under 13. Store age ratings and target-audience
-        settings reflect the final game content and local requirements.
+        The current mobile release applies a self-declared minimum age of 18. The Big Eye is not
+        directed to children. Age is not independently verified. Store age ratings and
+        target-audience settings reflect the final game content and local requirements.
       </p>
       <h2>Security, retention, and choices</h2>
       <p>

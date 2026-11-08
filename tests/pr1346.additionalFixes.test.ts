@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { isBroadcastShockAnnouncementKey } from '../src/broadcasting/broadcastPresentationRegistry'
+import {
+  getRuntimeSocialActionById,
+  isActionAllowedForRealityPreset,
+} from '../src/social/socialActionManager'
 
 function source(path: string): string {
   return readFileSync(join(process.cwd(), path), 'utf8')
@@ -9,7 +14,7 @@ function source(path: string): string {
 describe('PR 1346 additional integration guards', () => {
   it('persists consumed Safety ceremonies across GameScreen remounts', () => {
     const safetyFlow = source('src/screens/GameScreen/flows/useSafetyFlow.ts')
-    expect(safetyFlow).toContain("usePersistedGameScreenKey(\n    'safety-save-ceremony'")
+    expect(safetyFlow).toMatch(/usePersistedGameScreenKey\(\s*'safety-save-ceremony'/)
     expect(safetyFlow).toContain('consumedSaveCeremonyKey === ceremonyKey')
     expect(safetyFlow).toContain('setConsumedSaveCeremonyKey(ceremonyKey)')
   })
@@ -23,33 +28,37 @@ describe('PR 1346 additional integration guards', () => {
 
   it('restores fullscreen Shock preludes before the inline faux-TV card', () => {
     const overlay = source('src/components/ui/TvAnnouncementOverlay/TvAnnouncementOverlay.tsx')
-    expect(overlay).toContain('FULLSCREEN_SHOCK_KEYS')
-    expect(overlay).toContain("'double_eviction'")
-    expect(overlay).toContain("'battle_back'")
+    expect(isBroadcastShockAnnouncementKey('double_eviction')).toBe(true)
+    expect(isBroadcastShockAnnouncementKey('battle_back')).toBe(true)
+    expect(isBroadcastShockAnnouncementKey('vox_populi')).toBe(false)
+    expect(overlay).toContain('isBroadcastShockAnnouncementKey(announcement.key)')
     expect(overlay).toContain('data-testid="tv-shock-prelude"')
     expect(overlay).toContain('shockPreludeVisible')
   })
 
   it('makes mature social actions exclusive to the Adult Reality preset', () => {
-    const actionGrid = source('src/components/SocialPanelV2/ActionGrid.tsx')
-    expect(actionGrid).toContain('ADULT_REALITY_ACTION_IDS')
-    expect(actionGrid).toContain("realityModePreset === 'adult'")
-    expect(actionGrid).toContain("'pool_makeout'")
-    expect(actionGrid).toContain("'spend_night'")
+    for (const id of ['pool_makeout', 'spend_night']) {
+      const action = getRuntimeSocialActionById(id, { includeDisabled: true })
+      expect(action).toBeDefined()
+      expect(isActionAllowedForRealityPreset(action!, 'adult')).toBe(true)
+      expect(isActionAllowedForRealityPreset(action!, 'tv')).toBe(false)
+    }
   })
 
   it('keeps Tribunal members out of active My Game relationship reads', () => {
     const ledger = source('src/components/RealityLedger/RealityLedger.tsx')
     expect(ledger).toContain("player.status !== 'evicted' && player.status !== 'jury'")
-    expect(ledger).toContain('relationships={relationships}')
+    expect(ledger).toContain('.filter((edge) => activePlayerIds.has(edge.toId))')
   })
 
   it('uses current-phase LOH Safety advice instead of hypothetical stale copy', () => {
     const humanFlow = source('src/social/reality/humanFlow.ts')
     expect(humanFlow).toContain('buildLohConsultationSummary')
     expect(humanFlow).toContain('The block is locked.')
-    expect(humanFlow).toContain("Let's open the seat and backdoor")
-    expect(humanFlow).toContain('No—do not use it.')
+    expect(humanFlow).toContain('formatLohSafetyConsultation(state.game, input.actorId)')
+    const safetyCopy = source('src/social/lohSafetyConsultation.ts')
+    expect(safetyCopy).toContain("Let's open the seat and spring an ambush")
+    expect(safetyCopy).toContain('No—do not use it.')
   })
 
   it('prevents minimum-zone Pressure Plank damage from sub-pixel drift', () => {

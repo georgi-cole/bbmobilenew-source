@@ -772,11 +772,12 @@ test.describe('Real player core journeys', () => {
     expect(initialEnergy).toBeGreaterThanOrEqual(1)
 
     await socialDialog.locator('[aria-label="Player roster"]').getByRole('button').first().click()
-    await socialDialog
+    const complimentAction = socialDialog
       .locator('[aria-label="Action grid"]')
       .getByRole('button', { name: /Compliment/ })
-      .click()
-    await expect(socialDialog.getByText(/Cost:/)).toContainText('1')
+    await complimentAction.click()
+    await expect(complimentAction).toHaveAttribute('aria-pressed', 'true')
+    await expect(complimentAction).toHaveAccessibleName(/Energy cost: 1/)
 
     await socialDialog.getByRole('button', { name: 'Execute' }).dblclick()
     const remainingEnergy = initialEnergy - 1
@@ -872,7 +873,7 @@ test.describe('Real player core journeys', () => {
         },
         { timeout: SCREEN_TIMEOUT_MS }
       )
-      .toEqual({ phase: 'loh_comp', runIdentity: fixture.runIdentity, version: 2 })
+      .toEqual({ phase: fixture.phase, runIdentity: fixture.runIdentity, version: 2 })
 
     await saveAndReturnHome(page)
 

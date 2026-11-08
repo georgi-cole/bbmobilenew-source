@@ -27,6 +27,11 @@ function loadIntroHub(gameOverrides: Record<string, unknown> = {}) {
   delete (window as Window & { game?: unknown }).game
   ;(window as Window & { game?: unknown }).game = { ...gameOverrides }
   new Function(introHubScript)()
+  const container = document.getElementById('intro-hub')
+  const runtime = (
+    window as Window & { game?: { hub?: { init?: (element: HTMLElement) => void } } }
+  ).game?.hub
+  if (container) runtime?.init?.(container)
 }
 
 afterEach(() => {

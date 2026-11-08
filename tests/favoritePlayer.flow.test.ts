@@ -126,15 +126,17 @@ describe('startFavoritePlayerPhase', () => {
     expect(store.getState().game.twistActive).toBe(true);
   });
 
-  it('pushes a TV event with major:twist for the TV filler announcement', () => {
+  it('keeps the vote announcement in the log without promoting it to a managed broadcast', () => {
     const store = makeStore();
     store.dispatch(startFavoritePlayerPhase({ candidates: ['p0', 'p1'], awardAmount: 25000 }));
     const events = store.getState().game.tvFeed;
     const ev = events.find((e) => e.type === 'twist');
     expect(ev).toBeDefined();
-    expect((ev as TvEvent)?.major).toBe('twist');
+    expect((ev as TvEvent)?.major).toBeUndefined();
     expect((ev as TvEvent)?.text).toContain('THE PUBLIC DECIDES');
     expect((ev as TvEvent)?.text).not.toContain('AMERICA');
+    expect((ev as TvEvent)?.meta?.forceOnTv).not.toBe(true);
+    expect(store.getState().game.broadcastQueue ?? []).not.toContain(ev?.id);
   });
 });
 

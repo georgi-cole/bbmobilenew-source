@@ -1205,12 +1205,24 @@ function managedBroadcastPriority(event: TvEvent): number {
   if (event.meta?.phase === 'season_start' && (major === 'vox_populi' || major === 'cupid_arrow')) {
     return -1
   }
-  if (event.meta?.broadcastPriority === 'critical') return 0
   // Delivery priority is deliberately separate from visual level. Runtime
   // foreground prompts can take the next Faux-TV slot without being promoted
   // into a critical/shock presentation.
-  if (event.meta?.broadcastDelivery === 'next') return 0.5
+  if (event.meta?.broadcastDelivery === 'next') return 0
+  // Severity controls presentation. The manager's explicit sequence controls
+  // order, so a later critical card does not jump ahead of earlier copy.
   return 1
+}
+
+function constrainLogOnlyOverride(id: string, override: BroadcastOverride): BroadcastOverride {
+  if (getBroadcastTemplate(id)?.editorial?.presentationMode !== 'log_only') return override
+  const isDemocraciaReceipt = id === 'loh.democracia-vote-start' || id === 'card.democracia-vote'
+  return {
+    ...override,
+    level: 'minor',
+    major: null,
+    forceOnTv: !isDemocraciaReceipt && override.forceOnTv === true,
+  }
 }
 
 function enqueueManagedBroadcast(state: GameState, event: TvEvent) {
@@ -1301,29 +1313,33 @@ function refreshManagedBroadcastDefinition(state: GameState, event: TvEvent) {
     delete event.meta.broadcastSourceText
   }
   const template = typeof templateId === 'string' ? getBroadcastTemplate(templateId) : undefined
+  const isLogOnly = template?.editorial?.presentationMode === 'log_only'
   const override =
     typeof templateId === 'string' ? state.broadcastOverrides?.[templateId] : undefined
   const variables = Array.isArray(event.meta?.broadcastVariables)
     ? event.meta.broadcastVariables.filter((value): value is string => typeof value === 'string')
     : []
-  const level =
-    custom?.level ??
-    override?.level ??
-    template?.level ??
-    (event.meta?.broadcastLevel as BroadcastLevel | undefined) ??
-    'minor'
-  const forceOnTv = custom
-    ? custom.forceOnTv !== false
-    : (override?.forceOnTv ?? template?.forceOnTv ?? event.meta?.forceOnTv === true)
-  const configuredMajor =
-    custom?.major ??
-    (override?.major === null
-      ? undefined
-      : (override?.major ??
-        template?.major ??
-        (typeof eventMajor === 'string' && isRecognizedBroadcastMajorKey(eventMajor)
-          ? eventMajor
-          : undefined)))
+  const level = isLogOnly
+    ? 'minor'
+    : (custom?.level ??
+      override?.level ??
+      template?.level ??
+      (event.meta?.broadcastLevel as BroadcastLevel | undefined) ??
+      'minor')
+  const forceOnTv =
+    override?.forceOnTv ??
+    (event.meta?.forceOnTv === true ||
+      (!isLogOnly && (custom ? custom.forceOnTv !== false : (template?.forceOnTv ?? false))))
+  const configuredMajor = isLogOnly
+    ? undefined
+    : (custom?.major ??
+      (override?.major === null
+        ? undefined
+        : (override?.major ??
+          template?.major ??
+          (typeof eventMajor === 'string' && isRecognizedBroadcastMajorKey(eventMajor)
+            ? eventMajor
+            : undefined))))
   const major =
     level === 'critical'
       ? (configuredMajor ?? 'custom_critical')
@@ -1381,39 +1397,74 @@ function pushEvent(
   const matched = matchBroadcastTemplate(text, hintedPhase, explicitTemplateId)
   const template = matched?.template
   const authoredTemplateId = typeof explicitTemplateId === 'string' ? explicitTemplateId : null
+  const customBroadcast =
+    typeof meta?.customBroadcastId === 'string'
+      ? state.customBroadcasts?.find((message) => message.id === meta.customBroadcastId)
+      : undefined
   const observed =
     template || authoredTemplateId ? null : inferObservedBroadcastSource(state, hintedPhase, text)
   const templateId = template?.id ?? authoredTemplateId ?? observed?.id
+  const editorialMode = (meta?.editorial as { presentationMode?: string } | undefined)
+    ?.presentationMode
+  const isAuthoredOrderedDelivery =
+    meta?.forceOnTv === true && typeof meta?.broadcastOrder === 'number'
+  const isAuthoredEditorialHandoff =
+    meta?.forceOnTv === true && (editorialMode === 'ambient' || editorialMode === 'foreground')
+  const isRuntimeNextDelivery = meta?.broadcastDelivery === 'next'
+  const isAuthoredStoryDelivery =
+    meta?.forceOnTv === true &&
+    (typeof meta?.nemesisStory === 'string' || typeof meta?.intelligenceFactId === 'string')
+  // A caller-supplied arbitrary major string is presentation data, not proof
+  // that a source is an authored broadcast. Preserve the explicit internal
+  // sources used by the story systems and editorial schedule, while requiring
+  // registered presentation keys for generic major/critical promotion.
   const isDeclaredSource = Boolean(
-    template || authoredTemplateId || meta?.customBroadcastId || typeof meta?.major === 'string'
+    template ||
+    authoredTemplateId ||
+    meta?.customBroadcastId ||
+    meta?.broadcastManaged === true ||
+    isAuthoredOrderedDelivery ||
+    isRuntimeNextDelivery ||
+    isAuthoredEditorialHandoff ||
+    isAuthoredStoryDelivery ||
+    (typeof meta?.major === 'string' && isRecognizedBroadcastMajorKey(meta.major))
   )
+  const isLogOnly = template?.editorial?.presentationMode === 'log_only'
   const variables = matched?.variables ?? observed?.variables ?? []
   const override = templateId ? state.broadcastOverrides?.[templateId] : undefined
   if (override?.disabled) return undefined
 
   const finalText = override?.text ? renderBroadcastTemplate(override.text, variables) : text
   const finalType = override?.type ?? type
-  const authoredLevel = meta?.broadcastLevel as BroadcastLevel | undefined
-  const defaultMajor = template?.major ?? (typeof meta?.major === 'string' ? meta.major : undefined)
-  const finalLevel =
-    override?.level ??
-    (isDeclaredSource
-      ? (template?.level ??
-        authoredLevel ??
-        (meta?.broadcastPriority === 'critical' ? 'critical' : defaultMajor ? 'major' : 'minor'))
-      : (authoredLevel ?? 'minor'))
+  const authoredLevel = isDeclaredSource
+    ? (meta?.broadcastLevel as BroadcastLevel | undefined)
+    : undefined
+  const defaultMajor =
+    template?.major ??
+    (isDeclaredSource && typeof meta?.major === 'string' ? meta.major : undefined)
+  const finalLevel = isLogOnly
+    ? 'minor'
+    : (override?.level ??
+      (isDeclaredSource
+        ? (template?.level ??
+          authoredLevel ??
+          (meta?.broadcastPriority === 'critical' ? 'critical' : defaultMajor ? 'major' : 'minor'))
+        : (authoredLevel ?? 'minor')))
   const selectedMajor = override?.major === null ? undefined : (override?.major ?? defaultMajor)
-  // `forceOnTv` is an explicit delivery instruction from the event producer.
-  // It must work for live/observed events too, not only catalogued templates:
-  // Broadcast Manager and season-start flows both rely on this to promote an
-  // otherwise ordinary log line onto the faux TV.
+  // `forceOnTv` is an explicit delivery instruction only for a declared
+  // broadcast source or a manager-owned event. An arbitrary log entry cannot
+  // promote itself into a shock card by attaching metadata to its payload.
   const forceOnTv =
-    meta?.forceOnTv === true ||
-    (override?.forceOnTv ?? (isDeclaredSource ? (template?.forceOnTv ?? true) : false))
+    override?.forceOnTv ??
+    (meta?.forceOnTv === false
+      ? false
+      : isDeclaredSource &&
+        (meta?.forceOnTv === true ||
+          (!isLogOnly && (customBroadcast?.forceOnTv ?? template?.forceOnTv ?? true))))
   const finalMajor =
-    finalLevel === 'critical'
+    !isLogOnly && finalLevel === 'critical'
       ? (selectedMajor ?? 'custom_critical')
-      : finalLevel === 'major'
+      : !isLogOnly && finalLevel === 'major'
         ? (selectedMajor ?? 'custom_major')
         : undefined
   // Cupid activation/dissociation can be triggered outside their catalogued
@@ -1451,7 +1502,8 @@ function pushEvent(
   const finalMeta: TvEvent['meta'] = {
     ...meta,
     phase: intendedPhase,
-    broadcastCampaign: template?.campaign ?? currentBroadcastCampaign(state),
+    broadcastCampaign:
+      template?.campaign ?? meta?.broadcastCampaign ?? currentBroadcastCampaign(state),
     ...(templateId ? { broadcastTemplateId: templateId } : {}),
     ...(observed ? { broadcastSourceText: observed.sourceText } : {}),
     broadcastVariables: variables,
@@ -4781,6 +4833,7 @@ function maybePushTwinShockClue(state: GameState) {
   state.twinShock = twinShock
   pushEvent(state, clue, 'social', {
     major: 'twin_shock_clue',
+    phase: 'social_1',
     // Foreshadowing stays visually subtle, but it must receive a real Faux-TV
     // turn instead of existing only in the activity log.
     broadcastLevel: 'minor',
@@ -5767,6 +5820,10 @@ const gameSlice = createSlice({
         ...(state.broadcastOverrides[action.payload.id] ?? {}),
         ...action.payload.changes,
       }
+      state.broadcastOverrides[action.payload.id] = constrainLogOnlyOverride(
+        action.payload.id,
+        state.broadcastOverrides[action.payload.id]
+      )
       state.tvFeed.forEach((event) => {
         const isLegacyVoxIntro =
           action.payload.id === 'season.vox-populi-intro' &&
@@ -5809,7 +5866,12 @@ const gameSlice = createSlice({
         customMessages: CustomBroadcastMessage[]
       }>
     ) {
-      state.broadcastOverrides = action.payload.overrides
+      state.broadcastOverrides = Object.fromEntries(
+        Object.entries(action.payload.overrides).map(([id, override]) => [
+          id,
+          constrainLogOnlyOverride(id, override),
+        ])
+      )
       state.customBroadcasts = action.payload.customMessages
       beginPhaseBroadcastSequence(state, state.phase)
       finishPhaseBroadcastSequence(state)
@@ -7553,7 +7615,11 @@ const gameSlice = createSlice({
         state,
         `${human.name} makes one final appeal to the audience before the vote closes.`,
         'social',
-        { major: 'vox_final_three_appeal', broadcastPriority: 'critical' }
+        {
+          major: 'vox_final_three_appeal',
+          broadcastPriority: 'critical',
+          finalThreePacingKey: 'public_decision',
+        }
       )
     },
 
@@ -7659,6 +7725,7 @@ const gameSlice = createSlice({
       }
       pushEvent(state, `The audience vote is closed. The result is final.`, 'vote', {
         major: 'vox_populi_public_vote_closed',
+        finalThreePacingKey: 'public_decision',
       })
     },
 
@@ -8712,7 +8779,7 @@ const gameSlice = createSlice({
         state,
         `⭐ THE PUBLIC DECIDES: Vote for your Public's Favorite Player! 🏆`,
         'twist',
-        { major: 'twist' }
+        { major: 'twist', broadcastLevel: 'minor', forceOnTv: false }
       )
       // Append a start event to game history
       if (!state.history) state.history = []
@@ -13150,6 +13217,7 @@ const gameSlice = createSlice({
 
       finishPhaseBroadcastSequence(state)
       state.phase = nextPhase
+      rebuildManagedBroadcastQueue(state, nextPhase)
       const wildcardOpportunity = state.wildcardOpportunity
       if (
         nextPhase === 'week_start' &&

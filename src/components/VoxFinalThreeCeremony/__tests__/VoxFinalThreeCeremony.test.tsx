@@ -479,12 +479,16 @@ describe('Vox Final Three continuous ceremony', () => {
       config.onDecision(receipt)
       config.onComplete(receipt)
     })
-    for (const key of ['vox_final_three_appeal', 'vox_populi_public_vote_closed']) {
-      expect(
-        store.getState().game.tvFeed.find((event) => event.meta?.major === key)?.meta
-          ?.broadcastConsumed
-      ).toBe(true)
-    }
+    const publicDecisionEvents = store
+      .getState()
+      .game.tvFeed.filter((event) => event.meta?.finalThreePacingKey === 'public_decision')
+    const thisWeekPublicDecisionEvents = publicDecisionEvents.filter(
+      (event) => event.meta?.week === store.getState().game.week
+    )
+    expect(thisWeekPublicDecisionEvents.length).toBeGreaterThanOrEqual(2)
+    expect(
+      thisWeekPublicDecisionEvents.every((event) => event.meta?.broadcastConsumed === true)
+    ).toBe(true)
     expect(
       store.getState().game.tvFeed.find((event) => event.id === 'other-broadcast')?.meta
         ?.broadcastConsumed

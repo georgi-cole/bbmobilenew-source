@@ -10,8 +10,8 @@
 
 - The core season uses local game logic and remains playable without the optional AI responder service.
 - If the premium Diary Room service is not configured or unavailable, the app uses deterministic local replies.
-- Location is optional and is used only to select an ambient weather/day-night visual theme. Denying location does not block play.
-- The codebase contains an ad bridge, but real advertising appears only if a native advertising SDK and bridge are included in the submitted binary. Confirm the final binary state before answering “Contains ads.”
+- Location is optional and is used only to select an ambient weather/day-night visual theme. The app rounds it to a 0.1° area and gets weather data from MET Norway through The Big Eye's Cloudflare proxy. Denying location does not block play.
+- The submitted native build includes Google AdMob and Google's User Messaging Platform. Advertising is available only after an adult enables it in **Settings → Player privacy & family** and Google consent permits requests. Requests use non-personalized ads. Google consent choices can be revisited from that screen. The store listing should declare that the app contains ads.
 
 ## Suggested review path
 

@@ -14,6 +14,14 @@
         <meta-data android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT" android:value="true" />
 
         <activity
+            android:name=".LauncherEntryActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity="${applicationId}.launcherentry"
+            android:theme="@style/AppTheme.NoActionBarLaunch" />
+
+        <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
@@ -26,7 +34,7 @@
 
         <activity-alias
             android:name=".StoryIconStage01"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".LauncherEntryActivity"
             android:enabled="true"
             android:exported="true"
             android:icon="@mipmap/story_icon_stage_01"
@@ -39,7 +47,7 @@
 
         <activity-alias
             android:name=".StoryIconStage02"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".LauncherEntryActivity"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/story_icon_stage_02"
@@ -52,7 +60,7 @@
 
         <activity-alias
             android:name=".StoryIconStage03"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".LauncherEntryActivity"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/story_icon_stage_03"
@@ -65,7 +73,7 @@
 
         <activity-alias
             android:name=".StoryIconStage04"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".LauncherEntryActivity"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/story_icon_stage_04"
@@ -78,7 +86,7 @@
 
         <activity-alias
             android:name=".StoryIconStage05"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".LauncherEntryActivity"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/story_icon_stage_05"
@@ -91,7 +99,7 @@
 
         <activity-alias
             android:name=".StoryIconStage06"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".LauncherEntryActivity"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/story_icon_stage_06"
@@ -104,7 +112,7 @@
 
         <activity-alias
             android:name=".StoryIconStage07"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".LauncherEntryActivity"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/story_icon_stage_07"
@@ -117,7 +125,7 @@
 
         <activity-alias
             android:name=".StoryIconStage08"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".LauncherEntryActivity"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/story_icon_stage_08"

@@ -158,11 +158,11 @@ export function useVoxFinalThreeCeremony(onResultsDone: () => void) {
           (event) =>
             event.meta?.week === currentGame.week &&
             event.meta?.broadcastConsumed !== true &&
-            (closed
-              ? ['vox_populi_public_vote_closed', 'vox_final_three_appeal'].includes(
+            (event.meta?.finalThreePacingKey === 'public_decision' ||
+              (closed &&
+                ['vox_populi_public_vote_closed', 'vox_final_three_appeal'].includes(
                   event.meta?.major ?? ''
-                )
-              : event.meta?.finalThreePacingKey === 'public_decision')
+                )))
         )
         .map((event) => event.id)
       if (ids.length) dispatch(consumeBroadcastEvents(ids))
