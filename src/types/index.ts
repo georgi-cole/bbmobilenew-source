@@ -1066,6 +1066,7 @@ export interface GameState {
     lohId: string
     holderId: string
     advice: 'use' | 'hold' | 'free'
+    targetId?: string
     source?: 'human_loh' | 'ai_ambush_pitch'
   } | null
   /**

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { configureStore } from '@reduxjs/toolkit'
 import { Provider } from 'react-redux'
 import { describe, expect, it } from 'vitest'
-import gameReducer, { setPhase } from '../../../store/gameSlice'
+import gameReducer, { createInitialGameState, setPhase } from '../../../store/gameSlice'
 import settingsReducer, { setGameUX } from '../../../store/settingsSlice'
 import socialReducer, {
   openIncomingInbox,
@@ -31,6 +31,13 @@ function makeStoreWithSocialMiddleware() {
   return configureStore({
     reducer: { game: gameReducer, social: socialReducer, settings: settingsReducer },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(socialMiddleware),
+  })
+}
+
+function makeInboxStoreForGame(game: ReturnType<typeof createInitialGameState>) {
+  return configureStore({
+    reducer: { game: gameReducer, social: socialReducer, settings: settingsReducer },
+    preloadedState: { game },
   })
 }
 
@@ -385,7 +392,7 @@ describe('IncomingInteractionsInbox', () => {
 
     renderInbox(store)
 
-    expect(screen.getByText('5 open conversations')).toBeInTheDocument()
+    expect(screen.getByText('4 open conversations · 1 house update')).toBeInTheDocument()
 
     const messagesSection = screen.getByLabelText('Messages')
     const messageItems = within(messagesSection).getAllByRole('listitem')
@@ -604,7 +611,7 @@ describe('IncomingInteractionsInbox', () => {
     )
 
     renderInbox(store)
-    fireEvent.click(screen.getByRole('button', { name: 'Try to repair it' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Accept their apology' }))
 
     const entry = store
       .getState()
@@ -613,7 +620,7 @@ describe('IncomingInteractionsInbox', () => {
       )
     expect(entry?.reactionText).toMatch(new RegExp(`^${otherPlayer.name} reacts:`))
     expect(entry?.reactionText).not.toContain('"')
-    expect(entry?.outcomeText).toMatch(/willing to reset|pause the feud/i)
+    expect(entry?.outcomeText).toMatch(/fixing this will take more than one good conversation/i)
     expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
     expect(screen.queryByText(entry!.outcomeText!)).not.toBeInTheDocument()
     const responseCard = screen.getByText(entry!.reactionText!).closest('.inbox-item__feedback')
@@ -779,6 +786,125 @@ describe('IncomingInteractionsInbox', () => {
       .social.incomingInteractions.find((interaction) => interaction.id === 'pact-follow-up')!
     expect(offer.resolved).toBe(true)
     expect(offer.outcomeText).toBe('You declined the personal pact offer. No pact was formed.')
+  })
+
+  it('records the chosen Safety nominee ID and goodwill even when two names match', () => {
+    const game = createInitialGameState()
+    game.phase = 'pos_results'
+    game.doubleEviction = { usedCount: 1, weekActive: true, pendingSecondEviction: null }
+    const human = game.players.find((player) => player.isUser)!
+    const [holder, first, second, third] = game.players.filter((player) => !player.isUser)
+    game.lohId = human.id
+    human.status = 'loh'
+    game.posWinnerId = holder.id
+    holder.status = 'pos'
+    first.name = second.name = 'Alex'
+    game.nomineeIds = [first.id, second.id, third.id]
+    const store = makeInboxStoreForGame(game)
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'three-nominee-consultation',
+        fromId: holder.id,
+        type: 'deal_offer',
+        text: 'Who would you prefer I save?',
+        payload: {
+          scenarioKey: 'safety_holder_consults_loh',
+          nomineeIds: game.nomineeIds,
+        },
+        createdWeek: game.week,
+        createdAt: 1,
+        expiresAtWeek: game.week + 1,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      })
+    )
+    store.dispatch(openIncomingInbox())
+    renderInbox(store)
+
+    expect(screen.getByRole('button', { name: 'Save ' + third.name })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save Alex (nominee 1)' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Save Alex (nominee 2)' }))
+
+    const { game: settledGame, social } = store.getState()
+    expect(settledGame.lohSafetyAdvice).toMatchObject({ advice: 'use', targetId: second.id })
+    expect(social.socialMemory[holder.id][human.id].trustMomentum).toBeGreaterThan(0)
+    expect(social.incomingInteractions[0]).toMatchObject({
+      resolvedChoiceId: 'safety-save:' + second.id,
+      receipt: { kind: 'gameplay' },
+    })
+    expect(screen.getByText(/now knows you prefer Safety used on Alex/i)).toBeInTheDocument()
+  })
+
+  it('discloses a nomination promise before binding it and keeps it visible in Normal mode', () => {
+    const game = createInitialGameState()
+    game.phase = 'loh_results'
+    const human = game.players.find((player) => player.isUser)!
+    const sender = game.players.find((player) => !player.isUser)!
+    game.lohId = human.id
+    human.status = 'loh'
+    const store = makeInboxStoreForGame(game)
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'explicit-nomination-promise',
+        fromId: sender.id,
+        type: 'deal_offer',
+        text: 'Will you keep me off the block?',
+        payload: { scenarioKey: 'hoh_safety_request', modeAtCreation: 'normal' },
+        createdWeek: game.week,
+        createdAt: 1,
+        expiresAtWeek: game.week + 1,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      })
+    )
+    store.dispatch(openIncomingInbox())
+    renderInbox(store)
+
+    const promise = screen.getByRole('button', { name: /promise to keep|give my word/i })
+    expect(promise).toHaveAccessibleDescription(
+      /promise to keep them off the block.*nominations lock/i
+    )
+    fireEvent.click(promise)
+    expect(store.getState().social.commitments).toEqual([
+      expect.objectContaining({ kind: 'protect_from_nomination', beneficiaryId: sender.id }),
+    ])
+    expect(screen.getByText('Promise active')).toBeInTheDocument()
+    expect(screen.getByText('Active promises · 1')).toBeInTheDocument()
+  })
+
+  it('shows a structured gameplay receipt beside an authored reaction', () => {
+    const store = makeStore()
+    const sender = getNonUserPlayer(store)
+    store.dispatch(openIncomingInbox())
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'structured-receipt',
+        fromId: sender.id,
+        type: 'deal_offer',
+        text: 'Should we recommend Kai?',
+        createdWeek: 1,
+        createdAt: 1,
+        expiresAtWeek: 2,
+        read: true,
+        requiresResponse: true,
+        resolved: true,
+        resolvedWeek: 1,
+        reactionText: 'I will treat Kai as our recommendation.',
+        outcomeText: 'You and Lia recorded Kai as an alliance recommendation.',
+        receipt: {
+          kind: 'gameplay',
+          text: 'You and Lia recorded Kai as an alliance recommendation.',
+        },
+      })
+    )
+    renderInbox(store)
+    fireEvent.click(screen.getByText('History · 1'))
+    expect(screen.getByText('I will treat Kai as our recommendation.')).toBeInTheDocument()
+    expect(
+      screen.getByText('You and Lia recorded Kai as an alliance recommendation.')
+    ).toBeInTheDocument()
   })
 
   it('keeps contextual choices compact with no permanent descriptions beneath them', () => {

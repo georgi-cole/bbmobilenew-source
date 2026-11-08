@@ -131,14 +131,18 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(store.social.scheduledIncomingInteractions).toEqual([])
   })
 
-  it('routes nominees to plea only when the player is HOH', () => {
+  it('routes an at-risk hubmate to a plea before the LOH locks nominations', () => {
     const context = buildContext({
       phase: 'nominations',
       lohId: 'user',
-      nomineeIds: ['nominee'],
+      nomineeIds: [],
+      relationships: { nominee: { user: { affinity: -60, tags: [] } } },
     })
 
     expect(chooseIncomingInteractionType('nominee', 'user', context)).toBe('nomination_plea')
+    expect(
+      chooseIncomingInteractionType('nominee', 'user', { ...context, nomineeIds: ['nominee'] })
+    ).not.toBe('nomination_plea')
   })
 
   it('lets a nominee react directly to the human LOH after nominations are revealed', () => {
@@ -859,10 +863,11 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     const context = buildContext({
       phase: 'nominations',
       lohId: 'user',
-      nomineeIds: ['nominee'],
+      nomineeIds: [],
+      relationships: { nominee: { user: { affinity: -60, tags: [] } } },
       players: [
         { id: 'user', name: 'Jordan', status: 'loh', isUser: true },
-        { id: 'nominee', name: 'Rae', status: 'nominated' },
+        { id: 'nominee', name: 'Rae', status: 'active' },
       ],
       random: () => 0,
     })

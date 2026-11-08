@@ -38,11 +38,13 @@ function repairSuspicion(
   state: StrategyState,
   entry: SocialActionLogEntry
 ): void {
-  if (!REPAIR_ACTIONS.has(entry.actionId) || entry.outcome !== 'success') return
+  if (!REPAIR_ACTIONS.has(entry.actionId)) return
 
   const targetIds = entry.targetIds?.length ? entry.targetIds : [entry.targetId]
   for (const targetId of [...new Set(targetIds)]) {
     if (!targetId || targetId === entry.actorId) continue
+    const reaction = entry.targetReactions?.[targetId]
+    if (reaction ? reaction !== 'ACCEPT' : entry.outcome !== 'success') continue
     const edge = state.social.reality?.relationships?.[targetId]?.[entry.actorId]
     if (!edge || ((edge.suspicion ?? 0) <= 4 && (edge.reliability ?? 0) >= 0)) continue
 

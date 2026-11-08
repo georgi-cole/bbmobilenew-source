@@ -8,6 +8,11 @@ import { isSafetyProtectionOffer } from '../protectionOffer'
 
 export type { RealityResponseKind, RealityResponseResolution } from './types'
 
+export interface RealityResponseRepetition {
+  initialChance: number
+  factor: number
+}
+
 export function resolveRealityTargetResponse(input: {
   action: RealityActionContract
   actorId: string
@@ -17,6 +22,7 @@ export function resolveRealityTargetResponse(input: {
     Partial<Pick<RealityContext, 'phase' | 'rolesByActor'>>
   draw: number
   acceptanceChanceOverride?: number
+  repetition?: RealityResponseRepetition
   /** The promisor's current plan contradicts the protection promise. */
   promiseContradicted?: boolean
 }): RealityResponseResolution {
@@ -65,7 +71,27 @@ export function resolveRealityTargetResponse(input: {
     }
   }
   let acceptance =
-    0.42 + trust / 260 + warmth / 360 + loyalty / 420 - suspicion / 250 - resentment / 300
+    (input.repetition?.initialChance ?? 0.42) +
+    trust / 260 +
+    warmth / 360 +
+    loyalty / 420 -
+    suspicion / 250 -
+    resentment / 300
+  if (input.repetition) {
+    const chance = Math.max(0.02, Math.min(0.98, acceptance) * input.repetition.factor)
+    if (input.draw < chance) {
+      return { kind: 'ACCEPT', utility: chance, reason: 'rapport_approach_landed', accepted: true }
+    }
+    return {
+      kind: input.draw > 0.96 ? 'QUESTION' : 'REJECT',
+      utility: chance - 0.5,
+      reason:
+        input.repetition.factor <= 0.025
+          ? 'repetition_felt_forced'
+          : 'social_approach_did_not_land',
+      accepted: false,
+    }
+  }
   if (input.action.id === 'protect') {
     const safetySave = isSafetyProtectionOffer({
       phase: input.context?.phase,

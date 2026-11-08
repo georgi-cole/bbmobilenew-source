@@ -1,6 +1,10 @@
 import { compareSocialClock } from './reality/clock'
-import { INCOMING_INTERACTION_PHASE_ORDER } from './incomingInteractionPhases'
-import type { IncomingInteraction, IncomingInteractionType } from './types'
+import { getIncomingInteractionValidityRule } from './incomingInteractionValidityBank'
+import type {
+  IncomingInteraction,
+  IncomingInteractionType,
+  ScheduledIncomingInteraction,
+} from './types'
 import type { RealityDeadline, RealityClock } from './reality'
 
 const LABELS: Record<string, string> = {
@@ -10,17 +14,11 @@ const LABELS: Record<string, string> = {
   nominations: 'nominations',
   nomination_results: 'the nomination ceremony',
   pos_results: 'the Safety result',
+  pos_ceremony: 'the Safety decision',
   pos_ceremony_results: 'the Safety ceremony',
   social_2: 'the final campaign window',
   live_vote: 'the live vote',
   eviction_results: 'eviction',
-}
-
-function phaseIndex(phase: string): number {
-  const index = INCOMING_INTERACTION_PHASE_ORDER.indexOf(
-    phase as (typeof INCOMING_INTERACTION_PHASE_ORDER)[number]
-  )
-  return index === -1 ? INCOMING_INTERACTION_PHASE_ORDER.length : index
 }
 
 export function compareIncomingClock(left: RealityClock, right: RealityClock): number {
@@ -38,7 +36,18 @@ export function deriveIncomingDeadline(input: {
   const authoredPhase =
     typeof input.payload?.deadlinePhase === 'string' ? input.payload.deadlinePhase : undefined
   const scenario = typeof input.payload?.scenarioKey === 'string' ? input.payload.scenarioKey : ''
-  let phase = authoredPhase
+  let phase =
+    authoredPhase ??
+    (
+      {
+        background_nominate_human: 'nomination_results',
+        nominee_hoh_plea: 'nomination_results',
+        hoh_safety_request: 'nomination_results',
+        nominee_veto_pitch: 'pos_ceremony_results',
+        loh_consults_safety_holder: 'pos_ceremony_results',
+        safety_holder_consults_loh: 'pos_ceremony',
+      } as Record<string, string>
+    )[scenario]
   if (!phase && scenario.includes('safety')) phase = 'pos_ceremony_results'
   if (!phase && (input.type === 'nomination_plea' || input.type === 'deal_offer')) {
     phase = 'live_vote'
@@ -46,7 +55,11 @@ export function deriveIncomingDeadline(input: {
   if (!phase && input.type === 'warning') phase = 'pos_ceremony_results'
   if (!phase && input.type === 'alliance_proposal') phase = 'social_2'
   if (!phase) phase = 'eviction_results'
-  const deadlineDay = phaseIndex(phase) < phaseIndex(input.phase) ? input.day + 1 : input.day
+  const deadline = { day: input.day, phase }
+  const deadlineDay =
+    compareIncomingClock(deadline, { day: input.day, phase: input.phase }) < 0
+      ? input.day + 1
+      : input.day
   return {
     day: deadlineDay,
     phase,
@@ -55,11 +68,37 @@ export function deriveIncomingDeadline(input: {
 }
 
 export function getIncomingDeadline(interaction: IncomingInteraction): RealityDeadline {
-  if (interaction.deadline) return interaction.deadline
-  return {
+  const deadline: RealityDeadline = interaction.deadline ?? {
     day: interaction.expiresAtWeek,
     phase: 'eviction_results',
     policy: 'AUTO_IGNORE',
+  }
+  const scenarioKey = interaction.payload?.scenarioKey
+  const decision =
+    typeof scenarioKey === 'string'
+      ? getIncomingInteractionValidityRule(scenarioKey)?.directDecision
+      : undefined
+  if (!decision || interaction.resolved) return deadline
+
+  const latest: RealityDeadline = {
+    day: interaction.createdDay ?? interaction.createdWeek,
+    phase: {
+      nomination: 'nomination_results',
+      replacement: 'pos_ceremony_results',
+      vote: 'live_vote',
+    }[decision],
+    policy: deadline.policy,
+  }
+  return compareIncomingClock(deadline, latest) > 0 ? latest : deadline
+}
+
+export function getScheduledIncomingInteractionClock(
+  entry: ScheduledIncomingInteraction,
+  fallback: RealityClock
+): RealityClock {
+  return {
+    day: entry.scheduledForDay ?? entry.scheduledForWeek ?? fallback.day,
+    phase: entry.scheduledForPhase ?? fallback.phase,
   }
 }
 

@@ -6,6 +6,7 @@ import {
   readAppState,
 } from '../support/test'
 import { openProfileCreationForm } from '../support/profile'
+import { replyToOptionalIncoming } from '../support/incomingSocial'
 import { CoverageLedger, objectivesForMode } from './coverage'
 import { SeasonAuditor } from './auditor'
 import { getModeAdapter } from './modeAdapters'
@@ -670,6 +671,7 @@ export async function runSeasonSimulation(
   const persona = getPersona(config.personaId)
   const adapter = getModeAdapter(config.mode)
   const exercisedSocialWindows = new Set<string>()
+  let exercisedIncoming = false
   const handledConfessionalWindows = new Set<string>()
   const attemptedPactTargets = new Set<string>()
 
@@ -800,6 +802,23 @@ export async function runSeasonSimulation(
       }
     }
     if (state.game.phase === 'social_1' || state.game.phase === 'social_2') {
+      if (!exercisedIncoming) {
+        const incoming = await replyToOptionalIncoming(page, state)
+        if (incoming) {
+          exercisedIncoming = true
+          await auditor.record(
+            'answer an incoming conversation',
+            'incoming-social',
+            undefined,
+            state
+          )
+          coverage.verify(
+            'incoming-social',
+            'Opened a delivered conversation and verified its reply.'
+          )
+          continue
+        }
+      }
       const socialWindowKey = `${day}:${state.game.phase}`
       if (!exercisedSocialWindows.has(socialWindowKey)) {
         await auditor.markProgress(`step-${step}:exercise-social`, state)

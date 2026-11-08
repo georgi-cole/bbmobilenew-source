@@ -1,6 +1,11 @@
 import { normalizeAffinity } from './affinityUtils'
 import { getDramaResponseBlueprint } from './incomingResponseBank'
 import { getContextualIncomingChoices } from './incomingInteractionResolution'
+import {
+  getSafetyConsultationNominees,
+  getSafetyConsultationScenario,
+  type IncomingSafetyChoice,
+} from './incomingSafetyConsultationChoice'
 import { socialConfig } from './socialConfig'
 import { getStoryBibleResponseSet } from './socialStoryBible'
 import {
@@ -30,6 +35,8 @@ export type IncomingInteractionTone =
   | 'Curious'
 
 export interface IncomingInteractionResponseOption {
+  id: string
+  safetyChoice?: IncomingSafetyChoice
   label: string
   responseType: IncomingInteractionResponseType
   style: IncomingInteractionResponseStyle
@@ -104,6 +111,8 @@ const RESPONSE_OPTIONS_BY_TYPE: Record<
 }
 
 type ResponseBlueprint = Array<{
+  id?: string
+  safetyChoice?: IncomingSafetyChoice
   label: string
   responseType: IncomingInteractionResponseType
   style?: IncomingInteractionResponseStyle
@@ -278,40 +287,52 @@ function getStableVariantIndex(
   return Math.abs(hash) % count
 }
 
-function getSafetyPlanBlueprint(interaction: IncomingInteraction): ResponseBlueprint | null {
-  const scenarioKey = interaction.payload?.scenarioKey
-  if (
-    scenarioKey !== 'safety_holder_consults_loh' &&
-    scenarioKey !== 'loh_consults_safety_holder'
-  ) {
-    return null
-  }
-  const rawNames = interaction.payload?.nomineeNames
-  const nomineeNames = Array.isArray(rawNames)
-    ? rawNames.filter((name): name is string => typeof name === 'string').slice(0, 2)
-    : []
-  const first = nomineeNames[0] ?? 'Nominee 1'
-  const second = nomineeNames[1] ?? 'Nominee 2'
+function getSafetyPlanBlueprint(
+  interaction: IncomingInteraction,
+  safetyContext?: SafetyNomineeContext
+): ResponseBlueprint | null {
+  const scenario = getSafetyConsultationScenario(interaction)
+  if (!scenario) return null
+  const nominees = getSafetyConsultationNominees(interaction, safetyContext)
+
   return [
-    { label: `Save ${first}`, responseType: 'accept' },
-    { label: `Save ${second}`, responseType: 'decline' },
-    { label: 'Save nobody', responseType: 'negative' },
+    ...nominees.map(({ id, name }, index) => ({
+      id: `safety-save:${id ?? index}`,
+      label:
+        nominees.filter((nominee) => nominee.name === name).length > 1
+          ? `Save ${name} (nominee ${index + 1})`
+          : `Save ${name}`,
+      responseType: 'neutral' as const,
+      safetyChoice: { kind: 'save' as const, targetId: id, targetName: name },
+    })),
     {
-      label: scenarioKey === 'loh_consults_safety_holder' ? 'Your advice?' : 'Your call',
+      id: 'safety-hold',
+      label: 'Save nobody',
       responseType: 'neutral',
+      safetyChoice: { kind: 'hold' },
+    },
+    {
+      id: scenario === 'loh_consults_safety_holder' ? 'safety-ask' : 'safety-delegate',
+      label: scenario === 'loh_consults_safety_holder' ? 'Your advice?' : 'Your call',
+      responseType: 'neutral',
+      safetyChoice:
+        scenario === 'loh_consults_safety_holder' ? { kind: 'ask_advice' } : { kind: 'delegate' },
     },
   ]
 }
+
+type SafetyNomineeContext = Parameters<typeof getSafetyConsultationNominees>[1]
 
 function getResponseBlueprints(
   type: IncomingInteractionType,
   interaction?: IncomingInteraction,
   tone?: IncomingInteractionTone,
-  dramaMode = false
+  dramaMode = false,
+  safetyContext?: SafetyNomineeContext
 ): ResponseBlueprint {
   if (!interaction) return RESPONSE_OPTIONS_BY_TYPE[type]
 
-  const safetyPlan = getSafetyPlanBlueprint(interaction)
+  const safetyPlan = getSafetyPlanBlueprint(interaction, safetyContext)
   if (safetyPlan) return safetyPlan
 
   // The scenario bank is the primary source for player choices in both modes.
@@ -426,12 +447,17 @@ export function getIncomingInteractionResponseOptions(
   type: IncomingInteractionType,
   interaction?: IncomingInteraction,
   tone?: IncomingInteractionTone,
-  dramaMode = false
+  dramaMode = false,
+  safetyContext?: SafetyNomineeContext
 ): IncomingInteractionResponseOption[] {
-  const options = getResponseBlueprints(type, interaction, tone, dramaMode)
+  const options = getResponseBlueprints(type, interaction, tone, dramaMode, safetyContext)
   const commitmentKind = interaction ? getCommitmentKindForInteraction(interaction) : null
-  return options.map((option) => ({
+  const isHoldSafetyRequest =
+    interaction?.payload?.originActionId === 'ask_hold_safety' &&
+    typeof interaction.payload.realityInteractionId === 'string'
+  return options.map((option, index) => ({
     ...option,
+    id: option.id ?? option.action ?? `reply:${index}:${option.responseType}`,
     style: option.style ?? getResponseStyle(option.responseType),
     ...(commitmentKind
       ? {
@@ -441,9 +467,16 @@ export function getIncomingInteractionResponseOptions(
           // button as a Safety request or an LOH plea.
           label: option.label,
         }
-      : {
-          description: getDefaultResponseDescription(option.responseType),
-        }),
+      : isHoldSafetyRequest && option.responseType === 'accept'
+        ? {
+            description: 'Promise to leave Safety unused. Checked when the Safety decision locks.',
+            createsCommitment: true,
+          }
+        : {
+            description: option.safetyChoice
+              ? 'Shares a preference without using Safety.'
+              : getDefaultResponseDescription(option.responseType),
+          }),
   }))
 }
 
@@ -476,8 +509,8 @@ export function orderIncomingInteractionResponseOptions(
   if (options.length < 2) return options
   const ordered = [...options].sort(
     (left, right) =>
-      responseOrderHash(`${interaction.id}:${left.label}`) -
-      responseOrderHash(`${interaction.id}:${right.label}`)
+      responseOrderHash(`${interaction.id}:${left.id}`) -
+      responseOrderHash(`${interaction.id}:${right.id}`)
   )
   const first = ordered[0]?.responseType
   const last = ordered[ordered.length - 1]?.responseType
@@ -510,7 +543,7 @@ function getCommitmentResponsePresentation(
             : 'Promise your vote'
     return {
       label,
-      description: `Creates a promise: ${getSocialCommitmentLabel(kind)}. ${getSocialCommitmentDueCopy(kind)}.`,
+      description: `Promise to ${getSocialCommitmentLabel(kind).toLowerCase()}. ${getSocialCommitmentDueCopy(kind)}.`,
       createsCommitment: true,
     }
   }

@@ -88,7 +88,9 @@ export const MISSION_POWER_LABELS: Record<MissionPowerType, string> = {
 export function isMissionPower(type: string): type is MissionPowerType {
   return (MISSION_POWER_TYPES as readonly string[]).includes(type)
 }
-export function activeMissionPlayers(game: GameState) {
+export function activeMissionPlayers<T extends { status: string }>(game: {
+  players: readonly T[]
+}) {
   return game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 }
 export function isTimedMissionPower(type: string): boolean {
@@ -205,14 +207,24 @@ export function createMissionPowerReward(
     ...(isTimedMissionPower(type) ? { activeFromDay: start, activeUntilDay: start + 1 } : {}),
   }
 }
-export function isMissionOpeningProtected(game: GameState, id: string): boolean {
+type MissionNominationProtectionState = Pick<GameState, 'week' | 'missionPowers'> & {
+  players: readonly { id: string; status: string; isUser?: boolean }[]
+}
+
+export function isMissionOpeningProtected(
+  game: MissionNominationProtectionState,
+  id: string
+): boolean {
   return (
     activeMissionPlayers(game).length > 4 &&
     game.players.some((p) => p.id === id && p.isUser) &&
     game.missionPowers?.openingShieldDay === game.week
   )
 }
-export function isMissionBackupProtected(game: GameState, id: string): boolean {
+export function isMissionBackupProtected(
+  game: MissionNominationProtectionState,
+  id: string
+): boolean {
   return (
     activeMissionPlayers(game).length > 4 &&
     game.players.some((p) => p.id === id && p.isUser) &&

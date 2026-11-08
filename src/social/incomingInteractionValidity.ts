@@ -1,4 +1,17 @@
-import { getIncomingInteractionValidityRule } from './incomingInteractionValidityBank'
+import { isMissionBackupProtected, isMissionOpeningProtected } from '../bb/missionPowers'
+import { isBellaHeirImmune } from '../features/twists/bellasWill'
+import { isSameCupidPair } from '../features/twists/cupidArrow'
+import { canPlayerTargetPlayer, getCanonicalVoterId } from '../store/criticalGameRules'
+import type { GameState } from '../types'
+import {
+  compareIncomingClock,
+  getScheduledIncomingInteractionClock,
+} from './incomingInteractionDeadline'
+import {
+  getIncomingInteractionValidityRule,
+  type IncomingInteractionValidityRule,
+} from './incomingInteractionValidityBank'
+import { isLohReplacementPending } from './lohReplacementWindow'
 import type { IncomingInteraction, ScheduledIncomingInteraction } from './types'
 import type { RealityDomainState } from './reality/types'
 import {
@@ -12,10 +25,33 @@ interface InteractionValidityPlayer {
   isUser?: boolean
 }
 
-export interface InteractionValidityGameState {
+export interface InteractionValidityGameState extends Partial<
+  Pick<
+    GameState,
+    | 'aiReplacementStep'
+    | 'awaitingHumanVote'
+    | 'awaitingMissionImmunityOffer'
+    | 'batteryLowVoteEffects'
+    | 'bellaWill'
+    | 'coLohNomineeByCoLohId'
+    | 'coLohReplacementOwnerId'
+    | 'lastHohCompFinisherId'
+    | 'missionPowers'
+    | 'povSavedId'
+    | 'publicModeEnabled'
+    | 'replacementNeeded'
+    | 'storeNominationProtections'
+    | 'twinShockResolution'
+  >
+> {
   phase?: string
   week?: number
+  mode?: string
   lohId?: string | null
+  coLohIds?: string[] | null
+  awaitingNominations?: boolean
+  awaitingCoLohNomination?: boolean
+  votes?: Record<string, string>
   posWinnerId?: string | null
   nomineeIds?: string[]
   tiedNomineeIds?: string[] | null
@@ -31,6 +67,15 @@ export interface InteractionValidityGameState {
   } | null
   awaitingPovDecision?: boolean
   awaitingPovSaveTarget?: boolean
+  specialVeto?: {
+    activeType?: string | null
+    awaitingHolderReplacement?: boolean
+    awaitingCoupReplacement1?: boolean
+    awaitingCoupReplacement2?: boolean
+    coupReplacement1Id?: string | null
+    awaitingVipSecondUseDecision?: boolean
+    awaitingVipSecondSaveTarget?: boolean
+  }
   voxPopuliActive?: boolean
   voxPopuli?: { status?: string } | null
   povProtectedIds?: string[]
@@ -69,21 +114,30 @@ const NOMINATION_BLOCK_BOUND_SCENARIOS = new Set([
   'post_veto_campaign',
   'live_vote_pitch',
   'alliance_vote_pitch',
+  'safety_holder_consults_loh',
+  'loh_consults_safety_holder',
+  'safety_plan_inquiry',
+  'safety_hold_request',
 ])
 
 function violatesNominationBlockContext(
   interaction: IncomingInteraction,
-  game: InteractionValidityGameState
+  game: InteractionValidityGameState,
+  linkedNomineeIds?: readonly string[]
 ): boolean {
   const scenarioKey = getScenarioKey(interaction)
   if (!scenarioKey) return false
-  const snapshot = interaction.payload?.nominationBlockIds ?? interaction.payload?.nomineeIds
+  const directVote = getIncomingInteractionValidityRule(scenarioKey)?.directDecision === 'vote'
+  const snapshot =
+    interaction.payload?.nominationBlockIds ??
+    interaction.payload?.nomineeIds ??
+    (directVote ? linkedNomineeIds : undefined)
   const changed =
     Array.isArray(snapshot) &&
     snapshot.every((id): id is string => typeof id === 'string') &&
     (snapshot.length !== (game.nomineeIds ?? []).length ||
       snapshot.some((id) => !(game.nomineeIds ?? []).includes(id)))
-  if (NOMINATION_BLOCK_BOUND_SCENARIOS.has(scenarioKey) && changed) return true
+  if ((directVote || NOMINATION_BLOCK_BOUND_SCENARIOS.has(scenarioKey)) && changed) return true
   if (scenarioKey === 'alliance_vote_pitch') {
     const subjectId = interaction.payload?.subjectId
     return typeof subjectId !== 'string' || !(game.nomineeIds ?? []).includes(subjectId)
@@ -237,8 +291,18 @@ function isNominee(game: InteractionValidityGameState, playerId: string): boolea
   return (game.nomineeIds ?? []).includes(playerId)
 }
 
+function sharesOffice(
+  game: InteractionValidityGameState,
+  officeHolderId: string | null,
+  playerId: string
+): boolean {
+  return officeHolderId === playerId || isSameCupidPair(game, officeHolderId, playerId)
+}
+
 function isCurrentLoh(game: InteractionValidityGameState, playerId: string): boolean {
-  if (game.lohId !== undefined) return game.lohId === playerId
+  if (game.voxPopuliActive || game.voxPopuli?.status === 'active') return false
+  if (game.coLohIds?.length) return game.coLohIds.includes(playerId)
+  if (game.lohId !== undefined) return sharesOffice(game, game.lohId, playerId)
   return getPlayer(game, playerId)?.status.includes('loh') === true
 }
 
@@ -256,7 +320,8 @@ function isEligibleVoter(game: InteractionValidityGameState, playerId: string): 
 
 function holdsSafety(game: InteractionValidityGameState, playerId: string): boolean {
   const player = getPlayer(game, playerId)
-  return game.posWinnerId === playerId || player?.status.includes('pos') === true
+  if (game.posWinnerId !== undefined) return sharesOffice(game, game.posWinnerId, playerId)
+  return player?.status.includes('pos') === true
 }
 
 function humanPlayer(game: InteractionValidityGameState): InteractionValidityPlayer | null {
@@ -272,7 +337,184 @@ function isHumanHoh(game: InteractionValidityGameState): boolean {
 function isHumanVetoActionable(game: InteractionValidityGameState): boolean {
   const human = humanPlayer(game)
   if (!human || !holdsSafety(game, human.id)) return false
-  return Boolean(game.awaitingPovDecision || game.awaitingPovSaveTarget)
+  if (game.awaitingPovDecision || game.awaitingPovSaveTarget) return true
+  return (
+    (game.phase === 'pos_results' || game.phase === 'pos_ceremony') &&
+    (game.nomineeIds?.length ?? 0) > 0 &&
+    !isNominee(game, human.id)
+  )
+}
+
+export function isIncomingInteractionPhaseAllowed(
+  interaction: IncomingInteraction,
+  phase: string
+): boolean {
+  const rule = getIncomingInteractionValidityRule(getScenarioKey(interaction))
+  return (
+    (!rule?.allowedPhases || rule.allowedPhases.includes(phase)) &&
+    !rule?.invalidPhases?.includes(phase)
+  )
+}
+
+function isNominationSetup(game: InteractionValidityGameState): boolean {
+  return (
+    ['loh_results', 'social_1', 'nominations'].includes(game.phase ?? '') ||
+    (game.phase === 'nomination_results' &&
+      (game.awaitingNominations === true || game.awaitingCoLohNomination === true))
+  )
+}
+
+function isSafetyChoicePending(game: InteractionValidityGameState): boolean {
+  const power = game.specialVeto
+  return Boolean(
+    game.awaitingPovDecision ||
+    game.awaitingPovSaveTarget ||
+    game.awaitingMissionImmunityOffer ||
+    game.missionPowers?.safetyIntent ||
+    power?.awaitingHolderReplacement ||
+    power?.awaitingCoupReplacement1 ||
+    power?.awaitingCoupReplacement2 ||
+    power?.awaitingVipSecondUseDecision ||
+    power?.awaitingVipSecondSaveTarget
+  )
+}
+
+function safetyHolderNamesReplacement(game: InteractionValidityGameState): boolean {
+  return game.specialVeto?.activeType === 'diamond' || game.specialVeto?.activeType === 'coup'
+}
+
+function canDiscussReplacement(game: InteractionValidityGameState, humanId: string): boolean {
+  if (isNominationSetup(game)) return false
+  if (game.phase === 'pos_ceremony_results') {
+    if (game.missionPowers?.decision?.kind === 'backupTarget') return true
+    if (isLohReplacementPending(game)) {
+      return game.coLohReplacementOwnerId
+        ? sharesOffice(game, game.coLohReplacementOwnerId, humanId)
+        : isCurrentLoh(game, humanId)
+    }
+    if (!isSafetyChoicePending(game)) return false
+  } else if (!game.nomineeIds?.length) {
+    return false
+  }
+  const holdsPower = holdsSafety(game, humanId)
+  return holdsPower || (!safetyHolderNamesReplacement(game) && isCurrentLoh(game, humanId))
+}
+
+function isDirectDecisionTargetEligible(
+  interaction: IncomingInteraction,
+  game: InteractionValidityGameState,
+  humanId: string,
+  decision: NonNullable<IncomingInteractionValidityRule['directDecision']>
+): boolean {
+  const subjectId = interaction.payload?.subjectId
+  if (
+    typeof subjectId !== 'string' ||
+    subjectId === humanId ||
+    subjectId === interaction.fromId ||
+    !arePlayersEligibleForCurrentUse([subjectId], game.players ?? [])
+  ) {
+    return false
+  }
+  if (decision === 'vote')
+    return isNominee(game, subjectId) && canPlayerTargetPlayer(game, humanId, subjectId)
+
+  const holderChooses = decision === 'replacement' && safetyHolderNamesReplacement(game)
+  const canNominateLoh = holderChooses && game.specialVeto?.activeType === 'coup'
+  const chooserId =
+    decision === 'nomination'
+      ? ((game.coLohIds?.includes(humanId) ? humanId : game.lohId) ?? humanId)
+      : holderChooses
+        ? game.posWinnerId
+        : (game.coLohReplacementOwnerId ?? game.lohId)
+  if (
+    (!canNominateLoh && isCurrentLoh(game, subjectId)) ||
+    (decision === 'replacement' && holdsSafety(game, subjectId)) ||
+    !canPlayerTargetPlayer(game, chooserId, subjectId)
+  ) {
+    return false
+  }
+  const week = game.week ?? interaction.createdDay ?? interaction.createdWeek
+  const protectionState = { ...game, week, players: game.players ?? [] }
+  const blockedIds = [
+    ...(game.nomineeIds ?? []),
+    ...(game.povProtectedIds ?? []),
+    ...(game.storeNominationProtections ?? [])
+      .filter((protection) => protection.week === week)
+      .map((protection) => protection.targetId),
+  ]
+  if (game.povSavedId) blockedIds.push(game.povSavedId)
+  if (canNominateLoh && game.specialVeto?.coupReplacement1Id) {
+    blockedIds.push(game.specialVeto.coupReplacement1Id)
+  }
+  if (
+    decision === 'nomination' &&
+    game.publicModeEnabled &&
+    !game.doubleEviction?.weekActive &&
+    game.lastHohCompFinisherId
+  ) {
+    blockedIds.push(game.lastHohCompFinisherId)
+  }
+  return (
+    !blockedIds.some((id) => sharesOffice(game, id, subjectId)) &&
+    !isBellaHeirImmune(protectionState, subjectId) &&
+    !(decision === 'nomination'
+      ? isMissionOpeningProtected(protectionState, subjectId)
+      : isMissionBackupProtected(protectionState, subjectId))
+  )
+}
+
+function isDirectDecisionAvailable(
+  interaction: IncomingInteraction,
+  game: InteractionValidityGameState,
+  rule: IncomingInteractionValidityRule,
+  decision: NonNullable<IncomingInteractionValidityRule['directDecision']>
+): boolean {
+  const human = humanPlayer(game)
+  if (
+    !human ||
+    !getPlayer(game, interaction.fromId) ||
+    game.voxPopuliActive ||
+    game.voxPopuli?.status === 'active' ||
+    game.weekendInterlude?.active ||
+    (game.week !== undefined && game.week !== (interaction.createdDay ?? interaction.createdWeek))
+  ) {
+    return false
+  }
+  if (decision === 'nomination') {
+    const chooserId = rule.senderMustBeHoh ? interaction.fromId : human.id
+    if (!isNominationSetup(game) || game.coLohNomineeByCoLohId?.[chooserId]) return false
+  }
+  if (decision === 'replacement' && !canDiscussReplacement(game, human.id)) return false
+  if (decision === 'vote') {
+    if (
+      !game.nomineeIds?.length ||
+      isSafetyChoicePending(game) ||
+      game.replacementNeeded ||
+      (game.aiReplacementStep ?? 0) > 0 ||
+      game.missionPowers?.decision?.kind === 'backupTarget'
+    ) {
+      return false
+    }
+    if (rule.humanMustBeEligibleVoter) {
+      const hasVoteBlackout =
+        game.cupidArrow?.status !== 'active' &&
+        !game.doubleEviction?.weekActive &&
+        game.batteryLowVoteEffects?.[human.id]?.type === 'skipVote'
+      const hasLockedBallot =
+        game.phase === 'live_vote' &&
+        (game.awaitingHumanVote === false ||
+          Object.keys(game.votes ?? {}).some((key) =>
+            sharesOffice(game, getCanonicalVoterId(key), human.id)
+          ))
+      if (hasVoteBlackout || hasLockedBallot) return false
+    } else if (!canPlayerTargetPlayer(game, interaction.fromId, human.id)) {
+      return false
+    }
+  }
+  return (
+    !rule.requiresDecisionTarget ||
+    isDirectDecisionTargetEligible(interaction, game, human.id, decision)
+  )
 }
 
 function violatesDeclarativeRule(
@@ -297,8 +539,14 @@ function violatesDeclarativeRule(
   if (senderIsRoleBound && !getPlayer(game, interaction.fromId)) return true
 
   const phase = game.phase ?? ''
-  if (rule.allowedPhases && !rule.allowedPhases.includes(phase)) return true
-  if (rule.invalidPhases?.includes(phase)) return true
+  if (!isIncomingInteractionPhaseAllowed(interaction, phase)) return true
+  if (
+    rule.directDecision &&
+    !isDirectDecisionAvailable(interaction, game, rule, rule.directDecision)
+  )
+    return true
+  if (rule.nominationWindow === 'setup' && !isNominationSetup(game)) return true
+  if (rule.nominationWindow === 'aftermath' && isNominationSetup(game)) return true
 
   if (
     rule.senderMustBeNominee !== undefined &&
@@ -313,13 +561,10 @@ function violatesDeclarativeRule(
   ) {
     return true
   }
-  if (rule.senderMustBeHoh) {
-    const sender = getPlayer(game, interaction.fromId)
-    if (game.lohId !== interaction.fromId && sender?.status.includes('loh') !== true) return true
-  }
+  if (rule.senderMustBeHoh && !isCurrentLoh(game, interaction.fromId)) return true
   if (rule.senderMustHoldSafety && !holdsSafety(game, interaction.fromId)) return true
   if (rule.senderMustBeEligibleVoter && !isEligibleVoter(game, interaction.fromId)) return true
-  if (rule.humanMustBeHoh && !isHumanHoh(game)) return true
+  if (rule.humanMustBeHoh !== undefined && isHumanHoh(game) !== rule.humanMustBeHoh) return true
   if (rule.humanMustHoldSafety && !isHumanVetoActionable(game)) return true
   if (rule.humanMustBeOffBlock) {
     const human = humanPlayer(game)
@@ -331,7 +576,7 @@ function violatesDeclarativeRule(
   }
   if (rule.humanMustBeEligibleVoter) {
     const human = humanPlayer(game)
-    if (!human || !isEligibleVoter(game, human.id)) return true
+    if (!human || !isEligibleVoter(game, human.id) || game.votes?.[human.id]) return true
   }
   if (rule.humanMustBreakTie) {
     const human = humanPlayer(game)
@@ -363,10 +608,22 @@ export function isIncomingInteractionInvalidated(
   game: InteractionValidityGameState,
   reality?: RealityDomainState
 ): boolean {
+  if (game.mode === 'survival') return true
   const sender = getPlayer(game, interaction.fromId)
   const human = humanPlayer(game)
   const activePlayers = (game.players ?? []).filter((player) => !isEvictedOrGone(player))
   const temporaryReunionGuest = isFinaleReunionGuestMessage(interaction, game, sender)
+  const linkedId = interaction.payload?.realityInteractionId
+  const linked = typeof linkedId === 'string' ? reality?.interactions[linkedId] : undefined
+  if (typeof linkedId === 'string' && reality) {
+    if (
+      linked?.status !== 'AWAITING_HUMAN' ||
+      linked.actorId !== interaction.fromId ||
+      (human && !linked.targetIds.includes(human.id)) ||
+      !arePlayersEligibleForCurrentUse(linked.targetIds, game.players ?? [])
+    )
+      return true
+  }
   // Production interactions always have a roster sender, but scheduler tests
   // and migrated saves can contain legacy/unknown IDs. Do not discard those
   // solely because the current roster cannot resolve the sender. Role-bound
@@ -398,10 +655,43 @@ export function isIncomingInteractionInvalidated(
 
   return (
     violatesDeclarativeRule(interaction, game) ||
-    violatesNominationBlockContext(interaction, game) ||
+    violatesNominationBlockContext(interaction, game, linked?.contextSnapshot?.atRiskActorIds) ||
     violatesLohNominationPlanContext(interaction, game) ||
     violatesRealityAllianceContext(interaction, game, reality)
   )
+}
+
+export function isScheduledIncomingInteractionInvalidated(
+  entry: ScheduledIncomingInteraction,
+  game: InteractionValidityGameState,
+  reality?: RealityDomainState
+): boolean {
+  const at = {
+    day: game.week ?? entry.interaction.createdWeek,
+    phase: game.phase ?? entry.interaction.createdPhase ?? 'week_start',
+  }
+  const scheduled = getScheduledIncomingInteractionClock(entry, at)
+  const awaitingDelivery = compareIncomingClock(at, scheduled) < 0
+  if (
+    awaitingDelivery &&
+    getIncomingInteractionValidityRule(getScenarioKey(entry.interaction))?.directDecision
+  ) {
+    // A future slot needs a suitable phase. Power holders, ballots and open
+    // decisions are checked against today's state now and again on delivery.
+    return (
+      scheduled.day !== at.day ||
+      !isIncomingInteractionPhaseAllowed(entry.interaction, scheduled.phase) ||
+      isIncomingInteractionInvalidated(entry.interaction, game, reality)
+    )
+  }
+  const validationGame = awaitingDelivery
+    ? {
+        ...game,
+        phase: scheduled.phase,
+        awaitingNominations: game.awaitingNominations || isNominationSetup(game),
+      }
+    : game
+  return isIncomingInteractionInvalidated(entry.interaction, validationGame, reality)
 }
 
 export function collectInvalidIncomingInteractionIds({
@@ -424,7 +714,7 @@ export function collectInvalidIncomingInteractionIds({
   }
 
   for (const entry of scheduledIncomingInteractions) {
-    if (isIncomingInteractionInvalidated(entry.interaction, game, reality)) {
+    if (isScheduledIncomingInteractionInvalidated(entry, game, reality)) {
       ids.add(entry.interaction.id)
     }
   }

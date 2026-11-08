@@ -45,6 +45,16 @@ export const SURVIVOR_SOCIAL_BLOCKED_MESSAGES = [
   'The AI players are in standby mode for the next challenge. Nobody seems to react to your social attempts.',
 ] as const
 
+export function isWeekendSocialAvailable(weekend: GameLike['weekendInterlude']): boolean {
+  if (!weekend?.active || weekend.stage === 'social') return true
+  return (
+    weekend.finaleWeekend === true &&
+    (weekend.stage === 'tribunal_invitation' ||
+      weekend.stage === 'tribunal_glimpse' ||
+      weekend.stage === 'finale_reunion_social')
+  )
+}
+
 function pickSurvivorSocialBlockedMessage(): string {
   const index = Math.floor(Math.random() * SURVIVOR_SOCIAL_BLOCKED_MESSAGES.length)
   return SURVIVOR_SOCIAL_BLOCKED_MESSAGES[index]
@@ -90,16 +100,7 @@ export function getSocialModuleAvailability(
     }
   }
 
-  const finaleTribunalPeekOpen =
-    game.weekendInterlude?.finaleWeekend === true &&
-    (game.weekendInterlude.stage === 'tribunal_invitation' ||
-      game.weekendInterlude.stage === 'tribunal_glimpse' ||
-      game.weekendInterlude.stage === 'finale_reunion_social')
-  if (
-    game.weekendInterlude?.active &&
-    game.weekendInterlude.stage !== 'social' &&
-    !finaleTribunalPeekOpen
-  ) {
+  if (!isWeekendSocialAvailable(game.weekendInterlude)) {
     return {
       canOpen: false,
       reason: 'The weekend Faux TV moment is still playing.',
