@@ -62,8 +62,8 @@ describe('safe-area layout styles', () => {
     )
     expect(bottomNavCss).toContain('padding-bottom: var(--safe-bottom);')
     expect(bottomNavCss).not.toContain('env(safe-area-inset-bottom')
-    expect(dockCss).toContain('.game-control-dock { position: absolute;')
     const dockBase = dockCss.match(/\.game-control-dock \{([^}]+)\}/)?.[1] ?? ''
+    expect(dockBase).toContain('position: absolute;')
     expect(dockBase).toContain(
       'bottom: calc( var(--game-safe-bottom, var(--safe-bottom, env(safe-area-inset-bottom, 0px))) + var(--game-action-dock-gap, 8px) );'
     )
@@ -142,23 +142,21 @@ describe('safe-area layout styles', () => {
     expect(homeHubTsx).toContain('className="homehub-remote-overlay"')
     expect(bgIndex).toBeGreaterThan(frameIndex)
     expect(assetLayerIndex).toBeGreaterThan(bgIndex)
+    expect(homeHubCss).toContain('.homehub-shell { position: relative; height: 100%;')
     expect(homeHubCss).toContain(
-      '.homehub-shell { position: relative; min-height: 100vh; min-height: 100dvh;'
+      '.app-shell__main:has(> .homehub-shell) { padding-top: 0; overflow: clip;'
     )
     expect(homeHubCss).toContain(
-      'min-height: calc(100% + var(--app-safe-area-top, 0px) + var(--safe-bottom, 0px));'
-    )
-    expect(homeHubCss).toContain('margin-top: calc(-1 * var(--app-safe-area-top, 0px));')
-    expect(homeHubCss).toContain('margin-bottom: calc(-1 * var(--safe-bottom, 0px));')
-    expect(homeHubCss).toContain(
-      '.homehub-frame { position: relative; width: min(100vw, 480px); height: 100vh; height: 100dvh;'
+      '.homehub-frame { position: relative; width: min(100%, 480px); height: 100%;'
     )
     expect(homeHubCss).toContain(
       'padding-top: var(--app-safe-area-top, env(safe-area-inset-top, 0px));'
     )
     expect(homeHubCss).toContain('padding-bottom: var(--safe-bottom);')
     expect(homeHubCss).toContain('.homehub-intro-bg { position: absolute; inset: 0;')
-    expect(homeHubCss).not.toMatch(/\.homehub-(?:shell|frame)\s*\{[^}]*overflow-y:\s*auto/)
+    expect(homeHubCss).not.toMatch(
+      /\.home(?:hub-shell|hub-frame|-hub__buttons)\s*\{[^}]*overflow-y:\s*auto/
+    )
   })
 
   it('uses immersive gameplay status chrome with CSS-owned safe-area fallback', () => {

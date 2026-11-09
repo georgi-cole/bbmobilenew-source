@@ -36,10 +36,21 @@ function consoleError(message: ConsoleMessage): BrowserError | null {
 
 async function installUnhandledRejectionReporter(
   page: Page,
-  newSeasonFixture = E2E_NEW_SEASON_FIXTURE
+  newSeasonFixture: typeof E2E_NEW_SEASON_FIXTURE,
+  showWeatherPrompt: boolean
 ): Promise<void> {
   await page.addInitScript(
-    ({ newSeasonFixture, skipUnloadAutosave }) => {
+    ({ newSeasonFixture, skipUnloadAutosave, showWeatherPrompt }) => {
+      if (!showWeatherPrompt) {
+        try {
+          if (localStorage.getItem('bb:allowLocation') == null) {
+            localStorage.setItem('bb:allowLocation', 'denied')
+          }
+        } catch {
+          // Sandboxed frames can run init scripts without exposing local storage.
+        }
+      }
+
       Object.defineProperty(window, '__E2E__', {
         configurable: false,
         enumerable: false,
@@ -91,6 +102,7 @@ async function installUnhandledRejectionReporter(
     },
     {
       newSeasonFixture,
+      showWeatherPrompt,
       skipUnloadAutosave: process.env.SEASON_SIM_SKIP_UNLOAD_AUTOSAVE === '1',
     }
   )
@@ -281,9 +293,13 @@ export async function dismissPermissionPromptIfPresent(page: Page): Promise<void
   await expect(permissionPrompt).toBeHidden()
 }
 
-export const test = base.extend<{ browserErrors: BrowserErrorCollector }>({
+export const test = base.extend<{
+  browserErrors: BrowserErrorCollector
+  showWeatherPrompt: boolean
+}>({
+  showWeatherPrompt: [false, { option: true }],
   browserErrors: [
-    async ({ page }, use, testInfo) => {
+    async ({ page, showWeatherPrompt }, use, testInfo) => {
       const errors: BrowserError[] = []
       const onConsole = (message: ConsoleMessage) => {
         const error = consoleError(message)
@@ -324,7 +340,8 @@ export const test = base.extend<{ browserErrors: BrowserErrorCollector }>({
         page,
         repeatedSeeds
           ? { rosterSeed: repeatedSeeds.roster, seasonSeed: repeatedSeeds.season }
-          : E2E_NEW_SEASON_FIXTURE
+          : E2E_NEW_SEASON_FIXTURE,
+        showWeatherPrompt
       )
 
       await use({ errors })

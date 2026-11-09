@@ -1,10 +1,16 @@
 /* EditProfile */
 
+.app-shell__main:has(> .edit-profile) {
+  /* Keep the scrollport itself below the status bar, even mid-scroll. */
+  margin-top: var(--app-safe-area-top);
+  padding-top: 0;
+  overscroll-behavior: none;
+}
+
 .edit-profile {
   padding: 16px;
   max-width: 480px;
   margin: 0 auto;
-  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
   min-height: 100%;
   background:
     radial-gradient(ellipse at 50% 5%, rgba(112, 72, 156, 0.1), transparent 42%),
@@ -113,7 +119,7 @@
   position: sticky;
   bottom: 0;
   z-index: 5;
-  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 12px 0 max(12px, var(--safe-bottom, 0px));
   background: linear-gradient(180deg, rgba(9, 6, 17, 0), #090611 24%);
 }
 

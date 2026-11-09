@@ -1,4 +1,9 @@
 /* AppShell */
+html:has(.app-shell),
+body:has(.app-shell) {
+  overflow: hidden;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;

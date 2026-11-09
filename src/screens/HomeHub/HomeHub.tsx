@@ -60,6 +60,7 @@ import HousematesBioCinematic from '../../components/HousematesBioCinematic/Hous
 import StoreProductIcon from '../../components/StoreProductModal/StoreProductIcon'
 import { MYSTERY_WILDCARD_BIOS } from '../../components/HousematesBioCinematic/housematesBioData'
 import useHomeHubAssets from '../../hooks/useHomeHubAssets'
+import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import useIntroHubBackground from '../../hooks/useIntroHubBackground'
 import { preloadImage } from '../../utils/preload'
 import { getHolidayTheme } from '../../utils/backgroundTheme'
@@ -152,15 +153,12 @@ interface PlaySelectionButton {
 
 interface HomeHubAssetLayerProps {
   splashDone: boolean
+  menuVisible: boolean
   backgroundReady: boolean
-  showWeatherPermissionRationale: boolean
-  weatherPermissionBusy: boolean
   holidayTheme: ReturnType<typeof getHolidayTheme>
   playSelectionOpen: boolean
   playSelectionButtons: PlaySelectionButton[]
   onPlay: () => void
-  onRequestWeatherPermission: () => void
-  onDeferWeatherPermission: () => void
   onOpenHousemates: () => void
   onNavigate: NavigateFunction
   onAssetStateChange: (state: HubAssetState) => void
@@ -168,15 +166,12 @@ interface HomeHubAssetLayerProps {
 
 function HomeHubAssetLayer({
   splashDone,
+  menuVisible,
   backgroundReady,
-  showWeatherPermissionRationale,
-  weatherPermissionBusy,
   holidayTheme,
   playSelectionOpen,
   playSelectionButtons,
   onPlay,
-  onRequestWeatherPermission,
-  onDeferWeatherPermission,
   onOpenHousemates,
   onNavigate,
   onAssetStateChange,
@@ -202,36 +197,7 @@ function HomeHubAssetLayer({
     <>
       <div className="homehub-content home-hub">
         <div className="home-hub__hero" aria-hidden="true" />
-        {splashDone && assetReady && showWeatherPermissionRationale && (
-          <section
-            className="home-hub__weather-permission-note"
-            role="group"
-            aria-label="Local weather permission"
-          >
-            <p>
-              Allow approximate location to match the Home Hub to local weather. The app rounds your
-              location to an about 11 km area and uses MET Norway data through The Big Eye's weather
-              proxy only for the background.
-            </p>
-            <div className="home-hub__weather-permission-actions">
-              <button
-                type="button"
-                disabled={weatherPermissionBusy}
-                onClick={onRequestWeatherPermission}
-              >
-                {weatherPermissionBusy ? 'Checking location…' : 'Enable local weather'}
-              </button>
-              <button
-                type="button"
-                disabled={weatherPermissionBusy}
-                onClick={onDeferWeatherPermission}
-              >
-                Not now
-              </button>
-            </div>
-          </section>
-        )}
-        {splashDone && assetReady && (
+        {menuVisible && (
           <nav
             className="home-hub__buttons"
             aria-label={playSelectionOpen ? 'Play menu' : 'Main menu'}
@@ -422,8 +388,9 @@ export default function HomeHub() {
     status: 'Opening the house doors.',
   })
   const splashDone = splashExitRequested && hubAssetState.ready
-  const [showWeatherPermissionRationale, setShowWeatherPermissionRationale] = useState(false)
+  const [weatherPermissionOpen, setWeatherPermissionOpen] = useState(false)
   const [weatherPermissionBusy, setWeatherPermissionBusy] = useState(false)
+  const menuVisible = splashDone && !weatherPermissionOpen
   const [preloading, setPreloading] = useState(autoStartGame)
   const shouldRestorePlayMenu = new URLSearchParams(location.search).get('menu') === 'play'
   const [playSelectionOpen, setPlaySelectionOpen] = useState(shouldRestorePlayMenu)
@@ -434,20 +401,6 @@ export default function HomeHub() {
   const survivorRulesDismissed = hasSeenSurvivorRules(activeProfileId)
   const gameRoute = '/game'
 
-  useEffect(() => {
-    if (!splashDone || !shouldShowWeatherPermissionRationale()) return undefined
-
-    let cancelled = false
-    const rationaleTimer = window.setTimeout(() => {
-      if (!cancelled) setShowWeatherPermissionRationale(true)
-    }, 0)
-
-    return () => {
-      cancelled = true
-      window.clearTimeout(rationaleTimer)
-    }
-  }, [splashDone])
-
   const handleRequestWeatherPermission = useCallback(async () => {
     if (weatherPermissionBusy) return
     setWeatherPermissionBusy(true)
@@ -457,13 +410,13 @@ export default function HomeHub() {
       console.warn('[HomeHub] local weather permission request failed', error)
     } finally {
       setWeatherPermissionBusy(false)
-      setShowWeatherPermissionRationale(false)
+      setWeatherPermissionOpen(false)
     }
   }, [requestWeatherLocation, weatherPermissionBusy])
 
   const handleDeferWeatherPermission = useCallback(() => {
     deferWeatherPermissionRationale()
-    setShowWeatherPermissionRationale(false)
+    setWeatherPermissionOpen(false)
   }, [])
 
   const savedRuns = useMemo(
@@ -888,6 +841,7 @@ export default function HomeHub() {
   }, [])
 
   const handleSplashFinish = useCallback(() => {
+    setWeatherPermissionOpen(shouldShowWeatherPermissionRationale())
     setSplashExitRequested(true)
   }, [])
 
@@ -927,6 +881,17 @@ export default function HomeHub() {
         ))}
 
       {preloading && <AssetPreloaderOverlay destination={gameRoute} />}
+
+      <ConfirmExitModal
+        open={splashDone && weatherPermissionOpen}
+        title="Local weather"
+        description="Match the Home Hub background to your local weather. The app rounds your location to an area about 11 km across and uses it only to look up MET Norway weather through The Big Eye’s weather proxy."
+        confirmLabel={weatherPermissionBusy ? 'Checking location…' : 'Enable local weather'}
+        cancelLabel="Not now"
+        busy={weatherPermissionBusy}
+        onConfirm={() => void handleRequestWeatherPermission()}
+        onCancel={handleDeferWeatherPermission}
+      />
 
       {housematesBioOpen && (
         <HousematesBioCinematic onComplete={() => setHousematesBioOpen(false)} />
@@ -1012,15 +977,12 @@ export default function HomeHub() {
 
           <HomeHubAssetLayer
             splashDone={splashDone}
+            menuVisible={menuVisible}
             backgroundReady={backgroundLayers.ready}
-            showWeatherPermissionRationale={showWeatherPermissionRationale}
-            weatherPermissionBusy={weatherPermissionBusy}
             holidayTheme={playButtonHolidayTheme}
             playSelectionOpen={playSelectionOpen}
             playSelectionButtons={playSelectionButtons}
             onPlay={handlePlay}
-            onRequestWeatherPermission={() => void handleRequestWeatherPermission()}
-            onDeferWeatherPermission={handleDeferWeatherPermission}
             onOpenHousemates={() => {
               SoundManager.unlockFromGesture()
               setHousematesBioOpen(true)
@@ -1029,7 +991,12 @@ export default function HomeHub() {
             onAssetStateChange={handleHubAssetStateChange}
           />
 
-          <div id="intro-hub" />
+          <div id="intro-hub" hidden={!menuVisible} />
+          {/* The legacy Players sheet clones these controls into its DOM. */}
+          <div id="intro-hub-players-controls" hidden>
+            <GameBackButton label="Back to Intro Hub" data-players-back="home" />
+            <GameBackButton label="Back to Players" data-players-back="list" showLabel />
+          </div>
         </div>
       </div>
     </>

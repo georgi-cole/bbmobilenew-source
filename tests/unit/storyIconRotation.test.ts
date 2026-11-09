@@ -3,12 +3,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const mocks = vi.hoisted(() => ({
-  isNativePlatform: vi.fn(),
+  getPlatform: vi.fn(),
   applyLaunchRotation: vi.fn(),
 }))
 
 vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: mocks.isNativePlatform },
+  Capacitor: { getPlatform: mocks.getPlatform },
   registerPlugin: () => ({ applyLaunchRotation: mocks.applyLaunchRotation }),
 }))
 
@@ -26,7 +26,7 @@ describe('story icon rotation bridge', () => {
     vi.setSystemTime(fakeNow)
     vi.clearAllMocks()
     resetStoryIconRotationForNextActivation()
-    mocks.isNativePlatform.mockReturnValue(true)
+    mocks.getPlatform.mockReturnValue('android')
     mocks.applyLaunchRotation.mockResolvedValue({ stage: 2 })
   })
 
@@ -35,9 +35,19 @@ describe('story icon rotation bridge', () => {
   })
 
   it('does nothing in a browser build', async () => {
-    mocks.isNativePlatform.mockReturnValue(false)
+    mocks.getPlatform.mockReturnValue('web')
 
     await expect(applyStoryIconRotation(true)).resolves.toBeNull()
+    expect(mocks.applyLaunchRotation).not.toHaveBeenCalled()
+  })
+
+  it('keeps the iOS icon unchanged across launches and foreground activations', async () => {
+    mocks.getPlatform.mockReturnValue('ios')
+
+    await expect(applyStoryIconRotation(true)).resolves.toBeNull()
+    resetStoryIconRotationForNextActivation()
+    vi.advanceTimersByTime(10_000)
+    await expect(applyStoryIconRotation(false)).resolves.toBeNull()
     expect(mocks.applyLaunchRotation).not.toHaveBeenCalled()
   })
 

@@ -6,6 +6,7 @@
 .game-control-dock {
   --dock-column-step: max(13%, 44px);
   --dock-side-hit-width: max(11%, 44px);
+  --dock-play-art-width: 22%;
   position: absolute;
   /* Keep every dock hit target above the native home-indicator inset. The
      responsive layout writes the measured value for native/preview frames;
@@ -172,11 +173,22 @@ body.mode-surveyeval .fab-play {
 }
 
 .fab-play {
-  width: 22%;
-  left: 39%;
+  width: var(--dock-play-art-width);
+  left: calc((100% - var(--dock-play-art-width)) / 2);
   top: 50%;
   transform: translateY(-50%);
   z-index: 2;
+}
+
+/* The Play artwork's 188px canvas includes a halo around its 114px face. */
+.game-control-dock__play-face {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--dock-play-art-width) * 114 / 188);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 .fab-icon {

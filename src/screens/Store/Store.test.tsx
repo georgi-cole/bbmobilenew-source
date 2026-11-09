@@ -158,6 +158,16 @@ describe('Store product presentation', () => {
     expect(screen.getByText('No automatic ads')).toBeInTheDocument()
   })
 
+  it('shows owned VIP access in place of its live price', () => {
+    renderStore(makeVipState({ vip: true }))
+
+    const card = screen.getByRole('region', { name: 'The Big Eye VIP' })
+    expect(within(card).getByText('Owned', { exact: true })).toBeVisible()
+    expect(within(card).queryByText('$19.99')).toBeNull()
+    expect(within(card).queryByText('one time')).toBeNull()
+    expect(within(card).getByRole('button', { name: 'View VIP access' })).toBeEnabled()
+  })
+
   it('switches store categories in place instead of navigating away from the store', () => {
     renderStore()
 

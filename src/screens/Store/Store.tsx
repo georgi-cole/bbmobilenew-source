@@ -103,6 +103,12 @@ export default function Store() {
       ? resolveVipUpgradeOffer(storeState.entitlements)
       : null
   const developerAccess = TEMPORARY_STORE_UNLOCKS_ENABLED
+  const vipPriceLabel = developerAccess
+    ? 'Developer access'
+    : effectiveVipActive
+      ? 'Owned'
+      : vipProduct?.price ||
+        (storeState.billingAvailable ? 'Product unavailable' : 'Available on iOS and Android')
   const returnTo = locationState?.returnTo
   const hasReturnDestination = typeof returnTo === 'string' && returnTo.startsWith('/')
 
@@ -447,16 +453,15 @@ export default function Store() {
           </div>
 
           <div className="vip-store__bundle-purchase">
-            <div className="vip-store__price" aria-label={vipProduct?.price || 'Price unavailable'}>
-              <strong className={vipProduct ? undefined : 'vip-store__price-unavailable'}>
-                {developerAccess
-                  ? 'Developer access'
-                  : vipProduct?.price ||
-                    (storeState.billingAvailable
-                      ? 'Product unavailable'
-                      : 'Available on iOS and Android')}
+            <div className="vip-store__price">
+              <strong
+                className={
+                  vipProduct || effectiveVipActive ? undefined : 'vip-store__price-unavailable'
+                }
+              >
+                {vipPriceLabel}
               </strong>
-              {vipProduct && !developerAccess && (
+              {vipProduct && !effectiveVipActive && !developerAccess && (
                 <span>{vipUpgradeOffer ? 'VIP upgrade · 75% credit applied' : 'one time'}</span>
               )}
             </div>

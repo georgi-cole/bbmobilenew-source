@@ -21,6 +21,11 @@
   text-align: center;
 }
 
+/* The card receives programmatic focus. Its buttons have their own focus ring. */
+.confirm-modal__card:focus {
+  outline: none;
+}
+
 .confirm-modal__title {
   margin: 0 0 8px 0;
   font-size: 1.1rem;

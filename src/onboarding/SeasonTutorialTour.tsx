@@ -102,8 +102,8 @@ const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: 'play',
     title: 'Play',
     body: 'When you’re ready, press Play to move the game forward.',
-    selector: '.game-control-dock__play, button[aria-label="Advance to next phase"]',
-    padding: 0,
+    selector: '[data-onboarding-target="play"]',
+    padding: 3,
     shape: 'circle',
   },
 ]

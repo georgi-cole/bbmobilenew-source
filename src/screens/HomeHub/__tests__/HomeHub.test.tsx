@@ -122,10 +122,6 @@ vi.mock('../../../components/KolequantSplash/KolequantSplash', () => ({
   ),
 }))
 
-vi.mock('../../../components/ConfirmExitModal/ConfirmExitModal', () => ({
-  default: () => null,
-}))
-
 vi.mock('../../../components/PermissionPrompts/PermissionPrompts', () => ({
   default: () => <div data-testid="permission-prompts" />,
 }))
@@ -240,6 +236,7 @@ describe('HomeHub', () => {
     expect(shouldShowWeatherPermissionRationale()).toBe(true)
     renderHomeHub()
 
+    expect(screen.queryByRole('dialog', { name: 'Local weather' })).toBeNull()
     fireEvent.click(screen.getByTestId('kolequant-splash'))
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -247,10 +244,10 @@ describe('HomeHub', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
-    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Local weather permission' })).toHaveTextContent(
-      "Allow approximate location to match the Home Hub to local weather. The app rounds your location to an about 11 km area and uses MET Norway data through The Big Eye's weather proxy only for the background."
-    )
+    expect(screen.queryByTestId('kolequant-splash')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Local weather' })).toHaveTextContent(/about 11 km/)
+    expect(screen.queryByRole('button', { name: 'Play' })).toBeNull()
+    expect(document.getElementById('intro-hub')).not.toBeVisible()
     expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
 
     await act(async () => {
@@ -258,12 +255,20 @@ describe('HomeHub', () => {
     })
     expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Enable local weather' }))
-      await Promise.resolve()
-    })
+    let finishLocationRequest = () => {}
+    mockRequestWeatherLocation.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          localStorage.setItem('bb:locationPermissionRequested', 'true')
+          finishLocationRequest = resolve
+        })
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Enable local weather' }))
+    expect(screen.getByRole('button', { name: 'Checking location…' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Play' })).toBeNull()
+    await act(async () => finishLocationRequest())
     expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('group', { name: 'Local weather permission' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Local weather' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
 
     expect(shouldShowWeatherPermissionRationale()).toBe(false)
@@ -282,7 +287,7 @@ describe('HomeHub', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
-    expect(screen.getByRole('group', { name: 'Local weather permission' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Local weather' })).toBeInTheDocument()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
     })
@@ -295,7 +300,7 @@ describe('HomeHub', () => {
         <HomeHub />
       </MemoryRouter>
     )
-    expect(screen.queryByRole('group', { name: 'Local weather permission' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Local weather' })).toBeNull()
   })
 
   it('opens a later season menu without repeating launch artwork', async () => {

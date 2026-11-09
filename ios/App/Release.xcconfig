@@ -1,0 +1,4 @@
+// Advance both the version and the icon with node scripts/set-ios-release.mjs <version>.
+MARKETING_VERSION = 1.0.1
+ASSETCATALOG_COMPILER_APPICON_NAME = StoryIconStage02
+ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO

@@ -55,6 +55,9 @@ export default function GameButton({
         : 'normal'
 
   const src = resolveAsset(variant, state)
+  // A native build has a relative base. The mask is used by bundled CSS, so
+  // resolve it from the document just as the button's image is resolved.
+  const maskSrc = new URL(src, document.baseURI).href
   const holidayClassName = holidayTheme ? ` game-btn--holiday-${holidayTheme}` : ''
   const showHolidayArtwork = Boolean(holidayTheme && variant === 'primary_large')
 
@@ -62,7 +65,7 @@ export default function GameButton({
     <button
       aria-label={ariaLabel}
       className={`game-btn game-btn--${variant}${holidayTheme ? ' game-btn--holiday' : ''}${holidayClassName}${disabled ? ' game-btn--disabled' : ''}${badge ? ' game-btn--has-badge' : ''}${!disabled && isPressed ? ' game-btn--pressed' : ''}${className ? ` ${className}` : ''}`}
-      style={{ '--button-mask': `url("${src}")` } as CSSProperties}
+      style={{ '--button-mask': `url("${maskSrc}")` } as CSSProperties}
       type="button"
       disabled={disabled}
       onClick={disabled ? undefined : onClick}

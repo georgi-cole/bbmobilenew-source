@@ -51,6 +51,17 @@
   filter: drop-shadow(0 1px 4px rgba(255, 245, 220, 0.18));
 }
 
+.game-back-button--labeled {
+  display: inline-flex;
+  justify-content: center;
+  gap: 0.4rem;
+  width: auto !important;
+  min-height: 2rem !important;
+  padding: 0.25rem 0.65rem !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .game-back-button:hover:not(:disabled) {
   transform: translateY(-1px) !important;
   border-color: rgba(239, 210, 133, 0.58) !important;

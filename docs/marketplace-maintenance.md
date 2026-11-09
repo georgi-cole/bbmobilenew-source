@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-09 — Reviewed the TestFlight fixes for the Store, paid-mode launch
+  buttons, Reality Mode portraits, and elimination markers. The VIP card now
+  shows Owned in place of the purchase price when VIP access is active. Prices,
+  product contents, upgrade credit, eligibility, and benefits stay the same.
+  Premium Challenges and VIP both continue to grant all premium minigame versions.
+
 - 2026-11-08: Reviewed direct nomination, Safety replacement, and house-vote
   conversations in Classic, Reality, and the Cupid and Vox formats. The routing
   and saved inbox changes restore the existing conversations within each

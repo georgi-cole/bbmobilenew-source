@@ -279,6 +279,7 @@ export default function GameControlDock({
           aria-hidden="true"
           draggable={false}
         />
+        <span className="game-control-dock__play-face" data-onboarding-target="play" />
         <img
           className={`game-control-dock__icon fab-icon social${chatFlash ? ' game-control-dock__icon--flash' : ''}${socialDisabled ? ' game-control-dock__icon--unavailable' : ''}`}
           src={assetUrl('fab_icon_social_clean.svg')}
