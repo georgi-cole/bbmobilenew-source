@@ -29,7 +29,206 @@ export const SCENE_FAMILY_CHOICES: Record<string, ChoiceLabels> = {
   ],
 }
 
+/** Explicit choices for what the housemate actually asked to do. */
+export const ROMANCE_ACTION_CHOICES: Readonly<Record<string, ChoiceLabels>> = {
+  flirt: ['Flirt back', 'Keep it playful', 'Keep this friendly', 'Change the subject'],
+  private_flirt: [
+    'Explore the spark privately',
+    'Keep it friendly for now',
+    'Keep this platonic',
+    'End the moment',
+  ],
+  late_night_talk: [
+    'Stay and talk',
+    'Keep the conversation light',
+    'Ask for some space',
+    'Say goodnight',
+  ],
+  cuddle: [
+    'Yes, let’s cuddle',
+    'Sit together without cuddling',
+    'No, I’d like some space',
+    'Leave it for another time',
+  ],
+  kiss_under_covers: [
+    'Yes, you can kiss me',
+    'I’m interested, but wait',
+    'No, I don’t want to kiss',
+    'End the moment',
+  ],
+  pool_makeout: [
+    'Yes, let’s kiss in the pool',
+    'Stay and talk by the pool',
+    'No, I don’t want to kiss',
+    'Head back inside',
+  ],
+  spend_night: [
+    'Yes, let’s spend the night together',
+    'Stay and talk a while',
+    'No, I want to sleep separately',
+    'Say goodnight',
+  ],
+  try_for_baby: [
+    'Talk about whether we’re ready',
+    'Say I need more time',
+    'Say I don’t want to try',
+    'Leave the discussion for later',
+  ],
+  go_public: [
+    'Yes, let’s tell the Hub',
+    'Talk about the timing first',
+    'Keep the relationship private',
+    'Drop it for now',
+  ],
+  risk_the_vibe: [
+    'Say I feel the spark too',
+    'Say I’m still figuring it out',
+    'Say I see us as friends',
+    'Change the subject',
+  ],
+}
+
+/** Background actions that ask something materially different from their shared scene. */
+export const BACKGROUND_ACTION_CHOICES: Readonly<
+  Record<string, { labels: ChoiceLabels; opensWithQuestion?: boolean }>
+> = {
+  share_intel: {
+    labels: [
+      'Hear the lead in private',
+      'Ask how reliable it is',
+      'Decline the exchange',
+      'End the exchange',
+    ],
+  },
+  rumor: {
+    labels: [
+      'Compare what we’ve heard',
+      'Wait for corroboration',
+      'Challenge the claim',
+      'Leave the rumour there',
+    ],
+  },
+  plant_lie: {
+    labels: [
+      'Hear the plan without joining',
+      'Ask why they want to plant it',
+      'Refuse to spread it',
+      'Walk away',
+    ],
+    opensWithQuestion: true,
+  },
+  expose_secret: {
+    labels: [
+      'Ask what they actually know',
+      'Ask who could be hurt',
+      'Ask them to keep it private',
+      'Stay out of it',
+    ],
+    opensWithQuestion: true,
+  },
+  apologize: {
+    labels: [
+      'Accept their apology',
+      'Acknowledge it and ask for time',
+      'Say I’m not ready to accept it',
+      'End the conversation',
+    ],
+  },
+  repair_bond: {
+    labels: [
+      'Agree to try a truce',
+      'Ask what they would change',
+      'Say I’m not ready for a truce',
+      'Take some space',
+    ],
+  },
+  reassure: {
+    labels: [
+      'Tell them what’s weighing on me',
+      'Thank them and keep it brief',
+      'Ask for some space',
+      'End the check-in',
+    ],
+  },
+  ask_safety_plan: {
+    labels: [
+      'Talk through the options',
+      'Say I’m still deciding',
+      'Keep my Safety plan private',
+      'End the conversation',
+    ],
+    opensWithQuestion: true,
+  },
+  ask_hold_safety: {
+    labels: [
+      'Promise to leave Safety unused',
+      'Keep the decision open',
+      'Say I may still use Safety',
+      'End the discussion',
+    ],
+  },
+  ask_loh_target: {
+    labels: [
+      'Discuss what I’m weighing',
+      'Ask why they want to know',
+      'Keep my slate private',
+      'End the discussion',
+    ],
+    opensWithQuestion: true,
+  },
+  ask_nomination_advice: {
+    labels: [
+      'Talk through possible nominees',
+      'Ask what they’re weighing',
+      'Keep my read private',
+      'End the discussion',
+    ],
+    opensWithQuestion: true,
+  },
+  pitch_target: {
+    labels: [
+      'Back the nomination recommendation',
+      'Ask what makes them a target',
+      'Push back on that nomination',
+      'End the pitch',
+    ],
+  },
+  suggest_replacement: {
+    labels: [
+      'Back that choice as a backup',
+      'Ask why they’d be a good replacement',
+      'Oppose that backup choice',
+      'End the Safety discussion',
+    ],
+  },
+  rally_votes_against: {
+    labels: [
+      'Back their case for eviction',
+      'Ask why they’re rallying votes',
+      'Say I won’t back that vote',
+      'End the vote discussion',
+    ],
+  },
+  vote_rally: {
+    labels: [
+      'Ask how much support they have',
+      'Ask why they targeted me',
+      'Tell them I’ll remember this',
+      'End the conversation',
+    ],
+    opensWithQuestion: true,
+  },
+}
+
 export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
+  private_intel_lead: [
+    [
+      'Thank them for the lead',
+      'Ask how they heard it',
+      'Say you’re unconvinced',
+      'Leave it there',
+    ],
+  ],
   week_start_ally_check_in: [
     ['Share your read', 'Ask what changed', 'Keep your cards close', 'Leave it for later'],
     ['Reassure them', 'Talk through the week', 'Set a little distance', 'Change the subject'],
@@ -72,19 +271,37 @@ export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
   ],
   hoh_safety_request: [
     [
-      'Give them a real opening',
+      'Promise to keep them off the block',
       'Ask what they are offering',
       'Set a clear limit',
       'End the pitch',
     ],
-    ['Promise consideration', 'Keep it noncommittal', 'Tell them it is unlikely', 'Send them away'],
+    [
+      'Give my word they’ll stay off the block',
+      'Keep it noncommittal',
+      'Tell them it is unlikely',
+      'Send them away',
+    ],
+  ],
+  background_nominate_human: [
+    [
+      'Explain why I’m worth keeping',
+      'Ask why I’m on their slate',
+      'Challenge their reasoning',
+      'End the conversation',
+    ],
   ],
   nominee_hoh_plea: [
     ['Offer safety', 'Ask for their case', 'Explain the risk', 'Close the meeting'],
     ['Give them your word', 'Listen without promising', 'State your reasons', 'End the talk'],
   ],
   nominee_veto_pitch: [
-    ['Back their Safety', 'Ask what changes', 'Refuse to commit', 'End the conversation'],
+    [
+      'Promise to use Safety on them',
+      'Ask what changes',
+      'Refuse to commit',
+      'End the conversation',
+    ],
     ['Promise the power', 'Hear their plan', 'Keep your move private', 'Walk away'],
   ],
   nominee_campaign: [

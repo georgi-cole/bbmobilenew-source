@@ -161,7 +161,6 @@ import {
   getCupidPartnerId,
   isCupidArrowActive,
   isCupidArrowTwistLocked,
-  isSameCupidPair,
   shouldScheduleCupidArrowSeason,
 } from '../features/twists/cupidArrow'
 import {
@@ -216,8 +215,11 @@ import {
 import {
   FORCED_SHOCK_CRITICAL_RULES,
   canCastClassicEvictionVote,
+  canPlayerTargetPlayer,
   getCanonicalVoterId,
   getClassicEvictionTieBreakerId,
+  isTwinAlliancePair,
+  isTwinShockActivePair,
 } from './criticalGameRules'
 import {
   allianceIdentityBias,
@@ -3301,6 +3303,22 @@ function pickStrategicAiPlayers(
   return picks
 }
 
+function getCurrentLohSafetyAdvice(state: GameState, holderId: string, nominees: Player[]) {
+  const advice = state.lohSafetyAdvice
+  if (
+    !advice ||
+    advice.week !== state.week ||
+    advice.lohId !== state.lohId ||
+    advice.holderId !== holderId ||
+    (advice.advice === 'use' &&
+      advice.targetId &&
+      !nominees.some((nominee) => nominee.id === advice.targetId))
+  ) {
+    return null
+  }
+  return advice
+}
+
 function shouldAiUseTargetedSafetyPower(
   state: GameState,
   holderId: string | null | undefined,
@@ -3354,14 +3372,10 @@ function shouldAiUseTargetedSafetyPower(
   if (bestRelationship >= 75) useChance += 0.5
   else if (bestRelationship >= 45) useChance += 0.35
   else if (bestRelationship >= 20) useChance += 0.18
-  const lohAdvice = state.lohSafetyAdvice
+  const lohAdvice = getCurrentLohSafetyAdvice(state, holderId, currentNominees)
   let appliedLohAdviceInfluence = 0
   let appliedLohAdviceSource: 'human_loh' | 'ai_ambush_pitch' | null = null
-  if (
-    lohAdvice?.week === state.week &&
-    lohAdvice.lohId === state.lohId &&
-    lohAdvice.holderId === holderId
-  ) {
+  if (lohAdvice) {
     const isAiAmbushPitch = lohAdvice.source === 'ai_ambush_pitch'
     const holderViewOfLoh = getStrategicRelationship(state, holderId, lohAdvice.lohId)
     const holderTags = new Set(holderViewOfLoh?.tags ?? [])
@@ -4325,34 +4339,6 @@ function isPlayerActiveInHouse(state: GameState, playerId: string): boolean {
   return Boolean(player && player.status !== 'evicted' && player.status !== 'jury')
 }
 
-function isTwinShockActivePair(state: GameState): boolean {
-  return (
-    state.twinShockResolution === 'mission_success' &&
-    isPlayerActiveInHouse(state, TWIN_SHOCK_LIA_ID) &&
-    isPlayerActiveInHouse(state, TWIN_SHOCK_ALI_ID)
-  )
-}
-
-function isTwinAlliancePair(
-  state: GameState,
-  firstId: string | null | undefined,
-  secondId: string | null | undefined
-): boolean {
-  if (!firstId || !secondId || firstId === secondId || !isTwinShockActivePair(state)) return false
-  return (
-    (firstId === TWIN_SHOCK_LIA_ID && secondId === TWIN_SHOCK_ALI_ID) ||
-    (firstId === TWIN_SHOCK_ALI_ID && secondId === TWIN_SHOCK_LIA_ID)
-  )
-}
-
-function canPlayerTargetPlayer(
-  state: GameState,
-  actorId: string | null | undefined,
-  targetId: string
-): boolean {
-  return !isTwinAlliancePair(state, actorId, targetId) && !isSameCupidPair(state, actorId, targetId)
-}
-
 function canPlayerNominatePlayer(
   state: GameState,
   actorId: string | null | undefined,
@@ -4465,9 +4451,22 @@ function pickSafetySaveTarget(
     return twin
   }
   if (!holderId || nominees.length === 0) return null
+  const advice = isVoxPopuliActive(state)
+    ? null
+    : getCurrentLohSafetyAdvice(state, holderId, nominees)
   const scored = nominees.map((nominee) => {
     const breakdown = getSafetyRelationshipBreakdown(state, holderId, nominee)
-    return { nominee, score: breakdown.total, factors: breakdown.factors }
+    // A named recommendation can tip a close decision. The holder still uses
+    // their own relationships, promises and strategy to choose the nominee.
+    const adviceBonus = advice?.advice === 'use' && advice.targetId === nominee.id ? 12 : 0
+    const score = breakdown.total + adviceBonus
+    return {
+      nominee,
+      score,
+      factors: adviceBonus
+        ? { ...breakdown.factors, lohRecommendation: adviceBonus, total: score }
+        : breakdown.factors,
+    }
   })
   const bestScore = Math.max(...scored.map((entry) => entry.score))
   const chosen = seededPick(
@@ -4482,7 +4481,7 @@ function pickSafetySaveTarget(
     week: state.week,
     phase: state.phase,
     seed: state.seed,
-    reason: 'highest safety relationship score',
+    reason: 'highest safety target score',
     context: { tiedBestCount: scored.filter((entry) => entry.score === bestScore).length },
     candidates: scored.map<AiDecisionCandidate>((entry) => ({
       id: entry.nominee.id,

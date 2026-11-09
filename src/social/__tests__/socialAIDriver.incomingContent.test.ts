@@ -16,6 +16,7 @@ import { getRealityActionContract } from '../reality/actionContract'
 import { SOCIAL_ACTIONS, resolveActionTargetMode } from '../socialActions'
 import { getHumanFacingActionScenario } from '../socialAIDriver'
 import { isAISocialActionVisible } from '../socialActionCatalog'
+import { getCommitmentKindForInteraction } from '../socialCommitments'
 import type { IncomingInteraction } from '../types'
 
 const targetableActions = SOCIAL_ACTIONS.filter(
@@ -32,13 +33,20 @@ describe('AI background incoming content', () => {
       'whisper',
       'confront',
       'ask_use_safety',
-      'nominate',
       'group_chat',
     ]) {
       const scenarioKey = getHumanFacingActionScenario(actionId)
       expect(scenarioKey).not.toMatch(/^background_/)
       expect(SCENARIO_VARIANT_POOLS[scenarioKey]?.length).toBeGreaterThan(0)
     }
+  })
+
+  it('routes the LOH’s warning into a dedicated pre-nomination scene', () => {
+    expect(getHumanFacingActionScenario('nominate')).toBe('background_nominate_human')
+    expect(INCOMING_ACTION_CONTENT_BANK.nominate.interactionType).toBe('warning')
+    expect(pickIncomingActionOpening('nominate', 0, 'You')?.text).toMatch(
+      /on the block|nomination plan/
+    )
   })
 
   it('gives unknown background actions a rich check-in scene instead of generic fallback text', () => {
@@ -104,6 +112,100 @@ describe('AI background incoming content', () => {
       expect(Number.isFinite(response.actorDelta), action.id).toBe(true)
     }
   })
+
+  it('matches high-stakes background replies to the actual action', () => {
+    const cases = [
+      ['share_intel', 'Hear the lead in private', 'positive'],
+      ['rumor', 'Compare what we’ve heard', 'positive'],
+      ['plant_lie', 'Hear the plan without joining', 'neutral'],
+      ['expose_secret', 'Ask what they actually know', 'neutral'],
+      ['apologize', 'Accept their apology', 'positive'],
+      ['repair_bond', 'Agree to try a truce', 'positive'],
+      ['ask_safety_plan', 'Talk through the options', 'neutral'],
+      ['ask_hold_safety', 'Promise to leave Safety unused', 'accept'],
+      ['ask_loh_target', 'Discuss what I’m weighing', 'neutral'],
+      ['ask_nomination_advice', 'Talk through possible nominees', 'neutral'],
+      ['vote_rally', 'Ask how much support they have', 'neutral'],
+    ] as const
+
+    for (const [actionId, label, responseType] of cases) {
+      const content = INCOMING_ACTION_CONTENT_BANK[actionId]
+      const interaction: IncomingInteraction = {
+        id: actionId,
+        fromId: 'lia',
+        type: content.interactionType,
+        text: content.openings[0],
+        payload: { originActionId: actionId, scenarioKey: content.scenarioKey },
+        createdAt: 1,
+        createdWeek: 1,
+        expiresAtWeek: 1,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      }
+      expect(getContextualIncomingChoices(interaction)?.[0], actionId).toMatchObject({
+        label,
+        responseType,
+      })
+      expect(getCommitmentKindForInteraction(interaction), actionId).toBeNull()
+    }
+  })
+
+  it('uses distinct choices and explicit consent for each romance action', () => {
+    const menus = new Set<string>()
+    for (const [actionId, content] of Object.entries(INCOMING_ACTION_CONTENT_BANK)) {
+      if (content.scenarioKey !== 'relationship_romance_check_in') continue
+      const choices = getContextualIncomingChoices({
+        id: actionId,
+        fromId: 'lia',
+        type: content.interactionType,
+        text: content.openings[0],
+        payload: { originActionId: actionId, scenarioKey: content.scenarioKey },
+        createdAt: 1,
+        createdWeek: 1,
+        expiresAtWeek: 1,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      })
+      expect(choices, actionId).toHaveLength(4)
+      menus.add(choices!.map((choice) => choice.label).join('|'))
+      if (['cuddle', 'kiss_under_covers', 'pool_makeout', 'spend_night'].includes(actionId)) {
+        expect(choices![0]).toMatchObject({
+          label: expect.stringMatching(/^Yes,/),
+          responseType: 'accept',
+        })
+      }
+      if (actionId === 'try_for_baby') {
+        expect(choices![0]).toMatchObject({
+          label: expect.stringMatching(/^Talk about/),
+          responseType: 'neutral',
+        })
+      }
+    }
+    expect(menus.size).toBe(10)
+  })
+
+  it.each([
+    ['alliance_nomination_pitch', 'decline', /mine to set|before I lock the nominations/i],
+    ['alliance_safety_pitch', 'accept', /sav(?:e|ing) Kai|the choice is still mine/i],
+    ['automatic_nominee_reaction', 'positive', /the power is yours/i],
+  ] as const)(
+    'keeps the speaker’s actual authority in %s replies',
+    (scenarioKey, responseType, incorrect) => {
+      for (let seed = 0; seed < 12; seed += 1) {
+        const beat = getIncomingDialogueBeat({
+          scenarioKey,
+          responseType,
+          fromName: 'Lia',
+          subjectName: 'Kai',
+          seed,
+        })
+        expect(beat).toBeTruthy()
+        expect(beat).not.toMatch(incorrect)
+      }
+    }
+  )
 
   it('keeps AI moves inside the active social mode and season format', () => {
     expect(isAISocialActionVisible('flirt', 'normal')).toBe(false)

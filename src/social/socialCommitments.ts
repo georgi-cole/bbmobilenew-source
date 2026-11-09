@@ -96,6 +96,10 @@ export function getCommitmentKindForInteraction(
   interaction: IncomingInteraction
 ): SocialCommitmentKind | null {
   const scenario = scenarioKey(interaction)
+  const origin = interaction.payload?.originActionId
+  // The linked Reality hold-Safety promise has its own ceremony contract.
+  if (origin === 'nominate' || origin === 'ask_hold_safety' || origin === 'ask_safety_plan')
+    return null
   if (
     interaction.type === 'nomination_plea' ||
     (interaction.type === 'deal_offer' && scenario === 'hoh_safety_request')

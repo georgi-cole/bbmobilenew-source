@@ -1,7 +1,41 @@
-import { acts, says } from './incomingOutcomeMatrixUtils'
+import { acts, says, subject } from './incomingOutcomeMatrixUtils'
 import type { ScenarioOutcomeMatrix } from './incomingOutcomeMatrixUtils'
 
 export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
+  direct_nomination_pitch: {
+    'back the nomination recommendation': (context) =>
+      `${context.fromName} takes your support for nominating ${subject(context)} into account. The slate is still open.`,
+    'ask what makes them a target': (context) =>
+      `${context.fromName} explains why they want ${subject(context)} on the block.`,
+    'push back on that nomination': acts(
+      'hears your objection and stops pressing for that nomination.'
+    ),
+    'end the pitch': acts('leaves the nomination decision with you.'),
+  },
+  loh_target_inquiry: {
+    'discuss what i’m weighing': acts(
+      'hears your priorities and waits to see which names you choose.'
+    ),
+    'ask why they want to know': acts(
+      'explains what they are trying to prepare for before nominations.'
+    ),
+    'keep my slate private': acts('backs off and waits for the nomination ceremony.'),
+    'end the discussion': acts('drops the question about your slate.'),
+  },
+  nomination_advice_inquiry: {
+    'talk through possible nominees': acts('weighs your advice while deciding whom to nominate.'),
+    'ask what they’re weighing': acts('explains what they are looking for in a nomination.'),
+    'keep my read private': acts('accepts your boundary and keeps working on their slate.'),
+    'end the discussion': acts('moves on from asking for your nomination advice.'),
+  },
+  direct_replacement_pitch: {
+    'back that choice as a backup': (context) =>
+      `${context.fromName} takes your support for ${subject(context)} as a backup recommendation.`,
+    'ask why they’d be a good replacement': (context) =>
+      `${context.fromName} explains why they would put ${subject(context)} on the block as a backup.`,
+    'oppose that backup choice': acts('understands you oppose that replacement.'),
+    'end the safety discussion': acts('lets the replacement discussion end.'),
+  },
   protection_deal: {
     'take the deal': says(
       'agrees to keep you off the block this week, and you promise to vote to keep them if they are nominated.'
@@ -50,7 +84,25 @@ export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     ),
     'end the talk': acts('leaves the conversation without treating the nomination as betrayal.'),
   },
+  background_nominate_human: {
+    'explain why i’m worth keeping': says(
+      'hears your case. Your place on the slate is still undecided.'
+    ),
+    'ask why i’m on their slate': says(
+      'explains the concern behind the nomination plan. You made no agreement.'
+    ),
+    'challenge their reasoning': acts(
+      'stands by their concern. The nomination decision is still theirs.'
+    ),
+    'end the conversation': acts('ends the discussion and continues weighing the slate.'),
+  },
   hoh_safety_request: {
+    'promise to keep them off the block': says(
+      'takes you at your word and expects to stay off the block.'
+    ),
+    'give my word they’ll stay off the block': says(
+      'will hold you to keeping them off the block when nominations lock.'
+    ),
     'give them a real opening': says(
       'they can offer you a week of safety if you keep their name off the block.'
     ),
@@ -83,6 +135,9 @@ export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'end the talk': acts('stops pleading and leaves to find leverage elsewhere.'),
   },
   nominee_veto_pitch: {
+    'promise to use safety on them': says(
+      'expects you to use Safety on them when the decision locks.'
+    ),
     'back their safety': says('they will remember the save as a major favor if the power is used.'),
     'ask what changes': says('they need a clear deal before names are set.'),
     'refuse to commit': says(

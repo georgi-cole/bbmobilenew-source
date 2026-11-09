@@ -210,6 +210,18 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
       '{from} leaves without leverage and assumes your decision is already made.',
     ],
   },
+  safety_plan_inquiry: {
+    positive: ['{from} heard how you are weighing the choice. The Safety decision remains open.'],
+    neutral: ['You compared options with {from} without agreeing to use or hold Safety.'],
+    negative: ['{from} leaves without knowing how you plan to use Safety.'],
+    dismiss: ['{from} lets you make the Safety decision in private.'],
+  },
+  safety_hold_request: {
+    positive: ['{from} heard you agree to leave Safety unused.'],
+    neutral: ['{from} heard that you are still considering whether to use Safety.'],
+    negative: ['{from} will prepare for the block to change.'],
+    dismiss: ['{from} leaves without an agreement about Safety.'],
+  },
   nominee_hoh_plea: {
     positive: [
       '{from} leaves the LOH conversation with hope and will judge your word against the nomination board.',

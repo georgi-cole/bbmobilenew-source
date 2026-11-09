@@ -22,7 +22,7 @@ import {
   openIncomingInbox,
 } from '../../social/socialSlice'
 import { addTvEvent, setHumanPregnancyRole } from '../../store/gameSlice'
-import { SocialManeuvers, type ExecuteActionResult } from '../../social/SocialManeuvers'
+import { SocialManeuvers } from '../../social/SocialManeuvers'
 import { normalizeActionCosts } from '../../social/smExecNormalize'
 import { getSocialNarrative } from './socialNarratives'
 import {
@@ -52,6 +52,7 @@ import { getEffectiveSocialMode } from '../../social/socialMode'
 import { validateSocialExecution } from '../../social/socialExecutionGuard'
 import { getSocialActionPresentation } from '../../social/socialRuntimeConfig'
 import { executeHumanRealityAction } from '../../social/reality/humanFlow'
+import { getIncomingReactionForDisplay, isIncomingIntelLead } from '../../social/incomingIntelLead'
 import { getCupidPartnerId, isCupidArrowActive } from '../../features/twists/cupidArrow'
 import { getPulseChronicleTheme } from '../../social/pulseChronicleTheme'
 import {
@@ -988,7 +989,9 @@ export default function SocialPanelV2() {
   const targetMode = selectedAction ? resolveActionTargetMode(selectedAction, dramaMode) : 'primary'
   const isBatchCompatible =
     targetMode === 'primary' &&
-    !selectedAction?.requiredTargetStatus &&
+    !(dramaMode
+      ? (selectedAction?.dramaRequiredTargetStatus ?? selectedAction?.requiredTargetStatus)
+      : selectedAction?.requiredTargetStatus) &&
     selectedActionId !== 'proposeAlliance' &&
     selectedActionId !== 'consult_alliance' &&
     selectedActionId !== 'ask_nemesis_reason'
@@ -1117,10 +1120,7 @@ export default function SocialPanelV2() {
       const proposalPrice = allianceProposalPrice(command)
       if (proposalPrice) return proposalPrice
     }
-    if (selectedActionId === 'group_chat') {
-      return { ...baseCosts, energy: Math.max(2, selectedTargetCount) }
-    }
-    if (usesMultipleTargets && !isAllianceConsultation) {
+    if (targetMode === 'primary' && usesMultipleTargets && !isAllianceConsultation) {
       return {
         energy: baseCosts.energy * targetCount,
         influence: baseCosts.influence * targetCount,
@@ -1134,10 +1134,10 @@ export default function SocialPanelV2() {
     humanPlayer?.id,
     selectedAction,
     selectedAllianceAction,
-    selectedActionId,
     selectedTargets,
     selectedTargetCount,
     targetCount,
+    targetMode,
     isAllianceConsultation,
     usesMultipleTargets,
     selectedSubjectId,
@@ -1161,7 +1161,6 @@ export default function SocialPanelV2() {
     (!selectedAllianceAction?.namePrompt || allianceNameDraft.trim().length >= 2)
 
   const executionEligibility = useMemo(() => {
-    const eligibilityGame = weekendActive ? { ...game, phase: 'social_2' as const } : game
     if (!selectedAction || !humanPlayer) {
       return { eligible: false, reason: '' }
     }
@@ -1222,31 +1221,15 @@ export default function SocialPanelV2() {
       }
     }
 
-    if (usesMultipleTargets && targetMode !== 'multi') {
-      for (const targetId of targetIds) {
-        const result = validateSocialExecution(
-          { game: eligibilityGame, settings, vip, social: socialState },
-          {
-            action: selectedAction,
-            actorId: humanPlayer.id,
-            targetIds: [targetId],
-            subjectId: selectedSubjectId ?? undefined,
-            requireCompleteSelection: true,
-          }
-        )
-        if (!result.eligible) return result
-      }
-      return { eligible: true, reason: '' }
-    }
-
     return validateSocialExecution(
-      { game: eligibilityGame, settings, vip, social: socialState },
+      { game, settings, vip, social: socialState },
       {
         action: selectedAction,
         actorId: humanPlayer.id,
         targetIds,
         subjectId: selectedSubjectId ?? undefined,
         requireCompleteSelection: true,
+        allowPrimaryBatch: usesMultipleTargets,
       }
     )
   }, [
@@ -1274,7 +1257,6 @@ export default function SocialPanelV2() {
     influence,
     info,
     vip,
-    weekendActive,
   ])
 
   const canExecute = selectedReunionGuestId
@@ -1393,7 +1375,9 @@ export default function SocialPanelV2() {
       const nextMode = nextAction ? resolveActionTargetMode(nextAction, dramaMode) : 'primary'
       const nextBatchCompatible =
         nextMode === 'primary' &&
-        !nextAction?.requiredTargetStatus &&
+        !(dramaMode
+          ? (nextAction?.dramaRequiredTargetStatus ?? nextAction?.requiredTargetStatus)
+          : nextAction?.requiredTargetStatus) &&
         actionId !== 'proposeAlliance' &&
         actionId !== 'consult_alliance'
       const needsAllianceChoice =
@@ -1702,63 +1686,16 @@ export default function SocialPanelV2() {
       const previousLogIds = new Set(
         appStore.getState().social.sessionLogs.map((entry) => entry.id)
       )
-      const results: ExecuteActionResult[] =
-        targetMode === 'multi'
-          ? [
-              dispatch(
-                executeHumanRealityAction({
-                  actorId: humanPlayer.id,
-                  targetId: targetIds[0],
-                  targetIds,
-                  actionId: selectedActionId,
-                  ...consultationOptions,
-                  subjectId: selectedSubjectId ?? undefined,
-                  costOverride: totalCosts,
-                })
-              ),
-            ]
-          : targetMode !== 'none' && targetIds.length === 1 && !usesMultipleTargets
-            ? [
-                dispatch(
-                  executeHumanRealityAction({
-                    actorId: humanPlayer.id,
-                    targetId: targetIds[0],
-                    actionId: selectedActionId,
-                    ...consultationOptions,
-                    subjectId: selectedSubjectId ?? undefined,
-                    costOverride: totalCosts,
-                  })
-                ),
-              ]
-            : targetMode === 'none'
-              ? [
-                  dispatch(
-                    executeHumanRealityAction({
-                      actorId: humanPlayer.id,
-                      targetId: humanPlayer.id,
-                      targetIds: [],
-                      actionId: selectedActionId,
-                      ...consultationOptions,
-                      costOverride: totalCosts,
-                    })
-                  ),
-                ]
-              : [
-                  dispatch(
-                    executeHumanRealityAction({
-                      actorId: humanPlayer.id,
-                      targetId: targetIds[0],
-                      targetIds,
-                      actionId: selectedActionId,
-                      ...consultationOptions,
-                      subjectId: selectedSubjectId ?? undefined,
-                      costOverride: totalCosts,
-                    })
-                  ),
-                ]
-
-      const successfulResults = results.filter((result) => result.success)
-      const firstResult = results[0]
+      const firstResult = dispatch(
+        executeHumanRealityAction({
+          actorId: humanPlayer.id,
+          targetId: targetIds[0],
+          targetIds: targetMode === 'none' ? [] : targetIds,
+          actionId: selectedActionId,
+          ...consultationOptions,
+          subjectId: targetMode === 'none' ? undefined : (selectedSubjectId ?? undefined),
+        })
+      )
       setPregnancyCelebration(firstResult.label === 'Positive')
       // An empty string keeps the saved result visible even if spending the
       // last resource makes the selected action unavailable for another try.
@@ -1771,7 +1708,7 @@ export default function SocialPanelV2() {
         firstResult.receiptId ?? newReceipt?.receipt?.groupId ?? newReceipt?.id ?? null
       )
 
-      if (successfulResults.length > 0) {
+      if (firstResult.success) {
         const targetNames = targetIds.map(
           (targetId) => game.players.find((player) => player.id === targetId)?.name ?? targetId
         )
@@ -1780,8 +1717,9 @@ export default function SocialPanelV2() {
             selectedSubjectId)
           : null
         const actionTitle = getSocialActionPresentation(selectedAction).title
-        const persistentText =
-          selectedActionId === 'group_chat'
+        const persistentText = dramaMode
+          ? firstResult.summary
+          : selectedActionId === 'group_chat'
             ? `You hosted a group chat with ${formatPlayerNames(targetNames)}.`
             : selectedActionId === 'ask_loh_target' ||
                 selectedActionId === 'ask_nomination_advice' ||
@@ -1805,7 +1743,7 @@ export default function SocialPanelV2() {
             meta: { suppressTv: true },
           })
         )
-        setSuccessPulse(true)
+        setSuccessPulse(!newReceipt?.receipt || newReceipt.receipt.tone === 'positive')
         if (successPulseTimerRef.current !== null) {
           clearTimeout(successPulseTimerRef.current)
         }
@@ -1815,13 +1753,7 @@ export default function SocialPanelV2() {
           successPulseTimerRef.current = null
         }, 850)
 
-        const immediateDeltas = new Map<string, number>()
-        for (const result of successfulResults) {
-          for (const [targetId, delta] of Object.entries(result.targetDeltas ?? {})) {
-            if (delta !== 0) immediateDeltas.set(targetId, delta)
-          }
-        }
-        setRelationshipPulseDeltas(immediateDeltas)
+        setRelationshipPulseDeltas(new Map(Object.entries(firstResult.relationshipShifts ?? {})))
       }
 
       if (executeGuardTimerRef.current !== null) {
@@ -1848,6 +1780,7 @@ export default function SocialPanelV2() {
     dispatch,
     appStore,
     clearCurrentOutcome,
+    dramaMode,
     effectivePrimaryTargetId,
     energy,
     executionEligibility,
@@ -1970,6 +1903,24 @@ export default function SocialPanelV2() {
   const focusedInward = focusedPlayer
     ? relationships?.[focusedPlayer.id]?.[humanPlayer.id]
     : undefined
+  const recentIncomingReply = focusedPlayer
+    ? socialState.incomingInteractions?.find(
+        (entry) =>
+          entry.fromId === focusedPlayer.id &&
+          entry.resolved &&
+          entry.resolvedWeek === game.week &&
+          entry.resolvedWith !== 'ignore' &&
+          (entry.receipt || entry.reactionText)
+      )
+    : undefined
+  const recentIncomingReplyText =
+    recentIncomingReply && focusedPlayer
+      ? ((isIncomingIntelLead(recentIncomingReply)
+          ? getIncomingReactionForDisplay(recentIncomingReply, focusedPlayer.name)
+          : undefined) ??
+        recentIncomingReply.receipt?.text ??
+        recentIncomingReply.reactionText)
+      : undefined
   const focusedCanonical = focusedPlayer
     ? selectCanonicalRelationshipView({
         relationships,
@@ -2503,6 +2454,12 @@ export default function SocialPanelV2() {
                           }}
                         />
                       </div>
+                    )}
+                    {recentIncomingReplyText && !selectedReunionGuest && (
+                      <details className="sp2-focus__full-read">
+                        <summary>Recent incoming reply</summary>
+                        <p>{recentIncomingReplyText}</p>
+                      </details>
                     )}
                     {dramaMode && focusedPlayer && (
                       <details

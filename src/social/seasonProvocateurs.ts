@@ -1,6 +1,7 @@
 import { getSocialPersonality } from './socialPersonalityBank'
 import { getCurrentAlliancesBetween } from './reality/allianceIdentity'
 import { appendRealityEvent } from './reality/events'
+import { isUnagreedNominationFor } from './reality/facadeAgreements'
 import { createRealityNemesisObjective } from './reality/relationshipAutonomy'
 import { applyRealityRelationshipChange } from './reality/relationships'
 import type {
@@ -411,11 +412,7 @@ export function getUpdatedProvocateurSeason(
           continue
         const roleWasTargeted = event.targetIds.includes(role.actorId)
         let cause: RealityProvocateurCause | null = null
-        if (
-          event.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
-          event.actorId === input.targetId &&
-          roleWasTargeted
-        ) {
+        if (event.actorId === input.targetId && isUnagreedNominationFor(event, role.actorId)) {
           cause = 'NOMINATION'
         }
         if (

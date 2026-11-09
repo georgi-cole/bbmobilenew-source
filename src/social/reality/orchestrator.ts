@@ -14,7 +14,11 @@ import {
 } from './actionContract'
 import { remember } from './memory'
 import { applyRealityRelationshipChange } from './relationships'
-import { resolveRealityTargetResponse, type RealityResponseResolution } from './response'
+import {
+  resolveRealityTargetResponse,
+  type RealityResponseRepetition,
+  type RealityResponseResolution,
+} from './response'
 import { isSafetyProtectionOffer } from '../protectionOffer'
 import { scoreRealityAction, type RealityScoreBreakdown } from './scoring'
 import { addRealityFact, learnRealityFact, resolveRealityAllianceIdForFact } from './knowledge'
@@ -46,11 +50,10 @@ export interface RealityOpportunityCandidate {
   action: RealityActionContract
   targetIds: string[]
   subjectId?: string
-  /**
-   * Optional human-action repetition odds. When present, the target response
-   * uses this exact acceptance chance instead of the generic relationship roll.
-   */
+  /** Exact acceptance when the participants have already agreed to the conversation. */
   acceptanceChanceOverride?: number
+  /** Pair-specific repetition pressure for player-authored moves. */
+  repetitionByTarget?: Readonly<Record<string, RealityResponseRepetition>>
   /** The promisor's current plan contradicts an Offer Protection promise. */
   promiseContradicted?: boolean
 }
@@ -1012,6 +1015,7 @@ export function runRealityOpportunity(input: {
         context: input.opportunity.context,
         draw: responseDraw.value,
         acceptanceChanceOverride: selected.acceptanceChanceOverride,
+        repetition: selected.repetitionByTarget?.[targetId],
         promiseContradicted: selected.promiseContradicted,
       })
       responses.push({ targetId, response: targetResponse })
@@ -1078,8 +1082,9 @@ export function runRealityOpportunity(input: {
         deltas: receivedRelationshipDeltas(
           selected.action,
           targetResponse,
-          selected.acceptanceChanceOverride !== undefined &&
-            selected.acceptanceChanceOverride <= 0.02
+          (selected.repetitionByTarget?.[targetId]?.factor ?? 1) <= 0.025 ||
+            (selected.acceptanceChanceOverride !== undefined &&
+              selected.acceptanceChanceOverride <= 0.02)
         ),
         day: event.day,
         phase: event.phase,

@@ -47,7 +47,7 @@ describe('socialModuleAvailability', () => {
     )
   })
 
-  it('keeps outgoing conversations and incoming vote pitches available while ballots are collected', () => {
+  it('keeps incoming vote pitches available while classic ballots are collected', () => {
     const outgoing = getSocialModuleAvailability({
       phase: 'live_vote',
       players: activeHuman,
@@ -57,10 +57,21 @@ describe('socialModuleAvailability', () => {
       players: activeHuman,
     })
 
-    expect(outgoing.canOpen).toBe(true)
-    expect(getBlockedSocialModuleAnnouncementMessage(outgoing)).toBeNull()
+    expect(outgoing.canOpen).toBe(false)
+    expect(getBlockedSocialModuleAnnouncementMessage(outgoing)).toMatch(
+      /called to the confessional/i
+    )
     expect(incoming.canOpen).toBe(true)
     expect(getBlockedSocialModuleAnnouncementMessage(incoming)).toBeNull()
+  })
+
+  it('keeps outgoing conversations available during a Vox audience vote', () => {
+    const outgoing = getSocialModuleAvailability({
+      phase: 'live_vote',
+      players: activeHuman,
+      voxPopuli: { status: 'active' },
+    })
+    expect(outgoing.canOpen).toBe(true)
   })
 
   it('keeps outgoing actions locked during the actual eviction result presentation', () => {
@@ -84,28 +95,31 @@ describe('socialModuleAvailability', () => {
     expect(getIncomingSocialModuleAvailability(game).canOpen).toBe(false)
   })
 
-  it('keeps weekend social modules open for finale reunion messages', () => {
-    const game = {
-      phase: 'final4_eviction' as const,
-      players: activeHuman,
-      weekendInterlude: {
-        active: true,
-        finaleWeekend: true,
-        stage: 'finale_reunion_social',
-      },
-    }
+  it.each(['tribunal_invitation', 'tribunal_glimpse', 'finale_reunion_social'])(
+    'keeps both weekend social modules open during %s',
+    (stage) => {
+      const game = {
+        phase: 'final4_eviction' as const,
+        players: activeHuman,
+        weekendInterlude: {
+          active: true,
+          finaleWeekend: true,
+          stage,
+        },
+      }
 
-    expect(getSocialModuleAvailability(game).canOpen).toBe(true)
-    expect(getIncomingSocialModuleAvailability(game).canOpen).toBe(true)
+      expect(getSocialModuleAvailability(game).canOpen).toBe(true)
+      expect(getIncomingSocialModuleAvailability(game).canOpen).toBe(true)
 
-    const sequesterAnnouncement = {
-      ...game,
-      weekendInterlude: {
-        ...game.weekendInterlude,
-        stage: 'finale_sequester_announcement' as const,
-      },
+      const sequesterAnnouncement = {
+        ...game,
+        weekendInterlude: {
+          ...game.weekendInterlude,
+          stage: 'finale_sequester_announcement' as const,
+        },
+      }
+      expect(getSocialModuleAvailability(sequesterAnnouncement).canOpen).toBe(false)
+      expect(getIncomingSocialModuleAvailability(sequesterAnnouncement).canOpen).toBe(false)
     }
-    expect(getSocialModuleAvailability(sequesterAnnouncement).canOpen).toBe(false)
-    expect(getIncomingSocialModuleAvailability(sequesterAnnouncement).canOpen).toBe(false)
-  })
+  )
 })

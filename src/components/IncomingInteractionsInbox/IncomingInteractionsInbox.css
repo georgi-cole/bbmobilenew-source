@@ -569,13 +569,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.inbox-action small {
-  color: rgba(248, 250, 252, 0.64);
-  font-size: 0.58rem;
-  font-weight: 500;
-  line-height: 1.2;
-}
-
 .inbox-action--positive {
   background: rgba(34, 197, 94, 0.22);
   border-color: rgba(34, 197, 94, 0.28);
@@ -811,4 +804,25 @@
 .inbox-action:hover {
   border-color: rgba(167, 139, 250, 0.52);
   background: rgba(91, 83, 160, 0.38);
+}
+
+.inbox-item__choice-context {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.84);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.inbox-item__actions--stacked {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.inbox-item__actions--stacked .inbox-action {
+  min-height: 44px;
+  padding: 0.4rem;
+  border-radius: 0.65rem;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
 }

@@ -9,6 +9,7 @@ import { getSocialRuntimeConfig } from './socialRuntimeConfig'
 import { getPublicDramaActionAvailability, isPublicDramaAction } from './dramaPacing'
 import type { SocialActionLogEntry } from './types'
 import { isExposableRealitySecretType, resolveRealityAllianceIdForFact } from './reality/knowledge'
+import { isUnagreedNominationFor } from './reality/facadeAgreements'
 
 const RECENT_ACTION_WINDOW = 64
 const RECENT_CONFLICT_EVENT_WINDOW = 48
@@ -230,11 +231,9 @@ function recentKnownConflictSignals(
   }
   for (const event of events) {
     if (
-      event.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
+      isUnagreedNominationFor(event, input.actorId) &&
       isRecentConflictEvent(input, event) &&
       event.actorId &&
-      event.targetIds.includes(input.actorId) &&
-      !event.tags.includes('automatic_nominee:' + input.actorId) &&
       isKnownToActor(event, input.actorId)
     ) {
       const days = targetingDaysByHoh.get(event.actorId) ?? new Set<number>()
@@ -287,7 +286,7 @@ function recentKnownConflictSignals(
       if (
         nomination?.actorId &&
         isRecentConflictEvent(input, nomination) &&
-        !nomination.tags.includes('automatic_nominee:' + input.actorId) &&
+        isUnagreedNominationFor(nomination, input.actorId) &&
         isKnownToActor(nomination, input.actorId)
       ) {
         addConflictSignal(
@@ -348,7 +347,7 @@ function recentKnownConflictSignals(
     const stillTargetedByLoh =
       nomination?.actorId === input.lohId &&
       isRecentConflictEvent(input, nomination) &&
-      !nomination.tags.includes('automatic_nominee:' + input.actorId) &&
+      isUnagreedNominationFor(nomination, input.actorId) &&
       isKnownToActor(nomination, input.actorId)
     if (stillTargetedByLoh) {
       addConflictSignal(signals, input.lohId, 'you are still nominated after missing Safety', 0.94)

@@ -6,6 +6,8 @@ import type { DramaSocialNetwork, RelationshipsMap } from './types'
 import type { RealityDomainState } from './reality/types'
 import { isActionAllowedForRealityPreset } from './socialActionManager'
 import type { PregnancyStoryState } from './reality/pregnancy'
+import { hasRealityActionCooldown } from './reality/actionContract'
+import { getSocialRulesPhase } from './reality/clock'
 
 interface SocialExecutionState {
   game?: {
@@ -65,6 +67,7 @@ export interface SocialExecutionSelection {
   subjectId?: string
   requireCompleteSelection?: boolean
   allowAIOnly?: boolean
+  allowPrimaryBatch?: boolean
 }
 
 /**
@@ -76,6 +79,9 @@ export function validateSocialExecution(
   state: SocialExecutionState,
   selection: SocialExecutionSelection
 ) {
+  if (state.game?.weekendInterlude?.active && selection.action.id === 'ask_nemesis_reason') {
+    return { eligible: false, reason: 'This conversation must happen during regular Social time.' }
+  }
   if (state.game?.weekendInterlude?.active && WEEKEND_BLOCKED_ACTION_IDS.has(selection.action.id)) {
     return {
       eligible: false,
@@ -91,34 +97,66 @@ export function validateSocialExecution(
   }
   const dramaMode = getEffectiveSocialMode(state) === 'drama'
   const targetMode = resolveActionTargetMode(selection.action, dramaMode)
-  const targetIds = targetMode === 'none' ? [] : (selection.targetIds ?? [])
+  const targetIds = targetMode === 'none' ? [] : [...new Set(selection.targetIds ?? [])]
+  const primaryBatch =
+    selection.allowPrimaryBatch && targetMode === 'primary' && targetIds.length > 1
+  const requiredTargetStatus = dramaMode
+    ? (selection.action.dramaRequiredTargetStatus ?? selection.action.requiredTargetStatus)
+    : selection.action.requiredTargetStatus
+  if (
+    primaryBatch &&
+    (requiredTargetStatus ||
+      ['proposeAlliance', 'consult_alliance', 'ask_nemesis_reason'].includes(selection.action.id))
+  ) {
+    return { eligible: false, reason: 'This action can only target one hubmate at a time.' }
+  }
+  const activityPhase = state.game?.weekendInterlude?.active
+    ? `weekend_day_${state.game.weekendInterlude.weekendDay}`
+    : state.game?.phase
   const players = state.game?.players ?? []
-  const actorStatus = players.find((player) => player.id === selection.actorId)?.status as
-    | PlayerStatus
-    | undefined
-  const primaryTargetStatus = targetIds.length
-    ? (players.find((player) => player.id === targetIds[0])?.status as PlayerStatus | undefined)
-    : null
-
-  return evaluateSocialActionEligibility({
-    action: selection.action,
-    actorId: selection.actorId,
-    targetIds,
-    subjectId: selection.subjectId,
-    phase: state.game?.weekendInterlude?.active ? 'social_2' : state.game?.phase,
-    week: state.game?.week,
-    players,
-    nomineeIds: state.game?.nomineeIds,
-    actorStatus,
-    primaryTargetStatus,
-    relationships: state.social?.relationships,
-    dramaNetwork: state.social?.dramaNetwork,
-    reality: state.social?.reality,
-    pregnancyStory: state.game?.pregnancyStory,
-    dramaMode,
-    requireCompleteSelection: selection.requireCompleteSelection ?? true,
-    allowAIOnly: selection.allowAIOnly ?? false,
-  })
+  const actor = players.find((player) => player.id === selection.actorId)
+  const selections = primaryBatch ? targetIds.map((targetId) => [targetId]) : [targetIds]
+  for (const selectedTargets of selections) {
+    const eligibility = evaluateSocialActionEligibility({
+      action: selection.action,
+      actorId: selection.actorId,
+      targetIds: selectedTargets,
+      subjectId: selection.subjectId,
+      phase: activityPhase ? getSocialRulesPhase(activityPhase) : undefined,
+      week: state.game?.week,
+      players,
+      nomineeIds: state.game?.nomineeIds,
+      actorStatus: actor?.status as PlayerStatus | undefined,
+      primaryTargetStatus: selectedTargets.length
+        ? (players.find((player) => player.id === selectedTargets[0])?.status as
+            | PlayerStatus
+            | undefined)
+        : null,
+      relationships: state.social?.relationships,
+      dramaNetwork: state.social?.dramaNetwork,
+      reality: state.social?.reality,
+      pregnancyStory: state.game?.pregnancyStory,
+      dramaMode,
+      requireCompleteSelection: selection.requireCompleteSelection ?? true,
+      allowAIOnly: selection.allowAIOnly ?? false,
+    })
+    if (!eligibility.eligible) return eligibility
+  }
+  if (
+    dramaMode &&
+    actor?.isUser &&
+    selection.action.id !== 'consult_alliance' &&
+    (targetMode === 'none' || targetIds.length > 1) &&
+    activityPhase &&
+    state.game?.week !== undefined &&
+    hasRealityActionCooldown(state.social?.reality, selection.actorId, selection.action.id, {
+      day: state.game.week,
+      phase: activityPhase,
+    })
+  ) {
+    return { eligible: false, reason: 'You already used this move this phase.' }
+  }
+  return { eligible: true, reason: '' }
 }
 
 export function createDeterministicSocialRandom(seedParts: readonly unknown[]): () => number {

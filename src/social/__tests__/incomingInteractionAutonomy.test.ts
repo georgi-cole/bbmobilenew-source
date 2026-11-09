@@ -9,7 +9,10 @@ import {
 } from '../incomingInteractionAutonomy'
 import { getInteractionDedupeReason } from '../incomingInteractionScheduler'
 import { createRealityAlliance } from '../reality/relationshipForms'
-import { createInitialRealityDomainState } from '../reality/state'
+import { createDirectedRelationship, createInitialRealityDomainState } from '../reality/state'
+import { addRealityFact, learnRealityFact } from '../reality/knowledge'
+import type { RealityFact } from '../reality/types'
+import { makeIntelMemory } from '../intelligenceSystem'
 import type { IncomingInteraction, ScheduledIncomingInteraction } from '../types'
 
 function buildContext(overrides: Partial<AutonomyContext> = {}): AutonomyContext {
@@ -122,6 +125,88 @@ function buildStore(context: AutonomyContext): AutonomyStore & {
 }
 
 describe('incomingInteractionAutonomy thematic routing', () => {
+  it.each([false, true])(
+    'keeps a known tip separate from a relationship dispute (%s)',
+    (dispute) => {
+      const reality = createInitialRealityDomainState()
+      const fact: RealityFact = {
+        id: 'fact:blue-and-aria',
+        sourceEventId: 'event:blue-and-aria',
+        propositionType: 'SECRET_MEETING',
+        subjectIds: ['blue', 'aria'],
+        value: true,
+        day: 4,
+        phase: 'social_2',
+        visibility: 'PAIR_ONLY',
+        participantIds: ['blue', 'aria'],
+        witnessIds: ['dex'],
+        viewerVisible: false,
+        publicVisible: false,
+        juryVisible: false,
+      }
+      addRealityFact(reality, fact)
+      learnRealityFact(reality, {
+        ownerId: 'dex',
+        factId: fact.id,
+        memory: makeIntelMemory({
+          ownerId: 'dex',
+          fact,
+          sourceType: 'DIRECT',
+          sourceChain: ['blue'],
+          confidence: 0.9,
+          day: 4,
+          phase: 'social_2',
+        }),
+      })
+      if (dispute) {
+        const edge = createDirectedRelationship('dex', 'user', -20)
+        edge.resentment = 50
+        reality.relationships.dex = { user: edge }
+        reality.relationshipAutonomy.provocateurSeason = {
+          targetId: 'user',
+          roles: [],
+          observedThroughSequence: 0,
+          lastSceneDay: 4,
+        }
+      }
+      const context = buildContext({
+        phase: 'social_2',
+        week: 4,
+        dramaMode: dispute,
+        players: [
+          { id: 'user', name: 'You', status: 'active', isUser: true },
+          { id: 'dex', name: 'Dex', status: 'active' },
+          { id: 'blue', name: 'Blue', status: 'active' },
+          { id: 'aria', name: 'Aria', status: 'active' },
+        ],
+        relationships: { dex: { user: { affinity: -32, tags: [] } } },
+        reality,
+        random: () => 0,
+      })
+      const store = buildStore(context)
+      scheduleIncomingInteractionsForPhase(context.phase, store, context)
+      const entry = store.social.scheduledIncomingInteractions.find(
+        ({ interaction }) => interaction.fromId === 'dex'
+      )?.interaction
+      if (dispute) {
+        expect(entry?.payload).toMatchObject({
+          scenarioKey: 'relationship_frustration_follow_up',
+          relationshipIntent: 'CONFRONT',
+        })
+        expect(entry?.payload?.intelFactId).toBeUndefined()
+        expect(entry?.text).not.toMatch(/compare notes in private|backup plan|collecting votes/i)
+      } else {
+        expect(entry?.payload).toMatchObject({
+          scenarioKey: 'private_intel_lead',
+          intelFactId: fact.id,
+          subjectId: 'blue',
+        })
+        expect(entry?.text).toContain('Blue and Aria')
+        expect(entry?.payload?.relationshipBeatId).toBeUndefined()
+      }
+    }
+  )
+
   it('does not add Vox-only Final 3 contacts to Classic', () => {
     const context = buildContext({ phase: 'final3_comp1' })
     const store = buildStore(context)
@@ -131,14 +216,18 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(store.social.scheduledIncomingInteractions).toEqual([])
   })
 
-  it('routes nominees to plea only when the player is HOH', () => {
+  it('routes an at-risk hubmate to a plea before the LOH locks nominations', () => {
     const context = buildContext({
       phase: 'nominations',
       lohId: 'user',
-      nomineeIds: ['nominee'],
+      nomineeIds: [],
+      relationships: { nominee: { user: { affinity: -60, tags: [] } } },
     })
 
     expect(chooseIncomingInteractionType('nominee', 'user', context)).toBe('nomination_plea')
+    expect(
+      chooseIncomingInteractionType('nominee', 'user', { ...context, nomineeIds: ['nominee'] })
+    ).not.toBe('nomination_plea')
   })
 
   it('lets a nominee react directly to the human LOH after nominations are revealed', () => {
@@ -859,10 +948,11 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     const context = buildContext({
       phase: 'nominations',
       lohId: 'user',
-      nomineeIds: ['nominee'],
+      nomineeIds: [],
+      relationships: { nominee: { user: { affinity: -60, tags: [] } } },
       players: [
         { id: 'user', name: 'Jordan', status: 'loh', isUser: true },
-        { id: 'nominee', name: 'Rae', status: 'nominated' },
+        { id: 'nominee', name: 'Rae', status: 'active' },
       ],
       random: () => 0,
     })

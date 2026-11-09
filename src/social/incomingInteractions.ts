@@ -1,6 +1,15 @@
 import { finalizeAcceptedPersonalPact } from './reality/allianceManagement'
 import { getCurrentPact } from './reality/allianceIdentity'
-import { getIncomingInteractionTone } from './incomingInteractionPresentation'
+import {
+  getIncomingInteractionResponseOptions,
+  getIncomingInteractionTone,
+} from './incomingInteractionPresentation'
+import {
+  getSafetyConsultationScenario,
+  isSafetyChoiceAligned,
+  type IncomingSafetyChoice,
+} from './incomingSafetyConsultationChoice'
+import { ROMANCE_ACTION_CHOICES } from './incomingSceneChoiceBank'
 import { getIncomingDialogueBeat } from './incomingDialogueOutcomeBank'
 import { getSameDayPactRefusal, isProtectionClarification } from './pactProtectionContinuity'
 import { getIncomingActionContent } from './incomingActionContentBank'
@@ -36,7 +45,11 @@ import {
   resolvePendingHumanRealityInteraction,
   resolveRelationshipStoryResponse,
 } from './reality'
-import { isIncomingInteractionOverdue } from './incomingInteractionDeadline'
+import {
+  getIncomingDeadline,
+  isIncomingInteractionOverdue,
+  isIncomingInteractionUrgent,
+} from './incomingInteractionDeadline'
 import {
   createCommitmentFromInteraction,
   getCommitmentKindForInteraction,
@@ -52,6 +65,7 @@ import type {
   IncomingInteraction,
   IncomingInteractionResponseType,
   IncomingInteractionResponseAction,
+  IncomingInteractionReceipt,
   IncomingInteractionType,
 } from './types'
 import { makeIntelMemory } from './intelligenceSystem'
@@ -322,8 +336,7 @@ function resolveRealityIncomingInteraction(
   interaction: IncomingInteraction,
   responseType: IncomingInteractionResponseType,
   day: number,
-  phase: string,
-  baseDomain = getState().social.reality
+  phase: string
 ): void {
   const realityInteractionId =
     typeof interaction.payload?.realityInteractionId === 'string'
@@ -583,7 +596,9 @@ function resolveRealityIncomingInteraction(
     return
   }
   const resolved = resolvePendingHumanRealityInteraction({
-    domain: baseDomain,
+    // Inbox effects may already have changed other relationship edges or
+    // delivered knowledge. Resolve the linked action against the live domain.
+    domain: state.social.reality,
     interactionId: realityInteractionId,
     humanId,
     responseType,
@@ -636,40 +651,28 @@ function getPersonalPactPlanReply(interaction: IncomingInteraction, fromName: st
 function getResponseDelta(
   responseType: IncomingInteractionResponseType,
   interaction: IncomingInteraction,
-  responseLabel?: string
+  safetyChoice?: IncomingSafetyChoice
 ): number {
   const scenarioKey = interaction.payload?.scenarioKey
-  const allianceStrategyScenario = isAllianceStrategyScenario(scenarioKey)
-  if (allianceStrategyScenario) {
+  if (isAllianceStrategyScenario(scenarioKey)) {
     if (responseType === 'accept' || responseType === 'positive') return 3
     if (responseType === 'neutral' || responseType === 'decline' || responseType === 'negative') {
       return 0
     }
     return -2
   }
-  if (
-    scenarioKey === 'safety_holder_consults_loh' ||
-    scenarioKey === 'loh_consults_safety_holder'
-  ) {
-    if (scenarioKey === 'loh_consults_safety_holder') {
-      const choice = getDeclaredSafetyChoice(interaction, responseLabel)
-      if (choice.kind === 'advice') return 2
-      const preferredAdvice = interaction.payload?.preferredSafetyAdvice
-      const preferredTargetId = interaction.payload?.preferredSafetyTargetId
-      const aligned =
-        (choice.kind === 'none' && preferredAdvice === 'hold') ||
-        (choice.kind === 'save' &&
-          preferredAdvice === 'save' &&
-          choice.targetId === preferredTargetId)
-      if (choice.kind === 'save' || choice.kind === 'none') return aligned ? 3 : 0
-    }
-    // These four buttons describe a plan, not moral approval. Any concrete
-    // answer builds a little trust; uncertainty is neutral and dismissal hurts.
-    if (responseType === 'accept' || responseType === 'decline' || responseType === 'negative') {
-      return 2
-    }
-    if (responseType === 'neutral') return 1
+  const consultation = getSafetyConsultationScenario(interaction)
+  if (consultation) {
     if (responseType === 'dismiss' || responseType === 'ignore') return -2
+    if (safetyChoice?.kind === 'ask_advice') return 2
+    if (safetyChoice?.kind === 'save' || safetyChoice?.kind === 'hold') {
+      return consultation === 'loh_consults_safety_holder'
+        ? isSafetyChoiceAligned(interaction, safetyChoice)
+          ? 3
+          : 0
+        : 2
+    }
+    return 1
   }
   return socialConfig.incomingInteractionAffinityDeltas[responseType] ?? 0
 }
@@ -689,33 +692,6 @@ function buildResponseLogText(
   }
   const verb = RESPONSE_VERBS[responseType] ?? 'responded to'
   return `You ${verb} ${fromName}'s ${typeLabel}.`
-}
-
-function getDeclaredSafetyChoice(
-  interaction: IncomingInteraction,
-  responseLabel?: string
-): {
-  targetName?: string
-  targetId?: string
-  kind: 'save' | 'none' | 'advice' | 'undecided'
-} {
-  const label = responseLabel ?? ''
-  if (/save nobody/i.test(label)) return { kind: 'none' }
-  if (/your advice/i.test(label)) return { kind: 'advice' }
-  if (/not decided|your call/i.test(label)) return { kind: 'undecided' }
-  const match = label.match(/^Save (.+)$/i)
-  if (!match) return { kind: 'undecided' }
-  const targetName = match[1]
-  const names = Array.isArray(interaction.payload?.nomineeNames)
-    ? interaction.payload.nomineeNames
-    : []
-  const ids = Array.isArray(interaction.payload?.nomineeIds) ? interaction.payload.nomineeIds : []
-  const index = names.findIndex((name) => name === targetName)
-  return {
-    kind: 'save',
-    targetName,
-    targetId: index >= 0 && typeof ids[index] === 'string' ? ids[index] : undefined,
-  }
 }
 
 function describeLohSafetyPreference(interaction: IncomingInteraction, fromName: string): string {
@@ -795,7 +771,8 @@ function buildResponseOutcomeText(
   fromName: string,
   subjectName?: string,
   responseLabel?: string,
-  players: readonly { id: string; name: string; status: string; isUser?: boolean }[] = []
+  players: readonly { id: string; name: string; status: string; isUser?: boolean }[] = [],
+  safetyChoice?: IncomingSafetyChoice
 ): string | undefined {
   const hasContextualScenario = typeof interaction.payload?.scenarioKey === 'string'
   if (interaction.type === 'alliance_proposal' && responseType === 'accept') {
@@ -823,7 +800,7 @@ function buildResponseOutcomeText(
       if (scenarioKey === 'alliance_nomination_pitch')
         return `You and ${fromName} recorded ${subjectName ?? 'the proposed target'} as an alliance recommendation. The LOH still sets the slate.`
       if (scenarioKey === 'alliance_safety_pitch')
-        return `You and ${fromName} recorded ${subjectName ?? 'the proposed player'} as a replacement recommendation. The Safety holder still makes the final decision.`
+        return `You and ${fromName} recorded ${subjectName ?? 'the proposed player'} as a replacement recommendation. The holder decides whether to use Safety, and the LOH decides the replacement.`
       if (scenarioKey === 'alliance_vote_pitch')
         return `You and ${fromName} recorded ${subjectName ?? 'the proposed nominee'} as a shared vote read. Each eligible member still casts their own ballot.`
       return `${fromName} took your answer as strategic alignment. The shared alliance recommendation is now recorded.`
@@ -837,30 +814,24 @@ function buildResponseOutcomeText(
     return `You stepped out of ${fromName}'s strategy conversation. No alliance recommendation was recorded from your response.`
   }
   if (scenarioKey === 'safety_holder_consults_loh') {
-    const choice = getDeclaredSafetyChoice(interaction, responseLabel)
-    if (choice.kind === 'save')
-      return `${fromName} now knows you prefer Safety used on ${choice.targetName}.`
-    if (choice.kind === 'none')
+    if (safetyChoice?.kind === 'save')
+      return `${fromName} now knows you prefer Safety used on ${safetyChoice.targetName}. They still make the decision.`
+    if (safetyChoice?.kind === 'hold')
       return `${fromName} now knows you prefer the nominations left unchanged.`
-    return `You told ${fromName} that the final Safety decision is theirs.`
+    return `You left the Safety decision to ${fromName}.`
   }
   if (scenarioKey === 'loh_consults_safety_holder') {
-    const choice = getDeclaredSafetyChoice(interaction, responseLabel)
-    if (choice.kind === 'advice') return describeLohSafetyPreference(interaction, fromName)
-    const aligned =
-      (choice.kind === 'none' && interaction.payload?.preferredSafetyAdvice === 'hold') ||
-      (choice.kind === 'save' &&
-        interaction.payload?.preferredSafetyAdvice === 'save' &&
-        choice.targetId === interaction.payload?.preferredSafetyTargetId)
-    if (choice.kind === 'save' || choice.kind === 'none') {
-      if (!aligned) {
+    if (safetyChoice?.kind === 'ask_advice')
+      return describeLohSafetyPreference(interaction, fromName)
+    if (safetyChoice?.kind === 'save' || safetyChoice?.kind === 'hold') {
+      if (!isSafetyChoiceAligned(interaction, safetyChoice)) {
         return `${fromName} asked you to reconsider. ${describeLohSafetyPreference(
           interaction,
           fromName
         )}`
       }
-      return choice.kind === 'save'
-        ? `${fromName} agrees with saving ${choice.targetName} and will prepare the replacement.`
+      return safetyChoice.kind === 'save'
+        ? `${fromName} agrees with saving ${safetyChoice.targetName} and will prepare the replacement.`
         : `${fromName} agrees that the nominations should remain unchanged.`
     }
     return `${fromName} knows you have not committed to a Safety plan yet.`
@@ -912,6 +883,7 @@ function applyIncomingChoiceConsequences({
   interaction,
   responseType,
   responseLabel,
+  safetyChoice,
   source,
   resolvedAt,
 }: {
@@ -920,9 +892,15 @@ function applyIncomingChoiceConsequences({
   interaction: IncomingInteraction
   responseType: IncomingInteractionResponseType
   responseLabel?: string
+  safetyChoice?: IncomingSafetyChoice
   source: ResolutionSource
   resolvedAt: number
-}): { reactionText?: string; outcomeText?: string; logText: string } | null {
+}): {
+  reactionText?: string
+  outcomeText: string
+  receipt?: IncomingInteractionReceipt
+  logText: string
+} | null {
   const humanPlayer = state.game.players.find((player) => player.isUser)
   if (!humanPlayer) return null
 
@@ -935,12 +913,16 @@ function applyIncomingChoiceConsequences({
   const subjectName = subjectId
     ? state.game.players.find((player) => player.id === subjectId)?.name
     : undefined
+  const consultationScenario = getSafetyConsultationScenario(interaction)
+  const baseDelta = getResponseDelta(responseType, interaction, safetyChoice)
+  const sentiment =
+    consultationScenario && safetyChoice ? (baseDelta > 0 ? 'positive' : 'neutral') : responseType
   if (dramaMode) {
     dispatch(
       applyDramaIncomingResponse({
         holderId: interaction.fromId,
         subjectId: humanPlayer.id,
-        responseType,
+        responseType: sentiment,
         interactionType: interaction.type,
         week: currentWeek,
       })
@@ -968,7 +950,6 @@ function applyIncomingChoiceConsequences({
     if (commitment) dispatch(addSocialCommitment(commitment))
   }
 
-  const baseDelta = getResponseDelta(responseType, interaction, responseLabel)
   const responseTone = dramaMode
     ? getIncomingInteractionTone({
         interaction,
@@ -978,14 +959,11 @@ function applyIncomingChoiceConsequences({
         isUrgent: interaction.expiresAtWeek <= currentWeek,
       })
     : undefined
-  const consultationScenario =
-    interaction.payload?.scenarioKey === 'safety_holder_consults_loh' ||
-    interaction.payload?.scenarioKey === 'loh_consults_safety_holder'
   const allianceStrategyScenario = isAllianceStrategyScenario(interaction.payload?.scenarioKey)
   const hasContextualScenario = typeof interaction.payload?.scenarioKey === 'string'
   const contextualResolution = resolveIncomingResponse({
     interaction,
-    responseType,
+    responseType: sentiment,
     fromName,
     phase: state.game.phase,
     actorAffinity: state.social.relationships[interaction.fromId]?.[humanPlayer.id]?.affinity ?? 0,
@@ -1025,7 +1003,8 @@ function applyIncomingChoiceConsequences({
         fromName,
         subjectName,
         responseLabel,
-        state.game.players
+        state.game.players,
+        safetyChoice
       ) ?? contextualResolution.outcomeText)
   const reactionText = buildIncomingReactionText(
     interaction,
@@ -1041,8 +1020,16 @@ function applyIncomingChoiceConsequences({
     recentPactRefusal ?? undefined
   )
   const acceptedAlliance = interaction.type === 'alliance_proposal' && responseType === 'accept'
+  const realityInteractionId = interaction.payload?.realityInteractionId
+  const linkedRealityScene =
+    typeof realityInteractionId === 'string'
+      ? state.social.reality.interactions[realityInteractionId]
+      : undefined
 
   if (
+    // A linked scene computes the direct participant changes on settlement.
+    // Adding these compatibility deltas too would apply the conversation twice.
+    linkedRealityScene?.status !== 'AWAITING_HUMAN' &&
     (actorDelta !== 0 || playerDelta !== 0 || acceptedAlliance) &&
     interaction.fromId !== humanPlayer.id
   ) {
@@ -1117,16 +1104,17 @@ function applyIncomingChoiceConsequences({
     )
   }
 
-  if (interaction.payload?.scenarioKey === 'safety_holder_consults_loh') {
-    const choice = getDeclaredSafetyChoice(interaction, responseLabel)
+  if (consultationScenario === 'safety_holder_consults_loh' && safetyChoice) {
     dispatch({
       type: 'game/setLohSafetyAdvice',
       payload: {
         week: currentWeek,
-        lohId: humanPlayer.id,
-        holderId: interaction.fromId,
-        advice: choice.kind === 'save' ? 'use' : choice.kind === 'none' ? 'hold' : 'free',
-        targetId: choice.targetId,
+        lohId: state.game.lohId ?? humanPlayer.id,
+        holderId: state.game.posWinnerId ?? interaction.fromId,
+        advice:
+          safetyChoice.kind === 'save' ? 'use' : safetyChoice.kind === 'hold' ? 'hold' : 'free',
+        targetId: safetyChoice.kind === 'save' ? safetyChoice.targetId : undefined,
+        source: 'human_loh',
       },
     })
   }
@@ -1142,13 +1130,13 @@ function applyIncomingChoiceConsequences({
             )
           : hasContextualScenario
             ? mergeSocialMemoryDeltas(
-                buildSocialMemoryDeltaForResponse(responseType),
+                buildSocialMemoryDeltaForResponse(sentiment),
                 contextualResolution.memoryDelta
               )
             : buildSocialMemoryDeltaForResponse(responseType),
         event: buildSocialMemoryEvent(
           interaction,
-          responseType,
+          sentiment,
           interaction.fromId,
           humanPlayer.id,
           currentWeek,
@@ -1220,17 +1208,32 @@ function applyIncomingChoiceConsequences({
     )
   }
 
+  const outcomeWithRipple = `${outcomeText}${
+    shouldRippleCupidConversation && cupidPartnerId
+      ? ` Their Cupid partner, ${
+          state.game.players.find((player) => player.id === cupidPartnerId)?.name ?? 'their partner'
+        }, is likely to hear their version of it.`
+      : ''
+  }`
+  const receiptKind =
+    source === 'player' &&
+    (responseType === 'positive' || responseType === 'accept') &&
+    getCommitmentKindForInteraction(interaction)
+      ? 'promise'
+      : consultationScenario || allianceStrategyScenario
+        ? 'gameplay'
+        : intelFact &&
+            source === 'player' &&
+            (responseType === 'positive' || responseType === 'neutral')
+          ? 'intel'
+          : shouldRippleCupidConversation
+            ? 'relationship'
+            : null
   return {
     reactionText,
-    outcomeText: `${outcomeText}${
-      shouldRippleCupidConversation && cupidPartnerId
-        ? ` Their Cupid partner, ${
-            state.game.players.find((player) => player.id === cupidPartnerId)?.name ??
-            'their partner'
-          }, is likely to hear their version of it.`
-        : ''
-    }`,
-    logText: buildResponseLogText(interaction, responseType, fromName, dramaMode),
+    outcomeText: outcomeWithRipple,
+    receipt: receiptKind ? { kind: receiptKind, text: outcomeWithRipple } : undefined,
+    logText: buildResponseLogText(interaction, sentiment, fromName, dramaMode),
   }
 }
 
@@ -1310,17 +1313,67 @@ function settleBackgroundSocialAction(
   )
 }
 
-export function respondToIncomingInteraction({
-  interactionId,
-  responseType,
-  responseLabel,
-  responseAction,
-}: {
-  interactionId: string
-  responseType: IncomingInteractionResponseType
-  responseLabel?: string
-  responseAction?: IncomingInteractionResponseAction
-}) {
+type IncomingReplySubmission = { interactionId: string } & (
+  | {
+      choiceId: string
+      responseType?: never
+      responseLabel?: never
+      responseAction?: never
+    }
+  | {
+      choiceId?: never
+      responseType: IncomingInteractionResponseType
+      responseLabel?: string
+      responseAction?: IncomingInteractionResponseAction
+    }
+)
+
+function getSubmittedIncomingChoice(
+  interaction: IncomingInteraction,
+  submission: IncomingReplySubmission,
+  state: RootState
+) {
+  const isSafety = Boolean(getSafetyConsultationScenario(interaction))
+  if (submission.choiceId === undefined && !isSafety) return undefined
+
+  const dramaMode = getInteractionSocialMode(interaction, state) === 'drama'
+  const humanId = state.game.players.find((player) => player.isUser)?.id ?? ''
+  const tone = dramaMode
+    ? getIncomingInteractionTone({
+        interaction,
+        relationships: state.social.relationships,
+        socialMemory: state.social.socialMemory,
+        humanId,
+        isUrgent:
+          getIncomingInteractionResponsePolicy(interaction) === 'required' &&
+          isIncomingInteractionUrgent(interaction, {
+            day: state.game.week ?? 1,
+            phase: state.game.phase,
+          }),
+      })
+    : undefined
+  const options = getIncomingInteractionResponseOptions(
+    interaction.type,
+    interaction,
+    tone,
+    dramaMode,
+    state.game
+  )
+  if (submission.choiceId !== undefined) {
+    return options.find((option) => option.id === submission.choiceId)
+  }
+  // Older callers can still use a label if it refers to one unambiguous live nominee.
+  const matches = options.filter(
+    (option) =>
+      option.label === submission.responseLabel ||
+      (option.safetyChoice?.kind === 'save' &&
+        submission.responseLabel === `Save ${option.safetyChoice.targetName}`)
+  )
+  return matches.length === 1 ? matches[0] : undefined
+}
+
+export function respondToIncomingInteraction(submission: IncomingReplySubmission) {
+  const { interactionId, choiceId } = submission
   return (dispatch: AppDispatch, getState: () => RootState): void => {
     const state = getState()
     const interaction = state.social.incomingInteractions.find(
@@ -1331,7 +1384,6 @@ export function respondToIncomingInteraction({
 
     const currentWeek = state.game.week ?? 1
     const resolvedAt = Date.now()
-    const realityBeforeResponse = state.social.reality
 
     const overdue = isIncomingInteractionOverdue(interaction, {
       day: currentWeek,
@@ -1342,22 +1394,13 @@ export function respondToIncomingInteraction({
       state.game,
       state.social.reality
     )
-    if (overdue || invalidated) {
-      if (interaction.type === 'alliance_proposal') {
-        dispatch(
-          resolveIncomingInteraction({
-            interactionId,
-            resolvedWith: overdue ? 'ignore' : 'dismiss',
-            resolvedLabel: overdue ? 'Expired' : 'No longer available',
-            outcomeText: overdue
-              ? 'The personal pact offer expired unanswered. No pact was formed.'
-              : 'This personal pact offer is no longer available. No pact was formed.',
-            resolvedAt,
-            resolvedWeek: currentWeek,
-          })
-        )
-        return
-      }
+    if (overdue) {
+      dispatch(
+        autoResolveExpiredIncomingInteractionsForClock(currentWeek, state.game.phase, interactionId)
+      )
+      return
+    }
+    if (invalidated) {
       dispatch(
         dismissIncomingInteraction({
           interactionId,
@@ -1366,6 +1409,32 @@ export function respondToIncomingInteraction({
         })
       )
       return
+    }
+
+    const option = getSubmittedIncomingChoice(interaction, submission, state)
+    if ((choiceId !== undefined || getSafetyConsultationScenario(interaction)) && !option) return
+    const safetyChoice = option?.safetyChoice
+    if (safetyChoice?.kind === 'save' && !safetyChoice.targetId) return
+
+    const responseLabel = option?.label ?? submission.responseLabel
+    const responseAction = option?.action ?? submission.responseAction
+    let responseType = option?.responseType ?? submission.responseType
+    if (!responseType) return
+
+    const originActionId = interaction.payload?.originActionId
+    const legacyAmbiguousConsent =
+      choiceId === undefined &&
+      typeof originActionId === 'string' &&
+      Object.hasOwn(ROMANCE_ACTION_CHOICES, originActionId)
+    const legacyConsideration =
+      /^(?:promise consideration|promise to consider|give them a real opening)$/i.test(
+        responseLabel ?? ''
+      )
+    if (
+      (legacyAmbiguousConsent || legacyConsideration) &&
+      (responseType === 'positive' || responseType === 'accept')
+    ) {
+      responseType = 'neutral'
     }
 
     if (interaction.type === 'alliance_proposal' && responseAction) {
@@ -1413,8 +1482,7 @@ export function respondToIncomingInteraction({
         interaction,
         responseType,
         currentWeek,
-        state.game.phase,
-        realityBeforeResponse
+        state.game.phase
       )
       const humanId = state.game.players.find((player) => player.isUser)?.id
       const activePact = humanId
@@ -1445,8 +1513,10 @@ export function respondToIncomingInteraction({
           interactionId,
           resolvedWith: responseType,
           resolvedLabel: responseLabel,
+          resolvedChoiceId: choiceId,
           reactionText,
           outcomeText,
+          receipt: { kind: 'gameplay', text: outcomeText },
           resolvedAt,
           resolvedWeek: currentWeek,
         })
@@ -1460,6 +1530,7 @@ export function respondToIncomingInteraction({
       interaction,
       responseType,
       responseLabel,
+      safetyChoice,
       source: 'player',
       resolvedAt,
     })
@@ -1471,8 +1542,7 @@ export function respondToIncomingInteraction({
       interaction,
       responseType,
       currentWeek,
-      state.game.phase,
-      realityBeforeResponse
+      state.game.phase
     )
     settleBackgroundSocialAction(dispatch, getState, interaction, resolvedAt)
 
@@ -1481,8 +1551,10 @@ export function respondToIncomingInteraction({
         interactionId,
         resolvedWith: responseType,
         resolvedLabel: responseLabel,
+        resolvedChoiceId: choiceId,
         reactionText: result.reactionText,
         outcomeText: result.outcomeText,
+        receipt: result.receipt,
         resolvedAt,
         resolvedWeek: currentWeek,
       })
@@ -1500,22 +1572,45 @@ export function autoResolveExpiredIncomingInteractionsForWeek(week: number) {
   return autoResolveExpiredIncomingInteractionsForClock(week, 'week_start')
 }
 
-export function autoResolveExpiredIncomingInteractionsForClock(day: number, phase: string) {
+export function autoResolveExpiredIncomingInteractionsForClock(
+  day: number,
+  phase: string,
+  onlyInteractionId?: string
+) {
   return (dispatch: AppDispatch, getState: () => RootState): void => {
-    const state = getState()
-    const interactions = state.social.incomingInteractions.filter((entry) =>
-      isIncomingInteractionOverdue(entry, { day, phase })
+    const interactions = getState().social.incomingInteractions.filter(
+      (entry) =>
+        (!onlyInteractionId || entry.id === onlyInteractionId) &&
+        isIncomingInteractionOverdue(entry, { day, phase })
     )
     if (interactions.length === 0) return
 
     const resolvedAt = Date.now()
-    const required = interactions.filter(
-      (interaction) => getIncomingInteractionResponsePolicy(interaction) === 'required'
-    )
-
+    const expiredIds: string[] = []
     for (const interaction of interactions) {
-      const realityBeforeResponse = getState().social.reality
-      const isRequired = required.includes(interaction)
+      const state = getState()
+      const isRequired = getIncomingInteractionResponsePolicy(interaction) === 'required'
+      const deadline = getIncomingDeadline(interaction)
+      // A missed window can count as ignored, but a move made impossible by
+      // a changed role, locked ballot or missing target closes without penalty.
+      if (
+        isRequired &&
+        isIncomingInteractionInvalidated(
+          interaction,
+          { ...state.game, phase: deadline.phase },
+          state.social.reality
+        )
+      ) {
+        dispatch(
+          dismissIncomingInteraction({
+            interactionId: interaction.id,
+            resolvedAt,
+            resolvedWeek: day,
+          })
+        )
+        continue
+      }
+      expiredIds.push(interaction.id)
       logIncomingInteractionDecision(dispatch, {
         stage: 'auto_resolution',
         reason: isRequired ? 'auto_resolved_ignored' : 'auto_resolved_no_response_required',
@@ -1536,22 +1631,14 @@ export function autoResolveExpiredIncomingInteractionsForClock(day: number, phas
           source: 'expiry',
           resolvedAt,
         })
+        resolveRealityIncomingInteraction(dispatch, getState, interaction, 'ignore', day, phase)
+        settleBackgroundSocialAction(dispatch, getState, interaction, resolvedAt)
       }
-      resolveRealityIncomingInteraction(
-        dispatch,
-        getState,
-        interaction,
-        'ignore',
-        day,
-        phase,
-        realityBeforeResponse
-      )
-      settleBackgroundSocialAction(dispatch, getState, interaction, resolvedAt)
     }
 
     dispatch(
       resolveIncomingInteractionsByDeadline({
-        interactionIds: interactions.map((interaction) => interaction.id),
+        interactionIds: expiredIds,
         day,
         phase,
         resolvedAt,

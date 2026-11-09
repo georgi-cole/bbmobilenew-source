@@ -1,12 +1,53 @@
 import { describe, expect, it } from 'vitest'
 import { getRealityRelationshipLabel } from '../../components/SocialPanelV2/relationshipUtils'
 import { createInitialRealityDomainState, createRealityAlliance } from '../reality'
+import { recordRealityCeremonyOutcome } from '../reality/ceremonies'
+import { upsertRealityFacadeAgreement } from '../reality/facadeAgreements'
 import { recordRealityAllianceBetrayal } from '../reality/relationshipForms'
 import { selectCanonicalRelationshipView } from '../relationshipSemantics'
 import { advanceNemesisNarrative } from '../reality/nemesisNarrative'
-import { registerProvocateurConflict } from '../seasonProvocateurs'
+import { getUpdatedProvocateurSeason, registerProvocateurConflict } from '../seasonProvocateurs'
 
 describe('season provocateur conflict relationships', () => {
+  it.each([true, false])(
+    'uses a nomination as a grievance only without consent (%s)',
+    (consent) => {
+      const reality = createInitialRealityDomainState()
+      const players = [
+        { id: 'human', isUser: true, status: 'loh' },
+        { id: 'lia', isUser: false, status: 'active' },
+      ]
+      const context = { players, targetId: 'human', seed: 7, day: 4 }
+      reality.relationshipAutonomy.provocateurSeason = getUpdatedProvocateurSeason(reality, context)
+      if (consent) {
+        upsertRealityFacadeAgreement(reality, {
+          id: 'pawn-offer',
+          day: 4,
+          lohId: 'human',
+          facadeId: 'lia',
+          stage: 'INITIAL_NOMINATION',
+          status: 'ACCEPTED',
+          voluntary: true,
+        })
+      }
+      recordRealityCeremonyOutcome(reality, {
+        kind: 'NOMINATIONS_LOCKED',
+        day: 4,
+        phase: 'nomination_results',
+        actorId: 'human',
+        targetIds: ['lia'],
+        witnessIds: ['human', 'lia'],
+        publicEligible: false,
+      })
+      const update = getUpdatedProvocateurSeason(reality, context)
+      if (consent) {
+        expect(update).toBeNull()
+      } else {
+        expect(update?.roles[0]).toMatchObject({ actorId: 'lia', cause: 'NOMINATION' })
+      }
+    }
+  )
+
   it('records a nemesis and displays it from the targeted player’s relationship read', () => {
     const reality = createInitialRealityDomainState()
 

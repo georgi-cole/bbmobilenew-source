@@ -40,6 +40,7 @@ import {
 import { SCENARIO_VARIANT_POOLS, getVoiceProfile, pickVariantText } from './interactionVariantBank'
 import { getNamedInteractionText } from './namedInteractionBank'
 import { createIncomingInteraction } from './incomingInteractionFactory'
+import { INCOMING_INTEL_LEAD } from './incomingIntelLead'
 import { createDeterministicSocialRandom } from './socialExecutionGuard'
 import { getSocialPersonality } from './socialPersonalityBank'
 import { getEffectiveSocialMode } from './socialMode'
@@ -62,6 +63,7 @@ import {
   getSafetyRelationshipScore,
 } from '../store/gameSlice'
 import { getCupidPartnerId } from '../features/twists/cupidArrow'
+import { getActiveFacadeAgreement } from './reality/facadeAgreements'
 import { planRelationshipStoryBeat, reserveRelationshipBeat } from './reality/relationshipAutonomy'
 import {
   registerProvocateurConflict,
@@ -683,9 +685,7 @@ function canSendInteractionType(
 ): boolean {
   switch (type) {
     case 'nomination_plea':
-      return (
-        constraints.actorIsNominee && (constraints.playerIsHoh || constraints.playerHasSafetyPower)
-      )
+      return !constraints.actorIsNominee && constraints.playerIsHoh
     case 'deal_offer':
       // The current LOH may initiate one specific strategic consultation when
       // the human holds Safety; ordinary HOH deal offers remain blocked.
@@ -1076,6 +1076,20 @@ function resolveIncomingInteractionPlan(
 ): InteractionPlan | null {
   const constraints = buildActorConstraints(actorId, playerId, context)
   if (!constraints || constraints.actorIsPendingEvictee) return null
+  const reality = context.reality
+  if (
+    context.phase === 'nomination_results' &&
+    constraints.actorIsNominee &&
+    reality &&
+    [playerId, getCupidPartnerId(context.gameState ?? {}, playerId)].some(
+      (lohId) =>
+        lohId &&
+        getActiveFacadeAgreement(reality, lohId, actorId, context.week, 'INITIAL_NOMINATION')
+    )
+  ) {
+    // A volunteer already knows why they are on the block.
+    return null
+  }
 
   const signals = buildRelationshipSignals(actorId, playerId, context)
   const establishedAllyAsLoh =
@@ -1167,9 +1181,10 @@ function resolveIncomingInteractionPlan(
         scenarioKey: 'nominee_veto_pitch',
       }
     } else if (
-      constraints.actorIsNominee &&
+      !constraints.actorIsNominee &&
       context.phase === 'nominations' &&
-      constraints.playerIsHoh
+      constraints.playerIsHoh &&
+      signals.isMildEnemy
     ) {
       plan = { type: 'nomination_plea', scenarioKey: 'nominee_hoh_plea' }
     } else if (
@@ -2265,6 +2280,8 @@ function scheduleIncomingInteractionsForPhaseInternal(
     }
 
     const useVoxDrama = dramaMode || context.voxPopuliActive === true
+    const usesNamedOpening =
+      plan.scenarioKey === 'generic_gossip' || plan.scenarioKey === 'betrayal_warning'
     const privateIntelToday = (context.intelligenceDeliveries ?? []).filter(
       (delivery) =>
         delivery.day === week &&
@@ -2279,7 +2296,7 @@ function scheduleIncomingInteractionsForPhaseInternal(
       week >= 3 &&
       privateIntelToday + pendingIntelToday.length < 2 &&
       context.reality &&
-      (plan.type === 'gossip' || plan.type === 'warning')
+      (plan.scenarioKey === 'generic_gossip' || plan.scenarioKey === 'week_start_enemy_gossip')
         ? selectIntelFactForActor(context.reality, actor.id, playerId, week, context.players)
         : null
     const intelLead =
@@ -2289,10 +2306,12 @@ function scheduleIncomingInteractionsForPhaseInternal(
       )
         ? candidateIntelLead
         : null
-    const interactionType: IncomingInteractionType =
-      intelLead?.fact.propositionType === 'TARGETING' && intelLead.fact.objectId === playerId
+    const scenarioKey = intelLead ? INCOMING_INTEL_LEAD : plan.scenarioKey
+    const interactionType: IncomingInteractionType = intelLead
+      ? intelLead.fact.propositionType === 'TARGETING' && intelLead.fact.objectId === playerId
         ? 'warning'
-        : plan.type
+        : 'gossip'
+      : plan.type
     const textResult = generateInteractionText(
       actor.id,
       playerId,
@@ -2304,17 +2323,12 @@ function scheduleIncomingInteractionsForPhaseInternal(
     const plannedSubject = plan.subjectId
       ? context.players.find((candidate) => candidate.id === plan.subjectId)
       : undefined
-    const subject = plannedSubject
-      ? plannedSubject
-      : intelLead
-        ? context.players.find(
-            (candidate) =>
-              candidate.id === intelLead.fact.subjectIds[0] ||
-              candidate.id === intelLead.fact.objectId
-          )
-        : useVoxDrama
+    const subject = intelLead
+      ? context.players.find((candidate) => candidate.id === intelLead.fact.subjectIds[0])
+      : (plannedSubject ??
+        (useVoxDrama && usesNamedOpening
           ? selectInteractionSubject(actor.id, playerId, plan.type, context)
-          : undefined
+          : undefined))
     const subjectName = subject?.name ?? subject?.id
     const secondarySubjectName = plan.secondarySubjectId
       ? getPlayerName(context, plan.secondarySubjectId, plan.secondarySubjectId)
@@ -2330,7 +2344,7 @@ function scheduleIncomingInteractionsForPhaseInternal(
             context.players as Array<{ id: string; name: string }>,
             playerId
           )
-        : subjectName && (plan.type === 'gossip' || plan.type === 'warning')
+        : subjectName && usesNamedOpening
           ? getNamedInteractionText(
               plan.scenarioKey,
               plan.type,
@@ -2350,7 +2364,7 @@ function scheduleIncomingInteractionsForPhaseInternal(
       phase,
       mode: useVoxDrama ? 'drama' : 'normal',
       payload: {
-        scenarioKey: plan.scenarioKey,
+        scenarioKey,
         ...(plan.provocateurRole
           ? {
               source: 'season_provocateur',
@@ -2385,8 +2399,8 @@ function scheduleIncomingInteractionsForPhaseInternal(
           : {}),
         ...(plan.relationshipIntent ? { relationshipIntent: plan.relationshipIntent } : {}),
         ...(plan.relationshipBeatId ? { relationshipBeatId: plan.relationshipBeatId } : {}),
-        variantFamilyId: textResult.variantFamilyId,
-        variantId: textResult.variantId,
+        variantFamilyId: intelLead ? INCOMING_INTEL_LEAD : textResult.variantFamilyId,
+        variantId: intelLead?.fact.id ?? textResult.variantId,
         actorStatus: actor.status,
         subjectId: subject?.id,
         ...(subjectName ? { subjectName } : {}),
@@ -2433,7 +2447,7 @@ function scheduleIncomingInteractionsForPhaseInternal(
       },
     })
 
-    const priority = getIncomingInteractionPriority(plan.type, plan.scenarioKey)
+    const priority = getIncomingInteractionPriority(interaction.type, scenarioKey)
     logIncomingInteractionDecision(store.dispatch, {
       stage: 'generation',
       reason: 'generated',
@@ -2445,8 +2459,8 @@ function scheduleIncomingInteractionsForPhaseInternal(
       phase,
       detail:
         decision.score !== undefined
-          ? `score=${decision.score.toFixed(3)};scenario=${plan.scenarioKey}`
-          : `scenario=${plan.scenarioKey}`,
+          ? `score=${decision.score.toFixed(3)};scenario=${scenarioKey}`
+          : `scenario=${scenarioKey}`,
     })
     const mustDeliverConsultationNow = plan.scenarioKey === 'loh_consults_safety_holder'
     const candidateDedupeReason = getInteractionDedupeReason({
@@ -2492,6 +2506,7 @@ function scheduleIncomingInteractionsForPhaseInternal(
           priority,
           slotCounts,
           visibleActiveCount,
+          interaction,
           deliveryConfigOverride: context.voxPopuliActive
             ? { maxActiveVisible: 7, maxMajorActiveVisible: 7, maxDeliveredPerPhase: 3 }
             : undefined,
@@ -2531,7 +2546,7 @@ function scheduleIncomingInteractionsForPhaseInternal(
       phase,
       scheduledForWeek: slot.scheduledForWeek,
       scheduledForPhase: slot.scheduledForPhase,
-      detail: `${slot.deliveryReason ?? 'unknown'};scenario=${plan.scenarioKey}`,
+      detail: `${slot.deliveryReason ?? 'unknown'};scenario=${scenarioKey}`,
     })
 
     if (plan.relationshipBeatId && context.reality) {

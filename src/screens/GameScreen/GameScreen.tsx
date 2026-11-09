@@ -1553,11 +1553,6 @@ export default function GameScreen() {
     (!finaleOverlayActive || finalePlayAvailable)
   const weekendInterludeActive = game.weekendInterlude?.active === true
   const weekendVisualTheme = resolveWeekendVisualTheme(game.weekendInterlude)
-  const weekendSocialAvailable =
-    !weekendInterludeActive ||
-    game.weekendInterlude?.stage === 'social' ||
-    (game.weekendInterlude?.finaleWeekend === true &&
-      game.weekendInterlude.stage === 'finale_reunion_social')
 
   function handlePublicMeterBlocked() {
     if (hasPublicModeAccess || settings.sim.publicModeAdminOverride) {
@@ -2662,10 +2657,10 @@ export default function GameScreen() {
         )}
 
         {/* ── Social Phase Panel V2 (modal overlay skeleton) ───────────────── */}
-        {isSocialModeEnabled(game.mode) && weekendSocialAvailable && <SocialPanelV2 />}
+        {isSocialModeEnabled(game.mode) && <SocialPanelV2 />}
 
         {/* ── Incoming interactions inbox ─────────────────────────────────── */}
-        {isSocialModeEnabled(game.mode) && weekendSocialAvailable && <IncomingInteractionsInbox />}
+        {isSocialModeEnabled(game.mode) && <IncomingInteractionsInbox />}
 
         {/* ── Social Summary Popup (shown after social phase ends) ─────────── */}
         {isSocialModeEnabled(game.mode) && socialSummaryOpen && <SocialSummaryPopup />}

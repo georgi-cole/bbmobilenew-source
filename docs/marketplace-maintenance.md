@@ -44,11 +44,32 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-10: Reviewed removal of the duplicate reply-button descriptions in
+  Reality and Classic. The reply labels still state any promise the player
+  makes, and this presentation change leaves the Store offers and access rules
+  unchanged.
+
+- 2026-11-09: Reviewed the Reality and Classic nomination-advice, Reassure, and
+  Incoming fixes, including Cupid's separate consent for each partner. This is
+  maintenance of the existing conversations and ceremony rules. Store offers,
+  access, and prices are unchanged.
+
 - 2026-11-09 — Reviewed the TestFlight fixes for the Store, paid-mode launch
   buttons, Reality Mode portraits, and elimination markers. The VIP card now
   shows Owned in place of the purchase price when VIP access is active. Prices,
   product contents, upgrade credit, eligibility, and benefits stay the same.
   Premium Challenges and VIP both continue to grant all premium minigame versions.
+
+- 2026-11-08: Reviewed direct nomination, Safety replacement, and house-vote
+  conversations in Classic, Reality, and the Cupid and Vox formats. The routing
+  and saved inbox changes restore the existing conversations within each
+  format's rules. The Reality offer and its access rules are unchanged.
+
+- 2026-11-08: Reviewed Incoming and Social fixes across Classic and Reality,
+  including Safety advice, explicit promises and consent, linked relationship
+  and intel effects, and saved conversation continuity. The changes repair
+  existing scenes and gameplay effects. Reality Mode's access, benefits, price,
+  and Store copy continue to describe the existing offer.
 
 - 2026-11-06: Reviewed durable competition-attempt and result checkpoints across
   minigames, including restored paid variants. Interrupted attempts forfeit, while

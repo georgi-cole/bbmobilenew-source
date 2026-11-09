@@ -42,7 +42,9 @@ import {
   getSocialCommitmentLabel,
   getSocialCredibility,
 } from '../../social/socialCommitments'
-import { getEffectiveSocialMode } from '../../social/socialMode'
+import { getEffectiveSocialMode, getInteractionSocialMode } from '../../social/socialMode'
+import { getSafetyConsultationScenario } from '../../social/incomingSafetyConsultationChoice'
+import { getIncomingReactionForDisplay, isIncomingIntelLead } from '../../social/incomingIntelLead'
 import {
   getIncomingInteractionResponsePolicy,
   type IncomingInteractionResponsePolicy,
@@ -51,12 +53,12 @@ import type {
   DramaBelief,
   IncomingInteraction,
   IncomingInteractionPriority,
-  IncomingInteractionResponseType,
+  IncomingInteractionResponseAction,
   RelationshipsMap,
   SocialCommitment,
   SocialMemoryMap,
 } from '../../social/types'
-import type { Player } from '../../types'
+import type { GameState, Player } from '../../types'
 import {
   formatIncomingDeadline,
   formatIncomingDecisionDeadline,
@@ -80,10 +82,11 @@ function formatResponseLabel(interaction: IncomingInteraction): string {
   )}`
 }
 
-function shouldShowOutcomeText(interaction: IncomingInteraction): boolean {
+function getVisibleOutcomeText(interaction: IncomingInteraction): string | undefined {
+  if (interaction.receipt) return interaction.receipt.text
   const outcomeText = interaction.outcomeText?.trim()
-  if (!outcomeText) return false
-  if (!interaction.reactionText) return true
+  if (!outcomeText) return undefined
+  if (!interaction.reactionText) return outcomeText
 
   // When authored dialogue is present, only keep a second line for a concrete
   // game-state consequence. Keywords like "vote" or "plan" also appear in
@@ -92,6 +95,8 @@ function shouldShowOutcomeText(interaction: IncomingInteraction): boolean {
   return /\b(?:is now active|is now live|was formed|was recorded|remains open|stays open|made a promise|unconfirmed lead|remains unconfirmed|no (?:shared|alliance) plan was locked|target was not agreed|alliance remains intact|offer closes? day|will close on day)\b/i.test(
     outcomeText
   )
+    ? outcomeText
+    : undefined
 }
 
 function relationshipContextLabel(interaction: IncomingInteraction): string | null {
@@ -273,10 +278,10 @@ interface InteractionItemProps {
   onRead: (interactionId: string) => void
   onRespond: (
     interactionId: string,
-    responseType: IncomingInteractionResponseType,
-    responseLabel: string,
-    responseAction?: 'ask_plan' | 'need_time'
+    choiceId: string,
+    action?: IncomingInteractionResponseAction
   ) => void
+  safetyContext: Pick<GameState, 'players' | 'nomineeIds'>
   relationships: RelationshipsMap
   socialMemory: SocialMemoryMap
   humanId: string
@@ -294,6 +299,7 @@ function InteractionItem({
   currentPhase,
   onRead,
   onRespond,
+  safetyContext,
   relationships,
   socialMemory,
   humanId,
@@ -303,15 +309,26 @@ function InteractionItem({
   const itemRef = useRef<HTMLDivElement>(null)
   const fromPlayer = playerById.get(interaction.fromId)
   const fromName = fromPlayer?.name ?? interaction.fromId
-  const typeLabel = getIncomingInteractionTypeLabel(interaction.type)
-  const relationshipContext = relationshipContextLabel(interaction)
+  const safetyConsultation = getSafetyConsultationScenario(interaction)
+  const typeLabel = safetyConsultation
+    ? 'Safety consultation'
+    : getIncomingInteractionTypeLabel(interaction.type)
+  const safetyContextText =
+    safetyConsultation === 'safety_holder_consults_loh'
+      ? 'They are asking for your recommendation. The Safety decision is theirs.'
+      : safetyConsultation === 'loh_consults_safety_holder'
+        ? 'The LOH wants your plan. You make the Safety decision at the ceremony.'
+        : undefined
+  const privateIntel = isIncomingIntelLead(interaction)
+  const relationshipContext = privateIntel ? null : relationshipContextLabel(interaction)
   const isUnread = !interaction.read && !interaction.resolved
   const isUrgent =
     policy === 'required' &&
     isIncomingInteractionUrgent(interaction, { day: currentWeek, phase: currentPhase })
   const expiryLabel = getExpiryLabel(interaction, currentWeek, currentPhase, policy)
   const shouldShowActions = showActions && policy !== 'readOnly' && !interaction.resolved
-  const showOutcomeText = shouldShowOutcomeText(interaction)
+  const reactionText = getIncomingReactionForDisplay(interaction, fromName)
+  const outcomeText = reactionText && privateIntel ? undefined : getVisibleOutcomeText(interaction)
 
   useEffect(() => {
     if (!isUnread || !itemRef.current) return
@@ -356,11 +373,12 @@ function InteractionItem({
               interaction.type,
               interaction,
               tone,
-              interactionDramaMode
+              interactionDramaMode,
+              safetyContext
             )
           )
         : [],
-    [shouldShowActions, interaction, tone, interactionDramaMode]
+    [shouldShowActions, interaction, tone, interactionDramaMode, safetyContext]
   )
 
   const resolvedLabel = interaction.resolved
@@ -427,19 +445,18 @@ function InteractionItem({
       </div>
 
       <p className="inbox-item__text">{interaction.text}</p>
+      {shouldShowActions && safetyContextText && (
+        <p className="inbox-item__choice-context">{safetyContextText}</p>
+      )}
 
-      {(interaction.reactionText || interaction.outcomeText) && (
+      {(reactionText || outcomeText) && (
         <div className="inbox-item__feedback" aria-label="Response">
-          {interaction.reactionText && (
-            <p className="inbox-item__reaction">{interaction.reactionText}</p>
-          )}
-          {showOutcomeText && interaction.outcomeText && (
-            <p className="inbox-item__outcome">{interaction.outcomeText}</p>
-          )}
+          {reactionText && <p className="inbox-item__reaction">{reactionText}</p>}
+          {outcomeText && <p className="inbox-item__outcome">{outcomeText}</p>}
         </div>
       )}
 
-      {interactionDramaMode && commitment && (
+      {commitment && (
         <div className={`inbox-item__promise inbox-item__promise--${commitment.status}`}>
           <strong>
             {commitment.status === 'pending' ? 'Promise active' : `Promise ${commitment.status}`}
@@ -449,18 +466,23 @@ function InteractionItem({
       )}
 
       {shouldShowActions && (
-        <div className="inbox-item__actions">
+        <div
+          className={
+            safetyConsultation ||
+            responseOptions.length > 4 ||
+            responseOptions.some((option) => option.createsCommitment || option.label.length > 26)
+              ? 'inbox-item__actions inbox-item__actions--stacked'
+              : 'inbox-item__actions'
+          }
+        >
           {responseOptions.map((option) => (
             <button
-              key={`${interaction.id}-${option.action ?? option.label}`}
+              key={option.id}
               type="button"
-              aria-label={option.label}
               data-response-type={option.responseType}
               data-response-action={option.action}
               className={`inbox-action inbox-action--${option.style}`}
-              onClick={() =>
-                onRespond(interaction.id, option.responseType, option.label, option.action)
-              }
+              onClick={() => onRespond(interaction.id, option.id, option.action)}
             >
               {option.label}
             </button>
@@ -566,33 +588,44 @@ export default function IncomingInteractionsInbox() {
       ),
     [sortedInteractions, currentWeek, recentlyResolvedIds]
   )
+  const humanCommitments = useMemo(
+    () => commitments.filter((commitment) => commitment.promisorId === humanPlayer?.id),
+    [commitments, humanPlayer?.id]
+  )
   const pendingCommitments = useMemo(
-    () => commitments.filter((commitment) => commitment.status === 'pending'),
-    [commitments]
+    () => humanCommitments.filter((commitment) => commitment.status === 'pending'),
+    [humanCommitments]
   )
   const judgedCommitments = useMemo(
     () =>
-      commitments
+      humanCommitments
         .filter((commitment) => commitment.status === 'kept' || commitment.status === 'broken')
         .sort(
           (left, right) =>
             (right.resolvedWeek ?? right.createdWeek) - (left.resolvedWeek ?? left.createdWeek)
         ),
-    [commitments]
+    [humanCommitments]
   )
-  const credibility = useMemo(() => getSocialCredibility(commitments), [commitments])
+  const credibility = useMemo(() => getSocialCredibility(humanCommitments), [humanCommitments])
   const houseRead = useMemo(
     () => (humanPlayer ? getHouseRead(dramaNetwork.beliefs, humanPlayer.id) : null),
     [dramaNetwork.beliefs, humanPlayer]
   )
 
+  const openConversationCount = openInteractions.filter(
+    ({ policy }) => policy !== 'readOnly'
+  ).length
+  const houseUpdateCount = openInteractions.length - openConversationCount
   const headerSummary =
     [
       actionableAllianceRequests.length > 0
         ? `${actionableAllianceRequests.length} alliance decision${actionableAllianceRequests.length === 1 ? '' : 's'}`
         : null,
-      openInteractions.length > 0
-        ? `${openInteractions.length} open conversation${openInteractions.length === 1 ? '' : 's'}`
+      openConversationCount > 0
+        ? `${openConversationCount} open conversation${openConversationCount === 1 ? '' : 's'}`
+        : null,
+      houseUpdateCount > 0
+        ? `${houseUpdateCount} house update${houseUpdateCount === 1 ? '' : 's'}`
         : null,
     ]
       .filter((entry): entry is string => entry !== null)
@@ -602,12 +635,7 @@ export default function IncomingInteractionsInbox() {
   const hasSeenPromiseGuide = hasSeenContextualGuide('promise', activeProfileId, isGuest)
   const hasMeaningfulIncoming =
     globalDramaMode && openInteractions.some(({ policy }) => policy === 'required')
-  const hasHumanPromise =
-    globalDramaMode &&
-    Boolean(
-      humanPlayer &&
-      pendingCommitments.some((commitment) => commitment.promisorId === humanPlayer.id)
-    )
+  const hasHumanPromise = pendingCommitments.length > 0
   const showIncomingContextGuide = open && hasMeaningfulIncoming && !hasSeenIncomingGuide
   const showPromiseContextGuide =
     open && hasHumanPromise && !showIncomingContextGuide && !hasSeenPromiseGuide
@@ -635,7 +663,8 @@ export default function IncomingInteractionsInbox() {
     policy: IncomingInteractionResponsePolicy,
     showActions: boolean
   ) => {
-    const interactionDramaMode = globalDramaMode
+    const interactionDramaMode =
+      getInteractionSocialMode(interaction, { game, settings, vip }) === 'drama'
     return (
       <InteractionItem
         key={interaction.id}
@@ -647,7 +676,8 @@ export default function IncomingInteractionsInbox() {
         currentWeek={currentWeek}
         currentPhase={game.phase ?? 'week_start'}
         onRead={(interactionId) => dispatch(markIncomingInteractionRead(interactionId))}
-        onRespond={(interactionId, responseType, responseLabel, responseAction) => {
+        safetyContext={game}
+        onRespond={(interactionId, choiceId, responseAction) => {
           if (!responseAction) {
             setRecentlyResolvedIds((current) => {
               const nextIds = new Set(current)
@@ -655,19 +685,12 @@ export default function IncomingInteractionsInbox() {
               return nextIds
             })
           }
-          dispatch(
-            respondToIncomingInteraction({
-              interactionId,
-              responseType,
-              responseLabel,
-              responseAction,
-            })
-          )
+          dispatch(respondToIncomingInteraction({ interactionId, choiceId }))
         }}
         relationships={relationships}
         socialMemory={socialMemory}
         humanId={humanPlayer.id}
-        commitment={commitments.find((entry) => entry.interactionId === interaction.id)}
+        commitment={humanCommitments.find((entry) => entry.interactionId === interaction.id)}
         interactionDramaMode={interactionDramaMode}
       />
     )
@@ -699,7 +722,7 @@ export default function IncomingInteractionsInbox() {
           </div>
 
           <div className="inbox-header__meta">
-            {globalDramaMode && (
+            {(globalDramaMode || humanCommitments.length > 0) && (
               <details className="inbox-header__reputation">
                 <summary>
                   {credibility.kept + credibility.broken === 0
@@ -715,7 +738,7 @@ export default function IncomingInteractionsInbox() {
                     Reliability changes only when a promise reaches the decision it referred to. It
                     improves by making fewer promises and keeping the next ones you do make.
                   </p>
-                  {houseRead && (
+                  {globalDramaMode && houseRead && (
                     <p>
                       <strong>Hub read: {houseRead.label}.</strong> {houseRead.explanation}
                     </p>
@@ -740,7 +763,10 @@ export default function IncomingInteractionsInbox() {
               {allianceDecisionFeedback}
             </p>
           )}
-          {sortedInteractions.length === 0 && actionableAllianceRequests.length === 0 ? (
+          {visibleConversationInteractions.length === 0 &&
+          resolvedInteractions.length === 0 &&
+          pendingCommitments.length === 0 &&
+          actionableAllianceRequests.length === 0 ? (
             <div className="inbox-empty">No incoming interactions or alliance decisions.</div>
           ) : (
             <div className="inbox-sections">
@@ -897,7 +923,7 @@ export default function IncomingInteractionsInbox() {
                   </div>
                 </section>
               )}
-              {globalDramaMode && pendingCommitments.length > 0 && (
+              {pendingCommitments.length > 0 && (
                 <details className="inbox-section inbox-section--promises">
                   <summary className="inbox-section__title inbox-section__title--promises">
                     Active promises · {pendingCommitments.length}

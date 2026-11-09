@@ -1,4 +1,14 @@
-import type { RealityDomainState, RealityFacadeAgreement } from './types'
+import type { RealityDomainState, RealityFacadeAgreement, RealitySocialEvent } from './types'
+
+/** An automatic or agreed placement alone is no reason to blame the LOH. */
+export function isUnagreedNominationFor(event: RealitySocialEvent, targetId: string): boolean {
+  return (
+    event.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
+    event.targetIds.includes(targetId) &&
+    !event.tags.includes(`automatic_nominee:${targetId}`) &&
+    !event.tags.includes(`consented_nominee:${targetId}`)
+  )
+}
 
 export function getActiveFacadeAgreement(
   state: RealityDomainState,

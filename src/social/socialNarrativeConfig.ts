@@ -335,7 +335,7 @@ export const SOCIAL_ACTION_REACTION_COPY: Readonly<
       '{target} relaxed into the moment and let the conversation linger.',
     ],
     failure: [
-      '{target} did not appreciate the suggestion.',
+      '{target} brushed off the compliment and moved on.',
       '{target} gave you a polite smile that faded before the conversation did.',
       '{target} heard a line instead of a compliment and changed the subject.',
       '{target} looked unconvinced and glanced toward the rest of the room.',

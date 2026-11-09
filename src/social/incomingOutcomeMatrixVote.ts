@@ -1,7 +1,23 @@
-import { acts, says } from './incomingOutcomeMatrixUtils'
+import { acts, says, subject } from './incomingOutcomeMatrixUtils'
 import type { ScenarioOutcomeMatrix } from './incomingOutcomeMatrixUtils'
 
 export const VOTE_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
+  direct_vote_pitch: {
+    'back their case for eviction': (context) =>
+      `${context.fromName} hears your support for evicting ${subject(context)}. The official ballot is separate.`,
+    'ask why they’re rallying votes': (context) =>
+      `${context.fromName} explains why they have been campaigning against ${subject(context)}.`,
+    'say i won’t back that vote': acts('stops looking to you for support on that vote.'),
+    'end the vote discussion': acts('leaves your position on the vote open.'),
+  },
+  vote_rally_warning: {
+    'ask how much support they have': acts(
+      'shares their estimate. The eviction result is still pending.'
+    ),
+    'ask why they targeted me': acts('explains why they campaigned for your eviction.'),
+    'tell them i’ll remember this': acts('understands you may hold the campaign against them.'),
+    'end the conversation': acts('stops discussing their campaign against you.'),
+  },
   replacement_nominee_reacts_to_loh: {
     'explain the backup plan': says(
       'they understand why a replacement was needed, but not why it had to be them.'

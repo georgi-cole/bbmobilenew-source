@@ -803,6 +803,7 @@ export const SOCIAL_ACTIONS: SocialActionDefinition[] = [
     aiOnly: true,
     dramaRequiredTargetStatus: ['nominated', 'nominated+pos'],
     dramaAllowedPhases: ['pos_ceremony_results', 'social_2', 'live_vote'],
+    unavailableInVox: true,
   },
   {
     id: 'idle',
