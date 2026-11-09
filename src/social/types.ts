@@ -274,6 +274,7 @@ export interface SocialInquiryRecord {
   tone: SocialInquiryTone
   hardRefused: boolean
   infoAwarded: boolean
+  volunteeredAsPawn?: boolean
 }
 
 export type IncomingInteractionType =

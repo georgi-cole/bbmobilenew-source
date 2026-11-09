@@ -1,6 +1,7 @@
 import { strategicPreferencesEnabled } from './strategicPolicy'
 import type { AiGameIdentity } from '../ai/aiGameIdentity'
 import type { RealitySocialEvent } from './reality/types'
+import { isUnagreedNominationFor } from './reality/facadeAgreements'
 import type { StrategicPlanningRead } from './strategicPlanningContext'
 import { getSocialExperienceRead, getSocialMotivePreferences } from './socialDecisionPreferences'
 import { getSocialPersonality } from './socialPersonalityBank'
@@ -72,12 +73,7 @@ export function strategicSocialAdjustment(input: StrategicSocialInput) {
   )
   const nominationPressure =
     rules.format === 'classic' &&
-    known.some(
-      (event) =>
-        event.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
-        event.targetIds.includes(input.actorId) &&
-        !event.tags.includes(`automatic_nominee:${input.actorId}`)
-    )
+    known.some((event) => isUnagreedNominationFor(event, input.actorId))
   const personalHarm = seen.some((event) => event.targetIds.includes(input.actorId))
   const witnessedPublicHarm = seen.some(
     (event) =>

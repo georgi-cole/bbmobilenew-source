@@ -44,6 +44,7 @@ import {
 } from '../../social/socialCommitments'
 import { getEffectiveSocialMode, getInteractionSocialMode } from '../../social/socialMode'
 import { getSafetyConsultationScenario } from '../../social/incomingSafetyConsultationChoice'
+import { getIncomingReactionForDisplay, isIncomingIntelLead } from '../../social/incomingIntelLead'
 import {
   getIncomingInteractionResponsePolicy,
   type IncomingInteractionResponsePolicy,
@@ -319,14 +320,16 @@ function InteractionItem({
       : safetyConsultation === 'loh_consults_safety_holder'
         ? 'The LOH wants your plan. You make the Safety decision at the ceremony.'
         : undefined
-  const relationshipContext = relationshipContextLabel(interaction)
+  const privateIntel = isIncomingIntelLead(interaction)
+  const relationshipContext = privateIntel ? null : relationshipContextLabel(interaction)
   const isUnread = !interaction.read && !interaction.resolved
   const isUrgent =
     policy === 'required' &&
     isIncomingInteractionUrgent(interaction, { day: currentWeek, phase: currentPhase })
   const expiryLabel = getExpiryLabel(interaction, currentWeek, currentPhase, policy)
   const shouldShowActions = showActions && policy !== 'readOnly' && !interaction.resolved
-  const outcomeText = getVisibleOutcomeText(interaction)
+  const reactionText = getIncomingReactionForDisplay(interaction, fromName)
+  const outcomeText = reactionText && privateIntel ? undefined : getVisibleOutcomeText(interaction)
 
   useEffect(() => {
     if (!isUnread || !itemRef.current) return
@@ -447,11 +450,9 @@ function InteractionItem({
         <p className="inbox-item__choice-context">{safetyContextText}</p>
       )}
 
-      {(interaction.reactionText || outcomeText) && (
+      {(reactionText || outcomeText) && (
         <div className="inbox-item__feedback" aria-label="Response">
-          {interaction.reactionText && (
-            <p className="inbox-item__reaction">{interaction.reactionText}</p>
-          )}
+          {reactionText && <p className="inbox-item__reaction">{reactionText}</p>}
           {outcomeText && <p className="inbox-item__outcome">{outcomeText}</p>}
         </div>
       )}
@@ -489,7 +490,11 @@ function InteractionItem({
                 onClick={() => onRespond(interaction.id, option.id, option.action)}
               >
                 {option.label}
-                {stakesId && <small id={stakesId}>{option.description}</small>}
+                {stakesId && (
+                  <span id={stakesId} hidden>
+                    {option.description}
+                  </span>
+                )}
               </button>
             )
           })}

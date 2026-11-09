@@ -52,6 +52,7 @@ import { getEffectiveSocialMode } from '../../social/socialMode'
 import { validateSocialExecution } from '../../social/socialExecutionGuard'
 import { getSocialActionPresentation } from '../../social/socialRuntimeConfig'
 import { executeHumanRealityAction } from '../../social/reality/humanFlow'
+import { getIncomingReactionForDisplay, isIncomingIntelLead } from '../../social/incomingIntelLead'
 import { getCupidPartnerId, isCupidArrowActive } from '../../features/twists/cupidArrow'
 import { getPulseChronicleTheme } from '../../social/pulseChronicleTheme'
 import {
@@ -1912,6 +1913,14 @@ export default function SocialPanelV2() {
           (entry.receipt || entry.reactionText)
       )
     : undefined
+  const recentIncomingReplyText =
+    recentIncomingReply && focusedPlayer
+      ? ((isIncomingIntelLead(recentIncomingReply)
+          ? getIncomingReactionForDisplay(recentIncomingReply, focusedPlayer.name)
+          : undefined) ??
+        recentIncomingReply.receipt?.text ??
+        recentIncomingReply.reactionText)
+      : undefined
   const focusedCanonical = focusedPlayer
     ? selectCanonicalRelationshipView({
         relationships,
@@ -2446,12 +2455,10 @@ export default function SocialPanelV2() {
                         />
                       </div>
                     )}
-                    {recentIncomingReply && !selectedReunionGuest && (
+                    {recentIncomingReplyText && !selectedReunionGuest && (
                       <details className="sp2-focus__full-read">
                         <summary>Recent incoming reply</summary>
-                        <p>
-                          {recentIncomingReply.receipt?.text ?? recentIncomingReply.reactionText}
-                        </p>
+                        <p>{recentIncomingReplyText}</p>
                       </details>
                     )}
                     {dramaMode && focusedPlayer && (

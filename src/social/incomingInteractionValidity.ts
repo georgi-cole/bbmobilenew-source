@@ -11,6 +11,7 @@ import {
   getIncomingInteractionValidityRule,
   type IncomingInteractionValidityRule,
 } from './incomingInteractionValidityBank'
+import { INCOMING_INTEL_LEAD } from './incomingIntelLead'
 import { isLohReplacementPending } from './lohReplacementWindow'
 import type { IncomingInteraction, ScheduledIncomingInteraction } from './types'
 import type { RealityDomainState } from './reality/types'
@@ -641,6 +642,7 @@ export function isIncomingInteractionInvalidated(
 
   const intelFactId = interaction.payload?.intelFactId
   const intelFact = typeof intelFactId === 'string' ? reality?.facts[intelFactId] : undefined
+  if (reality && getScenarioKey(interaction) === INCOMING_INTEL_LEAD && !intelFact) return true
   if (intelFact && !isRealityFactEligibleForCurrentUse(intelFact, game.players ?? [])) return true
 
   if (

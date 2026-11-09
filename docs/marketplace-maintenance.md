@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-09: Reviewed the Reality and Classic nomination-advice, Reassure, and
+  Incoming fixes, including Cupid's separate consent for each partner. This is
+  maintenance of the existing conversations and ceremony rules. Store offers,
+  access, and prices are unchanged.
+
 - 2026-11-08: Reviewed direct nomination, Safety replacement, and house-vote
   conversations in Classic, Reality, and the Cupid and Vox formats. The routing
   and saved inbox changes restore the existing conversations within each

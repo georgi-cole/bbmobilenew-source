@@ -6,6 +6,7 @@ import {
   recordRealityAllianceLeakDiscovery,
 } from './allianceKnowledge'
 import { appendRealityEvent } from './events'
+import { isUnagreedNominationFor } from './facadeAgreements'
 import { reconcileConvergedAllianceRosters } from './allianceRosterConvergence'
 import { remember } from './memory'
 import { applyRealityRelationshipChange, getRealityRelationship } from './relationships'
@@ -659,7 +660,7 @@ export function captureRealityReentryProfile(
   const conflictTargetIds =
     latestNomination?.actorId &&
     latestNomination.actorId !== playerId &&
-    !latestNomination.tags.includes('automatic_nominee:' + playerId)
+    isUnagreedNominationFor(latestNomination, playerId)
       ? [latestNomination.actorId]
       : []
   state.reentryProfiles[playerId] = {

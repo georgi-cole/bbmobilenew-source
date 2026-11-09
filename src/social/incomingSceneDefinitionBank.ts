@@ -5,6 +5,11 @@ export interface SceneDefinition {
 }
 
 export const SCENE_DEFINITIONS: Record<string, SceneDefinition> = {
+  private_intel_lead: {
+    topic: 'a private tip about the Hub',
+    stakes: 'meaningful',
+    kind: 'intel',
+  },
   week_start_ally_check_in: {
     topic: 'where the two of you stand this week',
     stakes: 'meaningful',

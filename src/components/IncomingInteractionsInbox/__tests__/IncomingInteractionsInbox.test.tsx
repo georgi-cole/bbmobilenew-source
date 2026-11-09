@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import gameReducer, { createInitialGameState, setPhase } from '../../../store/gameSlice'
 import settingsReducer, { setGameUX } from '../../../store/settingsSlice'
 import socialReducer, {
+  hydrateSocial,
   openIncomingInbox,
   pushIncomingInteraction,
   replaceRealityDomain,
@@ -18,6 +19,8 @@ import {
   manageAlliance,
 } from '../../../social/reality/allianceManagement'
 import { createInitialRealityDomainState, ensureRealityActors } from '../../../social/reality/state'
+import { addRealityFact } from '../../../social/reality/knowledge'
+import type { RealityFact } from '../../../social/reality/types'
 import { createRealityAlliance } from '../../../social/reality/relationshipForms'
 import IncomingInteractionsInbox from '../IncomingInteractionsInbox'
 
@@ -863,6 +866,7 @@ describe('IncomingInteractionsInbox', () => {
     renderInbox(store)
 
     const promise = screen.getByRole('button', { name: /promise to keep|give my word/i })
+    expect(within(promise).getByText(/checked when nominations lock/i)).not.toBeVisible()
     expect(promise).toHaveAccessibleDescription(
       /promise to keep them off the block.*nominations lock/i
     )
@@ -873,6 +877,103 @@ describe('IncomingInteractionsInbox', () => {
     expect(screen.getByText('Promise active')).toBeInTheDocument()
     expect(screen.getByText('Active promises · 1')).toBeInTheDocument()
   })
+
+  it.each([false, true])(
+    'shows one on-topic reply for a saved Dex tip (answered: %s)',
+    (answered) => {
+      const game = createInitialGameState()
+      game.week = 4
+      game.phase = 'social_2'
+      const human = game.players.find((player) => player.isUser)!
+      const [dex, blue, aria] = game.players.filter((player) => !player.isUser)
+      dex.name = 'Dex'
+      blue.name = 'Blue'
+      aria.name = 'Aria'
+      const store = makeInboxStoreForGame(game)
+      const reality = createInitialRealityDomainState()
+      const fact: RealityFact = {
+        id: 'fact:dex-tip',
+        sourceEventId: 'event:blue-and-aria',
+        propositionType: 'SECRET_MEETING',
+        subjectIds: [blue.id, aria.id],
+        value: true,
+        day: game.week,
+        phase: game.phase,
+        visibility: 'PAIR_ONLY',
+        participantIds: [blue.id, aria.id],
+        witnessIds: [dex.id],
+        viewerVisible: false,
+        publicVisible: false,
+        juryVisible: false,
+      }
+      addRealityFact(reality, fact)
+      store.dispatch(
+        hydrateSocial({
+          ...store.getState().social,
+          reality,
+          incomingInteractions: [
+            {
+              id: 'saved-dex-tip',
+              fromId: dex.id,
+              type: 'warning',
+              text: 'I heard something you may want to know: Blue and Aria have been finding reasons to compare notes in private.',
+              payload: {
+                scenarioKey: 'relationship_frustration_follow_up',
+                relationshipIntent: 'REPAIR',
+                relationshipBeatId: 'unrelated-relationship-beat',
+                modeAtCreation: 'drama',
+                intelFactId: fact.id,
+                subjectId: blue.id,
+                subjectName: 'Blue',
+              },
+              createdWeek: game.week,
+              createdAt: 11,
+              expiresAtWeek: game.week + 1,
+              read: answered,
+              requiresResponse: false,
+              resolved: answered,
+              ...(answered
+                ? {
+                    resolvedWith: 'positive' as const,
+                    resolvedLabel: 'Talk it through',
+                    resolvedWeek: game.week,
+                    reactionText: 'Dex replies: "I did not need a perfect apology."',
+                    outcomeText: 'Dex says they are frustrated by mixed signals.',
+                    receipt: {
+                      kind: 'intel' as const,
+                      text: 'Dex says they are frustrated by mixed signals.',
+                    },
+                  }
+                : {}),
+            },
+          ],
+        })
+      )
+      store.dispatch(openIncomingInbox())
+      renderInbox(store)
+
+      expect(screen.queryByText('Trying to repair things')).not.toBeInTheDocument()
+      if (!answered) {
+        expect(
+          store.getState().social.incomingInteractions[0].payload?.relationshipBeatId
+        ).toBeUndefined()
+        expect(screen.queryByRole('button', { name: 'Talk it through' })).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole('button', { name: 'Ask how they heard it' }))
+        expect(
+          store.getState().social.reality.beliefsByOwner[human.id]?.[
+            `belief:${human.id}:${fact.id}`
+          ]
+        ).toBeDefined()
+        expect(store.getState().social.intelligenceDeliveries).toHaveLength(1)
+      } else {
+        expect(store.getState().social.intelligenceDeliveries).toHaveLength(0)
+      }
+      const response = screen.getByLabelText('Response')
+      expect(response.querySelectorAll('p')).toHaveLength(1)
+      expect(response).toHaveTextContent(/Dex replies:.*Blue/)
+      expect(response).not.toHaveTextContent(/apology|mixed signals/)
+    }
+  )
 
   it('shows a structured gameplay receipt beside an authored reaction', () => {
     const store = makeStore()
