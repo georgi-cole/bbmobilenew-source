@@ -3,6 +3,9 @@ import type { SocialInquiryKind, SocialInquiryRecord } from './types'
 
 export type InquiryActionId = 'ask_nomination_advice' | 'ask_player_opinion'
 
+export const NOMINATION_PAWN_OFFER =
+  'I could volunteer as a pawn, but only if you promise me this is a façade and I am not your real target.'
+
 export function getInquiryKind(actionId: string): SocialInquiryKind | null {
   if (actionId === 'ask_nomination_advice') return 'NOMINATION_ADVICE'
   if (actionId === 'ask_player_opinion') return 'PLAYER_OPINION'
@@ -82,6 +85,7 @@ export interface InquiryAnswerResolution {
   tone: SocialInquiryRecord['tone']
   hardRefused: boolean
   infoReward: number
+  volunteeredAsPawn?: boolean
 }
 
 /** Resolve pressure without treating hesitation or annoyance as proof of truth. */
@@ -109,6 +113,7 @@ export function resolveInquiryAnswer(input: InquiryAnswerInput): InquiryAnswerRe
         tone: 'CANDID',
         hardRefused: false,
         infoReward: 1,
+        volunteeredAsPawn: true,
       }
     }
     if (input.coverAnswerText && input.random() < (input.coverChance ?? 0)) {

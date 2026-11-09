@@ -44,6 +44,16 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-10: Reviewed removal of the duplicate reply-button descriptions in
+  Reality and Classic. The reply labels still state any promise the player
+  makes, and this presentation change leaves the Store offers and access rules
+  unchanged.
+
+- 2026-11-09: Reviewed the Reality and Classic nomination-advice, Reassure, and
+  Incoming fixes, including Cupid's separate consent for each partner. This is
+  maintenance of the existing conversations and ceremony rules. Store offers,
+  access, and prices are unchanged.
+
 - 2026-11-09 — Reviewed the Home Hub glass finish, the order of the Safety
   ceremony announcements, and the Twin Shock portrait reveal. This review
   covers the shared presentation of the standard and VIP ceremonies, paid-mode

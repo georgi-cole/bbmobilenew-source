@@ -52,6 +52,19 @@ const INTEL_BEATS: BeatSet = {
   ],
 }
 
+const PRIVATE_INTEL_BEATS: BeatSet = {
+  positive: [
+    '"I thought you should hear it. Keep an eye on it before you make any moves."',
+    '"I’m glad I told you. See if it fits anything you’ve noticed yourself."',
+  ],
+  neutral: [
+    '"I’m keeping my source private. The tip about {subject} is worth watching, but I only have part of the story."',
+    '"That’s what I’ve picked up about {subject} so far. I’d wait for something firmer before making a move."',
+  ],
+  negative: ['"Fair enough. It’s still a tip. I’ll leave you to make your own read."'],
+  dismiss: ['"All right. I’ll leave it there."'],
+}
+
 const CAMPAIGN_BEATS: BeatSet = {
   positive: [
     '"My case is that I am a number you can work with, while the people pushing my name have more to gain from a divided Hub. If you keep me safe, I will show you that in the next decision."',
@@ -588,6 +601,7 @@ const SNARK_BEATS: BeatSet = {
 }
 
 const BEATS_BY_SCENE: Record<string, BeatSet> = {
+  private_intel_lead: PRIVATE_INTEL_BEATS,
   week_start_enemy_gossip: INTEL_BEATS,
   generic_gossip: INTEL_BEATS,
   betrayal_warning: INTEL_BEATS,

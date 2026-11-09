@@ -569,13 +569,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.inbox-action small {
-  color: rgba(248, 250, 252, 0.64);
-  font-size: 0.58rem;
-  font-weight: 500;
-  line-height: 1.2;
-}
-
 .inbox-action--positive {
   background: rgba(34, 197, 94, 0.22);
   border-color: rgba(34, 197, 94, 0.28);
@@ -832,11 +825,4 @@
   border-radius: 0.65rem;
   font-size: 0.72rem;
   overflow-wrap: anywhere;
-}
-
-.inbox-action small {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.68rem;
-  line-height: 1.25;
 }

@@ -62,6 +62,8 @@ import {
 import { shouldDepressionShockRefuseConversation } from '../../features/twists/depressionShock'
 import { createDeterministicSocialRandom, validateSocialExecution } from '../socialExecutionGuard'
 import { isLohReplacementPending } from '../lohReplacementWindow'
+import { getPendingNominationPawnOffer } from '../nominationPawnOffer'
+import { upsertRealityFacadeAgreement } from './facadeAgreements'
 import {
   createInitialPregnancyStoryState,
   estimateFinalThreeDay,
@@ -2040,6 +2042,14 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
     })
     if (!eligibility.eligible) return result(false, eligibility.reason, energy, 0, 'Unavailable')
 
+    const pawnOffer =
+      input.actionId === 'reassure' && targetIds.length === 1
+        ? getPendingNominationPawnOffer(state.game, state.social, input.actorId, input.targetId)
+        : null
+    const pawnSummary = pawnOffer
+      ? `${playerName(state, pawnOffer.facadeId)} agreed to go on the block as a pawn after you reassured them about the plan.`
+      : undefined
+
     const baseExecutionCosts = getDynamicInquiryCosts(
       action,
       input.actorId,
@@ -2150,11 +2160,27 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
           source: 'manual',
           subjectId: input.subjectId,
           costOverride: executionCosts,
+          ...(pawnOffer
+            ? {
+                outcome: 'success' as const,
+                repetitionAlreadyResolved: true,
+                conversationRefusalAlreadyResolved: true,
+              }
+            : {}),
         }
       )
+      if (pawnOffer && classicResult.success) {
+        const domain = createDraft(getState().social.reality)
+        upsertRealityFacadeAgreement(domain, pawnOffer)
+        dispatch(commitRealityDomainUpdate({ domain: finishDraft(domain) }))
+      }
       return {
         ...classicResult,
-        summary: buildLohConsultationSummary(getState(), input, classicResult.summary),
+        summary: buildLohConsultationSummary(
+          getState(),
+          input,
+          (classicResult.success && pawnSummary) || classicResult.summary
+        ),
       }
     }
 
@@ -2437,13 +2463,12 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
             action: contract,
             targetIds: direction === 'GROUP' ? [...executionTargetIds].sort() : executionTargetIds,
             subjectId: input.subjectId,
-            // An active alliance huddle is a convened group meeting. Disagreement
-            // belongs in each member's strategic read, not in a random refusal by
-            // whichever member the player tapped to identify the alliance.
-            acceptanceChanceOverride: consultationAlliance ? 1 : undefined,
-            repetitionByTarget: consultationAlliance
-              ? undefined
-              : getPhaseRepetition(state, input, executionTargetIds),
+            // An arranged huddle and a voluntary pawn offer already have consent.
+            acceptanceChanceOverride: consultationAlliance || pawnOffer ? 1 : undefined,
+            repetitionByTarget:
+              consultationAlliance || pawnOffer
+                ? undefined
+                : getPhaseRepetition(state, input, executionTargetIds),
             promiseContradicted:
               input.actionId === 'protect'
                 ? isProtectionPromiseContradicted(state, input.actorId, input.targetId)
@@ -2612,6 +2637,7 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       finishDraft(resolvedDomain)
       return compatibility
     }
+    if (pawnOffer && resolvedAsSuccess) upsertRealityFacadeAgreement(resolvedDomain, pawnOffer)
     // Legacy spends and direct relationship writes run first. Publish action
     // logs only after projecting the causal world so downstream strategies and
     // intel can add their effects without a later replacement erasing them.
@@ -2680,6 +2706,7 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       input.actionId === 'proposeAlliance' && orchestration.response?.kind === 'COUNTER'
     let baseSummary =
       allianceConsultationSummary ??
+      (resolvedAsSuccess ? pawnSummary : undefined) ??
       formatRealityResponse(state, input, action, orchestration, compatibility)
     if (allianceProposalCountered) {
       const targetName =

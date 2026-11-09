@@ -7,6 +7,7 @@ import {
 import type { IncomingInteraction, IncomingInteractionType } from './types'
 import { deriveIncomingDeadline, getIncomingDeadline } from './incomingInteractionDeadline'
 import { getIncomingActionContent } from './incomingActionContentBank'
+import { INCOMING_INTEL_LEAD, isIncomingIntelLead } from './incomingIntelLead'
 
 export interface IncomingInteractionFactoryInput {
   id: string
@@ -75,6 +76,18 @@ export function normalizeIncomingInteractionContract(
       : directScenario
         ? { ...saved, payload: { ...saved.payload, scenarioKey: directScenario } }
         : saved
+  const payload = { ...interaction.payload }
+  if (
+    !interaction.resolved &&
+    isIncomingIntelLead(interaction) &&
+    payload.scenarioKey !== INCOMING_INTEL_LEAD
+  ) {
+    payload.scenarioKey = INCOMING_INTEL_LEAD
+    payload.responsePolicy = 'optional'
+    delete payload.relationshipIntent
+    delete payload.relationshipBeatId
+    delete payload.variantFamilyId
+  }
   const runtime = getSocialRuntimeConfig()
   const authoredMode = interaction.payload?.modeAtCreation
   const mode: SocialMode =
@@ -83,7 +96,7 @@ export function normalizeIncomingInteractionContract(
       : interaction.payload?.dramaMode === true
         ? 'drama'
         : fallbackMode
-  const responsePolicy = getIncomingInteractionResponsePolicy(interaction)
+  const responsePolicy = getIncomingInteractionResponsePolicy({ ...interaction, payload })
   const isLegacyClock = interaction.createdDay === undefined && interaction.deadline === undefined
   const fallbackDeadline = getIncomingDeadline({
     ...interaction,
@@ -105,7 +118,7 @@ export function normalizeIncomingInteractionContract(
               ? interaction.payload.phase
               : 'social_1'),
           type: interaction.type,
-          payload: interaction.payload,
+          payload,
           required: responsePolicy === 'required',
         }) ??
         fallbackDeadline)
@@ -116,9 +129,9 @@ export function normalizeIncomingInteractionContract(
     createdPhase:
       interaction.createdPhase ??
       (typeof interaction.payload?.phase === 'string' ? interaction.payload.phase : 'social_1'),
-    deadline: getIncomingDeadline({ ...interaction, deadline }),
+    deadline: getIncomingDeadline({ ...interaction, payload, deadline }),
     payload: {
-      ...interaction.payload,
+      ...payload,
       modeAtCreation: mode,
       dramaMode: mode === 'drama',
       responsePolicy,

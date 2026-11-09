@@ -21,6 +21,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectHasDramaModeAccess } from '../../store/vipSlice'
 import { getCupidPartnerId } from '../../features/twists/cupidArrow'
 import { isLohReplacementPending } from '../../social/lohReplacementWindow'
+import { getPendingNominationPawnOffer } from '../../social/nominationPawnOffer'
 
 export interface ActionGridProps {
   allianceContext?: boolean
@@ -90,6 +91,7 @@ export default function ActionGrid({
   const [realityModePromptOpen, setRealityModePromptOpen] = useState(false)
   const game = useAppSelector((state) => state.game)
   const reality = useAppSelector((state) => state.social.reality)
+  const inquiryHistory = useAppSelector((state) => state.social.inquiryHistory)
   const hasRealityAccess = useAppSelector(selectHasDramaModeAccess)
   const realityModePreset = useAppSelector((state) => state.settings.gameUX.realityModePreset)
   const actionOverrides = useAppSelector((state) => state.settings?.social?.actionOverrides ?? {})
@@ -245,6 +247,11 @@ export default function ActionGrid({
     (currentPhase === 'pos_results' ||
       currentPhase === 'pos_ceremony' ||
       isLohReplacementPending(game))
+  const [singleTargetId] = selectedTargetIds ?? []
+  const hasPawnOffer =
+    selectedTargetIds?.size === 1 &&
+    singleTargetId &&
+    getPendingNominationPawnOffer(game, { reality, inquiryHistory }, actorId, singleTargetId)
 
   function contextualizeAction(action: SocialActionDefinition) {
     if (action.id === 'consult_alliance')
@@ -428,6 +435,11 @@ export default function ActionGrid({
             <ActionCard
               key={action.id}
               action={contextualAction}
+              description={
+                action.id === 'reassure' && hasPawnOffer
+                  ? 'Confirm their offer to go on the block as a pawn.'
+                  : undefined
+              }
               costs={costs}
               selected={selectedId === action.id}
               disabled={isDisabled}

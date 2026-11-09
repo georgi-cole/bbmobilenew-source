@@ -58,8 +58,8 @@ async function installDeterministicFinaleFixture(page: Page): Promise<void> {
       // silently reinstalling the fixture.
       if (localStorage.getItem(fixtureSentinelKey) === 'installed') return
 
-      localStorage.clear()
-      sessionStorage.clear()
+      // The test starts in a fresh browser context. Preserve preferences
+      // initialized by the shared browser fixture, such as the weather choice.
       localStorage.setItem(
         profilesStorageKey,
         JSON.stringify({

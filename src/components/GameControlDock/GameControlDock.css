@@ -4,9 +4,9 @@
 }
 
 .game-control-dock {
+  --dock-play-art-width: 22%;
   --dock-column-step: max(13%, 44px);
   --dock-side-hit-width: max(11%, 44px);
-  --dock-play-art-width: 22%;
   position: absolute;
   /* Keep every dock hit target above the native home-indicator inset. The
      responsive layout writes the measured value for native/preview frames;

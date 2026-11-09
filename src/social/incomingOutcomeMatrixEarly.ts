@@ -2,6 +2,12 @@ import { acts, says } from './incomingOutcomeMatrixUtils'
 import type { ScenarioOutcomeMatrix } from './incomingOutcomeMatrixUtils'
 
 export const EARLY_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
+  private_intel_lead: {
+    'thank them for the lead': () => 'You kept the tip as an unconfirmed lead.',
+    'ask how they heard it': () => 'You discussed the source and kept the tip as unconfirmed.',
+    'say you’re unconvinced': acts('accepts your doubts and drops the tip.'),
+    'leave it there': acts('ends the conversation about the lead.'),
+  },
   week_start_ally_check_in: {
     'share your read': says(
       'they sense voting groups starting to form, but cannot count them yet.'
