@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-10: Reviewed the Reality Social regression fixes for locked
+  double-elimination plans and invalid pact selections. These restore the
+  intended dialogue and feedback within the existing mode. Store offers,
+  entitlements, and prices are unchanged.
+
 - 2026-11-10: Reviewed removal of the duplicate reply-button descriptions in
   Reality and Classic. The reply labels still state any promise the player
   makes, and this presentation change leaves the Store offers and access rules

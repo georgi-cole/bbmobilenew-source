@@ -159,8 +159,8 @@ describe('Reality Mode deterministic simulation foundation', () => {
     expect(migrated.influenceBank.human).toBe(30)
     expect(migrated.infoBank.human).toBe(40)
     expect(migrated.relationships.human.ally).toMatchObject({
-      // Existing v2 migration enforces the minimum affinity for alliance tags.
-      affinity: 50,
+      // Membership and sentiment are independent; migration preserves both.
+      affinity: 25,
       tags: ['alliance'],
     })
     expect(migrated.incomingInteractions).toHaveLength(1)

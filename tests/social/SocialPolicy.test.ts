@@ -213,7 +213,7 @@ describe('executeAction – evaluator integration', () => {
     initManeuvers(store);
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }));
 
-    const result = executeAction('p1', 'p2', 'ally');
+    const result = executeAction('p1', 'p2', 'compliment', { outcome: 'success', random: () => 0.5 });
     expect(result.success).toBe(true);
     expect(typeof result.score).toBe('number');
     expect(typeof result.label).toBe('string');
@@ -224,7 +224,7 @@ describe('executeAction – evaluator integration', () => {
     initManeuvers(store);
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 0 }));
 
-    const result = executeAction('p1', 'p2', 'ally');
+    const result = executeAction('p1', 'p2', 'compliment', { outcome: 'success', random: () => 0.5 });
     expect(result.success).toBe(false);
     expect(typeof result.score).toBe('number');
     expect(typeof result.label).toBe('string');
@@ -235,7 +235,7 @@ describe('executeAction – evaluator integration', () => {
     initManeuvers(store);
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }));
 
-    executeAction('p1', 'p2', 'ally');
+    executeAction('p1', 'p2', 'compliment', { outcome: 'success', random: () => 0.5 });
     const logs = selectSessionLogs(store.getState());
     expect(logs).toHaveLength(1);
     expect(typeof logs[0].score).toBe('number');
@@ -247,7 +247,7 @@ describe('executeAction – evaluator integration', () => {
     initManeuvers(store);
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }));
 
-    executeAction('p1', 'p2', 'ally', { previewOnly: true });
+    executeAction('p1', 'p2', 'compliment', { previewOnly: true });
     expect(store.getState().social.sessionLogs).toHaveLength(0);
     expect(store.getState().social.energyBank['p1']).toBe(10);
     expect(store.getState().social.relationships['p1']?.['p2']).toBeUndefined();
@@ -258,20 +258,20 @@ describe('executeAction – evaluator integration', () => {
     initManeuvers(store);
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }));
 
-    const r1 = executeAction('p1', 'p2', 'ally', { previewOnly: true });
-    const r2 = executeAction('p1', 'p2', 'ally', { previewOnly: true });
+    const r1 = executeAction('p1', 'p2', 'compliment', { previewOnly: true });
+    const r2 = executeAction('p1', 'p2', 'compliment', { previewOnly: true });
     expect(r1.score).toBe(r2.score);
     expect(r1.label).toBe(r2.label);
   });
 
-  it('label in sessionLog is within expected range for friendly action (ally)', () => {
+  it('label in sessionLog is within expected range for friendly action (compliment)', () => {
     const store = makeStore();
     initManeuvers(store);
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }));
 
-    executeAction('p1', 'p2', 'ally');
+    executeAction('p1', 'p2', 'compliment', { outcome: 'success', random: () => 0.5 });
     const logs = selectSessionLogs(store.getState());
-    // ally is friendly: base score = friendlySuccess (0.1) ± JITTER_MAGNITUDE (0.08)
+    // Compliment is friendly: base score = friendlySuccess (0.1) ± JITTER_MAGNITUDE (0.08)
     // So score is in [0.02, 0.18] → label is 'Unmoved' or 'Good', never 'Bad' or 'Great'.
     expect(['Unmoved', 'Good']).toContain(logs[0].label);
   });
