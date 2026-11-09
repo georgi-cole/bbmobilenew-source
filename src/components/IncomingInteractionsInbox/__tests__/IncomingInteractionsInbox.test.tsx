@@ -839,7 +839,7 @@ describe('IncomingInteractionsInbox', () => {
     expect(screen.getByText(/now knows you prefer Safety used on Alex/i)).toBeInTheDocument()
   })
 
-  it('discloses a nomination promise before binding it and keeps it visible in Normal mode', () => {
+  it('shows only the promise label and records it when chosen in Normal mode', () => {
     const game = createInitialGameState()
     game.phase = 'loh_results'
     const human = game.players.find((player) => player.isUser)!
@@ -866,10 +866,10 @@ describe('IncomingInteractionsInbox', () => {
     renderInbox(store)
 
     const promise = screen.getByRole('button', { name: /promise to keep|give my word/i })
-    expect(within(promise).getByText(/checked when nominations lock/i)).not.toBeVisible()
-    expect(promise).toHaveAccessibleDescription(
-      /promise to keep them off the block.*nominations lock/i
+    expect(promise.textContent).toMatch(
+      /^(?:Promise to keep them off the block|Give my word they’ll stay off the block)$/
     )
+    expect(promise).not.toHaveAccessibleDescription()
     fireEvent.click(promise)
     expect(store.getState().social.commitments).toEqual([
       expect.objectContaining({ kind: 'protect_from_nomination', beneficiaryId: sender.id }),
