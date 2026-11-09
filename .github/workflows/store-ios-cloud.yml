@@ -214,6 +214,8 @@ jobs:
           ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
           ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
           ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          TESTFLIGHT_REUSE_EXEMPTION_FROM: ${{ inputs.reuse_exemption_from }}
+          TESTFLIGHT_REUSE_INTERNAL_GROUP_FROM: ${{ inputs.reuse_internal_group_from }}
         shell: bash
         run: |
           set -euo pipefail
