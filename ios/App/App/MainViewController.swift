@@ -6,7 +6,6 @@ class MainViewController: CAPBridgeViewController {
     private var allowsLandscape = false
 
     override func capacitorDidLoad() {
-        bridge?.registerPluginInstance(StoryIconRotationPlugin())
         bridge?.registerPluginInstance(GameDisplayPlugin())
     }
 

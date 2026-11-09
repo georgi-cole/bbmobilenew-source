@@ -10,6 +10,7 @@ interface Props {
   secondaryLabel?: string;
   /** When false, only the confirm button is rendered (info/notification dialogs). Defaults to true. */
   showCancel?: boolean;
+  busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   onSecondary?: () => void;
@@ -27,6 +28,7 @@ export default function ConfirmExitModal({
   cancelLabel = 'Stay',
   secondaryLabel,
   showCancel = true,
+  busy = false,
   onConfirm,
   onCancel,
   onSecondary,
@@ -38,17 +40,17 @@ export default function ConfirmExitModal({
 
   // Document-level ESC handler — fires even when focus is outside the modal.
   useEffect(() => {
-    if (!open) return;
+    if (!open || busy) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onCancel();
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onCancel]);
+  }, [open, busy, onCancel]);
 
   // Move focus into the modal card when it opens.
   useEffect(() => {
-    if (open) cardRef.current?.focus();
+    if (open) cardRef.current?.focus({ preventScroll: true });
   }, [open]);
 
   if (!open) return null;
@@ -58,6 +60,7 @@ export default function ConfirmExitModal({
       className="confirm-modal__backdrop"
       role="dialog"
       aria-modal="true"
+      aria-busy={busy || undefined}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
     >
@@ -65,16 +68,16 @@ export default function ConfirmExitModal({
         <h2 id={titleId} className="confirm-modal__title">{title}</h2>
         {description && <p id={descId} className="confirm-modal__desc">{description}</p>}
         <div className="confirm-modal__actions">
-          <button type="button" className="confirm-modal__btn game-button game-button--primary" onClick={onConfirm}>
+          <button type="button" className="confirm-modal__btn game-button game-button--primary" disabled={busy} onClick={onConfirm}>
             {confirmLabel}
           </button>
           {secondaryLabel && onSecondary && (
-            <button type="button" className="confirm-modal__btn confirm-modal__btn--danger game-button game-button--ghost" onClick={onSecondary}>
+            <button type="button" className="confirm-modal__btn confirm-modal__btn--danger game-button game-button--ghost" disabled={busy} onClick={onSecondary}>
               {secondaryLabel}
             </button>
           )}
           {showCancel && (
-            <button type="button" className="confirm-modal__btn game-button game-button--ghost" onClick={onCancel}>
+            <button type="button" className="confirm-modal__btn game-button game-button--ghost" disabled={busy} onClick={onCancel}>
               {cancelLabel}
             </button>
           )}

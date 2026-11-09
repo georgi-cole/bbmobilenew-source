@@ -77,7 +77,7 @@ describe('AvatarTile', () => {
       />
     )
 
-    const mark = container.querySelector('[style*="--eviction-mark-mask"]')
+    const mark = container.querySelector('[data-eviction-mark]')
     expect(mark).not.toBeNull()
     expect(mark?.className).toContain('crossAnimated')
     expect(sessionStorage.getItem(evictionMarkKey)).toBeNull()
@@ -86,9 +86,10 @@ describe('AvatarTile', () => {
       vi.advanceTimersByTime(EVICTION_MARK_ANIMATION_FALLBACK_MS)
     })
 
-    const permanentMark = container.querySelector('[style*="--eviction-mark-mask"]')
+    const permanentMark = container.querySelector('[data-eviction-mark]')
     expect(permanentMark).not.toBeNull()
     expect(permanentMark?.className).not.toContain('crossAnimated')
+    expect(permanentMark?.querySelector('img[src$="evictionmark.png"]')).toBeVisible()
     expect(sessionStorage.getItem(evictionMarkKey)).toBe('shown')
   })
 
@@ -117,7 +118,7 @@ describe('AvatarTile', () => {
         evictionMarkKey={evictionMarkKey}
       />
     )
-    const retriedMark = second.container.querySelector('[style*="--eviction-mark-mask"]')
+    const retriedMark = second.container.querySelector('[data-eviction-mark]')
     expect(retriedMark).not.toBeNull()
     expect(retriedMark?.className).toContain('crossAnimated')
 
@@ -126,9 +127,16 @@ describe('AvatarTile', () => {
     })
 
     expect(sessionStorage.getItem(evictionMarkKey)).toBe('shown')
-    expect(
-      second.container.querySelector('[style*="--eviction-mark-mask"]')?.className
-    ).not.toContain('crossAnimated')
+    expect(second.container.querySelector('[data-eviction-mark]')?.className).not.toContain(
+      'crossAnimated'
+    )
+  })
+
+  it('keeps a red strike if the elimination image cannot load', () => {
+    const { container } = render(<AvatarTile name="Taylor" isEvicted />)
+    const mark = container.querySelector('[data-eviction-mark]')
+    fireEvent.error(mark!.querySelector('img')!)
+    expect(mark?.className).toContain('crossFallback')
   })
 
   it('keeps a revealed name visible without replaying its entrance animation', () => {

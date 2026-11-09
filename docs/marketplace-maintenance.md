@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-09 — Reviewed the TestFlight fixes for the Store, paid-mode launch
+  buttons, Reality Mode portraits, and elimination markers. The VIP card now
+  shows Owned in place of the purchase price when VIP access is active. Prices,
+  product contents, upgrade credit, eligibility, and benefits stay the same.
+  Premium Challenges and VIP both continue to grant all premium minigame versions.
+
 - 2026-11-06: Reviewed durable competition-attempt and result checkpoints across
   minigames, including restored paid variants. Interrupted attempts forfeit, while
   completed results remain available before Continue. Premium entitlements,

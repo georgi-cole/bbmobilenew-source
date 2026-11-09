@@ -140,6 +140,7 @@ export default function PlayerAvatar({
       className={`pa__img${loaded ? ' pa__img--loaded' : ''}`}
       src={avatarSrc}
       alt=""
+      draggable={false}
       onError={handleError}
       onLoad={() =>
         setImageState({

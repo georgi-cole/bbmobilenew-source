@@ -122,10 +122,6 @@ vi.mock('../../../components/KolequantSplash/KolequantSplash', () => ({
   ),
 }))
 
-vi.mock('../../../components/ConfirmExitModal/ConfirmExitModal', () => ({
-  default: () => null,
-}))
-
 vi.mock('../../../components/PermissionPrompts/PermissionPrompts', () => ({
   default: () => <div data-testid="permission-prompts" />,
 }))
@@ -234,10 +230,54 @@ describe('HomeHub', () => {
     await waitForMenuReady()
   })
 
-  it('explains local weather before the first location prompt and requests it once', async () => {
+  it('explains local weather and waits for a player action before requesting permission', async () => {
     vi.useFakeTimers()
     localStorage.removeItem('bb:locationPermissionRequested')
     expect(shouldShowWeatherPermissionRationale()).toBe(true)
+    renderHomeHub()
+
+    expect(screen.queryByRole('dialog', { name: 'Local weather' })).toBeNull()
+    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(screen.queryByTestId('kolequant-splash')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Local weather' })).toHaveTextContent(/Open-Meteo/)
+    expect(screen.queryByRole('button', { name: 'Play' })).toBeNull()
+    expect(document.getElementById('intro-hub')).not.toBeVisible()
+    expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(650)
+    })
+    expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
+
+    let finishLocationRequest = () => {}
+    mockRequestWeatherLocation.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          localStorage.setItem('bb:locationPermissionRequested', 'true')
+          finishLocationRequest = resolve
+        })
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Enable local weather' }))
+    expect(screen.getByRole('button', { name: 'Checking location…' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Play' })).toBeNull()
+    await act(async () => finishLocationRequest())
+    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('dialog', { name: 'Local weather' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
+
+    expect(shouldShowWeatherPermissionRationale()).toBe(false)
+    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
+  })
+
+  it('lets a player defer local weather without opening the Android permission dialog', async () => {
+    vi.useFakeTimers()
+    localStorage.removeItem('bb:locationPermissionRequested')
     const view = renderHomeHub()
 
     fireEvent.click(screen.getByTestId('kolequant-splash'))
@@ -247,24 +287,20 @@ describe('HomeHub', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
-    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Allow approximate location to match the Home Hub to your local weather. Coordinates go to Open-Meteo only to fetch weather for the background.'
-    )
-    expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
-
+    expect(screen.getByRole('dialog', { name: 'Local weather' })).toBeInTheDocument()
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(650)
+      fireEvent.click(screen.getByRole('button', { name: 'Not now' }))
     })
-    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('status')).toBeNull()
 
+    expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
+    expect(shouldShowWeatherPermissionRationale()).toBe(false)
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
     view.rerender(
       <MemoryRouter>
         <HomeHub />
       </MemoryRouter>
     )
-    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('dialog', { name: 'Local weather' })).toBeNull()
   })
 
   it('opens a later season menu without repeating launch artwork', async () => {

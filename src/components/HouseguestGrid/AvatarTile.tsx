@@ -23,6 +23,7 @@ export const LONG_PRESS_MOVE_THRESHOLD_PX = 10
 export const EVICTION_MARK_ANIMATION_MS = 350
 /** Safety margin before falling back to the permanent, non-animated strike. */
 export const EVICTION_MARK_ANIMATION_FALLBACK_MS = EVICTION_MARK_ANIMATION_MS + 100
+const EVICTION_MARK_SRC = `${import.meta.env.BASE_URL}evictionmark/evictionmark.png`
 
 type RoboStatsSummary = {
   daysInGame?: number | null
@@ -730,29 +731,26 @@ function AvatarTileView({
             </div>
           )}
 
-          {/* Evictee mark — paint brushstroke PNG overlay */}
+          {/* Keep the elimination mark visible independently of ceremony playback. */}
           {(isEvicted || isReturning) &&
             (pairLabel && isEvicted && !isReturning ? (
               <CupidEvictionMark />
-            ) : evictionMarkUnavailable ? (
-              <span className={`${styles.cross} ${styles.crossFallback}`} aria-hidden="true" />
             ) : (
               <span
                 aria-hidden="true"
-                className={`${styles.cross}${animateEvictionMark ? ` ${styles.crossAnimated}` : ''}${isReturning ? ` ${styles.returningCross}` : ''}`}
-                style={
-                  {
-                    '--eviction-mark-mask': `url(${(import.meta.env.BASE_URL ?? '').replace(/\/$/, '')}/evictionmark/evictionmark.png)`,
-                  } as React.CSSProperties
-                }
+                data-eviction-mark=""
+                className={`${styles.cross}${animateEvictionMark ? ` ${styles.crossAnimated}` : ''}${isReturning ? ` ${styles.returningCross}` : ''}${evictionMarkUnavailable ? ` ${styles.crossFallback}` : ''}`}
                 onAnimationEnd={animateEvictionMark ? finishEvictionMarkAnimation : undefined}
               >
-                <img
-                  src={`${(import.meta.env.BASE_URL ?? '').replace(/\/$/, '')}/evictionmark/evictionmark.png`}
-                  alt=""
-                  hidden
-                  onError={() => setEvictionMarkUnavailable(true)}
-                />
+                {!evictionMarkUnavailable && (
+                  <img
+                    className={styles.crossArtwork}
+                    src={EVICTION_MARK_SRC}
+                    alt=""
+                    draggable={false}
+                    onError={() => setEvictionMarkUnavailable(true)}
+                  />
+                )}
               </span>
             ))}
         </motion.div>

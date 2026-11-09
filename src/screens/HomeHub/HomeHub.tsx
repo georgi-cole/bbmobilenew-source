@@ -60,10 +60,14 @@ import HousematesBioCinematic from '../../components/HousematesBioCinematic/Hous
 import StoreProductIcon from '../../components/StoreProductModal/StoreProductIcon'
 import { MYSTERY_WILDCARD_BIOS } from '../../components/HousematesBioCinematic/housematesBioData'
 import useHomeHubAssets from '../../hooks/useHomeHubAssets'
+import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import useIntroHubBackground from '../../hooks/useIntroHubBackground'
 import { preloadImage } from '../../utils/preload'
 import { getHolidayTheme } from '../../utils/backgroundTheme'
-import { shouldShowWeatherPermissionRationale } from '../../services/locationAccess'
+import {
+  deferWeatherPermissionRationale,
+  shouldShowWeatherPermissionRationale,
+} from '../../services/locationAccess'
 import {
   hasShownHomeHubSplashThisSession,
   markHomeHubSplashSeenForGame,
@@ -149,8 +153,8 @@ interface PlaySelectionButton {
 
 interface HomeHubAssetLayerProps {
   splashDone: boolean
+  menuVisible: boolean
   backgroundReady: boolean
-  showWeatherPermissionRationale: boolean
   holidayTheme: ReturnType<typeof getHolidayTheme>
   playSelectionOpen: boolean
   playSelectionButtons: PlaySelectionButton[]
@@ -162,8 +166,8 @@ interface HomeHubAssetLayerProps {
 
 function HomeHubAssetLayer({
   splashDone,
+  menuVisible,
   backgroundReady,
-  showWeatherPermissionRationale,
   holidayTheme,
   playSelectionOpen,
   playSelectionButtons,
@@ -193,13 +197,7 @@ function HomeHubAssetLayer({
     <>
       <div className="homehub-content home-hub">
         <div className="home-hub__hero" aria-hidden="true" />
-        {splashDone && assetReady && showWeatherPermissionRationale && (
-          <p className="home-hub__weather-permission-note" role="status" aria-live="polite">
-            Allow approximate location to match the Home Hub to your local weather. Coordinates go
-            to Open-Meteo only to fetch weather for the background.
-          </p>
-        )}
-        {splashDone && assetReady && (
+        {menuVisible && (
           <nav
             className="home-hub__buttons"
             aria-label={playSelectionOpen ? 'Play menu' : 'Main menu'}
@@ -390,7 +388,9 @@ export default function HomeHub() {
     status: 'Opening the house doors.',
   })
   const splashDone = splashExitRequested && hubAssetState.ready
-  const [showWeatherPermissionRationale, setShowWeatherPermissionRationale] = useState(false)
+  const [weatherPermissionOpen, setWeatherPermissionOpen] = useState(false)
+  const [weatherPermissionBusy, setWeatherPermissionBusy] = useState(false)
+  const menuVisible = splashDone && !weatherPermissionOpen
   const [preloading, setPreloading] = useState(autoStartGame)
   const shouldRestorePlayMenu = new URLSearchParams(location.search).get('menu') === 'play'
   const [playSelectionOpen, setPlaySelectionOpen] = useState(shouldRestorePlayMenu)
@@ -401,26 +401,23 @@ export default function HomeHub() {
   const survivorRulesDismissed = hasSeenSurvivorRules(activeProfileId)
   const gameRoute = '/game'
 
-  useEffect(() => {
-    if (!splashDone || !shouldShowWeatherPermissionRationale()) return undefined
-
-    let cancelled = false
-    const rationaleTimer = window.setTimeout(() => {
-      if (!cancelled) setShowWeatherPermissionRationale(true)
-    }, 0)
-    const requestTimer = window.setTimeout(() => {
-      if (cancelled) return
-      void requestWeatherLocation().finally(() => {
-        if (!cancelled) setShowWeatherPermissionRationale(false)
-      })
-    }, 650)
-
-    return () => {
-      cancelled = true
-      window.clearTimeout(rationaleTimer)
-      window.clearTimeout(requestTimer)
+  const handleRequestWeatherPermission = useCallback(async () => {
+    if (weatherPermissionBusy) return
+    setWeatherPermissionBusy(true)
+    try {
+      await requestWeatherLocation()
+    } catch (error) {
+      console.warn('[HomeHub] local weather permission request failed', error)
+    } finally {
+      setWeatherPermissionBusy(false)
+      setWeatherPermissionOpen(false)
     }
-  }, [requestWeatherLocation, splashDone])
+  }, [requestWeatherLocation, weatherPermissionBusy])
+
+  const handleDeferWeatherPermission = useCallback(() => {
+    deferWeatherPermissionRationale()
+    setWeatherPermissionOpen(false)
+  }, [])
 
   const savedRuns = useMemo(
     () => (!isGuest && activeProfileId ? loadSavedRunProfile(activeProfileId) : null),
@@ -844,6 +841,7 @@ export default function HomeHub() {
   }, [])
 
   const handleSplashFinish = useCallback(() => {
+    setWeatherPermissionOpen(shouldShowWeatherPermissionRationale())
     setSplashExitRequested(true)
   }, [])
 
@@ -883,6 +881,17 @@ export default function HomeHub() {
         ))}
 
       {preloading && <AssetPreloaderOverlay destination={gameRoute} />}
+
+      <ConfirmExitModal
+        open={splashDone && weatherPermissionOpen}
+        title="Local weather"
+        description="Match the Home Hub background to your local weather. Your location is sent to Open-Meteo only to look up weather for the background."
+        confirmLabel={weatherPermissionBusy ? 'Checking location…' : 'Enable local weather'}
+        cancelLabel="Not now"
+        busy={weatherPermissionBusy}
+        onConfirm={() => void handleRequestWeatherPermission()}
+        onCancel={handleDeferWeatherPermission}
+      />
 
       {housematesBioOpen && (
         <HousematesBioCinematic onComplete={() => setHousematesBioOpen(false)} />
@@ -968,8 +977,8 @@ export default function HomeHub() {
 
           <HomeHubAssetLayer
             splashDone={splashDone}
+            menuVisible={menuVisible}
             backgroundReady={backgroundLayers.ready}
-            showWeatherPermissionRationale={showWeatherPermissionRationale}
             holidayTheme={playButtonHolidayTheme}
             playSelectionOpen={playSelectionOpen}
             playSelectionButtons={playSelectionButtons}
@@ -982,7 +991,12 @@ export default function HomeHub() {
             onAssetStateChange={handleHubAssetStateChange}
           />
 
-          <div id="intro-hub" />
+          <div id="intro-hub" hidden={!menuVisible} />
+          {/* The legacy Players sheet clones these controls into its DOM. */}
+          <div id="intro-hub-players-controls" hidden>
+            <GameBackButton label="Back to Intro Hub" data-players-back="home" />
+            <GameBackButton label="Back to Players" data-players-back="list" showLabel />
+          </div>
         </div>
       </div>
     </>

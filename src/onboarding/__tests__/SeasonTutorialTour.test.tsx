@@ -5,6 +5,35 @@ import SeasonTutorialTour from '../SeasonTutorialTour'
 describe('season tutorial targeting', () => {
   afterEach(() => vi.restoreAllMocks())
 
+  it('centers the final spotlight on the Play face instead of its larger tap target', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      if (this.dataset.onboardingTarget === 'play') {
+        return DOMRect.fromRect({ x: 170, y: 720, width: 52, height: 52 })
+      }
+      return DOMRect.fromRect({ x: 150, y: 700, width: 92, height: 60 })
+    })
+    render(
+      <>
+        <button aria-label="Advance to next phase" />
+        <span data-onboarding-target="play" />
+        <SeasonTutorialTour showPublicStep={false} onComplete={vi.fn()} onSkip={vi.fn()} />
+      </>
+    )
+
+    for (let step = 0; step < 8; step += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    }
+    expect(screen.getByRole('dialog', { name: 'Play' })).toBeInTheDocument()
+    expect(document.querySelector('.season-tutorial__spotlight')).toHaveStyle({
+      left: '167px',
+      top: '717px',
+      width: '58px',
+      height: '58px',
+    })
+  })
+
   it('targets the visible Log launcher and follows a layout move without a resize event', () => {
     const frames = new Map<number, FrameRequestCallback>()
     let nextFrame = 0

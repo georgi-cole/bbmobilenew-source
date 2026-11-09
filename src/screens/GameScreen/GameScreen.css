@@ -156,11 +156,23 @@ body.mode-surveyeval .game-control-dock .fab-icon.confessional {
 /* Gameplay background shell */
 .game-screen-shell {
   isolation: isolate;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   background-image: url('../../assets/bb-gameplay-bg.webp');
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
   background-attachment: local;
+}
+
+.game-screen-shell :is(input, textarea, [contenteditable='true']) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.game-screen-shell img {
+  -webkit-user-drag: none;
 }
 
 /* Finale-weekend colour belongs to the purple set behind the TV and roster.

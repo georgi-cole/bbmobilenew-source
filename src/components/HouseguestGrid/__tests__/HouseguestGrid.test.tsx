@@ -110,7 +110,7 @@ describe('HouseguestGrid', () => {
     expect(returnedTile.className).not.toContain('evicted')
     expect(returnedTile.getAttribute('aria-label')).not.toContain('evicted')
     expect(returnedTile.querySelector('[class*="reunionReturnBurst"]')).not.toBeNull()
-    expect(returnedTile.querySelector('[style*="--eviction-mark-mask"]')).toBeNull()
+    expect(returnedTile.querySelector('[data-eviction-mark]')).toBeNull()
     expect(store.getState().game.players[3].status).toBe(returningPlayer.status)
 
     act(() => store.dispatch(debugEndFinaleReunionPreview()))

@@ -4,10 +4,12 @@ import { Geolocation } from '@capacitor/geolocation'
 
 const LOCATION_CHOICE_KEY = 'bb:allowLocation'
 const LOCATION_REQUESTED_KEY = 'bb:locationPermissionRequested'
+const LOCATION_RATIONALE_DEFERRED_AT_KEY = 'bb:locationRationaleDeferredAt'
 // Keep provider denials separate from the legacy, explicit in-app opt-out.
 const LOCATION_PROVIDER_DENIED_KEY = 'bb:locationPermissionDenied'
 const LOCATION_FAILED_ATTEMPT_KEY = 'bb:locationPermissionFailedAt'
 const PERMISSION_RETRY_COOLDOWN_MS = 60 * 60 * 1000
+const RATIONALE_RETRY_DELAY_MS = 24 * 60 * 60 * 1000
 
 export interface WeatherCoordinates {
   latitude: number
@@ -28,9 +30,28 @@ let permissionPromptAttemptedThisSession = false
 
 /** Whether the first-launch location rationale should be shown before asking the OS. */
 export function shouldShowWeatherPermissionRationale(): boolean {
-  return (
-    readPreference(LOCATION_CHOICE_KEY) == null && readPreference(LOCATION_REQUESTED_KEY) !== 'true'
-  )
+  const savedChoice = readPreference(LOCATION_CHOICE_KEY)
+  if (savedChoice != null) return false
+
+  const requestedBefore = readPreference(LOCATION_REQUESTED_KEY) === 'true'
+  const interruptedNativeRequest =
+    requestedBefore &&
+    Capacitor.isNativePlatform() &&
+    readPreference(LOCATION_PROVIDER_DENIED_KEY) !== 'true'
+  if (requestedBefore && !interruptedNativeRequest) return false
+
+  const deferredAt = Number(readPreference(LOCATION_RATIONALE_DEFERRED_AT_KEY))
+  if (Number.isFinite(deferredAt) && deferredAt > 0) {
+    if (Date.now() - deferredAt < RATIONALE_RETRY_DELAY_MS) return false
+    clearPreference(LOCATION_RATIONALE_DEFERRED_AT_KEY)
+  }
+
+  return true
+}
+
+/** Defers the first-launch explanation briefly without recording a denial. */
+export function deferWeatherPermissionRationale(): void {
+  writePreference(LOCATION_RATIONALE_DEFERRED_AT_KEY, String(Date.now()))
 }
 
 function readPreference(key: string): string | null {
@@ -170,7 +191,10 @@ async function resolveWeatherLocation(
       return { coordinates: null, permissionStatus, error: 'permission denied by player' }
     }
     const requestedBefore = readPreference(LOCATION_REQUESTED_KEY) === 'true'
-    const canRecoverAutomatically = savedChoice === 'granted' || requestedBefore
+    // Native permission prompts must follow a player action. Older builds marked
+    // the prompt as requested before Android returned its result, so an
+    // interrupted first request must not be replayed automatically on launch.
+    const canRecoverAutomatically = savedChoice === 'granted' || (requestedBefore && !isNative)
     if ((!requestPermission && !canRecoverAutomatically) || !canAttemptPermission()) {
       return { coordinates: null, permissionStatus, error: null }
     }
