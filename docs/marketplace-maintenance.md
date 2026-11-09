@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-09: Reviewed the Reality and Classic nomination-advice, Reassure, and
+  Incoming fixes, including Cupid's separate consent for each partner. This is
+  maintenance of the existing conversations and ceremony rules. Store offers,
+  access, and prices are unchanged.
+
 - 2026-11-09 — Reviewed the TestFlight fixes for the Store, paid-mode launch
   buttons, Reality Mode portraits, and elimination markers. The VIP card now
   shows Owned in place of the purchase price when VIP access is active. Prices,

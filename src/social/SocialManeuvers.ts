@@ -43,8 +43,10 @@ import {
   getInquiryAttempts,
   getInquiryKind,
   getInquiryTopicKey,
+  NOMINATION_PAWN_OFFER,
   resolveInquiryAnswer,
 } from './socialInquiry'
+import { getPawnNominationAuthority } from './nominationPawnOffer'
 import { getEffectiveSocialMode } from './socialMode'
 import { isLohReplacementPending } from './lohReplacementWindow'
 import { formatVagueLohPlan } from './lohConsultationCopy'
@@ -404,12 +406,18 @@ function buildInquiryTruth(input: {
             coverTargetIds: cover,
           }
         : {}),
-      conditionalOfferText: `I could volunteer as a pawn, but only if you promise me this is a façade and I am not your real target.`,
-      conditionalOfferTargetIds: [input.respondentId],
-      conditionalOfferChance: Math.min(
-        0.18,
-        Math.max(0, input.riskTolerance * 0.1 + (Math.max(0, input.trust) / 100) * 0.08)
-      ),
+      ...(getPawnNominationAuthority(game, input.askerId, input.respondentId)
+        ? {
+            conditionalOfferText: getCupidPartnerId(game, input.respondentId)
+              ? 'I can agree to go up as cover, as long as our pair is only a pawn. Talk to my partner about their side of it.'
+              : NOMINATION_PAWN_OFFER,
+            conditionalOfferTargetIds: [input.respondentId],
+            conditionalOfferChance: Math.min(
+              0.18,
+              Math.max(0, input.riskTolerance * 0.1 + (Math.max(0, input.trust) / 100) * 0.08)
+            ),
+          }
+        : {}),
     }
   }
 
@@ -1935,6 +1943,7 @@ export function executeAction(
         tone: inquiryAnswer.tone,
         hardRefused: inquiryAnswer.hardRefused,
         infoAwarded: inquiryAnswer.infoReward > 0,
+        ...(inquiryAnswer.volunteeredAsPawn ? { volunteeredAsPawn: true } : {}),
       })
     )
   }

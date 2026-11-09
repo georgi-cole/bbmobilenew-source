@@ -1,12 +1,15 @@
 import { configureStore } from '@reduxjs/toolkit'
-import { describe, expect, it } from 'vitest'
-import gameReducer from '../../store/gameSlice'
+import { describe, expect, it, vi } from 'vitest'
+import { createInitialVoxPopuliState } from '../../features/twists/voxPopuli'
+import gameReducer, { commitNominees, hydrateGame } from '../../store/gameSlice'
 import settingsReducer from '../../store/settingsSlice'
 import type { RootState, AppDispatch } from '../../store/store'
+import type { GameState } from '../../types'
 import { makeIntelMemory } from '../intelligenceSystem'
 import { intelligenceMiddleware } from '../intelligenceMiddleware'
 import { getActionById, initManeuvers } from '../SocialManeuvers'
 import { validateSocialExecution } from '../socialExecutionGuard'
+import { NOMINATION_PAWN_OFFER } from '../socialInquiry'
 import { socialMiddleware } from '../socialMiddleware'
 import socialReducer, { hydrateSocial } from '../socialSlice'
 import { socialStrategyMiddleware } from '../socialStrategyMiddleware'
@@ -14,6 +17,8 @@ import { createInitialRealitySimulationState } from '../realitySimulation'
 import { executeHumanRealityAction, type HumanRealityActionInput } from '../reality/humanFlow'
 import { addRealityFact, learnRealityFact } from '../reality/knowledge'
 import { createDirectedRelationship, createInitialRealityDomainState } from '../reality/state'
+import { createRealityAlliance } from '../reality/relationshipForms'
+import { realityIntegrityMiddleware } from '../realityIntegrityMiddleware'
 import type { RealityDomainState, RealityFact } from '../reality/types'
 import type { SocialActionLogEntry, SocialState } from '../types'
 
@@ -33,6 +38,7 @@ function fixture({
   weekend = false,
   reality = createInitialRealityDomainState(),
   history = [] as SocialActionLogEntry[],
+  gameOverrides = {} as Partial<GameState>,
 } = {}) {
   const game = gameReducer(undefined, INIT)
   const settings = settingsReducer(undefined, INIT)
@@ -41,6 +47,7 @@ function fixture({
     reducer: { game: gameReducer, settings: settingsReducer, social: socialReducer },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().concat(
+        realityIntegrityMiddleware,
         intelligenceMiddleware,
         socialStrategyMiddleware,
         socialMiddleware
@@ -71,6 +78,7 @@ function fixture({
           player('cy', 'Cy'),
           player('dee', 'Dee'),
         ],
+        ...gameOverrides,
       },
       social: {
         ...social,
@@ -145,6 +153,176 @@ function seedTargetingFact(reality: RealityDomainState) {
 }
 
 describe('player-authored Social actions', () => {
+  it.each(['confirmed', 'legacy offer', 'offer only', 'Cupid'] as const)(
+    'settles the real nomination after a %s pawn conversation',
+    (variant) => {
+      const cupid = variant === 'Cupid'
+      const lohId = cupid ? 'ash' : 'human'
+      const reality = createInitialRealityDomainState()
+      const pact = createRealityAlliance(reality, {
+        id: 'human-lia',
+        kind: 'PACT',
+        founderIds: ['human', 'lia'],
+        memberIds: [],
+        purpose: 'Mutual support',
+        at: { day: 4, phase: 'social_1' },
+      })
+      pact.status = 'ACTIVE'
+      const { store, run } = fixture({
+        reality,
+        gameOverrides: {
+          mode: 'classic',
+          phase: 'social_1',
+          lohId,
+          ...(cupid
+            ? {
+                cupidArrow: {
+                  scheduledSeason: 14,
+                  status: 'active',
+                  activatedSeason: 14,
+                  activatedWeek: 1,
+                  pairs: [
+                    { id: 'power', memberIds: ['ash', 'human'], color: 'pink' },
+                    { id: 'volunteer', memberIds: ['bea', 'lia'], color: 'purple' },
+                  ],
+                  eliminatedPairCount: 0,
+                  pendingPartnerEvictionId: null,
+                  visualsRevealed: true,
+                },
+              }
+            : {}),
+          players: [
+            { ...player('human', 'You', true), status: 'loh' },
+            player('lia', 'Lia'),
+            player('cy', 'Cy'),
+            player('dee', 'Dee'),
+            player('bea', 'Bea'),
+            ...(cupid ? [{ ...player('ash', 'Ash'), status: 'loh' as const }] : []),
+          ],
+        },
+      })
+      const roll = vi.spyOn(Math, 'random').mockReturnValue(0)
+      try {
+        expect(run('ask_nomination_advice', ['lia']).summary).toContain(
+          cupid ? 'our pair is only a pawn' : 'volunteer as a pawn'
+        )
+      } finally {
+        roll.mockRestore()
+      }
+      const afterAdvice = store.getState().social
+      expect(afterAdvice.inquiryHistory.at(-1)?.volunteeredAsPawn).toBe(true)
+      expect(afterAdvice.reality.facadeAgreements).toEqual({})
+
+      if (variant === 'legacy offer') {
+        store.dispatch(
+          hydrateSocial({
+            ...afterAdvice,
+            inquiryHistory: afterAdvice.inquiryHistory.map((answer) => ({
+              ...answer,
+              volunteeredAsPawn: undefined,
+            })),
+          })
+        )
+      }
+      if (variant !== 'offer only') {
+        expect(run('reassure', ['lia']).summary).toContain(
+          'Lia agreed to go on the block as a pawn'
+        )
+        const save: SocialState = JSON.parse(JSON.stringify(store.getState().social))
+        store.dispatch(hydrateSocial(save))
+        expect(Object.values(store.getState().social.reality.facadeAgreements)).toEqual([
+          expect.objectContaining({
+            lohId,
+            facadeId: 'lia',
+            day: 4,
+            stage: 'INITIAL_NOMINATION',
+            status: 'ACCEPTED',
+          }),
+        ])
+      }
+      store.dispatch(
+        hydrateGame({
+          ...store.getState().game,
+          phase: 'nomination_results',
+          awaitingNominations: true,
+        })
+      )
+      const before = store.getState().social
+      store.dispatch(commitNominees(['lia', 'cy']))
+      const { game, social: after } = store.getState()
+      expect(game.nomineeIds).toContain('lia')
+      const nomination = after.reality.events.find(
+        (event) => event.type === 'CEREMONY_NOMINATIONS_LOCKED'
+      )
+      const betrayals = after.reality.events.filter((event) => event.type === 'ALLIANCE_BETRAYAL')
+      if (variant === 'offer only') {
+        expect(betrayals).toHaveLength(1)
+        return
+      }
+      expect(betrayals).toHaveLength(0)
+      expect(after.reality.alliances[pact.id]).toEqual(before.reality.alliances[pact.id])
+      expect(after.reality.relationships.human.lia).toEqual(before.reality.relationships.human.lia)
+      expect(after.reality.relationships.lia.human).toEqual(before.reality.relationships.lia.human)
+      expect(after.relationships.lia.human.tags).not.toContain('betrayal')
+      expect(nomination?.tags).toContain('consented_nominee:lia')
+      if (cupid) {
+        expect(game.nomineeIds).toContain('bea')
+        expect(nomination?.tags).not.toContain('consented_nominee:bea')
+      }
+    }
+  )
+
+  it.each(['Vox', 'another LOH', 'next day', 'another recipient'] as const)(
+    'does not confirm an opening pawn offer through Reassure for %s',
+    (variant) => {
+      const { store, run } = fixture({
+        gameOverrides: {
+          phase: 'social_1',
+          lohId: 'human',
+          players: [
+            { ...player('human', 'You', true), status: 'loh' },
+            player('ash', 'Ash'),
+            player('bea', 'Bea'),
+            player('cy', 'Cy'),
+          ],
+        },
+      })
+      const game = store.getState().game
+      store.dispatch(
+        hydrateSocial({
+          ...store.getState().social,
+          inquiryHistory: [
+            {
+              id: 'saved-pawn-offer',
+              kind: 'NOMINATION_ADVICE',
+              topicKey: `nomination:${game.week}`,
+              askerId: 'human',
+              respondentId: 'ash',
+              day: game.week,
+              phase: 'social_1',
+              answerText: NOMINATION_PAWN_OFFER,
+              answerTargetIds: ['ash'],
+              tone: 'CANDID',
+              hardRefused: false,
+              infoAwarded: true,
+            },
+          ],
+        })
+      )
+      const overrides = {
+        Vox: { voxPopuli: { ...createInitialVoxPopuliState(null), status: 'active' as const } },
+        'another LOH': { lohId: 'cy' },
+        'next day': { week: game.week + 1 },
+        'another recipient': {},
+      }[variant]
+      store.dispatch(hydrateGame({ ...game, ...overrides }))
+      expect(
+        run('reassure', [variant === 'another recipient' ? 'bea' : 'ash']).summary
+      ).not.toMatch(/agreed to go on the block/)
+      expect(store.getState().social.reality.facadeAgreements).toEqual({})
+    }
+  )
+
   it('keeps intelligence and relationship effects written by downstream middleware', () => {
     const reality = createInitialRealityDomainState()
     const fact = seedTargetingFact(reality)
