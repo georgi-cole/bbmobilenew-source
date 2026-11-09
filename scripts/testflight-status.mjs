@@ -7,6 +7,7 @@ const {
   ASC_API_KEY_P8_BASE64,
   TESTFLIGHT_BUILD,
   TESTFLIGHT_REUSE_EXEMPTION_FROM,
+  TESTFLIGHT_REUSE_INTERNAL_GROUP_FROM,
   TESTFLIGHT_WAIT_MINUTES = '20',
 } = process.env
 
@@ -20,6 +21,9 @@ function parseRelease(value) {
 const release = parseRelease(TESTFLIGHT_BUILD)
 const previous = TESTFLIGHT_REUSE_EXEMPTION_FROM
   ? parseRelease(TESTFLIGHT_REUSE_EXEMPTION_FROM)
+  : null
+const groupReference = TESTFLIGHT_REUSE_INTERNAL_GROUP_FROM
+  ? parseRelease(TESTFLIGHT_REUSE_INTERNAL_GROUP_FROM)
   : null
 if (!ASC_API_KEY_ID || !ASC_API_ISSUER_ID || !ASC_API_KEY_P8_BASE64) {
   throw new Error('App Store Connect credentials are required.')
@@ -51,7 +55,7 @@ async function request(path, query, { method = 'GET', body } = {}) {
   if (!response.ok) {
     throw new Error(`App Store Connect ${method} ${path} returned HTTP ${response.status}.`)
   }
-  return response.json()
+  return response.status === 204 ? null : response.json()
 }
 
 const {
@@ -98,10 +102,31 @@ async function reuseExemption(build) {
   )
 }
 
+async function reuseInternalGroup(build) {
+  const { groups } = await findBuild(groupReference)
+  const internal = groups.filter(
+    ({ attributes }) =>
+      attributes?.isInternalGroup === true && attributes.publicLinkEnabled !== true
+  )
+  if (internal.length !== 1) {
+    throw new Error(
+      `Expected one private internal tester group on the previous build. Found ${internal.length}.`
+    )
+  }
+  const [{ type, id }] = internal
+  await request(
+    `builds/${encodeURIComponent(build.id)}/relationships/betaGroups`,
+    {},
+    { method: 'POST', body: { data: [{ type, id }] } }
+  )
+  console.log('Assigned the build to the previous build’s internal TestFlight group.')
+}
+
 const deadline = Date.now() + Number(TESTFLIGHT_WAIT_MINUTES) * 60 * 1000
 let lastStatus
 let processedAt
 let reusedExemption = false
+let reusedInternalGroup = false
 while (Date.now() < deadline) {
   const { build, beta, groups } = await findBuild(release)
   const processing = build?.attributes.processingState ?? 'WAITING_FOR_APPLE'
@@ -126,6 +151,16 @@ while (Date.now() < deadline) {
     ) {
       await reuseExemption(build)
       reusedExemption = true
+    }
+    if (
+      groupReference &&
+      !reusedInternalGroup &&
+      beta?.internalBuildState === 'READY_FOR_BETA_TESTING' &&
+      groups.length === 0
+    ) {
+      await reuseInternalGroup(build)
+      reusedInternalGroup = true
+      processedAt = Date.now()
     }
     if (states.includes('IN_BETA_TESTING') || Date.now() - processedAt >= 120000) break
   }

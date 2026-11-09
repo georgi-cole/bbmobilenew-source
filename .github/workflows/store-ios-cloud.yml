@@ -23,6 +23,10 @@ on:
         description: Existing TestFlight build with a recorded exemption and the same encryption (version+build number)
         type: string
         default: ''
+      reuse_internal_group_from:
+        description: Existing TestFlight build with the intended internal tester group (version+build number)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -248,5 +252,6 @@ jobs:
           ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
           TESTFLIGHT_BUILD: ${{ inputs.testflight_build }}
           TESTFLIGHT_REUSE_EXEMPTION_FROM: ${{ inputs.reuse_exemption_from }}
+          TESTFLIGHT_REUSE_INTERNAL_GROUP_FROM: ${{ inputs.reuse_internal_group_from }}
           TESTFLIGHT_WAIT_MINUTES: '5'
         run: node scripts/testflight-status.mjs
