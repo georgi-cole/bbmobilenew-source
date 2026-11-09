@@ -17,6 +17,7 @@ import type { SpectatorVariant } from '../../components/ui/SpectatorView'
 import PublicFavoriteOverlay from '../../components/PublicFavoriteOverlay/PublicFavoriteOverlay'
 import TwinShockIntroCinematic from '../../components/TwinShockIntroCinematic/TwinShockIntroCinematic'
 import TwinShockRevealOverlay from '../../components/TwinShockRevealOverlay/TwinShockRevealOverlay'
+import { getCeremonyTileElement } from '../GameScreen/ceremonyTileMeasurement'
 import { simulateBattleBackCompetition } from '../../features/twists/battleBackCompetition'
 import { mulberry32 } from '../../store/rng'
 import {
@@ -386,18 +387,6 @@ function TwistsTestContent({
   })
   const voteKeys = Object.keys(qaGame.votes ?? {})
 
-  function getTwinTileRect(): DOMRect | null {
-    const targetId =
-      activeTwinReveal.type === 'combined'
-        ? activeTwinReveal.playerId
-        : activeTwinReveal.incomingPlayerId
-    return (
-      document
-        .querySelector<HTMLElement>(`[data-player-id="${targetId}"]`)
-        ?.getBoundingClientRect() ?? null
-    )
-  }
-
   return (
     <div style={{ padding: '1.5rem', maxWidth: '500px', margin: '0 auto', color: '#fff' }}>
       <h1 style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>🔬 Twists Test Page</h1>
@@ -696,6 +685,7 @@ function TwistsTestContent({
         <div
           data-player-id="lia"
           style={{
+            position: 'relative',
             width: '92px',
             padding: '8px',
             borderRadius: '16px',
@@ -721,6 +711,7 @@ function TwistsTestContent({
         <div
           data-player-id="ali"
           style={{
+            position: 'relative',
             width: '92px',
             padding: '8px',
             borderRadius: '16px',
@@ -770,10 +761,11 @@ function TwistsTestContent({
           onComplete={() => setActiveOverlay('twinShockAvatar')}
         />
       )}
-      {activeOverlay === 'twinShockAvatar' && (
+      {(activeOverlay === 'twinShock' || activeOverlay === 'twinShockAvatar') && (
         <TwinShockRevealOverlay
+          active={activeOverlay === 'twinShockAvatar'}
           reveal={activeTwinReveal}
-          getTileRect={getTwinTileRect}
+          getTile={getCeremonyTileElement}
           onDone={() => {
             setLastResult(
               twinScenario === 'secretKept'

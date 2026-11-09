@@ -159,7 +159,7 @@ describe('Human POS decision', () => {
     const state = store.getState().game
     expect(state.awaitingPovDecision).toBe(false)
     expect(state.awaitingPovSaveTarget).toBeFalsy()
-    expect(state.tvFeed[0].text).toContain('NOT to use')
+    expect(state.tvFeed[0].text).toBe('Player 0 has decided not to use the Power of Safety. ⚡')
   })
 
   it('submitPovDecision(true) sets awaitingPovSaveTarget', () => {

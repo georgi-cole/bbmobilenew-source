@@ -23,6 +23,17 @@ function announce(game: GameState, text: string) {
   })
 }
 
+function safetyUseAnnouncement(game: GameState): string {
+  const holder = game.players.find((player) => player.id === game.posWinnerId)
+  return `${holder?.name ?? 'The Safety holder'} has decided to use the Power of Safety. ⚡`
+}
+
+const LEGACY_SAFETY_PREVIEW_ENDINGS = [
+  '. The nominations are about to change!',
+  '. The Power of Safety is in play!',
+  '. The block hangs in the balance!',
+]
+
 /** Ownership and declined choices are known only inside the Confessional. */
 function whisper(game: GameState, text: string) {
   if (!game.secretMission) return
@@ -170,14 +181,18 @@ export function withMissionPowers(
       }
       if (actions.stageMissionSafety.match(action) && !power.safetyIntent) {
         power.safetyIntent = action.payload
-        const holder = game.players.find((p) => p.id === game.posWinnerId)
-        const target = game.players.find((p) => p.id === action.payload.targetId)
-        const variations = [
-          `${holder?.name ?? 'The holder'} has decided to use the Power of Safety on ${target?.name ?? 'a nominee'}. The nominations are about to change!`,
-          `${holder?.name ?? 'The holder'} is preparing to save ${target?.name ?? 'a nominee'}. The Power of Safety is in play!`,
-          `${holder?.name ?? 'The holder'} intends to use the Power of Safety on ${target?.name ?? 'a nominee'}. The block hangs in the balance!`,
-        ]
-        announce(game, variations[(game.week + game.tvFeed.length) % variations.length])
+        announce(game, safetyUseAnnouncement(game))
+      }
+      if (action.type === 'game/hydrateGame' && power.safetyIntent) {
+        for (const event of game.tvFeed) {
+          if (
+            event.id.startsWith('mission:') &&
+            event.meta?.week === game.week &&
+            LEGACY_SAFETY_PREVIEW_ENDINGS.some((ending) => event.text.endsWith(ending))
+          ) {
+            event.text = safetyUseAnnouncement(game)
+          }
+        }
       }
       if (actions.clearMissionSafety.match(action)) power.safetyIntent = undefined
       if (actions.prepareMissionSafetyCommit.match(action)) {

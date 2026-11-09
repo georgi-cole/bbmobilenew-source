@@ -1,181 +1,135 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import type { TwinShockRevealAnimation } from '../../types'
+import { preloadImages } from '../../utils/preload'
 import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
 import {
   PRESENTATION_PRIORITY,
   usePresentationOwner,
 } from '../../services/presentation/presentationOwnership'
+import tileStyles from '../HouseguestGrid/HouseguestGrid.module.css'
 import './TwinShockRevealOverlay.css'
 
 type TwinShockRevealOverlayProps = {
+  active?: boolean
   reveal: TwinShockRevealAnimation
-  getTileRect: (playerId: string) => DOMRect | null
+  getTile: (playerId: string) => HTMLElement | null
   onDone: () => void
 }
 
-type RevealStage = 'intro' | 'transform' | 'settled' | 'done'
+const HOLD_MS = 650
+const WIPE_MS = 1050
+const SETTLE_MS = 220
+const PORTRAIT_TIMEOUT_MS = 1400
 
-function getTileElement(playerId: string): HTMLElement | null {
-  const tiles = document.querySelectorAll<HTMLElement>('[data-player-id]')
-  return Array.from(tiles).find((tile) => tile.dataset.playerId === playerId) ?? null
+function PortraitWipe({
+  active,
+  tile,
+  reveal,
+  onDone,
+}: Pick<TwinShockRevealOverlayProps, 'reveal' | 'onDone'> & {
+  active: boolean
+  tile: HTMLElement
+}) {
+  const combined = reveal.type === 'combined'
+  const name = combined ? reveal.fromName : reveal.replacedPlayerName
+  const avatar = combined ? reveal.fromAvatar : reveal.replacedPlayerAvatar
+  const [revealing, setRevealing] = useState(false)
+  const [avatarFailed, setAvatarFailed] = useState(false)
+
+  useEffect(() => {
+    if (!active) return undefined
+    // The live roster already has the final portrait, including any optimized
+    // variant or fallback. Wait for that image before uncovering the tile.
+    const liveAvatar = tile.querySelector<HTMLImageElement>('img[alt]:not([alt=""])')?.src
+    const portraits = liveAvatar ? [avatar, liveAvatar] : [avatar]
+    let cancelled = false
+    let revealTimer: number | undefined
+    let doneTimer: number | undefined
+    void preloadImages(portraits, undefined, PORTRAIT_TIMEOUT_MS).then(() => {
+      if (cancelled) return
+      revealTimer = window.setTimeout(() => setRevealing(true), HOLD_MS)
+      doneTimer = window.setTimeout(onDone, HOLD_MS + WIPE_MS + SETTLE_MS)
+    })
+    return () => {
+      cancelled = true
+      window.clearTimeout(revealTimer)
+      window.clearTimeout(doneTimer)
+    }
+  }, [active, avatar, onDone, tile])
+
+  return (
+    <div
+      className={`twin-shock-reveal twin-shock-reveal--${reveal.type}${revealing ? ' twin-shock-reveal--revealing' : ''}`}
+      style={{ '--twin-shock-wipe-duration': `${WIPE_MS}ms` } as CSSProperties}
+      role={active ? 'status' : undefined}
+      aria-hidden={!active}
+      aria-label={
+        revealing ? (combined ? reveal.toName : reveal.incomingName) : 'Twin Shock reveal'
+      }
+      data-presentation-root="twin-shock-reveal"
+    >
+      <div className="twin-shock-reveal__outgoing" aria-hidden="true">
+        {avatar && !avatarFailed ? (
+          <img
+            className="twin-shock-reveal__portrait"
+            src={avatar}
+            alt=""
+            draggable={false}
+            onError={() => setAvatarFailed(true)}
+          />
+        ) : (
+          <span className="twin-shock-reveal__fallback">{name.slice(0, 2).toUpperCase()}</span>
+        )}
+        <span className={tileStyles.nameOverlay}>{name}</span>
+      </div>
+      <span className="twin-shock-reveal__light" aria-hidden="true" />
+    </div>
+  )
 }
 
 export default function TwinShockRevealOverlay({
+  active = true,
   reveal,
-  getTileRect,
+  getTile,
   onDone,
 }: TwinShockRevealOverlayProps) {
   const reducedMotion = usePresentationReducedMotion()
   const targetId = reveal.type === 'combined' ? reveal.playerId : reveal.incomingPlayerId
-  const { isOwner } = usePresentationOwner('twin-shock', PRESENTATION_PRIORITY.twinShock)
-  const [rect, setRect] = useState<DOMRect | null>(null)
-  const [stage, setStage] = useState<RevealStage>('intro')
+  const { isOwner } = usePresentationOwner('twin-shock', PRESENTATION_PRIORITY.twinShock, active)
+  const [tile, setTile] = useState<HTMLElement | null>(null)
+  const [completed, setCompleted] = useState(false)
   const completedRef = useRef(false)
 
   const complete = useCallback(() => {
     if (completedRef.current) return
     completedRef.current = true
+    setCompleted(true)
     onDone()
   }, [onDone])
 
   useLayoutEffect(() => {
-    if (!isOwner || reducedMotion) return undefined
-    let doneFallbackId: number | null = null
-    const frameId = window.requestAnimationFrame(() => {
-      const measured = getTileRect(targetId)
-      if (!measured) {
-        doneFallbackId = window.setTimeout(complete, 100)
-        return
-      }
-      setRect(measured)
+    if (!isOwner || reducedMotion || completed) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      const target = getTile(targetId)
+      if (target) setTile(target)
+      else if (active) complete()
     })
-
-    return () => {
-      window.cancelAnimationFrame(frameId)
-      if (doneFallbackId !== null) window.clearTimeout(doneFallbackId)
-    }
-  }, [complete, getTileRect, isOwner, reducedMotion, targetId])
-
-  useLayoutEffect(() => {
-    if (!isOwner || reducedMotion) return undefined
-    const tile = getTileElement(targetId)
-    if (!tile) return undefined
-
-    const previousOpacity = tile.style.opacity
-    const previousVisibility = tile.style.visibility
-    const previousTransition = tile.style.transition
-    tile.style.opacity = '0'
-    tile.style.visibility = 'hidden'
-
-    return () => {
-      tile.style.opacity = previousOpacity
-      tile.style.visibility = previousVisibility
-      tile.style.transition = previousTransition
-    }
-  }, [isOwner, reducedMotion, targetId])
+    return () => window.cancelAnimationFrame(frame)
+  }, [active, complete, completed, getTile, isOwner, reducedMotion, targetId])
 
   useEffect(() => {
-    if (!isOwner || stage !== 'settled') return
-    const tile = getTileElement(targetId)
-    if (!tile) return
+    if (!isOwner || !active || !reducedMotion) return undefined
+    const timer = window.setTimeout(complete, 0)
+    return () => window.clearTimeout(timer)
+  }, [active, complete, isOwner, reducedMotion])
 
-    tile.style.transition = 'opacity 420ms ease'
-    tile.style.visibility = 'visible'
-    tile.style.opacity = '1'
-  }, [isOwner, stage, targetId])
+  if (!isOwner || reducedMotion || completed || !tile) return null
 
-  const timings = useMemo(
-    () =>
-      reveal.type === 'ali_enters'
-        ? { transformAt: 2100, settledAt: 3900, doneAt: 4650 }
-        : { transformAt: 1850, settledAt: 3450, doneAt: 4200 },
-    [reveal.type]
-  )
-
-  useEffect(() => {
-    if (!isOwner) return undefined
-    if (reducedMotion) {
-      const immediate = window.setTimeout(complete, 0)
-      return () => window.clearTimeout(immediate)
-    }
-    if (!rect) return undefined
-    const transformId = window.setTimeout(() => setStage('transform'), timings.transformAt)
-    const settledId = window.setTimeout(() => setStage('settled'), timings.settledAt)
-    const doneId = window.setTimeout(() => {
-      setStage('done')
-      complete()
-    }, timings.doneAt)
-    return () => {
-      window.clearTimeout(transformId)
-      window.clearTimeout(settledId)
-      window.clearTimeout(doneId)
-    }
-  }, [complete, isOwner, rect, reducedMotion, timings])
-
-  const display = useMemo(() => {
-    if (reveal.type === 'combined') {
-      return {
-        beforeName: reveal.fromName,
-        beforeAvatar: reveal.fromAvatar,
-        afterName: reveal.toName,
-        afterAvatar: reveal.toAvatar,
-        ariaLabel: 'Twin Shock revealed',
-      }
-    }
-    return {
-      beforeName: reveal.replacedPlayerName,
-      beforeAvatar: reveal.replacedPlayerAvatar,
-      afterName: reveal.incomingName,
-      afterAvatar: reveal.incomingAvatar,
-      ariaLabel: 'New hubmate revealed',
-    }
-  }, [reveal])
-
-  const showingIncomingAvatar = stage !== 'intro'
-  const visibleAvatar = showingIncomingAvatar ? display.afterAvatar : display.beforeAvatar
-  const visibleName = showingIncomingAvatar ? display.afterName : display.beforeName
-
-  if (!isOwner || reducedMotion || !rect || stage === 'done') return null
-
-  const style = {
-    '--twin-shock-left': `${rect.left}px`,
-    '--twin-shock-top': `${rect.top}px`,
-    '--twin-shock-width': `${rect.width}px`,
-    '--twin-shock-height': `${rect.height}px`,
-  } as CSSProperties
-
-  return (
-    <div
-      className={`twin-shock-reveal twin-shock-reveal--${reveal.type} twin-shock-reveal--${stage}`}
-      style={style}
-      role="status"
-      aria-live="assertive"
-      aria-label={display.ariaLabel}
-      data-presentation-root="twin-shock-reveal"
-    >
-      <div className="twin-shock-reveal__shade" />
-      <div className="twin-shock-reveal__flare" />
-      <div className="twin-shock-reveal__beam" />
-      <div className="twin-shock-reveal__tile">
-        <div className="twin-shock-reveal__avatar-wrap">
-          {visibleAvatar ? (
-            <img
-              key={`${showingIncomingAvatar ? 'after' : 'before'}-${visibleAvatar}`}
-              className={`twin-shock-reveal__avatar twin-shock-reveal__avatar--${showingIncomingAvatar ? 'after' : 'before'}`}
-              src={visibleAvatar}
-              alt=""
-              draggable={false}
-            />
-          ) : (
-            <span
-              className={`twin-shock-reveal__avatar-fallback twin-shock-reveal__avatar-fallback--${showingIncomingAvatar ? 'after' : 'before'}`}
-            >
-              {visibleName.slice(0, 2).toUpperCase()}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
+  // Anchoring inside the roster frame keeps the wipe aligned as the layout moves.
+  return createPortal(
+    <PortraitWipe active={active} tile={tile} reveal={reveal} onDone={complete} />,
+    tile
   )
 }

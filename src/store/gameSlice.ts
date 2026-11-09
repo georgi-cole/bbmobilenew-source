@@ -7039,7 +7039,7 @@ const gameSlice = createSlice({
         } else {
           pushEvent(
             state,
-            `${posWinner?.name ?? 'The holder'} ${getPlayerBeVerb(posWinner, 'has', 'have')} decided NOT to use the power. The nominations remain the same. ⚡`,
+            `${posWinner?.name ?? 'The holder'} ${getPlayerBeVerb(posWinner, 'has', 'have')} decided not to use ${state.specialVeto?.activeType ? 'the power' : 'the Power of Safety'}. ⚡`,
             'game'
           )
         }
@@ -7075,13 +7075,13 @@ const gameSlice = createSlice({
         pushVoxSafetyOutcome(state, posWinner.id, saveId)
         return
       }
-      pushEvent(
-        state,
-        `${posWinner.name} used the power on ${formatNameList(
-          savedUnitIds.map((id) => state.players.find((player) => player.id === id)?.name ?? id)
-        )}! 🛡️`,
-        'game'
+      const savedNames = formatNameList(
+        savedUnitIds.map((id) => state.players.find((player) => player.id === id)?.name ?? id)
       )
+      const coLohDay = (state.coLohIds?.length ?? 0) >= 2
+      const separateSaveAnnouncement = Boolean(state.specialVeto?.activeType) || coLohDay
+      const saveAnnouncement = `${posWinner.name} used ${state.specialVeto?.activeType ? 'the power' : 'the Power of Safety'} on ${savedNames}! 🛡️`
+      if (separateSaveAnnouncement) pushEvent(state, saveAnnouncement, 'game')
 
       // Diamond: holder names replacement (not LOH)
       if (state.specialVeto?.activeType === 'diamond') {
@@ -7127,7 +7127,6 @@ const gameSlice = createSlice({
 
       // LOH must name a replacement. During Cupid's Arrow, a human coholder
       // represents the whole LOH pair even when their AI partner won the comp.
-      const coLohDay = (state.coLohIds?.length ?? 0) >= 2
       if (coLohDay) {
         const ownerId = Object.entries(state.coLohNomineeByCoLohId ?? {}).find(
           ([, nomineeId]) => nomineeId === saveId
@@ -7169,6 +7168,7 @@ const gameSlice = createSlice({
       }
       const lohDecisionPlayer = getCupidHumanCoholder(state, state.lohId) ?? lohPlayer
       lohPlayer = lohDecisionPlayer
+      let backupPrompt: string
       if (lohDecisionPlayer?.isUser) {
         if (!lohPlayer) return
         state.replacementNeeded = true
@@ -7176,7 +7176,7 @@ const gameSlice = createSlice({
         if (state.specialVeto?.activeType === 'vip') {
           state.specialVeto.vipUseStage = 1
         }
-        pushEvent(state, `${lohPlayer.name} must now name a backup nominee. 🎯`, 'game')
+        backupPrompt = `${lohPlayer.name} must now name a backup nominee. 🎯`
       } else {
         // The changed block is a meaningful strategic checkpoint.  Leave the
         // replacement unresolved until the next Continue so social actions can
@@ -7184,12 +7184,13 @@ const gameSlice = createSlice({
         state.aiReplacementStep = 1
         state.aiReplacementWaiting = false
         if (state.specialVeto?.activeType === 'vip') state.specialVeto.vipUseStage = 1
-        pushEvent(
-          state,
-          `${lohPlayer?.name ?? 'The LOH'} has time to reconsider the replacement after the Safety result. 🎯`,
-          'game'
-        )
+        backupPrompt = `${lohPlayer?.name ?? 'The LOH'} has time to reconsider the replacement after the Safety result. 🎯`
       }
+      pushEvent(
+        state,
+        separateSaveAnnouncement ? backupPrompt : `${saveAnnouncement} ${backupPrompt}`,
+        'game'
+      )
     },
 
     /**
@@ -12629,7 +12630,7 @@ const gameSlice = createSlice({
               } else {
                 pushEvent(
                   state,
-                  `${povName} has decided NOT to use the Power of Safety. The nominations remain the same. ⚡`,
+                  `${povName} has decided not to use the Power of Safety. ⚡`,
                   'game'
                 )
               }
