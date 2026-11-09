@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   closeIncomingInbox,
@@ -307,7 +307,6 @@ function InteractionItem({
   interactionDramaMode,
 }: InteractionItemProps) {
   const itemRef = useRef<HTMLDivElement>(null)
-  const descriptionId = useId()
   const fromPlayer = playerById.get(interaction.fromId)
   const fromName = fromPlayer?.name ?? interaction.fromId
   const safetyConsultation = getSafetyConsultationScenario(interaction)
@@ -476,28 +475,18 @@ function InteractionItem({
               : 'inbox-item__actions'
           }
         >
-          {responseOptions.map((option, index) => {
-            const stakesId = option.createsCommitment ? `${descriptionId}-${index}` : undefined
-            return (
-              <button
-                key={option.id}
-                type="button"
-                aria-label={option.label}
-                aria-describedby={stakesId}
-                data-response-type={option.responseType}
-                data-response-action={option.action}
-                className={`inbox-action inbox-action--${option.style}`}
-                onClick={() => onRespond(interaction.id, option.id, option.action)}
-              >
-                {option.label}
-                {stakesId && (
-                  <span id={stakesId} hidden>
-                    {option.description}
-                  </span>
-                )}
-              </button>
-            )
-          })}
+          {responseOptions.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              data-response-type={option.responseType}
+              data-response-action={option.action}
+              className={`inbox-action inbox-action--${option.style}`}
+              onClick={() => onRespond(interaction.id, option.id, option.action)}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
       )}
     </div>

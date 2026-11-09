@@ -462,9 +462,7 @@ export function getIncomingInteractionResponseOptions(
     ...(commitmentKind
       ? {
           ...getCommitmentResponsePresentation(commitmentKind, option.responseType),
-          // The promise is explained below the action; keep the authored
-          // conversational label so a vote pitch does not look like the same
-          // button as a Safety request or an LOH plea.
+          // Keep the promise in the language of the specific conversation.
           label: option.label,
         }
       : isHoldSafetyRequest && option.responseType === 'accept'
