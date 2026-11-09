@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { describe, expect, it } from 'vitest'
 import gameReducer from '../../../store/gameSlice'
@@ -75,7 +75,10 @@ describe('IncomingInteractionsInbox encoding and icons', () => {
     expect(screen.getByText('Resolved · Accepted')).toBeInTheDocument()
 
     const closeButton = screen.getByRole('button', { name: 'Close inbox' })
-    expect(within(closeButton).getByTestId('incoming-icon-close')).toBeInTheDocument()
+    expect(closeButton.querySelector('svg.game-back-button__icon')).toHaveAttribute(
+      'aria-hidden',
+      'true'
+    )
 
     expect(container.textContent).not.toMatch(/ðŸ|âœ|âš|ï¸|�/u)
   })

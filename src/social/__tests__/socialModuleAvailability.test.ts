@@ -47,7 +47,7 @@ describe('socialModuleAvailability', () => {
     )
   })
 
-  it('keeps outgoing conversations and incoming vote pitches available while ballots are collected', () => {
+  it('keeps incoming vote pitches available while classic ballots are collected', () => {
     const outgoing = getSocialModuleAvailability({
       phase: 'live_vote',
       players: activeHuman,
@@ -57,10 +57,21 @@ describe('socialModuleAvailability', () => {
       players: activeHuman,
     })
 
-    expect(outgoing.canOpen).toBe(true)
-    expect(getBlockedSocialModuleAnnouncementMessage(outgoing)).toBeNull()
+    expect(outgoing.canOpen).toBe(false)
+    expect(getBlockedSocialModuleAnnouncementMessage(outgoing)).toMatch(
+      /called to the confessional/i
+    )
     expect(incoming.canOpen).toBe(true)
     expect(getBlockedSocialModuleAnnouncementMessage(incoming)).toBeNull()
+  })
+
+  it('keeps outgoing conversations available during a Vox audience vote', () => {
+    const outgoing = getSocialModuleAvailability({
+      phase: 'live_vote',
+      players: activeHuman,
+      voxPopuli: { status: 'active' },
+    })
+    expect(outgoing.canOpen).toBe(true)
   })
 
   it('keeps outgoing actions locked during the actual eviction result presentation', () => {
