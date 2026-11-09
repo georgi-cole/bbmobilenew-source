@@ -221,6 +221,14 @@ export const BACKGROUND_ACTION_CHOICES: Readonly<
 }
 
 export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
+  private_intel_lead: [
+    [
+      'Thank them for the lead',
+      'Ask how they heard it',
+      'Say you’re unconvinced',
+      'Leave it there',
+    ],
+  ],
   week_start_ally_check_in: [
     ['Share your read', 'Ask what changed', 'Keep your cards close', 'Leave it for later'],
     ['Reassure them', 'Talk through the week', 'Set a little distance', 'Change the subject'],

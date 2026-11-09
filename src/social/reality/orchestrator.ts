@@ -50,7 +50,7 @@ export interface RealityOpportunityCandidate {
   action: RealityActionContract
   targetIds: string[]
   subjectId?: string
-  /** Exact acceptance for a convened meeting whose participants already agreed to attend. */
+  /** Exact acceptance when the participants have already agreed to the conversation. */
   acceptanceChanceOverride?: number
   /** Pair-specific repetition pressure for player-authored moves. */
   repetitionByTarget?: Readonly<Record<string, RealityResponseRepetition>>
