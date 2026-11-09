@@ -115,6 +115,15 @@ test('preserves both Twin Shock results through 20 real game-route playback/Skip
       })
     }
     await expect(intro).toHaveCount(0, { timeout: outcome === 'skip' ? 5000 : 25_000 })
+    if (cycle < 2) {
+      const target = branch === 'ali_enters' ? 'ali' : 'lia'
+      const tile = page.locator(`[data-player-id="${target}"] [data-ceremony-tile="true"]`)
+      const wipe = tile.locator('.twin-shock-reveal')
+      await expect(wipe).toBeVisible()
+      await expect(wipe.locator('.twin-shock-reveal__portrait')).toHaveCSS('object-fit', 'cover')
+      await expect(tile.locator('img[alt]:not([alt=""])').first()).toBeVisible()
+      await expect(wipe).toHaveCount(0)
+    }
     await expect
       .poll(() =>
         handle.evaluate(

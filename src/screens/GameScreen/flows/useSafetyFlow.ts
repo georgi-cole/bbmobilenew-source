@@ -237,16 +237,20 @@ export function useSafetyFlow({
   )
 
   // Confessional and AI Safety choices commit synchronously rather than going
-  // through handlePovSaveTarget above. Give those saves the same visual beat,
-  // but only once for the whole game session.
+  // through handlePovSaveTarget above. The TV holds the result while the
+  // matching ceremony is scheduled and until it finishes.
+  const committedSaveId = game.povSavedId ?? null
+  const committedSaveKey = committedSaveId ? getSaveCeremonyKey(committedSaveId) : null
+  const awaitingSaveCeremony =
+    !sequenceHandled && committedSaveKey !== null && consumedSaveCeremonyKey !== committedSaveKey
   useEffect(() => {
     if (sequenceHandled) return
-    const savedId = game.povSavedId ?? null
-    if (!savedId) {
+    const savedId = committedSaveId
+    const ceremonyKey = committedSaveKey
+    if (!savedId || !ceremonyKey) {
       presentedSaveIdRef.current = null
       return
     }
-    const ceremonyKey = getSaveCeremonyKey(savedId)
     if (
       presentedSaveIdRef.current === savedId ||
       consumedSaveCeremonyKey === ceremonyKey ||
@@ -261,7 +265,10 @@ export function useSafetyFlow({
     const savedPlayer = savedPlayers.find((player) => player.id === savedId) ?? savedPlayers[0]
     const holderRect = game.posWinnerId ? getTileRect(game.posWinnerId) : null
     const savedRect = savedPlayer ? getTileRect(savedPlayer.id) : null
-    if (!savedPlayer || !savedRect) return
+    if (!savedPlayer || !savedRect) {
+      const fallback = window.setTimeout(() => setConsumedSaveCeremonyKey(ceremonyKey), 0)
+      return () => window.clearTimeout(fallback)
+    }
 
     const sourceIsDistinctHolder =
       holderRect != null && game.posWinnerId != null && game.posWinnerId !== savedId
@@ -308,9 +315,10 @@ export function useSafetyFlow({
     }, 0)
     return () => window.clearTimeout(timer)
   }, [
+    committedSaveId,
+    committedSaveKey,
     consumedSaveCeremonyKey,
     game,
-    getSaveCeremonyKey,
     getTileRect,
     pendingSaveCeremony,
     setConsumedSaveCeremonyKey,
@@ -588,6 +596,7 @@ export function useSafetyFlow({
     specialVetoName,
     showPovDecisionModal,
     pendingSaveCeremony,
+    awaitingSaveCeremony,
     handleSaveCeremonyDone,
     handlePovSaveTarget,
     showPovSaveModal,

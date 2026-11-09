@@ -867,6 +867,7 @@ export default function GameScreen() {
     specialVetoName,
     showPovDecisionModal,
     pendingSaveCeremony,
+    awaitingSaveCeremony,
     handleSaveCeremonyDone,
     handlePovSaveTarget,
     showPovSaveModal,
@@ -1367,6 +1368,11 @@ export default function GameScreen() {
   const showReplacementCeremony =
     pendingReplacementCeremony !== null || showAiReplacementAnim || replacementSequence.active
   const showSaveCeremony = pendingSaveCeremony !== null
+  const safetySavePresentationActive =
+    !activeSpecialVeto &&
+    ((game.phase === 'pos_ceremony_results' && awaitingSaveCeremony) ||
+      showSaveCeremony ||
+      replacementSequence.playing?.actionHistory.some(({ kind }) => kind === 'save'))
   const showFinal3Ceremony =
     !isVoxPopuli &&
     (game.awaitingFinal3Plea === true || game.awaitingFinal3Eviction === true) &&
@@ -1776,7 +1782,9 @@ export default function GameScreen() {
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'
                 : democraciaVoteRecorded
                   ? 'Vote recorded. Press Play to reveal the results.'
-                  : null
+                  : safetySavePresentationActive
+                    ? 'The Safety Ceremony is underway. ⚡'
+                    : null
             }
             priorityAnnouncement={tribunalInvitationAnnouncement ?? confessionalTvAnnouncement}
             onPriorityAnnouncementDismiss={
@@ -2575,11 +2583,12 @@ export default function GameScreen() {
               onComplete={handleTwinShockIntroDone}
             />
           )}
-          {twinShockReveal && completedTwinShockIntroKey === twinShockSequenceKey && (
+          {twinShockReveal && (
             <TwinShockRevealOverlay
               key={`${presentationRunKey}:avatar-${twinShockSequenceKey}`}
+              active={completedTwinShockIntroKey === twinShockSequenceKey}
               reveal={twinShockReveal}
-              getTileRect={getTileRect}
+              getTile={getCeremonyTileElement}
               onDone={handleTwinShockRevealDone}
             />
           )}

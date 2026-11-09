@@ -245,7 +245,9 @@ describe('staged Safety and earned-power decisions', () => {
     store.dispatch(submitPovSaveTarget('ai3'))
     expect(store.getState().game.nomineeIds).toEqual(['ai3', 'ai4'])
     expect(store.getState().game.povProtectedIds).not.toContain('ai3')
-    expect(store.getState().game.tvFeed[0].text).toContain('Player 3')
+    expect(store.getState().game.tvFeed[0].text).toBe(
+      'Player 2 has decided to use the Power of Safety. ⚡'
+    )
     const decision = store.getState().game.missionPowers!.decision!
     expect(decision.kind).toBe('vetoSafety')
     store.dispatch(answer(decision.id, true))
@@ -266,12 +268,17 @@ describe('staged Safety and earned-power decisions', () => {
     store.dispatch(answer(id, true))
     expect(store.getState().game).toEqual(snapshot)
   })
-  it('restores the same pending Veto after a JSON save and reload', () => {
+  it('restores the pending Veto and removes the spoiler from an older save', () => {
     const store = setup()
     store.dispatch(submitPovSaveTarget('ai3'))
     const snapshot = JSON.parse(JSON.stringify(store.getState().game)) as GameState
+    snapshot.tvFeed[0].text =
+      'Player 2 is preparing to save Player 3. The Power of Safety is in play!'
     const resumed = setup(snapshot)
     resumed.dispatch(hydrateGame(snapshot))
+    expect(resumed.getState().game.tvFeed[0].text).toBe(
+      'Player 2 has decided to use the Power of Safety. ⚡'
+    )
     expect(resumed.getState().game.missionPowers?.decision?.id).toBe(
       snapshot.missionPowers?.decision?.id
     )
@@ -284,8 +291,11 @@ describe('staged Safety and earned-power decisions', () => {
     const store = setup(game)
     store.dispatch(submitPovSaveTarget('ai3'))
     expect(store.getState().game.missionPowers?.decision).toBeUndefined()
+    expect(store.getState().game.povSavedId).toBeNull()
+    expect(store.getState().game.tvFeed[0].text).not.toContain('Player 3')
     store.dispatch(advance())
     expect(store.getState().game.nomineeIds).not.toContain('ai3')
+    expect(store.getState().game.tvFeed[0].text).toContain('used the Power of Safety on Player 3')
   })
   it('spends declined No Ambush and activates accepted protection only for backups', () => {
     for (const accept of [false, true]) {

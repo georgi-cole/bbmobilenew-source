@@ -454,7 +454,7 @@ async function playOneCompleteWeek(page: Page): Promise<{
         evidence.posSafetyOutcome = 'used'
       } else if (game.aiReplacementStep === 0 && game.povSavedId == null) {
         const heldEvents = game.tvFeed.filter((event) =>
-          event.text.includes('decided NOT to use the Power of Safety')
+          event.text.includes('decided not to use the Power of Safety')
         )
         expect(heldEvents).toHaveLength(1)
         expect(game.pendingMinigame ?? null).toBeNull()

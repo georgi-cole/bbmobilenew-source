@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-09 — Reviewed the Home Hub glass finish, the order of the Safety
+  ceremony announcements, and the Twin Shock portrait reveal. This review
+  covers the shared presentation of the standard and VIP ceremonies, paid-mode
+  buttons, and existing roster artwork.
+
 - 2026-11-09 — Reviewed the TestFlight fixes for the Store, paid-mode launch
   buttons, Reality Mode portraits, and elimination markers. The VIP card now
   shows Owned in place of the purchase price when VIP access is active. Prices,
