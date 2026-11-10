@@ -58,7 +58,7 @@ const RETURN_SPOTLIGHT_AT = 1300
 const RETURN_DONE_AT = 1900
 
 const REDUCED_DONE_AT = 600
-const ELIMINATED_STAMP_SRC = `${import.meta.env.BASE_URL}assets/eliminated_stamp.svg`
+const ELIMINATED_STAMP_SRC = `${import.meta.env.BASE_URL}assets/eliminated_stamp.png`
 const EVICTION_MARK_SRC = `${(import.meta.env.BASE_URL ?? '').replace(/\/$/, '')}/evictionmark/evictionmark.png`
 const CINEMATIC_FILTER = 'saturate(0.15) contrast(1.1) brightness(0.82)'
 

@@ -18,6 +18,7 @@ import challengeReducer from '../../src/store/challengeSlice'
 import socialReducer from '../../src/social/socialSlice'
 import uiReducer from '../../src/store/uiSlice'
 import settingsReducer from '../../src/store/settingsSlice'
+import vipReducer from '../../src/store/vipSlice'
 import publicOpinionReducer from '../../src/publicOpinion/publicOpinionSlice'
 import type { GameState, Player } from '../../src/types'
 import SpotlightEvictionOverlay from '../../src/components/Eviction/SpotlightEvictionOverlay'
@@ -122,6 +123,7 @@ function makeStore(overrides: Partial<GameState> = {}) {
       social: socialReducer,
       ui: uiReducer,
       settings: settingsReducer,
+      vip: vipReducer,
       publicOpinion: publicOpinionReducer,
     },
     preloadedState: { game: { ...base, ...overrides } },

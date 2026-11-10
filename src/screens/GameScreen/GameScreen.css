@@ -136,7 +136,7 @@ body.mode-surveyeval .game-screen-shell {
   background-color: #111713;
   background-image:
     linear-gradient(rgba(17, 23, 19, 0.72), rgba(17, 23, 19, 0.72)),
-    url('/assets/surveyeval-camo-bg.png');
+    url('../../assets/surveyeval-camo-bg.webp');
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
@@ -317,7 +317,7 @@ body:has(.game-screen--cupid-revealed) [class*='HouseguestGrid_avatarWrap'] {
   background-color: #b87c7d;
   background-image:
     linear-gradient(rgba(79, 42, 54, 0.14), rgba(79, 42, 54, 0.14)),
-    url('/bbmobilenew/assets/skins/cupid-love/rose-gold-unified.png');
+    url('../../assets/rose-gold-unified.webp');
   background-position: center;
   background-size: cover;
   border-color: rgba(239, 174, 181, 0.32);

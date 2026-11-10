@@ -24,6 +24,15 @@ describe('presentation avatar assets', () => {
     )
   })
 
+  it('uses the shared Bella portrait for both standard and legacy grey paths', () => {
+    expect(resolvePresentationAvatarCandidates('/assets/skins/Bella_avatar.webp')).toEqual([
+      '/assets/skins/Bella_avatar.webp',
+    ])
+    expect(
+      resolvePresentationAvatar('/bbmobilenew/assets/skins/backup-grey-lux/Bella_avatar.webp?rev=1')
+    ).toBe('/bbmobilenew/assets/skins/Bella_avatar.webp?rev=1')
+  })
+
   it('includes grey WebP and PNG candidates in gameplay preload URLs', () => {
     const urls = getPresentationAvatarPreloadUrls([{ id: 'finn', name: 'Finn', avatar: '' }])
     expect(

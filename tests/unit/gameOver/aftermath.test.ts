@@ -168,6 +168,25 @@ describe('After the Eye outcome databank', () => {
     expect(readPersistedAftermathIssue(key)).toEqual(issue)
   })
 
+  it('loads migrated tabloid artwork in a saved issue', () => {
+    const key = aftermathIssueStorageKey('profile-1', 'game-1', 2)
+    const issue = buildAftermathIssue(makeCast(), 2, { gameId: 'game-1' })
+    const externalSource = 'https://example.test/assets/tabloid_photos/Nova_tabloid.png'
+    const protocolRelativeSource = '//example.test/assets/tabloid_photos/Nova_tabloid.png'
+    issue.stories[0]!.imageSources = [
+      '/bbmobilenew/assets/tabloid_photos/Nova_tabloid.png?rev=1',
+      externalSource,
+      protocolRelativeSource,
+    ]
+    persistAftermathIssue(key, issue)
+    const stored = readPersistedAftermathIssue(key)
+    expect(stored?.stories[0]?.imageSources).toEqual([
+      expect.stringMatching(/assets\/tabloid_photos\/Nova_tabloid\.webp\?rev=1$/),
+      externalSource,
+      protocolRelativeSource,
+    ])
+  })
+
   it('rejects malformed remote content and falls back to the bundled databank', async () => {
     vi.stubGlobal(
       'fetch',

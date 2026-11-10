@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-10: Reviewed WebP artwork, the smaller credits video, and duplicate
+  media removal across the Cupid and VIP themes and shared game screens.
+  The media stays bundled for offline play, and legacy portrait and tabloid
+  paths resolve to the corresponding artwork. The VIP test now uses the
+  production entitlement reducer. Store offers, access, benefits, and prices
+  are unchanged.
+
 - 2026-11-10: Reviewed the Reality Social regression fixes for locked
   double-elimination plans and invalid pact selections. These restore the
   intended dialogue and feedback within the existing mode. Store offers,

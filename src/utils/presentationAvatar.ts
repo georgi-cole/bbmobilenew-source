@@ -1,3 +1,11 @@
+import { appearanceFromAssetUrl, getAppearanceAsset } from '../appearance/catalog'
+
+export function greyLuxAvatarAssetPath(filename: string): string {
+  return filename.toLowerCase() === 'bella_avatar.webp'
+    ? 'assets/skins/Bella_avatar.webp'
+    : `assets/skins/backup-grey-lux/${filename}`
+}
+
 /**
  * Resolve the light, neutral presentation portrait for secondary avatar views.
  *
@@ -5,8 +13,6 @@
  * moments (mini-games and cinematic reveals) use the quieter grey-backed set
  * so portraits remain legible against dark overlays.
  */
-import { appearanceFromAssetUrl, getAppearanceAsset } from '../appearance/catalog'
-
 export function resolvePresentationAvatarCandidates(source: string | null | undefined): string[] {
   if (!source) return source ? [source] : []
 
@@ -25,6 +31,12 @@ export function resolvePresentationAvatarCandidates(source: string | null | unde
   if (markerIndex < 0) return [source]
 
   const assetName = source.slice(markerIndex + marker.length)
+  const bella = /^(?:backup-grey-lux\/)?Bella_avatar\.webp([?#].*)?$/i.exec(assetName)
+  if (bella) {
+    return [
+      `${source.slice(0, markerIndex)}${greyLuxAvatarAssetPath('Bella_avatar.webp')}${bella[1] ?? ''}`,
+    ]
+  }
   if (
     assetName.startsWith('backup-grey-lux/') ||
     !/^[^/?]+_avatar\.webp(?=[?#]|$)/i.test(assetName)

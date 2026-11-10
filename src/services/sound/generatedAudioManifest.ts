@@ -164,7 +164,7 @@ export const GENERATED_AUDIO_ASSETS = [
   {
     "key": "minigame:wildcard_winner",
     "category": "minigame",
-    "relativePath": "sounds/minigames/minigame_wildcard_winner.mp3",
+    "relativePath": "sounds/minigames/minigame_risk_wheel_winner.mp3",
     "preload": false,
     "volume": 1,
     "loop": false

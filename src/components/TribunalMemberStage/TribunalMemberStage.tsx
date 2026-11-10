@@ -194,7 +194,7 @@ export default function TribunalMemberStage({
     current &&
     !isPublic &&
     (current.juror.id.toLowerCase() === 'sol' || current.juror.name.toLowerCase() === 'sol')
-  // Sol_formal.png is a black silhouette asset. Use Sol's visible full-body
+  // Sol_formal.webp is a black silhouette asset. Use Sol's visible full-body
   // informal cutout for this cinematic instead of presenting an unreadable
   // shadow on the Tribunal stage.
   const currentAnnouncement = current

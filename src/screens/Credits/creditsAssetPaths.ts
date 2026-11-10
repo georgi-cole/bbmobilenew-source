@@ -1,4 +1,4 @@
-const CREDITS_CITY_PATH = 'assets/credits/city.png'
+const CREDITS_CITY_PATH = 'assets/credits/city.webp'
 const CREDITS_BIG_EYE_PATH = 'assets/credits/big-eye.svg'
 const CREDITS_MOON_PATH = 'assets/credits/moon.svg'
 const CREDITS_VIDEO_PATH = 'assets/credits/big-eye-cinematic-background.mp4'

@@ -5,6 +5,7 @@ import type { Player } from '../types'
 import { appearanceFromAssetUrl, getAppearanceAsset } from '../appearance/catalog'
 import { getById, findByName } from '../data/houseguests'
 import type { RemotePlayerOverride } from '../remoteConfig/remoteConfigTypes'
+import { greyLuxAvatarAssetPath } from './presentationAvatar'
 import {
   AVATAR_ASSET_FILES,
   FORMAL_CUTOUT_FILES,
@@ -139,6 +140,28 @@ export function joinPublicAssetPath(path: string): string {
 
 function normalizeExplicitAvatarPath(avatar: string | null | undefined): string | null {
   if (!avatar) return null
+
+  // Old saves may point to the retired SVG wrappers around stock portraits.
+  const base = getBase()
+  const localPath =
+    base && avatar.startsWith(`${base}/`)
+      ? avatar.slice(base.length + 1)
+      : avatar.replace(/^(?:\.\/|\/bbmobilenew\/|\/)/, '')
+  const legacyBella = /^assets\/skins\/backup-grey-lux\/Bella_avatar\.(?:webp|svg)([?#].*)?$/i.exec(
+    localPath
+  )
+  if (legacyBella) {
+    return joinPublicAssetPath(
+      `${greyLuxAvatarAssetPath('Bella_avatar.webp')}${legacyBella[1] ?? ''}`
+    )
+  }
+  const legacy = /^(assets\/skins\/(?:backup-grey-lux\/)?)([^/?#]+_avatar)\.svg([?#].*)?$/.exec(
+    localPath
+  )
+  if (legacy && AVATAR_ASSET_FILES.some((file) => file === `${legacy[2]}.webp`)) {
+    return joinPublicAssetPath(`${legacy[1]}${legacy[2]}.webp${legacy[3] ?? ''}`)
+  }
+
   if (avatar.startsWith('http') || avatar.startsWith('/')) return avatar
 
   const normalized = avatar.replace(/^\.\//, '')
@@ -359,9 +382,6 @@ function listFormalCutoutCandidates(): Array<{ basename: string; filename: strin
   return FORMAL_CUTOUT_FILES.map((filename) => {
     const basename = filename.replace(/\.[^.]+$/, '')
     return { basename, filename }
-  }).sort((a, b) => {
-    const formatPriority = (filename: string) => (filename.toLowerCase().endsWith('.png') ? 0 : 1)
-    return formatPriority(a.filename) - formatPriority(b.filename)
   })
 }
 
@@ -421,11 +441,8 @@ export function resolveFormalCutout(
   if (!hg) return null
   const stem = FORMAL_CUTOUT_MAP[hg.id]
   if (!stem) return null
-  const base = getBase()
-  if (base && base !== '/') {
-    return `${base}/assets/formal_attires/${stem}.png`
-  }
-  return `assets/formal_attires/${stem}.png`
+  const filename = FORMAL_CUTOUT_FILES.find((file) => file.startsWith(`${stem}.`))
+  return filename ? joinPublicAssetPath(`assets/formal_attires/${filename}`) : null
 }
 
 /**
@@ -494,7 +511,7 @@ export function resolveInformalCutout(
   const hg = getById(aliasPlayer.id) ?? findByName(aliasPlayer.name)
   const stem = hg ? INFORMAL_CUTOUT_MAP[hg.id] : null
   if (!stem) return null
-  return joinPublicAssetPath(`assets/Informal_attires/${stem}.png`)
+  return joinPublicAssetPath(`assets/Informal_attires/${stem}.webp`)
 }
 
 export function resolveSilhouetteFallback(

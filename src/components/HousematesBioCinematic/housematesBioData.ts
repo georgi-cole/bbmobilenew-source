@@ -25,27 +25,27 @@ const PRESENTATION_BY_ID: Record<string, HousematePresentation> = {
   aria: {
     accent: '#f4c9ff',
     backdrop: 'music-archive',
-    portraitFile: 'Aria_informal.png',
+    portraitFile: 'Aria_informal.webp',
     prizePlan: 'I want to find my own voice—and fund a studio where young musicians can be heard.',
   },
   ash: {
     accent: '#ffba72',
     backdrop: 'outback-camp',
-    portraitFile: 'Ash_informal.png',
+    portraitFile: 'Ash_informal.webp',
     prizePlan:
       'I’m here to face my anxiety. The prize would build wilderness retreats for people learning to breathe again.',
   },
   bea: {
     accent: '#ffe47a',
     backdrop: 'athletics-studio',
-    portraitFile: 'Bea_informal.png',
+    portraitFile: 'Bea_informal.webp',
     prizePlan:
       'I want to stop running from hard feelings—and pay for the training that can take me international.',
   },
   blue: {
     accent: '#89d8ff',
     backdrop: 'technology-lab',
-    portraitFile: 'Blue_informal.png',
+    portraitFile: 'Blue_informal.webp',
     prizePlan: 'I want to step into my own story. I’d create a scholarship in my mother’s name.',
   },
   dex: {
@@ -58,114 +58,114 @@ const PRESENTATION_BY_ID: Record<string, HousematePresentation> = {
   echo: {
     accent: '#d5bbff',
     backdrop: 'music-archive',
-    portraitFile: 'Echo_informal.png',
+    portraitFile: 'Echo_informal.webp',
     prizePlan: 'I want quiet voices to matter. I’d rescue rare recordings before they disappear.',
     portraitPosition: 'center 16%',
   },
   finn: {
     accent: '#9ad9ee',
     backdrop: 'cinematic-harbor',
-    portraitFile: 'Finn_informal.png',
+    portraitFile: 'Finn_informal.webp',
     prizePlan: 'I want to rebuild the bridge to my daughter—and design cleaner ships for tomorrow.',
   },
   ivy: {
     accent: '#d6ff8c',
     backdrop: 'technology-lab',
-    portraitFile: 'Ivy_informal.png',
+    portraitFile: 'Ivy_informal.webp',
     prizePlan:
       'I want to understand people from the inside. I’d fund more inclusive technology research.',
   },
   jax: {
     accent: '#ff997a',
     backdrop: 'athletics-studio',
-    portraitFile: 'Jax_informal.png',
+    portraitFile: 'Jax_informal.webp',
     prizePlan:
       'I want to prove strength isn’t a mirror. I’d open a welcoming community training studio.',
   },
   kai: {
     accent: '#7de7ff',
     backdrop: 'technology-lab',
-    portraitFile: 'Kai_informal.png',
+    portraitFile: 'Kai_informal.webp',
     prizePlan:
       'I want to choose connection over optimization. I’d support human-centered AI education.',
   },
   kian: {
     accent: '#a8ffbf',
     backdrop: 'design-studio',
-    portraitFile: 'Kian_informal2.png',
+    portraitFile: 'Kian_informal2.webp',
     prizePlan:
       'I want collaboration to win. I’d help redesign neighborhoods without pushing residents out.',
   },
   lux: {
     accent: '#ff9ed8',
     backdrop: 'fashion-atelier',
-    portraitFile: 'Lux_informal.png',
+    portraitFile: 'Lux_informal.webp',
     prizePlan:
       'I want to own my story. I’d create a safe studio for talent fashion tried to silence.',
   },
   mimi: {
     accent: '#ffb7e6',
     backdrop: 'music-archive',
-    portraitFile: 'Mimi_informal.png',
+    portraitFile: 'Mimi_informal.webp',
     prizePlan: 'I want the world to hear my sound. The prize becomes my first independent album.',
   },
   nico: {
     accent: '#ffd27d',
     backdrop: 'illusion-theatre',
-    portraitFile: 'Nico_informal.png',
+    portraitFile: 'Nico_informal.webp',
     prizePlan: 'I want to show there is more than the trick. I’d build a real theatre of my own.',
   },
   nova: {
     accent: '#ffad8f',
     backdrop: 'film-suite',
-    portraitFile: 'Nova_informal.png',
+    portraitFile: 'Nova_informal.webp',
     prizePlan:
       'I want to stop playing assistant in my own life. I’d make my first science-fiction film.',
   },
   quinn: {
     accent: '#b9b1ff',
     backdrop: 'strategy-room',
-    portraitFile: 'Quinn_informal.png',
+    portraitFile: 'Quinn_informal.webp',
     prizePlan:
       'I want to risk being known. I’d create free cyber-safety workshops for young people.',
   },
   rae: {
     accent: '#6ff2bd',
     backdrop: 'strategy-room',
-    portraitFile: 'Rae_informal.png',
+    portraitFile: 'Rae_informal.webp',
     prizePlan:
       'I want ambition to build, not just cost. I’d fund scholarships like the one that changed my life.',
   },
   remy: {
     accent: '#ffd086',
     backdrop: 'strategy-room',
-    portraitFile: 'Remy_informal.png',
+    portraitFile: 'Remy_informal.webp',
     prizePlan: 'I want to win as myself, not as a pitch. I’d open a live room for local musicians.',
   },
   rune: {
     accent: '#c9a7ff',
     backdrop: 'music-archive',
-    portraitFile: 'Rune_informal.png',
+    portraitFile: 'Rune_informal.webp',
     prizePlan: 'I want to make art that isn’t content. I’d fund a queer writing residency in Oslo.',
   },
   sol: {
     accent: '#ffc178',
     backdrop: 'film-suite',
-    portraitFile: 'Sol_informal.png',
+    portraitFile: 'Sol_informal.webp',
     prizePlan:
       'I want to find light in people, not only sunsets. I’d revive my father’s dream as a creative workshop.',
   },
   vee: {
     accent: '#9de3b2',
     backdrop: 'strategy-room',
-    portraitFile: 'Vee_informal.png',
+    portraitFile: 'Vee_informal.webp',
     prizePlan:
       'I want to trust my own plan. I’d open a calm coffee studio that mentors young strategists.',
   },
   zed: {
     accent: '#83caff',
     backdrop: 'technology-lab',
-    portraitFile: 'Zed_informal.png',
+    portraitFile: 'Zed_informal.webp',
     prizePlan: 'I want to play from the heart. I’d create a chess and data academy for Lagos kids.',
   },
 }
@@ -252,7 +252,7 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
     privateDetail: 'Her identical twin is the one person who can imitate her composure perfectly.',
     accent: '#8fdcff',
     backdrop: 'strategy-room',
-    portraitPath: '/assets/Informal_attires/Lia_informal.png',
+    portraitPath: '/assets/Informal_attires/Lia_informal.webp',
     avatarPath: '/assets/skins/Lia_avatar.webp',
     unlock: { kind: 'twin-shock', label: 'Reveal the Twin Shock' },
   },
@@ -330,7 +330,7 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
       'Noa secretly names every difficult plant after somebody who once underestimated her.',
     accent: '#7ee6bd',
     backdrop: 'outback-camp',
-    portraitPath: '/assets/Informal_attires/Noa_informal.png',
+    portraitPath: '/assets/Informal_attires/Noa_informal.webp',
     avatarPath: '/assets/skins/Noa_avatar.webp',
     unlock: { kind: 'unavailable', label: 'Unknown' },
   },
@@ -362,7 +362,7 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
       "Pax can settle anybody else's argument, but has avoided one conversation with their father for six years.",
     accent: '#ffd17d',
     backdrop: 'design-studio',
-    portraitPath: '/assets/Informal_attires/Pax_informal.png',
+    portraitPath: '/assets/Informal_attires/Pax_informal.webp',
     avatarPath: '/assets/skins/Pax_avatar.webp',
     unlock: { kind: 'unavailable', label: 'Unknown' },
   },
@@ -393,7 +393,7 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
       'Rey enters every competition carrying a handwritten recipe from his grandmother in his wallet.',
     accent: '#ff9fca',
     backdrop: 'music-archive',
-    portraitPath: '/assets/Informal_attires/Rey_informal.png',
+    portraitPath: '/assets/Informal_attires/Rey_informal.webp',
     avatarPath: '/assets/skins/Rey_avatar.webp',
     unlock: { kind: 'unavailable', label: 'Unknown' },
   },
