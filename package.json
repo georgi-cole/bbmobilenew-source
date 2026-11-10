@@ -84,6 +84,8 @@
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.1",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
     "@capacitor/core": "8.5.3",
     "@capacitor/geolocation": "^8.2.4",
     "@capgo/native-purchases": "^8.6.4",

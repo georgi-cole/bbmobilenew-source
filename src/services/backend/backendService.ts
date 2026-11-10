@@ -10,6 +10,7 @@ import { sanitizeAnalyticsEvent } from './analyticsSchema'
 import { readDeviceAnalyticsContext } from './deviceContext'
 import { serializeProfileBackup } from './profileBackup'
 import { authenticatedBackend, subscribeBackendAuth } from './supabaseTransport'
+import { initializePlayerAccountProfiles } from './playerAccountProfiles'
 
 const PREFERENCES_KEY = 'bbmobilenew:supabase-profiles:v1'
 const EVENTS_KEY = 'bbmobilenew:supabase-events:v1'
@@ -100,6 +101,7 @@ function loadEvents(): QueuedEvent[] {
 /** Configured builds sync local profile backups and bounded pseudonymous gameplay events. */
 export function initializeCloudBackend(store: typeof appStore): () => void {
   if (!getBackendConfig()) return () => undefined
+  const stopAccountProfileSync = initializePlayerAccountProfiles(store)
   let events = loadEvents()
   const earliestExpiry = () =>
     events.reduce(
@@ -403,6 +405,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
   contextChanged()
 
   return () => {
+    stopAccountProfileSync()
     persistEvents()
     stopped = true
     controller.abort()

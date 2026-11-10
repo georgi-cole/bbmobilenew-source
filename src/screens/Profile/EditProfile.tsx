@@ -40,6 +40,8 @@ type EditProfileRouteState = {
   createProfile?: boolean
   appearanceSelection?: AppearanceSelection
   adoptGuestRun?: boolean
+  fromPlayerAccount?: boolean
+  playerAccountId?: string
 }
 
 function isSafePreviewFile(file: File | Blob): boolean {
@@ -201,6 +203,9 @@ export default function EditProfile() {
           bio: normalizedBio,
           appearanceSelection: creationSelection,
         }
+        const accountProfileDetails = routeState?.playerAccountId
+          ? { ...profileDetails, playerAccountId: routeState.playerAccountId }
+          : profileDetails
         if (
           !canCommit() ||
           !(await emailForm.save({ ...profileDetails, createdAt: draftIdentity.createdAt }))
@@ -208,21 +213,23 @@ export default function EditProfile() {
           return
         if (!canCommit()) return
         if (routeState?.adoptGuestRun) {
-          withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
+          withRunAutosaveSuspended(() => dispatch(createProfile(accountProfileDetails)))
           persistCurrentRunSnapshot()
           await flushSavePersistence()
           if (!mounted.current) return
         } else {
           withRunAutosaveSuspended(() => {
-            dispatch(createProfile(profileDetails))
+            dispatch(createProfile(accountProfileDetails))
             dispatch(resetGame([]))
           })
         }
         void warmSelectedAppearance(creationSelection)
-        navigate('/profile', {
-          replace: true,
-          state: { from: '/', fromLookReveal: true },
-        })
+        if (routeState?.fromPlayerAccount) navigate('/profile/account', { replace: true })
+        else
+          navigate('/profile', {
+            replace: true,
+            state: { from: '/', fromLookReveal: true },
+          })
       } finally {
         if (mounted.current) setSaving(false)
       }
@@ -471,6 +478,7 @@ export default function EditProfile() {
                   createProfile: true,
                   initialLookId: creationSelection.lookId,
                   adoptGuestRun: routeState?.adoptGuestRun === true,
+                  ...(routeState?.fromPlayerAccount && { fromPlayerAccount: true }),
                 },
               })
             } else {

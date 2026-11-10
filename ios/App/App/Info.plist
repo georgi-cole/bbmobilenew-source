@@ -2,6 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>com.georgicole.thebigeye.player-sign-in</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>com.georgicole.thebigeye</string>
+            </array>
+        </dict>
+    </array>
     <!-- Google demo app ID; configured by scripts/configure-admob.mjs for live builds. -->
     <key>GADApplicationIdentifier</key>
     <string>ca-app-pub-3940256099942544~1458002511</string>

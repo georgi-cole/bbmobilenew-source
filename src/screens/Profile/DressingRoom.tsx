@@ -20,6 +20,8 @@ export default function DressingRoom() {
     createProfile?: boolean
     initialLookId?: string
     adoptGuestRun?: boolean
+    fromPlayerAccount?: boolean
+    playerAccountId?: string
   } | null
   const creatingProfile = routeState?.createProfile === true
   const dispatch = useAppDispatch()
@@ -38,6 +40,7 @@ export default function DressingRoom() {
         : (SELECTABLE_LOOKS[0]?.id ?? '')
   )
   const returnTo = routeState?.from === '/' ? '/' : '/game'
+  const creationBack = routeState?.fromPlayerAccount ? '/profile/account' : '/'
 
   useEffect(() => {
     void preloadImage(LOCK_IN_FRAME_URL)
@@ -119,6 +122,8 @@ export default function DressingRoom() {
           createProfile: true,
           appearanceSelection: { kind: 'catalog', lookId: selectedId, revision: 1 },
           adoptGuestRun: routeState?.adoptGuestRun === true,
+          ...(routeState?.fromPlayerAccount && { fromPlayerAccount: true }),
+          ...(routeState?.playerAccountId && { playerAccountId: routeState.playerAccountId }),
         },
       })
       return
@@ -139,11 +144,13 @@ export default function DressingRoom() {
         <div className="dressing-room__topbar">
           <GameBackButton
             onClick={() =>
-              navigate(creatingProfile ? '/' : '/profile', {
+              navigate(creatingProfile ? creationBack : '/profile', {
                 state: creatingProfile ? undefined : { from: returnTo },
               })
             }
-            label={creatingProfile ? 'Back to home' : 'Back to profile'}
+            label={
+              creatingProfile && !routeState?.fromPlayerAccount ? 'Back to home' : 'Back to profile'
+            }
           />
           <span>Changing room</span>
         </div>

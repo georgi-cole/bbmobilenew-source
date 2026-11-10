@@ -23,6 +23,8 @@ import { SoundManager } from './services/sound/SoundManager'
 import { canShowAd, clearPendingAdRewards, initAdBridge } from './services/ads/adsService'
 import { installAdMobBridge, invalidateAdMobRequests } from './services/ads/admobBridge'
 import { installE2EStateProbe } from './testSupport/e2eStateProbe'
+import { isPlayerSignInConfigured, PLAYER_ACCOUNT_PATH } from './services/backend/config'
+import { router } from './routes'
 import App from './App.tsx'
 
 const BUILD_ID = import.meta.env.VITE_BUILD_ID ?? 'local'
@@ -170,6 +172,18 @@ rootElement.dataset.buildId = BUILD_ID
 
 async function mountApp() {
   await initializeDurablePersistence()
+  if (isPlayerSignInConfigured()) {
+    void import('./services/backend/playerSignInRedirects')
+      .then(({ registerPlayerSignInRedirects }) =>
+        registerPlayerSignInRedirects((signInError) => {
+          void router.navigate(PLAYER_ACCOUNT_PATH, { replace: true, state: { signInError } })
+        })
+      )
+      .then((stop) => {
+        if (stop && import.meta.hot) import.meta.hot.dispose(stop)
+      })
+      .catch(() => undefined)
+  }
   createRoot(rootElement).render(
     <StrictMode>
       <App />

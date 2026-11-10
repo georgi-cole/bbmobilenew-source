@@ -11,6 +11,7 @@ import { useAppSelector } from '../../store/hooks'
 import { isGuestSaveReminderEvent } from '../../store/guestSaveReminder'
 import { selectCurrentProfile, selectIsGuest } from '../../store/profilesSlice'
 import { imageIdToDataUrl } from '../../utils/imageDb'
+import { isPlayerSignInConfigured } from '../../services/backend/config'
 import './Profile.css'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 
@@ -40,6 +41,8 @@ export default function Profile() {
     isGameActive || week > 1 || (phase !== 'season_start' && phase !== 'week_start')
   const returnTo = (location.state as { from?: string } | null)?.from === '/' ? '/' : '/game'
   const goBack = () => navigate(returnTo, { replace: true })
+  const showAccount = isPlayerSignInConfigured()
+  const openAccount = () => navigate('/profile/account', { state: { profileFrom: returnTo } })
 
   useEffect(() => {
     if (!routeState?.fromLookReveal || returnConsumed.current) return
@@ -100,6 +103,15 @@ export default function Profile() {
         >
           Select Profile
         </button>
+        {showAccount && (
+          <button
+            type="button"
+            className="profile-screen__switch-btn game-button game-button--secondary"
+            onClick={openAccount}
+          >
+            Account sign-in
+          </button>
+        )}
       </div>
     )
   }
@@ -129,6 +141,15 @@ export default function Profile() {
         >
           Select Existing Profile
         </button>
+        {showAccount && (
+          <button
+            type="button"
+            className="profile-screen__switch-btn game-button game-button--secondary"
+            onClick={openAccount}
+          >
+            Account sign-in
+          </button>
+        )}
       </div>
     )
   }
@@ -273,6 +294,15 @@ export default function Profile() {
             </svg>
             <span>Manage profiles</span>
           </button>
+          {showAccount && (
+            <button type="button" className="profile-screen__quick-action" onClick={openAccount}>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <rect x="5" y="10" width="14" height="11" rx="2" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14.5v2" />
+              </svg>
+              <span>Account sign-in</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
