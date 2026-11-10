@@ -301,4 +301,36 @@ describe('resolveDesiredMusic', () => {
 
     expect(resolveDesiredMusic(state, '#/game')).toBe('final_modal')
   })
+
+  it('lets Home and Credits routes override stale finale scenes', () => {
+    const state = makeState({
+      game: {
+        status: 'active',
+        phase: 'week_end',
+        seasonFinale: { phase: 'seasonComplete' },
+        finalThree: { stage: 'complete' },
+      } as RootState['game'],
+      ui: { musicScene: 'season_recap' },
+    })
+
+    expect(resolveDesiredMusic(state, '#/new-season')).toBe('introhub')
+    expect(resolveDesiredMusic(state, '#/credits')).toBe('none')
+  })
+
+  it('switches Vox finale music to voting and recap cues at their authored stages', () => {
+    const state = makeState({
+      game: {
+        status: 'active',
+        phase: 'week_end',
+        seasonFinale: { phase: 'seasonComplete' },
+        finalThree: { stage: 'complete' },
+        voxFinaleStage: 'final_vote',
+      } as RootState['game'],
+    })
+
+    expect(resolveDesiredMusic(state, '#/game')).toBe('public_voting')
+
+    state.game.voxFinaleStage = 'recap'
+    expect(resolveDesiredMusic(state, '#/game')).toBe('season_recap')
+  })
 })

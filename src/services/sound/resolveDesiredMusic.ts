@@ -39,6 +39,7 @@ export interface MusicResolverState {
     evictionOverlayPlayerId?: RootState['game']['evictionOverlayPlayerId']
     seasonFinale?: Pick<NonNullable<RootState['game']['seasonFinale']>, 'phase'> | null
     finalThree?: Pick<NonNullable<RootState['game']['finalThree']>, 'stage'> | null
+    voxFinaleStage?: string | null
     weekendInterlude?: Pick<
       NonNullable<RootState['game']['weekendInterlude']>,
       'active' | 'afterDay' | 'weekendNumber'
@@ -77,6 +78,7 @@ export function resolveDesiredMusicCue(
       musicScene: state.ui.musicScene,
       finalePhase: state.game.seasonFinale?.phase ?? null,
       finalThreeComplete: state.game.finalThree?.stage === 'complete',
+      voxFinaleStage: state.game.voxFinaleStage ?? null,
       spectatorActive: Boolean(state.game.spectatorActive),
       socialOpen: state.social.panelOpen || state.social.incomingInboxOpen,
       weekendAfterDay: state.game.weekendInterlude?.active
