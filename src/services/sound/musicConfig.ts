@@ -146,6 +146,7 @@ export interface MusicResolverContext {
   gameActive?: boolean
   musicScene: MusicScene
   finalePhase?: string | null
+  voxFinaleStage?: string | null
   spectatorActive: boolean
   socialOpen: boolean
   weekendAfterDay?: number | null
@@ -216,6 +217,14 @@ export const BUILT_IN_MUSIC_CUE_IDS = {
  * ceremony seek points and transitions visible and overridable in Music Manager.
  */
 export const DEFAULT_MUSIC_CUES: Readonly<Record<string, MusicCueDefinition>> = {
+  'track:public_voting': {
+    ...createDefaultMusicCue('public_voting', false),
+    displayName: 'Public Voting',
+    fadeInMs: 400,
+    fadeOutMs: 900,
+    crossfadeMs: 400,
+    restartPolicy: 'restart',
+  },
   [BUILT_IN_MUSIC_CUE_IDS.seasonStart]: {
     ...createDefaultMusicCue('season_start'),
     id: BUILT_IN_MUSIC_CUE_IDS.seasonStart,
@@ -337,7 +346,7 @@ export const DEFAULT_MUSIC_CUES: Readonly<Record<string, MusicCueDefinition>> = 
     id: BUILT_IN_MUSIC_CUE_IDS.publicVoting,
     displayName: 'Public voting presentation',
     fadeInMs: 400,
-    fadeOutMs: 400,
+    fadeOutMs: 900,
     crossfadeMs: 400,
     restartPolicy: 'restart',
   },
@@ -365,6 +374,19 @@ export const DEFAULT_MUSIC_CUES: Readonly<Record<string, MusicCueDefinition>> = 
     fadeOutMs: 650,
     crossfadeMs: 600,
   },
+}
+
+/** Runtime fallback timing shared by phase, legacy, and unconfigured track cues. */
+export function createRuntimeDefaultMusicCue(
+  track: NonSilentMusicTrack,
+  loop = true
+): MusicCueDefinition {
+  return {
+    ...createDefaultMusicCue(track, loop),
+    fadeInMs: 300,
+    fadeOutMs: 350,
+    crossfadeMs: 400,
+  }
 }
 
 /**
@@ -817,6 +839,8 @@ const INTRO_HUB_ROUTE_PATHS = new Set([
   '/store',
   '/legal',
   '/public-meter',
+  '/new-season',
+  '/self-evicted',
 ])
 
 const PROFILE_EXPERIENCE_ROUTE_PATHS = new Set([
@@ -873,7 +897,7 @@ export function resolveMusicCue(
       selection.kind === 'track'
         ? configuredCue?.track === selection.track
           ? configuredCue
-          : createDefaultMusicCue(
+          : createRuntimeDefaultMusicCue(
               selection.track,
               getMusicTrackSoundEntry(selection.track)?.loop ?? true
             )
@@ -887,6 +911,40 @@ export function resolveMusicCue(
       ...(transition ? { transition } : {}),
       ...(playbackCue ? { playbackCue } : {}),
     }
+  }
+
+  // Routes that leave the active broadcast take ownership before stale game
+  // finale state or a temporary scene can select a previous cue.
+  if (routePath(context.routeHash) === '/credits') {
+    return (
+      resolveSelection(SILENT_MUSIC, 'route.credits', 'route') ?? {
+        track: 'none',
+        selection: SILENT_MUSIC,
+        assignmentId: 'route.credits',
+        source: 'route',
+        inheritedAssignments: [],
+      }
+    )
+  }
+  if (
+    isIntroHubRoute(context) &&
+    !PROFILE_EXPERIENCE_ROUTE_PATHS.has(routePath(context.routeHash))
+  ) {
+    const routeCue = resolveSelection(config.contextMusic.introHub, 'context.intro-hub', 'route')
+    if (routeCue) return routeCue
+  }
+
+  if (context.voxFinaleStage === 'final_vote') {
+    const voteCue = resolveSelection(
+      config.sceneMusic.public_voting,
+      'vox-populi.final-vote',
+      'finale'
+    )
+    if (voteCue) return voteCue
+  }
+  if (context.voxFinaleStage === 'recap') {
+    const recapCue = resolveSelection(config.sceneMusic.season_recap, 'vox-populi.recap', 'finale')
+    if (recapCue) return recapCue
   }
 
   // Final Power is one continuous broadcast, including its scored battles and

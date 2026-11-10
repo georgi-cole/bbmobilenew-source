@@ -24,8 +24,10 @@ interface CueDeck {
   signature: string
   mixGain: number
   boundaryHandled: boolean
+  endFadeStarted: boolean
   stopped: boolean
   stopCause: CueStopCause
+  boundaryTimer: number
   cleanup: () => void
 }
 
@@ -33,6 +35,7 @@ const MAX_REUSABLE_DECKS = 2
 
 export interface MusicCueEngineHooks {
   onEnded?: (signature: string) => void
+  onError?: (key: string, signature: string, error: unknown) => void
 }
 
 export interface MusicCuePlayOptions {
@@ -76,6 +79,7 @@ export class MusicCueEngine {
   private _playGeneration = 0
   private _fadeGeneration = 0
   private _fadeTokens = new WeakMap<CueDeck, number>()
+  private _suspended = false
 
   private readonly _hooks: MusicCueEngineHooks
 
@@ -97,6 +101,10 @@ export class MusicCueEngine {
 
   get currentSignature(): string | null {
     return this._active?.signature ?? null
+  }
+
+  get pendingSignature(): string | null {
+    return this._standby?.signature ?? null
   }
 
   get currentCue(): MusicCueDefinition | null {
@@ -145,11 +153,16 @@ export class MusicCueEngine {
     // A repeated sync of the already-active cue is intentionally cheap. Do not
     // invalidate an in-progress crossfade merely because Redux rendered again.
     if (this._active?.signature === signature && !this._standby) {
-      if (cue.restartPolicy === 'restart') {
-        resetTime(this._active.element, cue.startAtSec)
-        await this._active.element.play()
-      }
-      this._applyDeckVolume(this._active)
+      const active = this._active
+      this._playGeneration += 1
+      this._cancelFade(active)
+      const effectChanged = active.cue.effectPreset !== cue.effectPreset
+      active.cue = cue
+      if (effectChanged) await this._applyEffect(active.element, cue.effectPreset)
+      if (cue.restartPolicy === 'restart') resetTime(active.element, cue.startAtSec)
+      if (active.element.paused && !this._suspended) await active.element.play()
+      if (active.mixGain < 1) await this._fadeDeck(active, 1, cue.fadeInMs)
+      this._applyDeckVolume(active)
       return
     }
 
@@ -169,12 +182,22 @@ export class MusicCueEngine {
 
     // If the latest intent is the currently-active cue, cancelling a conflicting
     // pending standby above is all that is required.
-    if (this._active?.signature === signature) {
-      if (cue.restartPolicy === 'restart') {
-        resetTime(this._active.element, cue.startAtSec)
-        await this._active.element.play()
-      }
-      this._applyDeckVolume(this._active)
+    const active = this._active
+    const activeMatchesExceptEffect =
+      active != null &&
+      musicCueSignature({ ...active.cue, effectPreset: 'none' }, active.asset.key) ===
+        musicCueSignature({ ...cue, effectPreset: 'none' }, asset.key)
+    if (active && (active.signature === signature || activeMatchesExceptEffect)) {
+      this._playGeneration += 1
+      this._cancelFade(active)
+      const effectChanged = active.cue.effectPreset !== cue.effectPreset
+      active.cue = cue
+      active.signature = signature
+      if (effectChanged) await this._applyEffect(active.element, cue.effectPreset)
+      if (cue.restartPolicy === 'restart') resetTime(active.element, cue.startAtSec)
+      if (active.element.paused && !this._suspended) await active.element.play()
+      if (active.mixGain < 1) await this._fadeDeck(active, 1, cue.fadeInMs)
+      this._applyDeckVolume(active)
       return
     }
 
@@ -264,6 +287,7 @@ export class MusicCueEngine {
 
   stop(): void {
     this._playGeneration += 1
+    this._suspended = false
     for (const retiringDeck of this._retiring) this._stopDeck(retiringDeck, 'cancelled')
     if (this._active) this._stopDeck(this._active, 'cancelled')
     if (this._standby) this._stopDeck(this._standby, 'cancelled')
@@ -272,11 +296,14 @@ export class MusicCueEngine {
   }
 
   suspend(): void {
+    this._suspended = true
     this._active?.element.pause()
     if (this._standby && this._standby !== this._active) this._standby.element.pause()
   }
 
-  async resume(): Promise<void> {
+  async resume(shouldPlay = true): Promise<void> {
+    this._suspended = false
+    if (!shouldPlay) return
     const deck = this._active
     if (!deck || deck.stopped || deck.element.ended) return
     await deck.element.play()
@@ -295,6 +322,8 @@ export class MusicCueEngine {
     initialTime: number
   ): CueDeck {
     const element = this._reusableElements.pop() ?? document.createElement('audio')
+    const sourceUrl = new URL(asset.src, window.location.href)
+    element.crossOrigin = sourceUrl.origin === window.location.origin ? null : 'anonymous'
     element.src = asset.src
     element.preload = 'auto'
     element.loop =
@@ -308,21 +337,35 @@ export class MusicCueEngine {
       signature,
       mixGain: 1,
       boundaryHandled: false,
+      endFadeStarted: false,
       stopped: false,
       stopCause: null,
+      boundaryTimer: 0,
       cleanup: () => {},
     }
 
     const onLoadedMetadata = () => resetTime(element, initialTime)
     const onTimeUpdate = () => this._handleBoundary(deck)
     const onEnded = () => this._handleNaturalEnd(deck)
+    const onError = () =>
+      this._handleMediaError(deck, element.error ?? new Error('Audio playback failed.'))
     element.addEventListener('loadedmetadata', onLoadedMetadata)
     element.addEventListener('timeupdate', onTimeUpdate)
     element.addEventListener('ended', onEnded)
+    element.addEventListener('error', onError)
+    if (
+      cue.endAtSec !== undefined ||
+      cue.loopEndSec !== undefined ||
+      (!cue.loop && cue.fadeOutMs > 0)
+    ) {
+      deck.boundaryTimer = window.setInterval(onTimeUpdate, 50)
+    }
     deck.cleanup = () => {
       element.removeEventListener('loadedmetadata', onLoadedMetadata)
       element.removeEventListener('timeupdate', onTimeUpdate)
       element.removeEventListener('ended', onEnded)
+      element.removeEventListener('error', onError)
+      if (deck.boundaryTimer) window.clearInterval(deck.boundaryTimer)
     }
     this._applyDeckVolume(deck)
     return deck
@@ -331,6 +374,19 @@ export class MusicCueEngine {
   private _handleBoundary(deck: CueDeck): void {
     if (deck !== this._active && deck !== this._standby) return
     const boundary = deck.cue.loopEndSec ?? deck.cue.endAtSec
+    const naturalEnd = boundary ?? (deck.element.duration > 0 ? deck.element.duration : undefined)
+    if (
+      !deck.cue.loop &&
+      !deck.endFadeStarted &&
+      deck.cue.fadeOutMs > 0 &&
+      naturalEnd !== undefined &&
+      deck.element.currentTime >=
+        Math.max(deck.cue.startAtSec, naturalEnd - deck.cue.fadeOutMs / 1000)
+    ) {
+      deck.endFadeStarted = true
+      this._finishDeck(deck)
+      return
+    }
     if (boundary === undefined || deck.element.currentTime < boundary - 0.025) return
 
     if (deck.cue.loop) {
@@ -350,6 +406,14 @@ export class MusicCueEngine {
       return
     }
     this._finishDeck(deck)
+  }
+
+  private _handleMediaError(deck: CueDeck, error: unknown): void {
+    if (deck !== this._active && deck !== this._standby) return
+    if (this._active === deck) this._active = null
+    if (this._standby === deck) this._standby = null
+    this._stopDeck(deck)
+    this._hooks.onError?.(deck.asset.key, deck.signature, error)
   }
 
   private _finishDeck(deck: CueDeck): void {
@@ -437,6 +501,7 @@ export class MusicCueEngine {
             resolve()
             return
           }
+          if (this._suspended || (typeof document !== 'undefined' && document.hidden)) return
           step += 1
           deck.mixGain = start + (target - start) * Math.min(1, step / steps)
           this._applyDeckVolume(deck)

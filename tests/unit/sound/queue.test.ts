@@ -15,6 +15,7 @@ function resetSoundManager() {
     _musicPlaybackToken: number
     _musicMuted: boolean
     _musicVolume: number
+    _musicMixVolume: number
     _sfxPools: Map<string, HTMLAudioElement[]>
     _failedKeys: Set<string>
     _categories: Map<SoundCategory, { enabled: boolean; volume: number }>
@@ -28,6 +29,7 @@ function resetSoundManager() {
     _lastPlayedAt: Map<string, number>
     _sfxPrimed: boolean
   }
+  SoundManager.stopAllMusic()
   sm._unlocked = false
   sm._unlockHandler = null
   sm._playQueue = []
@@ -42,6 +44,7 @@ function resetSoundManager() {
   sm._musicPlaybackToken = 0
   sm._musicMuted = false
   sm._musicVolume = 1
+  sm._musicMixVolume = 1
   sm._sfxPools = new Map()
   sm._failedKeys = new Set()
   sm._categories = new Map()
@@ -57,8 +60,17 @@ function resetSoundManager() {
 }
 
 beforeEach(() => {
-  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
-  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (
+    this: HTMLMediaElement
+  ) {
+    Object.defineProperty(this, 'paused', { configurable: true, value: false })
+    return Promise.resolve()
+  })
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(function (
+    this: HTMLMediaElement
+  ) {
+    Object.defineProperty(this, 'paused', { configurable: true, value: true })
+  })
   resetSoundManager()
 })
 
@@ -75,7 +87,7 @@ describe('SoundManager music state machine', () => {
     expect(SoundManager.currentMusicKey).toBeNull()
 
     SoundManager.unlockFromGesture()
-    await Promise.resolve()
+    await vi.waitFor(() => expect(SoundManager.currentMusicKey).toBe('music:risk_wheel_loop'))
 
     expect(SoundManager.currentMusicTrack).toBe('risk_wheel')
     expect(SoundManager.currentMusicKey).toBe('music:risk_wheel_loop')
@@ -131,7 +143,7 @@ describe('SoundManager music state machine', () => {
   it('after stopAllMusic, syncMusic does not restart the previous track', async () => {
     const sm = SoundManager as unknown as { _unlocked: boolean }
     sm._unlocked = true
-    const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+    const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
 
     await SoundManager.setDesiredMusic('competition', 'phase')
     expect(playSpy).toHaveBeenCalledTimes(1)
@@ -183,7 +195,7 @@ describe('SoundManager music state machine', () => {
   it('is idempotent when syncMusic runs without a desired-track change', async () => {
     const sm = SoundManager as unknown as { _unlocked: boolean }
     sm._unlocked = true
-    const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+    const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
 
     await SoundManager.setDesiredMusic('competition', 'initial')
     await SoundManager.syncMusic()
@@ -193,7 +205,7 @@ describe('SoundManager music state machine', () => {
     expect(SoundManager.currentMusicTrack).toBe('competition')
   })
 
-  it('creates music elements with preload disabled so tracks load on demand', async () => {
+  it('preloads music elements so requested tracks are ready before their cue', async () => {
     const sm = SoundManager as unknown as {
       _unlocked: boolean
       _musicEl: HTMLAudioElement | null
@@ -202,33 +214,50 @@ describe('SoundManager music state machine', () => {
 
     await SoundManager.setDesiredMusic('competition', 'phase')
 
-    expect(sm._musicEl?.preload).toBe('none')
+    expect(sm._musicEl?.preload).toBe('auto')
   })
 
-  it('primes one reusable music element on unlock and reuses it for delayed phase music', async () => {
+  it('uses shared fades for runtime tracks without an explicit cue', async () => {
+    const manager = SoundManager as unknown as {
+      _unlocked: boolean
+      _cueEngine: {
+        currentCue: { fadeInMs: number; fadeOutMs: number; crossfadeMs: number } | null
+      }
+    }
+    manager._unlocked = true
+
+    await SoundManager.setDesiredMusic('risk_wheel', 'phase')
+
+    expect(manager._cueEngine.currentCue).toMatchObject({
+      fadeInMs: 300,
+      fadeOutMs: 350,
+      crossfadeMs: 400,
+    })
+  })
+
+  it('does not allocate a phantom music element before a cue is requested', async () => {
     const sm = SoundManager as unknown as {
       _musicEl: HTMLAudioElement | null
       _primeSfxForMobile: () => void
     }
     vi.spyOn(sm, '_primeSfxForMobile').mockImplementation(() => {})
 
-    SoundManager.unlockFromGesture()
-    await Promise.resolve()
-
-    const primedEl = sm._musicEl
-    expect(primedEl).toBeTruthy()
-    expect(SoundManager.currentMusicKey).toBeNull()
-
     const createSpy = vi.spyOn(document, 'createElement')
+    SoundManager.unlockFromGesture()
+    await vi.waitFor(() => expect(sm._musicEl).toBeNull())
+
+    expect(SoundManager.currentMusicKey).toBeNull()
+    expect(createSpy).not.toHaveBeenCalledWith('audio')
+
+    createSpy.mockClear()
 
     await SoundManager.setDesiredMusic('competition', 'phase-after-route')
 
-    expect(createSpy).not.toHaveBeenCalled()
     expect(SoundManager.currentMusicKey).toBe('music:hoh_comp_general')
-    expect(sm._musicEl).toBe(primedEl)
+    expect(sm._musicEl).toBeTruthy()
   })
 
-  it('reuses the same unlocked music element across phase changes', async () => {
+  it('promotes a second deck cleanly across phase changes', async () => {
     const sm = SoundManager as unknown as {
       _unlocked: boolean
       _musicEl: HTMLAudioElement | null
@@ -241,18 +270,17 @@ describe('SoundManager music state machine', () => {
     await SoundManager.setDesiredMusic('jury_voting', 'finale:revealVotes')
 
     expect(firstEl).toBeTruthy()
-    expect(sm._musicEl).toBe(firstEl)
+    expect(sm._musicEl).not.toBe(firstEl)
+    expect(firstEl?.paused).toBe(true)
     expect(SoundManager.currentMusicKey).toBe('music:jury_voting_bg')
   })
 
   it('does not mark SFX failed when mobile priming play is rejected', async () => {
     const sm = SoundManager as unknown as {
       _failedKeys: Set<string>
-      _primeMusicForMobile: () => void
       _sfxPrimed: boolean
     }
     const notAllowed = new DOMException('blocked', 'NotAllowedError')
-    vi.spyOn(sm, '_primeMusicForMobile').mockImplementation(() => {})
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(notAllowed)
 
@@ -273,8 +301,7 @@ describe('SoundManager music state machine', () => {
 
     await SoundManager.setDesiredMusic('public_voting', 'finale:publicFavorite')
 
-    // Public voting is a looping semantic cue in the current audio catalog.
-    expect(sm._musicEl?.loop).toBe(true)
+    expect(sm._musicEl?.loop).toBe(false)
 
     await SoundManager.setDesiredMusic('final_modal', 'route:game-over')
 
@@ -327,7 +354,7 @@ describe('SoundManager music state machine', () => {
     expect(SoundManager.currentMusicKey).toBeNull()
 
     document.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await Promise.resolve()
+    await vi.waitFor(() => expect(SoundManager.currentMusicKey).toBe('music:hoh_comp_general'))
 
     expect(playSpy).toHaveBeenCalledTimes(2)
     expect(SoundManager.currentMusicKey).toBe('music:hoh_comp_general')
@@ -506,24 +533,52 @@ describe('SoundManager SFX dedup window', () => {
   })
 })
 
+describe('SoundManager interrupted SFX playback', () => {
+  it('allows an immediate replay after a pending play is stopped', async () => {
+    const sm = SoundManager as unknown as {
+      _unlocked: boolean
+      _failedKeys: Set<string>
+    }
+    sm._unlocked = true
+    let rejectFirstPlay!: (error: DOMException) => void
+    const playSpy = vi
+      .spyOn(HTMLMediaElement.prototype, 'play')
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectFirstPlay = reject
+          })
+      )
+      .mockResolvedValue(undefined)
+
+    const pendingPlay = SoundManager.play('minigame:quicktap_tap', { allowDuplicate: true })
+    await Promise.resolve()
+    SoundManager.stop('minigame:quicktap_tap')
+    rejectFirstPlay(new DOMException('Playback interrupted by stop.', 'AbortError'))
+    await pendingPlay
+
+    expect(sm._failedKeys.has('minigame:quicktap_tap')).toBe(false)
+    await SoundManager.play('minigame:quicktap_tap', { allowDuplicate: true })
+    expect(playSpy).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('SoundManager unlockFromGesture idempotency', () => {
   it('does not panic-stop or restart the current track on repeat gestures', async () => {
     const sm = SoundManager as unknown as {
       _unlocked: boolean
       _primeSfxForMobile: () => void
-      _primeMusicForMobile: () => void
     }
     // Stub the iOS SFX priming path — it is irrelevant to this behavior and
     // creates many audio elements that pollute the play-spy counters.
     vi.spyOn(sm, '_primeSfxForMobile').mockImplementation(() => {})
-    vi.spyOn(sm, '_primeMusicForMobile').mockImplementation(() => {})
-    const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
-    const pauseSpy = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play')
+    const pauseSpy = vi.spyOn(HTMLMediaElement.prototype, 'pause')
 
     // First unlock: should start the desired track exactly once.
     await SoundManager.setDesiredMusic('competition', 'initial')
     SoundManager.unlockFromGesture()
-    await Promise.resolve()
+    await vi.waitFor(() => expect(SoundManager.currentMusicKey).toBe('music:hoh_comp_general'))
     expect(playSpy).toHaveBeenCalledTimes(1)
     expect(SoundManager.currentMusicKey).toBe('music:hoh_comp_general')
 
@@ -578,7 +633,9 @@ describe('SoundManager fadeOutMusic', () => {
     })
     vi.spyOn(HTMLMediaElement.prototype, 'paused', 'get').mockReturnValue(false)
 
-    await SoundManager.setDesiredMusic('competition', 'phase')
+    const startMusic = SoundManager.setDesiredMusic('competition', 'phase')
+    await vi.runAllTimersAsync()
+    await startMusic
 
     const fadePromise = SoundManager.fadeOutMusic(400)
 
@@ -599,7 +656,9 @@ describe('SoundManager fadeOutMusic', () => {
     const pauseSpy = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
     vi.spyOn(HTMLMediaElement.prototype, 'paused', 'get').mockReturnValue(false)
 
-    await SoundManager.setDesiredMusic('competition', 'phase')
+    const startMusic = SoundManager.setDesiredMusic('competition', 'phase')
+    await vi.runAllTimersAsync()
+    await startMusic
     expect(sm._musicEl).not.toBeNull()
 
     const fadePromise = SoundManager.fadeOutMusic(400)
@@ -619,7 +678,9 @@ describe('SoundManager fadeOutMusic', () => {
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
     vi.spyOn(HTMLMediaElement.prototype, 'paused', 'get').mockReturnValue(false)
 
-    await SoundManager.setDesiredMusic('competition', 'phase')
+    const startMusic = SoundManager.setDesiredMusic('competition', 'phase')
+    await vi.runAllTimersAsync()
+    await startMusic
     const playsAfterStart = playSpy.mock.calls.length
 
     const fadePromise = SoundManager.fadeOutMusic(400)
@@ -696,7 +757,9 @@ describe('SoundManager BGM debug logging', () => {
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
     vi.spyOn(HTMLMediaElement.prototype, 'paused', 'get').mockReturnValue(false)
 
-    await SoundManager.setDesiredMusic('competition', 'phase')
+    const startMusic = SoundManager.setDesiredMusic('competition', 'phase')
+    await vi.runAllTimersAsync()
+    await startMusic
 
     const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {})
     const fadePromise = SoundManager.fadeOutMusic(400)

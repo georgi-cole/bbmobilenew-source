@@ -2,7 +2,7 @@
  * SoundManager.ts — HTMLAudioElement-based sound manager for bbmobilenew.
  *
  * Architecture:
- * - BGM channel: single HTMLAudioElement with loop, replaced on track change.
+ * - BGM channel: MusicCueEngine owns two reusable decks and crossfades track changes.
  * - Semantic background music is derived from app state via setDesiredMusic/syncMusic.
  * - SFX: small per-key pool (up to SFX_POOL_SIZE) so rapid effects overlap.
  * - Desired BGM: when audio is locked (before first user gesture), the manager
@@ -61,8 +61,14 @@ import type { CatalogMusicTrack, MusicTrack } from './musicTracks'
 import { NativeAudioAdapter } from '../../platform/cordova/NativeAudioAdapter'
 import { NATIVE_SFX_MAP } from '../../platform/cordova/nativeSfxMap'
 import { MusicCueEngine } from './MusicCueEngine'
-import { isAdvancedMusicCue, musicCueSignature } from './musicCue'
+import { musicCueSignature } from './musicCue'
 import type { MusicCueDefinition } from './musicCue'
+import {
+  createRuntimeDefaultMusicCue,
+  DEFAULT_MUSIC_CONFIG,
+  SILENT_MUSIC,
+  musicTrack,
+} from './musicConfig'
 import type { ResolvedMusicCue } from './musicConfig'
 
 /** True in DEV builds, when VITE_AUDIO_DEBUG=true, or ?debugAudio=1 in URL. */
@@ -81,13 +87,6 @@ const SOUND_MANAGER_DISABLED = false
 
 /** Max simultaneous instances per SFX key. */
 const SFX_POOL_SIZE = 4
-
-/**
- * Tiny silent WAV used to unlock the single reusable BGM element from a user
- * gesture even when the app has not resolved a real music track yet.
- */
-const SILENT_UNLOCK_AUDIO_SRC =
-  'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQIAAAAAAA=='
 
 /**
  * Minimum gap (ms) between two identical SFX triggers.
@@ -185,8 +184,6 @@ interface QueuedPlay {
   opts?: PlayOptions
 }
 
-const _liveMusicElements = new Set<HTMLAudioElement>()
-
 function _audioLog(message: string, ...args: unknown[]): void {
   if (!_audioDebug) return
   console.debug(`[audio] ${message}`, ...args)
@@ -208,15 +205,6 @@ function _bgmLog(event: string, track: string, src: string): void {
 }
 
 // ── HTMLAudio factory helpers ─────────────────────────────────────────────────
-
-function _makeMusicEl(src: string, volume: number, loop = true): HTMLAudioElement {
-  const el = document.createElement('audio')
-  el.src = src
-  el.loop = loop
-  el.volume = Math.max(0, Math.min(1, volume))
-  el.preload = 'none'
-  return el
-}
 
 function _makeSfxEl(src: string, volume: number, loop = false): HTMLAudioElement {
   const el = document.createElement('audio')
@@ -249,8 +237,12 @@ class _SoundManager {
   private _musicPlaybackToken = 0
   private _musicMuted = false
   private _musicVolume = 1
+  private _musicMixVolume = 1
   private _desiredResolvedCue: ResolvedMusicCue | null = null
   private _desiredAdvancedCueSignature: string | null = null
+  private _desiredCueIdentity: string | null = null
+  private _pendingMusicExitKey: string | null = null
+  private _pendingMusicExitTimer: number | null = null
   private _cueEngine = new MusicCueEngine({
     onEnded: (signature) => {
       if (this._desiredAdvancedCueSignature !== signature) return
@@ -258,15 +250,20 @@ class _SoundManager {
       this._musicKey = null
       this._playingMusicTrack = 'none'
     },
+    onError: (key, signature, error) => {
+      if (this._desiredAdvancedCueSignature !== signature) return
+      console.error(`[SoundManager] music media error "${key}":`, error)
+      this._markKeyFailed(key)
+      this._musicPlaybackToken += 1
+      this._musicEl = null
+      this._musicKey = null
+      this._playingMusicTrack = 'none'
+      void this.syncMusic()
+    },
   })
   private _sfxPrimed = false
   private _externalMusic: ExternalMusicSession | null = null
   private _musicWasPlayingOnHide = false
-  // User mute is a pause, not a stop. Remember exactly which live cue is
-  // eligible to resume so a phase change while muted never revives old music.
-  private _mutedCueSignature: string | null = null
-  private _mutedMusicKey: string | null = null
-
   // BGM ownership / desired-track tracking (per-owner map with priority fallback)
   private _currentBgmOwner: BgmOwner | null = null
   // Per-owner desired BGM map — allows automatic fallback when an owner releases.
@@ -371,7 +368,6 @@ class _SoundManager {
     this._musicTrackOverrideSignature = signature
 
     if (this._desiredMusicTrack !== 'none') {
-      this.panicStopAllMusic()
       void this.syncMusic()
     }
   }
@@ -693,66 +689,97 @@ class _SoundManager {
   }
 
   async setDesiredMusicCue(cue: ResolvedMusicCue, reason?: string): Promise<void> {
-    const playbackCue = cue.playbackCue
     const candidate = cue.track === 'none' ? null : this._resolveMusicCandidate(cue.track)
-    const defaultLoop = candidate ? (this._getEntry(candidate.key)?.loop ?? true) : true
-    if (!playbackCue || !isAdvancedMusicCue(playbackCue, defaultLoop)) {
-      const transitionToken = ++this._musicPlaybackToken
-      const outgoingCue = this._cueEngine.currentCue
-      if (this._cueEngine.currentElement) {
-        await this._cueEngine.fadeOut(outgoingCue?.fadeOutMs ?? 0)
-        if (transitionToken !== this._musicPlaybackToken) return
-      } else {
-        this._cueEngine.stop()
-      }
-      this._desiredResolvedCue = null
-      this._desiredAdvancedCueSignature = null
-      return this.setDesiredMusic(cue.track, reason)
-    }
+    const entry = candidate ? this._getEntry(candidate.key) : undefined
+    const configuredCue =
+      cue.track === 'none'
+        ? undefined
+        : (cue.playbackCue ??
+          DEFAULT_MUSIC_CONFIG.musicCues[`track:${cue.track}`] ??
+          createRuntimeDefaultMusicCue(cue.track, entry?.loop ?? true))
+    const normalizedCue = configuredCue ? { ...cue, playbackCue: configuredCue } : cue
+    const signature = configuredCue ? musicCueSignature(configuredCue, candidate?.key ?? '') : null
+    const identity = `${cue.track}|${cue.assignmentId}|${signature ?? ''}|${configuredCue?.effectPreset ?? 'none'}|${reason ?? ''}`
 
-    this._desiredResolvedCue = cue
+    if (identity === this._desiredCueIdentity) return
+
+    _bgmLog('requested', cue.track, entry?.src ?? '(none)')
+
+    this._clearPendingMusicExit()
+    const requestToken = ++this._musicPlaybackToken
+    this._desiredCueIdentity = identity
+    this._desiredResolvedCue = normalizedCue
     this._desiredMusicTrack = cue.track
     this._desiredMusicReason = reason ?? null
-    const signature = musicCueSignature(playbackCue, candidate?.key ?? '')
     if (this._desiredAdvancedCueSignature !== signature) this._cueEngine.clearCompleted()
     this._desiredAdvancedCueSignature = signature
+
+    if (cue.track === 'none') {
+      if (cue.transition?.managedLifecycle && cue.transition.postGameHoldMs > 0) {
+        this._pendingMusicExitKey = identity
+        this._pendingMusicExitTimer = window.setTimeout(() => {
+          if (this._pendingMusicExitKey !== identity) return
+          this._pendingMusicExitKey = null
+          this._pendingMusicExitTimer = null
+          void this._fadeOutDesiredMusic(
+            requestToken,
+            cue.transition?.fadeOutMs ?? this._cueEngine.currentCue?.fadeOutMs ?? 0
+          )
+        }, cue.transition.postGameHoldMs)
+        return
+      }
+      if (this._musicMuted || !this._getCategory('music').enabled) return
+      await this._fadeOutDesiredMusic(
+        requestToken,
+        cue.transition?.fadeOutMs ?? this._cueEngine.currentCue?.fadeOutMs ?? 400
+      )
+      return
+    }
+
     await this.syncMusic()
   }
 
   async setDesiredMusic(track: MusicTrack, reason?: string): Promise<void> {
-    this._desiredResolvedCue = null
-    this._desiredAdvancedCueSignature = null
-    if (this._desiredMusicTrack !== track || this._desiredMusicReason !== (reason ?? null)) {
-      _audioLog(`desired -> ${track} reason=${reason ?? 'unknown'}`)
-      // BGM log: include the resolved asset path so it's visible in the console
-      // even before the AudioElement is created.
-      const candidate = this._resolveMusicCandidate(track)
-      const src = candidate ? (this._getEntry(candidate.key)?.src ?? candidate.key) : '(none)'
-      _bgmLog('requested', candidate?.track ?? track, src)
-    }
-    this._desiredMusicTrack = track
-    this._desiredMusicReason = reason ?? null
-    await this.syncMusic()
+    const candidate = track === 'none' ? null : this._resolveMusicCandidate(track)
+    const entry = candidate ? this._getEntry(candidate.key) : undefined
+    const playbackCue =
+      track === 'none'
+        ? undefined
+        : (DEFAULT_MUSIC_CONFIG.musicCues[`track:${track}`] ??
+          createRuntimeDefaultMusicCue(track, entry?.loop ?? true))
+    await this.setDesiredMusicCue(
+      {
+        track,
+        selection: track === 'none' ? SILENT_MUSIC : musicTrack(track),
+        assignmentId: `legacy:${reason ?? 'desired-music'}:${track}`,
+        source: 'fallback',
+        inheritedAssignments: [],
+        ...(playbackCue ? { playbackCue } : {}),
+      },
+      reason
+    )
   }
 
   async syncMusic(): Promise<void> {
     if (SOUND_MANAGER_DISABLED) return
     if (this._externalMusic) {
-      this.panicStopAllMusic()
       this._applyExternalMusicVolume()
+      return
+    }
+    if (typeof document !== 'undefined' && document.hidden) {
+      this._cueEngine.suspend()
       return
     }
     const shouldMute = this._musicMuted || !this._getCategory('music').enabled
     const desiredTrack = this._desiredMusicTrack
     if (shouldMute) {
-      // Preserve the paused element and cue definition. State changes while
-      // muted still update the desired cue, and unmute will then select the
-      // current phase rather than this preserved one.
       return
     }
     if (desiredTrack === 'none') {
-      this._clearMutedResumeTarget()
-      this.panicStopAllMusic()
+      this._cueEngine.stop()
+      this._musicEl = null
+      this._musicKey = null
+      this._playingMusicTrack = 'none'
       return
     }
     if (!this._unlocked) {
@@ -765,62 +792,59 @@ class _SoundManager {
       this.panicStopAllMusic()
       return
     }
-    const advancedCue = this._desiredResolvedCue?.playbackCue
-    const candidateEntry = this._getEntry(candidate.key)
-    if (advancedCue && isAdvancedMusicCue(advancedCue, candidateEntry?.loop ?? true)) {
-      const signature = musicCueSignature(advancedCue, candidate.key)
-      if (
-        this._cueEngine.currentSignature === signature ||
-        this._cueEngine.completedSignature === signature
-      ) {
-        this._musicEl = this._cueEngine.currentElement
-        this._musicKey = this._cueEngine.currentKey
-        this._playingMusicTrack = this._cueEngine.currentTrack ?? 'none'
-        this._cueEngine.setMasterVolume(this._musicVolume)
-        if (this._mutedCueSignature === signature) {
-          try {
-            await this._cueEngine.resume()
-            this._clearMutedResumeTarget()
-          } catch (error) {
-            if ((error as DOMException).name === 'NotAllowedError') this._ensureUnlockListeners()
-          }
-        }
-        return
-      }
-      this._clearMutedResumeTarget()
-      const playbackToken = ++this._musicPlaybackToken
-      await this._doPlayAdvancedMusic(candidate, advancedCue, playbackToken)
+    const cue = this._desiredResolvedCue?.playbackCue
+    if (!cue) {
+      this.panicStopAllMusic()
       return
     }
 
-    this._cueEngine.stop()
-    if (this._isMusicSynced(candidate.key)) {
-      this._playingMusicTrack = candidate.track
-      this._applyLiveMusicVolume()
-      if (
-        (this._musicWasPlayingOnHide || this._mutedMusicKey === candidate.key) &&
-        this._musicEl?.paused &&
-        !this._musicEl.ended &&
-        (typeof document === 'undefined' || !document.hidden)
-      ) {
-        try {
-          await this._musicEl.play()
-          this._clearMutedResumeTarget()
-        } catch (error) {
-          if ((error as DOMException).name === 'NotAllowedError') this._ensureUnlockListeners()
-        }
-      }
+    const signature = musicCueSignature(cue, candidate.key)
+    // An override can fail after the request was first resolved. Keep the
+    // signature aligned with the current bundled fallback so its successful
+    // play is not discarded as a stale result.
+    this._desiredAdvancedCueSignature = signature
+    if (this._cueEngine.completedSignature === signature) {
+      this._musicEl = null
+      this._musicKey = null
+      this._playingMusicTrack = 'none'
       return
     }
+    if (this._cueEngine.pendingSignature === signature) return
 
-    const syncEntry = this._getEntry(candidate.key)
-    this._clearMutedResumeTarget()
-    _bgmLog('sync', candidate.track, syncEntry?.src ?? candidate.key)
     const playbackToken = ++this._musicPlaybackToken
-    await this._doPlayMusic(candidate, playbackToken)
+    _bgmLog('sync', candidate.track, this._getEntry(candidate.key)?.src ?? candidate.key)
+    await this._doPlayAdvancedMusic(candidate, cue, playbackToken)
+  }
+
+  private _clearPendingMusicExit(): void {
+    if (this._pendingMusicExitTimer != null) {
+      window.clearTimeout(this._pendingMusicExitTimer)
+      this._pendingMusicExitTimer = null
+    }
+    this._pendingMusicExitKey = null
+  }
+
+  private async _fadeOutDesiredMusic(requestToken: number, durationMs: number): Promise<void> {
+    if (!this._cueEngine.currentElement) {
+      this.panicStopAllMusic()
+      return
+    }
+
+    await this._cueEngine.fadeOut(durationMs)
+    if (requestToken !== this._musicPlaybackToken || this._desiredMusicTrack !== 'none') return
+    this._musicEl = null
+    this._musicKey = null
+    this._playingMusicTrack = 'none'
   }
 
   stopAllMusic(): void {
+    this._clearPendingMusicExit()
+    if (this._externalMusic) {
+      this._externalMusic.shouldPlay = false
+      this._externalMusic.element.pause()
+      this._externalMusic = null
+    }
+    this._desiredCueIdentity = null
     this._desiredMusicTrack = 'none'
     this._desiredMusicReason = null
     this._desiredResolvedCue = null
@@ -828,12 +852,7 @@ class _SoundManager {
     this._cueEngine.stop()
     this._currentBgmOwner = null
     this._desiredPerOwner = {}
-    for (const liveEl of _liveMusicElements) {
-      liveEl.pause()
-      _resetAudioTime(liveEl)
-    }
-    _liveMusicElements.clear()
-    this._stopCurrentMusic(this._unlocked)
+    this._stopCurrentMusic()
   }
 
   /**
@@ -859,79 +878,20 @@ class _SoundManager {
     if (SOUND_MANAGER_DISABLED) return
     const fadeToken = ++this._musicPlaybackToken
 
-    if (this._cueEngine.currentElement) {
-      this._desiredResolvedCue = null
-      this._desiredAdvancedCueSignature = null
-      await this._cueEngine.fadeOut(durationMs)
-      if (this._musicPlaybackToken !== fadeToken) return
-      this._musicEl = null
-      this._musicKey = null
-      this._playingMusicTrack = 'none'
-      return
-    }
-
-    const el = this._musicEl
-    if (!el || el.paused) {
-      // Nothing audible to fade; clean up and return.
-      this._stopCurrentMusic(this._unlocked)
-      for (const liveEl of _liveMusicElements) {
-        liveEl.pause()
-        _resetAudioTime(liveEl)
-      }
-      _liveMusicElements.clear()
-      return
-    }
-
-    // Invalidate any concurrent async playback so a stale _doPlayMusic that
-    // resolves after us does not re-set the music element.
-    if (durationMs <= 0) {
-      for (const liveEl of _liveMusicElements) {
-        liveEl.pause()
-        _resetAudioTime(liveEl)
-      }
-      _liveMusicElements.clear()
-      this._stopCurrentMusic(this._unlocked)
-      return
-    }
-
-    _audioLog(`fade-out ${this._playingMusicTrack} over ${durationMs}ms`)
-    // Resolve the source URL for the BGM log before the element is nulled.
-    const fadeSrc = this._musicKey
-      ? (this._getEntry(this._musicKey)?.src ?? this._musicKey)
-      : '(none)'
+    const cueKey = this._cueEngine.currentKey
+    const cueSrc = cueKey ? (this._getEntry(cueKey)?.src ?? cueKey) : null
+    const fadeSrc =
+      cueSrc ??
+      (this._musicKey ? (this._getEntry(this._musicKey)?.src ?? this._musicKey) : '(none)')
     _bgmLog('fading-out', this._playingMusicTrack, fadeSrc)
 
-    const startVolume = el.volume
-    const FADE_STEP_MS = 50
-    const MIN_INTERVAL_MS = 16
-    const steps = Math.max(1, Math.ceil(durationMs / FADE_STEP_MS))
-    const intervalMs = Math.max(MIN_INTERVAL_MS, Math.floor(durationMs / steps))
-    let step = 0
-
-    await new Promise<void>((resolve) => {
-      const timer = window.setInterval(() => {
-        if (this._musicPlaybackToken !== fadeToken) {
-          window.clearInterval(timer)
-          resolve()
-          return
-        }
-        step += 1
-        el.volume = Math.max(0, startVolume * (1 - step / steps))
-        if (step >= steps) {
-          window.clearInterval(timer)
-          resolve()
-        }
-      }, intervalMs)
-    })
-
+    this._desiredResolvedCue = null
+    this._desiredAdvancedCueSignature = null
+    await this._cueEngine.fadeOut(durationMs)
     if (this._musicPlaybackToken !== fadeToken) return
-
-    for (const liveEl of _liveMusicElements) {
-      liveEl.pause()
-      _resetAudioTime(liveEl)
-    }
-    _liveMusicElements.clear()
-    this._stopCurrentMusic(this._unlocked)
+    this._musicEl = null
+    this._musicKey = null
+    this._playingMusicTrack = 'none'
   }
 
   setMusicMuted(value: boolean): void {
@@ -943,30 +903,28 @@ class _SoundManager {
     if (value) {
       if (!wasMuted) {
         if (this._externalMusic) this._externalMusic.element.pause()
-        this._mutedCueSignature = this._cueEngine.currentSignature
-        this._mutedMusicKey = this._musicKey
         this._cueEngine.suspend()
-        this._musicEl?.pause()
       }
       return
     }
+    void this._cueEngine.resume(false)
     void this._syncExternalMusic()
     void this.syncMusic()
   }
 
-  private _clearMutedResumeTarget(): void {
-    this._mutedCueSignature = null
-    this._mutedMusicKey = null
-  }
-
   setMusicVolume(value: number): void {
     this._musicVolume = Math.max(0, Math.min(1, value))
-    this._cueEngine.setMasterVolume(this._musicVolume)
     const state = this._getCategory('music')
     state.volume = this._musicVolume
     this._categories.set('music', state)
     this._applyLiveMusicVolume()
     this._applyExternalMusicVolume()
+  }
+
+  /** Adjusts the active scene mix without changing the user's music setting. */
+  setMusicMix(value: number): void {
+    this._musicMixVolume = Math.max(0, Math.min(1, value))
+    this._applyLiveMusicVolume()
   }
 
   /**
@@ -976,7 +934,13 @@ class _SoundManager {
    */
   claimExternalMusic(owner: string, element: HTMLAudioElement, baseVolume = 1): void {
     const current = this._externalMusic
-    if (current && (current.owner !== owner || current.element !== element)) {
+    if (current?.owner === owner && current.element === element) {
+      current.baseVolume = Math.max(0, Math.min(1, baseVolume))
+      current.shouldPlay = true
+      this._applyExternalMusicVolume()
+      return
+    }
+    if (current) {
       current.element.pause()
     }
     this._externalMusic = {
@@ -986,7 +950,23 @@ class _SoundManager {
       shouldPlay: true,
       wasPlayingOnHide: false,
     }
-    this.panicStopAllMusic()
+    this._clearPendingMusicExit()
+    this._musicPlaybackToken += 1
+    this._musicEl = null
+    this._musicKey = null
+    this._playingMusicTrack = 'none'
+    const audioSuspended = this._musicMuted || (typeof document !== 'undefined' && document.hidden)
+    const fadeOutMs = audioSuspended ? 0 : (this._cueEngine.currentCue?.fadeOutMs ?? 300)
+    if (this._cueEngine.currentElement) {
+      void this._cueEngine.fadeOut(fadeOutMs).then(() => {
+        if (this._externalMusic?.owner !== owner || this._externalMusic.element !== element) return
+        this._musicEl = null
+        this._musicKey = null
+        this._playingMusicTrack = 'none'
+      })
+    } else {
+      this._cueEngine.stop()
+    }
     this._applyExternalMusicVolume()
   }
 
@@ -1093,107 +1073,6 @@ class _SoundManager {
     await this.setDesiredMusic(musicTrackFromSoundKey(key), 'legacy-playMusic')
   }
 
-  private async _doPlayMusic(
-    candidate: ResolvedMusicCandidate,
-    playbackToken: number
-  ): Promise<void> {
-    const { key, track: desiredTrack } = candidate
-    if (this._musicKey === key && this._musicEl) {
-      this._playingMusicTrack = desiredTrack
-      this._applyLiveMusicVolume()
-      return
-    }
-
-    for (const liveEl of _liveMusicElements) {
-      liveEl.pause()
-      _resetAudioTime(liveEl)
-    }
-    _liveMusicElements.clear()
-    this._stopCurrentMusic(true)
-
-    const entry = this._getEntry(key)
-    if (!entry) {
-      console.warn(`[SoundManager] Unknown music key: "${key}"`)
-      this._markKeyFailed(key, false)
-      void this.syncMusic()
-      return
-    }
-    const cat = this._getCategory('music')
-    if (!cat.enabled) return
-    if (this._failedKeys.has(key)) {
-      void this.syncMusic()
-      return
-    }
-
-    const baseVol = entry.volume ?? 1
-    const effectiveVol = Math.max(0, Math.min(1, baseVol * this._musicVolume))
-    const el = this._getOrCreateMusicEl(entry.src, effectiveVol, entry.loop ?? true)
-    _liveMusicElements.clear()
-    _liveMusicElements.add(el)
-    this._musicEl = el
-    this._musicKey = key
-    this._playingMusicTrack = desiredTrack
-
-    el.addEventListener(
-      'error',
-      () => {
-        if (this._isStaleMusicAttempt(playbackToken, el, key)) return
-        if (!this._failedKeys.has(key)) {
-          const code = el.error?.code ?? 'unknown'
-          console.error(
-            `[SoundManager] music load error "${key}" (code ${code}):`,
-            el.error?.message ?? entry.src
-          )
-          this._markKeyFailed(key)
-        }
-        this._recoverFromMusicFailure(key, el)
-      },
-      { once: true }
-    )
-
-    _audioLog(`play ${desiredTrack}`)
-    _bgmLog('loading', desiredTrack, entry.src)
-    try {
-      await el.play()
-      if (this._isStaleMusicPlayback(playbackToken, el, key)) {
-        _audioLog(`stale ignored ${desiredTrack}`)
-        if (this._musicEl === el && this._musicKey === key) {
-          el.pause()
-          _resetAudioTime(el)
-          _liveMusicElements.delete(el)
-          this._musicKey = null
-          this._playingMusicTrack = 'none'
-        }
-        return
-      }
-      _bgmLog('playing', desiredTrack, entry.src)
-    } catch (err) {
-      if (this._isStaleMusicAttempt(playbackToken, el, key)) return
-      const domErr = err as DOMException
-      if (domErr.name === 'NotAllowedError') {
-        _audioLog(`blocked ${desiredTrack}`)
-        if (this._musicKey === key) {
-          this._musicKey = null
-          this._playingMusicTrack = 'none'
-        }
-        _liveMusicElements.delete(el)
-        this._ensureUnlockListeners()
-      } else if (domErr.name === 'AbortError') {
-        if (this._musicKey === key) {
-          this._musicKey = null
-          this._playingMusicTrack = 'none'
-        }
-        _liveMusicElements.delete(el)
-      } else {
-        if (!this._failedKeys.has(key)) {
-          console.error(`[SoundManager] playMusic("${key}") failed:`, err)
-          this._markKeyFailed(key)
-        }
-        this._recoverFromMusicFailure(key, el)
-      }
-    }
-  }
-
   private async _doPlayAdvancedMusic(
     candidate: ResolvedMusicCandidate,
     cue: MusicCueDefinition,
@@ -1206,12 +1085,8 @@ class _SoundManager {
       return
     }
 
-    const outgoingLegacy =
-      this._musicEl && this._musicEl !== this._cueEngine.currentElement ? this._musicEl : null
-    if (outgoingLegacy && cue.crossfadeMs <= 0) this._stopExternalMusicElement(outgoingLegacy)
-
     try {
-      const playIncoming = this._cueEngine.play(
+      await this._cueEngine.play(
         {
           key: candidate.key,
           track: candidate.track,
@@ -1219,17 +1094,8 @@ class _SoundManager {
           volume: entry.volume ?? 1,
           loop: entry.loop ?? true,
         },
-        cue,
-        outgoingLegacy && cue.crossfadeMs > 0 ? { entryFadeMs: cue.crossfadeMs } : {}
+        cue
       )
-      if (outgoingLegacy && cue.crossfadeMs > 0) {
-        await Promise.all([
-          playIncoming,
-          this._fadeExternalMusicElement(outgoingLegacy, cue.crossfadeMs),
-        ])
-      } else {
-        await playIncoming
-      }
       if (
         playbackToken !== this._musicPlaybackToken ||
         this._desiredAdvancedCueSignature !== musicCueSignature(cue, candidate.key)
@@ -1238,7 +1104,7 @@ class _SoundManager {
         // stop that newer track when this older async request happens to finish.
         return
       }
-      this._cueEngine.setMasterVolume(this._musicVolume)
+      this._cueEngine.setMasterVolume(this._musicVolume * this._musicMixVolume)
       this._musicEl = this._cueEngine.currentElement
       this._musicKey = candidate.key
       this._playingMusicTrack = candidate.track
@@ -1248,57 +1114,12 @@ class _SoundManager {
       if ((error as DOMException).name === 'NotAllowedError') {
         // Browser autoplay policy is not an asset failure. Keep the desired
         // cue and retry it from the next real player gesture.
-        this._musicEl = null
-        this._musicKey = null
-        this._playingMusicTrack = 'none'
         this._ensureUnlockListeners()
         return
       }
       console.error(`[SoundManager] advanced music cue failed "${candidate.key}":`, error)
       this._markKeyFailed(candidate.key)
-      this._cueEngine.stop()
-      this._musicEl = null
-      this._musicKey = null
-      this._playingMusicTrack = 'none'
       void this.syncMusic()
-    }
-  }
-
-  private async _fadeExternalMusicElement(
-    element: HTMLAudioElement,
-    durationMs: number
-  ): Promise<void> {
-    if (durationMs <= 0) {
-      this._stopExternalMusicElement(element)
-      return
-    }
-    const startVolume = element.volume
-    const steps = Math.max(1, Math.ceil(durationMs / 40))
-    await new Promise<void>((resolve) => {
-      let step = 0
-      const timer = window.setInterval(
-        () => {
-          step += 1
-          element.volume = Math.max(0, startVolume * (1 - step / steps))
-          if (step >= steps) {
-            window.clearInterval(timer)
-            resolve()
-          }
-        },
-        Math.max(16, Math.floor(durationMs / steps))
-      )
-    })
-    this._stopExternalMusicElement(element)
-  }
-
-  private _stopExternalMusicElement(element: HTMLAudioElement): void {
-    element.pause()
-    _resetAudioTime(element)
-    _liveMusicElements.delete(element)
-    if (this._musicEl === element) {
-      this._musicEl = null
-      this._musicKey = null
-      this._playingMusicTrack = 'none'
     }
   }
 
@@ -1315,42 +1136,24 @@ class _SoundManager {
     void this.setDesiredMusic('none', `stopMusic:${track}`)
   }
 
-  private _stopCurrentMusic(retainElement = false): void {
-    if (this._cueEngine.currentElement) this._cueEngine.stop()
-    if (this._musicEl) {
-      this._musicEl.pause()
-      _resetAudioTime(this._musicEl)
-      _liveMusicElements.delete(this._musicEl)
-      if (!retainElement) {
-        this._musicEl = null
-      }
-    }
+  private _stopCurrentMusic(): void {
+    this._cueEngine.stop()
+    this._musicEl = null
     this._musicKey = null
     this._playingMusicTrack = 'none'
   }
 
   panicStopAllMusic(): void {
     this._musicPlaybackToken += 1
+    this._clearPendingMusicExit()
     if (this._musicKey) {
       _audioLog(`stop ${this._playingMusicTrack}`)
     }
-    for (const el of _liveMusicElements) {
-      el.pause()
-      _resetAudioTime(el)
-    }
-    _liveMusicElements.clear()
-    this._stopCurrentMusic(this._unlocked)
+    this._stopCurrentMusic()
   }
 
   private _applyLiveMusicVolume(): void {
-    if (this._cueEngine.currentElement) {
-      this._cueEngine.setMasterVolume(this._musicVolume)
-      return
-    }
-    if (!this._musicEl || !this._musicKey) return
-    const entry = this._getEntry(this._musicKey)
-    const baseVol = entry?.volume ?? 1
-    this._musicEl.volume = Math.max(0, Math.min(1, baseVol * this._musicVolume))
+    this._cueEngine.setMasterVolume(this._musicVolume * this._musicMixVolume)
   }
 
   private _resolveMusicCandidate(track: MusicTrack): ResolvedMusicCandidate | null {
@@ -1380,36 +1183,6 @@ class _SoundManager {
       }
     }
     return null
-  }
-
-  private _resolveMusicKey(track: MusicTrack): string | null {
-    return this._resolveMusicCandidate(track)?.key ?? null
-  }
-
-  private _recoverFromMusicFailure(key: string, el: HTMLAudioElement): void {
-    if (this._musicKey !== key || this._musicEl !== el) return
-    this._musicPlaybackToken += 1
-    el.pause()
-    _resetAudioTime(el)
-    _liveMusicElements.delete(el)
-    this._musicKey = null
-    this._playingMusicTrack = 'none'
-    void this.syncMusic()
-  }
-
-  private _isStaleMusicAttempt(playbackToken: number, el: HTMLAudioElement, key: string): boolean {
-    return (
-      this._musicPlaybackToken !== playbackToken || this._musicEl !== el || this._musicKey !== key
-    )
-  }
-
-  private _isStaleMusicPlayback(playbackToken: number, el: HTMLAudioElement, key: string): boolean {
-    const desiredKey = this._resolveMusicKey(this._desiredMusicTrack)
-    return this._musicPlaybackToken !== playbackToken || this._musicEl !== el || desiredKey !== key
-  }
-
-  private _isMusicSynced(key: string): boolean {
-    return this._musicKey === key && this._musicEl != null
   }
 
   /**
@@ -1492,7 +1265,6 @@ class _SoundManager {
       // reconcile — it is a no-op when the desired track is already playing
       // and will retry a previously-blocked start otherwise.
       this._clearUnlockListeners()
-      this._primeMusicForMobile()
       this._primeSfxForMobile()
       this._cueEngine.unlock()
       this._clearSfxQueue()
@@ -1519,7 +1291,6 @@ class _SoundManager {
     // gesture we do NOT want to replay stale events.  Music is re-synced
     // from the current desired track only.
     this._clearSfxQueue()
-    this._primeMusicForMobile()
     this._cueEngine.unlock()
     void this.syncMusic()
     this._primeSfxForMobile()
@@ -1625,11 +1396,13 @@ class _SoundManager {
         return
       }
       if (this._externalMusic) {
+        void this._cueEngine.resume(false)
         if (this._externalMusic.wasPlayingOnHide) void this._syncExternalMusic()
         this._externalMusic.wasPlayingOnHide = false
         return
       }
       if (this._musicWasPlayingOnHide) void this._cueEngine.resume()
+      else void this._cueEngine.resume(false)
       void this.syncMusic().finally(() => {
         this._musicWasPlayingOnHide = false
       })
@@ -1650,48 +1423,6 @@ class _SoundManager {
       musicEnabled: !this._musicMuted && this._getCategory('music').enabled,
       musicVolume: this._musicVolume,
       failedKeys: [...this._failedKeys],
-    }
-  }
-
-  private _getOrCreateMusicEl(src: string, volume: number, loop: boolean): HTMLAudioElement {
-    const el = this._musicEl ?? _makeMusicEl(src, volume, loop)
-    if (this._musicEl !== el) {
-      this._musicEl = el
-    }
-    el.pause()
-    if (el.getAttribute('src') !== src) {
-      el.src = src
-    }
-    el.loop = loop
-    el.volume = Math.max(0, Math.min(1, volume))
-    el.preload = 'none'
-    el.muted = false
-    _resetAudioTime(el)
-    return el
-  }
-
-  private _primeMusicForMobile(): void {
-    if (typeof document === 'undefined') return
-    if (this._musicEl) return
-
-    const el = _makeMusicEl(SILENT_UNLOCK_AUDIO_SRC, 0, false)
-    this._musicEl = el
-    el.muted = true
-    el.preload = 'auto'
-
-    const playResult = el.play()
-    el.pause()
-    _resetAudioTime(el)
-    el.muted = false
-    el.volume = 0
-    el.removeAttribute('src')
-
-    if (playResult && typeof playResult.then === 'function') {
-      playResult.catch((err) => {
-        if (_audioDebug) {
-          console.warn('[SoundManager] music unlock priming failed:', err)
-        }
-      })
     }
   }
 

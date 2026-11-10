@@ -24,12 +24,12 @@ function resetRuntime() {
     _desiredMusicReason: string | null
     _musicPlaybackToken: number
     _musicMuted: boolean
-    _mutedCueSignature: string | null
-    _mutedMusicKey: string | null
     _musicVolume: number
+    _musicMixVolume: number
     _failedKeys: Set<string>
     _categories: Map<string, { enabled: boolean; volume: number }>
   }
+  SoundManager.stopAllMusic()
   manager._musicEl?.pause()
   manager._unlocked = true
   manager._externalMusic = null
@@ -40,9 +40,8 @@ function resetRuntime() {
   manager._desiredMusicReason = null
   manager._musicPlaybackToken = 0
   manager._musicMuted = false
-  manager._mutedCueSignature = null
-  manager._mutedMusicKey = null
   manager._musicVolume = 1
+  manager._musicMixVolume = 1
   manager._failedKeys = new Set()
   manager._categories = new Map()
 }
@@ -124,15 +123,36 @@ describe('hardened audio contracts', () => {
     await vi.waitFor(() => expect(SoundManager.currentMusicTrack).toBe('nominations'))
   })
 
+  it('applies scene ducking without changing the user volume or external soundtrack level', async () => {
+    await SoundManager.setDesiredMusic('competition', 'phase:loh_comp')
+    SoundManager.setMusicVolume(0.7)
+    SoundManager.setMusicMix(0.12)
+    const musicState = SoundManager as unknown as {
+      _musicVolume: number
+      _musicMixVolume: number
+    }
+    expect(musicState).toMatchObject({ _musicVolume: 0.7, _musicMixVolume: 0.12 })
+
+    const cinematic = document.createElement('audio')
+    SoundManager.claimExternalMusic('cinematic:mix-test', cinematic, 0.8)
+    expect(cinematic.volume).toBeCloseTo(0.56)
+
+    SoundManager.setMusicMix(1)
+    expect(cinematic.volume).toBeCloseTo(0.56)
+  })
+
   it('does not let an old fade stop a newer requested track', async () => {
     vi.useFakeTimers()
     vi.spyOn(HTMLMediaElement.prototype, 'paused', 'get').mockReturnValue(false)
-    await SoundManager.setDesiredMusic('competition', 'phase:loh_comp')
+    const startCompetition = SoundManager.setDesiredMusic('competition', 'phase:loh_comp')
+    await vi.runAllTimersAsync()
+    await startCompetition
 
     const oldFade = SoundManager.fadeOutMusic(400)
     await vi.advanceTimersByTimeAsync(50)
-    await SoundManager.setDesiredMusic('nominations', 'phase:nominations')
+    const startNominations = SoundManager.setDesiredMusic('nominations', 'phase:nominations')
     await vi.runAllTimersAsync()
+    await startNominations
     await oldFade
 
     expect(SoundManager.currentMusicTrack).toBe('nominations')
@@ -198,5 +218,34 @@ describe('hardened audio contracts', () => {
       failedKeys: [],
     })
     expect(armRetry).toHaveBeenCalledOnce()
+  })
+
+  it('switches to the bundled track after an active override reports a media error', async () => {
+    const overrideKey = 'music:runtime:competition'
+    const manager = SoundManager as unknown as {
+      _failedKeys: Set<string>
+      _musicEl: HTMLAudioElement | null
+    }
+    SoundManager.setMusicTrackOverrides([
+      {
+        track: 'competition',
+        sound: {
+          key: overrideKey,
+          category: 'music',
+          src: 'https://example.com/competition.mp3',
+          preload: false,
+          volume: 1,
+          loop: true,
+        },
+      },
+    ])
+    await SoundManager.setDesiredMusic('competition', 'runtime-override')
+    const failedElement = manager._musicEl
+
+    expect(SoundManager.currentMusicKey).toBe(overrideKey)
+    failedElement?.dispatchEvent(new Event('error'))
+    await vi.waitFor(() => expect(SoundManager.currentMusicKey).toBe('music:hoh_comp_general'))
+
+    expect(manager._failedKeys.has(overrideKey)).toBe(true)
   })
 })

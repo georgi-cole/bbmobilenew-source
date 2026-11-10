@@ -54,7 +54,7 @@ export function createCinematicAudio(
   let fadeTimer: number | null = null
   let retryHandler: (() => void) | null = null
   let playAttemptToken = 0
-  let currentBaseVolume = baseVolume
+  let currentBaseVolume = 0
   let disposed = false
 
   const clearFadeTimer = () => {
@@ -85,24 +85,40 @@ export function createCinematicAudio(
     clearRetryHandler()
     if (restart) {
       audio.currentTime = 0
-      audio.volume = baseVolume
-      currentBaseVolume = baseVolume
     }
-    SoundManager.claimExternalMusic(owner, audio, baseVolume)
-    void audio.play().catch((error: unknown) => {
-      if (attemptToken !== playAttemptToken) {
-        return
-      }
-      if (isAutoplayBlocked(error) && typeof document !== 'undefined') {
-        if (retryHandler != null) {
+    audio.volume = 0
+    currentBaseVolume = 0
+    void audio.play().then(
+      () => {
+        if (attemptToken !== playAttemptToken) {
+          audio.pause()
           return
         }
-        retryHandler = () => attemptPlay(restart)
-        for (const eventName of RETRY_EVENTS) {
-          document.addEventListener(eventName, retryHandler, true)
+        SoundManager.claimExternalMusic(owner, audio, 0)
+        const steps = 6
+        let step = 0
+        fadeTimer = window.setInterval(() => {
+          if (attemptToken !== playAttemptToken) {
+            clearFadeTimer()
+            return
+          }
+          step += 1
+          currentBaseVolume = baseVolume * Math.min(1, step / steps)
+          SoundManager.setExternalMusicVolume(owner, audio, currentBaseVolume)
+          if (step >= steps) clearFadeTimer()
+        }, 25)
+      },
+      (error: unknown) => {
+        if (attemptToken !== playAttemptToken) return
+        if (isAutoplayBlocked(error) && typeof document !== 'undefined') {
+          if (retryHandler != null) return
+          retryHandler = () => attemptPlay(restart)
+          for (const eventName of RETRY_EVENTS) {
+            document.addEventListener(eventName, retryHandler, true)
+          }
         }
       }
-    })
+    )
   }
 
   const stop = () => {
@@ -123,7 +139,8 @@ export function createCinematicAudio(
       clearFadeTimer()
       clearRetryHandler()
       audio.pause()
-      SoundManager.releaseExternalMusic(owner, audio)
+      audio.volume = 0
+      currentBaseVolume = 0
     },
     resume: () => attemptPlay(false),
     syncTo: (timeSeconds) => {

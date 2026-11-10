@@ -18,11 +18,11 @@ export interface UseQuickTapRaceAudioReturn {
 
 export function useQuickTapRaceAudio(_isPlaying: boolean): UseQuickTapRaceAudioReturn {
   const playBooster = useCallback(() => {
-    void SoundManager.play(QTR_BOOSTER_KEY);
+    void SoundManager.play(QTR_BOOSTER_KEY, { startAtSec: 0.19 });
   }, []);
 
   const playHalfTap = useCallback(() => {
-    void SoundManager.play(QTR_HALF_TAP_KEY);
+    void SoundManager.play(QTR_HALF_TAP_KEY, { startAtSec: 0.5 });
   }, []);
 
   return { playBooster, playHalfTap };

@@ -60,6 +60,7 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
     return () => window.removeEventListener(HOUSE_MENU_AUDIO_EVENT, onHouseMenuAudio)
   }, [])
   const musicMix = useSelector((root: RootState) => resolveRuntimeMusicMix(root.game))
+  const uiMusicMix = useSelector((root: RootState) => root.ui.musicMix)
   const musicState = useSelector(
     (root: RootState) => ({
       gamePhase: root.game.phase,
@@ -77,6 +78,7 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
       spectatorActive: root.game.spectatorActive,
       seasonFinalePhase: root.game.seasonFinale?.phase ?? null,
       finalThreeStage: root.game.finalThree?.stage ?? null,
+      voxFinaleStage: root.game.voxPopuli?.finaleStage ?? null,
       pendingChallengePhase: root.challenge.pending?.phase ?? null,
       pendingChallengeVariant: root.challenge.pending?.musicVariant ?? 'normal',
       pendingChallengeGameKey: root.challenge.pending?.game?.key ?? null,
@@ -127,6 +129,7 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
           musicState.seasonFinalePhase != null ? { phase: musicState.seasonFinalePhase } : null,
         finalThree:
           musicState.finalThreeStage != null ? { stage: musicState.finalThreeStage } : null,
+        voxFinaleStage: musicState.voxFinaleStage,
       },
       challenge: {
         pending:
@@ -177,10 +180,12 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
   }, [handoffPending, hash])
 
   useEffect(() => {
-    const mixFactor = musicMix === 'muted' ? 0 : musicMix === 'ducked' ? 0.12 : 1
-    SoundManager.setMusicVolume(musicState.musicVolume * mixFactor)
+    const gameMixFactor = musicMix === 'muted' ? 0 : musicMix === 'ducked' ? 0.12 : 1
+    const uiMixFactor = uiMusicMix === 'ducked' ? 0.12 : 1
+    SoundManager.setMusicVolume(musicState.musicVolume)
+    SoundManager.setMusicMix(gameMixFactor * uiMixFactor)
     void SoundManager.setDesiredMusicCue(desiredCue, cueReason(desiredCue))
-  }, [desiredCue, musicMix, musicState.musicVolume])
+  }, [desiredCue, musicMix, musicState.musicVolume, uiMusicMix])
 
   return null
 }

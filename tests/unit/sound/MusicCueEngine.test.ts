@@ -2,6 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MusicCueEngine } from '../../../src/services/sound/MusicCueEngine'
 import { createDefaultMusicCue } from '../../../src/services/sound/musicCue'
 
+const engines = new Set<MusicCueEngine>()
+
+function createEngine(): MusicCueEngine {
+  const engine = new MusicCueEngine()
+  engines.add(engine)
+  return engine
+}
+
 function installAudioContextMock() {
   const gains: Array<{ gain: { value: number }; connect: ReturnType<typeof vi.fn> }> = []
   const filters: Array<{
@@ -52,6 +60,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  for (const engine of engines) engine.stop()
+  engines.clear()
   vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -59,7 +69,7 @@ afterEach(() => {
 
 describe('MusicCueEngine', () => {
   it('starts at the configured segment and loops inside its cue boundary', async () => {
-    const engine = new MusicCueEngine()
+    const engine = createEngine()
     const cue = {
       ...createDefaultMusicCue('competition'),
       id: 'segment',
@@ -93,7 +103,7 @@ describe('MusicCueEngine', () => {
 
   it('keeps effectPreset none acoustically transparent while using the Web Audio gain graph', async () => {
     const { filters, gains } = installAudioContextMock()
-    const engine = new MusicCueEngine()
+    const engine = createEngine()
 
     await engine.play(
       { key: 'music:clear', track: 'nominations', src: '/clear.mp3', volume: 0.8, loop: true },
@@ -107,7 +117,7 @@ describe('MusicCueEngine', () => {
 
   it('still applies the distant-room low-pass preset when requested', async () => {
     const { filters } = installAudioContextMock()
-    const engine = new MusicCueEngine()
+    const engine = createEngine()
 
     await engine.play(
       { key: 'music:muffled', track: 'nominations', src: '/muffled.mp3', volume: 1, loop: true },
@@ -124,7 +134,7 @@ describe('MusicCueEngine', () => {
 
   it('clears a prior effect preset when a pooled deck plays a clear cue', async () => {
     const { filters } = installAudioContextMock()
-    const engine = new MusicCueEngine()
+    const engine = createEngine()
     const asset = {
       key: 'music:test',
       track: 'nominations' as const,
@@ -159,9 +169,67 @@ describe('MusicCueEngine', () => {
     expect(filters[0]?.frequency.value).toBe(350)
   })
 
+  it('updates the room effect in place without restarting the current track', async () => {
+    const { filters } = installAudioContextMock()
+    const engine = createEngine()
+    const asset = {
+      key: 'music:test',
+      track: 'competition' as const,
+      src: '/test.mp3',
+      volume: 1,
+      loop: true,
+    }
+    const cue = { ...createDefaultMusicCue('competition'), id: 'room-effect' }
+
+    await engine.play(asset, cue)
+    const activeElement = engine.currentElement!
+    activeElement.currentTime = 27
+    await engine.play(asset, { ...cue, effectPreset: 'muffled' })
+
+    expect(engine.currentElement).toBe(activeElement)
+    expect(activeElement.currentTime).toBe(27)
+    expect(filters[0]?.type).toBe('lowpass')
+  })
+
+  it('starts one-shot fades before the authored cue boundary', async () => {
+    vi.useFakeTimers()
+    const onEnded = vi.fn()
+    const engine = new MusicCueEngine({ onEnded })
+    engines.add(engine)
+    const cue = {
+      ...createDefaultMusicCue('public_voting', false),
+      id: 'fade-before-end',
+      endAtSec: 1,
+      fadeInMs: 0,
+      fadeOutMs: 200,
+    }
+
+    await engine.play(
+      {
+        key: 'music:public-voting',
+        track: 'public_voting',
+        src: '/vote.mp3',
+        volume: 1,
+        loop: false,
+      },
+      cue
+    )
+    const activeElement = engine.currentElement!
+    activeElement.currentTime = 0.8
+    activeElement.dispatchEvent(new Event('timeupdate'))
+
+    await vi.advanceTimersByTimeAsync(80)
+    expect(engine.currentElement).toBe(activeElement)
+    expect(activeElement.volume).toBeLessThan(1)
+
+    await vi.advanceTimersByTimeAsync(120)
+    expect(engine.currentElement).toBeNull()
+    expect(onEnded).toHaveBeenCalledOnce()
+  })
+
   it('uses a second deck for a configured crossfade', async () => {
     vi.useFakeTimers()
-    const engine = new MusicCueEngine()
+    const engine = createEngine()
     const asset = {
       key: 'music:test',
       track: 'competition' as const,
@@ -185,7 +253,7 @@ describe('MusicCueEngine', () => {
   it('reuses two media elements and Web Audio graphs across many cue changes', async () => {
     const { createMediaElementSource } = installAudioContextMock()
     const createElement = vi.spyOn(document, 'createElement')
-    const engine = new MusicCueEngine()
+    const engine = createEngine()
     const asset = {
       key: 'music:test',
       track: 'competition' as const,
@@ -209,7 +277,7 @@ describe('MusicCueEngine', () => {
 
   it('uses an external entry fade when crossing from legacy music', async () => {
     vi.useFakeTimers()
-    const engine = new MusicCueEngine()
+    const engine = createEngine()
     const pending = engine.play(
       { key: 'music:test', track: 'competition', src: '/test.mp3', volume: 1, loop: true },
       { ...createDefaultMusicCue('competition'), id: 'external', startAtSec: 20 },
@@ -233,7 +301,7 @@ describe('MusicCueEngine', () => {
       )
       .mockResolvedValueOnce(undefined)
 
-    const engine = new MusicCueEngine()
+    const engine = createEngine()
     const asset = {
       key: 'music:test',
       track: 'competition' as const,
@@ -266,7 +334,7 @@ describe('MusicCueEngine', () => {
 
   it('quietly finishes an older promoted cue that is superseded while its crossfade is running', async () => {
     vi.useFakeTimers()
-    const engine = new MusicCueEngine()
+    const engine = createEngine()
     const asset = {
       key: 'music:test',
       track: 'competition' as const,
@@ -308,7 +376,7 @@ describe('MusicCueEngine', () => {
         })
     )
 
-    const engine = new MusicCueEngine()
+    const engine = createEngine()
     const pending = engine.play(
       { key: 'music:test', track: 'competition', src: '/test.mp3', volume: 1, loop: true },
       { ...createDefaultMusicCue('competition'), id: 'pending' }

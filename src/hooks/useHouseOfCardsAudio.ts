@@ -18,11 +18,15 @@ export interface UseHouseOfCardsAudioReturn {
 /** Returns one-shot audio callbacks for House of Cards gameplay events. */
 export function useHouseOfCardsAudio(_isPlaying: boolean): UseHouseOfCardsAudioReturn {
   const playFlip = useCallback(() => {
-    void SoundManager.play(HOC_FLIP_KEY);
+    void SoundManager.play(HOC_FLIP_KEY, {
+      startAtSec: 0.07,
+      durationMs: 240,
+      fadeOutMs: 60,
+    });
   }, []);
 
   const playMatch = useCallback(() => {
-    void SoundManager.play(HOC_MATCH_KEY);
+    void SoundManager.play(HOC_MATCH_KEY, { startAtSec: 0.19 });
   }, []);
 
   const playMismatch = useCallback(() => {
