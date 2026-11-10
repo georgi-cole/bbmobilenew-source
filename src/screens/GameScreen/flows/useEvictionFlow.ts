@@ -7,6 +7,7 @@ import {
   declineVoteDeduction,
   dismissVoteResults,
   finalizePendingEviction,
+  revealSurvivorReplacement,
   setEvictionOverlay,
   submitDoubleEvictionTieBreak,
   getNominationTargetScore,
@@ -21,6 +22,7 @@ import { selectIsVipActive } from '../../../store/vipSlice'
 import { shouldPlayCinematic } from '../../../cinematic/ceremonies/runtime.mjs'
 import { usePresentationReducedMotion } from '../../../services/presentation/usePresentationReducedMotion'
 import type { Announcement } from '../../../components/ui/TvAnnouncementOverlay/TvAnnouncementOverlay'
+import { SURVEYEVAL_TILE_EVICTION_MS } from '../../../components/Eviction/SurveyevalTileEvictionEffect'
 import type { Phase, Player } from '../../../types'
 import type { PlayerPublicProfile } from '../../../publicOpinion/types'
 import type { Final4Stage } from './useEndgameFlow'
@@ -431,7 +433,9 @@ export function useEvictionFlow({
         autoDismissMs:
           game.voteResultsMode === 'public' && game.voxPopuli?.publicVoteContext === 'final3'
             ? null
-            : POST_VOTE_ANNOUNCEMENT_MS,
+            : game.mode === 'survival'
+              ? SURVEYEVAL_TILE_EVICTION_MS
+              : POST_VOTE_ANNOUNCEMENT_MS,
       })
       // Dismiss vote results only — eviction splash is gated on postVoteAnnouncement
       proceedAfterVoteResults()
@@ -908,11 +912,12 @@ export function useEvictionFlow({
     : null
   // For normal evictions (not Final-4), show whenever pendingEviction is set.
   // For Final-4, show only during the 'splash' stage (after the announcement).
-  // Blocked only while the post-vote verdict announcement is active.
+  // In Surveyeval the roster shock plays alongside the verdict, so the new
+  // contestant can appear as the announcement leaves the TV.
   const showEvictionSplash =
     !showVoteResults &&
     !aiTiebreakStage &&
-    !postVoteAnnouncement &&
+    (!postVoteAnnouncement || game.mode === 'survival') &&
     !!game.pendingEviction &&
     !game.awaitingTieBreak &&
     (game.phase !== 'final4_eviction' || final4Stage === 'splash')
@@ -937,9 +942,13 @@ export function useEvictionFlow({
     // Capture the phase before dispatch since finalizePendingEviction may change it.
     const isFinal4 = game.phase === 'final4_eviction'
     dispatch(finalizePendingEviction(evicteeId))
-    // Surveyeval deliberately pauses here. The evicted tile remains in its
-    // red-stripe state until the player presses Play to reveal the substitute.
-    if (game.mode === 'survival') return
+    // Survivor middleware queues the substitute synchronously when the
+    // eviction is finalized. Reveal it in the same presentation beat instead
+    // of leaving a struck tile waiting for another Play press.
+    if (game.mode === 'survival') {
+      dispatch(revealSurvivorReplacement())
+      return
+    }
     if (isFinal4) {
       // Final-4: advance the local stage machine; no battle back check needed.
       setFinal4Stage('done')

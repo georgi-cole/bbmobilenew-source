@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAppSelector } from '../../store/hooks'
+import '../ui/TvAnnouncementOverlay/TvAnnouncementOverlay.css'
 import './AllPowerFauxTvEffect.css'
 
 // This beat carries a title plus a full explanatory sentence. Keep it on screen
@@ -61,11 +62,8 @@ export default function AllPowerFauxTvEffect() {
     if (!triggerKey || completedKey === triggerKey || hasSeenEffect(triggerKey)) return undefined
     if (typeof document === 'undefined' || typeof window === 'undefined') return undefined
 
-    const zone = document.querySelector<HTMLElement>('.tv-zone')
-    const target = zone?.querySelector<HTMLElement>('.tv-zone__viewport') ?? null
-    if (!zone || !target) return undefined
-
-    zone.classList.add('tv-zone--all-power')
+    const target = document.querySelector<HTMLElement>('.tv-zone .tv-zone__viewport')
+    if (!target) return undefined
 
     const timer = window.setTimeout(() => {
       try {
@@ -75,13 +73,11 @@ export default function AllPowerFauxTvEffect() {
       } catch {
         // Presentation is still safe if storage is unavailable.
       }
-      zone.classList.remove('tv-zone--all-power')
       setCompletedKey(triggerKey)
     }, EFFECT_MS)
 
     return () => {
       window.clearTimeout(timer)
-      zone.classList.remove('tv-zone--all-power')
     }
   }, [completedKey, triggerKey])
 
@@ -93,15 +89,15 @@ export default function AllPowerFauxTvEffect() {
       : `${winnerName} now controls both LOH and Safety.`
 
   return createPortal(
-    <div className="all-power-faux-tv" role="status" aria-live="assertive">
-      <span className="all-power-faux-tv__sweep" aria-hidden="true" />
-      <div className="all-power-faux-tv__content">
-        <span className="all-power-faux-tv__eyebrow">
-          <span className="all-power-faux-tv__dot" aria-hidden="true" />
-          POWER SHIFT
-        </span>
-        <strong className="all-power-faux-tv__title">ALL THE POWER</strong>
-        <span className="all-power-faux-tv__subtitle">{winnerCopy}</span>
+    <div
+      className="tv-announcement tv-announcement--theme-loh all-power-faux-tv"
+      role="status"
+      aria-live="assertive"
+    >
+      <div className="tv-announcement__body">
+        <p className="all-power-faux-tv__kicker">POWER SHIFT</p>
+        <p className="tv-announcement__title">ALL THE POWER</p>
+        <p className="tv-announcement__subtitle">{winnerCopy}</p>
       </div>
     </div>,
     viewport

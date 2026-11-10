@@ -82,7 +82,7 @@ export default function AdvertisingPrivacy() {
             )}
           </>
         ) : (
-          <p>Advertising is unavailable for players under 18.</p>
+          <p>Advertising and Survival run purchases are unavailable for players under 18.</p>
         )}
         {notice && <p role="status">{notice}</p>}
         <div className="player-safety__actions">

@@ -195,6 +195,20 @@ export default function Profile() {
     >
       <div className="profile-screen__scene">
         <div className="profile-screen__title-row">
+          {showAccount && (
+            <button
+              type="button"
+              className="profile-screen__account-btn"
+              onClick={openAccount}
+              aria-label="Account sign-in"
+              title="Account sign-in"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M4.5 20c.8-3.1 3.1-4.8 7.5-4.8s6.7 1.7 7.5 4.8" />
+              </svg>
+            </button>
+          )}
           <h1 className="profile-screen__page-title">My profile</h1>
           <GameBackButton className="profile-screen__back-btn" onClick={goBack} />
         </div>
@@ -294,15 +308,6 @@ export default function Profile() {
             </svg>
             <span>Manage profiles</span>
           </button>
-          {showAccount && (
-            <button type="button" className="profile-screen__quick-action" onClick={openAccount}>
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <rect x="5" y="10" width="14" height="11" rx="2" />
-                <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14.5v2" />
-              </svg>
-              <span>Account sign-in</span>
-            </button>
-          )}
         </div>
       </div>
     </div>

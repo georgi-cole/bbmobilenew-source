@@ -391,7 +391,7 @@ describe('MinigameHost competition retry', () => {
     expect(onDone).not.toHaveBeenCalled()
   })
 
-  it('ignores a completion from an abandoned attempt after Reverse Time starts a new one', () => {
+  it('ignores a completion from an abandoned attempt after Reverse Time starts a new one', async () => {
     render(
       <MinigameHost
         game={baseGame}
@@ -414,6 +414,11 @@ describe('MinigameHost competition retry', () => {
 
     act(() => {
       staleCompletion?.({ value: 99 })
+    })
+
+    await act(async () => {
+      vi.runAllTimers()
+      await Promise.resolve()
     })
 
     expect(screen.getByRole('button', { name: 'Finish Test Game' })).toBeInTheDocument()

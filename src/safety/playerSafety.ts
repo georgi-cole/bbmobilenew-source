@@ -3,6 +3,8 @@ export const PLAYER_SAFETY_KEY = 'bbmobilenew:player-safety:v1'
 export const PLAYER_SAFETY_POLICY_VERSION = 1
 export type PlayerAgeBand = 'under13' | '13to15' | '16to17' | 'adult'
 export type OptionalPlayerFeature = 'location' | 'analytics' | 'onlineServices' | 'ads'
+export const ADULT_STORE_PURCHASE_REQUIRED_MESSAGE =
+  'Survival run purchases are restricted to adult players. Check Settings → Advertising privacy; Survival runs are unavailable if the player is under 18.'
 
 export interface PlayerSafetyRecord {
   version: typeof PLAYER_SAFETY_POLICY_VERSION
@@ -174,10 +176,7 @@ export function setOptionalPlayerFeature(feature: OptionalPlayerFeature, enabled
 }
 
 export function assertAdultServicesAllowed(): void {
-  if (!canUseAdultServices())
-    throw new Error(
-      'An adult must manage store purchases and restoration. Open Player privacy & family for details.'
-    )
+  if (!canUseAdultServices()) throw new Error(ADULT_STORE_PURCHASE_REQUIRED_MESSAGE)
 }
 
 export function assertOnlineServicesAllowed(): void {

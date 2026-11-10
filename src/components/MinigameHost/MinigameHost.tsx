@@ -1240,7 +1240,13 @@ export default function MinigameHost({
 
   if (!isOwner) return null
 
-  return (
+  // AppShell's main content begins below the safe-area status row. Mounting
+  // there leaves that row showing the previous screen during a minigame.
+  // The shell itself spans the full handset while retaining the phone-width
+  // preview boundary on desktop.
+  const appShell =
+    typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.app-shell')
+  const host = (
     <div
       className={[
         'minigame-host',
@@ -1590,4 +1596,6 @@ export default function MinigameHost({
       )}
     </div>
   )
+
+  return appShell ? createPortal(host, appShell) : host
 }

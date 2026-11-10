@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-const SURVEYEVAL_TILE_EVICTION_MS = 1800
+export const SURVEYEVAL_TILE_EVICTION_MS = 1800
 
 type Props = {
   evicteeId: string
