@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-10: Reviewed the Surveyeval AI replacement animation repair. Roster
+  effects keep running, portraits preload with a local fallback, and the
+  replacement gate matches the assembly duration. This repairs the existing
+  mode presentation; products, prices, entitlements, ad limits, recovery credits,
+  and Store copy are unchanged.
+
 - 2026-11-10: Reviewed the Reality Social regression fixes for locked
   double-elimination plans and invalid pact selections. These restore the
   intended dialogue and feedback within the existing mode. Store offers,

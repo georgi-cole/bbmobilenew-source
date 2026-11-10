@@ -19,6 +19,7 @@ import {
   type SeasonContestant,
 } from '../appearance/seasonContestant'
 import { withInitialSeasonAppearance } from '../appearance/initialSeasonAppearance'
+import { SURVIVOR_REPLACEMENT_DURATION_MS } from '../modes/survivorPresentation'
 import type { RootState, AppDispatch } from './store'
 import {
   getAlliancePowerHolderPriority,
@@ -10023,7 +10024,7 @@ const gameSlice = createSlice({
         incomingPlayerId: pending.incomingPlayer.id,
         slot: pending.slot,
         startedAt: Date.now(),
-        durationMs: 2000,
+        durationMs: SURVIVOR_REPLACEMENT_DURATION_MS,
       }
       pushEvent(
         state,

@@ -58,15 +58,15 @@ body.card-minigame-active .game-control-dock__play {
   will-change: transform, opacity;
 }
 
-/* Pause only the roster and ambient screen layers underneath the foreground
- * ceremony. Vote rings, LIVE treatment, Framer eviction motion, scanlines and
- * image grading are deliberately untouched. */
-.game-screen--eviction-atmosphere [data-player-id],
-.game-screen--eviction-atmosphere [data-player-id] *,
-.game-screen--eviction-atmosphere [data-player-id]::before,
-.game-screen--eviction-atmosphere [data-player-id]::after,
-.game-screen--eviction-atmosphere [data-player-id] *::before,
-.game-screen--eviction-atmosphere [data-player-id] *::after,
+/* Pause the background roster underneath a separate foreground ceremony.
+ * Survival presents its elimination and replacement on the roster itself, so
+ * those tiles must keep animating. Ambient screen layers remain paused. */
+.game-screen--eviction-atmosphere:not([data-game-mode='survival']) [data-player-id],
+.game-screen--eviction-atmosphere:not([data-game-mode='survival']) [data-player-id] *,
+.game-screen--eviction-atmosphere:not([data-game-mode='survival']) [data-player-id]::before,
+.game-screen--eviction-atmosphere:not([data-game-mode='survival']) [data-player-id]::after,
+.game-screen--eviction-atmosphere:not([data-game-mode='survival']) [data-player-id] *::before,
+.game-screen--eviction-atmosphere:not([data-game-mode='survival']) [data-player-id] *::after,
 .game-screen--eviction-atmosphere::before,
 .game-screen--eviction-atmosphere::after {
   animation-play-state: paused !important;

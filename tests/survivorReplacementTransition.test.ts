@@ -7,6 +7,7 @@ import gameReducer, {
 } from '../src/store/gameSlice'
 import { survivorMiddleware } from '../src/modes/survivorMiddleware'
 import { createSurvivorRun, SURVIVOR_STARTING_CAST_SIZE } from '../src/modes/survivorRun'
+import { SURVIVOR_REPLACEMENT_DURATION_MS } from '../src/modes/survivorPresentation'
 
 function makeStore() {
   return configureStore({
@@ -60,7 +61,7 @@ describe('Survivor replacement transition', () => {
     expect(transition?.outgoingPlayerSnapshot.id).toBe(outgoing!.id)
     expect(transition?.outgoingPlayerSnapshot.status).toBe('evicted')
     expect(transition?.slot).toBe(outgoing!.survivorSlot)
-    expect(transition?.durationMs).toBe(2000)
+    expect(transition?.durationMs).toBe(SURVIVOR_REPLACEMENT_DURATION_MS)
     expect(replacement?.isRobo).toBe(true)
     expect(replacement?.survivorSlot).toBe(outgoing!.survivorSlot)
     expect(game.tvFeed[0]?.text).toContain('replacement synthetic contestant')
