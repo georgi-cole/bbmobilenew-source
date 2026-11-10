@@ -245,6 +245,19 @@ describe('adsService bridge guards', () => {
 })
 
 describe('canShowAd guard logic', () => {
+  it('exempts VIP and both No Ads ownership paths from Survival elimination ads', () => {
+    installSafetyFixture(28, ['ads'])
+    expect(canShowAd('survival_elimination_auto', makeState())).toBe(true)
+    expect(canShowAd('survival_elimination_auto', makeState({ hasNoAdsPack: true }))).toBe(false)
+    expect(canShowAd('survival_elimination_auto', makeState(undefined, { isActive: true }))).toBe(
+      false
+    )
+    const standalone = makeState()
+    standalone.vip.entitlements.noAds = true
+    expect(canShowAd('survival_elimination_auto', standalone)).toBe(false)
+    expect(canShowAd('survival_continue', standalone)).toBe(true)
+  })
+
   it('blocks automatic interstitials when the legacy No Ads Pack is owned', () => {
     expect(canShowAd('live_vote_auto', makeState({ hasNoAdsPack: true }))).toBe(false)
   })

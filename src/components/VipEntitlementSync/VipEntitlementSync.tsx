@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { setDisplay, setGameUX, setSim } from '../../store/settingsSlice'
+import { refreshSurvivalRuns } from '../../vip/survivalRunPurchaseService'
 import {
   initializeVip,
   selectHasDramaModeAccess,
@@ -47,6 +48,10 @@ export default function VipEntitlementSync() {
   useEffect(() => {
     if (storeState.status === 'idle') void dispatch(initializeVip())
   }, [dispatch, storeState.status])
+
+  useEffect(() => {
+    void refreshSurvivalRuns()
+  }, [])
 
   useEffect(() => {
     if (storeState.status !== 'ready' && storeState.status !== 'error') return

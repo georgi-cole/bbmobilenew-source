@@ -1,9 +1,13 @@
 # Store products release setup
 
 The release includes eight permanent, user-facing one-time products for iOS and Android, plus
-VIP upgrade SKUs used to honor credit from previously owned standalone products. Every product
-must be configured as **non-consumable** in Apple App Store Connect and as a **one-time,
-non-consumable product** in Google Play Console.
+VIP upgrade SKUs used to honor credit from previously owned standalone products. Those permanent
+products are **non-consumable**. The separate **Survival runs** product is a repeatable
+**consumable**, priced at a target of **EUR 0.99 per recovery**.
+
+The code defines the product IDs and checkout behavior; it does not create or activate products
+in App Store Connect or Google Play Console. Configure and test the new consumable before
+releasing a build that offers it for sale.
 
 ## Before creating the store listings
 
@@ -20,23 +24,50 @@ available to No Ads and VIP owners; only automatic commercial breaks are suppres
 
 Use the same IDs on both platforms:
 
-| Product            | Product ID                                   | Grants                                        |
-| ------------------ | -------------------------------------------- | --------------------------------------------- |
-| The Big Eye VIP    | `com.georgicole.thebigeye.vip`               | All current standalone unlocks and VIP themes |
-| Survival Mode      | `com.georgicole.thebigeye.survival`          | Survival Mode only                            |
-| Public Mode        | `com.georgicole.thebigeye.publicmode`        | Public Mode only                              |
-| Reality Mode       | `com.georgicole.thebigeye.dramamode`         | Reality Mode only                             |
-| Cupid's Arrow      | `com.georgicole.thebigeye.cupidarrow`        | Cupid's Arrow seasonal expansion              |
-| Vox Populi         | `com.georgicole.thebigeye.voxpopuli`         | Vox Populi seasonal expansion                 |
-| Premium Challenges | `com.georgicole.thebigeye.premiumchallenges` | Remastered Find Your Twin 1 & 2               |
-| No Ads             | `com.georgicole.thebigeye.noads`             | Removes automatic commercial breaks           |
+| Product            | Product ID                                   | Grants                                          |
+| ------------------ | -------------------------------------------- | ----------------------------------------------- |
+| The Big Eye VIP    | `com.georgicole.thebigeye.vip`               | All permanent standalone unlocks and VIP themes |
+| Survival Mode      | `com.georgicole.thebigeye.survival`          | Survival Mode only                              |
+| Public Mode        | `com.georgicole.thebigeye.publicmode`        | Public Mode only                                |
+| Reality Mode       | `com.georgicole.thebigeye.dramamode`         | Reality Mode only                               |
+| Cupid's Arrow      | `com.georgicole.thebigeye.cupidarrow`        | Cupid's Arrow seasonal expansion                |
+| Vox Populi         | `com.georgicole.thebigeye.voxpopuli`         | Vox Populi seasonal expansion                   |
+| Premium Challenges | `com.georgicole.thebigeye.premiumchallenges` | Remastered Find Your Twin 1 & 2                 |
+| No Ads             | `com.georgicole.thebigeye.noads`             | Removes automatic commercial breaks             |
 
 The IDs can be overridden with the matching `VITE_*_PRODUCT_ID` values in the
-platform environment files. The app always displays the localized title and
-price returned by Apple or Google.
+platform environment files. Checkout displays the localized price returned by Apple or Google.
 
 Set the normal VIP price below the combined price of the standalone products.
 VIP is a permanent bundle, not a subscription.
+
+### Survival runs consumable
+
+| Setting                          | Value                                                                         |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| Product name                     | Survival runs                                                                 |
+| Product ID on both platforms     | `com.georgicole.thebigeye.survivalrun`                                        |
+| Environment override             | `VITE_SURVIVAL_RUN_PRODUCT_ID`                                                |
+| Apple product type               | Consumable                                                                    |
+| Google product type              | One-time in-app product; consumed by the app after durable delivery           |
+| Target price                     | EUR 0.99 per recovery; configure the corresponding local prices in each store |
+| Grant                            | One recovery per purchased unit                                               |
+| Purchase limit                   | No lifetime or per-run purchase cap                                           |
+| Included with VIP / No Ads       | No                                                                            |
+| Counts toward VIP upgrade credit | No                                                                            |
+
+The player can buy from the Store or choose Buy & continue from an eliminated Survival run.
+An existing credit can be used instead of watching an ad, before or after the seven rewarded
+recoveries. A purchased recovery does not use one of the seven rewarded recoveries. Cancelling
+or failing checkout never grants a recovery. A pending payment grants only after the native
+store reports a completed transaction.
+
+Unused credits and transaction deduplication records are stored durably on the current device.
+Credits are shared by this installation's local profiles and are not part of cloud profile sync.
+Ordinary Restore Purchases restores permanent products; it does **not** recreate consumed or
+previously spent Survival runs. Unused locally stored credits are not recovered after clearing
+app data, reinstalling, or changing devices. The Store presents this limitation before purchase.
+Recovering an unfinished store transaction after an interrupted checkout is supported separately.
 
 ### Launch pricing and VIP upgrade credit
 
@@ -82,8 +113,8 @@ variables.
 ## Apple App Store Connect
 
 1. Accept the Paid Apps agreement and complete banking and tax information.
-2. Under the app's In-App Purchases, create the eight released products and all VIP upgrade SKUs as
-   **Non-Consumable**.
+2. Under the app's In-App Purchases, create the eight permanent products and all VIP upgrade SKUs as
+   **Non-Consumable**. Create `com.georgicole.thebigeye.survivalrun` separately as **Consumable**.
 3. Add localization, price, review screenshot, and review notes to each product.
 4. In Xcode, confirm that the app target has the In-App Purchase capability.
 5. Test purchases and Restore Purchases with StoreKit local testing and App
@@ -96,8 +127,8 @@ https://developer.apple.com/help/app-store-connect/manage-in-app-purchases/creat
 ## Google Play Console
 
 1. Complete the payments profile.
-2. Under Monetize > Products > In-app products, create all eight released IDs plus the VIP
-   upgrade IDs.
+2. Under Monetize > Products > In-app products, create all eight permanent IDs, the VIP
+   upgrade IDs, and `com.georgicole.thebigeye.survivalrun`.
 3. Make each product active and assign its one-time price.
 4. Upload a signed build to an internal test track.
 5. Add license testers and test purchase, pending payment, refund, reinstall,
@@ -117,6 +148,20 @@ npm run sync:ios
 
 The Android manifest includes the Play Billing permission. On iOS, open the
 project in Xcode and confirm the In-App Purchase capability before archiving.
+
+The purchase plugin is pinned to `@capgo/native-purchases` **8.9.0**. Keep
+`plugins.NativePurchases.autoFinishTransactions: false` in `capacitor.config.ts` and sync the
+native projects: the native listener must not finish a paid consumable before the JavaScript
+layer durably delivers it. The runtime also applies manual finishing through `configure()`.
+The older 8.6.4 iOS listener finished transaction updates before emitting them to JavaScript,
+so it cannot provide this delivery ordering.
+
+Survival credit grants are deduplicated by native platform and transaction ID. The ledger is
+flushed before an Android token is consumed or an iOS transaction is finished. Startup, foreground,
+Store, and recovery-screen refreshes reconcile unfinished transactions; credits already delivered
+are not granted twice. The permanent-product purchase path explicitly acknowledges/finishes its
+own transactions under this shared manual setting. Do not enable historical consumable replay
+as a restore strategy.
 
 ## Production verification
 
@@ -141,12 +186,20 @@ Apple StoreKit receipt/JWS needed by that backend.
   purchase screen before review.
 - Test purchase, restore, pending payment, refund, reinstall, account switching,
   and offline launch on physical iOS and Android devices.
-- Confirm VIP grants every released standalone entitlement, including No Ads, and VIP-only
-  themes.
+- Confirm VIP grants every released permanent standalone entitlement, including No Ads, and VIP-only
+  themes, while Survival runs remain a separate consumable purchase.
 - Confirm No Ads suppresses automatic interstitials while leaving optional rewarded ads
   available.
 - Confirm each standalone purchase grants only its advertised feature.
 - Verify the 75% VIP-credit resolver selects the expected native upgrade SKU for single and
   multi-product ownership and never selects a tier below 4.99.
 - Test restoring every VIP upgrade SKU and confirm it restores full VIP ownership.
+- Buy Survival runs repeatedly and confirm one unit is added for every completed purchase, with
+  no grant on cancellation or pending payment. Test both native localized price labels.
+- Interrupt checkout after payment but before delivery, and after delivery but before native
+  finish/consume. Restart and confirm the paid unit is recovered exactly once.
+- Use a purchased recovery before and after all seven ad recoveries; confirm it revives the same
+  run, uses one purchased credit, and does not change the ad-recovery count.
+- Test a failed durable write and switching runs while a purchase/recovery is pending. A newly
+  purchased credit must remain available when the original eliminated run is no longer active.
 - Remove `VITE_VIP_DEV_ENTITLEMENT=true` from every release environment.

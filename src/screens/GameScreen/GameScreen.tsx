@@ -120,12 +120,7 @@ import { selectSettings } from '../../store/settingsSlice'
 import { selectHasPublicModeAccess, selectIsVipActive } from '../../store/vipSlice'
 import type { RootState } from '../../store/store'
 
-import {
-  selectAdsState,
-  clearLastCompLastPlace,
-  recordAdShown,
-  recordAutomaticBreakHandled,
-} from '../../store/adsSlice'
+import { selectAdsState, clearLastCompLastPlace, recordAdShown } from '../../store/adsSlice'
 import AdPrompt from '../../components/AdPrompt/AdPrompt'
 import type { Announcement } from '../../components/ui/TvAnnouncementOverlay/TvAnnouncementOverlay'
 import {
@@ -133,13 +128,8 @@ import {
   type SocialModuleAvailability,
 } from '../../social/socialModuleAvailability'
 import { isPublicModeEnabled, isSocialModeEnabled } from '../../modes/gameModes'
-import {
-  showInterstitial,
-  showRewarded,
-  canShowAd,
-  type AdPlacement,
-} from '../../services/ads/adsService'
-import { getAutomaticAdBreak } from '../../services/ads/adPolicy'
+import { showRewarded, canShowAd } from '../../services/ads/adsService'
+import { useAutomaticAdBreak } from './useAutomaticAdBreak'
 import {
   AUDIENCE_INSIGHT_PROMPT_DESCRIPTION,
   DISLIKED_MAX_APPROVAL,
@@ -337,7 +327,6 @@ export default function GameScreen() {
   const audienceChipSeenWeeksRef = useRef(new Set<number>())
   // Tracks whether a rewarded ad request has been sent (prevents double-tap).
   const [adPending, setAdPending] = useState(false)
-  const [preAdAnnouncement, setPreAdAnnouncement] = useState<Announcement | null>(null)
   const [audienceInsightAnnouncement, setAudienceInsightAnnouncement] =
     useState<Announcement | null>(null)
   const [socialModuleUnavailableAnnouncement, setSocialModuleUnavailableAnnouncement] =
@@ -399,7 +388,6 @@ export default function GameScreen() {
     window.addEventListener('ui:playPressed', handlePlay)
     return () => window.removeEventListener('ui:playPressed', handlePlay)
   }, [dispatch, game.voxPopuli?.finaleStage])
-  const pendingPreAdPlacementRef = useRef<AdPlacement | null>(null)
   const activeConfessionalDecisionKey = getConfessionalDecisionKey(activeConfessionalDecision, game)
   useGameScreenImagePreloads({
     activeConfessionalDecisionKey,
@@ -1170,77 +1158,29 @@ export default function GameScreen() {
     dispatch(clearLastCompLastPlace())
   }, [adsState?.lastCompLastPlaceType, game.phase, isFinal3Week, dispatch])
 
-  // ── Ad hook: automatic interstitials (phase-based) ────────────────────────
-  // Advertising V2 centralizes the cadence by game-phase transition. The
-  // persistent break key prevents the same beat from stacking after a reload.
-  const prevPhaseRef = useRef<string>('')
-  const queuePreAdAnnouncement = useCallback(
-    (placement: AdPlacement, breakKey: string, subtitle: string) => {
-      if (pendingPreAdPlacementRef.current) return false
-      pendingPreAdPlacementRef.current = placement
-      dispatch(recordAutomaticBreakHandled(breakKey))
-      setPreAdAnnouncement({
-        key: `ad_break_${placement}`,
-        title: 'SHORT BREAK',
-        subtitle,
-        isLive: true,
-        autoDismissMs: 3200,
-      })
-      return true
-    },
-    [dispatch]
-  )
-  const handlePreAdAnnouncementDismiss = useCallback(() => {
-    const placement = pendingPreAdPlacementRef.current
-    pendingPreAdPlacementRef.current = null
-    setPreAdAnnouncement(null)
-    if (!placement) return
-    const state = storeRef.current.getState()
-    showInterstitial(placement, state, dispatch)
-  }, [dispatch])
+  // Keep gameplay paused through both the break announcement and native ad dismissal.
+  const getAdState = useCallback(() => storeRef.current.getState(), [])
+  const {
+    announcement: preAdAnnouncement,
+    dismissAnnouncement: handlePreAdAnnouncementDismiss,
+    active: automaticAdBreakActive,
+  } = useAutomaticAdBreak({
+    game,
+    dispatch,
+    getState: getAdState,
+    presentationBlocked:
+      game.mode === 'survival' &&
+      Boolean(
+        showEvictionSplash ||
+        showVoteResults ||
+        game.pendingEviction ||
+        game.evictionOverlayPlayerId ||
+        (game.modeSpecific?.kind === 'survival' &&
+          (game.modeSpecific.replacementPending || game.modeSpecific.replacementTransition))
+      ),
+  })
 
   /* eslint-disable react-hooks/set-state-in-effect -- Preserve established synchronous ad-prompt timing during the orchestration extraction. */
-  useEffect(() => {
-    const previousPhase = prevPhaseRef.current
-    const currentPhase = game.phase
-    if (currentPhase === previousPhase) return
-    prevPhaseRef.current = currentPhase
-
-    const posHolderName =
-      game.players.find((player) => player.id === game.posWinnerId)?.name ?? null
-    const automaticBreak = getAutomaticAdBreak({
-      gameId: game.gameId ?? `season-${game.season}-${game.seed}`,
-      week: game.week,
-      previousPhase,
-      currentPhase,
-      mode: game.mode ?? 'classic',
-      voxPopuliActive: game.voxPopuli?.status === 'active',
-      posHolderName,
-    })
-    if (!automaticBreak) return
-
-    const state = storeRef.current.getState()
-    if (state.ads?.automaticBreaks?.[automaticBreak.breakKey]) return
-    if (!canShowAd(automaticBreak.placement, state)) return
-    if (!window.GameAds?.showInterstitial) return
-
-    queuePreAdAnnouncement(
-      automaticBreak.placement,
-      automaticBreak.breakKey,
-      automaticBreak.subtitle
-    )
-  }, [
-    game.gameId,
-    game.mode,
-    game.phase,
-    game.players,
-    game.posWinnerId,
-    game.season,
-    game.seed,
-    game.voxPopuli?.status,
-    game.week,
-    queuePreAdAnnouncement,
-  ])
 
   // ── Ad hook: social_energy_recharge ──────────────────────────────────────
   // Show a rewarded prompt when the user's social energy hits 0 (once per day).
@@ -1546,7 +1486,7 @@ export default function GameScreen() {
           showEnergyRechargePrompt,
           showAudienceInsightPrompt,
           audienceInsightAnnouncement !== null,
-          preAdAnnouncement !== null,
+          automaticAdBreakActive,
           socialModuleUnavailableAnnouncement !== null,
           socialSummaryOpen,
         ],

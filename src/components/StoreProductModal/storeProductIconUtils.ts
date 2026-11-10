@@ -3,6 +3,7 @@ import type { StoreProductIconName } from '../../vip/vipConfig'
 export const STORE_PRODUCT_ICON_NAMES: readonly StoreProductIconName[] = [
   'vip',
   'survivalMode',
+  'survivalRuns',
   'publicMode',
   'tribunalHouse',
   'dramaMode',

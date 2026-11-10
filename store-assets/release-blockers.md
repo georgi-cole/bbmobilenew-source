@@ -29,6 +29,12 @@ Create the eight user-facing products documented in `docs/STORE_PRODUCTS_SETUP.m
 non-consumable products on both stores, together with the VIP upgrade SKUs used by the 75% credit
 resolver.
 
+Also create `com.georgicole.thebigeye.survivalrun` as the separate **Survival runs** consumable,
+with a target price of **EUR 0.99** per recovery. It must remain repeatable and outside permanent
+VIP entitlements. Follow the platform-specific setup in `docs/STORE_PRODUCTS_SETUP.md`, rebuild
+and sync the native app for the manual-finish purchase bridge, and test interrupted delivery,
+repeated purchases, cancellation, seven-ad exhaustion, and paid recovery on physical devices.
+
 Then:
 
 - Complete paid-app agreements, banking, and tax setup.

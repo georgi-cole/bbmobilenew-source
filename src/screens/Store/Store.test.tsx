@@ -14,6 +14,19 @@ import Store from './Store'
 const purchaseStoreProductMock = vi.hoisted(() => vi.fn())
 const loadVipStoreSnapshotMock = vi.hoisted(() => vi.fn())
 
+vi.mock('../../vip/useSurvivalRuns', () => ({
+  useSurvivalRuns: () => ({
+    balance: 2,
+    product: { price: '€0.99' },
+    billingAvailable: true,
+    loading: false,
+    purchasing: false,
+    error: null,
+    clearError: () => undefined,
+    purchase: async () => true,
+  }),
+}))
+
 vi.mock('../../vip/vipPurchaseService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../vip/vipPurchaseService')>()
   return {
@@ -134,6 +147,17 @@ describe('Store product presentation', () => {
     expect(screen.getByRole('heading', { name: 'Extras' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open No Ads' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open Premium Challenges Pack' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Survival runs' })).toBeInTheDocument()
+  })
+
+  it('keeps consumable Survival runs purchasable for VIP owners', () => {
+    renderStore(makeVipState({ vip: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Extras' }))
+    const product = screen.getByRole('region', { name: 'Survival runs' })
+
+    expect(within(product).getByRole('button', { name: 'Buy 1 Survival run' })).toBeEnabled()
+    expect(within(product).getByLabelText('2 Survival runs available')).toBeVisible()
+    expect(within(product).queryByText('Included with VIP', { exact: true })).toBeNull()
   })
 
   it('explains that No Ads keeps optional rewarded opportunities', () => {

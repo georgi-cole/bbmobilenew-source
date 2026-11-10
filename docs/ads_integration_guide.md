@@ -137,17 +137,23 @@ If the native side calls this before `initAdBridge` runs, the reward will be sil
 These fire without any user action.  
 **They are suppressed when the user owns the No Ads Pack.**
 
-| Placement              | Trigger                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------ |
-| `live_vote_auto`       | Before each normal house vote when the game enters `live_vote`                                         |
-| `safety_decision_auto` | Every second applicable Safety day, just before the POS decision presentation (`pos_ceremony_results`) |
-| `final3_part1_break`   | After Final 3 Part 1, before Part 2 begins (`final3_comp2`)                                            |
-| `final3_part2_break`   | After Final 3 Part 2, before Part 3 begins (`final3_comp3`)                                            |
-| `final3_part3_break`   | After Final 3 Part 3, before the final decision/ceremony (`final3_decision`)                           |
+| Placement                   | Trigger                                                                                                               |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `live_vote_auto`            | Before each normal house vote when the game enters `live_vote`                                                        |
+| `safety_decision_auto`      | Every second applicable Safety day, just before the POS decision presentation (`pos_ceremony_results`)                |
+| `final3_part1_break`        | After Final 3 Part 1, before Part 2 begins (`final3_comp2`)                                                           |
+| `final3_part2_break`        | After Final 3 Part 2, before Part 3 begins (`final3_comp3`)                                                           |
+| `final3_part3_break`        | After Final 3 Part 3, before the final decision/ceremony (`final3_decision`)                                          |
+| `survival_elimination_auto` | After each completed Survival elimination day (`week_end`), before the next day; only while the human is still active |
 
 Every automatic placement is preceded by the in-game **SHORT BREAK** announcement. The game records a stable season/day/phase break key when the break is queued, so a reload or re-render cannot stack the same automatic commercial twice.
 
-Advertising V2 intentionally has **no post-eviction interstitial and no finale-recap interstitial**.
+Survival waits for the elimination and replacement presentations to finish before announcing its
+day-end break. The game controls stay blocked until the native interstitial closes or fails.
+VIP and No Ads ownership suppress this placement through the same guards as other automatic ads.
+Human elimination opens the recovery dialog instead, and a recovery enters `week_start` without
+an additional automatic ad. There is no additional post-eviction placement in Classic, Cupid or
+Vox, and no finale-recap interstitial.
 
 ### Optional Rewarded Ads
 
@@ -165,7 +171,7 @@ These are opt-in; the user must tap "Watch Ad" to proceed.
 | `favorite_player_audience_surge` | Public Favorite spotlight prompt                                                                                            | Existing +5-point audience surge                                                                                      | Existing spotlight rules                                      |
 | `glass_bridge_hint`              | Crystal Path expert help                                                                                                    | Existing hint and time penalty                                                                                        | Existing per-run hint limit                                   |
 | `big_spender_rescue`             | Big Spender rescue prompt                                                                                                   | Second Chance Wallet                                                                                                  | Existing rescue rules                                         |
-| `survival_continue`              | Surveyeval recovery prompt                                                                                                  | Reassemble and resume the run                                                                                         | Existing three-recovery limit                                 |
+| `survival_continue`              | Surveyeval recovery prompt                                                                                                  | Reassemble and resume the run                                                                                         | Seven successfully earned recoveries per run                  |
 | `aftermath_unlock`               | Season Complete Aftermath prompt                                                                                            | Open the fictional tabloid edition                                                                                    | Existing unlock flow                                          |
 
 ---
@@ -219,6 +225,23 @@ those placements.
 The legacy `ads.hasNoAdsPack` flag remains readable for older local saves, but new purchases should
 not mutate it directly. Optional rewarded ads deliberately remain available to No Ads and VIP
 owners.
+
+---
+
+## Survival recovery choices
+
+The ended-run dialog offers seven rewarded recoveries per run. Failed, unavailable or dismissed
+ads do not use an allowance. Each earned result is bound to the original run and elimination,
+so an old callback cannot revive a different run.
+
+The separate **Survival runs** consumable grants one paid recovery per purchased unit, with a
+target price of **EUR 0.99** and the native store's localized price displayed before checkout.
+Players can buy repeatedly or use an existing unit without watching an ad, even when rewarded
+recoveries remain. Paid recoveries never consume or reset the seven-ad allowance. VIP and No Ads
+do not grant consumable units. See `docs/STORE_PRODUCTS_SETUP.md` for the SKU and native setup.
+
+Only one recovery dialog is presented. Return Home clears the ended run directly; it does not
+open the Save & Home confirmation used for a living contestant.
 
 ---
 

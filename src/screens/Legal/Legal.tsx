@@ -84,9 +84,11 @@ export default function Legal() {
           abusive, or sensitive personal content.
         </p>
         <p>
-          Store purchases are one-time, non-consumable digital unlocks. Billing, refunds, and
-          account access are handled by Apple or Google under their store terms. Use Restore
-          Purchases after reinstalling or changing devices.
+          Store purchases include permanent digital unlocks and repeatable Survival runs. Each
+          Survival run is a consumable credit for one recovery without an ad. Billing, refunds, and
+          account access are handled by Apple or Google under their store terms. Restore Purchases
+          restores permanent unlocks. Unused Survival runs are stored on this device and are not
+          restored after clearing app data, reinstalling, or changing devices.
         </p>
         {termsUrl && (
           <a href={termsUrl} target="_blank" rel="noreferrer">

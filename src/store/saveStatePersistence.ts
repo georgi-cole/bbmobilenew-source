@@ -299,6 +299,29 @@ function getRunId(snapshot: SavedSeasonSnapshot | undefined): string | null {
   return snapshot?.game.runId ?? snapshot?.game.gameId ?? null
 }
 
+function paidSurvivalRecoveryCount(snapshot: SavedSeasonSnapshot): number {
+  const count =
+    snapshot.game.modeSpecific?.kind === 'survival'
+      ? snapshot.game.modeSpecific.paidContinueCount
+      : undefined
+  return typeof count === 'number' && Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0
+}
+
+function predatesPaidSurvivalRecovery(
+  snapshot: SavedSeasonSnapshot,
+  previous: SavedSeasonSnapshot | null | undefined
+): boolean {
+  const runId = getRunId(snapshot)
+  return Boolean(
+    previous &&
+    runId &&
+    previous.profileId === snapshot.profileId &&
+    normalizeGameMode(previous.game.mode) === 'survival' &&
+    getRunId(previous) === runId &&
+    paidSurvivalRecoveryCount(previous) > paidSurvivalRecoveryCount(snapshot)
+  )
+}
+
 function isRunSnapshotResumable(
   snapshot: SavedSeasonSnapshot | undefined
 ): snapshot is SavedSeasonSnapshot {
@@ -708,6 +731,18 @@ export function saveRunSnapshot(profileId: string, snapshot: SavedSeasonSnapshot
   // back to the existing migration-safe full-profile path exactly once.
   const metadata = loadSplitMetadata(profileId)
   if (metadata) {
+    // Paid recovery stages its resumed save before Redux changes. A delayed
+    // autosave of the earlier elimination must not delete or roll back that
+    // delivery while its durable transaction is being committed.
+    if (
+      mode === 'survival' &&
+      predatesPaidSurvivalRecovery(
+        snapshot,
+        loadSeasonSnapshot(savedRunSlotKeyForProfile(profileId, slot))
+      )
+    ) {
+      return true
+    }
     const survivorBest =
       mode === 'survival'
         ? Math.max(metadata.stats.maxSurvivorDaysSurvived, getSurvivorProgressDay(snapshot.game))
@@ -736,6 +771,9 @@ export function saveRunSnapshot(profileId: string, snapshot: SavedSeasonSnapshot
   }
 
   const current = loadSavedRunProfile(profileId)
+  if (mode === 'survival' && predatesPaidSurvivalRecovery(snapshot, current.runs.survival)) {
+    return true
+  }
   const survivorBest =
     mode === 'survival'
       ? Math.max(current.stats.maxSurvivorDaysSurvived, getSurvivorProgressDay(snapshot.game))

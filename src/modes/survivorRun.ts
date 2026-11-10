@@ -190,6 +190,7 @@ export function createSurvivorModeState(startingCastSize: number): SurvivorModeS
     startingCastSize,
     nextRoboIndex: Math.max(0, startingCastSize - 1),
     adContinueCount: 0,
+    paidContinueCount: 0,
     competitionRotation: {
       usedKeys: [],
       round: 1,

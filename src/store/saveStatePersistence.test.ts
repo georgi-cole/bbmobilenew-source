@@ -232,6 +232,128 @@ describe('saveStatePersistence survivor progression', () => {
     expect(runs.voxPopuli?.game.runId).toBe('vox-run')
   })
 
+  describe('paid Survival recovery persistence', () => {
+    const makeSnapshot = ({
+      profileId = 'profile-1',
+      runId = 'paid-run',
+      paidContinueCount,
+      day = 4,
+      failed = false,
+    }: {
+      profileId?: string
+      runId?: string
+      paidContinueCount?: number
+      day?: number
+      failed?: boolean
+    } = {}): SavedSeasonSnapshot =>
+      ({
+        version: 1,
+        profileId,
+        savedAt: `2026-11-10T12:00:${String(day).padStart(2, '0')}.000Z`,
+        game: {
+          mode: 'survival',
+          week: day,
+          status: failed ? 'failed' : 'active',
+          runId,
+          gameId: runId,
+          players: [
+            {
+              id: 'user',
+              name: 'You',
+              avatar: 'P',
+              status: failed ? 'evicted' : 'active',
+              isUser: true,
+            },
+          ],
+          modeSpecific: {
+            kind: 'survival',
+            currentDay: day,
+            bestDayReached: day,
+            startingCastSize: 9,
+            totalRoboContestantsEvicted: 0,
+            nextRoboIndex: 0,
+            paidContinueCount,
+            competitionRotation: { usedKeys: [], round: 0 },
+          },
+        },
+        finale: {},
+        social: {},
+      }) as unknown as SavedSeasonSnapshot
+
+    it.each(['split', 'embedded'])(
+      'keeps the paid recovery when an older terminal autosave arrives in %s format',
+      (format) => {
+        const recovered = makeSnapshot({ paidContinueCount: 1 })
+        expect(saveRunSnapshot('profile-1', recovered)).toBe(true)
+        if (format === 'embedded') {
+          localStorage.setItem(
+            savedRunsKeyForProfile('profile-1'),
+            JSON.stringify(loadSavedRunProfile('profile-1'))
+          )
+          localStorage.removeItem(savedRunSlotKeyForProfile('profile-1', 'survival'))
+        }
+
+        // Older saves have no paid counter; their generation is zero.
+        expect(saveRunSnapshot('profile-1', makeSnapshot({ failed: true }))).toBe(true)
+        expect(loadSavedRunProfile('profile-1').runs.survival?.game).toMatchObject({
+          status: 'active',
+          modeSpecific: { paidContinueCount: 1 },
+        })
+      }
+    )
+
+    it('does not roll back a paid recovery to an earlier active snapshot', () => {
+      expect(saveRunSnapshot('profile-1', makeSnapshot({ paidContinueCount: 2 }))).toBe(true)
+      expect(saveRunSnapshot('profile-1', makeSnapshot({ paidContinueCount: 1, day: 3 }))).toBe(
+        true
+      )
+      expect(loadSavedRunProfile('profile-1').runs.survival?.game).toMatchObject({
+        week: 4,
+        modeSpecific: { paidContinueCount: 2 },
+      })
+    })
+
+    it('still removes the run when the recovered player is eliminated again', () => {
+      expect(saveRunSnapshot('profile-1', makeSnapshot({ paidContinueCount: 1 }))).toBe(true)
+      expect(
+        saveRunSnapshot('profile-1', makeSnapshot({ paidContinueCount: 1, failed: true, day: 5 }))
+      ).toBe(true)
+      expect(loadSavedRunProfile('profile-1').runs.survival).toBeUndefined()
+    })
+
+    it('allows a new run to start with no paid recoveries', () => {
+      expect(saveRunSnapshot('profile-1', makeSnapshot({ paidContinueCount: 3 }))).toBe(true)
+      expect(saveRunSnapshot('profile-1', makeSnapshot({ runId: 'new-run', day: 1 }))).toBe(true)
+      expect(loadSavedRunProfile('profile-1').runs.survival?.game).toMatchObject({
+        runId: 'new-run',
+        week: 1,
+      })
+    })
+
+    it('does not compare paid recoveries across profiles', () => {
+      expect(saveRunSnapshot('profile-1', makeSnapshot({ paidContinueCount: 3 }))).toBe(true)
+      expect(saveRunSnapshot('profile-2', makeSnapshot({ profileId: 'profile-2' }))).toBe(true)
+      expect(loadSavedRunProfile('profile-1').runs.survival?.game.modeSpecific).toMatchObject({
+        paidContinueCount: 3,
+      })
+      expect(loadSavedRunProfile('profile-2').runs.survival?.game.runId).toBe('paid-run')
+    })
+
+    it('allows legitimate day changes within the same paid recovery generation', () => {
+      expect(saveRunSnapshot('profile-1', makeSnapshot({ paidContinueCount: 1 }))).toBe(true)
+      expect(saveRunSnapshot('profile-1', makeSnapshot({ paidContinueCount: 1, day: 3 }))).toBe(
+        true
+      )
+      expect(loadSavedRunProfile('profile-1').runs.survival?.game.week).toBe(3)
+    })
+
+    it('continues saving older runs without a paid recovery counter', () => {
+      expect(saveRunSnapshot('profile-1', makeSnapshot())).toBe(true)
+      expect(saveRunSnapshot('profile-1', makeSnapshot({ day: 5 }))).toBe(true)
+      expect(loadSavedRunProfile('profile-1').runs.survival?.game.week).toBe(5)
+    })
+  })
+
   it('prepares one complete campaign snapshot without independently persisted authoring data', () => {
     const snapshot = createSavedSeasonSnapshot(
       'profile-1',

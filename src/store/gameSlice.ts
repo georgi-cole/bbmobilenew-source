@@ -13,6 +13,11 @@ import {
 } from '../bb/missionPowers'
 import { createSlice, createSelector, type PayloadAction } from '@reduxjs/toolkit'
 import {
+  applySurvivalRecovery,
+  getSurvivalAdRecoveriesRemaining,
+  getSurvivalRecoveryKey,
+} from '../modes/survivalRecovery'
+import {
   contestantFromPlayer,
   contestantFromProfile,
   getLaunchContestant,
@@ -7690,23 +7695,17 @@ const gameSlice = createSlice({
       state.evictionSplashId = null
     },
 
-    continueSurvivorAfterAd(state) {
-      if (state.mode !== 'survival' || state.status !== 'failed') return
-      const modeSpecific = state.modeSpecific?.kind === 'survival' ? state.modeSpecific : null
-      if (!modeSpecific || (modeSpecific.adContinueCount ?? 0) >= 3) return
-      const human = state.players.find((player) => player.isUser)
-      if (!human) return
-      human.status = 'active'
-      state.status = 'active'
-      state.phase = 'week_start'
-      state.pendingEviction = null
-      state.voteResults = null
-      state.nomineeIds = []
-      state.awaitingHumanVote = false
-      state.modeSpecific = {
-        ...modeSpecific,
-        adContinueCount: (modeSpecific.adContinueCount ?? 0) + 1,
-      }
+    continueSurvivorAfterAd(state, action: PayloadAction<{ recoveryKey: string } | undefined>) {
+      const recoveryKey = getSurvivalRecoveryKey(state)
+      if (!recoveryKey || getSurvivalAdRecoveriesRemaining(state) === 0) return
+      if (action.payload && action.payload.recoveryKey !== recoveryKey) return
+      applySurvivalRecovery(state, 'ad')
+    },
+
+    /** Only dispatch after the paid recovery service has reserved a durable credit. */
+    continueSurvivorAfterPaidRecovery(state, action: PayloadAction<{ recoveryKey: string }>) {
+      if (getSurvivalRecoveryKey(state) !== action.payload.recoveryKey) return
+      applySurvivalRecovery(state, 'paid')
     },
 
     /**
@@ -13851,6 +13850,7 @@ export const {
   dismissVoteResults,
   dismissEvictionSplash,
   continueSurvivorAfterAd,
+  continueSurvivorAfterPaidRecovery,
   revealSurvivorReplacement,
   setEvictionOverlay,
   clearEvictionOverlay,

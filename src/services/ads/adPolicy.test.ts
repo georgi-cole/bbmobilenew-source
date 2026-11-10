@@ -24,6 +24,37 @@ describe('Advertising V2 automatic cadence', () => {
     expect(getAutomaticAdBreak(context({ mode: 'survival' }))).toBeNull()
   })
 
+  it('places a Survival break after elimination on every completed in-game day', () => {
+    const keys = new Set<string>()
+    for (const week of [1, 2, 3, 4, 7, 18]) {
+      const decision = getAutomaticAdBreak(
+        context({
+          mode: 'survival',
+          survivalRunActive: true,
+          previousPhase: 'eviction_results',
+          currentPhase: 'week_end',
+          week,
+        })
+      )
+      expect(decision?.placement).toBe('survival_elimination_auto')
+      keys.add(decision!.breakKey)
+    }
+    expect(keys.size).toBe(6)
+  })
+
+  it('never places a Survival interstitial over elimination or immediately after a recovery', () => {
+    for (const currentPhase of ['eviction_results', 'week_start', 'live_vote', 'final3_decision']) {
+      expect(
+        getAutomaticAdBreak(context({ mode: 'survival', survivalRunActive: true, currentPhase }))
+      ).toBeNull()
+    }
+    expect(
+      getAutomaticAdBreak(
+        context({ mode: 'survival', currentPhase: 'week_end', survivalRunActive: false })
+      )
+    ).toBeNull()
+  })
+
   it('places the Safety break only on every second applicable day', () => {
     expect(
       getAutomaticAdBreak(
