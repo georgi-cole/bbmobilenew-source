@@ -596,6 +596,7 @@ function AvatarTileView({
             depressionActive ? styles.depressionAvatarWrap : '',
             depressionRecovery ? styles.depressionRecoveryWrap : '',
             liveEvictionNominee ? styles.liveEvictionNominee : '',
+            isSurveyevalEvicting ? styles.surveyevalEvicting : '',
             nominationCeremonyState ? styles[`nomination_${nominationCeremonyState}`] : '',
           ]
             .filter(Boolean)

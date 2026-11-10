@@ -379,3 +379,10 @@ store listings or change configured prices.
   winner handoff. The same relationship, twin, Bella, jury, and winner rules apply.
   This changes no VIP or Premium Challenges entitlement, product, price, reward,
   availability, or Store copy.
+
+- 2026-11-10: Reviewed the Survival run Store layout and age guidance, plus the
+  full-screen minigame host. Survival runs remain the same consumable recovery
+  credit at the same price and purchase gate; the Store presents them only under
+  Extras and uses the compact power-button style. The minigame change covers the
+  phone status area during play. No product, entitlement, reward, or premium
+  minigame access changes.

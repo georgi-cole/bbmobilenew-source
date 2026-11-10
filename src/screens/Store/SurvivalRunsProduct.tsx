@@ -1,10 +1,13 @@
 import { useId, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 import StoreProductIcon from '../../components/StoreProductModal/StoreProductIcon'
 import { SURVIVAL_RUN_PRODUCT } from '../../vip/vipConfig'
 import { useSurvivalRuns } from '../../vip/useSurvivalRuns'
+import { ADULT_STORE_PURCHASE_REQUIRED_MESSAGE } from '../../safety/playerSafety'
 
 /** Consumable credits stay separate from permanent and VIP ownership. */
 export default function SurvivalRunsProduct() {
+  const navigate = useNavigate()
   const id = useId()
   const survivalRuns = useSurvivalRuns()
   const purchaseLockRef = useRef(false)
@@ -55,34 +58,44 @@ export default function SurvivalRunsProduct() {
           <strong>{survivalRuns.product?.price || 'Price unavailable'}</strong>
           <small>1 recovery · buy as often as you like</small>
         </span>
-        <button
-          type="button"
-          className="vip-store__primary"
-          disabled={!canBuy}
-          onClick={() => void buyCredit()}
-          aria-label={
-            survivalRuns.purchasing ? 'Confirming Survival run purchase' : 'Buy 1 Survival run'
-          }
-        >
-          {survivalRuns.purchasing
-            ? 'Confirming…'
-            : survivalRuns.loading
-              ? 'Loading…'
-              : canBuy
-                ? 'Buy 1'
-                : 'Unavailable'}
-        </button>
+        <span className="vip-store__power-action">
+          <button
+            type="button"
+            disabled={!canBuy}
+            onClick={() => void buyCredit()}
+            aria-label={
+              survivalRuns.purchasing ? 'Confirming Survival run purchase' : 'Buy 1 Survival run'
+            }
+          >
+            {survivalRuns.purchasing
+              ? 'Confirming…'
+              : survivalRuns.loading
+                ? 'Loading…'
+                : canBuy
+                  ? 'Buy'
+                  : 'Unavailable'}
+          </button>
+        </span>
       </div>
       <p className="vip-store__survival-runs-note">{SURVIVAL_RUN_PRODUCT.legalNote}</p>
       {(notice || survivalRuns.error) && (
-        <p
+        <div
           className={
             survivalRuns.error ? 'vip-store__notice vip-store__notice--error' : 'vip-store__notice'
           }
           role={survivalRuns.error ? 'alert' : 'status'}
         >
-          {survivalRuns.error || notice}
-        </p>
+          <span>{survivalRuns.error || notice}</span>
+          {survivalRuns.error === ADULT_STORE_PURCHASE_REQUIRED_MESSAGE && (
+            <button
+              type="button"
+              className="vip-store__survival-runs-help"
+              onClick={() => navigate('/player-privacy', { state: { fromSettings: true } })}
+            >
+              Open age &amp; privacy settings
+            </button>
+          )}
+        </div>
       )}
     </section>
   )

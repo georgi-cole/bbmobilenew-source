@@ -32,6 +32,26 @@ async function attachSnapshot(page: Page, testInfo: TestInfo, name: string): Pro
 test.describe('Minigame Lab smoke @smoke @minigame', () => {
   test.describe.configure({ timeout: 90_000 })
 
+  test('host covers the handset status inset during a competition', async ({ page }) => {
+    const game = ACTIVE_GAMES.find((entry) => entry.key === 'chainOfGreed')
+    expect(game).toBeDefined()
+    await openLab(page, game!)
+
+    await page.evaluate(() => {
+      document.documentElement.style.setProperty('--app-safe-area-top-fallback', '72px')
+    })
+
+    const shell = await page.locator('.app-shell').boundingBox()
+    const host = await page.getByRole('dialog', { name: /Chain of Greed minigame/i }).boundingBox()
+    const contentInset = await page.locator('.app-shell__main').evaluate((element) => {
+      return Number.parseFloat(window.getComputedStyle(element).paddingTop)
+    })
+
+    expect(contentInset).toBeGreaterThan(0)
+    expect(host?.y).toBeCloseTo(shell?.y ?? 0, 0)
+    expect(host?.height).toBeCloseTo(shell?.height ?? 0, 0)
+  })
+
   for (const game of ACTIVE_GAMES) {
     test(`${minigameCertificationName(game)} mounts and exits through the host result contract`, async ({
       page,

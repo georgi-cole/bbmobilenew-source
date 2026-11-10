@@ -534,7 +534,6 @@ export default function Store() {
               )
             })}
           </div>
-          <SurvivalRunsProduct />
         </section>
       )}
 
@@ -595,7 +594,7 @@ export default function Store() {
           <div className="vip-store__section-heading">
             <p className="vip-store__eyebrow">Finish your setup</p>
             <h2 id="extras-title">Extras</h2>
-            <p>Premium challenges, fewer interruptions, and another chance to survive.</p>
+            <p>Premium challenges, fewer interruptions, and extra Survival recoveries.</p>
           </div>
 
           <div className="vip-store__product-grid">

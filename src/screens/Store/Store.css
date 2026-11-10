@@ -927,6 +927,10 @@
   color: #8ce5c2;
 }
 
+.vip-store__notice.vip-store__notice--error {
+  color: #fda4af;
+}
+
 .vip-store__wallet {
   display: grid;
   justify-items: end;

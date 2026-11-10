@@ -93,7 +93,11 @@
     inset 0 0 0 2px rgba(223, 251, 255, 0.82),
     inset 0 0 24px rgba(39, 215, 223, 0.8);
   text-shadow: 0 0 12px #27d7df;
-  animation: surveyevalTileShock 1650ms steps(3, end) both;
+  animation: surveyevalTileShock 1800ms ease-out both;
+}
+:global(body.mode-surveyeval) .surveyevalEvicting .avatar,
+:global(body.mode-surveyeval) .surveyevalEvicting .avatarPlaceholder {
+  animation: surveyevalTileExit 1800ms cubic-bezier(0.22, 0.8, 0.28, 1) both;
 }
 :global(body.mode-surveyeval) .surveyevalShock i {
   position: absolute;
@@ -135,20 +139,46 @@
   animation-delay: 140ms;
 }
 @keyframes surveyevalTileShock {
-  0%,
+  0% {
+    opacity: 0;
+  }
+  13%,
+  34%,
+  55% {
+    opacity: 1;
+  }
+  22%,
+  45% {
+    opacity: 0.55;
+  }
+  72% {
+    opacity: 0.8;
+  }
   100% {
     opacity: 0;
   }
-  10%,
-  28%,
-  44%,
-  78% {
+}
+@keyframes surveyevalTileExit {
+  0%,
+  13% {
     opacity: 1;
+    transform: scale(1);
+    filter: none;
   }
-  20%,
-  36%,
-  58% {
-    opacity: 0.32;
+  34% {
+    opacity: 1;
+    transform: scale(1.04);
+    filter: brightness(1.55) saturate(0.3);
+  }
+  72% {
+    opacity: 0.75;
+    transform: scale(0.96);
+    filter: brightness(1.8) saturate(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+    filter: brightness(2.2) saturate(0);
   }
 }
 @keyframes surveyevalSpark {
@@ -197,18 +227,18 @@
 }
 
 :global(body.mode-surveyeval) [data-replacement-target='true'] .avatarWrap {
-  animation: surveyevalAssembly 1050ms steps(4, end) both;
+  animation: surveyevalAssembly 950ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @keyframes surveyevalAssembly {
   0% {
     opacity: 0;
-    transform: scale(0.75) rotate(-4deg);
-    filter: grayscale(1) brightness(1.8);
+    transform: scale(0.82);
+    filter: brightness(1.7);
   }
-  55% {
-    opacity: 0.8;
-    transform: scale(1.04) rotate(2deg);
-    filter: grayscale(0.4) brightness(1.4);
+  65% {
+    opacity: 1;
+    transform: scale(1.025);
+    filter: brightness(1.12);
   }
   100% {
     opacity: 1;
