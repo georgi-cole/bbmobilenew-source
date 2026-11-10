@@ -185,37 +185,58 @@ describe('double-elimination social planning', () => {
     )
   })
 
-  it('states both planned exits and the preferred survivor in a truthful locked-block read', () => {
-    const game = {
-      week: 4,
-      phase: 'social_2',
-      lohId: 'loh',
-      players: cast,
+  it.each([
+    {
+      slate: 'the opening block',
       nomineeIds: ['nominee-a', 'nominee-b', 'nominee-c'],
-      doubleEviction: { weekActive: true },
-      lohNominationPlan: doublePlan,
-      lohSocialPlan: {
+      eliminationPriorityIds: doublePlan.eliminationPriorityIds,
+      intendedExits: 'Vee and Echo',
+    },
+    {
+      slate: 'the replacement block',
+      nomineeIds: ['nominee-b', 'nominee-c', 'ally'],
+      eliminationPriorityIds: doublePlan.eliminationPriorityIds,
+      intendedExits: 'Echo and Ally',
+    },
+    {
+      slate: 'an older plan without stored priorities',
+      nomineeIds: ['nominee-a', 'nominee-b', 'nominee-c'],
+      eliminationPriorityIds: undefined,
+      intendedExits: 'Vee and Echo',
+    },
+  ])(
+    'gives a truthful double-elimination read for $slate',
+    ({ nomineeIds, eliminationPriorityIds, intendedExits }) => {
+      const game = {
         week: 4,
+        phase: 'social_2',
         lohId: 'loh',
-        currentTargetId: 'nominee-a',
-        backupTargetId: 'nominee-b',
-        askCountsByPlayerId: { human: 1 },
-        disclosedTargetByPlayerId: { human: 'nominee-a' },
-        disclosureOutcomeByPlayerId: { human: 'truthful' as const },
-      },
+        players: cast,
+        nomineeIds,
+        doubleEviction: { weekActive: true },
+        lohNominationPlan: { ...doublePlan, eliminationPriorityIds },
+        lohSocialPlan: {
+          week: 4,
+          lohId: 'loh',
+          currentTargetId: 'nominee-a',
+          backupTargetId: 'nominee-b',
+          askCountsByPlayerId: { human: 1 },
+          disclosedTargetByPlayerId: { human: 'nominee-a' },
+          disclosureOutcomeByPlayerId: { human: 'truthful' as const },
+        },
+      }
+
+      const summary = buildLohConsultationSummary(
+        { game } as unknown as RootState,
+        { actorId: 'human', targetId: 'loh', actionId: 'ask_loh_target' },
+        'Vee is my current target.'
+      )
+
+      expect(summary).toContain(`two elimination priorities are ${intendedExits}.`)
+      expect(summary).toContain('Ash to stay')
+      expect(summary).toContain('which two nominees leave')
     }
-
-    const summary = buildLohConsultationSummary(
-      { game } as unknown as RootState,
-      { actorId: 'human', targetId: 'loh', actionId: 'ask_loh_target' },
-      'Vee is my current target.'
-    )
-
-    expect(summary).toContain('Vee and Echo')
-    expect(summary).toContain('two elimination priorities')
-    expect(summary).toContain('Ash to stay')
-    expect(summary).toContain('which two nominees leave')
-  })
+  )
 
   it('includes both intended exits when the Safety holder asks the LOH for advice', () => {
     const summary = formatLohSafetyConsultation(

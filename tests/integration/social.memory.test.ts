@@ -665,7 +665,9 @@ describe('social memory integration for incoming interactions', () => {
       .getState()
       .social.incomingInteractions.find((entry) => entry.id === 'alliance-huddle-human-dissent')
     expect(resolved.currentTargetIds).toEqual([target.id])
-    expect(resolvedInteraction?.outcomeText).toMatch(/majority-backed plan/i)
+    expect(resolvedInteraction?.outcomeText).toContain(
+      `majority recommendation to target ${target.name}`
+    )
     expect(resolved.memberPlanBeliefs[human.id]).toEqual([`dissent:${target.id}`])
     expect(resolved.memberPlanBeliefs[caller.id]).toEqual([`target:${target.id}`])
   })
@@ -738,7 +740,7 @@ describe('social memory integration for incoming interactions', () => {
       .getState()
       .social.incomingInteractions.find((entry) => entry.id === 'alliance-huddle-split')
     expect(resolved.currentTargetIds).toEqual([])
-    expect(resolvedInteraction?.outcomeText).toMatch(/majority-backed plan/i)
+    expect(resolvedInteraction?.outcomeText).toContain('No target reached a member majority.')
     expect(resolved.memberPlanBeliefs[caller.id]).toEqual([`preference:${target.id}`])
     expect(resolved.memberPlanBeliefs[human.id]).toEqual([`target:${target.id}`])
     expect(resolved.memberPlanBeliefs[allyA.id]).toEqual([`preference:${alternative.id}`])

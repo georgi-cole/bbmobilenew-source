@@ -44,7 +44,7 @@ import {
 import { appendRealityEvent } from './events'
 import { askRevealedNemesisWhy, getNemesisReasonAvailability } from './nemesisInquiry'
 import { buildPreNominationLohRead } from './allianceConsultationIntel'
-import { formatLohNominationPlanCopy } from '../lohNominationPlanCopy'
+import { formatLohNominationPlanCopy, getLohEliminationPriorityIds } from '../lohNominationPlanCopy'
 import { formatVagueLohPlan, isBeforeInitialNominations } from '../lohConsultationCopy'
 import { formatLohSafetyConsultation } from '../lohSafetyConsultation'
 import type { RealityAlliance } from './types'
@@ -1688,6 +1688,21 @@ export function buildLohConsultationSummary(
     disclosureOutcome !== 'vague'
   ) {
     if (
+      disclosureOutcome === 'truthful' &&
+      nominationPlanMatchesRules &&
+      nominationPlan?.isDoubleElimination
+    ) {
+      const priorities = getLohEliminationPriorityIds(nominationPlan, nominees)
+      if (priorities.length === 2) {
+        const survivor = nominationPlan.preferredSurvivorId
+        const survivorCopy =
+          survivor && nominees.includes(survivor)
+            ? ` I would prefer ${facingName(survivor)} to stay.`
+            : ''
+        return `The block is locked. My two elimination priorities are ${formatPlayerNames(priorities.map(facingName))}.${survivorCopy} The vote decides which two nominees leave.`
+      }
+    }
+    if (
       nominationPlanMatchesRules &&
       nominationPlan?.strategy === 'backdoor' &&
       nominationPlan.status === 'initial_block_set' &&
@@ -1999,7 +2014,9 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
         return result(
           false,
           'Choose one partner for a personal pact, or use Your Alliances to agree a group roster.',
-          energy
+          energy,
+          0,
+          'Invalid selection'
         )
       return executeAction(input.actorId, input.targetId, input.actionId, { source: 'manual' })
     }

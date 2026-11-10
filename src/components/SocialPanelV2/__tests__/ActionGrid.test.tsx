@@ -1,9 +1,34 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { configureStore } from '@reduxjs/toolkit'
+import { act, fireEvent, render as renderComponent, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { Provider } from 'react-redux'
 import { describe, expect, it, vi } from 'vitest'
+import { createInitialRealityDomainState, createRealityAlliance } from '../../../social/reality'
 import { isHumanSocialActionVisible } from '../../../social/socialActionCatalog'
 import { evaluateSocialActionEligibility } from '../../../social/socialActionEligibility'
 import { isRealityExclusiveAction, SOCIAL_ACTIONS } from '../../../social/socialActions'
+import socialReducer, { replaceRealityDomain } from '../../../social/socialSlice'
+import gameReducer from '../../../store/gameSlice'
+import profilesReducer from '../../../store/profilesSlice'
+import settingsReducer from '../../../store/settingsSlice'
 import ActionGrid from '../ActionGrid'
+
+function render(ui: ReactElement) {
+  const store = configureStore({
+    reducer: {
+      game: gameReducer,
+      profiles: profilesReducer,
+      settings: settingsReducer,
+      social: socialReducer,
+    },
+  })
+  return {
+    store,
+    ...renderComponent(ui, {
+      wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+    }),
+  }
+}
 
 const NORMAL_ACTIONS = SOCIAL_ACTIONS.filter((action) =>
   isHumanSocialActionVisible(action, 'normal')
@@ -79,9 +104,11 @@ describe('ActionGrid catalogue rendering', () => {
   })
 
   it('reveals the complete contextual catalogue in Drama Mode', () => {
+    const dramaNetwork = socialReducer(undefined, { type: '@@init' }).dramaNetwork
     render(
       <ActionGrid
         dramaMode
+        dramaNetwork={dramaNetwork}
         currentPhase="social_2"
         actorId="human"
         selectedTargetIds={new Set(['lia'])}
@@ -140,20 +167,19 @@ describe('ActionGrid catalogue rendering', () => {
       actorId: 'human',
       selectedTargetIds: new Set(['lia']),
     }
-    const { rerender } = render(
-      <ActionGrid {...props} relationships={{ human: { lia: { affinity: 40, tags: [] } } }} />
-    )
+    const relationships = { human: { lia: { affinity: 40, tags: [] } } }
+    const { store } = render(<ActionGrid {...props} relationships={relationships} />)
     expect(screen.queryByText('Betray Ally')).not.toBeInTheDocument()
 
-    rerender(
-      <ActionGrid
-        {...props}
-        relationships={{
-          human: { lia: { affinity: 40, tags: ['alliance'] } },
-          lia: { human: { affinity: 40, tags: ['alliance'] } },
-        }}
-      />
-    )
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'human-lia-pact',
+      founderIds: ['human', 'lia'],
+      memberIds: ['human', 'lia'],
+      purpose: 'Mutual protection',
+      at: { day: 1, phase: 'social_1' },
+    })
+    act(() => store.dispatch(replaceRealityDomain(reality)))
     expect(screen.getByText('Betray Ally')).toBeInTheDocument()
   })
 })

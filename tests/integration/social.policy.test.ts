@@ -132,7 +132,7 @@ describe('SocialPolicy – chooseTargetsFor', () => {
     expect(chooseTargetsFor('p1', 'ask_use_safety', ctx)).toEqual(['p2', 'p1']);
   });
 
-  it('targets the POS holder themself when they are also nominated', () => {
+  it('asks a nominated POS holder to save another eligible nominee', () => {
     const ctx: PolicyContext = {
       ...BASE_CONTEXT,
       players: [
@@ -141,7 +141,7 @@ describe('SocialPolicy – chooseTargetsFor', () => {
         { id: 'p3', status: 'nominated' },
       ],
     };
-    expect(chooseTargetsFor('p1', 'ask_use_safety', ctx)).toEqual(['p2', 'p2']);
+    expect(chooseTargetsFor('p1', 'ask_use_safety', ctx)).toEqual(['p2', 'p3']);
   });
 
   it('returns no targets for ask_use_safety when there is no nominee subject to save', () => {
@@ -164,10 +164,8 @@ describe('SocialPolicy – computeOutcomeDelta', () => {
     );
   });
 
-  it('returns friendlyFailure delta for protect + failure', () => {
-    expect(computeOutcomeDelta('protect', 'p1', 'p2', 'failure')).toBe(
-      socialConfig.affinityDeltas.friendlyFailure,
-    );
+  it('leaves affinity unchanged when an offer of protection fails', () => {
+    expect(computeOutcomeDelta('protect', 'p1', 'p2', 'failure')).toBe(0);
   });
 
   it('returns aggressiveSuccess delta for nominate + success', () => {
