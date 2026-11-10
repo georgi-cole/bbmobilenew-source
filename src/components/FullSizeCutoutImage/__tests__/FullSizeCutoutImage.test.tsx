@@ -27,13 +27,13 @@ describe('FullSizeCutoutImage', () => {
     render(<FullSizeCutoutImage player={{ id: 'mimi', name: 'Mimi', avatar: '👩' }} alt="Mimi" />)
 
     const image = screen.getByAltText('Mimi')
-    expect(image.getAttribute('src')).toContain('Mimi_informal.png')
+    expect(image.getAttribute('src')).toContain('Mimi_informal.webp')
     expect(image.style.opacity).toBe('1')
 
     fireEvent.error(image)
 
     await waitFor(() => {
-      expect(image.getAttribute('src')).toContain('Mimi_formal.png')
+      expect(image.getAttribute('src')).toContain('Mimi_formal.webp')
     })
 
     fireEvent.error(image)
@@ -57,7 +57,7 @@ describe('FullSizeCutoutImage', () => {
     fireEvent.error(image)
 
     await waitFor(() => {
-      expect(image.getAttribute('src')).toContain('Dex_formal.png')
+      expect(image.getAttribute('src')).toContain('Dex_formal.webp')
     })
   })
 
@@ -68,7 +68,7 @@ describe('FullSizeCutoutImage', () => {
     expect(originalPlacement).toContain('translate')
     fireEvent.error(image)
     await waitFor(() => {
-      expect(image.getAttribute('src')).toContain('Dex_formal.png')
+      expect(image.getAttribute('src')).toContain('Dex_formal.webp')
       expect(image.style.transform).not.toBe(originalPlacement)
     })
   })
@@ -83,7 +83,7 @@ describe('FullSizeCutoutImage', () => {
     )
 
     expect(screen.getByAltText('Lia at the Tribunal').getAttribute('src')).toContain(
-      'Lia_formal.png'
+      'Lia_formal.webp'
     )
   })
 
@@ -97,7 +97,7 @@ describe('FullSizeCutoutImage', () => {
     )
 
     expect(screen.getByAltText('Blue at the ceremony').getAttribute('src')).toContain(
-      'Blue_formal.png'
+      'Blue_formal.webp'
     )
   })
 

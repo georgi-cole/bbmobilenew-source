@@ -1,5 +1,10 @@
 import { BUNDLED_AFTER_THE_EYE_CONFIG } from './afterTheEyeOutcomeConfig'
-import { resolveRecapTabloidSources } from '../../components/SeasonRecapCinematic/seasonRecapData'
+import {
+  listTabloidPhotoEntries,
+  resolveRecapTabloidSources,
+  type TabloidPhotoEntry,
+} from '../../components/SeasonRecapCinematic/seasonRecapData'
+import { TABLOID_PHOTO_FILES } from '../../data/tabloidPhotoManifest'
 import { appearanceFromAssetUrl, getAppearanceAsset } from '../../appearance/catalog'
 import { joinPublicAssetPath } from '../../utils/avatar'
 import type { PublicOpinionState } from '../../publicOpinion/types'
@@ -111,13 +116,6 @@ export interface AftermathBuildOptions {
   history?: GameHistoryEvent[]
 }
 
-interface TabloidPhotoEntry {
-  id: string
-  matchToken: string
-  extension: string
-  source: string
-}
-
 interface AftermathPlayerContext {
   player: Player
   firstName: string
@@ -160,14 +158,6 @@ const SUPPORTED_PLACEHOLDERS = new Set([
 ])
 const TONES: AftermathTone[] = ['excellent', 'good', 'neutral', 'bad', 'tragic']
 const RELATIONS: AftermathRelationKind[] = ['ally', 'rival', 'romantic', 'betrayal']
-const TABLOID_PHOTO_MODULES = import.meta.glob(
-  '../../../public/assets/tabloid_photos/*.{png,jpg,jpeg,jxl,webp,avif}',
-  { eager: true, import: 'default' }
-) as Record<string, string>
-const AFTERMATH_ASSET_BASE = import.meta.env.BASE_URL.endsWith('/')
-  ? import.meta.env.BASE_URL
-  : `${import.meta.env.BASE_URL}/`
-
 let configPromise: Promise<AfterTheEyeConfig> | null = null
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -543,47 +533,6 @@ function normalizeToken(value: string): string {
 
 function firstName(player: Player | undefined): string {
   return player?.name.split(' ')[0] ?? 'Hubmate'
-}
-
-function extensionPriority(extension: string): number {
-  switch (extension.toLowerCase()) {
-    case 'webp':
-      return 0
-    case 'jxl':
-      return 1
-    case 'png':
-      return 2
-    case 'jpg':
-    case 'jpeg':
-      return 3
-    case 'avif':
-      return 4
-    default:
-      return 5
-  }
-}
-
-function listTabloidPhotos(): TabloidPhotoEntry[] {
-  return Object.keys(TABLOID_PHOTO_MODULES)
-    .map((path) => {
-      const filename = path.split('/').pop() ?? path
-      const extension = filename.split('.').pop() ?? ''
-      const basename = filename.replace(/\.[^.]+$/, '')
-      const matchBase = basename.replace(/_tabloid\d*$/i, '')
-      return {
-        id: basename,
-        matchToken: normalizeToken(matchBase),
-        extension,
-        source: `${AFTERMATH_ASSET_BASE}assets/tabloid_photos/${encodeURIComponent(filename)}`,
-      }
-    })
-    .sort((left, right) => {
-      if (left.matchToken !== right.matchToken)
-        return left.matchToken.localeCompare(right.matchToken)
-      const extensionDifference =
-        extensionPriority(left.extension) - extensionPriority(right.extension)
-      return extensionDifference !== 0 ? extensionDifference : left.id.localeCompare(right.id)
-    })
 }
 
 function uniqueSources(sources: Array<string | null | undefined>): string[] {
@@ -1208,7 +1157,7 @@ export function buildAftermathIssue(
   const winnerName =
     contexts.find((context) => context.placement === 1)?.player.name ?? 'the winner'
   const seedBase = `${options.gameId ?? `season-${season}`}:${season}:config-${config.version}`
-  const tabloidPhotos = listTabloidPhotos()
+  const tabloidPhotos = listTabloidPhotoEntries()
   const usedPhotoIds = new Set<string>()
   const linkedStories = buildLinkedStories(
     contexts,
@@ -1318,6 +1267,16 @@ function isStoredStory(value: unknown): value is AftermathStory {
   )
 }
 
+function restoreTabloidPhotoSource(source: string): string {
+  const legacy = /^(?:\.\/|\/(?!\/)[^?#]*)?assets\/tabloid_photos\/([\w-]+)\.png([?#].*)?$/.exec(
+    source
+  )
+  if (!legacy) return source
+  const filename = `${legacy[1]}.webp`
+  if (!TABLOID_PHOTO_FILES.some((file) => file === filename)) return source
+  return joinPublicAssetPath(`assets/tabloid_photos/${filename}${legacy[2] ?? ''}`)
+}
+
 export function readPersistedAftermathIssue(storageKey: string): AftermathIssue | null {
   const storage = getStorage()
   if (!storage) return null
@@ -1325,7 +1284,14 @@ export function readPersistedAftermathIssue(storageKey: string): AftermathIssue 
     const value: unknown = JSON.parse(storage.getItem(storageKey) ?? 'null')
     if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.stories)) return null
     if (!value.stories.every(isStoredStory) || !isRecord(value.editorial)) return null
-    return value as unknown as AftermathIssue
+    const issue = value as unknown as AftermathIssue
+    return {
+      ...issue,
+      stories: issue.stories.map((story) => ({
+        ...story,
+        imageSources: story.imageSources.map(restoreTabloidPhotoSource),
+      })),
+    }
   } catch {
     return null
   }

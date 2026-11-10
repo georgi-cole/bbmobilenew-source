@@ -13,7 +13,7 @@
   },
   "assets": {
     "credits-background": {
-      "revision": "credits-background-v1",
+      "revision": "credits-background-v2",
       "filePath": "public/assets/credits/big-eye-cinematic-background.mp4",
       "sourceFile": "src/cinematic/components/CinematicComposition.tsx",
       "runtimePath": "assets/credits/big-eye-cinematic-background.mp4",
@@ -25,7 +25,7 @@
       "height": 1280,
       "durationSeconds": 54,
       "frameRate": 30,
-      "encodedBytes": 12486581,
+      "encodedBytes": 8245895,
       "codec": "avc1",
       "audioTrackCount": 0,
       "fastStart": true,
@@ -34,7 +34,7 @@
       "audioPolicy": "no-video-audio-track-separate-soundtrack",
       "encoding": {
         "profile": "high",
-        "crf": 22,
+        "crf": 25,
         "maximumBitrateKbps": 2400,
         "keyframeIntervalFrames": 60,
         "pixelFormat": "yuv420p",

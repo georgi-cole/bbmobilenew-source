@@ -20,175 +20,175 @@
     "label": "Rain"
   },
   "weather:snow:sunrise": {
-    "canonicalFile": "themes/weather-snow-sunrise.jpg",
+    "canonicalFile": "themes/weather-snow-sunrise.webp",
     "label": "Snow — sunrise"
   },
   "weather:snow:day": {
-    "canonicalFile": "themes/weather-snow-day.jpg",
+    "canonicalFile": "themes/weather-snow-day.webp",
     "label": "Snow — day"
   },
   "weather:snow:sunset": {
-    "canonicalFile": "themes/weather-snow-sunset.jpg",
+    "canonicalFile": "themes/weather-snow-sunset.webp",
     "label": "Snow — sunset"
   },
   "weather:snow:night": {
-    "canonicalFile": "themes/weather-snow-night.jpg",
+    "canonicalFile": "themes/weather-snow-night.webp",
     "label": "Snow — night"
   },
   "weather:rain:sunrise": {
-    "canonicalFile": "themes/weather-rain-sunrise.jpg",
+    "canonicalFile": "themes/weather-rain-sunrise.webp",
     "label": "Rain — sunrise"
   },
   "weather:rain:day": {
-    "canonicalFile": "themes/weather-rain-day.jpg",
+    "canonicalFile": "themes/weather-rain-day.webp",
     "label": "Rain — day"
   },
   "weather:rain:sunset": {
-    "canonicalFile": "themes/weather-rain-sunset.jpg",
+    "canonicalFile": "themes/weather-rain-sunset.webp",
     "label": "Rain — sunset"
   },
   "weather:rain:night": {
-    "canonicalFile": "themes/weather-rain-night.jpg",
+    "canonicalFile": "themes/weather-rain-night.webp",
     "label": "Rain — night"
   },
   "weather:drizzle:sunrise": {
-    "canonicalFile": "themes/weather-drizzle-sunrise.jpg",
+    "canonicalFile": "themes/weather-drizzle-sunrise.webp",
     "label": "Drizzle — sunrise"
   },
   "weather:drizzle:day": {
-    "canonicalFile": "themes/weather-drizzle-day.jpg",
+    "canonicalFile": "themes/weather-drizzle-day.webp",
     "label": "Drizzle — day"
   },
   "weather:drizzle:sunset": {
-    "canonicalFile": "themes/weather-drizzle-sunset.jpg",
+    "canonicalFile": "themes/weather-drizzle-sunset.webp",
     "label": "Drizzle — sunset"
   },
   "weather:drizzle:night": {
-    "canonicalFile": "themes/weather-drizzle-night.jpg",
+    "canonicalFile": "themes/weather-drizzle-night.webp",
     "label": "Drizzle — night"
   },
   "weather:wind:sunrise": {
-    "canonicalFile": "themes/weather-wind-sunrise.jpg",
+    "canonicalFile": "themes/weather-wind-sunrise.webp",
     "label": "Wind — sunrise"
   },
   "weather:wind:day": {
-    "canonicalFile": "themes/weather-wind-day.jpg",
+    "canonicalFile": "themes/weather-wind-day.webp",
     "label": "Wind — day"
   },
   "weather:wind:sunset": {
-    "canonicalFile": "themes/weather-wind-sunset.jpg",
+    "canonicalFile": "themes/weather-wind-sunset.webp",
     "label": "Wind — sunset"
   },
   "weather:wind:night": {
-    "canonicalFile": "themes/weather-wind-night.jpg",
+    "canonicalFile": "themes/weather-wind-night.webp",
     "label": "Wind — night"
   },
   "weather:fog:sunrise": {
-    "canonicalFile": "themes/weather-fog-sunrise.jpg",
+    "canonicalFile": "themes/weather-fog-sunrise.webp",
     "label": "Fog — sunrise"
   },
   "weather:fog:day": {
-    "canonicalFile": "themes/weather-fog-day.jpg",
+    "canonicalFile": "themes/weather-fog-day.webp",
     "label": "Fog — day"
   },
   "weather:fog:sunset": {
-    "canonicalFile": "themes/weather-fog-sunset.jpg",
+    "canonicalFile": "themes/weather-fog-sunset.webp",
     "label": "Fog — sunset"
   },
   "weather:fog:night": {
-    "canonicalFile": "themes/weather-fog-night.jpg",
+    "canonicalFile": "themes/weather-fog-night.webp",
     "label": "Fog — night"
   },
   "weather:storm:sunrise": {
-    "canonicalFile": "themes/weather-storm-sunrise.jpg",
+    "canonicalFile": "themes/weather-storm-sunrise.webp",
     "label": "Storm — sunrise"
   },
   "weather:storm:day": {
-    "canonicalFile": "themes/weather-storm-day.jpg",
+    "canonicalFile": "themes/weather-storm-day.webp",
     "label": "Storm — day"
   },
   "weather:storm:sunset": {
-    "canonicalFile": "themes/weather-storm-sunset.jpg",
+    "canonicalFile": "themes/weather-storm-sunset.webp",
     "label": "Storm — sunset"
   },
   "weather:storm:night": {
-    "canonicalFile": "themes/weather-storm-night.jpg",
+    "canonicalFile": "themes/weather-storm-night.webp",
     "label": "Storm — night"
   },
   "weather:rainbow:sunrise": {
-    "canonicalFile": "themes/weather-rainbow-sunrise.jpg",
+    "canonicalFile": "themes/weather-rainbow-sunrise.webp",
     "label": "Rainbow — sunrise"
   },
   "weather:rainbow:day": {
-    "canonicalFile": "themes/weather-rainbow-day.jpg",
+    "canonicalFile": "themes/weather-rainbow-day.webp",
     "label": "Rainbow — day"
   },
   "weather:rainbow:sunset": {
-    "canonicalFile": "themes/weather-rainbow-sunset.jpg",
+    "canonicalFile": "themes/weather-rainbow-sunset.webp",
     "label": "Rainbow — sunset"
   },
   "holiday:halloween:sunrise": {
-    "canonicalFile": "themes/holiday-halloween-sunrise.jpg",
+    "canonicalFile": "themes/holiday-halloween-sunrise.webp",
     "label": "Halloween — sunrise"
   },
   "holiday:halloween:day": {
-    "canonicalFile": "themes/holiday-halloween-day.jpg",
+    "canonicalFile": "themes/holiday-halloween-day.webp",
     "label": "Halloween — day"
   },
   "holiday:halloween:sunset": {
-    "canonicalFile": "themes/holiday-halloween-sunset.jpg",
+    "canonicalFile": "themes/holiday-halloween-sunset.webp",
     "label": "Halloween — sunset"
   },
   "holiday:halloween:night": {
-    "canonicalFile": "themes/holiday-halloween-night.jpg",
+    "canonicalFile": "themes/holiday-halloween-night.webp",
     "label": "Halloween — night"
   },
   "holiday:christmas:sunrise": {
-    "canonicalFile": "themes/holiday-christmas-sunrise.jpg",
+    "canonicalFile": "themes/holiday-christmas-sunrise.webp",
     "label": "Christmas — sunrise"
   },
   "holiday:christmas:day": {
-    "canonicalFile": "themes/holiday-christmas-day.jpg",
+    "canonicalFile": "themes/holiday-christmas-day.webp",
     "label": "Christmas — day"
   },
   "holiday:christmas:sunset": {
-    "canonicalFile": "themes/holiday-christmas-sunset.jpg",
+    "canonicalFile": "themes/holiday-christmas-sunset.webp",
     "label": "Christmas — sunset"
   },
   "holiday:christmas:night": {
-    "canonicalFile": "themes/holiday-christmas-night.jpg",
+    "canonicalFile": "themes/holiday-christmas-night.webp",
     "label": "Christmas — night"
   },
   "holiday:newYear:sunrise": {
-    "canonicalFile": "themes/holiday-new-year-sunrise.jpg",
+    "canonicalFile": "themes/holiday-new-year-sunrise.webp",
     "label": "New Year — sunrise"
   },
   "holiday:newYear:day": {
-    "canonicalFile": "themes/holiday-new-year-day.jpg",
+    "canonicalFile": "themes/holiday-new-year-day.webp",
     "label": "New Year — day"
   },
   "holiday:newYear:sunset": {
-    "canonicalFile": "themes/holiday-new-year-sunset.jpg",
+    "canonicalFile": "themes/holiday-new-year-sunset.webp",
     "label": "New Year — sunset"
   },
   "holiday:newYear:night": {
-    "canonicalFile": "themes/holiday-new-year-night.jpg",
+    "canonicalFile": "themes/holiday-new-year-night.webp",
     "label": "New Year — night"
   },
   "holiday:easter:sunrise": {
-    "canonicalFile": "themes/holiday-easter-sunrise.jpg",
+    "canonicalFile": "themes/holiday-easter-sunrise.webp",
     "label": "Easter — sunrise"
   },
   "holiday:easter:day": {
-    "canonicalFile": "themes/holiday-easter-day.jpg",
+    "canonicalFile": "themes/holiday-easter-day.webp",
     "label": "Easter — day"
   },
   "holiday:easter:sunset": {
-    "canonicalFile": "themes/holiday-easter-sunset.jpg",
+    "canonicalFile": "themes/holiday-easter-sunset.webp",
     "label": "Easter — sunset"
   },
   "holiday:easter:night": {
-    "canonicalFile": "themes/holiday-easter-night.jpg",
+    "canonicalFile": "themes/holiday-easter-night.webp",
     "label": "Easter — night"
   }
 }

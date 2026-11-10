@@ -129,7 +129,7 @@ export default function DepressionShockRosterCinematic({ kind, onImpact, onCompl
       {kind === 'thunder' ? (
         <img
           className="depression-cinematic__thunderbolt"
-          src="/bbmobilenew/assets/lightning-thunderbolt-light-illustration.png"
+          src={`${import.meta.env.BASE_URL}assets/lightning-thunderbolt-light-illustration.webp`}
           alt=""
           aria-hidden="true"
           style={

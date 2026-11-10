@@ -19,6 +19,7 @@ import {
   joinPublicAssetPath,
   resolveAvatarCandidates,
 } from '../../utils/avatar'
+import { greyLuxAvatarAssetPath } from '../../utils/presentationAvatar'
 import {
   buildHouseguestSpotlightItems,
   getActiveSpotlightPlayers,
@@ -143,8 +144,8 @@ function PlayerPortrait({
     if (!profile || player.isUser || getProfilePhotoAvatarId(player.avatar)) return standardSources
     const portraitName = profile.name
     const greySources = [
-      joinPublicAssetPath(`assets/skins/backup-grey-lux/${portraitName}_avatar.webp`),
-      joinPublicAssetPath(`assets/skins/backup-grey-lux/${portraitName.toLowerCase()}_avatar.webp`),
+      joinPublicAssetPath(greyLuxAvatarAssetPath(`${portraitName}_avatar.webp`)),
+      joinPublicAssetPath(greyLuxAvatarAssetPath(`${portraitName.toLowerCase()}_avatar.webp`)),
     ]
     return [...new Set([...greySources, ...standardSources])]
   }, [player, preferGreyAvatar])

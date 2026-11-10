@@ -16,6 +16,7 @@ import {
 import { getEffectivePublicApproval } from '../../publicOpinion/publicApproval'
 import type { Player } from '../../types'
 import { isEmoji, resolveAvatarCandidates } from '../../utils/avatar'
+import { greyLuxAvatarAssetPath } from '../../utils/presentationAvatar'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import ContextualGuidePrompt from '../../onboarding/ContextualGuidePrompt'
 import {
@@ -143,7 +144,7 @@ function getBackupGreyLuxAvatar(player: Player): string | null {
   const fileName = player.name === 'Mimi' ? 'mimi' : player.name
   if (!backupGreyLuxFiles.has(fileName)) return null
   const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '')
-  return `${base}/assets/skins/backup-grey-lux/${fileName}_avatar.webp`
+  return `${base}/${greyLuxAvatarAssetPath(`${fileName}_avatar.webp`)}`
 }
 
 function pickMomentVariant(seed: string, variants: string[]): string {

@@ -694,7 +694,7 @@ export function buildDepressionShockAvatarCandidates(
     ...catalogSad,
     ...stems.flatMap((stem) => [
       `${prefix}assets/skins/${stem}_sad_avatar.webp`,
-      `${prefix}assets/skins/${stem}_sad_avatar.png`,
+      ...(stem === 'Ali_lia' ? [`${prefix}assets/skins/Ali_lia_sad_avatar_fallback.webp`] : []),
       `${prefix}assets/skins/${stem}_depressed_avatar.webp`,
     ]),
   ]

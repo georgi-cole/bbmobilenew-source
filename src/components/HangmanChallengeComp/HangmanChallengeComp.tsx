@@ -40,9 +40,9 @@ import {
   type RoundScoreBreakdown,
 } from './hangmanChallengeEngine'
 import './HangmanChallengeComp.css'
-import pressureBackdropAsset from '../../assets/verdict-board-backdrop.png'
-import pressureWindowAsset from '../../assets/verdict-board-window.png'
-import pressureCrackAsset from '../../assets/verdict-board-cracks.png'
+import pressureBackdropAsset from '../../assets/verdict-board-backdrop.webp'
+import pressureWindowAsset from '../../assets/verdict-board-window.webp'
+import pressureCrackAsset from '../../assets/verdict-board-cracks.webp'
 
 type Phase =
   | 'playing'

@@ -1,13 +1,13 @@
 {
-  "assets/Informal_attires/Aria_informal.png": {
+  "assets/Informal_attires/Aria_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.947917
   },
-  "assets/Informal_attires/Ash_informal.png": {
+  "assets/Informal_attires/Ash_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.959635
   },
-  "assets/Informal_attires/Bea_informal.png": {
+  "assets/Informal_attires/Bea_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.971354
   },
@@ -15,7 +15,7 @@
     "aspect": 0.75067,
     "feetY": 0.994638
   },
-  "assets/Informal_attires/Blue_informal.png": {
+  "assets/Informal_attires/Blue_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.990885
   },
@@ -23,87 +23,87 @@
     "aspect": 0.666667,
     "feetY": 0.97526
   },
-  "assets/Informal_attires/Echo_informal.png": {
+  "assets/Informal_attires/Echo_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.966146
   },
-  "assets/Informal_attires/Finn_informal.png": {
+  "assets/Informal_attires/Finn_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.972656
   },
-  "assets/Informal_attires/Ivy_informal.png": {
+  "assets/Informal_attires/Ivy_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.946615
   },
-  "assets/Informal_attires/Jax_informal.png": {
+  "assets/Informal_attires/Jax_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.936198
   },
-  "assets/Informal_attires/Kai_informal.png": {
+  "assets/Informal_attires/Kai_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.972656
   },
-  "assets/Informal_attires/Kian_informal2.png": {
+  "assets/Informal_attires/Kian_informal2.webp": {
     "aspect": 0.666667,
     "feetY": 0.989583
   },
-  "assets/Informal_attires/Lia_informal.png": {
+  "assets/Informal_attires/Lia_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.970052
   },
-  "assets/Informal_attires/Lux_informal.png": {
+  "assets/Informal_attires/Lux_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.963542
   },
-  "assets/Informal_attires/Mimi_informal.png": {
+  "assets/Informal_attires/Mimi_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.973958
   },
-  "assets/Informal_attires/Nico_informal.png": {
+  "assets/Informal_attires/Nico_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.959635
   },
-  "assets/Informal_attires/Noa_informal.png": {
+  "assets/Informal_attires/Noa_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.99349
   },
-  "assets/Informal_attires/Nova_informal.png": {
+  "assets/Informal_attires/Nova_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.964844
   },
-  "assets/Informal_attires/Pax_informal.png": {
+  "assets/Informal_attires/Pax_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.946615
   },
-  "assets/Informal_attires/Quinn_informal.png": {
+  "assets/Informal_attires/Quinn_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.979167
   },
-  "assets/Informal_attires/Rae_informal.png": {
+  "assets/Informal_attires/Rae_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.988281
   },
-  "assets/Informal_attires/Remy_informal.png": {
+  "assets/Informal_attires/Remy_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.990885
   },
-  "assets/Informal_attires/Rey_informal.png": {
+  "assets/Informal_attires/Rey_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.947917
   },
-  "assets/Informal_attires/Rune_informal.png": {
+  "assets/Informal_attires/Rune_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.979167
   },
-  "assets/Informal_attires/Sol_informal.png": {
+  "assets/Informal_attires/Sol_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.957031
   },
-  "assets/Informal_attires/Vee_informal.png": {
+  "assets/Informal_attires/Vee_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.973958
   },
-  "assets/Informal_attires/Zed_informal.png": {
+  "assets/Informal_attires/Zed_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.949219
   },
@@ -359,15 +359,15 @@
     "aspect": 0.666667,
     "feetY": 0.947619
   },
-  "assets/formal_attires/Aria_formal.png": {
+  "assets/formal_attires/Aria_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.925781
   },
-  "assets/formal_attires/Ash_formal.png": {
+  "assets/formal_attires/Ash_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.951823
   },
-  "assets/formal_attires/Bea_formal.png": {
+  "assets/formal_attires/Bea_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.873698
   },
@@ -375,95 +375,95 @@
     "aspect": 0.75067,
     "feetY": 0.981233
   },
-  "assets/formal_attires/Blue_formal.png": {
+  "assets/formal_attires/Blue_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.951823
   },
-  "assets/formal_attires/Dex_formal.png": {
+  "assets/formal_attires/Dex_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.919271
   },
-  "assets/formal_attires/Echo_formal.png": {
+  "assets/formal_attires/Echo_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.9375
   },
-  "assets/formal_attires/Finn_formal.png": {
+  "assets/formal_attires/Finn_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.949219
   },
-  "assets/formal_attires/Ivy_formal.png": {
+  "assets/formal_attires/Ivy_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.940104
   },
-  "assets/formal_attires/Jax_formal.png": {
+  "assets/formal_attires/Jax_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.96224
   },
-  "assets/formal_attires/Kai_formal.png": {
+  "assets/formal_attires/Kai_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.959635
   },
-  "assets/formal_attires/Kian_formal.png": {
+  "assets/formal_attires/Kian_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.964844
   },
-  "assets/formal_attires/Lia_formal.png": {
+  "assets/formal_attires/Lia_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.928385
   },
-  "assets/formal_attires/Lux_formal.png": {
+  "assets/formal_attires/Lux_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.972656
   },
-  "assets/formal_attires/Mimi_formal.png": {
+  "assets/formal_attires/Mimi_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.964844
   },
-  "assets/formal_attires/Nico_formal.png": {
+  "assets/formal_attires/Nico_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.972656
   },
-  "assets/formal_attires/Noa_formal.png": {
+  "assets/formal_attires/Noa_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.954427
   },
-  "assets/formal_attires/Nova_formal.png": {
+  "assets/formal_attires/Nova_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.958333
   },
-  "assets/formal_attires/Pax_formal.png": {
+  "assets/formal_attires/Pax_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.940104
   },
-  "assets/formal_attires/Quinn_formal.png": {
+  "assets/formal_attires/Quinn_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.927083
   },
-  "assets/formal_attires/Rae_formal.png": {
+  "assets/formal_attires/Rae_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.973958
   },
-  "assets/formal_attires/Remy_formal.png": {
+  "assets/formal_attires/Remy_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.955729
   },
-  "assets/formal_attires/Rey_formal.png": {
+  "assets/formal_attires/Rey_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.894531
   },
-  "assets/formal_attires/Rune_formal.png": {
+  "assets/formal_attires/Rune_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.93099
   },
-  "assets/formal_attires/Sol_formal.png": {
+  "assets/formal_attires/Sol_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.873698
   },
-  "assets/formal_attires/Vee_formal.png": {
+  "assets/formal_attires/Vee_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.972656
   },
-  "assets/formal_attires/Zed_formal.png": {
+  "assets/formal_attires/Zed_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.9375
   },
