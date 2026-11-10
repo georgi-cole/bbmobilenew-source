@@ -172,11 +172,12 @@ jobs:
 
       - name: Record uploaded build details
         run: |
+          MARKETING_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$RUNNER_TEMP/TheBigEye.xcarchive/Products/Applications/App.app/Info.plist")
           {
             echo "## TestFlight upload"
-            echo "- Source commit: `$GITHUB_SHA`"
-            echo "- Marketing version: `$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$RUNNER_TEMP/TheBigEye.xcarchive/Products/Applications/App.app/Info.plist")`"
-            echo "- Build number: `$GITHUB_RUN_ID`"
+            echo "- Source commit: $GITHUB_SHA"
+            echo "- Marketing version: $MARKETING_VERSION"
+            echo "- Build number: $GITHUB_RUN_ID"
             echo "- Uploaded to App Store Connect for TestFlight processing."
           } >> "$GITHUB_STEP_SUMMARY"
 
