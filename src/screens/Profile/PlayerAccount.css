@@ -1,0 +1,178 @@
+.player-account {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  padding: clamp(14px, 4vw, 36px);
+  background: radial-gradient(ellipse at 50% 24%, #271329 0%, #100b16 56%, #08060e 100%);
+  color: #efe0c3;
+}
+
+.player-account .player-account__card {
+  display: grid;
+  gap: 13px;
+  width: min(100%, 420px);
+  padding: clamp(18px, 5vw, 32px);
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(140, 70, 117, 0.23), transparent 62%),
+    linear-gradient(160deg, #1a101d, #0d0810 58%, #050406);
+}
+
+.player-account__header {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(224, 185, 108, 0.23);
+}
+
+.player-account__seal {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border: 1px solid rgba(224, 185, 108, 0.42);
+  border-radius: 50%;
+  background: radial-gradient(circle, #49253d, #1c101b 72%);
+  color: #f0c875;
+  box-shadow: 0 0 24px rgba(196, 117, 130, 0.17);
+}
+
+.player-account__seal svg {
+  width: 26px;
+  height: 26px;
+}
+
+.player-account__eyebrow {
+  color: #e0b96c;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+}
+
+.player-account h1 {
+  margin: 0;
+  color: #fff1d4;
+  font-size: clamp(1.55rem, 6vw, 2rem);
+  line-height: 1.1;
+}
+
+.player-account p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.player-account h2 {
+  font-size: 1.2rem;
+}
+
+.player-account input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0 16px;
+  background: #110b14;
+  color: inherit;
+  border: 1px solid #947349;
+  border-radius: 10px;
+  font: inherit;
+}
+
+.player-account__email {
+  overflow-wrap: anywhere;
+}
+
+.player-account__profile-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 20px;
+  color: #f0c875;
+}
+
+.player-account__providers {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.player-account .player-account__providers button {
+  width: auto;
+  min-height: 44px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.player-account__providers img {
+  display: block;
+  width: 195px;
+  height: 44px;
+}
+
+.player-account form {
+  text-align: start;
+}
+
+.player-account .game-button {
+  width: 100%;
+  min-height: 44px;
+}
+
+.player-account .player-account__gold {
+  --game-button-bg: linear-gradient(180deg, #f8dc96, #d6a750);
+  --game-button-border: #eec980;
+  --game-button-shadow: inset 0 1px 0 #fff0bf, 0 6px 22px rgba(204, 148, 55, 0.2);
+  color: #261608;
+}
+
+.player-account form .game-button + .game-button {
+  margin-top: 8px;
+}
+
+.player-account__detail {
+  color: #cbb9bc;
+  font-size: 0.82rem;
+}
+
+.player-account__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid rgba(224, 185, 108, 0.23);
+  padding-top: 10px;
+}
+
+.player-account .game-back-button.player-account__back {
+  border-color: #9b7540 !important;
+  background: linear-gradient(145deg, #594120, #2b1b10) !important;
+  color: #f8dc96 !important;
+}
+
+.player-account a {
+  color: #f0c875;
+  font-size: 0.82rem;
+}
+
+.player-account :focus-visible {
+  outline: 2px solid #f0c875;
+  outline-offset: 3px;
+}
+
+.player-account [role='status'],
+.player-account [role='alert'] {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 231, 197, 0.08);
+  font-size: 0.86rem;
+}
+
+.player-account button.player-account__delete,
+.player-account [role='alert'] {
+  color: #ffb4bb;
+}

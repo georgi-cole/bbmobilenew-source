@@ -106,6 +106,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_QA_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_QA_PUBLISHABLE_KEY }}
           VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_QA_ENABLED }}
+          VITE_PLAYER_SIGN_IN_ENABLED: ${{ vars.VITE_PLAYER_SIGN_IN_QA_ENABLED }}
         run: npm run build
 
       - name: Deploy QA build to Cloudflare Pages

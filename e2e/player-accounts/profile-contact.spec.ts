@@ -1,4 +1,5 @@
 import { mkdir } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { resolve } from 'node:path'
 import { test, type Page, type TestInfo } from '@playwright/test'
 import { getAppearanceAsset, SELECTABLE_LOOKS } from '../../src/appearance/catalog'
@@ -20,6 +21,7 @@ const PROFILE_ID = 'demo-maya'
 const OWNER_ID = 'b28a73c9-d01f-48f4-a014-d629b9a11e84'
 const ANALYTICS_OWNER_ID = '8ec7de1a-36e3-41fd-990e-c7c129b11cb2'
 const ADMIN_ID = 'c4611110-1686-4fb4-8ae8-f7a4d9ed8492'
+const PLAYER_ACCOUNT_ID = '61aeac68-62b9-4648-89fd-e58089481c13'
 const CONTACT_REVISION = '732ce7bc-24b4-4057-b99e-ff0a5787590b'
 const EMAIL_CHOICE = 'Send me The Big Eye news and playtest invitations.'
 const browserErrors = new WeakMap<Page, string[]>()
@@ -106,6 +108,17 @@ function demoSession(user: ReturnType<typeof demoUser>) {
     refresh_token: `demo-refresh-${user.id}`,
     user,
   }
+}
+
+function signedInPlayer(provider: string) {
+  return demoSession({
+    ...demoUser(PLAYER_ACCOUNT_ID),
+    email: 'signin@example.com',
+    email_confirmed_at: '2026-11-09T08:00:00Z',
+    is_anonymous: false,
+    app_metadata: { provider, player_analytics_admin: false },
+    user_metadata: { full_name: 'Name from provider' },
+  })
 }
 
 const DEMO_AUDIENCE: PlayerAudience = {
@@ -199,6 +212,8 @@ async function installContactFixture(page: Page, options: FixtureOptions = {}) {
     contactReads: [] as string[],
     backups: [] as Record<string, unknown>[],
     events: [] as Record<string, unknown>[],
+    accountProfiles: [] as Record<string, unknown>[],
+    accountProfileDeletes: [] as Record<string, unknown>[],
     auth: [] as string[],
     unsubscribe: [] as string[],
     unexpected: [] as string[],
@@ -255,6 +270,7 @@ async function installContactFixture(page: Page, options: FixtureOptions = {}) {
       return route.fulfill({ status, headers, body: JSON.stringify(value) })
     }
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers })
+    if (path === '/auth/v1/settings') return json({ external: { apple: true, google: true } })
     if (path.startsWith('/auth/')) requests.auth.push(`${method} ${path}`)
     if (path === '/auth/v1/user' && method === 'GET') return json(demoUser(ADMIN_ID, true))
     if (
@@ -280,6 +296,15 @@ async function installContactFixture(page: Page, options: FixtureOptions = {}) {
     if (path === '/rest/v1/player_events') {
       requests.events.push(request.postDataJSON() as Record<string, unknown>)
       return route.fulfill({ status: 204, headers })
+    }
+    if (path === '/rest/v1/player_account_profiles' && method === 'GET') return json([])
+    if (path === '/rest/v1/rpc/save_player_account_profile') {
+      requests.accountProfiles.push(request.postDataJSON() as Record<string, unknown>)
+      return json(null)
+    }
+    if (path === '/rest/v1/rpc/delete_player_account_profile') {
+      requests.accountProfileDeletes.push(request.postDataJSON() as Record<string, unknown>)
+      return json(true)
     }
     if (path === '/rest/v1/rpc/get_player_profile_contact') {
       const { p_profile_id: profileId } = request.postDataJSON() as { p_profile_id: string }
@@ -348,18 +373,30 @@ async function fillRequiredDetails(page: Page, name = 'Maya') {
     .selectOption('Female')
 }
 
+async function waitForMainMenu(page: Page) {
+  const mainMenu = page.getByRole('navigation', { name: 'Main menu' })
+  const weatherPrompt = page.getByRole('dialog', { name: 'Local weather' })
+  await expect
+    .poll(async () => (await mainMenu.isVisible()) || (await weatherPrompt.isVisible()), {
+      timeout: 60000,
+    })
+    .toBe(true)
+  if (await weatherPrompt.isVisible())
+    await weatherPrompt.getByRole('button', { name: 'Not now' }).click()
+  await dismissPermissionPromptIfPresent(page)
+  await expect(mainMenu).toBeVisible({ timeout: 60000 })
+  return mainMenu
+}
+
 async function openNewProfile(page: Page) {
   await page.goto(APP_URL, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('navigation', { name: 'Main menu' })).toBeVisible({ timeout: 60000 })
-  await dismissPermissionPromptIfPresent(page)
+  await waitForMainMenu(page)
   await openProfileCreationForm(page)
   await fillRequiredDetails(page)
 }
 
 async function startSeason(page: Page) {
-  const menu = page.getByRole('navigation', { name: 'Main menu' })
-  await expect(menu).toBeVisible({ timeout: 60000 })
-  await dismissPermissionPromptIfPresent(page)
+  const menu = await waitForMainMenu(page)
   await menu.getByRole('button', { name: 'Play', exact: true }).click()
   await page
     .getByRole('navigation', { name: 'Play menu' })
@@ -372,6 +409,128 @@ async function startSeason(page: Page) {
   await expect
     .poll(async () => Boolean((await readAppState(page)).game.gameId), { timeout: 30000 })
     .toBe(true)
+}
+
+test('email verification leaves the player in the normal profile setup and keeps contact consent separate', async ({
+  page,
+}) => {
+  const requests = await installContactFixture(page, { emptyProfiles: true, guest: true })
+  const emailSession = signedInPlayer('email')
+  await page.route(`${BACKEND_URL}/auth/v1/otp`, async (route) => {
+    expect(route.request().postDataJSON()).toMatchObject({ email: 'signin@example.com' })
+    await route.fulfill({ json: {} })
+  })
+  await page.route(`${BACKEND_URL}/auth/v1/verify`, async (route) => {
+    expect(route.request().postDataJSON()).toMatchObject({
+      email: 'signin@example.com',
+      token: '123456',
+      type: 'email',
+    })
+    await route.fulfill({ json: emailSession })
+  })
+  await page.route(`${BACKEND_URL}/functions/v1/player-account`, async (route) => {
+    expect(route.request().headers().authorization).toBe(`Bearer ${emailSession.access_token}`)
+    expect(route.request().postDataJSON()).toEqual({ action: 'delete-account' })
+    await route.fulfill({ json: { appleNeedsManualRevocation: false } })
+  })
+  await page.goto(`${APP_URL}#/profile`)
+  await page.getByRole('button', { name: 'Account sign-in' }).click()
+  await page.getByRole('button', { name: 'Continue with email' }).click()
+  await page.getByLabel('Sign-in email').fill('SignIn@Example.com')
+  await page.getByRole('button', { name: 'Send sign-in code' }).click()
+  await page.getByLabel('Sign-in code').fill('123456')
+  await page.getByRole('button', { name: 'Verify and sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Finish your game profile' })).toBeVisible()
+  expect((await readAppState(page)).profiles.profiles).toHaveLength(0)
+  await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
+  await page.getByRole('button', { name: 'Choose this look', exact: true }).click()
+  const reveal = page.getByRole('dialog', { name: /^Look \d+$/ })
+  await reveal.getByRole('button', { name: 'Continue', exact: true }).click()
+  await expect(page.getByLabel('Display Name')).toHaveValue('')
+  await expect(page.getByLabel('Email (optional)', { exact: true })).toHaveValue('')
+  await expect(page.getByRole('checkbox', { name: EMAIL_CHOICE })).not.toBeChecked()
+  await expect(page.getByRole('button', { name: 'Save Profile' })).toBeDisabled()
+  await fillRequiredDetails(page, 'Sky')
+  await page.getByRole('button', { name: 'Save Profile' }).click()
+  await expect(page.getByText('Profiles are synced across devices.')).toBeVisible()
+  expect((await readAppState(page)).profiles.profiles[0]).toMatchObject({
+    name: 'Sky',
+    playerAccountId: PLAYER_ACCOUNT_ID,
+  })
+  await page.reload()
+  await expect(page.getByText('Profiles are synced across devices.')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Delete sign-in account' }).click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Delete account', exact: true })
+    .click()
+  await expect(page.getByText('Your sign-in account was deleted.')).toBeVisible()
+  const { profiles } = await readAppState(page)
+  expect(profiles.profiles).toHaveLength(1)
+  expect(profiles.profiles[0]).toMatchObject({ name: 'Sky' })
+  expect(profiles.profiles[0]).not.toHaveProperty('playerAccountId')
+  expect(requests.contacts).toHaveLength(0)
+  expect(requests.unexpected).toEqual([])
+})
+
+for (const provider of ['apple', 'google']) {
+  test(`${provider} OAuth uses a PKCE return and preserves the existing player profile`, async ({
+    page,
+  }) => {
+    const requests = await installContactFixture(page)
+    const session = signedInPlayer(provider)
+    const appleToken = 'demo-apple-revocation-token'
+    if (provider === 'apple') {
+      await page.route(`${BACKEND_URL}/functions/v1/player-account`, async (route) => {
+        expect(route.request().headers().authorization).toBe(`Bearer ${session.access_token}`)
+        expect(route.request().postDataJSON()).toEqual({
+          action: 'save-apple-token',
+          refreshToken: appleToken,
+        })
+        await route.fulfill({ json: { saved: true } })
+      })
+    }
+    let challenge: string | null = null
+    await page.route(
+      (url) => url.origin === BACKEND_URL && url.pathname === '/auth/v1/authorize',
+      async (route) => {
+        const url = new URL(route.request().url())
+        expect(url.searchParams.get('provider')).toBe(provider)
+        expect(url.searchParams.get('redirect_to')).toBe(`${APP_URL}?player_sign_in=1`)
+        challenge = url.searchParams.get('code_challenge')
+        expect(challenge).toBeTruthy()
+        await route.fulfill({
+          status: 303,
+          headers: { location: `${APP_URL}?player_sign_in=1&code=demo-authorization-code` },
+        })
+      }
+    )
+    await page.route(
+      (url) => url.origin === BACKEND_URL && url.searchParams.get('grant_type') === 'pkce',
+      async (route) => {
+        const body = route.request().postDataJSON() as { auth_code: string; code_verifier: string }
+        expect(body.auth_code).toBe('demo-authorization-code')
+        expect(createHash('sha256').update(body.code_verifier).digest('base64url')).toBe(challenge)
+        await route.fulfill({
+          json: { ...session, ...(provider === 'apple' && { provider_refresh_token: appleToken }) },
+        })
+      }
+    )
+    await page.goto(`${APP_URL}#/profile-picker`)
+    await page.getByRole('button', { name: 'Account sign-in' }).click()
+    await page.getByRole('button', { name: new RegExp(`^Sign in with ${provider}$`, 'i') }).click()
+    await expect(page.getByText('Signed in as signin@example.com')).toBeVisible()
+    await expect(page).toHaveURL(`${APP_URL}#/profile/account`)
+    expect(
+      await page.evaluate(() => localStorage.getItem('bbmobilenew:supabase:player_account:v1'))
+    ).not.toContain(appleToken)
+    expect((await readAppState(page)).profiles.profiles).toMatchObject([
+      { id: PROFILE_ID, name: 'Maya', eyeoleans: 12500 },
+    ])
+    expect(requests.contacts).toHaveLength(0)
+    expect(requests.unexpected).toEqual([])
+  })
 }
 
 test('optional email starts empty and unchecked inside the real profile creation form @mobile', async ({

@@ -24,6 +24,7 @@ const GameRoute = lazy(() => import('./routes/GameRoute'))
 const ConfessionalRoute = lazy(() => import('./screens/DiaryRoom/ConfessionalRoute'))
 const Houseguests = lazy(() => import('./screens/Houseguests/Houseguests'))
 const Profile = lazy(() => import('./screens/Profile/Profile'))
+const PlayerAccount = lazy(() => import('./screens/Profile/PlayerAccount'))
 const EditProfile = lazy(() => import('./screens/Profile/EditProfile'))
 const DressingRoom = lazy(() => import('./screens/Profile/DressingRoom'))
 const ProfilePicker = lazy(() => import('./screens/ProfilePicker/ProfilePicker'))
@@ -197,6 +198,7 @@ export const router = createHashRouter([
       { path: 'diary-room', element: load(<ConfessionalRoute />) },
       { path: 'houseguests', element: load(<Houseguests />) },
       { path: 'profile', element: load(<Profile />) },
+      { path: 'profile/account', element: load(<PlayerAccount />) },
       { path: 'profile-edit', element: load(<EditProfile />) },
       { path: 'profile/dressing-room', element: load(<DressingRoom />) },
       { path: 'profile-picker', element: load(<ProfilePicker />) },

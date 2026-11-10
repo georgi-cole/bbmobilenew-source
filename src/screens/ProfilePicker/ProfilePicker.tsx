@@ -47,6 +47,16 @@ import AppearanceCarousel from '../../appearance/AppearanceCarousel'
 import { warmSelectedAppearance } from '../../appearance/preloadAppearance'
 import { getAppearanceLook, SELECTABLE_LOOKS } from '../../appearance/catalog'
 import { gameWithInitialProfileAppearance } from '../../appearance/initialSeasonAppearance'
+import { isPlayerSignInConfigured } from '../../services/backend/config'
+import {
+  getCurrentPlayerAccount,
+  observePlayerAccount,
+  type PlayerAccount,
+} from '../../services/backend/playerSignIn'
+import {
+  getAccountProfileSyncStatus,
+  subscribeAccountProfileSync,
+} from '../../services/backend/playerAccountProfiles'
 import './ProfilePicker.css'
 
 const PROFILE_SEX_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const
@@ -74,6 +84,9 @@ export default function ProfilePicker() {
   const profiles = useAppSelector(selectAllProfiles)
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const isGuest = useAppSelector(selectIsGuest)
+  const [playerAccount, setPlayerAccount] = useState<PlayerAccount | null>(null)
+  const [accountKnown, setAccountKnown] = useState(false)
+  const [accountSyncStatus, setAccountSyncStatus] = useState(getAccountProfileSyncStatus())
 
   const isGameActive = useAppSelector(
     (s) => s.game.status === 'active' || s.game.week > 1 || s.game.phase !== 'week_start'
@@ -122,7 +135,11 @@ export default function ProfilePicker() {
   const [pendingHome, setPendingHome] = useState(false)
   const [pendingResumeId, setPendingResumeId] = useState<string | null>(null)
 
-  const atLimit = profiles.length >= MAX_PROFILES
+  const ownedProfileCount = profiles.filter((profile) =>
+    playerAccount ? profile.playerAccountId === playerAccount.id : !profile.playerAccountId
+  ).length
+  const atLimit = ownedProfileCount >= MAX_PROFILES
+  const waitingForAccountSync = Boolean(playerAccount && accountSyncStatus !== 'synced')
   const parsedNewAge = Number(newAge)
   const canCreateProfile =
     Boolean(newName.trim()) &&
@@ -133,17 +150,66 @@ export default function ProfilePicker() {
     PROFILE_SEX_OPTIONS.includes(newSex as (typeof PROFILE_SEX_OPTIONS)[number])
 
   useEffect(() => {
+    if (!isPlayerSignInConfigured()) {
+      setAccountKnown(true)
+      return
+    }
+    let stopped = false
+    let unsubscribe: (() => void) | undefined
+    void observePlayerAccount((account) => {
+      if (!stopped) {
+        setPlayerAccount(account)
+        if (account) setAccountKnown(true)
+      }
+    })
+      .then(async (stop) => {
+        if (stopped) {
+          stop()
+          return
+        }
+        unsubscribe = stop
+        const account = await getCurrentPlayerAccount()
+        if (!stopped) {
+          setPlayerAccount(account)
+          setAccountKnown(true)
+        }
+      })
+      .catch(() => {
+        if (!stopped) setAccountKnown(true)
+      })
+    return () => {
+      stopped = true
+      unsubscribe?.()
+    }
+  }, [])
+
+  useEffect(
+    () => subscribeAccountProfileSync(() => setAccountSyncStatus(getAccountProfileSyncStatus())),
+    []
+  )
+
+  useEffect(() => {
     const openCreate = (location.state as { openCreate?: boolean } | null)?.openCreate === true
-    if (!openCreate || atLimit) return
+    if (!openCreate || !accountKnown || atLimit || waitingForAccountSync) return
     navigate('/profile/dressing-room', {
       replace: true,
       state: {
         from: '/',
         createProfile: true,
         adoptGuestRun: isGuest && hasGuestRunProgress,
+        ...(playerAccount && { playerAccountId: playerAccount.id }),
       },
     })
-  }, [atLimit, hasGuestRunProgress, isGuest, location.state, navigate])
+  }, [
+    accountKnown,
+    atLimit,
+    hasGuestRunProgress,
+    isGuest,
+    location.state,
+    navigate,
+    playerAccount,
+    waitingForAccountSync,
+  ])
 
   useEffect(() => {
     async function loadPhotos() {
@@ -277,7 +343,14 @@ export default function ProfilePicker() {
   }
 
   async function handleCreate() {
-    if (!canCreateProfile || atLimit || creatingRef.current || !emailForm.validate()) return
+    if (
+      !canCreateProfile ||
+      atLimit ||
+      waitingForAccountSync ||
+      creatingRef.current ||
+      !emailForm.validate()
+    )
+      return
     const selectedLook = getAppearanceLook(newLookId, 1)
     if (!selectedLook?.selectable) return
     creatingRef.current = true
@@ -316,6 +389,9 @@ export default function ProfilePicker() {
           revision: selectedLook.revision,
         },
       }
+      const accountProfileDetails = playerAccount
+        ? { ...profileDetails, playerAccountId: playerAccount.id }
+        : profileDetails
       if (
         !canCommit() ||
         !(await emailForm.save({ ...profileDetails, createdAt: draftIdentity.createdAt }))
@@ -323,14 +399,14 @@ export default function ProfilePicker() {
         return
       if (!canCommit()) return
       if (adoptGuestRun) {
-        withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
+        withRunAutosaveSuspended(() => dispatch(createProfile(accountProfileDetails)))
         // Capture the guest run after its first selected look has been applied.
         persistCurrentRunSnapshot()
         await flushSavePersistence()
         if (!mounted.current) return
       } else {
         withRunAutosaveSuspended(() => {
-          dispatch(createProfile(profileDetails))
+          dispatch(createProfile(accountProfileDetails))
           dispatch(resetGame([]))
         })
       }
@@ -461,6 +537,15 @@ export default function ProfilePicker() {
       </div>
       <h1 className="profile-picker__title">👤 Profiles</h1>
       <p className="profile-picker__subtitle">Select a profile to play as</p>
+      {!showCreateForm && isPlayerSignInConfigured() && (
+        <button
+          type="button"
+          className="game-button game-button--secondary"
+          onClick={() => navigate('/profile/account', { state: { pickerFrom: returnTo } })}
+        >
+          Account sign-in
+        </button>
+      )}
 
       {profiles.length > 0 && (
         <div className="profile-picker__list">
@@ -527,13 +612,18 @@ export default function ProfilePicker() {
         <div className="profile-picker__limit-notice">
           <span>⚠️</span>
           <div>
-            Up to {MAX_PROFILES} player profiles. Existing extra profiles and their saves remain
-            available.
+            {playerAccount
+              ? `This account can have up to ${MAX_PROFILES} profiles.`
+              : `Up to ${MAX_PROFILES} local profiles can be created on this device. Sign in to manage account profiles.`}
           </div>
         </div>
       )}
 
-      {!atLimit && (
+      {waitingForAccountSync && (
+        <p role="status">Checking this account’s profiles before creating another one…</p>
+      )}
+
+      {!atLimit && !waitingForAccountSync && accountKnown && (
         <>
           {profiles.length > 0 && (
             <div className="profile-picker__divider">
@@ -570,6 +660,7 @@ export default function ProfilePicker() {
                       from: '/',
                       createProfile: true,
                       adoptGuestRun: isGuest && hasGuestRunProgress,
+                      ...(playerAccount && { playerAccountId: playerAccount.id }),
                     },
                   })
                 }}
@@ -807,7 +898,11 @@ export default function ProfilePicker() {
       <ConfirmExitModal
         open={Boolean(pendingDeleteId)}
         title="Delete Profile?"
-        description={`"${deleteTarget?.name ?? ''}" and all associated data will be permanently removed.`}
+        description={
+          deleteTarget?.playerAccountId
+            ? `"${deleteTarget.name}" and its data on this device will be permanently removed. Its synced account copy will also be deleted when you next connect with that account.`
+            : `"${deleteTarget?.name ?? ''}" and all associated data on this device will be permanently removed.`
+        }
         confirmLabel="Delete"
         cancelLabel="Cancel"
         onConfirm={() => {

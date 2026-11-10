@@ -20,6 +20,7 @@ const sessions: Record<BackendPurpose, TestSession | null> = {
   profile_backup: null,
   analytics: null,
   audience_admin: null,
+  player_account: null,
 }
 
 function fakeClient(purpose: BackendPurpose) {

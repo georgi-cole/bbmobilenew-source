@@ -565,6 +565,33 @@ try {
   console.log(
     'Profile contacts SQL: owner RPC access, unverified email, consent audit, revision conflicts, shared-address token unsubscribe, cascade deletion, admin authorization, cohort deduplication, and full totals passed.'
   )
+
+  await db.exec(
+    await readFile(
+      new URL('../supabase/migrations/202611090001_player_apple_tokens.sql', import.meta.url),
+      'utf8'
+    )
+  )
+  await db.query('insert into auth.users (id) values ($1)', [UNKNOWN_UUID])
+  const saveAppleCredential = () =>
+    db.query('insert into public.player_apple_tokens values ($1, $2)', [UNKNOWN_UUID, 'ciphertext'])
+  const readAppleCredentials = () => db.query('select * from public.player_apple_tokens')
+  await asUser(UNKNOWN_UUID, saveAppleCredential, 'service_role')
+  for (const role of ['authenticated', 'anon']) {
+    await asUser(
+      UNKNOWN_UUID,
+      async () => {
+        await rejectsCode(readAppleCredentials, '42501')
+        await rejectsCode(saveAppleCredential, '42501')
+      },
+      role
+    )
+  }
+  await db.query('delete from auth.users where id = $1', [UNKNOWN_UUID])
+  assert.deepEqual((await readAppleCredentials()).rows, [])
+  console.log(
+    'Apple revocation SQL: credentials are service-only and cascade with account deletion.'
+  )
 } finally {
   await db.close()
 }

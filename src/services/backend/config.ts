@@ -17,3 +17,12 @@ export function getBackendConfig(): { url: string; key: string } | null {
     return null
   }
 }
+
+export const isPlayerSignInPreview = () =>
+  import.meta.env.DEV && import.meta.env.VITE_PLAYER_SIGN_IN_PREVIEW === 'true'
+
+export const isPlayerSignInConfigured = () =>
+  isPlayerSignInPreview() ||
+  (import.meta.env.VITE_PLAYER_SIGN_IN_ENABLED === 'true' && getBackendConfig() !== null)
+
+export const PLAYER_ACCOUNT_PATH = '/profile/account'

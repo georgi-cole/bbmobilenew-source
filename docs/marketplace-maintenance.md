@@ -81,6 +81,11 @@ store listings or change configured prices.
   existing scenes and gameplay effects. Reality Mode's access, benefits, price,
   and Store copy continue to describe the existing offer.
 
+- 2026-11-09: Reviewed optional player sign-in and local profile linking. The
+  account link grants no entitlements. Store receipts and local profile progress
+  continue to determine purchase access and Eyeolean balances. Prices, benefits,
+  listings, and premium minigame availability stay as currently published.
+
 - 2026-11-06: Reviewed durable competition-attempt and result checkpoints across
   minigames, including restored paid variants. Interrupted attempts forfeit, while
   completed results remain available before Continue. Premium entitlements,

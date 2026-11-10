@@ -3,7 +3,7 @@
 // Multi-profile system.
 //
 // Key behaviours:
-//  - Up to MAX_PROFILES new profiles per device; older extra profiles remain usable.
+//  - Up to MAX_PROFILES profiles per local owner or signed-in account.
 //  - "Login" = selecting an active profile (no password/auth).
 //  - Guest mode: no stats/archives saved, warning displayed.
 //  - Switching profiles always prompts a season-reset confirmation (handled in UI).
@@ -131,6 +131,10 @@ export interface EyeoleanTransaction {
 export interface StoredProfile {
   /** Stable unique identifier; new profiles use UUIDs when supported. */
   id: string
+  /** Local association with an optional sign-in. Never included in backup snapshots. */
+  playerAccountId?: string
+  /** Timestamp used to resolve edits to account-synced profile details. */
+  accountProfileUpdatedAt?: string
   /** In-game display name. */
   name: string
   /** Emoji fallback avatar. */
@@ -211,6 +215,11 @@ function generateId(): string {
     // Fallback for environments where crypto.randomUUID is unavailable.
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`
   }
+}
+
+function nextAccountProfileTimestamp(profile: StoredProfile): string {
+  const previous = Date.parse(profile.accountProfileUpdatedAt ?? profile.createdAt)
+  return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString()
 }
 
 // ─── Standalone persistence helpers ──────────────────────────────────────────
@@ -404,7 +413,7 @@ function creditEyeoleans(
   return credited
 }
 
-function coerceStoredProfile(raw: unknown): StoredProfile | null {
+export function coerceStoredProfile(raw: unknown): StoredProfile | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
   // id and createdAt are required; discard the entry if either is missing.
@@ -432,6 +441,13 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
 
   return {
     id: r.id,
+    ...(typeof r.playerAccountId === 'string' && r.playerAccountId
+      ? { playerAccountId: r.playerAccountId }
+      : {}),
+    ...(typeof r.accountProfileUpdatedAt === 'string' &&
+    Number.isFinite(Date.parse(r.accountProfileUpdatedAt))
+      ? { accountProfileUpdatedAt: r.accountProfileUpdatedAt }
+      : {}),
     name: typeof r.name === 'string' && r.name.trim() ? r.name.trim() : 'You',
     avatar: typeof r.avatar === 'string' && r.avatar ? r.avatar : '👤',
     photoId: typeof r.photoId === 'string' && r.photoId ? r.photoId : undefined,
@@ -599,6 +615,7 @@ const profilesSlice = createSlice({
       state,
       action: PayloadAction<{
         id?: string
+        playerAccountId?: string
         name: string
         avatar: string
         photoId?: string
@@ -606,12 +623,18 @@ const profilesSlice = createSlice({
         bio?: ProfileBio
       }>
     ) {
-      if (state.profiles.length >= MAX_PROFILES) return
+      const accountId = action.payload.playerAccountId
+      const sameOwnerCount = state.profiles.filter((profile) =>
+        accountId ? profile.playerAccountId === accountId : !profile.playerAccountId
+      ).length
+      if (sameOwnerCount >= MAX_PROFILES) return
       const id = action.payload.id ?? generateId()
       if (!id.trim() || state.profiles.some((profile) => profile.id === id)) return
       const appearance = coerceAppearanceSelection(action.payload.appearanceSelection)
       const profile: StoredProfile = {
         id,
+        ...(accountId ? { playerAccountId: accountId } : {}),
+        ...(accountId ? { accountProfileUpdatedAt: new Date().toISOString() } : {}),
         name: action.payload.name.trim() || 'You',
         avatar: action.payload.avatar || '👤',
         photoId: action.payload.photoId,
@@ -638,13 +661,79 @@ const profilesSlice = createSlice({
       state.isGuest = false
     },
 
+    linkActiveProfileToPlayerAccount(
+      state,
+      action: PayloadAction<{ profileId: string; accountId: string }>
+    ) {
+      const { profileId, accountId } = action.payload
+      if (state.isGuest || state.activeProfileId !== profileId || !accountId) return
+      const profile = state.profiles.find((entry) => entry.id === profileId)
+      if (!profile || (profile.playerAccountId && profile.playerAccountId !== accountId)) return
+      if (
+        profile.playerAccountId !== accountId &&
+        state.profiles.filter((entry) => entry.playerAccountId === accountId).length >= MAX_PROFILES
+      )
+        return
+      profile.playerAccountId = accountId
+      profile.accountProfileUpdatedAt = nextAccountProfileTimestamp(profile)
+    },
+
+    mergePlayerAccountProfiles(
+      state,
+      action: PayloadAction<{ accountId: string; profiles: unknown[] }>
+    ) {
+      const { accountId, profiles } = action.payload
+      if (!accountId) return
+      for (const raw of profiles) {
+        const profile = coerceStoredProfile(raw)
+        if (!profile) continue
+        const existing = state.profiles.find((entry) => entry.id === profile.id)
+        if (existing?.playerAccountId && existing.playerAccountId !== accountId) continue
+        if (existing) {
+          existing.playerAccountId = accountId
+          existing.accountProfileUpdatedAt = profile.accountProfileUpdatedAt
+          existing.name = profile.name
+          existing.avatar = profile.avatar
+          existing.appearanceSelection = profile.appearanceSelection
+          existing.initialAppearanceSelection = profile.initialAppearanceSelection
+          existing.bio = profile.bio
+          existing.createdAt = profile.createdAt
+          continue
+        }
+        if (
+          state.profiles.filter((entry) => entry.playerAccountId === accountId).length >=
+          MAX_PROFILES
+        )
+          continue
+        state.profiles.push({
+          ...profile,
+          playerAccountId: accountId,
+          accountProfileUpdatedAt: profile.accountProfileUpdatedAt ?? profile.createdAt,
+        })
+      }
+    },
+
+    unlinkProfileFromPlayerAccount(
+      state,
+      action: PayloadAction<{ profileId: string; accountId: string }>
+    ) {
+      const { profileId, accountId } = action.payload
+      const profile = state.profiles.find((entry) => entry.id === profileId)
+      if (profile?.playerAccountId === accountId) delete profile.playerAccountId
+    },
+
     /**
      * Update mutable fields on the currently-active profile.
      * `id` and `createdAt` are immutable.
      */
-    updateProfile(state, action: PayloadAction<Partial<Omit<StoredProfile, 'id' | 'createdAt'>>>) {
+    updateProfile(
+      state,
+      action: PayloadAction<Partial<Omit<StoredProfile, 'id' | 'createdAt' | 'playerAccountId'>>>
+    ) {
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
       if (!profile) return
+      if (profile.playerAccountId)
+        profile.accountProfileUpdatedAt = nextAccountProfileTimestamp(profile)
       const { name, avatar, photoId, bio, appearanceSelection } = action.payload
       // Explicit profile edits become the defaults for the next season.
       if (
@@ -1048,6 +1137,9 @@ export const {
   initProfiles,
   createProfile,
   selectActiveProfile,
+  linkActiveProfileToPlayerAccount,
+  mergePlayerAccountProfiles,
+  unlinkProfileFromPlayerAccount,
   updateProfile,
   rememberContestant,
   recordBellaTwinShockConsumed,

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getBackendConfig } from './config'
 
-export type BackendPurpose = 'profile_backup' | 'analytics' | 'audience_admin'
+export type BackendPurpose = 'profile_backup' | 'analytics' | 'audience_admin' | 'player_account'
 const clients = new Map<BackendPurpose, Promise<SupabaseClient>>()
 const authentications = new Map<
   BackendPurpose,
@@ -31,12 +31,39 @@ export async function getBackendClient(purpose: BackendPurpose): Promise<Supabas
   let pending = clients.get(purpose)
   if (!pending) {
     pending = import('@supabase/supabase-js').then(({ createClient }) => {
+      const storageKey = `bbmobilenew:supabase:${purpose}:v1`
+      const playerAccount = purpose === 'player_account'
       const client = createClient(config.url, config.key, {
         auth: {
-          storageKey: `bbmobilenew:supabase:${purpose}:v1`,
+          storageKey,
           persistSession: true,
-          autoRefreshToken: true,
+          autoRefreshToken: !playerAccount,
           detectSessionInUrl: false,
+          flowType: playerAccount ? 'pkce' : 'implicit',
+          ...(playerAccount && {
+            storage: {
+              getItem: (key: string) => localStorage.getItem(key),
+              removeItem: (key: string) => localStorage.removeItem(key),
+              setItem(key: string, value: string | undefined) {
+                if (value === undefined) {
+                  localStorage.removeItem(key)
+                  return
+                }
+                if (key !== storageKey) {
+                  localStorage.setItem(key, value)
+                  return
+                }
+                // The OAuth callback can use provider credentials in memory. Only the
+                // Supabase session belongs in the app's persistent storage.
+                const session = JSON.parse(value)
+                if (session) {
+                  delete session.provider_token
+                  delete session.provider_refresh_token
+                }
+                localStorage.setItem(key, JSON.stringify(session))
+              },
+            },
+          }),
         },
         global: {
           fetch: async (input, init) => {
@@ -101,7 +128,7 @@ export function withBackendAuthLock<T>(
 }
 
 /** Player backup/analytics stay anonymous; audience administration uses a separate explicit session. */
-export async function authenticatedBackend(purpose: BackendPurpose) {
+export async function authenticatedBackend(purpose: 'profile_backup' | 'analytics') {
   let pending = authentications.get(purpose)
   if (!pending) {
     pending = withBackendAuthLock(purpose, async (client) => {

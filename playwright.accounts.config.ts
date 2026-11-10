@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test'
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
 
 /**
- * Isolated real-app profile email journeys; all Supabase requests use test route handlers.
+ * Isolated real-app profile contact and sign-in journeys with a simulated Supabase project.
  * Run with: npx playwright test --config playwright.accounts.config.ts
  */
 export default defineConfig({
@@ -28,6 +28,7 @@ export default defineConfig({
     env: {
       VITE_SUPABASE_ENABLED: 'true',
       VITE_PLAYER_ACCOUNTS_ENABLED: 'true',
+      VITE_PLAYER_SIGN_IN_ENABLED: 'true',
       VITE_SUPABASE_URL: 'https://account-preview.supabase.co',
       VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_preview',
     },
