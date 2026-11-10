@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import AvatarTile from './AvatarTile'
 import { useRosterExitPreview } from '../../cinematic/ceremonies/roster-exit-state'
@@ -28,6 +28,8 @@ const houseguestGridGameEquality = createGameFieldEquality([
 ])
 import { getCupidPair, isCupidArrowVisualsRevealed } from '../../features/twists/cupidArrow'
 import { resolveCupidLoveAvatar } from '../../utils/cupidLoveAvatar'
+import { resolveAvatar } from '../../utils/avatar'
+import { preloadImage } from '../../utils/preload'
 
 const HOUSEMATES_SECTION_TITLE = 'HUBMATES'
 
@@ -294,6 +296,22 @@ export default function HouseguestGrid({
     game.modeSpecific?.kind === 'survival'
       ? (game.modeSpecific.replacementTransition ?? null)
       : null
+  const pendingReplacementAvatar =
+    game.modeSpecific?.kind === 'survival' && game.modeSpecific.replacementPending
+      ? resolveAvatar(game.modeSpecific.replacementPending.incomingPlayer)
+      : null
+  const preloadedReplacementAvatarRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (
+      !pendingReplacementAvatar ||
+      preloadedReplacementAvatarRef.current === pendingReplacementAvatar
+    )
+      return
+    preloadedReplacementAvatarRef.current = pendingReplacementAvatar
+    // Warm/decode while the outgoing robot is still visible. The detached image
+    // has a bounded timeout; endless runs don't accumulate document preload links.
+    void preloadImage(pendingReplacementAvatar)
+  }, [pendingReplacementAvatar])
   const survivorRoboStatsById = useMemo(() => {
     const statsById = new Map<string, RoboStatsSummary>()
     if (game.mode !== 'survival') return statsById
@@ -371,6 +389,13 @@ export default function HouseguestGrid({
         data-roster-mode={rosterMode}
         data-header-mode={headerMode}
         data-surveyeval-replacement={survivorReplacementTransition ? 'active' : undefined}
+        style={
+          survivorReplacementTransition
+            ? ({
+                '--surveyeval-replacement-duration': `${survivorReplacementTransition.durationMs}ms`,
+              } as CSSProperties)
+            : undefined
+        }
         data-houseguest-roster="true"
       >
         <div key={headerSignal} className={styles.headerRow} aria-live="polite">
@@ -498,6 +523,9 @@ export default function HouseguestGrid({
                   isEvicting={rosterExit.ids.includes(String(hg.id)) ? false : hg.isEvicting}
                   rosterExitVisible={rosterExit.ids.includes(String(hg.id))}
                   isSurveyevalEvicting={hg.isSurveyevalEvicting}
+                  isSurveyevalReplacement={
+                    survivorReplacementTransition?.incomingPlayerId === String(hg.id)
+                  }
                   isReunionReturning={isReunionReturning}
                   isReunionDeparting={isReunionDeparting}
                   reunionEntryDelayMs={

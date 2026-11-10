@@ -17,6 +17,8 @@ import gameReducer, {
   returnFromWeekendTribunalStream,
 } from '../../../store/gameSlice'
 import challengeReducer from '../../../store/challengeSlice'
+import { buildReplacementRobo, createSurvivorRun } from '../../../modes/survivorRun'
+import * as imagePreload from '../../../utils/preload'
 
 function renderGrid(ui: ReactElement) {
   const store = configureStore({
@@ -60,6 +62,58 @@ describe('HouseguestGrid', () => {
 
     expect(container.querySelector('section')?.getAttribute('data-compact-layout')).toBe('small')
     expect(within(screen.getByRole('list')).getAllByRole('listitem')).toHaveLength(8)
+  })
+
+  it('warms the queued replacement once while the outgoing robot stays in its slot', () => {
+    const game = createSurvivorRun()
+    if (game.modeSpecific?.kind !== 'survival') throw new Error('Expected a Survival run')
+    const outgoing = game.players.find((player) => player.isRobo)!
+    const incoming = buildReplacementRobo(game, outgoing.survivorSlot)
+    const preload = vi
+      .spyOn(imagePreload, 'preloadImage')
+      .mockResolvedValue({ url: incoming.avatar, status: 'loaded' })
+    const store = configureStore({
+      reducer: { game: gameReducer, challenge: challengeReducer },
+      preloadedState: {
+        game: {
+          ...game,
+          modeSpecific: {
+            ...game.modeSpecific,
+            replacementPending: {
+              mode: 'survival' as const,
+              outgoingPlayerSnapshot: outgoing,
+              incomingPlayer: incoming,
+              slot: outgoing.survivorSlot!,
+              queuedAt: Date.now(),
+            },
+          },
+        },
+      },
+    })
+    const houseguests = game.players.map((player) => ({
+      id: player.id,
+      name: player.name,
+      avatarUrl: player.avatar,
+    }))
+    const tree = (
+      <Provider store={store}>
+        <HouseguestGrid houseguests={houseguests} />
+      </Provider>
+    )
+    const view = render(tree)
+
+    expect(preload).toHaveBeenCalledExactlyOnceWith(incoming.avatar)
+    expect(screen.getByRole('img', { name: outgoing.name })).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: incoming.name })).toBeNull()
+
+    view.rerender(
+      <Provider store={store}>
+        <HouseguestGrid houseguests={[...houseguests]} occupancyLabel="7/8" />
+      </Provider>
+    )
+
+    expect(preload).toHaveBeenCalledTimes(1)
+    expect(document.head.querySelectorAll('link[data-game-image-preload]')).toHaveLength(0)
   })
 
   it('revives reunion portraits in the main roster without changing their gameplay status', () => {

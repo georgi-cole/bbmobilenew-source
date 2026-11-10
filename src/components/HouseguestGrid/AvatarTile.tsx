@@ -87,6 +87,8 @@ type Props = {
    */
   isEvicting?: boolean
   isSurveyevalEvicting?: boolean
+  /** The in-place assembly owns its presentation, without a shared-layout fade. */
+  isSurveyevalReplacement?: boolean
   /** Runs the reverse-eviction treatment directly on this roster tile. */
   isReturning?: boolean
   /** Plays the finale reunion return effect without changing gameplay status. */
@@ -196,6 +198,7 @@ function AvatarTileView({
   layoutRevision,
   isEvicting,
   isSurveyevalEvicting = false,
+  isSurveyevalReplacement = false,
   isReturning = false,
   isReunionReturning = false,
   reunionEntryDelayMs = 0,
@@ -319,6 +322,7 @@ function AvatarTileView({
   }, [evictionMarkKey, finishEvictionMarkAnimation, isEvicted])
   const [isPressing, setIsPressing] = React.useState(false)
   const [profilePhotoUrl, setProfilePhotoUrl] = React.useState<string | null>(null)
+  const [loadedAvatarUrl, setLoadedAvatarUrl] = React.useState<string | null>(null)
   const normalAvatarUrl = profilePhotoUrl ?? (profilePhotoId ? undefined : avatarUrl)
   const useSadPortrait =
     (!isYou || Boolean(appearanceFromAssetUrl(avatarUrl))) &&
@@ -333,6 +337,23 @@ function AvatarTileView({
     : undefined
   const resolvedAvatarUrl = sadAvatarUrl ?? normalAvatarUrl
   const isSurvivorRoboTile = Boolean(roboStats) || Boolean(avatarUrl?.includes('bottts'))
+  const showRoboPortraitFallback =
+    isSurvivorRoboTile && Boolean(resolvedAvatarUrl) && loadedAvatarUrl !== resolvedAvatarUrl
+  const sharedLayoutOpacity = Boolean(layoutId) && !isSurveyevalReplacement
+
+  async function handleImgLoad(event: React.SyntheticEvent<HTMLImageElement>) {
+    if (!isSurvivorRoboTile || !resolvedAvatarUrl) return
+    const image = event.currentTarget
+    const requestedUrl = resolvedAvatarUrl
+    if (typeof image.decode === 'function') {
+      try {
+        await image.decode()
+      } catch {
+        if (!image.complete || image.naturalWidth === 0) return
+      }
+    }
+    if (image.isConnected) setLoadedAvatarUrl(requestedUrl)
+  }
 
   React.useEffect(() => {
     attemptRef.current = 0
@@ -604,14 +625,23 @@ function AvatarTileView({
           layoutDependency={layoutDependency}
           data-ceremony-tile="true"
           data-nomination-ceremony-state={nominationCeremonyState}
+          data-portrait-loading={showRoboPortraitFallback ? 'true' : undefined}
+          style={
+            showRoboPortraitFallback
+              ? {
+                  backgroundImage: `url("${getLocalAvatarFallback(name, isYou)}")`,
+                  backgroundSize: 'cover',
+                }
+              : undefined
+          }
           animate={
             // Only apply opacity animation when layoutId is present (shared-layout path).
             // isEvicting is only ever set to true for tiles participating in the match-cut
             // animation which always have a layoutId, so this coupling is intentional.
-            layoutId ? { opacity: isEvicting ? 0 : 1 } : undefined
+            sharedLayoutOpacity ? { opacity: isEvicting ? 0 : 1 } : undefined
           }
           transition={
-            layoutId
+            sharedLayoutOpacity
               ? {
                   opacity: rosterExitVisible
                     ? { duration: 0 }
@@ -678,6 +708,7 @@ function AvatarTileView({
               loading="eager"
               decoding="async"
               fetchPriority="high"
+              onLoad={handleImgLoad}
               onError={handleImgError}
               draggable={false}
               onDragStart={(e) => e.preventDefault()}

@@ -146,4 +146,46 @@ describe('AvatarTile', () => {
     expect(name).not.toBeNull()
     expect(name?.className).not.toContain('nameRevealed')
   })
+
+  it('keeps a local robot portrait until the replacement image has decoded', async () => {
+    let finishDecode: (() => void) | undefined
+    const decode = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishDecode = resolve
+        })
+    )
+    const avatarUrl = 'https://api.dicebear.com/9.x/bottts/svg?seed=replacement-zari'
+    const view = render(
+      <AvatarTile
+        name="Zari"
+        avatarUrl={avatarUrl}
+        layoutId="avatar-replacement-zari"
+        isSurveyevalReplacement
+      />
+    )
+    const portrait = screen.getByRole('img', { name: 'Zari' }) as HTMLImageElement
+    Object.defineProperty(portrait, 'decode', { configurable: true, value: decode })
+    const wrapper = view.container.querySelector('[data-ceremony-tile]') as HTMLElement
+
+    expect(wrapper).toHaveAttribute('data-portrait-loading', 'true')
+    expect(wrapper.style.backgroundImage).toContain('data:image/svg+xml')
+    expect(wrapper.style.opacity).not.toBe('0')
+
+    fireEvent.load(portrait)
+    expect(decode).toHaveBeenCalledTimes(1)
+    expect(wrapper).toHaveAttribute('data-portrait-loading', 'true')
+
+    // Day progression must not remove the fallback while the remote pixels
+    // are still decoding, even if the assembly transition has ended.
+    view.rerender(
+      <AvatarTile name="Zari" avatarUrl={avatarUrl} layoutId="avatar-replacement-zari" />
+    )
+    expect(wrapper).toHaveAttribute('data-portrait-loading', 'true')
+
+    await act(async () => finishDecode?.())
+
+    expect(wrapper).not.toHaveAttribute('data-portrait-loading')
+    expect(wrapper.style.backgroundImage).toBe('')
+  })
 })
