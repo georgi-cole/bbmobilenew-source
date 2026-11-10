@@ -21,6 +21,11 @@ const config: CapacitorConfig = {
   },
 
   plugins: {
+    // Deliver consumables durably before finishing the store transaction. This
+    // must be set before the native StoreKit transaction listener starts.
+    NativePurchases: {
+      autoFinishTransactions: false,
+    },
     CapacitorSQLite: {
       iosDatabaseLocation: 'Library/CapacitorDatabase',
       iosIsEncryption: false,

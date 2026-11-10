@@ -26,6 +26,7 @@ export type AdPlacement =
   | 'final3_part1_break'
   | 'final3_part2_break'
   | 'final3_part3_break'
+  | 'survival_elimination_auto'
   | 'social_energy_recharge'
   | 'public_meter_audience_insight'
   | 'eviction_vote_breakdown'
@@ -43,6 +44,7 @@ export const INTERSTITIAL_PLACEMENTS = new Set<AdPlacement>([
   'final3_part1_break',
   'final3_part2_break',
   'final3_part3_break',
+  'survival_elimination_auto',
 ])
 
 export const DAILY_LIMITED_PLACEMENTS = new Set<AdPlacement>([
@@ -151,7 +153,7 @@ export function showInterstitial(
   placement: AdPlacement,
   state: RootState,
   dispatch: AppDispatch,
-  options?: { isFinal3Week?: boolean }
+  options?: { isFinal3Week?: boolean; onDismissed?: () => void }
 ): boolean {
   if (!canShowAd(placement, state, options)) return false
   if (!window.GameAds?.showInterstitial) {
@@ -176,6 +178,7 @@ export function showInterstitial(
           if (shown) dispatch(recordAdShown(placement))
         })
         .catch((error: unknown) => console.warn(`[ads] ${placement} failed`, error))
+        .finally(() => options?.onDismissed?.())
       return true
     }
   } catch (error) {
@@ -183,6 +186,7 @@ export function showInterstitial(
     return false
   }
   dispatch(recordAdShown(placement))
+  options?.onDismissed?.()
   return true
 }
 

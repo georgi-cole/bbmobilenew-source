@@ -16,6 +16,8 @@ export interface SurvivorModeState {
   startingCastSize: number
   nextRoboIndex: number
   adContinueCount?: number
+  /** Purchased recoveries never consume the separate per-run rewarded-ad allowance. */
+  paidContinueCount?: number
   replacementPending?: SurvivorReplacementPending | null
   replacementTransition?: SurvivorReplacementTransition | null
   competitionRotation: {

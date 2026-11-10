@@ -99,3 +99,81 @@
   color: rgba(248, 250, 255, 0.96);
   font-weight: 900;
 }
+
+.vip-store__survival-runs {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid rgba(139, 151, 227, 0.24);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(47, 49, 81, 0.45), rgba(16, 17, 30, 0.65));
+}
+
+.vip-store__survival-runs-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vip-store__survival-runs-heading .vip-store__eyebrow {
+  margin: 0 0 3px;
+  font-size: 0.6rem;
+}
+
+.vip-store__survival-runs-heading h3 {
+  margin: 0;
+  color: #eef1ff;
+  font-size: 0.95rem;
+}
+
+.vip-store__survival-runs-balance {
+  margin-left: auto;
+  color: #ced9ff;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.vip-store__survival-runs-description {
+  margin: 13px 0;
+  color: #c3c8da;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.vip-store__survival-runs-purchase {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vip-store__survival-runs-purchase strong,
+.vip-store__survival-runs-purchase small {
+  display: block;
+}
+
+.vip-store__survival-runs-purchase strong {
+  color: #f3edff;
+  font-size: 1rem;
+}
+
+.vip-store__survival-runs-purchase small {
+  margin-top: 4px;
+  color: #a1a9c4;
+  font-size: 0.62rem;
+  line-height: 1.4;
+}
+
+.vip-store__survival-runs-purchase .vip-store__primary {
+  width: auto;
+  min-width: 84px;
+  min-height: 44px;
+  padding-inline: 16px;
+  flex: 0 0 auto;
+}
+
+.vip-store__survival-runs-note {
+  margin: 12px 0 0;
+  color: #969db4;
+  font-size: 0.63rem;
+  line-height: 1.45;
+}

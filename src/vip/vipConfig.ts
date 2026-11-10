@@ -27,7 +27,7 @@ export type StoreProductTheme =
   | 'cupid'
   | 'vox'
   | 'quiet'
-export type StoreProductIconName = StoreProductKey | 'fallback'
+export type StoreProductIconName = StoreProductKey | 'survivalRuns' | 'fallback'
 
 export interface StoreProductDefinition {
   key: StoreProductKey
@@ -79,6 +79,34 @@ export const VOX_POPULI_PRODUCT_ID =
 export const PREMIUM_CHALLENGES_PRODUCT_ID =
   import.meta.env.VITE_PREMIUM_CHALLENGES_PRODUCT_ID?.trim() ||
   'com.georgicole.thebigeye.premiumchallenges'
+
+/** Consumables deliberately stay outside the permanent-entitlement/VIP catalog. */
+export const SURVIVAL_RUN_PRODUCT = {
+  key: 'survivalRuns',
+  productId:
+    import.meta.env.VITE_SURVIVAL_RUN_PRODUCT_ID?.trim() || 'com.georgicole.thebigeye.survivalrun',
+  title: 'Survival runs',
+  description: 'One more chance to continue your eliminated Survival run, without an ad.',
+  shortTagline: 'Your run does not have to end here.',
+  fullDescription:
+    'Each purchase adds one recovery. Use it after elimination, even if you have used all seven ad recoveries, or whenever you prefer to skip the ad. Buy again whenever you need another chance.',
+  benefits: [
+    'One recovery per purchase',
+    'Continue the same run without watching an ad',
+    'Use before or after your seven ad recoveries',
+    'Keep unused recoveries for a later Survival run on this device',
+  ],
+  icon: 'survivalRuns',
+  visualTheme: 'survival',
+  ownershipType: 'consumable',
+  shelf: 'extras',
+  nominalPriceCents: 99,
+  nominalPriceLabel: '€0.99',
+  badge: 'One recovery',
+  accessInstructions: 'Choose Use a Survival run after you are eliminated.',
+  legalNote:
+    'A repeatable consumable purchase, separate from VIP and Survival Mode access. Unused recoveries are stored on this device and are not restored by Restore Purchases after reinstalling or changing devices. The store confirms the localized price before payment.',
+} as const
 
 export const VIP_UPGRADE_CREDIT_NOTE =
   '75% of this purchase counts toward a future VIP upgrade. The final upgrade price is rounded to the nearest supported store tier.'
@@ -325,7 +353,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     entitlement: null,
     shortTagline: 'Every premium advantage. One permanent unlock.',
     fullDescription:
-      'Own the complete premium collection in one purchase, including every current Store feature, VIP theme and cinematic ceremony.',
+      'Own the complete premium collection in one purchase, including every permanent Store unlock, VIP theme and cinematic ceremony. Consumable Survival runs are purchased separately.',
     benefits: VIP_BENEFITS,
     icon: 'vip',
     visualTheme: 'spotlight',

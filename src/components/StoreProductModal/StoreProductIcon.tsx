@@ -31,6 +31,16 @@ function IconArtwork({ name }: { name: StoreProductIconName }) {
           <path d="M13 25h6l3-8 5 16 3.5-10 2.2 4H37" />
         </>
       )
+    case 'survivalRuns':
+      return (
+        <>
+          <path
+            className="store-product-icon__surface"
+            d="M38 15a17 17 0 1 0 2 15L33 27a10 10 0 1 1-1-8l-6 1 15 8 2-17-5 4Z"
+          />
+          <path d="M38 15a17 17 0 1 0 2 15M38 15l-12 5 15 8 2-17-5 4ZM16 27h6l2-7 4 13 3-6h5" />
+        </>
+      )
     case 'publicMode':
       return (
         <>

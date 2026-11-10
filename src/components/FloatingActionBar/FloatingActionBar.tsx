@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useStore } from 'react-redux'
-import { useRewardedAd } from '../../services/ads/useRewardedAd'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   endFinaleReunionDebugPreview,
@@ -77,8 +76,15 @@ import {
   getSurvivorCurrentDay,
   isSurvivorRunTerminal,
 } from '../../modes/survivorRun'
+import { getSurvivalRecoveryKey } from '../../modes/survivalRecovery'
+import { recoverSurvivalRunWithCredit } from '../../modes/survivalRecoveryActions'
+import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
+import {
+  hasSurvivalRunRedemption,
+  releaseSurvivalRunCredit,
+} from '../../vip/survivalRunPurchaseService'
 import ConfirmExitModal from '../ConfirmExitModal/ConfirmExitModal'
-import AdPrompt from '../AdPrompt/AdPrompt'
+import SurvivalRecoveryDialog from '../SurvivalRecoveryDialog/SurvivalRecoveryDialog'
 import GameControlDock from '../GameControlDock/GameControlDock'
 import { openBugReportFromGame } from '../../utils/openBugReport'
 import ConfessionalSpotlightOverlay from './ConfessionalSpotlightOverlay'
@@ -89,6 +95,28 @@ import type { RootState } from '../../store/store'
 const CONFESSIONAL_FLASH_DURATION_MS = 1800
 const SURVIVOR_DISABLED_MESSAGE_MS = 5000
 const FINALE_REUNION_DEPARTURE_WAVE_MS = 1700
+
+async function releaseReservedSurvivalRecovery(game: RootState['game']): Promise<void> {
+  const key = getSurvivalRecoveryKey(game)
+  if (!key) return
+  let hasReservation = false
+  try {
+    hasReservation = hasSurvivalRunRedemption(key)
+  } catch {
+    // A corrupt wallet disables billing, but must not trap normal exit navigation.
+    return
+  }
+  if (hasReservation) await releaseSurvivalRunCredit(key)
+}
+
+function isSameEndedSurvivalRun(current: RootState['game'], expected: RootState['game']): boolean {
+  return (
+    current.gameId === expected.gameId &&
+    isSurvivorRunTerminal(current) &&
+    getSurvivorCurrentDay(current) === getSurvivorCurrentDay(expected) &&
+    getSurvivalRecoveryKey(current) === getSurvivalRecoveryKey(expected)
+  )
+}
 
 type FloatingActionBarProps = {
   tribunalDecisionPending?: boolean
@@ -138,7 +166,6 @@ export default function FloatingActionBar({
   const navigate = useNavigate()
   const location = useLocation()
   const reduxStore = useStore<RootState>()
-  const survivorAd = useRewardedAd()
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
   const pendingCount = useAppSelector(selectPendingIncomingInteractionCount)
@@ -280,7 +307,6 @@ export default function FloatingActionBar({
     id: number
     message: string
   } | null>(null)
-  const [showSurvivorAdContinue, setShowSurvivorAdContinue] = useState(false)
   const [homeConfirmOpen, setHomeConfirmOpen] = useState(false)
   const prevEnergyRef = useRef(humanEnergy)
   useEffect(() => {
@@ -762,16 +788,68 @@ export default function FloatingActionBar({
     navigate(resolvePublicMeterDestination(true, publicRequestCount))
   }, [game.publicModeEnabled, navigate, onPublicMeterBlocked, publicRequestCount])
 
-  const handleStartNewSurvivor = useCallback(() => {
+  const handleStartNewSurvivor = useCallback(async () => {
+    const endedGame = reduxStore.getState().game
+    if (!isSurvivorRunTerminal(endedGame)) return
+    await releaseReservedSurvivalRecovery(endedGame)
+    const currentGame = reduxStore.getState().game
+    if (!isSameEndedSurvivalRun(currentGame, endedGame)) return
     if (!isGuest && activeProfileId) {
       clearSavedRun(activeProfileId, 'survival')
+      if (!(await flushSavePersistence())) {
+        throw new Error('The ended run could not be cleared. Please try starting a new run again.')
+      }
     }
+    if (!isSameEndedSurvivalRun(reduxStore.getState().game, endedGame)) return
     dispatch({ type: 'challenge/setPendingChallenge', payload: null })
     dispatch(hydrateGame(createSurvivorRun()))
     navigate('/game', { replace: true })
-  }, [activeProfileId, dispatch, isGuest, navigate])
+  }, [activeProfileId, dispatch, isGuest, navigate, reduxStore])
+
+  const handleExitEndedSurvivor = useCallback(async () => {
+    const currentGame = reduxStore.getState().game
+    if (!isSurvivorRunTerminal(currentGame)) return
+    await releaseReservedSurvivalRecovery(currentGame)
+    if (!isSameEndedSurvivalRun(reduxStore.getState().game, currentGame)) return
+    if (!isGuest && activeProfileId) {
+      clearSavedRun(activeProfileId, 'survival')
+      clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
+      if (!(await flushSavePersistence())) {
+        throw new Error('The ended run could not be cleared. Please try Return Home again.')
+      }
+    }
+    if (!isSameEndedSurvivalRun(reduxStore.getState().game, currentGame)) return
+    setHomeConfirmOpen(false)
+    withRunAutosaveSuspended(() => {
+      dispatch({ type: 'challenge/setPendingChallenge', payload: null })
+      dispatch(resetGame())
+    })
+    navigate('/', { replace: true })
+  }, [activeProfileId, dispatch, isGuest, navigate, reduxStore])
+
+  const handleSurvivorAdRecovery = useCallback(
+    (recoveryKey: string): boolean => {
+      const before = reduxStore.getState().game
+      if (getSurvivalRecoveryKey(before) !== recoveryKey) return false
+      dispatch(continueSurvivorAfterAd({ recoveryKey }))
+      const after = reduxStore.getState().game
+      return after.gameId === before.gameId && !isSurvivorRunTerminal(after)
+    },
+    [dispatch, reduxStore]
+  )
+
+  const handleSurvivorPaidRecovery = useCallback(
+    (recoveryKey: string) => dispatch(recoverSurvivalRunWithCredit(recoveryKey)),
+    [dispatch]
+  )
 
   const handleReturnHome = useCallback(() => {
+    if (isSurvivorRunTerminal(reduxStore.getState().game)) {
+      void handleExitEndedSurvivor().catch((cause: unknown) => {
+        showSurvivorBlockedMessage(cause instanceof Error ? cause.message : 'Please try again.')
+      })
+      return
+    }
     if (weekend?.debug) {
       dispatch(finishWeekendDebugPreview())
       navigate('/')
@@ -785,7 +863,14 @@ export default function FloatingActionBar({
       return
     }
     setHomeConfirmOpen(true)
-  }, [dispatch, navigate, weekend?.debug])
+  }, [
+    dispatch,
+    handleExitEndedSurvivor,
+    navigate,
+    reduxStore,
+    showSurvivorBlockedMessage,
+    weekend?.debug,
+  ])
 
   const returnHomeWithoutSaving = useCallback(() => {
     setHomeConfirmOpen(false)
@@ -952,7 +1037,7 @@ export default function FloatingActionBar({
         </div>
       )}
       <ConfirmExitModal
-        open={homeConfirmOpen}
+        open={homeConfirmOpen && !survivorTerminalActive}
         title={canPersistActiveRun ? 'Save and return home?' : 'Leave this season?'}
         description={
           canPersistActiveRun
@@ -966,39 +1051,20 @@ export default function FloatingActionBar({
         onSecondary={canPersistActiveRun ? abandonSeasonAndReturnHome : undefined}
         onCancel={() => setHomeConfirmOpen(false)}
       />
-      <ConfirmExitModal
-        open={survivorTerminalActive && !showSurvivorAdContinue}
-        title="Surveyeval run ended"
-        description={survivorEndDescription}
-        confirmLabel="Start New Surveyeval"
-        cancelLabel="Return Home"
-        secondaryLabel={
-          game.modeSpecific?.kind === 'survival' && (game.modeSpecific.adContinueCount ?? 0) < 3
-            ? 'Watch ad for another chance'
-            : undefined
-        }
-        onConfirm={handleStartNewSurvivor}
-        onSecondary={() => setShowSurvivorAdContinue(true)}
-        onCancel={handleReturnHome}
-      />
-      {survivorTerminalActive &&
-        (game.modeSpecific?.kind !== 'survival' ||
-          (game.modeSpecific.adContinueCount ?? 0) < 3) && (
-          <AdPrompt
-            title="System recovery available"
-            description={`Watch a short ad to reassemble your avatar and return to the run. Recovery ${((game.modeSpecific?.kind === 'survival' ? game.modeSpecific.adContinueCount : 0) ?? 0) + 1} of 3.`}
-            icon="⚡"
-            watchLabel="Watch ad · Reassemble"
-            skipLabel="Not now"
-            onWatch={async () => {
-              if (window.GameAds && !(await survivorAd.request('survival_continue'))) return
-              setShowSurvivorAdContinue(false)
-              window.setTimeout(() => dispatch(continueSurvivorAfterAd()), 450)
-            }}
-            onSkip={() => setShowSurvivorAdContinue(false)}
-            pending={survivorAd.pending}
-          />
-        )}
+      {survivorTerminalActive && (
+        <SurvivalRecoveryDialog
+          key={game.gameId}
+          description={survivorEndDescription}
+          recoveryKey={getSurvivalRecoveryKey(game)}
+          adRecoveriesUsed={
+            game.modeSpecific?.kind === 'survival' ? (game.modeSpecific.adContinueCount ?? 0) : 0
+          }
+          onAdRecovery={handleSurvivorAdRecovery}
+          onPaidRecovery={handleSurvivorPaidRecovery}
+          onStartNew={handleStartNewSurvivor}
+          onReturnHome={handleExitEndedSurvivor}
+        />
+      )}
       <GameControlDock
         dockRef={dockRef}
         onChatClick={handleChatClick}

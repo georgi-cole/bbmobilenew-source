@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, act, fireEvent, within } from '@testing-library/react'
+import { render, screen, act, fireEvent, within, waitFor } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
 import type { ComponentProps } from 'react'
@@ -34,7 +34,7 @@ import socialReducer, {
   applyEnergyDelta,
   pushIncomingInteraction,
 } from '../../../social/socialSlice'
-import profilesReducer from '../../../store/profilesSlice'
+import profilesReducer, { createProfile } from '../../../store/profilesSlice'
 import challengeReducer from '../../../store/challengeSlice'
 import publicOpinionReducer, { addDirection } from '../../../publicOpinion/publicOpinionSlice'
 import FloatingActionBar from '../FloatingActionBar'
@@ -45,6 +45,20 @@ import type { PublicDirection } from '../../../publicOpinion/types'
 import { createSecretMissionState } from '../../../bb/secretMission'
 import { createInitialVoxPopuliState } from '../../../features/twists/voxPopuli'
 import { clearMissionSafety, stageMissionSafety } from '../../../store/missionPowerActions'
+import { createSurvivorRun, terminalizeSurvivorRun } from '../../../modes/survivorRun'
+
+vi.mock('../../../vip/useSurvivalRuns', () => ({
+  useSurvivalRuns: () => ({
+    balance: 0,
+    product: null,
+    billingAvailable: false,
+    loading: false,
+    purchasing: false,
+    error: null,
+    clearError: () => undefined,
+    purchase: async () => false,
+  }),
+}))
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -149,6 +163,60 @@ function renderFAB(
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
+
+describe('FloatingActionBar – ended Survival run exit', () => {
+  function endedRun() {
+    const run = createSurvivorRun()
+    return terminalizeSurvivorRun({
+      ...run,
+      week: 4,
+      players: run.players.map((player) =>
+        player.isUser ? { ...player, status: 'evicted' } : player
+      ),
+    })
+  }
+
+  it('returns home directly with no save confirmation or second recovery popup', async () => {
+    const store = makeStore(true, endedRun())
+    store.dispatch(createProfile({ id: 'ended-survival-owner', name: 'Alex', avatar: '👤' }))
+    const legacyNavigation = document.createElement('div')
+    legacyNavigation.className = 'nav-bar'
+    const legacyHome = document.createElement('button')
+    legacyHome.setAttribute('aria-label', 'Home')
+    const openLegacySave = vi.fn()
+    legacyHome.addEventListener('click', openLegacySave)
+    legacyNavigation.append(legacyHome)
+    document.body.append(legacyNavigation)
+    try {
+      renderFAB(store)
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+      expect(screen.getByRole('dialog', { name: 'Surveyeval run ended' })).toBeVisible()
+      expect(screen.queryByText('System recovery available')).toBeNull()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Return Home' }))
+
+      await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/))
+      expect(openLegacySave).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(screen.queryByText('Save and return home?')).toBeNull()
+      expect(store.getState().game.mode).not.toBe('survival')
+    } finally {
+      legacyNavigation.remove()
+    }
+  })
+
+  it('preserves the save confirmation for a living Survival player', () => {
+    const store = makeStore(true, createSurvivorRun())
+    store.dispatch(createProfile({ id: 'active-survival-owner', name: 'Alex', avatar: '👤' }))
+    renderFAB(store)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+
+    expect(screen.getByRole('dialog', { name: 'Save and return home?' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Save & Home' })).toBeEnabled()
+    expect(screen.queryByRole('dialog', { name: 'Surveyeval run ended' })).toBeNull()
+  })
+})
 
 describe('FloatingActionBar – responsive placement', () => {
   it('centers the dock between the content above it and navbar', () => {

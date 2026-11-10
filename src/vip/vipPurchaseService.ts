@@ -16,6 +16,7 @@ import { createEmptyStoreEntitlements, type StoreEntitlements } from './vipStora
 import { getVipBillingProductId, isVipBillingProductId } from './vipUpgrade'
 import { TEMPORARY_STORE_UNLOCKS_ENABLED } from './effectiveEntitlements'
 import { IS_MOBILE_DEV_BUILD } from '../config/buildTarget'
+import { configureNativePurchaseLifecycle } from './nativePurchaseLifecycle'
 
 export interface StoreProduct {
   key: StoreProductKey
@@ -147,6 +148,44 @@ async function loadOwnership(): Promise<{
   return ownershipFromTransactions(purchases)
 }
 
+function permanentProductForTransaction(
+  transaction: Transaction
+): StoreProductDefinition | undefined {
+  return STORE_PRODUCT_CATALOG.find((definition) =>
+    definition.key === 'vip'
+      ? isVipBillingProductId(transaction.productIdentifier)
+      : definition.productId === transaction.productIdentifier
+  )
+}
+
+async function finishPermanentPurchase(transaction: Transaction): Promise<boolean> {
+  const definition = permanentProductForTransaction(transaction)
+  if (!definition || !transaction.transactionId?.trim()) return false
+  if (
+    transaction.revocationDate ||
+    transaction.subscriptionState === 'revoked' ||
+    transaction.isActive === false
+  )
+    return false
+  if (Capacitor.getPlatform() === 'android') {
+    if (
+      (transaction.purchaseState !== '1' && transaction.purchaseState !== 'PURCHASED') ||
+      !transaction.purchaseToken
+    )
+      return false
+    if (!transaction.isAcknowledged)
+      await NativePurchases.acknowledgePurchase({ purchaseToken: transaction.purchaseToken })
+  } else {
+    await NativePurchases.finishTransaction({ transactionId: transaction.transactionId })
+  }
+  return true
+}
+
+async function finishUnfinishedPermanentPurchases(): Promise<void> {
+  const { transactions } = await NativePurchases.getUnfinishedTransactions()
+  for (const transaction of transactions) await finishPermanentPurchase(transaction)
+}
+
 export async function loadVipStoreSnapshot(options?: {
   restore?: boolean
 }): Promise<VipStoreSnapshot> {
@@ -186,7 +225,11 @@ export async function loadVipStoreSnapshot(options?: {
     }
   }
 
+  await configureNativePurchaseLifecycle()
   if (options?.restore) await NativePurchases.restorePurchases()
+  // Manual native finishing protects consumables. Permanent unlocks remain
+  // restorable, so acknowledge their completed transactions before ownership refresh.
+  await finishUnfinishedPermanentPurchases()
   const ownership = await loadOwnership()
   const products = await loadProducts(ownership.entitlements)
   return {
@@ -205,6 +248,8 @@ export async function purchaseStoreProduct(productKey: StoreProductKey): Promise
     throw new Error('Purchases are only available in the iOS and Android app.')
   }
 
+  await configureNativePurchaseLifecycle()
+
   const definition = getStoreProductDefinition(productKey)
   if (!definition.availableInRelease) {
     throw new Error('This product is not available in the current release.')
@@ -217,13 +262,30 @@ export async function purchaseStoreProduct(productKey: StoreProductKey): Promise
     productIdentifier: billingProductId,
     productType: PURCHASE_TYPE.INAPP,
     isConsumable: false,
-    // The plugin finishes StoreKit transactions and acknowledges Play purchases.
-    autoAcknowledgePurchases: true,
+    autoAcknowledgePurchases: false,
   })
+
+  // Check payment state before manual acknowledgment. Consumable transactions
+  // never reach this permanent-entitlement path.
+  let finished = false
+  if (
+    transaction.productIdentifier === billingProductId &&
+    (Capacitor.getPlatform() !== 'android' ||
+      transaction.purchaseState === '1' ||
+      transaction.purchaseState === 'PURCHASED')
+  ) {
+    finished = await finishPermanentPurchase(transaction)
+  }
 
   if (
     transaction.productIdentifier !== billingProductId ||
-    !isOwnedStoreTransaction(transaction, productKey)
+    !finished ||
+    !isOwnedStoreTransaction(
+      Capacitor.getPlatform() === 'android'
+        ? { ...transaction, isAcknowledged: true }
+        : transaction,
+      productKey
+    )
   ) {
     throw new Error(
       transaction.purchaseState === '0'

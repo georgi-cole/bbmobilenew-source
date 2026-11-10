@@ -86,7 +86,7 @@
     "@capacitor-community/sqlite": "^8.1.1",
     "@capacitor/core": "8.5.3",
     "@capacitor/geolocation": "^8.2.4",
-    "@capgo/native-purchases": "^8.6.4",
+    "@capgo/native-purchases": "8.9.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@reduxjs/toolkit": "^2.11.2",

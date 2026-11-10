@@ -7,6 +7,8 @@ export interface AutomaticAdContext {
   currentPhase: string
   mode: string
   voxPopuliActive: boolean
+  /** Only living players continuing an active Survival run receive the day-end break. */
+  survivalRunActive?: boolean
   posHolderName?: string | null
 }
 
@@ -27,10 +29,25 @@ function breakKey(context: AutomaticAdContext, placement: AdPlacement): string {
  * - One pre-vote break on each normal house-vote day.
  * - One pre-Safety break on every second applicable day.
  * - Three deliberate Final 3 breaks, one between each decisive beat.
- * - No post-eviction or finale-recap interstitials.
+ * - Survival: one completed-day break after elimination, before the next day.
+ * - No other post-eviction or finale-recap interstitials.
  */
 export function getAutomaticAdBreak(context: AutomaticAdContext): AutomaticAdBreak | null {
   if (context.currentPhase === context.previousPhase) return null
+
+  if (
+    context.mode === 'survival' &&
+    context.currentPhase === 'week_end' &&
+    context.survivalRunActive === true
+  ) {
+    const placement: AdPlacement = 'survival_elimination_auto'
+    return {
+      placement,
+      breakKey: breakKey(context, placement),
+      subtitle:
+        'The elimination is complete. Your next Survival day begins after this short break.',
+    }
+  }
 
   if (
     context.currentPhase === 'live_vote' &&

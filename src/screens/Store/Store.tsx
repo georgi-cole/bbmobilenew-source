@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router'
 import StoreProductIcon from '../../components/StoreProductModal/StoreProductIcon'
 import StoreProductModal from '../../components/StoreProductModal/StoreProductModal'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
+import SurvivalRunsProduct from './SurvivalRunsProduct'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   purchaseEyeoleanStoreProduct,
@@ -533,6 +534,7 @@ export default function Store() {
               )
             })}
           </div>
+          <SurvivalRunsProduct />
         </section>
       )}
 
@@ -593,7 +595,7 @@ export default function Store() {
           <div className="vip-store__section-heading">
             <p className="vip-store__eyebrow">Finish your setup</p>
             <h2 id="extras-title">Extras</h2>
-            <p>Premium challenge remasters and a permanent ad-free broadcast option.</p>
+            <p>Premium challenges, fewer interruptions, and another chance to survive.</p>
           </div>
 
           <div className="vip-store__product-grid">
@@ -637,6 +639,7 @@ export default function Store() {
               )
             })}
           </div>
+          <SurvivalRunsProduct />
         </section>
       )}
 
