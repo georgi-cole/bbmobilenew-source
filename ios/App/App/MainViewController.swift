@@ -10,7 +10,11 @@ class MainViewController: CAPBridgeViewController {
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        allowsLandscape ? .allButUpsideDown : .portrait
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return .all
+        }
+
+        return allowsLandscape ? .allButUpsideDown : .portrait
     }
 
     override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge {
