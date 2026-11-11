@@ -1,7 +1,16 @@
 import { mulberry32 } from '../../store/rng'
 import {
+  HOUSE_OF_CARDS_BONUS_BET_PENALTY,
+  HOUSE_OF_CARDS_BONUS_BET_REWARD,
+  HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS,
+  HOUSE_OF_CARDS_PEEK_REVEALS,
   buildHouseOfCardsBoard,
   chooseHouseOfCardsBrightPairSymbol,
+  getHouseOfCardsEarlyPairLimit,
+  getHouseOfCardsScoringMistakes,
+  getHouseOfCardsShieldAllowance,
+  isHouseOfCardsBlindBetPair,
+  chooseHouseOfCardsReplayIndexes,
   resolveHouseOfCardsRoundScore,
   type HouseOfCardsRoundToolId,
 } from '../../components/HouseOfCardsComp/houseOfCardsUtils'
@@ -56,30 +65,52 @@ export function createHouseOfCardsSessionAbility(playerId: string, tournamentSee
 export function createHouseOfCardsAiProfiles(
   participantIds: string[],
   humanId: string | null,
-  tournamentSeed: number,
+  tournamentSeed: number
 ): Record<string, HouseOfCardsAiSessionProfile> {
-  return Object.fromEntries(participantIds.filter((id) => id !== humanId).map((playerId) => [
-    playerId, { playerId, sessionAbility: createHouseOfCardsSessionAbility(playerId, tournamentSeed) },
-  ]))
+  return Object.fromEntries(
+    participantIds
+      .filter((id) => id !== humanId)
+      .map((playerId) => [
+        playerId,
+        { playerId, sessionAbility: createHouseOfCardsSessionAbility(playerId, tournamentSeed) },
+      ])
+  )
 }
 
 /** The AI commits to one of the same round tools using only public context. */
 export function chooseHouseOfCardsAiTool({
-  playerId, round, tournamentSeed, sessionAbility, isBehind, recentMistakes = 1, pairCount = 4,
+  playerId,
+  round,
+  tournamentSeed,
+  sessionAbility,
+  isBehind,
+  recentMistakes = 1,
+  pairCount = 4,
 }: HouseOfCardsAiWagerParams): HouseOfCardsRoundToolId {
-  const rng = mulberry32((tournamentSeed ^ hashId(playerId) ^ Math.imul(round, 0x27d4eb2d) ^ 0x19a4c2d1) >>> 0)
+  const rng = mulberry32(
+    (tournamentSeed ^ hashId(playerId) ^ Math.imul(round, 0x27d4eb2d) ^ 0x19a4c2d1) >>> 0
+  )
   const personalityRng = mulberry32((tournamentSeed ^ hashId(playerId) ^ 0x517cc1b7) >>> 0)
   const riskTolerance = 0.75 + personalityRng() * 0.5
   const ability = clamp(sessionAbility, 20, 90)
   const toolValues = [
-    { tool: 'peek' as const, value: 75 + pairCount * 3 + Math.max(0, recentMistakes - 1) * 8 + ability * 0.15 },
-    { tool: 'shield' as const, value: 60 + recentMistakes * 17 + (isBehind ? 4 : 0) + (100 - ability) * 0.12 },
-    { tool: 'bonus-bet' as const, value: 49 + (isBehind ? 17 : 0) + ability * 0.28 + riskTolerance * 12 },
+    { tool: 'peek' as const, value: 52 + pairCount * 3 + ability * 0.24 },
+    {
+      tool: 'shield' as const,
+      value:
+        65 * getHouseOfCardsShieldAllowance(round) +
+        Math.min(4, recentMistakes) * 10 +
+        (100 - ability) * 0.12,
+    },
+    { tool: 'bonus-bet' as const, value: 28 + (isBehind ? 28 : 0) + riskTolerance * 22 },
+    { tool: 'keep-open' as const, value: 64 + pairCount * 4 + (100 - ability) * 0.3 },
+    { tool: 'replay' as const, value: 40 + pairCount * 4 + recentMistakes * 5 },
   ].map((entry) => ({ ...entry, value: entry.value + (rng() - 0.5) * 12 }))
   toolValues.sort((a, b) => b.value - a.value)
-  const pool = rng() < 0.8
-    ? toolValues.filter((entry) => entry.value >= toolValues[0]!.value - 12)
-    : toolValues
+  const pool =
+    rng() < 0.8
+      ? toolValues.filter((entry) => entry.value >= toolValues[0]!.value - 12)
+      : toolValues
   return pool[Math.floor(rng() * pool.length)]?.tool ?? 'peek'
 }
 
@@ -95,6 +126,7 @@ export function simulateHouseOfCardsAiRound(params: {
   tournamentSeed: number
   sessionAbility: number
   tool?: HouseOfCardsRoundToolId
+  peekReveals?: number
   recentMistakes?: number
   brightTargetSymbol?: string
   isBehind?: boolean
@@ -103,14 +135,22 @@ export function simulateHouseOfCardsAiRound(params: {
   const tool = params.tool ?? 'peek'
   const roundSeed = (tournamentSeed ^ Math.imul(round, 0x85ebca6b)) >>> 0
   const board = buildHouseOfCardsBoard(roundSeed, pairCount)
-  const brightTarget = params.brightTargetSymbol || chooseHouseOfCardsBrightPairSymbol(tournamentSeed, round, board)
-  const outcomeRng = mulberry32((tournamentSeed ^ hashId(playerId) ^ Math.imul(round, 0x9e3779b9) ^ 0x6c8e9cf5) >>> 0)
+  const brightTarget =
+    params.brightTargetSymbol || chooseHouseOfCardsBrightPairSymbol(tournamentSeed, round, board)
+  const outcomeRng = mulberry32(
+    (tournamentSeed ^ hashId(playerId) ^ Math.imul(round, 0x9e3779b9) ^ 0x6c8e9cf5) >>> 0
+  )
+  const betRng = mulberry32(
+    (tournamentSeed ^ hashId(playerId) ^ Math.imul(round, 0x9e3779b9) ^ 0xf14d529b) >>> 0
+  )
   const abilityForm = (outcomeRng() + outcomeRng() + outcomeRng() + outcomeRng()) / 4 - 0.5
   const ability = clamp(sessionAbility + abilityForm * 22, 20, 90)
   const ability01 = ability / 100
   const memoryStoreChance = clamp(0.34 + ability01 * 0.48, 0.42, 0.82)
   const recallChance = clamp(0.22 + ability01 * 0.46, 0.28, 0.72)
   const memoryAccessChance = clamp(0.48 + ability01 * 0.34, 0.54, 0.84)
+  const seen = new Set<number>()
+  const keptOpen = new Set<number>()
   const remembered = new Map<number, string>()
   const matched = new Set<number>()
   const peeked = new Set<number>()
@@ -123,18 +163,11 @@ export function simulateHouseOfCardsAiRound(params: {
   let brightPairBonus = 0
   let toolDelta = 0
   let toolUsed = false
-  let shieldUsed = false
   let attemptCount = 0
-  const targetWindow = Math.ceil(pairCount / 2)
-
-  if (tool === 'peek') {
-    const index = Math.floor(outcomeRng() * cards.length)
-    const card = cards[index]
-    if (card) {
-      remembered.set(index, card.symbol)
-      peeked.add(index)
-    }
-  }
+  let replayCount = 0
+  const targetWindow = getHouseOfCardsEarlyPairLimit(pairCount)
+  const peekReveals = tool === 'peek' ? (params.peekReveals ?? HOUSE_OF_CARDS_PEEK_REVEALS) : 0
+  let peeksRemaining = peekReveals
 
   const maxAttempts = Math.max(8, pairCount * 5)
   while (completedPairs < pairCount && attemptCount < maxAttempts) {
@@ -142,23 +175,57 @@ export function simulateHouseOfCardsAiRound(params: {
     const available = cards.filter((card) => !matched.has(card.index))
     if (available.length < 2) break
     const recalled = new Map<number, string>()
+    if (tool === 'replay' && !toolUsed) {
+      const eligible = available.filter((card) => seen.has(card.index)).map((card) => card.index)
+      if (eligible.length >= 2 && (remembered.size < eligible.length || attemptCount > pairCount)) {
+        const indexes = chooseHouseOfCardsReplayIndexes(
+          eligible,
+          (tournamentSeed ^ Math.imul(round, 0x27d4eb2d) ^ 0xd937f4a1) >>> 0
+        )
+        for (const index of indexes) {
+          remembered.set(index, cards[index]!.symbol)
+          recalled.set(index, cards[index]!.symbol)
+        }
+        replayCount = indexes.length
+        toolUsed = true
+      }
+    }
     for (const [index, symbol] of remembered) {
-      if (!matched.has(index) && outcomeRng() < memoryAccessChance) {
-        const recalledSymbol = outcomeRng() < 0.075 ? cards[Math.floor(outcomeRng() * cards.length)]?.symbol ?? symbol : symbol
+      if (!recalled.has(index) && !matched.has(index) && outcomeRng() < memoryAccessChance) {
+        const recalledSymbol =
+          outcomeRng() < 0.075
+            ? (cards[Math.floor(outcomeRng() * cards.length)]?.symbol ?? symbol)
+            : symbol
         recalled.set(index, recalledSymbol)
       }
+    }
+    for (const index of keptOpen) {
+      if (!matched.has(index)) recalled.set(index, cards[index]!.symbol)
     }
     const rememberedIndexes = [...recalled.keys()]
     const knownPairs: Array<[number, number]> = []
     for (let i = 0; i < rememberedIndexes.length; i += 1) {
       const firstIndex = rememberedIndexes[i]!
-      const mate = rememberedIndexes.slice(i + 1).find((index) => recalled.get(index) === recalled.get(firstIndex))
+      const mate = rememberedIndexes
+        .slice(i + 1)
+        .find((index) => recalled.get(index) === recalled.get(firstIndex))
       if (mate !== undefined) knownPairs.push([firstIndex, mate])
     }
     const knowsPair = knownPairs.length > 0 && outcomeRng() < recallChance
+    const unseen = available.filter((card) => !seen.has(card.index))
+    const useBonusBet =
+      tool === 'bonus-bet' &&
+      !toolUsed &&
+      unseen.length >= 2 &&
+      (unseen.length <= 4 || betRng() < 0.16)
+    const useKeepOpen = tool === 'keep-open' && !toolUsed && !knowsPair
     let firstIndex: number
     let secondIndex: number
-    if (knowsPair) {
+    if (useBonusBet) {
+      firstIndex = unseen[Math.floor(betRng() * unseen.length)]!.index
+      const secondPool = unseen.filter((card) => card.index !== firstIndex)
+      secondIndex = secondPool[Math.floor(betRng() * secondPool.length)]!.index
+    } else if (knowsPair) {
       const pair = knownPairs[Math.floor(outcomeRng() * knownPairs.length)]!
       firstIndex = pair[0]
       secondIndex = pair[1]
@@ -167,10 +234,32 @@ export function simulateHouseOfCardsAiRound(params: {
       const firstPool = unremembered.length > 0 ? unremembered : available
       firstIndex = firstPool[Math.floor(outcomeRng() * firstPool.length)]!.index
       const firstCard = cards[firstIndex]!
-      const rememberedMate = rememberedIndexes.find((index) => index !== firstIndex && recalled.get(index) === firstCard.symbol)
-      if (rememberedMate !== undefined && outcomeRng() < recallChance * 0.74) secondIndex = rememberedMate
+      const rememberedMate = rememberedIndexes.find(
+        (index) => index !== firstIndex && recalled.get(index) === firstCard.symbol
+      )
+      if (
+        rememberedMate !== undefined &&
+        (keptOpen.has(rememberedMate) || outcomeRng() < recallChance * 0.74)
+      )
+        secondIndex = rememberedMate
       else {
-        const secondPool = available.filter((card) => card.index !== firstIndex)
+        let secondPool = available.filter((card) => card.index !== firstIndex)
+        // Check a plausible second card before committing. The decision to
+        // spend a reveal uses only the first flip and recalled information.
+        const peekCandidates = secondPool.filter(
+          (card) => !recalled.has(card.index) && !peeked.has(card.index)
+        )
+        if (peeksRemaining > 0 && secondPool.length > 1 && peekCandidates.length > 0) {
+          const candidate = peekCandidates[Math.floor(outcomeRng() * peekCandidates.length)]!
+          peeksRemaining -= 1
+          seen.add(candidate.index)
+          peeked.add(candidate.index)
+          remembered.set(candidate.index, candidate.symbol)
+          secondPool =
+            candidate.symbol === firstCard.symbol
+              ? [candidate]
+              : secondPool.filter((card) => card.index !== candidate.index)
+        }
         secondIndex = secondPool[Math.floor(outcomeRng() * secondPool.length)]!.index
       }
     }
@@ -178,7 +267,14 @@ export function simulateHouseOfCardsAiRound(params: {
     const first = cards[firstIndex]!
     const second = cards[secondIndex]!
     const isMatch = first.symbol === second.symbol
-    const useBonusBet = tool === 'bonus-bet' && !toolUsed && (knowsPair || attemptCount > 1 && outcomeRng() < 0.34)
+    const eligibleBet = useBonusBet && isHouseOfCardsBlindBetPair(firstIndex, secondIndex, seen)
+    seen.add(firstIndex)
+    seen.add(secondIndex)
+    if (useKeepOpen) {
+      keptOpen.add(firstIndex)
+      keptOpen.add(secondIndex)
+      toolUsed = true
+    }
 
     if (isMatch) {
       matched.add(firstIndex)
@@ -186,41 +282,71 @@ export function simulateHouseOfCardsAiRound(params: {
       completedPairs += 1
       streak += 1
       bestStreak = Math.max(bestStreak, streak)
-      if (brightPairBonus === 0 && first.symbol === brightTarget && completedPairs <= targetWindow) brightPairBonus = 120
+      if (brightPairBonus === 0 && first.symbol === brightTarget && completedPairs <= targetWindow)
+        brightPairBonus = HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS
     } else {
       mistakes += 1
-      const protectedByShield = tool === 'shield' && !shieldUsed
-      if (protectedByShield) shieldUsed = true
-      else {
-        scoringMistakes += 1
-        streak = 0
-      }
+      streak = 0
     }
 
-    if (useBonusBet) {
+    if (eligibleBet) {
       toolUsed = true
-      toolDelta = isMatch ? 150 : -120
+      toolDelta = isMatch ? HOUSE_OF_CARDS_BONUS_BET_REWARD : -HOUSE_OF_CARDS_BONUS_BET_PENALTY
     }
 
     for (const card of [first, second]) {
-      if (outcomeRng() < memoryStoreChance || peeked.has(card.index)) remembered.set(card.index, card.symbol)
+      if (outcomeRng() < memoryStoreChance || peeked.has(card.index))
+        remembered.set(card.index, card.symbol)
       else if (remembered.has(card.index) && outcomeRng() < 0.24) remembered.delete(card.index)
     }
   }
 
-  const timeMs = Math.max(3_000, Math.round(
-    pairCount * (920 + (1 - ability01) * 560)
-      + mistakes * (760 + outcomeRng() * 520)
-      + 1_100 + outcomeRng() * 2_800,
-  ))
-  const toolOutcome = tool === 'peek'
-    ? 'Peeked privately'
-    : tool === 'shield'
-      ? `Shield ${shieldUsed ? 'protected one miss' : 'unused'}`
-      : toolUsed ? `Bonus Bet ${toolDelta > 0 ? 'hit' : 'missed'}` : 'Bonus Bet unspent'
+  scoringMistakes = getHouseOfCardsScoringMistakes(mistakes, round, tool)
+  const timeMs = Math.max(
+    3_000,
+    Math.round(
+      pairCount * (920 + (1 - ability01) * 560) +
+        mistakes * (760 + outcomeRng() * 520) +
+        1_100 +
+        outcomeRng() * 2_800
+    )
+  )
+  const toolOutcome =
+    tool === 'peek'
+      ? `Private reveals used: ${peekReveals - peeksRemaining}`
+      : tool === 'shield'
+        ? `Shield deducted ${mistakes - scoringMistakes} ${mistakes - scoringMistakes === 1 ? 'miss' : 'misses'}`
+        : tool === 'keep-open'
+          ? toolUsed
+            ? 'Kept two cards visible'
+            : 'Keep Open unused'
+          : tool === 'replay'
+            ? replayCount > 0
+              ? 'Replayed two seen cards'
+              : 'Replay unused'
+            : toolUsed
+              ? `Bonus Bet ${toolDelta > 0 ? 'hit' : 'missed'}`
+              : 'Bonus Bet unspent'
   const score = resolveHouseOfCardsRoundScore({
-    pairCount, matchedPairs: completedPairs, mistakes, scoringMistakes, timeMs, bestStreak,
-    toolBonus: toolDelta, brightPairBonus,
+    pairCount,
+    matchedPairs: completedPairs,
+    mistakes,
+    scoringMistakes,
+    timeMs,
+    bestStreak,
+    toolBonus: toolDelta,
+    brightPairBonus,
   })
-  return { score, completedPairs, mistakes, scoringMistakes, timeMs, bestStreak, tool, toolDelta, toolOutcome, brightPairBonus }
+  return {
+    score,
+    completedPairs,
+    mistakes,
+    scoringMistakes,
+    timeMs,
+    bestStreak,
+    tool,
+    toolDelta,
+    toolOutcome,
+    brightPairBonus,
+  }
 }

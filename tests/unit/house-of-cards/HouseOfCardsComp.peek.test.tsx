@@ -9,6 +9,7 @@ import {
   buildPortraitPairBoard,
   chooseHouseOfCardsAiPair,
   chooseHouseOfCardsFinalWinner,
+  chooseHouseOfCardsBrightPairSymbol,
 } from '../../../src/components/HouseOfCardsComp/houseOfCardsUtils'
 import houseOfCardsReducer, {
   HOUSE_OF_CARDS_TILE_COUNTS,
@@ -72,17 +73,215 @@ describe('Deck of Light — four preliminaries and a finale', () => {
     expect(screen.getByLabelText('Round 1 card grid')).toBeInTheDocument()
   })
 
+  it('reveals a candidate privately without consuming the pending first flip', () => {
+    renderGame()
+    fireEvent.click(screen.getByRole('button', { name: /^Peek/ }))
+    const [first, candidate] = screen.getAllByRole('gridcell')
+    fireEvent.click(first)
+    fireEvent.click(screen.getByRole('button', { name: 'Use Peek' }))
+    fireEvent.click(candidate)
+    expect(candidate).toHaveAttribute('data-flipped', 'true')
+    expect(candidate).not.toHaveAccessibleName('Hidden card')
+    expect(first).toHaveAttribute('data-flipped', 'true')
+    act(() => vi.advanceTimersByTime(1_150))
+    expect(candidate).toHaveAccessibleName('Hidden card')
+
+    expect(screen.queryByRole('button', { name: 'Use Peek' })).not.toBeInTheDocument()
+    expect(first).toHaveAttribute('data-flipped', 'true')
+    expect(screen.getByText('0s')).toBeInTheDocument()
+  })
+
+  it('allows a blind Bonus Bet after the halfway point', () => {
+    const seed = 42
+    renderGame(seed)
+    fireEvent.click(screen.getByRole('button', { name: /^Bonus Bet/ }))
+    const cards = screen.getAllByRole('gridcell')
+    const pairs = getPairIndexes(seed, 4)
+
+    for (const [first, second] of pairs.slice(0, 2)) {
+      fireEvent.click(cards[first])
+      expect(screen.getByRole('button', { name: 'Arm Bonus Bet' })).toBeDisabled()
+      fireEvent.click(cards[second])
+      act(() => vi.advanceTimersByTime(260))
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: 'Arm Bonus Bet' }))
+    fireEvent.click(cards[pairs[2][0]])
+    fireEvent.click(cards[pairs[2][1]])
+    expect(screen.getByText('+150')).toBeInTheDocument()
+  })
+
+  it('rejects either previously seen card in an armed bet even after it is hidden again', () => {
+    renderGame(42)
+    fireEvent.click(screen.getByRole('button', { name: /^Bonus Bet/ }))
+    const [[first, freshMate], [other], [freshOther]] = getPairIndexes(42, 4)
+    const cards = screen.getAllByRole('gridcell')
+    fireEvent.click(cards[first])
+    fireEvent.click(cards[other])
+    act(() => vi.advanceTimersByTime(1_400))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Arm Bonus Bet' }))
+    expect(cards[first]).toBeDisabled()
+    expect(cards[other]).toBeDisabled()
+    expect(cards[freshMate]).toBeEnabled()
+    fireEvent.click(cards[first])
+    expect(cards[first]).toHaveAttribute('data-flipped', 'false')
+
+    fireEvent.click(cards[freshMate])
+    fireEvent.click(cards[first])
+    expect(screen.queryByText('+150')).not.toBeInTheDocument()
+    expect(cards[freshMate]).toHaveAttribute('data-flipped', 'true')
+    fireEvent.click(cards[freshOther])
+    expect(screen.getByText('-120')).toBeInTheDocument()
+  })
+
+  it.each([false, true])(
+    'keeps an attempted pair visible and selectable with premium=%s',
+    (premium) => {
+      renderGame(42, premium)
+      fireEvent.click(screen.getByRole('button', { name: /^Keep Open/ }))
+      if (premium) act(() => vi.advanceTimersByTime(2_000))
+      const [[first, mate], [other, otherMate]] = getPairIndexes(42, 4)
+      const cards = screen.getAllByRole('gridcell')
+      fireEvent.click(screen.getByRole('button', { name: 'Arm Keep Open' }))
+      fireEvent.click(cards[first])
+      fireEvent.click(cards[other])
+      act(() => vi.advanceTimersByTime(1_400))
+
+      for (const index of [first, other]) {
+        expect(cards[index]).toHaveAttribute('data-flipped', 'true')
+        expect(cards[index]).toHaveAttribute('data-kept-open', 'true')
+        expect(cards[index]).toBeEnabled()
+      }
+      expect(screen.queryByRole('button', { name: 'Arm Keep Open' })).not.toBeInTheDocument()
+
+      fireEvent.click(cards[first])
+      fireEvent.click(cards[first])
+      expect(cards[first]).toHaveAttribute('data-matched', 'false')
+      fireEvent.click(cards[mate])
+      expect(cards[first]).toHaveAttribute('data-matched', 'true')
+      act(() => vi.advanceTimersByTime(260))
+      fireEvent.click(cards[other])
+      fireEvent.click(cards[otherMate])
+      expect(cards[other]).toHaveAttribute('data-matched', 'true')
+    }
+  )
+
+  it.each([false, true])('replays two random seen hidden cards once with premium=%s', (premium) => {
+    renderGame(42, premium)
+    fireEvent.click(screen.getByRole('button', { name: /^Replay/ }))
+    if (premium) act(() => vi.advanceTimersByTime(2_000))
+    expect(screen.getByRole('button', { name: 'Use Replay' })).toBeDisabled()
+    const pairs = getPairIndexes(42, 4)
+    const cards = screen.getAllByRole('gridcell')
+    const seen = pairs.map((pair) => pair[0])
+    for (const [first, second] of [
+      [seen[0], seen[1]],
+      [seen[2], seen[3]],
+    ]) {
+      fireEvent.click(cards[first])
+      fireEvent.click(cards[second])
+      act(() => vi.advanceTimersByTime(1_400))
+    }
+    fireEvent.click(cards[pairs[0][0]])
+    fireEvent.click(cards[pairs[0][1]])
+    act(() => vi.advanceTimersByTime(260))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use Replay' }))
+    const replayed = cards.filter((card) => card.getAttribute('data-replayed') === 'true')
+    expect(replayed).toHaveLength(2)
+    for (const card of replayed) {
+      expect(seen.slice(1)).toContain(cards.indexOf(card))
+      expect(card).toHaveAttribute('data-flipped', 'true')
+      expect(card).toHaveAttribute('data-matched', 'false')
+      expect(card).toBeDisabled()
+    }
+    for (const [, unseen] of pairs.slice(1)) {
+      expect(cards[unseen]).toHaveAccessibleName('Hidden card')
+    }
+    act(() => vi.advanceTimersByTime(1_150))
+    expect(screen.queryByRole('button', { name: 'Use Replay' })).not.toBeInTheDocument()
+    for (const card of replayed) {
+      expect(card).toHaveAttribute('data-flipped', 'false')
+      expect(card).toBeEnabled()
+    }
+  })
+
+  it('awards exactly 120 points for finding the Bright Pair early', () => {
+    const seed = 42
+    renderGame(seed)
+    fireEvent.click(screen.getByRole('button', { name: /^Peek/ }))
+    const board = buildHouseOfCardsBoard(seed, 4)
+    const target = chooseHouseOfCardsBrightPairSymbol(seed, 1, board)
+    const pairs = getPairIndexes(seed, 4).sort(
+      (a, b) => Number(board[b[0]].symbol === target) - Number(board[a[0]].symbol === target)
+    )
+    const cards = screen.getAllByRole('gridcell')
+    for (const [first, second] of pairs) {
+      fireEvent.click(cards[first])
+      fireEvent.click(cards[second])
+      act(() => vi.advanceTimersByTime(260))
+    }
+    expect(screen.getByLabelText('Round 1 standings')).toHaveTextContent('Bright Pair +120')
+    expect(screen.getByLabelText('Round 1 standings')).toHaveTextContent('4,180')
+  })
+
+  it('deducts one Shield miss in the opening rounds and two in round three', () => {
+    const seed = 42
+    renderGame(seed)
+    for (let round = 1; round <= 3; round += 1) {
+      fireEvent.click(screen.getByRole('button', { name: /^Shield/ }))
+      const boardSeed = round === 1 ? seed : seed ^ Math.imul(round, 0x85ebca6b)
+      const pairs = getPairIndexes(boardSeed, HOUSE_OF_CARDS_TILE_COUNTS[round - 1] / 2)
+      const cards = screen.getAllByRole('gridcell')
+      for (let miss = 0; miss < 3; miss += 1) {
+        fireEvent.click(cards[pairs[0][0]])
+        fireEvent.click(cards[pairs[1][0]])
+        act(() => vi.advanceTimersByTime(1_400))
+      }
+      const allowance = round <= 2 ? 1 : 2
+      expect(screen.getByText(`${allowance}/${allowance} misses deducted.`)).toBeInTheDocument()
+      expect(screen.getByText('Misses').parentElement).toHaveTextContent(String(3 - allowance))
+      for (const [first, second] of pairs) {
+        fireEvent.click(cards[first])
+        fireEvent.click(cards[second])
+        act(() => vi.advanceTimersByTime(260))
+      }
+      expect(screen.getByLabelText(`Round ${round} standings`)).toHaveTextContent(
+        `${3 - allowance} misses`
+      )
+      if (round < 3) fireEvent.click(screen.getByRole('button', { name: 'Next round' }))
+    }
+  })
+
+  it.each([
+    { match: true, delta: '+150' },
+    { match: false, delta: '-120' },
+  ])('pays $delta when the armed attempt has match=$match', ({ match, delta }) => {
+    const seed = 42
+    renderGame(seed)
+    fireEvent.click(screen.getByRole('button', { name: /^Bonus Bet/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Arm Bonus Bet' }))
+    const [[first, mate], [other]] = getPairIndexes(seed, 4)
+    const cards = screen.getAllByRole('gridcell')
+
+    fireEvent.click(cards[first])
+    fireEvent.click(cards[match ? mate : other])
+
+    expect(screen.getByText(delta)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Arm Bonus Bet' })).not.toBeInTheDocument()
+  })
+
   it('expands the chosen premium charm before it deals the board', () => {
     renderGame(42, true)
     fireEvent.click(screen.getByRole('button', { name: /^Peek/ }))
 
     expect(document.querySelector('.hoc-root')).toHaveAttribute('data-tool-transition', 'expand')
     expect(
-      screen.getByText('Use the glimpse to plan your next match before the card turns back.')
+      screen.getByText(
+        'Scout early or check a candidate after your first flip, before committing to a pair.'
+      )
     ).toBeInTheDocument()
-    expect(
-      screen.queryByText('Privately reveal one card you choose for a moment.')
-    ).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Shield/ })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Round 1 card grid')).not.toBeInTheDocument()
 
@@ -97,7 +296,9 @@ describe('Deck of Light — four preliminaries and a finale', () => {
     expect(document.querySelectorAll('.hoc-charm-copy')).toHaveLength(8)
     expect(document.querySelectorAll('.hoc-charm-clone__back-face')).toHaveLength(8)
     expect(
-      screen.getAllByText('Use the glimpse to plan your next match before the card turns back.')
+      screen.getAllByText(
+        'Scout early or check a candidate after your first flip, before committing to a pair.'
+      )
     ).toHaveLength(8)
     expect(document.querySelectorAll('.hoc-board > .hoc-card')).toHaveLength(8)
     expect(

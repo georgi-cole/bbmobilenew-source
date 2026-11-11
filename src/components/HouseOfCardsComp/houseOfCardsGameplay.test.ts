@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  HOUSE_OF_CARDS_BONUS_BET_PENALTY,
+  HOUSE_OF_CARDS_BONUS_BET_REWARD,
+  HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS,
   buildPortraitPairBoard,
   buildHouseOfCardsBoard,
   chooseHouseOfCardsAiPair,
   chooseHouseOfCardsBrightPairSymbol,
   resolveHouseOfCardsRoundScore,
+  getHouseOfCardsScoringMistakes,
+  isHouseOfCardsBlindBetPair,
+  chooseHouseOfCardsReplayIndexes,
   type HouseOfCardsBoardCard,
 } from './houseOfCardsUtils'
 import {
@@ -90,6 +96,70 @@ describe('Deck of Light gameplay edge cases', () => {
     expect(choices.size).toBeGreaterThan(1)
   })
 
+  it('deducts only the available Shield misses and never makes the total negative', () => {
+    for (const round of [1, 2, 3, 4]) {
+      const allowance = round <= 2 ? 1 : 2
+      for (const mistakes of [0, 1, 2, 5]) {
+        expect(getHouseOfCardsScoringMistakes(mistakes, round, 'shield')).toBe(
+          Math.max(0, mistakes - allowance)
+        )
+        expect(getHouseOfCardsScoringMistakes(mistakes, round, 'peek')).toBe(mistakes)
+      }
+      const performance = simulateHouseOfCardsAiRound({
+        playerId: 'shield-player',
+        round,
+        pairCount: 4 + round,
+        tournamentSeed: 79,
+        sessionAbility: 60,
+        tool: 'shield',
+      })
+      expect(performance.scoringMistakes).toBe(Math.max(0, performance.mistakes - allowance))
+    }
+  })
+
+  it('requires two different never-seen cards for a bet', () => {
+    expect(isHouseOfCardsBlindBetPair(1, 2, new Set())).toBe(true)
+    expect(isHouseOfCardsBlindBetPair(1, 1, new Set())).toBe(false)
+    expect(isHouseOfCardsBlindBetPair(1, 2, new Set([1]))).toBe(false)
+    expect(isHouseOfCardsBlindBetPair(1, 2, new Set([2]))).toBe(false)
+    expect(isHouseOfCardsBlindBetPair(1, 2, new Set([1, 2]))).toBe(false)
+  })
+
+  it('draws two different Replay cards from the eligible pool reproducibly', () => {
+    const eligible = [2, 4, 7, 11]
+    const draws = Array.from({ length: 40 }, (_, seed) => {
+      const first = chooseHouseOfCardsReplayIndexes(eligible, seed)
+      expect(first).toEqual(chooseHouseOfCardsReplayIndexes(eligible, seed))
+      expect(new Set(first).size).toBe(2)
+      expect(first.every((index) => eligible.includes(index))).toBe(true)
+      return first.join(',')
+    })
+    expect(new Set(draws).size).toBeGreaterThan(1)
+    expect(eligible).toEqual([2, 4, 7, 11])
+    expect(chooseHouseOfCardsReplayIndexes([2], 0)).toEqual([])
+  })
+
+  it.each(['keep-open', 'replay'] as const)(
+    'simulates %s using the same board and scoring rules',
+    (tool) => {
+      const params = {
+        playerId: 'new-tool',
+        round: 3,
+        pairCount: 8,
+        tournamentSeed: 711,
+        sessionAbility: 61,
+        tool,
+      }
+      const performance = simulateHouseOfCardsAiRound(params)
+      expect(performance).toEqual(simulateHouseOfCardsAiRound(params))
+      expect(performance.toolOutcome).toBe(
+        tool === 'keep-open' ? 'Kept two cards visible' : 'Replayed two seen cards'
+      )
+      expect(performance.toolDelta).toBe(0)
+      expect(performance.scoringMistakes).toBe(performance.mistakes)
+    }
+  )
+
   it('simulates fallible AI memory with deterministic outcomes and score-consistent bonuses', () => {
     const params = {
       playerId: 'ai-2',
@@ -106,8 +176,10 @@ describe('Deck of Light gameplay edge cases', () => {
     expect(first.completedPairs).toBeGreaterThanOrEqual(0)
     expect(first.completedPairs).toBeLessThanOrEqual(params.pairCount)
     expect(first.scoringMistakes).toBeLessThanOrEqual(first.mistakes)
-    expect([0, 120]).toContain(first.brightPairBonus)
-    expect([0, -120, 150]).toContain(first.toolDelta)
+    expect([0, HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS]).toContain(first.brightPairBonus)
+    expect([0, -HOUSE_OF_CARDS_BONUS_BET_PENALTY, HOUSE_OF_CARDS_BONUS_BET_REWARD]).toContain(
+      first.toolDelta
+    )
     expect(first.score).toBe(
       resolveHouseOfCardsRoundScore({
         pairCount: params.pairCount,

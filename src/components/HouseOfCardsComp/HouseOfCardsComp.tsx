@@ -37,11 +37,18 @@ import { resolvePresentationAvatarCandidates } from '../../utils/presentationAva
 import { preloadImage } from '../../utils/preload'
 import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import {
+  HOUSE_OF_CARDS_BONUS_BET_PENALTY,
+  HOUSE_OF_CARDS_BONUS_BET_REWARD,
+  HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS,
   buildHouseOfCardsBoard,
   buildPortraitPairBoard,
   chooseHouseOfCardsBrightPairSymbol,
   chooseHouseOfCardsAiPair,
   chooseHouseOfCardsFinalWinner,
+  chooseHouseOfCardsReplayIndexes,
+  getHouseOfCardsEarlyPairLimit,
+  getHouseOfCardsScoringMistakes,
+  getHouseOfCardsShieldAllowance,
   resolveHouseOfCardsRoundScore,
   type HouseOfCardsBoardCard,
   type HouseOfCardsPortraitPlayer,
@@ -77,6 +84,7 @@ interface Props {
 interface RoundPerformance {
   score: number
   mistakes: number
+  rawMistakes?: number
   timeMs: number
   tool?: HouseOfCardsRoundToolId
   toolDelta?: number
@@ -116,20 +124,33 @@ const ROUND_TOOL_CHOICES: Array<{
   {
     id: 'peek',
     title: 'Peek',
-    copy: 'Privately reveal one card you choose for a moment.',
-    detail: 'Use the glimpse to plan your next match before the card turns back.',
+    copy: 'Privately reveal one card without committing to the flip.',
+    detail: 'Scout early or check a candidate after your first flip, before committing to a pair.',
   },
   {
     id: 'shield',
     title: 'Shield',
-    copy: 'Your next mismatch still counts, but keeps its streak and avoids one scoring penalty.',
-    detail: 'It protects your score on one mismatch while the round keeps moving.',
+    copy: 'Deduct 1 miss in rounds 1–2, or 2 misses in rounds 3–4.',
+    detail: 'The deduction applies to your miss total. A mismatch still breaks your streak.',
   },
   {
     id: 'bonus-bet',
     title: 'Bonus Bet',
-    copy: 'Choose when to risk a known pair: +150 on a match, −120 on a miss.',
-    detail: 'Arm it when you are ready to risk a pair you think you remember.',
+    copy: `+${HOUSE_OF_CARDS_BONUS_BET_REWARD} on a match, −${HOUSE_OF_CARDS_BONUS_BET_PENALTY} on a miss. Both cards must be unseen.`,
+    detail:
+      'Arm before the first flip of an attempt. Previously revealed cards cannot be used for a bet.',
+  },
+  {
+    id: 'keep-open',
+    title: 'Keep Open',
+    copy: 'Keep both cards from one attempt visible for the rest of the round.',
+    detail: 'Arm before an attempt. The cards stay selectable and still need to be matched.',
+  },
+  {
+    id: 'replay',
+    title: 'Replay',
+    copy: 'Briefly reveal two random cards you have already seen, once per round.',
+    detail: 'Only hidden, unmatched cards can be drawn. Use it to refresh an uncertain memory.',
   },
 ]
 
@@ -204,7 +225,11 @@ function simulateAiPreliminaryScore(params: {
     recentMistakes,
     brightTargetSymbol,
   })
-  return performance
+  return {
+    ...performance,
+    rawMistakes: performance.mistakes,
+    mistakes: performance.scoringMistakes,
+  }
 }
 
 export default function HouseOfCardsComp({
@@ -249,6 +274,11 @@ export default function HouseOfCardsComp({
   const [board, setBoard] = useState<HouseOfCardsBoardCard[]>(() =>
     buildHouseOfCardsBoard(sessionSeed, HOUSE_OF_CARDS_TILE_COUNTS[0] / 2)
   )
+  const [clockPausedAt, setClockPausedAt] = useState<number | null>(null)
+  const [replayIndexes, setReplayIndexes] = useState<number[]>([])
+  const [keptOpenIndexes, setKeptOpenIndexes] = useState<number[]>([])
+  const seenCardsRef = useRef(new Set<number>())
+  const firstCardWasUnseenRef = useRef(false)
   const [flippedIndices, setFlippedIndices] = useState<number[]>([])
   const [locked, setLocked] = useState(false)
   const [matchedPairs, setMatchedPairs] = useState(0)
@@ -300,6 +330,7 @@ export default function HouseOfCardsComp({
     ? finalPairCount * 2
     : (HOUSE_OF_CARDS_TILE_COUNTS[round - 1] ?? HOUSE_OF_CARDS_TILE_COUNTS[4])
   const targetPairs = isFinal ? finalPairCount : tileCount / 2
+  const earlyMatchesLeft = Math.max(0, getHouseOfCardsEarlyPairLimit(targetPairs) - matchedPairs)
   const boardStyle: BoardStyle = { '--hoc-columns': boardColumns(tileCount) }
 
   useEffect(() => {
@@ -367,6 +398,11 @@ export default function HouseOfCardsComp({
           : buildHouseOfCardsBoard(nextSeed, nextTiles / 2)
       setRound(nextRound)
       setBoard(nextBoard)
+      setKeptOpenIndexes([])
+      setReplayIndexes([])
+      setClockPausedAt(null)
+      seenCardsRef.current.clear()
+      firstCardWasUnseenRef.current = false
       setBrightPairSymbol(
         nextRound === 5 ? '' : chooseHouseOfCardsBrightPairSymbol(sessionSeed, nextRound, nextBoard)
       )
@@ -522,10 +558,10 @@ export default function HouseOfCardsComp({
     activeIds.forEach((id) => {
       if (id === humanId) {
         const timeMs = Math.max(1, Date.now() - roundStartedAtRef.current)
-        const scoringMistakes =
-          roundTool === 'shield' && toolUsed ? Math.max(0, mistakes - 1) : mistakes
+        const scoringMistakes = getHouseOfCardsScoringMistakes(mistakes, round, roundTool)
         roundScores[id] = {
-          mistakes,
+          mistakes: scoringMistakes,
+          rawMistakes: mistakes,
           timeMs,
           score: resolveHouseOfCardsRoundScore({
             pairCount: pairs,
@@ -539,13 +575,17 @@ export default function HouseOfCardsComp({
           tool: roundTool ?? undefined,
           toolDelta: toolDelta || undefined,
           toolOutcome:
-            roundTool === 'shield' && toolUsed
-              ? 'Shield absorbed a scoring penalty'
-              : roundTool === 'bonus-bet' && toolUsed
-                ? `Bonus Bet ${toolDelta > 0 ? 'hit' : 'missed'}`
+            roundTool === 'shield'
+              ? `Shield deducted ${mistakes - scoringMistakes} ${mistakes - scoringMistakes === 1 ? 'miss' : 'misses'}`
+              : roundTool === 'bonus-bet'
+                ? `Bonus Bet ${toolUsed ? (toolDelta > 0 ? 'hit' : 'missed') : 'unspent'}`
                 : roundTool === 'peek' && toolUsed
                   ? 'Peeked privately'
-                  : undefined,
+                  : roundTool === 'keep-open' && toolUsed
+                    ? 'Kept two cards visible'
+                    : roundTool === 'replay' && toolUsed
+                      ? 'Replayed two seen cards'
+                      : undefined,
           brightPairBonus: brightPairBonus || undefined,
         }
       } else {
@@ -563,7 +603,10 @@ export default function HouseOfCardsComp({
           brightTargetSymbol: brightPairSymbol,
         })
         roundScores[id] = performance
-        aiRecentMistakesRef.current[id] = [...recent, performance.mistakes].slice(-3)
+        aiRecentMistakesRef.current[id] = [
+          ...recent,
+          performance.rawMistakes ?? performance.mistakes,
+        ].slice(-3)
       }
     })
     const nextScores = { ...cumulativeScores }
@@ -643,7 +686,7 @@ export default function HouseOfCardsComp({
         ids.forEach((id) => {
           aiRecentMistakesRef.current[id] = [
             ...(aiRecentMistakesRef.current[id] ?? []),
-            performances[id].mistakes,
+            performances[id].rawMistakes ?? performances[id].mistakes,
           ].slice(-3)
         })
         ids.forEach((id) => {
@@ -708,7 +751,7 @@ export default function HouseOfCardsComp({
       ids.forEach((id) => {
         aiRecentMistakesRef.current[id] = [
           ...(aiRecentMistakesRef.current[id] ?? []),
-          performances[id].mistakes,
+          performances[id].rawMistakes ?? performances[id].mistakes,
         ].slice(-3)
       })
       ids.forEach((id) => {
@@ -784,7 +827,7 @@ export default function HouseOfCardsComp({
   }, [aiProfiles, dispatch, finalPairCount, participantIds, roundSummary, sessionSeed])
 
   const resolvePair = useCallback(
-    (firstIndex: number, secondIndex: number) => {
+    (firstIndex: number, secondIndex: number, blindBetEligible = false) => {
       const first = board[firstIndex]
       const second = board[secondIndex]
       if (!first || !second) return
@@ -795,6 +838,11 @@ export default function HouseOfCardsComp({
         aiMemoryRef.current[id] = memory
       })
       setLocked(true)
+      if (phase === 'playing' && roundTool === 'keep-open' && peekSelecting && !toolUsed) {
+        setKeptOpenIndexes([firstIndex, secondIndex])
+        setToolUsed(true)
+        setPeekSelecting(false)
+      }
       if (first.symbol === second.symbol) {
         playMatch()
         setBoard((current) =>
@@ -812,17 +860,17 @@ export default function HouseOfCardsComp({
             [finalTurnId]: (points[finalTurnId] ?? 0) + 1,
           }))
         } else {
-          if (roundTool === 'bonus-bet' && peekSelecting && !toolUsed) {
-            setToolDelta(150)
+          if (roundTool === 'bonus-bet' && peekSelecting && !toolUsed && blindBetEligible) {
+            setToolDelta(HOUSE_OF_CARDS_BONUS_BET_REWARD)
             setToolUsed(true)
             setPeekSelecting(false)
           }
           if (
             first.symbol === brightPairSymbol &&
             brightPairBonus === 0 &&
-            matchedPairs < Math.ceil(targetPairs / 2)
+            matchedPairs < getHouseOfCardsEarlyPairLimit(targetPairs)
           ) {
-            setBrightPairBonus(120)
+            setBrightPairBonus(HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS)
           }
           setStreak((value) => {
             const next = value + 1
@@ -835,8 +883,14 @@ export default function HouseOfCardsComp({
       }
 
       playMismatch()
-      if (phase === 'playing' && roundTool === 'bonus-bet' && peekSelecting && !toolUsed) {
-        setToolDelta(-120)
+      if (
+        phase === 'playing' &&
+        roundTool === 'bonus-bet' &&
+        peekSelecting &&
+        !toolUsed &&
+        blindBetEligible
+      ) {
+        setToolDelta(-HOUSE_OF_CARDS_BONUS_BET_PENALTY)
         setToolUsed(true)
         setPeekSelecting(false)
       }
@@ -849,8 +903,7 @@ export default function HouseOfCardsComp({
       )
       if (phase === 'playing') {
         setMistakes((value) => value + 1)
-        if (roundTool === 'shield' && !toolUsed) setToolUsed(true)
-        else setStreak(0)
+        setStreak(0)
       }
       window.setTimeout(() => {
         setBoard((current) =>
@@ -890,9 +943,13 @@ export default function HouseOfCardsComp({
       if (locked || (phase !== 'playing' && phase !== 'final_playing')) return
       if (phase === 'final_playing' && finalTurnId !== humanId) return
       const card = board[cardIndex]
-      if (!card || card.isMatched || card.isFlipped) return
+      if (!card || card.isMatched || card.isFlipped || flippedIndices.includes(cardIndex)) return
+      const wasUnseen = !seenCardsRef.current.has(cardIndex)
+      if (phase === 'playing' && roundTool === 'bonus-bet' && peekSelecting && !wasUnseen) return
       if (phase === 'playing' && peekSelecting && roundTool === 'peek' && !toolUsed) {
-        aiMemoryRef.current[humanId ?? '']?.add(cardIndex)
+        const peekStartedAt = Date.now()
+        setClockPausedAt(peekStartedAt)
+        seenCardsRef.current.add(cardIndex)
         setPeekedIndex(cardIndex)
         setToolUsed(true)
         setPeekSelecting(false)
@@ -900,20 +957,24 @@ export default function HouseOfCardsComp({
         if (peekTimerRef.current !== null) window.clearTimeout(peekTimerRef.current)
         peekTimerRef.current = window.setTimeout(() => {
           peekTimerRef.current = null
+          roundStartedAtRef.current += Date.now() - peekStartedAt
+          setClockPausedAt(null)
           setPeekedIndex(null)
           setLocked(false)
         }, 1_150)
         return
       }
+      seenCardsRef.current.add(cardIndex)
       playFlip()
       setBoard((current) =>
         current.map((item, index) => (index === cardIndex ? { ...item, isFlipped: true } : item))
       )
       if (flippedIndices.length === 0) {
+        firstCardWasUnseenRef.current = wasUnseen
         setFlippedIndices([cardIndex])
         return
       }
-      resolvePair(flippedIndices[0], cardIndex)
+      resolvePair(flippedIndices[0], cardIndex, firstCardWasUnseenRef.current && wasUnseen)
     },
     [
       board,
@@ -935,6 +996,37 @@ export default function HouseOfCardsComp({
     cardHandler.current = handleCardClick
   }, [handleCardClick])
   const chooseCard = useCallback((index: number) => cardHandler.current(index), [])
+
+  const activateReplay = useCallback(() => {
+    if (phase !== 'playing' || locked || roundTool !== 'replay' || toolUsed) return
+    const eligible = board
+      .filter(
+        (card) =>
+          seenCardsRef.current.has(card.index) &&
+          !card.isMatched &&
+          !card.isFlipped &&
+          !keptOpenIndexes.includes(card.index)
+      )
+      .map((card) => card.index)
+    const indexes = chooseHouseOfCardsReplayIndexes(
+      eligible,
+      (sessionSeed ^ Math.imul(round, 0x27d4eb2d) ^ 0xd937f4a1) >>> 0
+    )
+    if (indexes.length < 2) return
+    const startedAt = Date.now()
+    setClockPausedAt(startedAt)
+    setReplayIndexes(indexes)
+    setToolUsed(true)
+    setLocked(true)
+    playFlip()
+    peekTimerRef.current = window.setTimeout(() => {
+      peekTimerRef.current = null
+      roundStartedAtRef.current += Date.now() - startedAt
+      setClockPausedAt(null)
+      setReplayIndexes([])
+      setLocked(false)
+    }, 1_150)
+  }, [board, keptOpenIndexes, locked, phase, playFlip, round, roundTool, sessionSeed, toolUsed])
 
   const chooseRoundTool = useCallback(
     (tool: HouseOfCardsRoundToolId) => {
@@ -1175,6 +1267,7 @@ export default function HouseOfCardsComp({
       <div
         className="hoc-root"
         data-phase="tool_select"
+        data-tool-count={ROUND_TOOL_CHOICES.length}
         data-presentation={premiumPresentation ? 'premium' : 'standard'}
         data-tool-transition={toolTransition ?? undefined}
       >
@@ -1187,8 +1280,9 @@ export default function HouseOfCardsComp({
           <span className="hoc-game-heading__kicker">Round {round} of 4 · choose one tool</span>
           <strong>Deck of Light</strong>
           <span>
-            Bright Pair: match <b>{brightPairSymbol || 'a hidden symbol'}</b> in the first half for
-            +120.
+            Bright Pair: match <b>{brightPairSymbol || 'a hidden symbol'}</b> in your first{' '}
+            {getHouseOfCardsEarlyPairLimit(targetPairs)} matches for +
+            {HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS}.
           </span>
         </header>
         <div className="hoc-tool-choices" role="group" aria-label="Choose one tool for this round">
@@ -1213,6 +1307,16 @@ export default function HouseOfCardsComp({
                   <svg viewBox="0 0 48 48" focusable="false">
                     <path d="M24 4.5 39 10v11.3c0 10-6.2 17.4-15 22.2-8.8-4.8-15-12.2-15-22.2V10l15-5.5Z" />
                     <path d="m17.5 23.5 4.3 4.3 9-9" />
+                  </svg>
+                ) : choice.id === 'keep-open' ? (
+                  <svg viewBox="0 0 48 48" focusable="false">
+                    <rect x="6" y="9" width="15" height="30" rx="3" />
+                    <rect x="27" y="9" width="15" height="30" rx="3" />
+                    <path d="M11 24h5m16 0h5" />
+                  </svg>
+                ) : choice.id === 'replay' ? (
+                  <svg viewBox="0 0 48 48" focusable="false">
+                    <path d="M10 20a15 15 0 1 1 1 12M10 9v11h11" />
                   </svg>
                 ) : (
                   <svg viewBox="0 0 48 48" focusable="false">
@@ -1386,7 +1490,9 @@ export default function HouseOfCardsComp({
                     {roundSummary.roundScores[id].tool
                       ? ` · ${roundSummary.roundScores[id].toolOutcome ?? roundSummary.roundScores[id].tool}`
                       : ''}
-                    {roundSummary.roundScores[id].brightPairBonus ? ' · Bright Pair +120' : ''}
+                    {roundSummary.roundScores[id].brightPairBonus
+                      ? ` · Bright Pair +${HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS}`
+                      : ''}
                   </span>
                 </div>
                 <strong>{roundSummary.cumulativeScores[id].toLocaleString()}</strong>
@@ -1400,7 +1506,9 @@ export default function HouseOfCardsComp({
           {roundSummary.roundScores[humanId ?? '']?.toolOutcome
             ? `${roundSummary.roundScores[humanId ?? ''].toolOutcome}. `
             : ''}
-          {roundSummary.roundScores[humanId ?? '']?.brightPairBonus ? 'Bright Pair +120. ' : ''}
+          {roundSummary.roundScores[humanId ?? '']?.brightPairBonus
+            ? `Bright Pair +${HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS}. `
+            : ''}
           {roundSummary.eliminatedIds.length > 0
             ? `${roundSummary.eliminatedIds.map(nameFor).join(', ')} eliminated.`
             : 'The field advances.'}
@@ -1480,7 +1588,7 @@ export default function HouseOfCardsComp({
         <span>
           {isFinal
             ? 'The finalists share one portrait board.'
-            : `Bright Pair: ${brightPairSymbol} · one tool this round`}
+            : `Bright Pair: ${brightPairSymbol} · ${brightPairBonus ? 'claimed' : earlyMatchesLeft > 0 ? `${earlyMatchesLeft} matches left` : 'unspent'}`}
         </span>
       </header>
       <div className="hoc-hud">
@@ -1491,6 +1599,7 @@ export default function HouseOfCardsComp({
         <div className="hoc-hud-stat">
           <HouseOfCardsElapsedTime
             startedAt={roundStartedAtRef.current}
+            pausedAt={clockPausedAt}
             active={phase === 'playing' || phase === 'final_playing'}
           />
           <span>Elapsed · no limit</span>
@@ -1503,7 +1612,7 @@ export default function HouseOfCardsComp({
         </div>
         {!isFinal && (
           <div className="hoc-hud-stat">
-            <strong>{mistakes}</strong>
+            <strong>{getHouseOfCardsScoringMistakes(mistakes, round, roundTool)}</strong>
             <span>Misses</span>
           </div>
         )}
@@ -1519,37 +1628,80 @@ export default function HouseOfCardsComp({
         <div className="hoc-round-tool" aria-live="polite">
           <span>
             {roundTool === 'bonus-bet'
-              ? 'Bonus Bet · choose a pair attempt to risk'
-              : `${roundTool === 'peek' ? 'Peek' : 'Shield'} · ${toolUsed ? 'used' : 'ready'}`}
+              ? `Bonus Bet · ${toolUsed ? 'spent' : 'unseen cards only'}`
+              : roundTool === 'shield'
+                ? 'Shield · automatic deduction'
+                : `${ROUND_TOOL_CHOICES.find((choice) => choice.id === roundTool)?.title} · ${toolUsed ? 'used' : 'ready'}`}
           </span>
           {roundTool === 'peek' && !toolUsed && (
-            <button type="button" onClick={() => setPeekSelecting((selecting) => !selecting)}>
+            <button
+              type="button"
+              disabled={locked}
+              aria-pressed={peekSelecting}
+              onClick={() => setPeekSelecting((selecting) => !selecting)}
+            >
               {peekSelecting ? 'Select a hidden card' : 'Use Peek'}
             </button>
           )}
-          {roundTool === 'bonus-bet' && !toolUsed && (
+          {(roundTool === 'bonus-bet' || roundTool === 'keep-open') && !toolUsed && (
             <button
               type="button"
+              disabled={
+                locked ||
+                flippedIndices.length > 0 ||
+                (roundTool === 'bonus-bet' &&
+                  !peekSelecting &&
+                  board.filter((card) => !seenCardsRef.current.has(card.index)).length < 2)
+              }
               aria-pressed={peekSelecting}
               onClick={() => setPeekSelecting((armed) => !armed)}
             >
-              {peekSelecting ? 'Bonus Bet armed · cancel' : 'Arm Bonus Bet'}
+              {roundTool === 'bonus-bet'
+                ? peekSelecting
+                  ? 'Bonus Bet armed · cancel'
+                  : 'Arm Bonus Bet'
+                : peekSelecting
+                  ? 'Keep Open armed · cancel'
+                  : 'Arm Keep Open'}
             </button>
           )}
-          {roundTool === 'shield' && !toolUsed && <span>Protects your next mismatch.</span>}
-          {toolUsed && (
+          {roundTool === 'replay' && !toolUsed && (
+            <button
+              type="button"
+              onClick={activateReplay}
+              disabled={
+                locked ||
+                board.filter(
+                  (card) =>
+                    seenCardsRef.current.has(card.index) && !card.isMatched && !card.isFlipped
+                ).length < 2
+              }
+            >
+              Use Replay
+            </button>
+          )}
+          {roundTool === 'shield' && (
+            <span>
+              {mistakes - getHouseOfCardsScoringMistakes(mistakes, round, roundTool)}/
+              {getHouseOfCardsShieldAllowance(round)} misses deducted.
+            </span>
+          )}
+          {toolUsed && roundTool !== 'peek' && (
             <strong>
               {roundTool === 'bonus-bet'
                 ? `${toolDelta > 0 ? '+' : ''}${toolDelta}`
-                : roundTool === 'shield'
-                  ? 'Penalty protected'
-                  : 'Card seen'}
+                : roundTool === 'keep-open'
+                  ? 'Cards stay visible'
+                  : 'Two cards replayed'}
             </strong>
           )}
         </div>
       )}
       {!isFinal && peekSelecting && roundTool === 'bonus-bet' && (
-        <p className="hoc-tool-hint">The next pair attempt will consume your Bonus Bet.</p>
+        <p className="hoc-tool-hint">
+          Choose two cards that have never been revealed. Your next eligible attempt consumes the
+          bet.
+        </p>
       )}
 
       {isFinal && (
@@ -1605,10 +1757,21 @@ export default function HouseOfCardsComp({
             <HouseOfCardsCard
               key={card.index}
               card={card}
-              flipped={card.isFlipped || (isFinal && peekedIndex === card.index)}
+              flipped={
+                card.isFlipped ||
+                peekedIndex === card.index ||
+                keptOpenIndexes.includes(card.index) ||
+                replayIndexes.includes(card.index)
+              }
+              keptOpen={keptOpenIndexes.includes(card.index)}
+              replayed={replayIndexes.includes(card.index)}
               disabled={
                 locked ||
                 card.isMatched ||
+                (!isFinal &&
+                  roundTool === 'bonus-bet' &&
+                  peekSelecting &&
+                  seenCardsRef.current.has(card.index)) ||
                 !humanCanPlay ||
                 (isFinal && !finalTurnId) ||
                 toolTransition === 'deal'

@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-11: Reviewed the Deck of Light tool revision in both presentations.
+  Bright Pair awards 120 points. Bonus Bet requires two never-revealed cards,
+  Shield deducts one or two misses by round, Keep Open holds one attempt visible,
+  and Replay reveals two random previously seen hidden cards once per round.
+  Human and AI play share these rules. Existing Premium Challenges and VIP
+  listings still describe the included premium presentation accurately.
+
 - 2026-11-10: Reviewed WebP artwork, the smaller credits video, and duplicate
   media removal across the Cupid and VIP themes and shared game screens.
   The media stays bundled for offline play, and legacy portrait and tabloid
