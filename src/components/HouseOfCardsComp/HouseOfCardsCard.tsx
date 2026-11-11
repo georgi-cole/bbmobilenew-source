@@ -10,8 +10,12 @@ export const HouseOfCardsCard = memo(function HouseOfCardsCard({
   isFinal,
   humanId,
   onChoose,
+  keptOpen = false,
+  replayed = false,
 }: {
   card: HouseOfCardsBoardCard
+  keptOpen?: boolean
+  replayed?: boolean
   flipped: boolean
   disabled: boolean
   premiumPresentation: boolean
@@ -31,6 +35,8 @@ export const HouseOfCardsCard = memo(function HouseOfCardsCard({
       type="button"
       role="gridcell"
       data-flipped={flipped ? 'true' : 'false'}
+      data-kept-open={keptOpen ? 'true' : undefined}
+      data-replayed={replayed ? 'true' : undefined}
       data-matched={card.isMatched ? 'true' : 'false'}
       data-mismatch={card.isMismatch ? 'true' : 'false'}
       disabled={disabled}

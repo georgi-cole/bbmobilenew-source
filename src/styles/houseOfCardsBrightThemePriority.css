@@ -2372,3 +2372,71 @@
     transition: none;
   }
 }
+
+/* Five tools share a scrollable choice surface on both presentations. */
+#root .hoc-root[data-phase='tool_select'][data-tool-count='5'] {
+  overflow-y: auto;
+  justify-content: flex-start;
+}
+
+#root .hoc-root[data-phase='tool_select'][data-tool-count='5'] .hoc-tool-choices {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  width: min(100%, 760px);
+  height: auto;
+  max-height: none;
+  gap: 12px;
+  margin: 0 auto;
+}
+
+#root .hoc-root[data-phase='tool_select'][data-tool-count='5'] .hoc-tool-choice {
+  width: 100%;
+  min-height: 142px;
+}
+
+#root .hoc-root[data-phase='tool_select'][data-tool-count='5'] .hoc-tool-choice:last-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(100%, 374px);
+}
+
+#root .hoc-root[data-phase='tool_select'][data-tool-count='5'] .hoc-tool-choice > span {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+#root .hoc-root .hoc-tool-choice--keep-open,
+#root .hoc-root .hoc-charm-copy--keep-open {
+  --tool-accent: #308aa2;
+  --hoc-tool-accent: 48, 138, 162;
+}
+
+#root .hoc-root .hoc-tool-choice--replay,
+#root .hoc-root .hoc-charm-copy--replay {
+  --tool-accent: #9c64be;
+  --hoc-tool-accent: 156, 100, 190;
+}
+
+#root .hoc-root .hoc-tool-choice--keep-open::after,
+#root .hoc-root .hoc-charm-copy--keep-open::after {
+  content: '▣';
+}
+
+#root .hoc-root .hoc-tool-choice--replay::after,
+#root .hoc-root .hoc-charm-copy--replay::after {
+  content: '↻';
+}
+
+@media (max-width: 420px) {
+  #root .hoc-root[data-phase='tool_select'][data-tool-count='5'] .hoc-tool-choices {
+    grid-template-columns: minmax(0, 1fr);
+    width: min(100%, 320px);
+  }
+
+  #root .hoc-root[data-phase='tool_select'][data-tool-count='5'] .hoc-tool-choice:last-child {
+    grid-column: auto;
+    width: 100%;
+  }
+}

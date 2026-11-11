@@ -716,8 +716,8 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
       'A rising memory tournament with tactical tools, a changing objective and a portrait-card duel.',
     instructions: [
       'Four rounds build from 8 to 20 tiles; the lowest scorer drops after round 3, then round 4 sends the top two to the finale',
-      'Choose one tool each round: Peek, Shield or Bonus Bet; the same choices apply to every contestant',
-      'Match the Bright Pair during the first half of the board for a bounded score bonus',
+      'Choose one tool each round: Peek, Shield, Bonus Bet, Keep Open or Replay; the same choices apply to every contestant',
+      'Match the Bright Pair during the first half of the board for +120 points',
       'The top two share a player-portrait board in the finale; every matched pair scores one point',
       'A finalist keeps playing after each match and passes the turn after a miss; each finalist gets one Peek-or-Pass token',
       'Final pairs decide the winner, with rounds 1–4 totals breaking a tie',
