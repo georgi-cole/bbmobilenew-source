@@ -1225,3 +1225,45 @@ describe('FloatingActionBar – confessional alert animation', () => {
     expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
   })
 })
+
+describe('durable weekend presentation', () => {
+  it('does not refill or spotlight a spent wallet on remount', () => {
+    let initial = gameReducer(
+      createInitialGameState({ seed: 81603 }),
+      debugActivateWeekendInterlude(5)
+    )
+    initial = {
+      ...initial,
+      weekendInterlude: {
+        ...initial.weekendInterlude!,
+        stage: 'social',
+        wallet: { ...initial.weekendInterlude!.wallet, energy: 1 },
+      },
+    }
+    const store = makeStore(true, initial)
+    const first = renderFAB(store)
+    expect(screen.getByRole('button', { name: 'Social (1)' })).toBeDefined()
+    first.unmount()
+    renderFAB(store)
+    expect(screen.getByRole('button', { name: 'Social (1)' })).toBeDefined()
+    expect(store.getState().game.weekendInterlude?.wallet.energy).toBe(1)
+    expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
+  })
+
+  it('migrates an already visited legacy weekend without replaying its grant', () => {
+    const initial = gameReducer(
+      createInitialGameState({ seed: 81604 }),
+      debugActivateWeekendInterlude(5)
+    )
+    const legacy = {
+      ...initial,
+      presentationEventClaims: undefined,
+      weekendInterlude: { ...initial.weekendInterlude!, stage: 'social' as const },
+    }
+    const hydrated = gameReducer(initial, hydrateGame(legacy))
+    expect(
+      hydrated.presentationEventClaims?.some((claim) => claim.eventId.startsWith('weekend-energy:'))
+    ).toBe(true)
+    expect(hydrated.weekendInterlude?.wallet).toEqual(legacy.weekendInterlude.wallet)
+  })
+})

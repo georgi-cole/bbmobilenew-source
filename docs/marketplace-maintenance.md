@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-12: Reviewed chocolate roster targeting and animation completion,
+  weekend energy, mission reward, and Confessional presentation start claims.
+  These repairs change no grants, wallet balances, rewards, products, access,
+  prices, premium benefits, or marketplace copy.
+
 - 2026-11-12: Reviewed Faux TV delivery scope, unread broadcast pinning,
   competition-rules handoff, and durable shock-intro claims. These repairs
   preserve the existing Standard and VIP presentations, game results, paid

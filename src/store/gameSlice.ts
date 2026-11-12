@@ -9985,7 +9985,21 @@ const gameSlice = createSlice({
         ),
         broadcastQueue: action.payload.broadcastQueue ?? [],
         activeBroadcastEventId: action.payload.activeBroadcastEventId ?? null,
-        presentationEventClaims: action.payload.presentationEventClaims ?? [],
+        presentationEventClaims:
+          action.payload.presentationEventClaims ??
+          (() => {
+            const weekend = action.payload.weekendInterlude
+            if (
+              !weekend ||
+              (weekend.wallet.energy >= 30 &&
+                ['intro', 'instructions', 'hub_says', 'party', 'season_so_far'].includes(
+                  weekend.stage
+                ))
+            )
+              return []
+            const key = `${action.payload.gameId ?? action.payload.season}:${weekend.weekendNumber ?? weekend.afterDay}:${weekend.afterDay}`
+            return [{ gameId: action.payload.gameId, runId: key, eventId: `weekend-energy:${key}` }]
+          })(),
         lastPlainBroadcastEventId: action.payload.lastPlainBroadcastEventId ?? null,
         twinShock: action.payload.twinShock ?? createInitialTwinShockState(),
         pregnancyStory: normalizePregnancyStoryState(action.payload.pregnancyStory),
