@@ -513,7 +513,7 @@ describe('FloatingActionBar – social module availability', () => {
     expect(store.getState().social.incomingInboxOpen).toBe(true)
   })
 
-  it('blocks new outgoing conversations but keeps incoming vote pitches accessible during live vote', () => {
+  it('opens outgoing Social and incoming vote pitches during live vote', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const store = makeStore(true, { phase: 'live_vote' })
     renderFAB(store)
@@ -523,12 +523,9 @@ describe('FloatingActionBar – social module availability', () => {
       screen.getByRole('button', { name: 'Incoming requests' }).click()
     })
 
-    expect(store.getState().social.panelOpen).toBe(false)
+    expect(store.getState().social.panelOpen).toBe(true)
     expect(store.getState().social.incomingInboxOpen).toBe(true)
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Outgoing social module did not open'),
-      expect.objectContaining({ phase: 'live_vote', moduleKind: 'outgoing' })
-    )
+    expect(warnSpy).not.toHaveBeenCalled()
 
     warnSpy.mockRestore()
   })

@@ -86,6 +86,7 @@ interface RootLike {
       createdWeek: number
       requiresResponse: boolean
       resolved: boolean
+      resolutionOrigin?: 'player' | 'deadline' | 'invalidation'
       resolvedWith?: string
       createdDay?: number
       payload?: { deliveredWeek?: unknown; deliveredDay?: unknown }
@@ -146,7 +147,9 @@ function getIncomingResponseStreak(
   for (let day = startDay; day <= completedDay; day += 1) {
     const dayInteractions = (interactions ?? []).filter(
       (interaction) =>
-        getInteractionDeliveryDay(interaction) === day && interaction.requiresResponse
+        getInteractionDeliveryDay(interaction) === day &&
+        interaction.requiresResponse &&
+        interaction.resolutionOrigin !== 'invalidation'
     )
     // A player cannot answer a request that was never delivered. Treat a quiet
     // day as compliant, while still failing days with an ignored or dismissed

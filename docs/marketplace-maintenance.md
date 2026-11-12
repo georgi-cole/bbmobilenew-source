@@ -425,3 +425,8 @@ store listings or change configured prices.
   Extras and uses the compact power-button style. The minigame change covers the
   phone status area during play. No product, entitlement, reward, or premium
   minigame access changes.
+
+- 2026-11-12: Reviewed TestFlight mission request retirement, LOH pact protection
+  acknowledgements, and Social access during voting. Existing VIP/Classic/Vox
+  access and promise fulfilment apply; offers, prices, rewards, entitlements and
+  marketplace copy are unchanged.

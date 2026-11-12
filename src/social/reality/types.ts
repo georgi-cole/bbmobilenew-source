@@ -28,6 +28,8 @@ export interface RealityContext extends RealityClock {
   rolesByActor: Record<RealityActorId, string[]>
   atRiskActorIds: RealityActorId[]
   powerHolderIds: RealityActorId[]
+  /** The current holder of an open initial-nomination decision, when applicable. */
+  nominationLeaderId?: RealityActorId
   /** Defaults to true for migrated saves and callers that predate this setting. */
   romanceEnabled?: boolean
   blockingUiState?: string

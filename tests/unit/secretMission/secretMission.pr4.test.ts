@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { configureStore } from '@reduxjs/toolkit';
+import { describe, expect, it } from 'vitest'
+import { configureStore } from '@reduxjs/toolkit'
 import gameReducer, {
   acceptSecretMission,
   activateMissionImmunityReward,
@@ -15,70 +15,74 @@ import gameReducer, {
   hydrateGame,
   applyMinigameWinner,
   completeMission,
-} from '../../../src/store/gameSlice';
-import settingsReducer from '../../../src/store/settingsSlice';
-import socialReducer, { pushIncomingInteraction } from '../../../src/social/socialSlice';
+} from '../../../src/store/gameSlice'
+import settingsReducer from '../../../src/store/settingsSlice'
+import socialReducer, {
+  pushIncomingInteraction,
+  invalidateIncomingInteractions,
+  resolveIncomingInteraction,
+} from '../../../src/social/socialSlice'
 import publicOpinionReducer, {
   initializeProfiles,
   setProfileApprovals,
-} from '../../../src/publicOpinion/publicOpinionSlice';
-import { secretMissionMiddleware } from '../../../src/store/secretMissionMiddleware';
-import { getSecretMissionEasterEggByIntent } from '../../../src/bb/secretMissionEasterEggs';
-import {
-  canOfferMissionImmunity,
-  pickMissionImmunityDuration,
-} from '../../../src/bb/secretMission';
-import type { GameState } from '../../../src/types';
+} from '../../../src/publicOpinion/publicOpinionSlice'
+import { secretMissionMiddleware } from '../../../src/store/secretMissionMiddleware'
+import { getSecretMissionEasterEggByIntent } from '../../../src/bb/secretMissionEasterEggs'
+import { canOfferMissionImmunity, pickMissionImmunityDuration } from '../../../src/bb/secretMission'
+import type { GameState } from '../../../src/types'
 
 function makeStore() {
   return configureStore({
     reducer: {
-      game: (state: Parameters<typeof gameReducer>[0], action: Parameters<typeof gameReducer>[1]) => {
-        const next = gameReducer(state, action);
+      game: (
+        state: Parameters<typeof gameReducer>[0],
+        action: Parameters<typeof gameReducer>[1]
+      ) => {
+        const next = gameReducer(state, action)
         // This suite retains the pre-v2 reward contract for save compatibility.
         return action.type === 'game/triggerSecretMission' && next.secretMission
           ? { ...next, secretMission: { ...next.secretMission, rewardVersion: undefined } }
-          : next;
+          : next
       },
       settings: settingsReducer,
       social: socialReducer,
       publicOpinion: publicOpinionReducer,
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(secretMissionMiddleware),
-  });
+  })
 }
 
 function setupAcceptedMission() {
-  const store = makeStore();
-  store.dispatch(initializeProfiles(['user']));
-  store.dispatch(triggerSecretMission(5));
-  store.dispatch(offerSecretMission(5));
-  store.dispatch(acceptSecretMission());
-  return store;
+  const store = makeStore()
+  store.dispatch(initializeProfiles(['user']))
+  store.dispatch(triggerSecretMission(5))
+  store.dispatch(offerSecretMission(5))
+  store.dispatch(acceptSecretMission())
+  return store
 }
 
 describe('secret mission v2 follow-up', () => {
   it('counts an authoritative non-last result from the winner-only competition flow', () => {
-    const store = setupAcceptedMission();
-    const task = store.getState().game.secretMission!.tasks[0];
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[0]
     store.dispatch(
       syncMissionTask({
         taskId: task.id,
         updates: { type: 'avoid_last_place', current: 1, target: 2, completed: false },
       })
-    );
-    const game = store.getState().game;
-    const humanId = game.players.find((player) => player.isUser)?.id;
+    )
+    const game = store.getState().game
+    const humanId = game.players.find((player) => player.isUser)?.id
     const otherIds = game.players
       .filter((player) => player.id !== humanId)
-      .map((player) => player.id);
-    if (!humanId || otherIds.length < 2) throw new Error('Expected a playable competition roster');
+      .map((player) => player.id)
+    if (!humanId || otherIds.length < 2) throw new Error('Expected a playable competition roster')
     store.dispatch(
       hydrateGame({
         ...game,
         phase: 'loh_comp',
       })
-    );
+    )
 
     store.dispatch(
       applyMinigameWinner({
@@ -86,13 +90,13 @@ describe('secret mission v2 follow-up', () => {
         lastPlaceId: otherIds[1],
         runId: 'mission-test-authoritative-result',
       })
-    );
+    )
 
     const updatedTask = store
       .getState()
-      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!;
-    expect(updatedTask.current).toBe(2);
-    expect(updatedTask.completed).toBe(true);
+      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+    expect(updatedTask.current).toBe(2)
+    expect(updatedTask.completed).toBe(true)
 
     // The ceremony can safely replay its dispatch; one competition run has one
     // chance to advance an avoid-last objective.
@@ -102,15 +106,15 @@ describe('secret mission v2 follow-up', () => {
         lastPlaceId: otherIds[1],
         runId: 'mission-test-authoritative-result',
       })
-    );
+    )
     expect(
       store.getState().game.secretMission!.tasks.find((entry) => entry.id === task.id)!.current
-    ).toBe(2);
-  });
+    ).toBe(2)
+  })
 
   it('scores incoming-request streaks by the day a queued request was delivered', () => {
-    const store = setupAcceptedMission();
-    const task = store.getState().game.secretMission!.tasks[0];
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[0]
     store.dispatch(
       syncMissionTask({
         taskId: task.id,
@@ -124,14 +128,14 @@ describe('secret mission v2 follow-up', () => {
           startDay: 6,
         },
       })
-    );
+    )
     store.dispatch(
       hydrateGame({
         ...store.getState().game,
         week: 6,
         phase: 'social_2',
       })
-    );
+    )
     store.dispatch(
       pushIncomingInteraction({
         id: 'queued-yesterday-delivered-today',
@@ -148,24 +152,24 @@ describe('secret mission v2 follow-up', () => {
         resolvedWith: 'positive',
         payload: { deliveredWeek: 6, deliveredPhase: 'social_2' },
       })
-    );
+    )
 
-    store.dispatch(setPhase('week_end'));
+    store.dispatch(setPhase('week_end'))
     expect(
       store.getState().game.secretMission!.tasks.find((entry) => entry.id === task.id)!.current
-    ).toBe(0);
-    store.dispatch(settleSecretMissionDay({ day: 6 }));
+    ).toBe(0)
+    store.dispatch(settleSecretMissionDay({ day: 6 }))
 
     const updated = store
       .getState()
-      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!;
-    expect(updated.current).toBe(1);
-    expect(updated.lastProgressDay).toBe(6);
-  });
+      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+    expect(updated.current).toBe(1)
+    expect(updated.lastProgressDay).toBe(6)
+  })
 
   it('rebuilds a response streak from delivered-request history after a stale save', () => {
-    const store = setupAcceptedMission();
-    const task = store.getState().game.secretMission!.tasks[0];
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[0]
     store.dispatch(
       syncMissionTask({
         taskId: task.id,
@@ -179,14 +183,14 @@ describe('secret mission v2 follow-up', () => {
           lastProgressDay: 6,
         },
       })
-    );
+    )
     store.dispatch(
       hydrateGame({
         ...store.getState().game,
         week: 7,
         phase: 'social_2',
       })
-    );
+    )
     for (const day of [5, 6, 7]) {
       store.dispatch(
         pushIncomingInteraction({
@@ -203,23 +207,23 @@ describe('secret mission v2 follow-up', () => {
           resolvedWith: 'positive',
           payload: { deliveredWeek: day, deliveredPhase: 'social_2' },
         })
-      );
+      )
     }
 
-    store.dispatch(setPhase('week_end'));
-    store.dispatch(settleSecretMissionDay({ day: 7 }));
+    store.dispatch(setPhase('week_end'))
+    store.dispatch(settleSecretMissionDay({ day: 7 }))
 
     const updated = store
       .getState()
-      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!;
-    expect(updated.current).toBe(3);
-    expect(updated.currentStreak).toBe(3);
-    expect(updated.completed).toBe(true);
-  });
+      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+    expect(updated.current).toBe(3)
+    expect(updated.currentStreak).toBe(3)
+    expect(updated.completed).toBe(true)
+  })
 
   it('counts a quiet day toward the incoming-response streak', () => {
-    const store = setupAcceptedMission();
-    const task = store.getState().game.secretMission!.tasks[0];
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[0]
     store.dispatch(
       syncMissionTask({
         taskId: task.id,
@@ -233,28 +237,28 @@ describe('secret mission v2 follow-up', () => {
           startDay: 6,
         },
       })
-    );
+    )
     store.dispatch(
       hydrateGame({
         ...store.getState().game,
         week: 6,
         phase: 'week_end',
       })
-    );
-    store.dispatch(settleSecretMissionDay({ day: 6 }));
+    )
+    store.dispatch(settleSecretMissionDay({ day: 6 }))
 
     const updated = store
       .getState()
-      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!;
-    expect(updated.current).toBe(1);
-    expect(updated.auditLog?.at(-1)).toContain('counts automatically');
-  });
+      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+    expect(updated.current).toBe(1)
+    expect(updated.auditLog?.at(-1)).toContain('counts automatically')
+  })
 
   it('replaces and retrospectively credits the legacy AI-only Vote Rally requirement', () => {
-    const store = setupAcceptedMission();
-    const game = store.getState().game;
-    const task = game.secretMission!.tasks[0];
-    const humanId = game.players.find((player) => player.isUser)!.id;
+    const store = setupAcceptedMission()
+    const game = store.getState().game
+    const task = game.secretMission!.tasks[0]
+    const humanId = game.players.find((player) => player.isUser)!.id
     store.dispatch({
       type: 'social/recordSocialAction',
       payload: {
@@ -267,7 +271,7 @@ describe('secret mission v2 follow-up', () => {
           week: task.startDay ?? game.week,
         },
       },
-    });
+    })
     store.dispatch(
       hydrateGame({
         ...game,
@@ -277,7 +281,8 @@ describe('secret mission v2 follow-up', () => {
             {
               ...task,
               type: 'social_action_count',
-              description: 'Complete this social set before Day 8: rumor, vote rally, and favour request',
+              description:
+                'Complete this social set before Day 8: rumor, vote rally, and favour request',
               current: 2,
               target: 3,
               completed: false,
@@ -289,19 +294,19 @@ describe('secret mission v2 follow-up', () => {
           ],
         },
       })
-    );
+    )
 
-    const repaired = store.getState().game.secretMission!.tasks[0];
-    expect(repaired.requiredActionIds).toEqual(['rumor', 'rally_votes_against', 'favor_request']);
-    expect(repaired.target).toBe(3);
-    expect(repaired.current).toBe(3);
-    expect(repaired.completed).toBe(true);
-  });
+    const repaired = store.getState().game.secretMission!.tasks[0]
+    expect(repaired.requiredActionIds).toEqual(['rumor', 'rally_votes_against', 'favor_request'])
+    expect(repaired.target).toBe(3)
+    expect(repaired.current).toBe(3)
+    expect(repaired.completed).toBe(true)
+  })
 
   it('credits a manual social-set action even when its social outcome backfires', () => {
-    const store = setupAcceptedMission();
-    const task = store.getState().game.secretMission!.tasks[0];
-    const humanId = store.getState().game.players.find((player) => player.isUser)!.id;
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[0]
+    const humanId = store.getState().game.players.find((player) => player.isUser)!.id
     store.dispatch(
       syncMissionTask({
         taskId: task.id,
@@ -315,7 +320,7 @@ describe('secret mission v2 follow-up', () => {
           completedActionIds: [],
         },
       })
-    );
+    )
     store.dispatch({
       type: 'social/recordSocialAction',
       payload: {
@@ -327,15 +332,15 @@ describe('secret mission v2 follow-up', () => {
           source: 'manual',
         },
       },
-    });
+    })
 
-    expect(store.getState().game.secretMission!.tasks[0].completed).toBe(true);
-  });
+    expect(store.getState().game.secretMission!.tasks[0].completed).toBe(true)
+  })
 
   it('recovers a historical zero-energy day from the recorded action balance', () => {
-    const store = setupAcceptedMission();
-    const task = store.getState().game.secretMission!.tasks[0];
-    const humanId = store.getState().game.players.find((player) => player.isUser)!.id;
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[0]
+    const humanId = store.getState().game.players.find((player) => player.isUser)!.id
     store.dispatch(
       syncMissionTask({
         taskId: task.id,
@@ -351,14 +356,14 @@ describe('secret mission v2 follow-up', () => {
           auditLog: [],
         },
       })
-    );
+    )
     store.dispatch(
       hydrateGame({
         ...store.getState().game,
         week: 7,
         phase: 'social_2',
       })
-    );
+    )
     store.dispatch({
       type: 'social/recordSocialAction',
       payload: {
@@ -372,7 +377,7 @@ describe('secret mission v2 follow-up', () => {
           newEnergy: 0,
         },
       },
-    });
+    })
 
     store.dispatch(
       hydrateGame({
@@ -380,19 +385,19 @@ describe('secret mission v2 follow-up', () => {
         week: 8,
         phase: 'loh_results',
       })
-    );
+    )
 
     const updated = store
       .getState()
-      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!;
-    expect(updated.current).toBe(1);
-    expect(updated.currentStreak).toBe(1);
-    expect(updated.activityDays).toContain('7');
-  });
+      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+    expect(updated.current).toBe(1)
+    expect(updated.currentStreak).toBe(1)
+    expect(updated.activityDays).toContain('7')
+  })
 
   it('repairs an incoming-response streak from completed days before the next settlement', () => {
-    const store = setupAcceptedMission();
-    const task = store.getState().game.secretMission!.tasks[0];
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[0]
     store.dispatch(
       syncMissionTask({
         taskId: task.id,
@@ -407,14 +412,14 @@ describe('secret mission v2 follow-up', () => {
           uniqueDays: [],
         },
       })
-    );
+    )
     store.dispatch(
       hydrateGame({
         ...store.getState().game,
         week: 8,
         phase: 'loh_results',
       })
-    );
+    )
     store.dispatch(
       pushIncomingInteraction({
         id: 'answered-before-repair',
@@ -430,82 +435,82 @@ describe('secret mission v2 follow-up', () => {
         resolvedWith: 'positive',
         payload: { deliveredWeek: 7, deliveredPhase: 'social_2' },
       })
-    );
+    )
 
     const updated = store
       .getState()
-      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!;
-    expect(updated.current).toBe(3);
-    expect(updated.currentStreak).toBe(3);
-    expect(updated.completed).toBe(true);
-  });
+      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+    expect(updated.current).toBe(3)
+    expect(updated.currentStreak).toBe(3)
+    expect(updated.completed).toBe(true)
+  })
 
   it('caps a public-rating requirement at the available approval headroom', () => {
-    const store = setupAcceptedMission();
-    const task = store.getState().game.secretMission!.tasks[0];
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[0]
     store.dispatch(
       syncMissionTask({
         taskId: task.id,
         updates: { type: 'public_approval_gain', current: 0, target: 7, completed: false },
       })
-    );
+    )
 
-    store.dispatch(setMissionTaskBaselineApproval({ taskId: task.id, approval: 98 }));
+    store.dispatch(setMissionTaskBaselineApproval({ taskId: task.id, approval: 98 }))
 
     const updated = store
       .getState()
-      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!;
-    expect(updated.target).toBe(2);
-    expect(updated.requiredDelta).toBe(2);
-  });
+      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+    expect(updated.target).toBe(2)
+    expect(updated.requiredDelta).toBe(2)
+  })
 
   it('removes an incomplete mission when its final day ends', () => {
-    const store = setupAcceptedMission();
-    const mission = store.getState().game.secretMission!;
+    const store = setupAcceptedMission()
+    const mission = store.getState().game.secretMission!
     store.dispatch(
       hydrateGame({
         ...store.getState().game,
         week: mission.endDay,
         phase: 'social_2',
       })
-    );
+    )
 
-    store.dispatch(setPhase('week_end'));
-    store.dispatch(settleSecretMissionDay({ day: mission.endDay }));
+    store.dispatch(setPhase('week_end'))
+    store.dispatch(settleSecretMissionDay({ day: mission.endDay }))
 
-    expect(store.getState().game.secretMission?.status).toBe('expired');
-  });
+    expect(store.getState().game.secretMission?.status).toBe('expired')
+  })
 
   it('keeps a completed mission claimable after its deadline passes', () => {
-    const store = setupAcceptedMission();
-    const mission = store.getState().game.secretMission!;
-    store.dispatch(completeMission());
+    const store = setupAcceptedMission()
+    const mission = store.getState().game.secretMission!
+    store.dispatch(completeMission())
     store.dispatch(
       hydrateGame({
         ...store.getState().game,
         week: mission.endDay + 1,
         phase: 'week_start',
       })
-    );
+    )
 
-    store.dispatch(setPhase('social_1'));
+    store.dispatch(setPhase('social_1'))
 
-    expect(store.getState().game.secretMission?.status).toBe('rewardPending');
-  });
+    expect(store.getState().game.secretMission?.status).toBe('rewardPending')
+  })
 
   it('picks a deterministic immunity duration in the 1–3 day range', () => {
-    const duration = pickMissionImmunityDuration(5, 'silent_witness');
-    expect([1, 2, 3]).toContain(duration);
-    expect(pickMissionImmunityDuration(5, 'silent_witness')).toBe(duration);
-  });
+    const duration = pickMissionImmunityDuration(5, 'silent_witness')
+    expect([1, 2, 3]).toContain(duration)
+    expect(pickMissionImmunityDuration(5, 'silent_witness')).toBe(duration)
+  })
 
   it('persists easter egg discoveries and progresses the matching task', () => {
-    const store = makeStore();
-    store.dispatch(initializeProfiles(['user']));
-    store.dispatch(triggerSecretMission(3));
-    store.dispatch(offerSecretMission(3));
-    store.dispatch(acceptSecretMission());
-    const task = store.getState().game.secretMission!.tasks[0];
+    const store = makeStore()
+    store.dispatch(initializeProfiles(['user']))
+    store.dispatch(triggerSecretMission(3))
+    store.dispatch(offerSecretMission(3))
+    store.dispatch(acceptSecretMission())
+    const task = store.getState().game.secretMission!.tasks[0]
     store.dispatch(
       syncMissionTask({
         taskId: task.id,
@@ -517,26 +522,26 @@ describe('secret mission v2 follow-up', () => {
           discoveredEggIds: [],
         },
       })
-    );
+    )
 
-    const egg = getSecretMissionEasterEggByIntent('winner_prediction');
-    expect(egg).toBeTruthy();
-    store.dispatch(recordSecretMissionEasterEgg({ eggId: egg!.id, day: 5 }));
+    const egg = getSecretMissionEasterEggByIntent('winner_prediction')
+    expect(egg).toBeTruthy()
+    store.dispatch(recordSecretMissionEasterEgg({ eggId: egg!.id, day: 5 }))
 
-    const updated = store.getState().game.secretMission!;
-    expect(updated.discoveredEasterEggIds).toContain(egg!.id);
-    const updatedTask = updated.tasks.find((entry) => entry.id === task.id)!;
-    expect(updatedTask.current).toBe(1);
-    expect(updatedTask.completed).toBe(true);
-  });
+    const updated = store.getState().game.secretMission!
+    expect(updated.discoveredEasterEggIds).toContain(egg!.id)
+    const updatedTask = updated.tasks.find((entry) => entry.id === task.id)!
+    expect(updatedTask.current).toBe(1)
+    expect(updatedTask.completed).toBe(true)
+  })
 
   it('marks the mission successful when a completed easter egg covers one unfinished task', () => {
-    const store = setupAcceptedMission();
+    const store = setupAcceptedMission()
     const [firstTask, secondTask, thirdTask, fourthTask, fifthTask] =
-      store.getState().game.secretMission!.tasks;
-    const egg = getSecretMissionEasterEggByIntent('winner_prediction');
-    expect(egg).toBeTruthy();
-    if (!egg) throw new Error('Expected easter egg fixture');
+      store.getState().game.secretMission!.tasks
+    const egg = getSecretMissionEasterEggByIntent('winner_prediction')
+    expect(egg).toBeTruthy()
+    if (!egg) throw new Error('Expected easter egg fixture')
 
     store.dispatch(
       syncMissionTask({
@@ -550,109 +555,109 @@ describe('secret mission v2 follow-up', () => {
           optional: true,
         },
       })
-    );
+    )
     store.dispatch(
       syncMissionTask({
         taskId: secondTask.id,
         updates: { current: secondTask.target, completed: true },
       })
-    );
+    )
     store.dispatch(
       syncMissionTask({
         taskId: thirdTask.id,
         updates: { current: thirdTask.target, completed: true },
       })
-    );
+    )
     store.dispatch(
       syncMissionTask({
         taskId: fourthTask.id,
         updates: { current: fourthTask.target, completed: true },
       })
-    );
+    )
     store.dispatch(
       syncMissionTask({ taskId: fifthTask.id, updates: { current: 0, completed: false } })
-    );
+    )
 
-    expect(store.getState().game.secretMission?.status).toBe('rewardPending');
-  });
+    expect(store.getState().game.secretMission?.status).toBe('rewardPending')
+  })
 
   it('tracks public approval from every rating update path and allows regression', () => {
-    const store = setupAcceptedMission();
-    const task = store.getState().game.secretMission!.tasks[0];
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[0]
     store.dispatch(
       syncMissionTask({
         taskId: task.id,
         updates: { type: 'public_approval_gain', current: 0, target: 5, completed: false },
       })
-    );
+    )
 
-    store.dispatch(setMissionTaskBaselineApproval({ taskId: task.id, approval: 50 }));
-    store.dispatch(setProfileApprovals({ user: 56 }));
+    store.dispatch(setMissionTaskBaselineApproval({ taskId: task.id, approval: 50 }))
+    store.dispatch(setProfileApprovals({ user: 56 }))
 
     const improvedTask = store
       .getState()
-      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!;
-    expect(improvedTask.current).toBe(5);
-    expect(improvedTask.completed).toBe(true);
-    expect(improvedTask.lastProgressDay).toBeGreaterThan(0);
+      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+    expect(improvedTask.current).toBe(5)
+    expect(improvedTask.completed).toBe(true)
+    expect(improvedTask.lastProgressDay).toBeGreaterThan(0)
 
-    store.dispatch(setProfileApprovals({ user: 53 }));
+    store.dispatch(setProfileApprovals({ user: 53 }))
 
     const regressedTask = store
       .getState()
-      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!;
-    expect(regressedTask.current).toBe(3);
-    expect(regressedTask.completed).toBe(false);
-  });
+      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+    expect(regressedTask.current).toBe(3)
+    expect(regressedTask.completed).toBe(false)
+  })
 
   it('expires an unused immunity reward after its activation window closes', () => {
-    const store = setupAcceptedMission();
+    const store = setupAcceptedMission()
     store.dispatch(
       syncMissionTask({
         taskId: store.getState().game.secretMission!.tasks[0].id,
         updates: { current: 1, completed: true },
       })
-    );
+    )
     store
       .getState()
       .game.secretMission!.tasks.slice(1)
       .forEach((task) => {
         store.dispatch(
           syncMissionTask({ taskId: task.id, updates: { current: task.target, completed: true } })
-        );
-      });
-    store.dispatch(claimMissionReward({ claimDay: 5, durationDays: 1 }));
+        )
+      })
+    store.dispatch(claimMissionReward({ claimDay: 5, durationDays: 1 }))
     store.dispatch(
       hydrateGame({
         ...store.getState().game,
         week: 7,
         phase: 'week_start',
       })
-    );
+    )
     // middleware is wired to advance/setPhase/forcePhase, so call setPhase path through hydrate+no-op update
-    store.dispatch(expireMissionReward());
-    expect(store.getState().game.secretMission!.reward?.eligible).toBe(false);
-  });
+    store.dispatch(expireMissionReward())
+    expect(store.getState().game.secretMission!.reward?.eligible).toBe(false)
+  })
 
   it('offers ceremony immunity only while nominated during pos_ceremony_results', () => {
-    const store = setupAcceptedMission();
+    const store = setupAcceptedMission()
     store.dispatch(
       syncMissionTask({
         taskId: store.getState().game.secretMission!.tasks[0].id,
         updates: { current: 1, completed: true },
       })
-    );
+    )
     store
       .getState()
       .game.secretMission!.tasks.slice(1)
       .forEach((task) => {
         store.dispatch(
           syncMissionTask({ taskId: task.id, updates: { current: task.target, completed: true } })
-        );
-      });
-    store.dispatch(claimMissionReward({ claimDay: 5, durationDays: 2 }));
+        )
+      })
+    store.dispatch(claimMissionReward({ claimDay: 5, durationDays: 2 }))
 
-    const game = store.getState().game;
+    const game = store.getState().game
     const updated: GameState = {
       ...game,
       phase: 'pos_ceremony_results',
@@ -661,14 +666,14 @@ describe('secret mission v2 follow-up', () => {
       posWinnerId: 'p2',
       nomineeIds: ['user', 'p1'],
       players: game.players.map((player, index) => {
-        if (player.isUser) return { ...player, status: 'nominated' };
-        if (index === 1) return { ...player, id: 'p0', status: 'loh', isUser: false };
-        if (index === 2) return { ...player, id: 'p1', status: 'nominated', isUser: false };
-        if (index === 3) return { ...player, id: 'p2', status: 'pos', isUser: false };
-        return { ...player, isUser: false, status: 'active' };
+        if (player.isUser) return { ...player, status: 'nominated' }
+        if (index === 1) return { ...player, id: 'p0', status: 'loh', isUser: false }
+        if (index === 2) return { ...player, id: 'p1', status: 'nominated', isUser: false }
+        if (index === 3) return { ...player, id: 'p2', status: 'pos', isUser: false }
+        return { ...player, isUser: false, status: 'active' }
       }),
-    };
-    store.dispatch(hydrateGame(updated));
+    }
+    store.dispatch(hydrateGame(updated))
 
     expect(
       canOfferMissionImmunity({
@@ -680,26 +685,26 @@ describe('secret mission v2 follow-up', () => {
         posWinnerId: 'p2',
         players: updated.players,
       })
-    ).toBe(true);
-  });
+    ).toBe(true)
+  })
 
   it('does not offer ceremony immunity once only four active players remain', () => {
-    const store = setupAcceptedMission();
+    const store = setupAcceptedMission()
     store.dispatch(
       syncMissionTask({
         taskId: store.getState().game.secretMission!.tasks[0].id,
         updates: { current: 1, completed: true },
       })
-    );
+    )
     store
       .getState()
       .game.secretMission!.tasks.slice(1)
       .forEach((task) => {
         store.dispatch(
           syncMissionTask({ taskId: task.id, updates: { current: task.target, completed: true } })
-        );
-      });
-    store.dispatch(claimMissionReward({ claimDay: 5, durationDays: 2 }));
+        )
+      })
+    store.dispatch(claimMissionReward({ claimDay: 5, durationDays: 2 }))
 
     expect(
       canOfferMissionImmunity({
@@ -716,28 +721,28 @@ describe('secret mission v2 follow-up', () => {
           { id: 'p2', isUser: false, status: 'pos' },
         ],
       })
-    ).toBe(false);
-  });
+    ).toBe(false)
+  })
 
   it('consumes immunity, removes the human from the block, and keeps at least two nominees when possible', () => {
-    const store = setupAcceptedMission();
+    const store = setupAcceptedMission()
     store.dispatch(
       syncMissionTask({
         taskId: store.getState().game.secretMission!.tasks[0].id,
         updates: { current: 1, completed: true },
       })
-    );
+    )
     store
       .getState()
       .game.secretMission!.tasks.slice(1)
       .forEach((task) => {
         store.dispatch(
           syncMissionTask({ taskId: task.id, updates: { current: task.target, completed: true } })
-        );
-      });
-    store.dispatch(claimMissionReward({ claimDay: 5, durationDays: 2 }));
+        )
+      })
+    store.dispatch(claimMissionReward({ claimDay: 5, durationDays: 2 }))
 
-    const game = store.getState().game;
+    const game = store.getState().game
     const updated: GameState = {
       ...game,
       phase: 'pos_ceremony_results',
@@ -758,15 +763,83 @@ describe('secret mission v2 follow-up', () => {
         { ...game.players[3], id: 'ai-pos', status: 'pos', isUser: false },
         { ...game.players[4], id: 'spare', status: 'active', isUser: false },
       ],
-    };
-    store.dispatch(hydrateGame(updated));
-    store.dispatch(activateMissionImmunityReward());
+    }
+    store.dispatch(hydrateGame(updated))
+    store.dispatch(activateMissionImmunityReward())
 
-    const after = store.getState().game;
-    expect(after.awaitingMissionImmunityOffer).toBe(false);
-    expect(after.nomineeIds).not.toContain('user');
-    expect(after.nomineeIds.length).toBeGreaterThanOrEqual(2);
-    expect(after.secretMission?.reward?.consumed).toBe(true);
-    expect(after.secretMission?.reward?.eligible).toBe(false);
-  });
-});
+    const after = store.getState().game
+    expect(after.awaitingMissionImmunityOffer).toBe(false)
+    expect(after.nomineeIds).not.toContain('user')
+    expect(after.nomineeIds.length).toBeGreaterThanOrEqual(2)
+    expect(after.secretMission?.reward?.consumed).toBe(true)
+    expect(after.secretMission?.reward?.eligible).toBe(false)
+  })
+})
+
+it.each(['invalidation', 'deadline', 'player'] as const)(
+  'keeps system retirement distinct from ignored requests (%s)',
+  (origin) => {
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[0]
+    store.dispatch(
+      syncMissionTask({
+        taskId: task.id,
+        updates: {
+          type: 'incoming_response_streak',
+          current: 0,
+          target: 3,
+          completed: false,
+          currentStreak: 0,
+          maxStreak: 0,
+          startDay: 5,
+        },
+      })
+    )
+    store.dispatch(hydrateGame({ ...store.getState().game, week: 7, phase: 'social_2' }))
+    for (const day of [5, 6, 7]) {
+      store.dispatch(
+        pushIncomingInteraction({
+          id: `origin-day-${day}`,
+          fromId: 'ai-1',
+          type: 'compliment',
+          text: 'A delivered request',
+          createdAt: day,
+          createdWeek: day,
+          expiresAtWeek: day + 1,
+          read: true,
+          requiresResponse: true,
+          resolved: day !== 6,
+          ...(day !== 6 ? { resolvedWith: 'positive' as const } : {}),
+          payload: { deliveredWeek: day, deliveredPhase: 'social_2' },
+        })
+      )
+    }
+    if (origin === 'player')
+      store.dispatch(
+        resolveIncomingInteraction({
+          interactionId: 'origin-day-6',
+          resolvedWith: 'dismiss',
+          resolvedWeek: 6,
+        })
+      )
+    else
+      store.dispatch(
+        invalidateIncomingInteractions({
+          interactionIds: ['origin-day-6'],
+          resolvedWeek: 6,
+          scheduledStatus: origin === 'deadline' ? 'EXPIRED' : 'INVALIDATED',
+        })
+      )
+    store.dispatch(setPhase('week_end'))
+    store.dispatch(settleSecretMissionDay({ day: 7 }))
+    const updated = store
+      .getState()
+      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+    expect(updated.currentStreak).toBe(origin === 'invalidation' ? 3 : 1)
+    expect(updated.completed).toBe(origin === 'invalidation')
+    expect(
+      store.getState().social.incomingInteractions.find((entry) => entry.id === 'origin-day-6')
+        ?.resolutionOrigin
+    ).toBe(origin)
+  }
+)

@@ -171,6 +171,7 @@ function selectWeighted<T extends { weight: number; id: string }>(
 }
 
 function relationshipDeltas(action: RealityActionContract, response: RealityResponseResolution) {
+  if (response.reason === 'loh_pact_protection_acknowledged') return {}
   if (action.purposes.includes('CONFLICT')) {
     return response.kind === 'ESCALATE'
       ? action.relationshipEffects.escalated
@@ -186,6 +187,7 @@ function receivedRelationshipDeltas(
   response: RealityResponseResolution,
   forcedRejection = false
 ) {
+  if (response.reason === 'loh_pact_protection_acknowledged') return {}
   const purposes = action.purposes
   if (purposes.includes('CONFLICT')) {
     if (response.kind === 'ESCALATE') {
@@ -455,14 +457,28 @@ function applyRealityLifecycle(input: {
           targetIsNominated: interaction.contextSnapshot.atRiskActorIds.includes(targetId),
         })
       )
-    const promiseId = `promise:${interaction.id}`
+    const acknowledgedLohOffer = responses.every(
+      (entry) => entry.response.reason === 'loh_pact_protection_acknowledged'
+    )
+    const existing = acknowledgedLohOffer
+      ? Object.values(domain.promises).find(
+          (promise) =>
+            promise.status === 'ACTIVE' &&
+            promise.kind === 'protect' &&
+            promise.promisorId === interaction.actorId &&
+            promise.createdAt.day === at.day &&
+            promise.beneficiaryIds.length === acceptedTargets.length &&
+            acceptedTargets.every((id) => promise.beneficiaryIds.includes(id))
+        )
+      : undefined
+    const promiseId = existing?.id ?? `promise:${interaction.id}`
     upsertRealityPromise(domain, {
       id: promiseId,
       kind: safetySave ? 'use_safety_on_player' : action.id,
       promisorId: interaction.actorId,
       beneficiaryIds: acceptedTargets,
-      witnessIds: event.witnessIds,
-      createdAt: at,
+      witnessIds: [...new Set([...(existing?.witnessIds ?? []), ...event.witnessIds])],
+      createdAt: existing?.createdAt ?? at,
       deadline: safetySave
         ? { day: event.day, phase: 'pos_ceremony_results' }
         : action.purposes.includes('PROTECT')

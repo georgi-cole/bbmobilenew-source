@@ -441,30 +441,19 @@ describe('SocialPanelV2 – close behaviour', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('closes and logs the reason when the phase changes to live vote', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('keeps Social open for active players during voting without changing recorded ballots', () => {
     const store = makeStore({ phase: 'social_1' })
     act(() => {
       store.dispatch(openSocialPanel())
     })
     renderPanel(store)
-
-    expect(screen.getByRole('dialog')).toBeDefined()
-
+    const votes = structuredClone(store.getState().game.votes)
     act(() => {
       store.dispatch(setPhase('live_vote'))
     })
-
-    expect(screen.queryByRole('dialog')).toBeNull()
-    expect(store.getState().social.panelOpen).toBe(false)
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'Outgoing social module did not open: Outgoing social actions are blocked during the live_vote phase.'
-      ),
-      expect.objectContaining({ phase: 'live_vote' })
-    )
-
-    warnSpy.mockRestore()
+    expect(screen.getByRole('dialog')).toBeDefined()
+    expect(store.getState().social.panelOpen).toBe(true)
+    expect(store.getState().game.votes).toEqual(votes)
   })
 })
 
