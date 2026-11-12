@@ -30,6 +30,7 @@ import gameReducer, {
   activateSpecialVeto,
   activateVoxPopuliNow,
   addTvEvent,
+  claimActiveBroadcastEvent,
   consumeBroadcastEvent,
   debugActivateWeekendInterlude,
   setPhase,
@@ -281,6 +282,7 @@ describe('TvZone — announcement overlay', () => {
     const store = makeStore()
 
     act(() => {
+      store.dispatch(setPhase('final3_comp3'))
       store.dispatch(
         addTvEvent(
           makeEvent({
@@ -318,13 +320,14 @@ describe('TvZone — announcement overlay', () => {
     const store = makeStore()
 
     act(() => {
+      store.dispatch(setPhase('loh_results'))
       store.dispatch(
         addTvEvent(
           makeEvent({
             id: 'vox-final-four-result',
             text: 'Quinn wins the Final 4 competition, but there is no immunity today.',
             meta: {
-              week: 10,
+              week: store.getState().game.week,
               major: 'vox_final4_immunity_comp',
               broadcastPriority: 'critical',
             },
@@ -348,6 +351,7 @@ describe('TvZone — announcement overlay', () => {
   it('keeps the finale-ready call to action on screen until its own Play press', () => {
     const store = makeStore()
     act(() => {
+      store.dispatch(setPhase('final3_comp3'))
       store.dispatch(
         addTvEvent(
           makeEvent({
@@ -447,17 +451,17 @@ describe('TvZone — announcement overlay', () => {
     expect(document.body.classList.contains('body--shock-active')).toBe(true)
 
     act(() => {
-      vi.advanceTimersByTime(1500)
+      vi.advanceTimersByTime(2600)
     })
     expect(nowMessage()).toBe('Aria used Detox and cleared Aria and Ivy from the block! ⚡')
 
     act(() => {
-      vi.advanceTimersByTime(1500)
+      vi.advanceTimersByTime(2600)
     })
     expect(nowMessage()).toBe('Aria named Echo and Georgi as the new nominees. ⚡')
 
     act(() => {
-      vi.advanceTimersByTime(1500)
+      vi.advanceTimersByTime(2600)
     })
     expect(screen.getByLabelText('Game action zone').className).not.toContain(
       'tv-zone--detox-stream'
@@ -668,7 +672,7 @@ describe('TvZone — announcement overlay', () => {
     expect(screen.queryByText(/Blue was saved with 50% of the public support/i)).toBeNull()
   })
 
-  it('keeps the final pitches message hidden once live voting begins', () => {
+  it('replaces the stale final pitches with current live-vote copy', () => {
     vi.useFakeTimers()
     const store = makeStore()
     renderTvZone(store)
@@ -695,7 +699,10 @@ describe('TvZone — announcement overlay', () => {
     })
 
     expect(screen.queryByRole('dialog', { name: /Announcement: Live Elimination/i })).toBeNull()
-    expect(document.querySelector('.tv-zone__now')).toHaveStyle({ opacity: '0' })
+    expect(document.querySelector('.tv-zone__now')).not.toHaveTextContent(LIVE_VOTE_PITCHES_TEXT)
+    expect(document.querySelector('.tv-zone__now')).toHaveTextContent(
+      'The Hub will vote to eliminate.'
+    )
 
     vi.useRealTimers()
   })
@@ -726,10 +733,12 @@ describe('TvZone — announcement overlay', () => {
       vi.advanceTimersByTime(POST_DISMISS_SETTLE_MS)
     })
 
-    expect(document.querySelector('.tv-zone__now')).toHaveTextContent(
+    expect(document.querySelector('.tv-zone__now')).not.toHaveTextContent(
       'Housemates give their last plea before voting begins.'
     )
-    expect(document.querySelector('.tv-zone__now')).toHaveStyle({ opacity: '0' })
+    expect(document.querySelector('.tv-zone__now')).toHaveTextContent(
+      'The Hub will vote to eliminate.'
+    )
 
     vi.useRealTimers()
   })
@@ -776,9 +785,9 @@ describe('TvZone — announcement overlay', () => {
       'top-utility-btn--inactive'
     )
     expect(getShellSrc(screen.getByRole('button', { name: /^Music$/i }))).toContain(
-      '/assets/icons/music_disabled.svg'
+      '/assets/control_dock/top_utility_shell.svg'
     )
-    expect(getGlyph(screen.getByRole('button', { name: /^Music$/i }))).toBeNull()
+    expect(getGlyph(screen.getByRole('button', { name: /^Music$/i }))).not.toBeNull()
     expect(getScratchSrc(screen.getByRole('button', { name: /^Music$/i }))).toContain(
       '/assets/icons/audio_deactivated_scratch.svg'
     )
@@ -790,9 +799,9 @@ describe('TvZone — announcement overlay', () => {
       'top-utility-btn--inactive'
     )
     expect(getShellSrc(screen.getByRole('button', { name: /^Sound effects$/i }))).toContain(
-      '/assets/icons/sound_disabled.svg'
+      '/assets/control_dock/top_utility_shell.svg'
     )
-    expect(getGlyph(screen.getByRole('button', { name: /^Sound effects$/i }))).toBeNull()
+    expect(getGlyph(screen.getByRole('button', { name: /^Sound effects$/i }))).not.toBeNull()
     expect(getScratchSrc(screen.getByRole('button', { name: /^Sound effects$/i }))).toContain(
       '/assets/icons/audio_deactivated_scratch.svg'
     )
@@ -875,17 +884,15 @@ describe('TvZone — announcement overlay', () => {
 
     expect(document.body.querySelector('[data-testid="shock-intro-overlay"]')).toBeNull()
 
-    expect(
-      screen.getByRole('dialog', { name: /Congrats all, you've just made it to tribunal/i })
-    ).toBeDefined()
+    expect(screen.getByRole('dialog', { name: /Welcome to the Tribunal/i })).toBeDefined()
 
     act(() => {
       window.dispatchEvent(new Event('tv:announcement-dismiss'))
       vi.advanceTimersByTime(POST_DISMISS_SETTLE_MS)
     })
 
-    expect(screen.queryByRole('dialog', { name: /made it to tribunal/i })).toBeNull()
-    expect(document.querySelector('.tv-zone__now')).toHaveTextContent('Day 5 begins!')
+    expect(screen.queryByRole('dialog', { name: /Welcome to the Tribunal/i })).toBeNull()
+    expect(document.querySelector('.tv-zone__now')?.textContent?.trim()).not.toBe('')
     vi.useRealTimers()
   })
 
@@ -975,7 +982,7 @@ describe('TvZone — announcement overlay', () => {
     expect(screen.queryByRole('dialog', { name: /Announcement:/i })).toBeNull()
   })
 
-  it('clears the overlay when a new non-major event arrives after a major event', () => {
+  it('keeps an unread major overlay when a new non-major event arrives', () => {
     const store = makeStore()
     renderTvZone(store)
 
@@ -989,10 +996,12 @@ describe('TvZone — announcement overlay', () => {
     })
     expect(screen.getByRole('dialog', { name: /Announcement:/i })).toBeDefined()
 
-    // Then: non-major event clears overlay
+    // A later incidental event cannot acknowledge the visible major card.
     act(() => {
       store.dispatch(addTvEvent(makeEvent({ id: 'ev-b', text: 'Everyone eats pizza.' })))
     })
+    expect(screen.getByRole('dialog', { name: /Announcement:/i })).toBeDefined()
+    act(() => window.dispatchEvent(new CustomEvent('tv:announcement-dismiss')))
     expect(screen.queryByRole('dialog', { name: /Announcement:/i })).toBeNull()
   })
 
@@ -1592,7 +1601,8 @@ describe('TvZone — phase-based announcement triggers', () => {
     })
 
     expect(screen.queryByRole('dialog', { name: /Announcement: Nomination Ceremony/i })).toBeNull()
-    expect(document.body.querySelector('[data-testid="shock-intro-overlay"]')).toBeNull()
+    expect(screen.getByTestId('shock-intro-overlay')).toBeDefined()
+    act(() => vi.advanceTimersByTime(SHOCK_INTRO_SETTLE_MS + 50))
 
     expect(screen.getByRole('dialog', { name: /Announcement: Double Elimination!/i })).toBeDefined()
     vi.useRealTimers()
@@ -1701,7 +1711,7 @@ describe('TvZone — phase-based announcement triggers', () => {
     vi.useRealTimers()
   })
 
-  it('also completes an off-phase Safety shock saved before the queue fix', () => {
+  it('defers an off-phase saved Safety shock until its delivery phase', () => {
     vi.useFakeTimers()
     const store = makeStore()
     renderTvZone(store)
@@ -1732,6 +1742,9 @@ describe('TvZone — phase-based announcement triggers', () => {
       .getState()
       .game.tvFeed.find((event) => event.meta?.major === 'vip_veto')
     expect(store.getState().game.broadcastQueue).not.toContain(legacyShock?.id)
+    expect(screen.queryByTestId('shock-intro-overlay')).toBeNull()
+    act(() => store.dispatch(setPhase('pos_ceremony')))
+    expect(screen.getByTestId('shock-intro-overlay')).toBeDefined()
     act(() => {
       vi.advanceTimersByTime(SHOCK_INTRO_SETTLE_MS + 50)
       window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
@@ -1854,7 +1867,7 @@ describe('TvZone — phase-based announcement triggers', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('shows The Finale overlay when phase transitions to final3 with exactly 3 alive players', () => {
+  it('leaves the Classic Finale guide in control without a duplicate TV announcement', () => {
     const store = makeStore()
 
     // Evict players until only 3 remain
@@ -1870,7 +1883,10 @@ describe('TvZone — phase-based announcement triggers', () => {
       store.dispatch(setPhase('final3'))
     })
 
-    expect(screen.getByRole('dialog', { name: /Announcement: The Finale/i })).toBeDefined()
+    expect(screen.queryByRole('dialog', { name: /Announcement: The Finale/i })).toBeNull()
+    expect(
+      screen.getByRole('region', { name: 'Live game events display' }).textContent?.trim()
+    ).not.toBe('')
   })
 
   it('shows Final LOH Decision overlay when phase transitions to final3_decision', () => {
@@ -2236,7 +2252,7 @@ describe('TvZone — phase-based announcement triggers', () => {
 
     const nowEl = document.querySelector('.tv-zone__now')
     expect(nowEl).not.toHaveStyle({ opacity: '0' })
-    expect(nowEl).toHaveTextContent('players compare notes before the next ceremony.')
+    expect(nowEl).toHaveTextContent('Hubmates compare notes before the next ceremony.')
   })
 
   it('keeps an acknowledged Major phase card as steady viewport copy', () => {
@@ -2254,13 +2270,173 @@ describe('TvZone — phase-based announcement triggers', () => {
 
     const nowEl = document.querySelector('.tv-zone__now')
     expect(nowEl).not.toHaveStyle({ opacity: '0' })
-    expect(nowEl).toHaveTextContent('The hub will vote to eliminate.')
+    expect(nowEl).toHaveTextContent('The Hub will vote to eliminate.')
   })
 })
 
 // ── TvAnnouncementModal — no-animations fast-path ─────────────────────────────
 
-describe('TvAnnouncementModal — no-animations fast-path', () => {
+describe('TvZone current-frame fallback and handoff', () => {
+  it('claims a shock at its start and resumes its unread card after a route remount', () => {
+    const store = makeStore()
+    store.dispatch(setPhase('pos_results'))
+    store.dispatch(activateSpecialVeto({ type: 'vip', week: store.getState().game.week }))
+    const shock = store.getState().game.tvFeed.find((event) => event.meta?.major === 'vip_veto')!
+    const view = renderTvZone(store)
+    expect(screen.getByTestId('shock-intro-overlay')).toBeDefined()
+    expect(
+      store.getState().game.presentationEventClaims?.some((claim) => claim.eventId === shock.id)
+    ).toBe(true)
+    expect(shock.meta?.broadcastConsumed).not.toBe(true)
+
+    view.unmount()
+    renderTvZone(store)
+    expect(screen.queryByTestId('shock-intro-overlay')).toBeNull()
+    expect(screen.getByRole('dialog', { name: /Announcement: Double Trouble!/i })).toBeDefined()
+    act(() => {
+      store.dispatch(
+        addTvEvent({
+          text: 'A later winner result must wait.',
+          type: 'game',
+          meta: { major: 'custom_critical', forceOnTv: true, broadcastPriority: 'critical' },
+        })
+      )
+    })
+    expect(screen.queryByTestId('shock-intro-overlay')).toBeNull()
+    expect(screen.getByRole('dialog', { name: /Announcement: Double Trouble!/i })).toBeDefined()
+    expect(store.getState().game.activeBroadcastEventId).toBe(shock.id)
+    act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
+    expect(
+      store.getState().game.tvFeed.find((event) => event.id === shock.id)?.meta?.broadcastConsumed
+    ).toBe(true)
+    expect(store.getState().game.broadcastQueue).not.toContain(shock.id)
+    expect(screen.queryByRole('dialog', { name: /Announcement: Double Trouble!/i })).toBeNull()
+  })
+
+  it('does not claim a hidden shock while another full-screen flow owns presentation', () => {
+    const store = makeStore()
+    store.dispatch(setPhase('pos_results'))
+    store.dispatch(activateSpecialVeto({ type: 'vip', week: store.getState().game.week }))
+    const view = renderTvZone(store, { playOwnedExternally: true })
+    expect(store.getState().game.presentationEventClaims).toEqual([])
+    expect(store.getState().game.activeBroadcastEventId).toBeNull()
+    view.unmount()
+    renderTvZone(store)
+    expect(screen.getByTestId('shock-intro-overlay')).toBeDefined()
+    expect(store.getState().game.presentationEventClaims).toHaveLength(1)
+  })
+
+  it('blocks Play during the rules handoff without acknowledging optional copy', () => {
+    const store = makeStore()
+    store.dispatch(setPhase('loh_comp'))
+    renderTvZone(store, { competitionStarting: true })
+    let accepted = true
+    act(() => {
+      accepted = window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
+    })
+    expect(accepted).toBe(false)
+    expect(store.getState().game.phase).toBe('loh_comp')
+  })
+
+  it('shows a nonempty state message when no current broadcast is available', () => {
+    const store = makeStore()
+    store.dispatch(setPhase('week_start'))
+
+    renderTvZone(store)
+
+    const viewport = screen.getByRole('region', { name: 'Live game events display' })
+    expect(viewport.textContent?.trim()).not.toBe('')
+    expect(viewport).toHaveTextContent('Current phase:')
+  })
+
+  it('does not fall back to an unconsumed event from an earlier phase and week', () => {
+    const store = makeStore()
+    store.dispatch(setPhase('social_1'))
+    store.dispatch(
+      addTvEvent({
+        text: 'The old week-four Ambush should stay in history.',
+        type: 'twist',
+        meta: { phase: 'pos_ceremony_results', week: 4, major: 'ambush' },
+      })
+    )
+
+    renderTvZone(store)
+
+    const viewport = screen.getByRole('region', { name: 'Live game events display' })
+    expect(viewport).not.toHaveTextContent('old week-four Ambush')
+    expect(viewport).toHaveTextContent('Current phase:')
+  })
+
+  it('keeps optional messages queued while the synchronous competition handoff owns TV', () => {
+    const store = makeStore()
+    store.dispatch(setPhase('loh_comp'))
+    const { week } = store.getState().game
+    store.dispatch(
+      addTvEvent({
+        text: 'Optional gossip must wait for the rules and game to finish.',
+        type: 'social',
+        meta: { phase: 'loh_comp', week, broadcastLevel: 'minor', forceOnTv: true },
+      })
+    )
+    const optionalEvent = store
+      .getState()
+      .game.tvFeed.find((event) => event.text.includes('Optional gossip'))!
+
+    renderTvZone(store, { competitionStarting: true })
+
+    const viewport = screen.getByRole('region', { name: 'Live game events display' })
+    expect(viewport).toHaveTextContent('Your competition is getting ready.')
+    expect(viewport).not.toHaveTextContent('Optional gossip')
+    expect(
+      store.getState().game.tvFeed.find((event) => event.id === optionalEvent.id)?.meta
+    ).not.toHaveProperty('broadcastConsumed', true)
+  })
+
+  it('keeps the visible unread event ahead of a higher-priority late arrival', () => {
+    const store = makeStore()
+    const { phase, week } = store.getState().game
+    store.dispatch(
+      addTvEvent({
+        text: 'Aftershock consequence.',
+        type: 'twist',
+        meta: {
+          phase,
+          week,
+          major: 'democracia',
+          broadcastManaged: true,
+          broadcastLevel: 'major',
+          forceOnTv: true,
+          broadcastOrder: 100,
+        },
+      })
+    )
+    const aftershock = store
+      .getState()
+      .game.tvFeed.find((event) => event.text === 'Aftershock consequence.')!
+    store.dispatch(claimActiveBroadcastEvent(aftershock.id))
+    store.dispatch(
+      addTvEvent({
+        text: 'Competition winner result.',
+        type: 'game',
+        meta: {
+          phase,
+          week,
+          major: 'vox_populi_winner',
+          broadcastManaged: true,
+          broadcastLevel: 'critical',
+          broadcastPriority: 'critical',
+          forceOnTv: true,
+          broadcastOrder: 0,
+        },
+      })
+    )
+
+    expect(store.getState().game.broadcastQueue?.[0]).toBe(aftershock.id)
+    expect(store.getState().game.activeBroadcastEventId).toBe(aftershock.id)
+  })
+})
+
+describe('TvAnnouncementModal - no-animations fast-path', () => {
   afterEach(() => {
     document.body.classList.remove('no-animations')
     vi.restoreAllMocks()

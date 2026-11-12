@@ -325,6 +325,12 @@ export interface TvEvent {
   source?: ActivitySource
 }
 
+export interface PresentationEventClaim {
+  gameId: string
+  runId: string
+  eventId: string
+}
+
 export type BroadcastLevel = 'minor' | 'major' | 'critical'
 
 /** Campaign filter used by the Broadcast Manager. Undefined means shared by every campaign. */
@@ -976,6 +982,10 @@ export interface GameState {
   pulseChronicles?: PulseChronicle[]
   /** Ordered event IDs waiting to be presented by the faux-TV player. */
   broadcastQueue?: string[]
+  /** Unread event whose presentation has begun and must remain at the queue head. */
+  activeBroadcastEventId?: string | null
+  /** Durable one-shot media claims, keyed by game, run, and source event. */
+  presentationEventClaims?: PresentationEventClaim[]
   /** Last consumed plain faux-TV message, retained until another message replaces it. */
   lastPlainBroadcastEventId?: string | null
   /** Editable built-in broadcast copy, keyed by the stable registry ID. */

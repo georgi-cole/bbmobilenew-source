@@ -156,6 +156,7 @@ import {
 import { shouldAutomaticallyAdvanceAfterConfessionalVote } from './confessionalReturnResume'
 import { useCompetitionFlow } from './flows/useCompetitionFlow'
 import { coordinateGameFlows } from './flows/gameFlowCoordinator'
+import { selectCompetitionStarting } from '../../broadcasting/fauxTvPresentation'
 import { useEndgameFlow } from './flows/useEndgameFlow'
 import { useEvictionFlow } from './flows/useEvictionFlow'
 import { useLohFlow } from './flows/useLohFlow'
@@ -586,7 +587,7 @@ export default function GameScreen() {
     navigate('/', { replace: true })
   }, [clearEliminatedRun, dispatch, navigate])
   const confessionalTvAnnouncement =
-    confessionalPrompt.triggered && confessionalPrompt.visible
+    activeConfessionalDecisionKey && confessionalPrompt.triggered && confessionalPrompt.visible
       ? {
           key: 'confessional_required',
           title: 'Confessional Required',
@@ -698,6 +699,17 @@ export default function GameScreen() {
     spectatorReactEnabled,
     spectatorMode: settings.gameUX.spectatorMode,
     dispatch,
+  })
+  const competitionStarting = selectCompetitionStarting({
+    phase: game.phase,
+    hasPendingChallenge: pendingChallenge != null,
+    humanIsOutgoingHoh,
+    pendingWinnerCeremony: pendingWinnerCeremony != null,
+    democraciaOverridesLoh:
+      game.phase === 'loh_comp' &&
+      game.democracia?.active === true &&
+      game.democracia.activatedDay === game.week,
+    participantCount: game.phase === 'loh_comp' ? hohCompParticipants.length : aliveIds.length,
   })
   const showAdvanceHohCeremony = advanceHohCeremonyEligible && pendingWinnerCeremony == null
 
@@ -1433,7 +1445,7 @@ export default function GameScreen() {
           showTravelingDots,
           spectatorLegacyActive,
         ],
-        blocksControls: [showPressurePlank],
+        blocksControls: [showPressurePlank, competitionStarting],
       },
       twist: {
         awaitingDecision: [
@@ -1717,6 +1729,7 @@ export default function GameScreen() {
               spectatorF3Active ||
               voxFinalThreeCeremony.active
             }
+            competitionStarting={competitionStarting}
             viewportMessageOverride={
               showBattleBackOverlay
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'

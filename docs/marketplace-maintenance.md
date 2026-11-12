@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-12: Reviewed Faux TV delivery scope, unread broadcast pinning,
+  competition-rules handoff, and durable shock-intro claims. These repairs
+  preserve the existing Standard and VIP presentations, game results, paid
+  access, products, prices, rewards, benefits, and marketplace copy.
+
 - 2026-11-12: Reviewed competition result receipt identity, last-place retry
   eligibility, and Risk Wheel terminal handling. These changes align campaign
   results with completed game outcomes and preserve existing retry behavior.

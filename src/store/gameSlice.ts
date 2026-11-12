@@ -53,7 +53,13 @@ import type {
   BroadcastCampaign,
   BroadcastLevel,
   CustomBroadcastMessage,
+  PresentationEventClaim,
 } from '../types'
+import {
+  addPresentationEventClaim,
+  hasPresentationEventClaim,
+  pinBroadcastQueueHead,
+} from '../broadcasting/fauxTvPresentation'
 import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
 import { normalizeGuestSaveReminderEvent } from './guestSaveReminder'
 import type { IncomingInteraction, SocialActionLogEntry } from '../social/types'
@@ -1042,6 +1048,8 @@ export function createInitialGameState(options?: {
     competitionSeasonStateByPlayerId: buildInitialCompetitionSeasonState(playersWithIdentity),
     tvFeed: initialTvFeed,
     broadcastQueue: initialBroadcastQueue,
+    activeBroadcastEventId: null,
+    presentationEventClaims: [],
     lastPlainBroadcastEventId: null,
     broadcastOverrides: broadcastConfig.overrides,
     customBroadcasts: broadcastConfig.customMessages,
@@ -1169,10 +1177,11 @@ function currentBroadcastCampaign(state: GameState): BroadcastCampaign {
 }
 
 function buildTvMeta(
-  state: Pick<GameState, 'phase' | 'week'>,
+  state: Pick<GameState, 'gameId' | 'phase' | 'week'>,
   meta?: TvEvent['meta']
 ): NonNullable<TvEvent['meta']> {
   return {
+    gameId: state.gameId,
     phase: state.phase,
     week: state.week,
     ...(meta ?? {}),
@@ -1246,7 +1255,7 @@ function enqueueManagedBroadcast(state: GameState, event: TvEvent) {
   queue.sort(
     (left, right) => priorityFor(left) - priorityFor(right) || orderFor(left) - orderFor(right)
   )
-  state.broadcastQueue = queue
+  state.broadcastQueue = pinBroadcastQueueHead(queue, state.activeBroadcastEventId)
 }
 
 function rebuildManagedBroadcastQueue(state: GameState, phase: Phase) {
@@ -1282,7 +1291,12 @@ function rebuildManagedBroadcastQueue(state: GameState, phase: Phase) {
       left.timestamp - right.timestamp ||
       left.id.localeCompare(right.id)
   )
-  state.broadcastQueue = eligible.map((event) => event.id)
+  const eligibleIds = eligible.map((event) => event.id)
+  const activeEvent = state.activeBroadcastEventId
+    ? eligible.find((event) => event.id === state.activeBroadcastEventId)
+    : undefined
+  if (!activeEvent) state.activeBroadcastEventId = null
+  state.broadcastQueue = pinBroadcastQueueHead(eligibleIds, activeEvent?.id)
 }
 
 function refreshManagedBroadcastDefinition(state: GameState, event: TvEvent) {
@@ -1342,7 +1356,12 @@ function refreshManagedBroadcastDefinition(state: GameState, event: TvEvent) {
     event.text = custom.text
     event.type = custom.type
   } else if (template) {
-    event.text = renderBroadcastTemplate(override?.text ?? template.text, variables)
+    // Runtime consequences can borrow a template's presentation at a different
+    // boundary. Refreshing the phase must not replace their actual result copy
+    // with that template's generic rules.
+    if (event.meta?.broadcastRuntimeDelivery !== true || override?.text) {
+      event.text = renderBroadcastTemplate(override?.text ?? template.text, variables)
+    }
     event.type = override?.type ?? template.type
   }
   event.major = major
@@ -1357,7 +1376,12 @@ function refreshManagedBroadcastDefinition(state: GameState, event: TvEvent) {
   if (level === 'critical') meta.broadcastPriority = 'critical'
   else delete meta.broadcastPriority
   if (level !== 'minor') {
-    meta.announcementTitle = custom?.title ?? override?.title ?? template?.title
+    meta.announcementTitle =
+      custom?.title ??
+      override?.title ??
+      (event.meta?.broadcastRuntimeDelivery === true
+        ? event.meta.announcementTitle
+        : template?.title)
     meta.announcementSubtitle = event.text
   } else {
     delete meta.announcementTitle
@@ -1423,23 +1447,9 @@ function pushEvent(
       : finalLevel === 'major'
         ? (selectedMajor ?? 'custom_major')
         : undefined
-  // Cupid activation/dissociation can be triggered outside their catalogued
-  // phase (including QA). Keep the live phase or the TV queue filters them out.
-  const preserveActivationPhase =
-    meta?.major === 'cupid_arrow' ||
-    meta?.major === 'cupid_arrow_broken' ||
-    meta?.major === 'depression_shock_start' ||
-    meta?.major === 'depression_shock_day_2' ||
-    meta?.major === 'depression_shock_end' ||
-    // Safety shocks are activated at the end of the Safety competition,
-    // before the catalogue's ceremony-phase card would otherwise begin.
-    // Keep their delivery attached to the activation phase so the normal
-    // broadcast queue owns and consumes the announcement exactly once.
-    meta?.major === 'vip_veto' ||
-    meta?.major === 'diamond_pov' ||
-    meta?.major === 'coup_detat' ||
-    meta?.major === 'spotlight_veto'
-  const intendedPhase = preserveActivationPhase ? hintedPhase : (template?.phase ?? hintedPhase)
+  // A template describes its usual authoring slot. The producer owns the
+  // actual delivery boundary (including results and runtime shock reveals).
+  const intendedPhase = hintedPhase
   const broadcastOrder =
     override?.order ??
     (template
@@ -1458,6 +1468,7 @@ function pushEvent(
   const finalMeta: TvEvent['meta'] = {
     ...meta,
     phase: intendedPhase,
+    ...(template && template.phase !== intendedPhase ? { broadcastRuntimeDelivery: true } : {}),
     broadcastCampaign: template?.campaign ?? currentBroadcastCampaign(state),
     ...(templateId ? { broadcastTemplateId: templateId } : {}),
     ...(observed ? { broadcastSourceText: observed.sourceText } : {}),
@@ -5765,6 +5776,7 @@ const gameSlice = createSlice({
     removeTvEvent(state, action: PayloadAction<string>) {
       state.tvFeed = state.tvFeed.filter((event) => event.id !== action.payload)
       state.broadcastQueue = (state.broadcastQueue ?? []).filter((id) => id !== action.payload)
+      if (state.activeBroadcastEventId === action.payload) state.activeBroadcastEventId = null
       if (state.lastPlainBroadcastEventId === action.payload) {
         state.lastPlainBroadcastEventId = null
       }
@@ -5858,6 +5870,7 @@ const gameSlice = createSlice({
           (event) =>
             event.meta?.phase === action.payload.phase &&
             event.meta?.week === state.week &&
+            event.meta?.broadcastRuntimeDelivery !== true &&
             event.meta?.broadcastConsumed !== true &&
             (event.meta?.major ?? event.major) === cardMajor
         )
@@ -5882,7 +5895,11 @@ const gameSlice = createSlice({
         const templateId = event.meta?.broadcastTemplateId
         const template =
           typeof templateId === 'string' ? getBroadcastTemplate(templateId) : undefined
-        if (template?.kind === 'phase_card' && template.id !== activeCardTemplate?.id) {
+        if (
+          template?.kind === 'phase_card' &&
+          event.meta?.broadcastRuntimeDelivery !== true &&
+          template.id !== activeCardTemplate?.id
+        ) {
           event.meta = { ...(event.meta ?? {}), broadcastConsumed: true }
         }
       }
@@ -5911,6 +5928,44 @@ const gameSlice = createSlice({
 
       rebuildManagedBroadcastQueue(state, action.payload.phase)
     },
+    /** Pin one current queued card once its on-screen presentation begins. */
+    claimActiveBroadcastEvent(state, action: PayloadAction<string>) {
+      const event = state.tvFeed.find((candidate) => candidate.id === action.payload)
+      const isPendingCurrentEvent = Boolean(
+        event &&
+        event.meta?.broadcastConsumed !== true &&
+        event.meta?.phase === state.phase &&
+        event.meta?.week === state.week &&
+        (state.broadcastQueue ?? []).includes(action.payload)
+      )
+      if (!isPendingCurrentEvent) return
+
+      const existing = state.activeBroadcastEventId
+        ? state.tvFeed.find((candidate) => candidate.id === state.activeBroadcastEventId)
+        : undefined
+      const existingIsStillActive = Boolean(
+        existing &&
+        existing.meta?.broadcastConsumed !== true &&
+        existing.meta?.phase === state.phase &&
+        existing.meta?.week === state.week &&
+        (state.broadcastQueue ?? []).includes(existing.id)
+      )
+      if (existingIsStillActive && existing?.id !== event!.id) return
+      state.activeBroadcastEventId = event!.id
+      state.broadcastQueue = pinBroadcastQueueHead(
+        state.broadcastQueue ?? [],
+        state.activeBroadcastEventId
+      )
+    },
+    /** Persist a one-shot media start claim; repeated starts are idempotent. */
+    claimPresentationEvent(state, action: PayloadAction<PresentationEventClaim>) {
+      if (action.payload.gameId !== state.gameId) return
+      if (hasPresentationEventClaim(state.presentationEventClaims, action.payload)) return
+      state.presentationEventClaims = addPresentationEventClaim(
+        state.presentationEventClaims,
+        action.payload
+      )
+    },
     /** Consume exactly one faux-TV item; Play cannot advance while another remains. */
     consumeBroadcastEvent(state, action: PayloadAction<string>) {
       const event = state.tvFeed.find((candidate) => candidate.id === action.payload)
@@ -5921,6 +5976,7 @@ const gameSlice = createSlice({
         }
       }
       state.broadcastQueue = (state.broadcastQueue ?? []).filter((id) => id !== action.payload)
+      if (state.activeBroadcastEventId === action.payload) state.activeBroadcastEventId = null
     },
     /** Day-boundary cleanup preserves ordered consumption in one transaction. */
     consumeBroadcastEvents(state, action: PayloadAction<string[]>) {
@@ -5935,6 +5991,9 @@ const gameSlice = createSlice({
       }
       const consumed = new Set(action.payload)
       state.broadcastQueue = (state.broadcastQueue ?? []).filter((id) => !consumed.has(id))
+      if (state.activeBroadcastEventId && consumed.has(state.activeBroadcastEventId)) {
+        state.activeBroadcastEventId = null
+      }
     },
     addCustomBroadcast(
       state,
@@ -9081,6 +9140,8 @@ const gameSlice = createSlice({
       }
       state.tvFeed = []
       state.broadcastQueue = []
+      state.activeBroadcastEventId = null
+      state.presentationEventClaims = []
       state.lastPlainBroadcastEventId = null
       state.democracia = undefined
       state.depressionShock = undefined
@@ -9327,6 +9388,7 @@ const gameSlice = createSlice({
       })
       state.tvFeed = []
       state.broadcastQueue = []
+      state.activeBroadcastEventId = null
       state.evictionSplashId = null
       state.evictionOverlayPlayerId = null
       state.phase = 'final3'
@@ -9377,6 +9439,7 @@ const gameSlice = createSlice({
       })
       state.tvFeed = []
       state.broadcastQueue = []
+      state.activeBroadcastEventId = null
       state.evictionSplashId = null
       state.evictionOverlayPlayerId = null
       state.weekendInterlude = null
@@ -9921,6 +9984,8 @@ const gameSlice = createSlice({
           })
         ),
         broadcastQueue: action.payload.broadcastQueue ?? [],
+        activeBroadcastEventId: action.payload.activeBroadcastEventId ?? null,
+        presentationEventClaims: action.payload.presentationEventClaims ?? [],
         lastPlainBroadcastEventId: action.payload.lastPlainBroadcastEventId ?? null,
         twinShock: action.payload.twinShock ?? createInitialTwinShockState(),
         pregnancyStory: normalizePregnancyStoryState(action.payload.pregnancyStory),
@@ -13822,6 +13887,8 @@ export const {
   resetBroadcastOverride,
   replaceBroadcastConfig,
   syncPhaseBroadcasts,
+  claimActiveBroadcastEvent,
+  claimPresentationEvent,
   consumeBroadcastEvent,
   consumeBroadcastEvents,
   addCustomBroadcast,
