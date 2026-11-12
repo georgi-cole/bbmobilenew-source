@@ -518,8 +518,8 @@ describe('SocialPanelV2 – execute flow', () => {
       .getState()
       .game.players.filter((p) => !p.isUser)
       .slice(0, 3)
-    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
     const btn = screen.getByRole('button', { name: 'Execute' })
     expect((btn as HTMLButtonElement).disabled).toBe(true)
 
@@ -541,8 +541,8 @@ describe('SocialPanelV2 – execute flow', () => {
       .game.players.filter((p) => !p.isUser)
       .slice(0, 6)
     act(() => store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 3 })))
-    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
     players.slice(1).forEach((player) => {
       fireEvent.click(screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0])
     })
@@ -554,31 +554,52 @@ describe('SocialPanelV2 – execute flow', () => {
     expect(screen.getByText(/Nothing was spent/)).toBeDefined()
   }, 60_000)
 
-  it('keeps multi-select active for compatible actions and charges once per selected player', () => {
+  it('clears group recipients before executing a newly chosen individual move', () => {
     const players = store
       .getState()
       .game.players.filter((p) => !p.isUser)
       .slice(0, 3)
     act(() => store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 5 })))
-    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
-    players.slice(1).forEach((player) => {
+    players.forEach((player) =>
       fireEvent.click(screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0])
-    })
+    )
     fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
-    expect(
-      within(screen.getByRole('button', { name: /Compliment/i })).getByLabelText('Energy cost: 3')
-    ).toBeVisible()
-
+    expect(screen.getByRole('button', { name: 'Execute' })).toBeDisabled()
+    expect(store.getState().social.energyBank[humanId]).toBe(5)
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
-
-    expect(store.getState().social.energyBank[humanId]).toBe(2)
     const logs = store
       .getState()
       .social.sessionLogs.filter((entry) => entry.actionId === 'compliment')
-    expect(logs.map((entry) => entry.targetId).sort()).toEqual(
-      players.map((player) => player.id).sort()
+    expect(logs.map((entry) => entry.targetId)).toEqual([players[0].id])
+  })
+
+  it('navigates focused players with arrows and clears the previously selected move', () => {
+    const players = store
+      .getState()
+      .game.players.filter((p) => !p.isUser && p.status !== 'jury' && p.status !== 'evicted')
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
+    fireEvent.keyDown(
+      screen.getByRole('group', { name: 'Browse hubmates with left and right arrows' }),
+      { key: 'ArrowRight' }
     )
+    expect(
+      screen.getByRole('button', { name: `Deselect ${players[1].name} and show roster` })
+    ).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Execute' })).toBeDisabled()
+    fireEvent.keyDown(
+      screen.getByRole('group', { name: 'Browse hubmates with left and right arrows' }),
+      { key: 'ArrowLeft' }
+    )
+    fireEvent.keyDown(
+      screen.getByRole('group', { name: 'Browse hubmates with left and right arrows' }),
+      { key: 'ArrowLeft' }
+    )
+    expect(
+      screen.getByRole('button', { name: `Deselect ${players.at(-1)!.name} and show roster` })
+    ).toBeDefined()
   })
 
   it('clears action and player selection after closing and reopening the panel', () => {
@@ -638,8 +659,8 @@ describe('SocialPanelV2 – execute flow', () => {
       .getState()
       .game.players.filter((player) => !player.isUser)
       .slice(0, 3)
-    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(people[0].name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(people[0].name, 'i') })[0])
     expect((screen.getByRole('button', { name: 'Execute' }) as HTMLButtonElement).disabled).toBe(
       true
     )
@@ -1505,8 +1526,8 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     renderPanel(store)
 
     const roster = screen.getByRole('region', { name: 'Player roster' })
-    fireEvent.click(within(roster).getByRole('button', { name: new RegExp(allyA.name, 'i') }))
     fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
+    fireEvent.click(within(roster).getByRole('button', { name: new RegExp(allyA.name, 'i') }))
     fireEvent.click(within(roster).getByRole('button', { name: new RegExp(candidate.name, 'i') }))
     const grid = screen.getByRole('group', { name: 'Action grid' })
     const invitation = within(grid).getByRole('button', {

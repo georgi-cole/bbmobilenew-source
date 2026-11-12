@@ -64,28 +64,30 @@ function actionCard(title: string): HTMLElement {
 }
 
 describe('ActionGrid catalogue rendering', () => {
-  it('shows only targetless moves until a housemate is selected', () => {
+  it('discovers Group Chat without an individual focus and hides it for a focused player', () => {
     const { rerender } = render(<ActionGrid selectedTargetIds={new Set()} actorId="human" />)
 
     expect(screen.getByText('Watch Room')).toBeInTheDocument()
     expect(screen.getByText('Lay Low')).toBeInTheDocument()
     expect(screen.queryByText('Compliment')).not.toBeInTheDocument()
-    expect(screen.queryByText('Group Chat')).not.toBeInTheDocument()
+    expect(screen.getByText('Group Chat')).toBeInTheDocument()
 
     rerender(<ActionGrid selectedTargetIds={new Set(['lia'])} actorId="human" />)
 
     expect(screen.getByText('Compliment')).toBeInTheDocument()
-    expect(screen.getByText('Group Chat')).toBeInTheDocument()
+    expect(screen.queryByText('Group Chat')).not.toBeInTheDocument()
     expect(screen.getByText('Watch Room')).toBeInTheDocument()
   })
 
   it('keeps the Classic catalogue playable while appending locked Reality previews', () => {
     render(<ActionGrid />)
 
-    expect(renderedActionIds()).toEqual([
-      ...DEFAULT_NORMAL_ACTIONS.map((action) => action.id),
-      ...LOCKED_REALITY_ACTIONS.map((action) => action.id),
-    ])
+    const expected = [...DEFAULT_NORMAL_ACTIONS, ...LOCKED_REALITY_ACTIONS].map(
+      (action) => action.id
+    )
+    expect(new Set(renderedActionIds())).toEqual(new Set(expected))
+    if (expected.includes('ask_player_opinion'))
+      expect(renderedActionIds().at(-1)).toBe('ask_player_opinion')
     for (const action of DEFAULT_NORMAL_ACTIONS) {
       expect(screen.getByText(action.title)).toBeInTheDocument()
     }

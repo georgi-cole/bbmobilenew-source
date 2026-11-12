@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-12: Reviewed Social catalogue ordering, Group Chat discovery and
+  selection resets, subject-picker navigation, and focused-player swipes.
+  Existing execution eligibility, group prices, resource costs, paid access,
+  products, benefits, and marketplace copy remain unchanged.
+
 - 2026-11-12: Reviewed shared minigame eye positioning and Hub Says swipe paging.
   These input and accessibility changes preserve rules, scoring, exits, paid
   access, marketplace products, benefits, prices, and rewards.

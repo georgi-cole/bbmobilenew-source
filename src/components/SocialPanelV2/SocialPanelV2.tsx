@@ -1,3 +1,5 @@
+import { useHorizontalSwipe } from '../../hooks/useHorizontalSwipe'
+import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
 import {
   allianceProposalPrice,
   executeAllianceManagementCommand,
@@ -1360,6 +1362,10 @@ export default function SocialPanelV2() {
   const handleActionClick = useCallback(
     (actionId: string) => {
       if (selectedActionId === actionId) {
+        if (actionId === 'group_chat') {
+          setPrimaryTargetId(null)
+          setSelectedTargets(new Set())
+        }
         setSelectedActionId(null)
         setSelectedSubjectId(null)
         setAllianceNameDraft('')
@@ -1396,6 +1402,17 @@ export default function SocialPanelV2() {
           setAllianceSelectionPulse(false)
           allianceSelectionPulseTimerRef.current = null
         }, 1750)
+      }
+      if (actionId === 'group_chat') {
+        setPrimaryTargetId(null)
+        setSelectedTargets(new Set())
+        setSelectedAllianceId(null)
+        setSelectedPactHistoryEventId(null)
+        setSelectedAllianceHistoryEventId(null)
+      } else if (selectedActionId === 'group_chat' && !actionId.startsWith('alliance:invite:')) {
+        setPrimaryTargetId(null)
+        setSelectedTargets(new Set())
+        setMultiSelectActive(false)
       }
       if (nextMode === 'multi') {
         setMultiSelectActive(true)
@@ -1839,8 +1856,6 @@ export default function SocialPanelV2() {
     selectedActionId,
   ])
 
-  if (!open || !humanPlayer) return null
-
   const allNonUser = game.players.filter((player) => !player.isUser && player.status !== 'evicted')
   const activePlayers = allNonUser.filter((player) => player.status !== 'jury')
   const juryPlayers = allNonUser.filter((player) => player.status === 'jury')
@@ -1863,6 +1878,40 @@ export default function SocialPanelV2() {
     ? [...orderedPlayers, ...reunionGuests]
     : orderedPlayers
   const disabledPlayerIds = finaleReunionSocialOpen ? [] : juryPlayers.map((player) => player.id)
+
+  const subjectPickerRef = useRef<HTMLDivElement>(null)
+  const reducedPresentationMotion = usePresentationReducedMotion()
+  useEffect(() => {
+    if (!needsSubject || !open) return
+    const frame = window.requestAnimationFrame(() =>
+      subjectPickerRef.current?.scrollIntoView?.({
+        block: 'nearest',
+        behavior: reducedPresentationMotion ? 'auto' : 'smooth',
+      })
+    )
+    return () => window.cancelAnimationFrame(frame)
+  }, [selectedActionId, effectivePrimaryTargetId, needsSubject, open, reducedPresentationMotion])
+  const moveFocusedPlayer = (direction: -1 | 1) => {
+    if (!primaryTargetId || usesMultipleTargets || selectedAllianceId) return
+    const candidates = rosterPlayers.filter(
+      (player) => !player.isUser && !disabledPlayerIds.includes(player.id)
+    )
+    if (candidates.length <= 1) return
+    const index = candidates.findIndex((player) => player.id === primaryTargetId)
+    if (index < 0) return
+    const id = candidates[(index + direction + candidates.length) % candidates.length].id
+    setPrimaryTargetId(id)
+    setSelectedTargets(new Set([id]))
+    setSelectedSubjectId(null)
+    setSelectedActionId(null)
+    setMultiSelectActive(false)
+    setSelectedPactHistoryEventId(null)
+    setSelectedAllianceHistoryEventId(null)
+    clearCurrentOutcome()
+  }
+  const focusSwipe = useHorizontalSwipe(moveFocusedPlayer)
+
+  if (!open || !humanPlayer) return null
 
   const deltasByTargetId = new Map<string, number>()
   const currentRels = relationships?.[humanPlayer.id] ?? {}
@@ -2403,7 +2452,21 @@ export default function SocialPanelV2() {
                   >
                     ×
                   </button>
-                  <div className="sp2-focus__portrait">
+                  <div
+                    className="sp2-focus__portrait"
+                    {...focusSwipe}
+                    style={{ touchAction: 'pan-y' }}
+                    tabIndex={0}
+                    role="group"
+                    aria-label="Browse hubmates with left and right arrows"
+                    onKeyDown={(event) => {
+                      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        moveFocusedPlayer(event.key === 'ArrowLeft' ? -1 : 1)
+                      }
+                    }}
+                  >
                     <PlayerAvatar
                       player={focusedPlayer}
                       size="lg"
@@ -2691,8 +2754,12 @@ export default function SocialPanelV2() {
               </div>
             )}
             {needsSubject && effectivePrimaryTargetId && (
-              <div className="sp2-subject-picker" aria-label="Choose subject">
-                <span className="sp2-subject-picker__label">Talking about:</span>
+              <div
+                ref={subjectPickerRef}
+                className="sp2-subject-picker"
+                aria-label="Choose subject"
+              >
+                <span className="sp2-subject-picker__label">Choose who to ask about:</span>
                 {subjectCandidates.length === 0 ? (
                   <span className="sp2-subject-picker__empty">No eligible targets</span>
                 ) : (
