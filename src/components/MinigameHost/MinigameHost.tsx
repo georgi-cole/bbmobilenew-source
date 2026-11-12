@@ -1028,7 +1028,8 @@ export default function MinigameHost({
       if (import.meta.env.DEV) {
         console.log('HOUSE_OF_CARDS_NEW_SESSION', {
           source: 'MinigameHost',
-          challengeSeedIgnored: isLabPreview ? undefined : seed,
+          attemptSeed: seed,
+          attemptNumber: attempt,
           labSeed: isLabPreview ? seed : undefined,
           participantIds,
           prizeType: gameOptions?.prizeType ?? 'LOH',
@@ -1039,7 +1040,8 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as HouseOfCardsPrizeType) ?? 'LOH'}
-          seed={isLabPreview ? seed : undefined}
+          seed={seed}
+          attemptNumber={attempt}
           premiumPresentation={usePremiumPresentation}
           previewStage={
             import.meta.env.DEV && gameOptions?.previewStage === 'final' ? 'final' : undefined

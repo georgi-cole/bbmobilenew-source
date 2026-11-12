@@ -820,12 +820,22 @@
 }
 
 .cb__guess-row {
-  flex-direction: column;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
 }
-
+.cb__guess-main {
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .cb__guess-feedback {
-  justify-content: flex-start;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-self: center;
 }
 
 @media (max-height: 720px) {

@@ -210,6 +210,8 @@ export default function CrystalPathShatteredGame({
   const [bridgeRows, setBridgeRows] = useState<BridgeRow[]>(() => baseBridgeRows)
   const [activeAnimation, setActiveAnimation] = useState<Animation | null>(null)
   const [hintRowIndex, setHintRowIndex] = useState<number | null>(null)
+  const hintRowRef = useRef<number | null>(null)
+  const hintTimerRef = useRef<number | null>(null)
   const [messageLog, setMessageLog] = useState<string[]>([])
   const [mysteryModal, setMysteryModal] = useState<{
     effectLabel: string
@@ -486,15 +488,24 @@ export default function CrystalPathShatteredGame({
 
   const consumeHint = useCallback(
     (playerId: string) => {
+      const row = currentRowRecord
+      if (!row || !players.some((p) => p.id === playerId && p.hints > 0)) return
+      if (playerId === humanId && hintRowRef.current === row.index) return
       setPlayers((cur) =>
         cur.map((p) => (p.id === playerId && p.hints > 0 ? { ...p, hints: p.hints - 1 } : p))
       )
-      const row = currentRowRecord
-      if (row) setHintRowIndex(row.index)
-      // Hint expires on the next step or after 3.5s.
-      queueTimeout(() => setHintRowIndex((r) => (r === row?.index ? null : r)), 3_500)
+      // An AI's private hint must not mark the human's board.
+      if (playerId !== humanId) return
+      if (hintTimerRef.current !== null) cancelQueuedTimeout(hintTimerRef.current)
+      hintRowRef.current = row.index
+      setHintRowIndex(row.index)
+      hintTimerRef.current = queueTimeout(() => {
+        hintRowRef.current = null
+        hintTimerRef.current = null
+        setHintRowIndex(null)
+      }, 3_500)
     },
-    [currentRowRecord, queueTimeout]
+    [currentRowRecord, players, humanId, queueTimeout, cancelQueuedTimeout]
   )
 
   const resolveStep = useCallback(
@@ -504,6 +515,9 @@ export default function CrystalPathShatteredGame({
       const wrong = side !== row.safeSide
       const now = Date.now()
       const progressedRow = row.index + 1
+      if (hintTimerRef.current !== null) cancelQueuedTimeout(hintTimerRef.current)
+      hintTimerRef.current = null
+      hintRowRef.current = null
       setHintRowIndex(null)
       setMysteryPendingStep(false)
       setResolvedRows((cur) => ({
@@ -525,7 +539,7 @@ export default function CrystalPathShatteredGame({
           until: now + animationMs,
         })
         if (eliminated) playDeath()
-        else playSafeStep()
+        else playDeath()
         setPlayers((cur) =>
           cur.map((p) => {
             if (p.id !== playerId) return p
@@ -597,6 +611,7 @@ export default function CrystalPathShatteredGame({
       playDeath,
       playSafeStep,
       queueTimeout,
+      cancelQueuedTimeout,
     ]
   )
 
@@ -1047,6 +1062,11 @@ export default function CrystalPathShatteredGame({
         )}
 
         {/* Board — 3D perspective runway */}
+        {hintRowIndex !== null && isHumanTurn && (
+          <p className="cps-hint-status" role="status">
+            Hint: choose the {currentRowRecord?.safeSide} tile on row {hintRowIndex + 1}.
+          </p>
+        )}
         <section className="cps-board" aria-label="Bridge">
           <div className="cps-bridge-track">
             {displayRows.map((row) => {
@@ -1068,8 +1088,20 @@ export default function CrystalPathShatteredGame({
                     className={`cps-tile cps-tile-left${showHint && row.safeSide === 'left' ? ' is-hinted' : ''}${resolved?.side === 'left' ? (resolved.wrong ? ' is-cracked' : ' is-cleared') : ''}${anim && anim.side === 'left' ? (anim.kind === 'wrong' ? ' is-wrong' : ' is-safe') : ''}`}
                     onClick={() => handleSelect('left')}
                     disabled={!isCurrent || !inputEnabled || blockForMystery}
-                    aria-label={`Row ${row.index + 1} left tile`}
-                  />
+                    aria-label={`Row ${row.index + 1} left tile${showHint && row.safeSide === 'left' ? ' — hinted safe tile' : ''}`}
+                  >
+                    {showHint && row.safeSide === 'left' && (
+                      <span className="cps-hint-marker" aria-hidden="true">
+                        ✓
+                      </span>
+                    )}
+                    {resolved?.side === 'left' && resolved.wrong && (
+                      <span className="cps-fracture" aria-hidden="true">
+                        <i />
+                        <i />
+                      </span>
+                    )}
+                  </button>
                   <div className={`cps-center${row.hasMystery ? ' has-mystery' : ''}`}>
                     {row.hasMystery && !mysteryPendingStep && (
                       <button
@@ -1088,8 +1120,20 @@ export default function CrystalPathShatteredGame({
                     className={`cps-tile cps-tile-right${showHint && row.safeSide === 'right' ? ' is-hinted' : ''}${resolved?.side === 'right' ? (resolved.wrong ? ' is-cracked' : ' is-cleared') : ''}${anim && anim.side === 'right' ? (anim.kind === 'wrong' ? ' is-wrong' : ' is-safe') : ''}`}
                     onClick={() => handleSelect('right')}
                     disabled={!isCurrent || !inputEnabled || blockForMystery}
-                    aria-label={`Row ${row.index + 1} right tile`}
-                  />
+                    aria-label={`Row ${row.index + 1} right tile${showHint && row.safeSide === 'right' ? ' — hinted safe tile' : ''}`}
+                  >
+                    {showHint && row.safeSide === 'right' && (
+                      <span className="cps-hint-marker" aria-hidden="true">
+                        ✓
+                      </span>
+                    )}
+                    {resolved?.side === 'right' && resolved.wrong && (
+                      <span className="cps-fracture" aria-hidden="true">
+                        <i />
+                        <i />
+                      </span>
+                    )}
+                  </button>
                   <div className="cps-row-label" aria-hidden="true">
                     {row.index + 1}
                   </div>

@@ -52,9 +52,10 @@ export const SURVIVAL_BONUS = 10
 export const VOWEL_COST = 4
 export const CONSONANT_COST = 6
 export const HINT_COSTS = [5, 6, 7] as const
-export const MAX_WRONG_GUESSES = 5
+export const MAX_WRONG_GUESSES = 3
 export const FAILURE_PENALTY = -25
-export const MAX_QUALIFYING_ROUNDS = 6
+export const MAX_TOTAL_ROUNDS = 5
+export const MAX_QUALIFYING_ROUNDS = MAX_TOTAL_ROUNDS - 1
 export const ROUND_TIME_LIMIT_SECONDS = 95
 
 const VOWELS = new Set(['A', 'E', 'I', 'O', 'U'])
@@ -836,7 +837,11 @@ export function simulateAiRound(params: {
   const solved = rng() < solveChance
   const wrongGuesses = solved
     ? Math.round(
-        clamp((1 - skill) * 3.2 + word.difficulty * 0.45 + rng() * 2 - revealRatio * 2, 0, 7)
+        clamp(
+          (1 - skill) * 3.2 + word.difficulty * 0.45 + rng() * 2 - revealRatio * 2,
+          0,
+          MAX_WRONG_GUESSES - 1
+        )
       )
     : MAX_WRONG_GUESSES
   const elapsedSeconds = Math.round(

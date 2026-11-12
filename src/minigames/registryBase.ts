@@ -1,3 +1,4 @@
+import { getVerdictBoardRules } from '../components/HangmanChallengeComp/verdictRules'
 // MODULE: src/minigames/registry.ts
 // Unified minigame registry ported from bbmobile/js/minigames/registry.js
 // Each entry includes metadata, scoring adapter, and module path for dynamic import.
@@ -712,12 +713,10 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
   cardClash: {
     key: 'cardClash',
     title: 'Deck of Light',
-    description:
-      'A rising memory tournament with tactical tools, a changing objective and a portrait-card duel.',
+    description: 'A rising memory tournament with tactical tools and a portrait-card duel.',
     instructions: [
       'Four rounds build from 8 to 20 tiles; the lowest scorer drops after round 3, then round 4 sends the top two to the finale',
-      'Choose one tool each round: Peek, Shield, Bonus Bet, Keep Open or Replay; the same choices apply to every contestant',
-      'Match the Bright Pair during the first half of the board for +120 points',
+      'Three tools are sampled from Peek, Shield, Bonus Bet, Keep Open and Replay for this attempt; choose one each round from the same offer as every contestant',
       'The top two share a player-portrait board in the finale; every matched pair scores one point',
       'A finalist keeps playing after each match and passes the turn after a miss; each finalist gets one Peek-or-Pass token',
       'Final pairs decide the winner, with rounds 1–4 totals breaking a tie',
@@ -808,14 +807,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     title: 'Verdict Board',
     description:
       'A premium word-survival tournament where Eyeoleans buy information and wrong verdicts crack the window.',
-    instructions: [
-      'Start with 100 Eyeoleans and keep your remaining wallet between rounds.',
-      'Reveal one random vowel position for 4 Eyeoleans or one consonant position for 6.',
-      'Buy up to three increasingly revealing hints for 5, 6, and 7 Eyeoleans.',
-      'You have 10 wrong full-word attempts before the window shatters; a failed board scores 0 and carries a cumulative penalty.',
-      'Low round scores are eliminated until two finalists remain.',
-      'The final uses one shared board. The higher cumulative scorer chooses first or second, and correct reveals keep the turn.',
-    ],
+    instructions: getVerdictBoardRules(),
     resultMode: 'placement',
     metricKind: 'points',
     metricLabel: 'Placement',

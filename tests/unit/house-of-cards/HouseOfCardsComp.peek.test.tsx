@@ -9,11 +9,18 @@ import {
   buildPortraitPairBoard,
   chooseHouseOfCardsAiPair,
   chooseHouseOfCardsFinalWinner,
-  chooseHouseOfCardsBrightPairSymbol,
+  getHouseOfCardsAttemptToolOffer,
+  type HouseOfCardsRoundToolId,
 } from '../../../src/components/HouseOfCardsComp/houseOfCardsUtils'
 import houseOfCardsReducer, {
   HOUSE_OF_CARDS_TILE_COUNTS,
 } from '../../../src/features/houseOfCards/houseOfCardsSlice'
+
+function seedWithTool(tool: HouseOfCardsRoundToolId): number {
+  return Array.from({ length: 100 }, (_, seed) => seed).find((seed) =>
+    getHouseOfCardsAttemptToolOffer(seed).includes(tool)
+  )!
+}
 
 function makeStore() {
   return configureStore({
@@ -92,7 +99,7 @@ describe('Deck of Light — four preliminaries and a finale', () => {
   })
 
   it('allows a blind Bonus Bet after the halfway point', () => {
-    const seed = 42
+    const seed = seedWithTool('bonus-bet')
     renderGame(seed)
     fireEvent.click(screen.getByRole('button', { name: /^Bonus Bet/ }))
     const cards = screen.getAllByRole('gridcell')
@@ -112,9 +119,9 @@ describe('Deck of Light — four preliminaries and a finale', () => {
   })
 
   it('rejects either previously seen card in an armed bet even after it is hidden again', () => {
-    renderGame(42)
+    renderGame(seedWithTool('bonus-bet'))
     fireEvent.click(screen.getByRole('button', { name: /^Bonus Bet/ }))
-    const [[first, freshMate], [other], [freshOther]] = getPairIndexes(42, 4)
+    const [[first, freshMate], [other], [freshOther]] = getPairIndexes(seedWithTool('bonus-bet'), 4)
     const cards = screen.getAllByRole('gridcell')
     fireEvent.click(cards[first])
     fireEvent.click(cards[other])
@@ -207,27 +214,22 @@ describe('Deck of Light — four preliminaries and a finale', () => {
     }
   })
 
-  it('awards exactly 120 points for finding the Bright Pair early', () => {
+  it('scores a clean Peek board without a Bright Pair award', () => {
     const seed = 42
     renderGame(seed)
     fireEvent.click(screen.getByRole('button', { name: /^Peek/ }))
-    const board = buildHouseOfCardsBoard(seed, 4)
-    const target = chooseHouseOfCardsBrightPairSymbol(seed, 1, board)
-    const pairs = getPairIndexes(seed, 4).sort(
-      (a, b) => Number(board[b[0]].symbol === target) - Number(board[a[0]].symbol === target)
-    )
     const cards = screen.getAllByRole('gridcell')
-    for (const [first, second] of pairs) {
+    for (const [first, second] of getPairIndexes(seed, 4)) {
       fireEvent.click(cards[first])
       fireEvent.click(cards[second])
       act(() => vi.advanceTimersByTime(260))
     }
-    expect(screen.getByLabelText('Round 1 standings')).toHaveTextContent('Bright Pair +120')
-    expect(screen.getByLabelText('Round 1 standings')).toHaveTextContent('4,180')
+    expect(screen.getByLabelText('Round 1 standings')).not.toHaveTextContent('Bright Pair')
+    expect(screen.getByLabelText('Round 1 standings')).toHaveTextContent('4,060')
   })
 
   it('deducts one Shield miss in the opening rounds and two in round three', () => {
-    const seed = 42
+    const seed = seedWithTool('shield')
     renderGame(seed)
     for (let round = 1; round <= 3; round += 1) {
       fireEvent.click(screen.getByRole('button', { name: /^Shield/ }))
@@ -258,7 +260,7 @@ describe('Deck of Light — four preliminaries and a finale', () => {
     { match: true, delta: '+150' },
     { match: false, delta: '-120' },
   ])('pays $delta when the armed attempt has match=$match', ({ match, delta }) => {
-    const seed = 42
+    const seed = seedWithTool('bonus-bet')
     renderGame(seed)
     fireEvent.click(screen.getByRole('button', { name: /^Bonus Bet/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Arm Bonus Bet' }))

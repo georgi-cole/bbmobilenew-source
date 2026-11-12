@@ -32,6 +32,7 @@ describe('HangmanChallengeComp V2', () => {
     expect(screen.getByRole('button', { name: /^reveal/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^hint/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /guess word/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^rules$/i })).toBeNull()
     expect(screen.queryByText(/mystery box/i)).toBeNull()
     expect(screen.queryByLabelText(/letter keyboard/i)).toBeNull()
     expect(document.querySelector('.verdict-v2')).toBeTruthy()
@@ -76,14 +77,14 @@ describe('HangmanChallengeComp V2', () => {
     fireEvent.change(input, { target: { value: 'definitely wrong' } })
     fireEvent.submit(input.closest('form') as HTMLFormElement)
 
-    expect(screen.getByText('1/5')).toBeInTheDocument()
+    expect(screen.getByText('1/3')).toBeInTheDocument()
 
     dialog = openGuess()
     const repeated = within(dialog).getByLabelText(/full word guess/i)
     fireEvent.change(repeated, { target: { value: 'definitely wrong' } })
 
     expect(within(dialog).getByRole('button', { name: /lock verdict/i })).toBeDisabled()
-    expect(screen.getByText('1/5')).toBeInTheDocument()
+    expect(screen.getByText('1/3')).toBeInTheDocument()
   })
 
   it('solves by full-word guess and produces a transparent score breakdown', () => {
@@ -102,16 +103,10 @@ describe('HangmanChallengeComp V2', () => {
     expect(screen.getByText(/no-hint bonus/i)).toBeInTheDocument()
   })
 
-  it('shatters the window on the fifth wrong full-word guess and ends the human run', () => {
+  it('shatters the window on the third wrong full-word guess and ends the human run', () => {
     const { container } = render(<HangmanChallengeComp participants={participants} seed={42} />)
 
-    const wrongAnswers = [
-      'alpha wrong',
-      'bravo wrong',
-      'charlie wrong',
-      'delta wrong',
-      'echo wrong',
-    ]
+    const wrongAnswers = ['alpha wrong', 'bravo wrong', 'charlie wrong']
 
     for (const answer of wrongAnswers) {
       const dialog = openGuess()
@@ -120,7 +115,7 @@ describe('HangmanChallengeComp V2', () => {
       fireEvent.submit(input.closest('form') as HTMLFormElement)
     }
 
-    expect(screen.getByText('5/5')).toBeInTheDocument()
+    expect(screen.getByText('3/3')).toBeInTheDocument()
     expect(container.querySelector('.verdict-v2__window.is-shattered')).toBeTruthy()
 
     act(() => {

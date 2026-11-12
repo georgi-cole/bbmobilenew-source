@@ -430,3 +430,10 @@ store listings or change configured prices.
   acknowledgements, and Social access during voting. Existing VIP/Classic/Vox
   access and promise fulfilment apply; offers, prices, rewards, entitlements and
   marketplace copy are unchanged.
+
+- 2026-11-12: Reviewed TestFlight minigame maintenance: Verdict Board has at
+  most five boards and three wrong qualifying guesses; Deck of Light offers
+  three sampled tools per attempt and removes Bright Pair scoring for human/AI.
+  Crystal Path hint/fracture and Vault history layout fixes preserve scoring.
+  Premium Challenges and VIP still unlock all premium versions. Product prices,
+  availability, benefits and entitlements are unchanged; registry rules updated.

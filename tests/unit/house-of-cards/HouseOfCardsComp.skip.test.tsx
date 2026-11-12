@@ -17,7 +17,6 @@ vi.mock('../../../src/features/houseOfCards/houseOfCardsAi', () => ({
     tool: 'peek',
     toolDelta: 0,
     toolOutcome: 'Peeked privately',
-    brightPairBonus: 120,
   }),
 }))
 

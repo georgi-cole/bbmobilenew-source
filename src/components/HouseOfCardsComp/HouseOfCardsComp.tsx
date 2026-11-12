@@ -39,14 +39,12 @@ import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import {
   HOUSE_OF_CARDS_BONUS_BET_PENALTY,
   HOUSE_OF_CARDS_BONUS_BET_REWARD,
-  HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS,
   buildHouseOfCardsBoard,
   buildPortraitPairBoard,
-  chooseHouseOfCardsBrightPairSymbol,
   chooseHouseOfCardsAiPair,
   chooseHouseOfCardsFinalWinner,
   chooseHouseOfCardsReplayIndexes,
-  getHouseOfCardsEarlyPairLimit,
+  getHouseOfCardsAttemptToolOffer,
   getHouseOfCardsScoringMistakes,
   getHouseOfCardsShieldAllowance,
   resolveHouseOfCardsRoundScore,
@@ -76,6 +74,7 @@ interface Props {
   participants?: ParticipantProp[]
   prizeType: HouseOfCardsPrizeType
   seed?: number
+  attemptNumber?: number
   premiumPresentation?: boolean
   previewStage?: 'final'
   onComplete?: (completion?: ReactMinigameCompletion) => void
@@ -89,7 +88,6 @@ interface RoundPerformance {
   tool?: HouseOfCardsRoundToolId
   toolDelta?: number
   toolOutcome?: string
-  brightPairBonus?: number
 }
 
 interface RoundSummary {
@@ -191,7 +189,7 @@ function simulateAiPreliminaryScore(params: {
   ability: number
   cumulativeScores: Record<string, number>
   recentMistakes?: number
-  brightTargetSymbol: string
+  attemptNumber: number
 }): RoundPerformance {
   const {
     playerId,
@@ -201,7 +199,7 @@ function simulateAiPreliminaryScore(params: {
     ability,
     cumulativeScores,
     recentMistakes,
-    brightTargetSymbol,
+    attemptNumber,
   } = params
   const isBehind =
     (cumulativeScores[playerId] ?? 0) < Math.max(0, ...Object.values(cumulativeScores))
@@ -212,6 +210,7 @@ function simulateAiPreliminaryScore(params: {
     sessionAbility: ability,
     isBehind,
     pairCount,
+    attemptNumber,
     recentMistakes: recentMistakes ?? 1,
   })
   const performance = simulateHouseOfCardsAiRound({
@@ -223,7 +222,7 @@ function simulateAiPreliminaryScore(params: {
     tool,
     isBehind,
     recentMistakes,
-    brightTargetSymbol,
+    attemptNumber,
   })
   return {
     ...performance,
@@ -237,6 +236,7 @@ export default function HouseOfCardsComp({
   participants,
   prizeType,
   seed,
+  attemptNumber = 0,
   premiumPresentation = false,
   previewStage,
   onComplete,
@@ -244,6 +244,10 @@ export default function HouseOfCardsComp({
   useCoveredGameScreen(false)
   const dispatch = useAppDispatch()
   const [sessionSeed] = useState(() => seed ?? cryptoSeed())
+  const offeredTools = useMemo(
+    () => getHouseOfCardsAttemptToolOffer(sessionSeed, attemptNumber),
+    [sessionSeed, attemptNumber]
+  )
   const humanId = useMemo(
     () => participants?.find((participant) => participant.isHuman)?.id ?? participantIds[0] ?? null,
     [participantIds, participants]
@@ -300,11 +304,6 @@ export default function HouseOfCardsComp({
   const [toolUsed, setToolUsed] = useState(false)
   const [peekSelecting, setPeekSelecting] = useState(false)
   const [toolDelta, setToolDelta] = useState(0)
-  const [brightPairSymbol, setBrightPairSymbol] = useState(() => {
-    const initialBoard = buildHouseOfCardsBoard(sessionSeed, HOUSE_OF_CARDS_TILE_COUNTS[0] / 2)
-    return chooseHouseOfCardsBrightPairSymbol(sessionSeed, 1, initialBoard)
-  })
-  const [brightPairBonus, setBrightPairBonus] = useState(0)
 
   const roundStartedAtRef = useRef(Date.now())
   const roundCompletedRef = useRef(false)
@@ -330,7 +329,6 @@ export default function HouseOfCardsComp({
     ? finalPairCount * 2
     : (HOUSE_OF_CARDS_TILE_COUNTS[round - 1] ?? HOUSE_OF_CARDS_TILE_COUNTS[4])
   const targetPairs = isFinal ? finalPairCount : tileCount / 2
-  const earlyMatchesLeft = Math.max(0, getHouseOfCardsEarlyPairLimit(targetPairs) - matchedPairs)
   const boardStyle: BoardStyle = { '--hoc-columns': boardColumns(tileCount) }
 
   useEffect(() => {
@@ -403,9 +401,6 @@ export default function HouseOfCardsComp({
       setClockPausedAt(null)
       seenCardsRef.current.clear()
       firstCardWasUnseenRef.current = false
-      setBrightPairSymbol(
-        nextRound === 5 ? '' : chooseHouseOfCardsBrightPairSymbol(sessionSeed, nextRound, nextBoard)
-      )
       setFlippedIndices([])
       setLocked(false)
       setMatchedPairs(0)
@@ -426,7 +421,6 @@ export default function HouseOfCardsComp({
       setToolUsed(false)
       setPeekSelecting(false)
       setToolDelta(0)
-      setBrightPairBonus(0)
       setPeekedIndex(null)
       aiMemoryRef.current = Object.fromEntries(priorityIds.map((id) => [id, new Set<number>()]))
       roundStartedAtRef.current = Date.now()
@@ -570,7 +564,6 @@ export default function HouseOfCardsComp({
             timeMs,
             bestStreak,
             toolBonus: toolDelta,
-            brightPairBonus,
           }),
           tool: roundTool ?? undefined,
           toolDelta: toolDelta || undefined,
@@ -586,7 +579,6 @@ export default function HouseOfCardsComp({
                     : roundTool === 'replay' && toolUsed
                       ? 'Replayed two seen cards'
                       : undefined,
-          brightPairBonus: brightPairBonus || undefined,
         }
       } else {
         const recent = aiRecentMistakesRef.current[id] ?? []
@@ -595,12 +587,12 @@ export default function HouseOfCardsComp({
           round,
           pairCount: pairs,
           tournamentSeed: sessionSeed,
+          attemptNumber,
           ability: aiProfiles[id]?.sessionAbility ?? 55,
           cumulativeScores,
           recentMistakes: recent.length
             ? recent.reduce((sum, value) => sum + value, 0) / recent.length
             : undefined,
-          brightTargetSymbol: brightPairSymbol,
         })
         roundScores[id] = performance
         aiRecentMistakesRef.current[id] = [
@@ -643,9 +635,8 @@ export default function HouseOfCardsComp({
   }, [
     activeIds,
     aiProfiles,
+    attemptNumber,
     bestStreak,
-    brightPairBonus,
-    brightPairSymbol,
     cumulativeScores,
     humanId,
     mistakes,
@@ -674,12 +665,12 @@ export default function HouseOfCardsComp({
               round: simulatedRound,
               pairCount: pairs,
               tournamentSeed: sessionSeed,
+              attemptNumber,
               ability: aiProfiles[id]?.sessionAbility ?? 55,
               cumulativeScores: scores,
               recentMistakes: aiRecentMistakesRef.current[id]
                 ?.slice(-3)
                 .reduce((sum, value, _index, values) => sum + value / values.length, 0),
-              brightTargetSymbol: '',
             }),
           ])
         )
@@ -704,7 +695,7 @@ export default function HouseOfCardsComp({
       }
       startFinal(ids, scores)
     },
-    [aiProfiles, sessionSeed, startFinal]
+    [aiProfiles, attemptNumber, sessionSeed, startFinal]
   )
 
   const continueRound = useCallback(() => {
@@ -739,12 +730,12 @@ export default function HouseOfCardsComp({
             round: simulatedRound,
             pairCount,
             tournamentSeed: sessionSeed,
+            attemptNumber,
             ability: aiProfiles[id]?.sessionAbility ?? 55,
             cumulativeScores: scores,
             recentMistakes: aiRecentMistakesRef.current[id]
               ?.slice(-3)
               .reduce((sum, value, _index, values) => sum + value / values.length, 0),
-            brightTargetSymbol: '',
           }),
         ])
       )
@@ -824,7 +815,15 @@ export default function HouseOfCardsComp({
       })
     )
     setPhase('results')
-  }, [aiProfiles, dispatch, finalPairCount, participantIds, roundSummary, sessionSeed])
+  }, [
+    aiProfiles,
+    attemptNumber,
+    dispatch,
+    finalPairCount,
+    participantIds,
+    roundSummary,
+    sessionSeed,
+  ])
 
   const resolvePair = useCallback(
     (firstIndex: number, secondIndex: number, blindBetEligible = false) => {
@@ -864,13 +863,6 @@ export default function HouseOfCardsComp({
             setToolDelta(HOUSE_OF_CARDS_BONUS_BET_REWARD)
             setToolUsed(true)
             setPeekSelecting(false)
-          }
-          if (
-            first.symbol === brightPairSymbol &&
-            brightPairBonus === 0 &&
-            matchedPairs < getHouseOfCardsEarlyPairLimit(targetPairs)
-          ) {
-            setBrightPairBonus(HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS)
           }
           setStreak((value) => {
             const next = value + 1
@@ -923,17 +915,13 @@ export default function HouseOfCardsComp({
     [
       activeIds,
       board,
-      brightPairBonus,
-      brightPairSymbol,
       finalTurnId,
       finalists,
-      matchedPairs,
       peekSelecting,
       phase,
       playMatch,
       playMismatch,
       roundTool,
-      targetPairs,
       toolUsed,
     ]
   )
@@ -1030,11 +1018,16 @@ export default function HouseOfCardsComp({
 
   const chooseRoundTool = useCallback(
     (tool: HouseOfCardsRoundToolId) => {
-      if (phase !== 'tool_select' || round > 4 || toolTransition !== null) return
+      if (
+        phase !== 'tool_select' ||
+        round > 4 ||
+        toolTransition !== null ||
+        !offeredTools.includes(tool)
+      )
+        return
       setRoundTool(tool)
       setToolUsed(false)
       setToolDelta(0)
-      setBrightPairBonus(0)
       setPeekSelecting(false)
       if (!premiumPresentation) {
         roundStartedAtRef.current = Date.now()
@@ -1066,7 +1059,7 @@ export default function HouseOfCardsComp({
         )
       }, 620)
     },
-    [board.length, phase, premiumPresentation, round, toolTransition]
+    [board.length, phase, premiumPresentation, round, toolTransition, offeredTools]
   )
 
   const chooseFinalOpening = useCallback(
@@ -1267,7 +1260,7 @@ export default function HouseOfCardsComp({
       <div
         className="hoc-root"
         data-phase="tool_select"
-        data-tool-count={ROUND_TOOL_CHOICES.length}
+        data-tool-count={offeredTools.length}
         data-presentation={premiumPresentation ? 'premium' : 'standard'}
         data-tool-transition={toolTransition ?? undefined}
       >
@@ -1279,14 +1272,10 @@ export default function HouseOfCardsComp({
         <header className="hoc-game-heading">
           <span className="hoc-game-heading__kicker">Round {round} of 4 · choose one tool</span>
           <strong>Deck of Light</strong>
-          <span>
-            Bright Pair: match <b>{brightPairSymbol || 'a hidden symbol'}</b> in your first{' '}
-            {getHouseOfCardsEarlyPairLimit(targetPairs)} matches for +
-            {HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS}.
-          </span>
+          <span>Choose one tool from this attempt's three-tool offer.</span>
         </header>
         <div className="hoc-tool-choices" role="group" aria-label="Choose one tool for this round">
-          {ROUND_TOOL_CHOICES.map((choice) => (
+          {ROUND_TOOL_CHOICES.filter((choice) => offeredTools.includes(choice.id)).map((choice) => (
             <button
               type="button"
               className={`hoc-tool-choice hoc-tool-choice--${choice.id}`}
@@ -1490,9 +1479,6 @@ export default function HouseOfCardsComp({
                     {roundSummary.roundScores[id].tool
                       ? ` · ${roundSummary.roundScores[id].toolOutcome ?? roundSummary.roundScores[id].tool}`
                       : ''}
-                    {roundSummary.roundScores[id].brightPairBonus
-                      ? ` · Bright Pair +${HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS}`
-                      : ''}
                   </span>
                 </div>
                 <strong>{roundSummary.cumulativeScores[id].toLocaleString()}</strong>
@@ -1505,9 +1491,6 @@ export default function HouseOfCardsComp({
         <p className="hoc-round-summary">
           {roundSummary.roundScores[humanId ?? '']?.toolOutcome
             ? `${roundSummary.roundScores[humanId ?? ''].toolOutcome}. `
-            : ''}
-          {roundSummary.roundScores[humanId ?? '']?.brightPairBonus
-            ? `Bright Pair +${HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS}. `
             : ''}
           {roundSummary.eliminatedIds.length > 0
             ? `${roundSummary.eliminatedIds.map(nameFor).join(', ')} eliminated.`
@@ -1588,7 +1571,7 @@ export default function HouseOfCardsComp({
         <span>
           {isFinal
             ? 'The finalists share one portrait board.'
-            : `Bright Pair: ${brightPairSymbol} · ${brightPairBonus ? 'claimed' : earlyMatchesLeft > 0 ? `${earlyMatchesLeft} matches left` : 'unspent'}`}
+            : 'Choose your tool, then match every pair.'}
         </span>
       </header>
       <div className="hoc-hud">
