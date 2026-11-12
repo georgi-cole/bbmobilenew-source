@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useDockPosition } from './useDockPosition'
 
 import './MinigameUtilityDock.css'
 
@@ -54,6 +55,7 @@ export default function MinigameUtilityDock({
   exitAvailable = true,
 }: Props) {
   const rulesAvailable = phase === 'countdown' || phase === 'playing'
+  const position = useDockPosition(onCloseMenu)
 
   return createPortal(
     <>
@@ -67,13 +69,22 @@ export default function MinigameUtilityDock({
         />
       )}
 
-      <div className={`minigame-utility-dock ${menuOpen ? 'minigame-utility-dock--open' : ''}`}>
+      <div
+        className={`minigame-utility-dock ${menuOpen ? 'minigame-utility-dock--open' : ''}`}
+        style={{ top: position.top }}
+      >
         {menuOpen && (
           <div
             id="minigame-utility-menu"
             className="minigame-utility-dock__menu"
             role="menu"
             aria-label="Minigame options"
+            style={{
+              top: position.menuAbove ? 'auto' : 0,
+              bottom: position.menuAbove ? 0 : 'auto',
+              maxHeight: position.menuMaxHeight,
+              overflowY: 'auto',
+            }}
           >
             {rulesAvailable && (
               <button
@@ -117,7 +128,13 @@ export default function MinigameUtilityDock({
           aria-label={menuOpen ? 'Close minigame menu' : 'Open minigame menu'}
           aria-expanded={menuOpen}
           aria-controls="minigame-utility-menu"
-          onClick={onToggleMenu}
+          {...position.handlers}
+          style={{ touchAction: 'none', userSelect: 'none' }}
+          title="Drag vertically to move. Arrow keys move; Home and End reach the edges."
+          onClick={(event) => {
+            event.stopPropagation()
+            if (!position.consumeDragClick()) onToggleMenu()
+          }}
         >
           <EyeIcon />
         </button>

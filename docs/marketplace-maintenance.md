@@ -44,6 +44,10 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-12: Reviewed shared minigame eye positioning and Hub Says swipe paging.
+  These input and accessibility changes preserve rules, scoring, exits, paid
+  access, marketplace products, benefits, prices, and rewards.
+
 - 2026-11-12: Reviewed chocolate roster targeting and animation completion,
   weekend energy, mission reward, and Confessional presentation start claims.
   These repairs change no grants, wallet balances, rewards, products, access,
