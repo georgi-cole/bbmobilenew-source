@@ -27,6 +27,11 @@ interface RootLike {
       status: 'completed' | 'quit' | 'skipped' | 'interrupted'
       gameKey: string
       week: number
+      gameId?: string
+      originPhase?: string
+      attemptNumber?: number
+      prizeType?: string
+      winnerOverride?: { configuredWinnerId: string; measuredWinnerId: string }
       participants: string[]
       humanId?: string
       winnerId?: string

@@ -33,7 +33,7 @@ import {
   pickSectorIndex,
   type RiskWheelCompetitionType,
 } from '../../features/riskWheel/riskWheelSlice'
-import { resolveRiskWheelOutcome, skipRiskWheelToResults } from '../../features/riskWheel/thunks'
+import { skipRiskWheelToResults } from '../../features/riskWheel/thunks'
 import type { MinigameParticipant, ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import { resolveAvatar, getDicebear } from '../../utils/avatar'
 import HOUSEGUESTS from '../../data/houseguests'
@@ -55,14 +55,6 @@ function areAnimationsDisabled(): boolean {
 
 function animDelay(ms: number): number {
   return areAnimationsDisabled() ? 0 : ms
-}
-
-function isFinal3HostedPhase(phase: string): boolean {
-  return (
-    phase === 'final3_comp1_minigame' ||
-    phase === 'final3_comp2_minigame' ||
-    phase === 'final3_comp3_minigame'
-  )
 }
 
 const N_SECTORS = WHEEL_SECTORS.length
@@ -453,8 +445,6 @@ export default function RiskWheelComp({
   const dispatch = useDispatch<AppDispatch>()
   const premiumRootClass = premiumPresentation ? ' rw-root--vip' : ''
   const rw = useSelector((s: RootState) => s.riskWheel)
-  const gamePhase = useSelector((s: RootState) => s.game.phase)
-  const isFinal3HostedMinigame = !standalone && isFinal3HostedPhase(gamePhase)
   const backgroundSrc = riskWheelBackgroundLow
   const [backgroundReady, setBackgroundReady] = useState(false)
   const assetsReady = !premiumPresentation || backgroundReady
@@ -520,8 +510,16 @@ export default function RiskWheelComp({
 
   const buildCompletion = useCallback((): ReactMinigameCompletion | undefined => {
     if (!rw || rw.phase !== 'complete') return undefined
+    const rankedIds = rw.winnerId
+      ? [rw.winnerId, ...[...rw.eliminatedPlayerIds].reverse()]
+      : [...rw.eliminatedPlayerIds].reverse()
     return {
       authoritativeWinnerId: rw.winnerId ?? null,
+      authoritativeLastPlaceId: rw.eliminatedPlayerIds[0] ?? null,
+      authoritativeRankedIds: rankedIds,
+      authoritativeTiedGroups: [],
+      lastPlaceType: 'survival',
+      ...(rw.finalScores ? { rawResults: rw.finalScores } : {}),
     }
   }, [rw])
 
@@ -540,12 +538,7 @@ export default function RiskWheelComp({
       : null
   )
   const isHostedComplete = isCompletePhase && !standalone
-  const shouldResolveHostedOutcome =
-    isHostedComplete && !rw.outcomeResolved && !isFinal3HostedMinigame
-  const shouldNotifyHostedCompletion =
-    isHostedComplete &&
-    !completionReportedRef.current &&
-    (rw.outcomeResolved || isFinal3HostedMinigame)
+  const shouldNotifyHostedCompletion = isHostedComplete && !completionReportedRef.current
 
   // ── Initialise on mount ──────────────────────────────────────────────────
   useEffect(() => {
@@ -606,17 +599,6 @@ export default function RiskWheelComp({
   }, [premiumPresentation])
 
   // ── Outcome resolved callback ────────────────────────────────────────────
-  useEffect(() => {
-    if (!assetsReady) return
-    if (!shouldResolveHostedOutcome) return
-    // resolveRiskWheelOutcome marks outcomeResolved AND dispatches applyMinigameWinner.
-    // This ensures featureAppliedWinner is set in game state before onComplete fires.
-    dispatch(resolveRiskWheelOutcome())
-    // Effect is intentionally driven only by shouldResolveHostedOutcome, which
-    // encapsulates the underlying phase/standalone state needed to trigger this.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assetsReady, shouldResolveHostedOutcome])
-
   useEffect(() => {
     if (!assetsReady) return
     if (!shouldNotifyHostedCompletion) return
@@ -922,6 +904,7 @@ export default function RiskWheelComp({
     const isLastRound =
       round >= getRoundCap(initialPlayerCount) ||
       activePlayerIds.length - eliminatedThisRound.length <= 1
+    const terminalSummary = !tieBreakPending && isLastRound
     return (
       <div className={`rw-root rw-round-summary${premiumRootClass}`}>
         {premiumPresentation && (
@@ -996,7 +979,11 @@ export default function RiskWheelComp({
           </p>
         )}
         <div className="rw-summary-footer">
-          {isHumanEliminated ? (
+          {terminalSummary ? (
+            <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleNextRound}>
+              ?? See Winner
+            </button>
+          ) : isHumanEliminated ? (
             <>
               <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleNextRound}>
                 {tieBreakPending ? 'Continue to tie-break as spectator' : 'Continue as spectator'}

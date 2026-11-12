@@ -67,6 +67,7 @@ import type { HouseOfCardsPrizeType } from '../../features/houseOfCards/houseOfC
 import type { MemoryColorsCompetitionType } from '../../features/memoryColors/memoryColorsSlice'
 import reactComponents, { preloadReactMinigame } from '../../minigames/reactComponents'
 import { resetHostedMinigameState } from '../../minigames/resetHostedMinigameState'
+import { selectCompetitionLastPlaceIds } from './competitionRetryEligibility'
 import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
 import './MinigameHost.css'
 
@@ -605,35 +606,20 @@ export default function MinigameHost({
     [checkpointResult]
   )
 
-  const getReportedLastPlaceId = useCallback(
-    (completion?: ReactMinigameCompletion) => {
-      if (completion?.authoritativeLastPlaceIds?.length)
-        return completion.authoritativeLastPlaceIds[0]
-      if (completion?.authoritativeLastPlaceId) return completion.authoritativeLastPlaceId
-      if (!completion?.rawResults || !participants?.length) return null
-
-      const ranked = [...participants]
-        .map((participant) => ({
-          id: participant.id,
-          score: completion.rawResults?.[participant.id] ?? participant.precomputedScore,
-        }))
-        .sort((a, b) =>
-          game.scoringAdapter === 'lowerBetter' ? a.score - b.score : b.score - a.score
-        )
-      return ranked[ranked.length - 1]?.id ?? null
-    },
+  const getReportedLastPlaceIds = useCallback(
+    (completion?: ReactMinigameCompletion) =>
+      selectCompetitionLastPlaceIds(
+        completion,
+        participants,
+        game.scoringAdapter === 'lowerBetter'
+      ),
     [game.scoringAdapter, participants]
   )
 
   const handleReactComplete = useCallback(
     (completion?: ReactMinigameCompletion, fallbackValue = 1, fallbackTiebreakerMs?: number) => {
       const humanId = participants?.find((participant) => participant.isHuman)?.id
-      const lastPlaceId = getReportedLastPlaceId(completion)
-      const lastPlaceIds = completion?.authoritativeLastPlaceIds?.length
-        ? completion.authoritativeLastPlaceIds
-        : lastPlaceId
-          ? [lastPlaceId]
-          : []
+      const lastPlaceIds = getReportedLastPlaceIds(completion)
 
       // Feature-owned placement games can provide their final standings before
       // a season result has been applied. Keep the outcome inside the host when
@@ -657,7 +643,7 @@ export default function MinigameHost({
     [
       checkpointResult,
       competitionRetryEnabled,
-      getReportedLastPlaceId,
+      getReportedLastPlaceIds,
       participants,
       reportDoneOnce,
     ]
@@ -757,8 +743,15 @@ export default function MinigameHost({
     wasPartial,
   ])
 
-  const humanLastPlaceEntry = leaderboard?.[leaderboard.length - 1] ?? null
-  const showCompetitionRetry = competitionRetryEnabled && !!humanLastPlaceEntry?.isHuman
+  const humanParticipant = participants?.find((participant) => participant.isHuman)
+  const lastPlaceEligible =
+    wasPartial ||
+    Boolean(
+      finalCompletion &&
+      humanParticipant &&
+      getReportedLastPlaceIds(finalCompletion).includes(humanParticipant.id)
+    )
+  const showCompetitionRetry = competitionRetryEnabled && lastPlaceEligible
   const activeCompetitionRetry = showCompetitionRetry && competitionRetry ? competitionRetry : null
   const showOrganicLastPlace = showCompetitionRetry && !wasPartial
   const showTimeMachineResults = wasPartial || showOrganicLastPlace

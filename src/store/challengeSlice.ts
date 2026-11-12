@@ -82,6 +82,8 @@ export interface ChallengeRun {
   timestamp: number
   /** Whether the winner was determined by the game authoritatively. */
   authoritative: boolean
+  /** Keep a configured winner distinct from the measured minigame result. */
+  winnerOverride?: { configuredWinnerId: string; measuredWinnerId: string }
   /** True when the human dismissed the challenge before it completed. */
   partial?: boolean
   /** Hidden AI intent captured for intelligence and reproducible score analysis. */
@@ -831,6 +833,7 @@ export const completeChallenge =
       keepPending?: boolean
       skipSeasonUpdate?: boolean
       authoritativeRankedIds?: string[]
+      winnerOverride?: { configuredWinnerId: string; measuredWinnerId: string }
     }
   ) =>
   (dispatch: AppDispatch, getState: () => RootState): string | null => {
@@ -890,6 +893,7 @@ export const completeChallenge =
         scheduledWinnerId !== null ||
         explicitWinnerId !== null ||
         winner?.authoritativeWinner === true,
+      ...(options?.winnerOverride ? { winnerOverride: { ...options.winnerOverride } } : {}),
       partial: options?.partial === true,
       competitionIntents: pending.competitionIntents,
     }

@@ -11,6 +11,7 @@
  * are shown exactly once.
  */
 import { useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from 'react'
+import type { ReactMinigameCompletion } from '../../minigames/competitionResult'
 import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import type { RootState } from '../../store/store'
@@ -53,11 +54,7 @@ interface ParticipantProp {
   isHuman: boolean
 }
 
-interface HoldTheWallCompletion {
-  authoritativeWinnerId?: string | null
-  authoritativeLastPlaceId?: string | null
-  rawValue?: number
-}
+type HoldTheWallCompletion = ReactMinigameCompletion
 
 interface Props {
   participantIds: string[]
@@ -508,9 +505,9 @@ export default function HoldTheWallComp({
 
   // ── Resolve outcome when game completes ──────────────────────────────────
   useEffect(() => {
-    if (htw.status !== 'complete' || htw.outcomeResolved) return
+    if (htw.status !== 'complete' || htw.outcomeResolved || onComplete) return
     dispatch(resolveHoldTheWallOutcome())
-  }, [htw.status, htw.outcomeResolved, dispatch])
+  }, [htw.status, htw.outcomeResolved, dispatch, onComplete])
 
   // ── Notify parent after a short delay so the winner screen is visible ─────
   useEffect(() => {
@@ -521,6 +518,11 @@ export default function HoldTheWallComp({
           authoritativeWinnerId: htw.winnerId,
           authoritativeLastPlaceId: htw.droppedIds[0] ?? null,
           rawValue: htw.winnerId ? 1 : 0,
+          lastPlaceType: 'survival',
+          authoritativeRankedIds: [htw.winnerId, ...htw.droppedIds.slice().reverse()].filter(
+            (id): id is string => Boolean(id)
+          ),
+          authoritativeTiedGroups: [],
         }),
       WINNER_SCREEN_DURATION_MS
     )

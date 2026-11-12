@@ -72,7 +72,7 @@ interface Props {
   participants?: MinigameParticipant[];
   prizeType?: MemoryColorsCompetitionType;
   seed?: number;
-  onComplete: (completion?: ReactMinigameCompletion) => void;
+  onComplete?: (completion?: ReactMinigameCompletion) => void;
 }
 
 type ResultsRowStyle = CSSProperties & {
@@ -192,11 +192,11 @@ export default function MemoryColorsComp({
   }, [dispatch, mc, mc?.phase]);
 
   useEffect(() => {
-    if (!mc || mc.phase !== 'complete') return;
+    if (!mc || mc.phase !== 'complete' || onComplete) return;
     if (outcomeDispatchedRef.current) return;
     outcomeDispatchedRef.current = true;
     dispatch(resolveMemoryColorsOutcome());
-  }, [dispatch, mc, mc?.phase]);
+  }, [dispatch, mc, mc?.phase, onComplete]);
 
   useEffect(() => {
     if (!mc || mc.phase !== 'complete' || winnerPlayedRef.current) return;
@@ -241,8 +241,23 @@ export default function MemoryColorsComp({
 
   const handleDone = useCallback(() => {
     playClick();
-    onComplete();
-  }, [onComplete, playClick]);
+    if (!mc) return;
+    const results = {
+      ...mc.aiResults,
+      ...(mc.humanPlayerId && mc.humanResult ? { [mc.humanPlayerId]: mc.humanResult } : {}),
+    };
+    const ranking = mc.finalRanking;
+    const rawResults = Object.fromEntries(ranking.map((id) => [id, results[id]?.score ?? 0]));
+    onComplete?.({
+      rawValue: results[mc.humanPlayerId ?? '']?.score ?? 0,
+      authoritativeWinnerId: ranking[0] ?? null,
+      authoritativeLastPlaceId: ranking.at(-1) ?? null,
+      authoritativeRankedIds: ranking,
+      authoritativeTiedGroups: [],
+      rawResults,
+      lastPlaceType: 'scored',
+    });
+  }, [mc, onComplete, playClick]);
 
   if (!mc || mc.phase === 'idle') {
     return <div className="mc-host"><div className="mc-loading">Preparing…</div></div>;

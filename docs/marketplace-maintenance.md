@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-12: Reviewed competition result receipt identity, last-place retry
+  eligibility, and Risk Wheel terminal handling. These changes align campaign
+  results with completed game outcomes and preserve existing retry behavior.
+  They do not change products, paid access, entitlements, prices, benefits, or
+  marketplace catalog copy.
+
 - 2026-11-11: Reviewed the Deck of Light tool revision in both presentations.
   Bright Pair awards 120 points. Bonus Bet requires two never-revealed cards,
   Shield deducts one or two misses by round, Keep Open holds one attempt visible,

@@ -101,9 +101,9 @@ export function recoverCommittedChallengeResult(
   const receipt = game.lastCompetitionResolution
   if (
     !receipt ||
-    receipt.status !== 'completed' ||
     receipt.week !== game.week ||
-    receipt.winnerId !== winnerId
+    receipt.winnerId !== winnerId ||
+    !isCurrentChallengeResolution(challenge, game)
   )
     return null
   const humanId = game.players.find((player) => player.isUser)?.id
@@ -122,4 +122,50 @@ export function recoverCommittedChallengeResult(
       rawResults: { ...challenge.aiScores, ...(humanId ? { [humanId]: rawValue } : {}) },
     },
   }
+}
+
+/** A role holder alone cannot prove that this challenge attempt committed. */
+export function isCurrentChallengeResolution(
+  challenge: PendingChallenge,
+  game: GameState
+): boolean {
+  const receipt = game.lastCompetitionResolution
+  const origin = challenge.origin
+  if (!receipt || receipt.status !== 'completed') return false
+  const participantsMatch =
+    receipt.participants.length === challenge.participants.length &&
+    challenge.participants.every((id) => receipt.participants.includes(id))
+  const prizeType = challenge.prizeType ?? (origin?.phase === 'pos_comp' ? 'POS' : 'LOH')
+  const winnerId = prizeType === 'POS' ? game.posWinnerId : game.lohId
+  const legacyRunId =
+    origin && winnerId
+      ? `${origin.week}:${origin.phase}:competition:${winnerId}:${challenge.participants.join(',')}`
+      : null
+  const exactCurrentRun = receipt.runId === challenge.id && receipt.gameKey === challenge.game.key
+  const unambiguousLegacyFirstAttempt =
+    challenge.attempt?.number === 0 &&
+    receipt.gameKey === 'competition' &&
+    legacyRunId !== null &&
+    receipt.runId === legacyRunId
+  if (
+    (!exactCurrentRun && !unambiguousLegacyFirstAttempt) ||
+    receipt.week !== (origin?.week ?? game.week) ||
+    !participantsMatch
+  )
+    return false
+
+  // Receipts written before these identity fields existed remain valid when
+  // their stable run id and all original challenge fields match exactly.
+  if (origin && receipt.gameId != null && receipt.gameId !== origin.gameId) return false
+  if (origin && receipt.originPhase != null && receipt.originPhase !== origin.phase) return false
+  if (
+    challenge.attempt &&
+    receipt.attemptNumber != null &&
+    receipt.attemptNumber !== challenge.attempt.number
+  )
+    return false
+  if (challenge.prizeType && receipt.prizeType && receipt.prizeType !== challenge.prizeType)
+    return false
+
+  return Boolean(winnerId && receipt.winnerId === winnerId)
 }

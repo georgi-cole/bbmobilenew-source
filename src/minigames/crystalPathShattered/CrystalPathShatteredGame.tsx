@@ -764,34 +764,56 @@ export default function CrystalPathShatteredGame({
   }, [inputEnabled, activePlayer, consumeHint])
 
   // ── Complete screen wiring ───────────────────────────────────────────────
-  const handleContinue = useCallback(() => {
+  const ranked = useMemo(() => rankPlayers(scoreboardPlayers), [scoreboardPlayers])
+  const finalCompetitionReceipt = useMemo(() => {
     const summary = buildSummary(scoreboardPlayers)
-    if (summary.winnerId) {
-      // lastPlaceId = first eliminated = smallest survivalIndex among eliminated.
-      const firstOut =
-        [...scoreboardPlayers]
-          .filter((p) => p.eliminated && p.survivalIndex > 0)
-          .sort((a, b) => a.survivalIndex - b.survivalIndex)[0]?.id ?? null
+    const firstOutOrder = scoreboardPlayers
+      .filter((player) => player.eliminated && player.survivalIndex > 0)
+      .reduce((first, player) => Math.min(first, player.survivalIndex), Number.POSITIVE_INFINITY)
+    const lastPlaceIds = Number.isFinite(firstOutOrder)
+      ? scoreboardPlayers
+          .filter((player) => player.eliminated && player.survivalIndex === firstOutOrder)
+          .map((player) => player.id)
+      : []
+    const rawValue = humanPlayer?.furthestRow ?? 0
+    return {
+      rawValue,
+      partial: false,
+      completion: {
+        rawValue,
+        rawResults: Object.fromEntries(
+          scoreboardPlayers.map((player) => [player.id, player.furthestRow])
+        ),
+        authoritativeWinnerId: summary.winnerId,
+        lastPlaceType: 'survival' as const,
+        authoritativeLastPlaceId: lastPlaceIds[0] ?? null,
+        ...(lastPlaceIds.length > 1 ? { authoritativeLastPlaceIds: lastPlaceIds } : {}),
+        authoritativeRankedIds: ranked.map((player) => player.id),
+        ...(lastPlaceIds.length > 1 ? { authoritativeTiedGroups: [lastPlaceIds] } : {}),
+      },
+    }
+  }, [humanPlayer, ranked, scoreboardPlayers])
+
+  const handleContinue = useCallback(() => {
+    const winnerId = finalCompetitionReceipt.completion.authoritativeWinnerId
+    if (winnerId) {
+      const firstOut = finalCompetitionReceipt.completion.authoritativeLastPlaceId ?? null
       if (onComplete) {
-        onComplete({
-          authoritativeWinnerId: summary.winnerId,
-          authoritativeLastPlaceId: firstOut,
-        })
+        onComplete(finalCompetitionReceipt.completion)
         return
       }
       dispatch(
         applyMinigameWinner({
-          winnerId: summary.winnerId,
+          winnerId,
           lastPlaceId: firstOut,
           lastPlaceType: 'survival',
         })
       )
     }
     onComplete?.()
-  }, [dispatch, onComplete, scoreboardPlayers])
+  }, [dispatch, finalCompetitionReceipt, onComplete])
 
   // ── Render ───────────────────────────────────────────────────────────────
-  const ranked = useMemo(() => rankPlayers(scoreboardPlayers), [scoreboardPlayers])
   const displayRows = useMemo(() => {
     const absCurrent = activePlayer?.furthestRow ?? 0
     const startOffset = Math.max(0, absCurrent - 1)
@@ -885,19 +907,7 @@ export default function CrystalPathShatteredGame({
         <div className="cps-content">
           <MinigameCompleteWrapper
             className="cps-complete"
-            result={{
-              rawValue: 1,
-              partial: false,
-              completion: {
-                authoritativeWinnerId: buildSummary(scoreboardPlayers).winnerId,
-                lastPlaceType: 'survival',
-                authoritativeLastPlaceId:
-                  [...scoreboardPlayers]
-                    .filter((player) => player.eliminated && player.survivalIndex > 0)
-                    .sort((a, b) => a.survivalIndex - b.survivalIndex)[0]?.id ?? null,
-                authoritativeRankedIds: ranked.map((player) => player.id),
-              },
-            }}
+            result={finalCompetitionReceipt}
             onContinue={handleContinue}
             placementsClassName="cps-placements"
             placementsRole="list"

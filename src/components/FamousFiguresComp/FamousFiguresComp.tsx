@@ -31,6 +31,7 @@ import type {
   FamousFiguresState,
   FamousFiguresPrizeType,
 } from '../../features/famousFigures/famousFiguresSlice'
+import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import { resolveFamousFiguresOutcome } from '../../features/famousFigures/thunks'
 import { mulberry32 } from '../../store/rng'
 import { getDicebear, resolveAvatar } from '../../utils/avatar'
@@ -138,12 +139,38 @@ type PendingAiTimeout = {
   round: number
 }
 
+function buildFamousFiguresCompletion(
+  state: FamousFiguresState,
+  participantIds: string[]
+): ReactMinigameCompletion {
+  const priority = new Map(state.tieBreakOrder.map((id, index) => [id, index]))
+  const authoritativeRankedIds = [...participantIds].sort((a, b) => {
+    const scoreDifference = (state.playerScores[b] ?? 0) - (state.playerScores[a] ?? 0)
+    if (scoreDifference) return scoreDifference
+    const correctDifference =
+      (state.playerRoundScores[b] ?? []).filter((score) => score > 0).length -
+      (state.playerRoundScores[a] ?? []).filter((score) => score > 0).length
+    if (correctDifference) return correctDifference
+    return (
+      (priority.get(a) ?? Number.MAX_SAFE_INTEGER) - (priority.get(b) ?? Number.MAX_SAFE_INTEGER)
+    )
+  })
+  return {
+    authoritativeWinnerId: state.winnerId,
+    authoritativeLastPlaceId: authoritativeRankedIds.at(-1) ?? null,
+    authoritativeRankedIds,
+    authoritativeTiedGroups: [],
+    rawResults: state.playerScores,
+    lastPlaceType: 'scored',
+  }
+}
+
 interface Props {
   participantIds: string[]
   participants?: ParticipantProp[]
   prizeType: FamousFiguresPrizeType
   seed: number
-  onComplete?: () => void
+  onComplete?: (completion?: ReactMinigameCompletion) => void
   /**
    * When true (default), skip the winner animation on match completion and
    * show the final scoreboard immediately instead. The `onComplete` callback
@@ -480,13 +507,13 @@ export default function FamousFiguresComp({
     if (completeFiredRef.current) return
     completeFiredRef.current = true
 
-    dispatch(resolveFamousFiguresOutcome())
+    if (!onComplete) dispatch(resolveFamousFiguresOutcome())
 
     const t = setTimeout(() => {
-      onComplete?.()
+      onComplete?.(buildFamousFiguresCompletion(ff, participantIds))
     }, WINNER_SCREEN_DURATION_MS)
     return () => clearTimeout(t)
-  }, [ff.status, dispatch, onComplete])
+  }, [ff, ff.status, dispatch, onComplete, participantIds])
 
   // ── Reset input state when human advances to next figure ─────────────────
   // Fires on cursor advance (human played ahead) AND on global nextRound.
@@ -800,9 +827,9 @@ export default function FamousFiguresComp({
             result={{
               rawValue: ff.playerScores[humanId ?? ''] ?? 0,
               partial: false,
-              completion: { authoritativeWinnerId: winnerId, rawResults: ff.playerScores },
+              completion: buildFamousFiguresCompletion(ff, participantIds),
             }}
-            onContinue={() => onComplete?.()}
+            onContinue={() => onComplete?.(buildFamousFiguresCompletion(ff, participantIds))}
             continueLabel="Continue ›"
             continueButtonClassName="ff-continue-btn"
             placementsNode={renderScoreboard(
@@ -833,9 +860,9 @@ export default function FamousFiguresComp({
           result={{
             rawValue: ff.playerScores[humanId ?? ''] ?? 0,
             partial: false,
-            completion: { authoritativeWinnerId: winnerId, rawResults: ff.playerScores },
+            completion: buildFamousFiguresCompletion(ff, participantIds),
           }}
-          onContinue={() => onComplete?.()}
+          onContinue={() => onComplete?.(buildFamousFiguresCompletion(ff, participantIds))}
           continueLabel="Continue ›"
           continueButtonClassName="ff-continue-btn"
         >

@@ -4299,6 +4299,11 @@ type ApplyMinigameWinnerPayload = {
   placements?: string[]
   /** Stable host run ID. Used to ensure mission progress is applied once. */
   runId?: string
+  gameId?: string
+  originPhase?: string
+  attemptNumber?: number
+  prizeType?: string
+  winnerOverride?: { configuredWinnerId: string; measuredWinnerId: string }
   /** Host game key for audits and result history. */
   gameKey?: string
   includePlacementBonuses?: boolean
@@ -6289,6 +6294,11 @@ const gameSlice = createSlice({
         lastPlaceType,
         placements,
         runId,
+        gameId,
+        originPhase,
+        attemptNumber,
+        prizeType,
+        winnerOverride,
         gameKey,
       } = action.payload
       const competitionPhase = state.phase
@@ -6427,6 +6437,11 @@ const gameSlice = createSlice({
             `${state.week}:${competitionPhase}:${gameKey ?? 'competition'}:${winnerId}:${resolvedParticipants.join(',')}`,
           gameKey: gameKey ?? 'competition',
           week: state.week,
+          ...(gameId ? { gameId } : {}),
+          ...(originPhase ? { originPhase } : {}),
+          ...(attemptNumber != null ? { attemptNumber } : {}),
+          ...(prizeType ? { prizeType } : {}),
+          ...(winnerOverride ? { winnerOverride: { ...winnerOverride } } : {}),
           participants: [...resolvedParticipants],
           status: 'completed',
           humanId,

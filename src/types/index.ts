@@ -123,6 +123,14 @@ export interface CompetitionResolution {
   runId: string
   gameKey: string
   week: number
+  /** Campaign game boundary captured when this competition was scheduled. */
+  gameId?: string
+  originPhase?: string
+  /** Attempt number distinguishes rewarded retries of the same game. */
+  attemptNumber?: number
+  prizeType?: 'LOH' | 'POS' | string
+  /** Measured result retained when an explicit manager override determines the award. */
+  winnerOverride?: { configuredWinnerId: string; measuredWinnerId: string }
   participants: string[]
   status: 'completed' | 'quit' | 'skipped' | 'interrupted'
   humanId?: string

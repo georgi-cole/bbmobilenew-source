@@ -840,9 +840,9 @@ export default function TiltLabyrinthComp({
           adjustedTimeMs,
         })
       )
-      if (!labPreview) dispatch(resolveTiltLabyrinthOutcome())
+      if (!labPreview && !onComplete) dispatch(resolveTiltLabyrinthOutcome())
     },
-    [dispatch, labPreview]
+    [dispatch, labPreview, onComplete]
   )
 
   // â”€â”€ Game loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1234,6 +1234,9 @@ export default function TiltLabyrinthComp({
             rawResults: labState.finalScores,
             authoritativeWinnerId: labState.winnerId,
             authoritativeLastPlaceId: labState.lastPlaceId,
+            authoritativeRankedIds: leaderboard.map((entry) => entry.id),
+            authoritativeTiedGroups: [],
+            lastPlaceType: 'scored',
           },
         }}
         onContinue={() =>
