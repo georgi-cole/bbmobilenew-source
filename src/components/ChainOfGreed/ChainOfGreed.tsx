@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -302,7 +303,8 @@ function simulateFinalAiWindow(
   durationMs: number,
   activePlayers: ChainOfGreedPlayerState[],
   rng: () => number,
-  allowPawn: boolean
+  allowPawn: boolean,
+  aiCapability = 1
 ): SimulatedFinalAiRound {
   let chain = startChain
   let score = startScore
@@ -331,6 +333,7 @@ function simulateFinalAiWindow(
     const choice: ChainAction =
       soloMove?.choice ??
       decideAiAction({
+        aiCapability,
         player: aiPlayer,
         chain,
         remainingTurns: remainingDecisions,
@@ -578,6 +581,7 @@ function buildInitialState(props: GenericMinigameProps): ChainOfGreedState {
 }
 
 export default function ChainOfGreed(props: GenericMinigameProps) {
+  const aiCapability = useSeasonAiCapability()
   const t = useTranslate()
   const [state, setState] = useState<ChainOfGreedState>(() => buildInitialState(props))
   const [selectedModePreview, setSelectedModePreview] = useState<GameMode | null>(null)
@@ -1539,7 +1543,8 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
         FINAL_ROUND_DURATION_MS,
         activePlayers,
         rng,
-        false
+        false,
+        aiCapability
       )
       setState((previous) => {
         const nextScores = { ...previous.finalScores, [aiPlayer.id]: simulated.score }
@@ -1568,7 +1573,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
       })
       advanceFinalPlayer()
     },
-    [activePlayers, advanceFinalPlayer]
+    [activePlayers, advanceFinalPlayer, aiCapability]
   )
 
   function continueAfterElimination() {
@@ -1704,6 +1709,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
     const timer = window.setTimeout(
       () => {
         const choice = decideAiAction({
+          aiCapability,
           player: currentTurnPlayer,
           chain: state.chain,
           remainingTurns: state.turnsRemaining,
@@ -1728,6 +1734,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
     return () => window.clearTimeout(timer)
   }, [
     activePlayers,
+    aiCapability,
     bankedTurn,
     currentTurnPlayer,
     isPlaybackPaused,
@@ -1840,6 +1847,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
           .slice(0, state.semifinalTurnIndex + 1)
           .filter((id) => id === semifinalPlayer.id).length
         const choice = decideAiAction({
+          aiCapability,
           player: semifinalPlayer,
           chain: state.semifinalChains[semifinalPlayer.id],
           remainingTurns: SEMIFINAL_TURNS_PER_PLAYER - turnsUsed + 1,
@@ -1866,6 +1874,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
     return () => window.clearTimeout(timer)
   }, [
     activePlayers,
+    aiCapability,
     bankedTurn,
     isPlaybackPaused,
     pendingTurn,

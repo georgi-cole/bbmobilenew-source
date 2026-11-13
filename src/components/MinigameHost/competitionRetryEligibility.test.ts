@@ -8,6 +8,15 @@ const participants = [
 ]
 
 describe('competition retry last-place selection', () => {
+  it('does not offer a retry for a complete metric receipt tied for first', () => {
+    const tied = participants.map((p) => ({ ...p, precomputedScore: 30 }))
+    expect(
+      selectCompetitionLastPlaceIds({ rawResults: { human: 30, winner: 30, lia: 30 } }, tied, false)
+    ).toEqual([])
+    expect(
+      selectCompetitionLastPlaceIds({ rawResults: { human: 30, winner: 30, lia: 30 } }, tied, true)
+    ).toEqual([])
+  })
   it('includes every member of an explicitly ranked last-place tie', () => {
     expect(
       selectCompetitionLastPlaceIds(

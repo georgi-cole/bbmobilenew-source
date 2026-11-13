@@ -537,7 +537,8 @@ export function chooseChamberAiAction(
   state: ChamberState,
   relationships: RelationshipsMap | undefined,
   rng: () => number,
-  alliances?: StrategicAllianceSnapshot[]
+  alliances?: StrategicAllianceSnapshot[],
+  capability = 1
 ): { action: ChamberAction; targetId?: string } {
   const actor = getChamberActor(state)
   const available = state.offers.filter(
@@ -545,7 +546,9 @@ export function chooseChamberAiAction(
   )
   const scored = available.map((action) => ({
     action,
-    score: estimateActionValue(state, actor, action, relationships, alliances) + rng() * 12,
+    score:
+      estimateActionValue(state, actor, action, relationships, alliances) +
+      (rng() * 12) / capability,
   }))
   const action = scored.sort((left, right) => right.score - left.score)[0]?.action ?? 'surge'
   const effective = getEffectiveChamberAction(action, state)

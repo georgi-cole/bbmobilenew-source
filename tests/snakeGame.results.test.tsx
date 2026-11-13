@@ -189,9 +189,9 @@ describe('SnakeGame competition reveal flow', () => {
 
     expect(statusLine).toHaveClass('snake-status-line');
     expect(normalizedStyles).toContain('font-size: clamp(9px, 2.4vw, 12px);');
-    expect(styles.getPropertyValue('padding-top')).toBe('1px');
+    expect(styles.getPropertyValue('padding-top')).toBe('2px');
     expect(styles.getPropertyValue('padding-right')).toBe('5px');
-    expect(styles.getPropertyValue('padding-bottom')).toBe('1px');
+    expect(styles.getPropertyValue('padding-bottom')).toBe('4px');
     expect(styles.getPropertyValue('padding-left')).toBe('5px');
   });
 });

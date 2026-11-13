@@ -48,6 +48,8 @@ export function selectCompetitionLastPlaceIds(
     }))
     .sort((a, b) => (lowerBetter ? a.score - b.score : b.score - a.score))
   const worstScore = ranked[ranked.length - 1]?.score
+  // A fully tied field is also tied for first, so there is no losing result to retry.
+  if (ranked.every((entry) => entry.score === worstScore)) return []
   return validLastPlaces(
     ranked.filter((entry) => entry.score === worstScore).map((entry) => entry.id)
   )

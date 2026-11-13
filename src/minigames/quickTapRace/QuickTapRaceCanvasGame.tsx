@@ -1,3 +1,4 @@
+import { runtimeCompetitionProfile } from '../../ai/competition/seasonAiDifficulty'
 /**
  * QuickTapRaceCanvasGame — canvas-backed Quick Tap Race minigame.
  *
@@ -210,7 +211,7 @@ export default function QuickTapRaceCanvasGame({
             .filter((id) => id !== currentHumanId)
             .map((id) => {
               const p = currentPlayers.find((pl) => pl.id === id);
-              return { id, profile: p?.competitionProfile };
+              return { id, profile: runtimeCompetitionProfile(currentSession.aiRuntime, id, p?.competitionProfile) };
             });
           resolvedAiScores = resolveHybridAiScores({
             gameKey: currentSession.key,

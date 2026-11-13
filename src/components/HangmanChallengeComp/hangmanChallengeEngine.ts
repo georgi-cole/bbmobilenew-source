@@ -775,6 +775,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 export function simulateAiRound(params: {
+  aiCapability?: number
   participantId: string
   participantName: string
   word: WordEntry
@@ -787,7 +788,11 @@ export function simulateAiRound(params: {
   let budget = params.budget
   const seed = (params.seed ^ hashString(participantId + '-' + roundIndex + '-' + word.text)) >>> 0
   const rng = mulberry32(seed)
-  const skill = clamp(0.42 + (hashString(participantId) % 43) / 100, 0.42, 0.84)
+  const skill = clamp(
+    (0.42 + (hashString(participantId) % 43) / 100) * (params.aiCapability ?? 1),
+    0.42,
+    1
+  )
   const revealed = new Set<number>()
   const purchases: Array<{ kind: RevealKind | 'hint'; cost: number }> = []
   let hintsUsed = 0

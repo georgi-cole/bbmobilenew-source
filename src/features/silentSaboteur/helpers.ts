@@ -227,6 +227,7 @@ export function pickVoteForAi(
   victimId?: string | null,
   evidence?: SilentSaboteurRoundEvidence,
   strategicContext?: MinigameStrategicContext,
+  capability = 1,
 ): string {
   const candidates = getValidSaboteurCandidates(activeIds, voterId, victimId ?? null);
   if (candidates.length === 0) {
@@ -241,7 +242,7 @@ export function pickVoteForAi(
   const strategicWeight = (id: string) =>
     Math.max(0.35, Math.min(1.45, 1 + getMinigameTargetPriority(strategicContext ?? {}, voterId, id) / 100));
   if (!evidence || !candidates.some((id) => evidence[id])) {
-    const weights = candidates.map((id) => strategicWeight(id) * (1 + rng() * 0.45));
+    const weights = candidates.map((id) => strategicWeight(id) * (1 + rng() * 0.45 / capability));
     const totalWeight = weights.reduce((total, weight) => total + weight, 0);
     let cursor = rng() * totalWeight;
     for (let index = 0; index < candidates.length; index++) {
@@ -257,7 +258,7 @@ export function pickVoteForAi(
     (id) => {
       const targetPriority = getMinigameTargetPriority(strategicContext ?? {}, voterId, id);
       const evidencePreference = Math.max(0.88, Math.min(1.12, 1 + targetPriority / 300));
-      return (1 + (evidence[id]?.score ?? 40) / 18 + rng() * 1.25) * evidencePreference;
+      return (1 + (evidence[id]?.score ?? 40) / 18 + rng() * 1.25 / capability) * evidencePreference;
     },
   );
   const totalWeight = weights.reduce((total, weight) => total + weight, 0);
@@ -281,10 +282,11 @@ export function pickVoteForAiOrAbstain(
   victimId?: string | null,
   evidence?: SilentSaboteurRoundEvidence,
   strategicContext?: MinigameStrategicContext,
+  capability = 1,
 ): string | null {
   const candidates = getValidSaboteurCandidates(activeIds, voterId, victimId ?? null);
   if (candidates.length === 0) return null;
-  return pickVoteForAi(seed, round, voterId, activeIds, victimId ?? null, evidence, strategicContext);
+  return pickVoteForAi(seed, round, voterId, activeIds, victimId ?? null, evidence, strategicContext, capability);
 }
 
 /**

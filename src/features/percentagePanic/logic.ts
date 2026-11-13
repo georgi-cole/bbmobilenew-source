@@ -42,6 +42,7 @@ export interface PercentageDuelGuess {
 }
 
 export interface PercentagePanicState {
+  aiCapability?: number
   seed: number
   contestants: string[]
   activeIds: string[]
@@ -254,9 +255,13 @@ export function simulatedPercentageGuess(
   const midpointPull = style > 0.72 ? (50 - answer) * 0.42 : 0
   const playerBias = style < 0.24 ? 12 : style < 0.48 ? -9 : 0
   const wildMiss = rng() < 0.14 ? (rng() < 0.5 ? -1 : 1) * (20 + rng() * 42) : 0
+  const capability = state.aiCapability ?? 1
   const rawGuess = Math.max(
     0,
-    Math.min(100, beliefCenter + noise + midpointPull + playerBias + wildMiss)
+    Math.min(
+      100,
+      answer + (beliefCenter + noise + midpointPull + playerBias + wildMiss - answer) / capability
+    )
   )
   const rounding = style < 0.35 ? 10 : style < 0.7 ? 5 : 1
   return {

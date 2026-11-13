@@ -1,3 +1,8 @@
+import {
+  captureSeasonAiRuntime,
+  runtimeCompetitionProfile,
+  type SeasonAiRuntime,
+} from '../ai/competition/seasonAiDifficulty'
 import { getMissionOutgoingIds } from '../bb/missionPowers'
 // MODULE: src/store/challengeSlice.ts
 // Orchestrates the full challenge flow:
@@ -118,6 +123,7 @@ export interface PendingChallenge {
   musicVariant?: MusicMinigameVariant
   /** Pre-simulated deterministic scores for every non-human participant. */
   aiScores: Record<string, number>
+  aiRuntime?: SeasonAiRuntime
   /**
    * Pre-simulated tiebreaker times (ms) for non-human participants.
    * Only populated for games whose AI model defines `tiebreakerMaxMs`.
@@ -693,6 +699,10 @@ export const startChallenge =
       : resolvedParticipants
     const finalParticipants =
       eligibleParticipants.length > 0 ? eligibleParticipants : resolvedParticipants
+    const aiRuntime = captureSeasonAiRuntime(
+      gameState,
+      gameState.players.filter((p) => finalParticipants.includes(p.id))
+    )
     const vipQuickTap =
       (gameEntry.key === 'quickTap' || gameEntry.key === 'quickTapSeasons') &&
       hasEffectiveStoreEntitlement(latestState.vip, 'premiumChallenges')
@@ -740,7 +750,13 @@ export const startChallenge =
           aiScores[pid] = simulateQuickTapVipAiRace({
             seed: perChallengeSeed,
             playerId: pid,
-            profile: player?.competitionProfile ?? getDefaultCompetitionProfile(),
+            profile:
+              runtimeCompetitionProfile(
+                aiRuntime,
+                pid,
+                player?.competitionProfile,
+                finalParticipants.includes(humanId ?? '') ? gameEntry.key : undefined
+              ) ?? getDefaultCompetitionProfile(),
             mode: gameEntry.key === 'quickTapSeasons' ? 'seasons' : 'race',
           }).score
         } else {
@@ -750,7 +766,13 @@ export const startChallenge =
             seed: perChallengeSeed,
             playerId: pid,
             participantIndex: index,
-            profile: player?.competitionProfile ?? getDefaultCompetitionProfile(),
+            profile:
+              runtimeCompetitionProfile(
+                aiRuntime,
+                pid,
+                player?.competitionProfile,
+                finalParticipants.includes(humanId ?? '') ? gameEntry.key : undefined
+              ) ?? getDefaultCompetitionProfile(),
             seasonState: getCompetitionSeasonState(
               gameState?.competitionSeasonStateByPlayerId,
               pid
@@ -806,6 +828,7 @@ export const startChallenge =
       phase: 'rules',
       musicVariant: 'normal',
       aiScores,
+      aiRuntime,
       aiTiebreakers,
       prizeType: opts.prizeType,
       forcedWinnerId,

@@ -167,6 +167,7 @@ export interface CompleteMinigamePayload {
 
 /** Active minigame session stored in game state while waiting for player input. */
 export interface MinigameSession {
+  aiRuntime?: import('../ai/competition/seasonAiDifficulty').SeasonAiRuntime
   key: string
   participants: string[]
   seed: number
@@ -405,6 +406,7 @@ export interface SpectatorActiveState {
  * attempted (first-time lazy initialisation).
  */
 export interface BattleBackState {
+  aiRuntime?: import('../ai/competition/seasonAiDifficulty').SeasonAiRuntime
   /** True once this Battle Back session has resolved. */
   used: boolean
   /**

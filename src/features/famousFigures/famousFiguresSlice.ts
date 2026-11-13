@@ -34,6 +34,7 @@ export type FamousFiguresTimerPhase =
   | 'done'
 
 export interface FamousFiguresState {
+  aiCapability?: number
   competitionType: FamousFiguresPrizeType
   status: FamousFiguresStatus
   currentRound: number
@@ -181,9 +182,9 @@ function clampAiValue(value: number, min: number, max: number): number {
 }
 
 /** Stable general-knowledge profile so AI contestants do not feel interchangeable. */
-export function getFamousFiguresAiKnowledge(aiId: string): number {
+export function getFamousFiguresAiKnowledge(aiId: string, capability = 1): number {
   const rng = mulberry32(hashFamousFiguresAiId(aiId) ^ 0xa511e9b3)
-  return 0.38 + rng() * 0.52
+  return Math.min(1, (0.38 + rng() * 0.52) * capability)
 }
 
 /** Deterministic clue and reaction delay used for live and fast-forwarded AI guesses. */
@@ -191,13 +192,14 @@ export function getFamousFiguresAiPlan(
   seed: number,
   round: number,
   aiId: string,
-  difficulty: FigureDifficulty
+  difficulty: FigureDifficulty,
+  capability = 1
 ): { clueNumber: number; delayMs: number } {
   const rng = mulberry32(
     (seed ^ hashFamousFiguresAiId(aiId) ^ Math.imul(round + 1, 0x9e3779b9)) >>> 0
   )
   const profile = AI_DIFFICULTY_PROFILE[difficulty]
-  const knowledge = getFamousFiguresAiKnowledge(aiId)
+  const knowledge = getFamousFiguresAiKnowledge(aiId, capability)
   const knowledgeShift = (0.64 - knowledge) * 2.2
   const naturalVariation = (rng() + rng() - 1) * 1.45
   const hesitation = rng() < 0.11 ? 0.8 + rng() * 1.7 : 0
@@ -242,7 +244,8 @@ export function buildAiSubmissionsForRound(
   participantIds: string[],
   figureIndex: number,
   hintsRevealed: number,
-  rng: () => number
+  rng: () => number,
+  capability = 1
 ): Record<string, boolean> {
   const figure = FAMOUS_FIGURES[figureIndex]
   if (!figure) return {}
@@ -254,7 +257,7 @@ export function buildAiSubmissionsForRound(
     const seed = (idHash ^ (figureIndex * 0x9e3779b9) ^ (hintsRevealed * 0x517cc1b7)) >>> 0
     const localRng = mulberry32(seed ^ ((rng() * 0x100000000) >>> 0))
     const profile = AI_DIFFICULTY_PROFILE[figure.difficulty]
-    const knowledge = getFamousFiguresAiKnowledge(id)
+    const knowledge = getFamousFiguresAiKnowledge(id, capability)
     const familiarity = (localRng() - 0.5) * 0.2
     const familiarityEvent = localRng()
     const exceptionalAdjustment =
@@ -380,6 +383,7 @@ const famousFiguresSlice = createSlice({
     startFamousFigures(
       state,
       action: PayloadAction<{
+        aiCapability?: number
         participantIds: string[]
         competitionType: FamousFiguresPrizeType
         seed: number
@@ -388,6 +392,7 @@ const famousFiguresSlice = createSlice({
       }>
     ) {
       const { participantIds, competitionType, seed, recentFigureNames = [] } = action.payload
+      state.aiCapability = action.payload.aiCapability
       const rng = mulberry32(seed)
       const recentNames = new Set(recentFigureNames)
       const freshIndices = FAMOUS_FIGURES.flatMap((figure, index) =>
@@ -765,7 +770,7 @@ const famousFiguresSlice = createSlice({
           const rng = mulberry32(state.seed ^ (roundIdx * 0x9e3779b9))
           const submissions: Record<string, boolean> = {}
           for (const id of allIds) {
-            const result = buildAiSubmissionsForRound([id], figIdx, state.hintsRevealed, rng)
+            const result = buildAiSubmissionsForRound([id], figIdx, state.hintsRevealed, rng, state.aiCapability)
             submissions[id] = result[id] ?? false
           }
           state.aiSubmissions[roundIdx] = submissions

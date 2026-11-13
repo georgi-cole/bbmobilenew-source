@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import {
   FINAL_REVEAL_INTERVAL_SECONDS,
   FINAL_FORCE_REVEAL_COST,
@@ -172,6 +173,7 @@ export default function HangmanChallengeComp({
   participantIds = [],
   participants = [],
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const resolvedParticipants = useMemo<MinigameParticipant[]>(() => {
     if (participants.length > 0) return participants
     if (participantIds.length > 0) {
@@ -302,6 +304,7 @@ export default function HangmanChallengeComp({
         const results = live.map(
           (player) =>
             simulateAiRound({
+              aiCapability,
               participantId: player.id,
               participantName: player.name,
               word,
@@ -339,6 +342,7 @@ export default function HangmanChallengeComp({
       const finalResults = finalists.map(
         (player, index) =>
           simulateAiRound({
+            aiCapability,
             participantId: player.id,
             participantName: player.name,
             word: finalWord,
@@ -358,7 +362,14 @@ export default function HangmanChallengeComp({
       })
       return { winnerId, players: simPlayers }
     },
-    [eliminationPlan, human.id, seed, tournamentWords]
+    [
+      aiCapability,
+      eliminationPlan,
+      human.id,
+      seed,
+      tournamentWords.final,
+      tournamentWords.qualifying,
+    ]
   )
 
   const resolveHumanRound = useCallback(
@@ -398,6 +409,7 @@ export default function HangmanChallengeComp({
         .map(
           (player) =>
             simulateAiRound({
+              aiCapability,
               participantId: player.id,
               participantName: player.name,
               word: currentWord,
@@ -446,6 +458,7 @@ export default function HangmanChallengeComp({
       setPhase('roundResult')
     },
     [
+      aiCapability,
       currentWord,
       elapsedSeconds,
       eliminationPlan,

@@ -44,6 +44,18 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-13: Reviewed TestFlight Package 9 season competition AI calibration.
+  Active Classic, Vox and Cupid launches capture bounded skill or local decision
+  capability once, including premium variants and Battle Back. Surveyeval, Lab,
+  legacy active attempts, fair chance draws, social decisions, prices, rewards,
+  products and entitlements retain their existing policy. VIP and Premium
+  Challenges still unlock every premium minigame version. Offer copy remains
+  accurate; no promised win-rate or score increase is added. Also reviewed
+  complete legacy score receipts for retry eligibility; purchase/ad gates stay intact.
+  Serpentine now accepts contact presses, buffered corners and early swipes, with
+  larger controls, food guidance and goal progress. The 1000-point target, speed,
+  food distribution, AI simulation, scoring and rewards remain unchanged.
+
 - 2026-11-13: Reviewed TestFlight Package 8 Social fallback audio and HomeHub
   utility spacing. Social reuses the existing Confessional loop only when no
   phase music owns playback; explicit local/remote assignments remain in force.

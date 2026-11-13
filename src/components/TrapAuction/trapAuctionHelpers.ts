@@ -158,7 +158,7 @@ export function getAllowedBidRange(
  */
 export function chooseAiBid(
   player: TrapAuctionPlayer,
-  state: Pick<TrapAuctionState, 'round' | 'players'>,
+  state: Pick<TrapAuctionState, 'round' | 'players' | 'aiCapability'>,
   roundSeed: number,
 ): number {
   const { min, max } = getAllowedBidRange(player, state.round);
@@ -248,7 +248,7 @@ export function chooseAiBid(
   }
 
   const individualStyle = getIndividualBidStyle(player.id);
-  const individualNoise = (rng() - 0.5) * 0.22 * individualStyle.volatility;
+  const individualNoise = (rng() - 0.5) * 0.22 * individualStyle.volatility / (state.aiCapability ?? 1);
   const individualizedMultiplier = multiplier + individualStyle.riskBias + individualNoise;
   const raw = Math.round(sustainable * Math.max(0, individualizedMultiplier));
 

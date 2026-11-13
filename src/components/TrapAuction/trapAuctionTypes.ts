@@ -148,6 +148,7 @@ export type TrapAuctionPrizeType = 'LOH' | 'POS';
 // ─── Game State ───────────────────────────────────────────────────────────────
 
 export interface TrapAuctionState {
+  aiCapability?: number;
   phase: GamePhase;
   round: number;
   players: TrapAuctionPlayer[];

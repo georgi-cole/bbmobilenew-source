@@ -1,3 +1,6 @@
+import { SeasonAiContext } from '../../ai/competition/SeasonAiContext'
+import type { SeasonAiRuntime } from '../../ai/competition/seasonAiDifficulty'
+import type { CompetitionSkillProfile } from '../../ai/competition/types'
 // MODULE: src/components/MinigameHost/MinigameHost.tsx
 // Full-screen host for minigames (legacy and React-implemented).
 //
@@ -146,9 +149,11 @@ export interface MinigameParticipant {
   precomputedScore: number
   /** Previous personal-record value for this game, using the game's native metric. */
   previousPR: number | null
+  competitionProfile?: CompetitionSkillProfile
 }
 
 interface Props {
+  aiRuntime?: SeasonAiRuntime
   game: GameRegistryEntry
   /** Options forwarded to the legacy module (e.g. seed, timeLimit). */
   gameOptions?: Record<string, unknown>
@@ -195,6 +200,7 @@ function fmtOrdinal(value: number): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MinigameHost({
+  aiRuntime,
   game,
   gameOptions = {},
   onDone,
@@ -588,12 +594,37 @@ export default function MinigameHost({
 
   const handleComplete = useCallback(
     (result: LegacyRawResult) => {
+      // Legacy score games report only the human metric. Their other metrics
+      // were already simulated at launch; preserve that complete score receipt
+      // for retry eligibility instead of inferring placements from row order.
+      const completion: ReactMinigameCompletion | undefined =
+        participants?.some((participant) => participant.id === competitionHumanId) &&
+        participants.every((participant) => Number.isFinite(participant.precomputedScore)) &&
+        Number.isFinite(result.value) &&
+        game.scoringAdapter !== 'authoritative' &&
+        !isPlacementRankingGame(game)
+          ? {
+              rawResults: Object.fromEntries(
+                participants.map((participant) => [
+                  participant.id,
+                  participant.id === competitionHumanId
+                    ? result.value
+                    : participant.precomputedScore,
+                ])
+              ),
+            }
+          : undefined
       setFinalValue(result.value)
+      setFinalCompletion(completion ?? null)
       setWasPartial(false)
       setPhase('results')
-      void checkpointResult({ rawValue: result.value, partial: false })
+      void checkpointResult({
+        rawValue: result.value,
+        partial: false,
+        ...(completion ? { completion } : {}),
+      })
     },
-    [checkpointResult]
+    [checkpointResult, participants, competitionHumanId, game]
   )
 
   const handleQuit = useCallback(
@@ -1359,15 +1390,17 @@ export default function MinigameHost({
           key={`${sessionId}:${attempt}`}
         >
           <CompetitionResultContext.Provider value={checkpointResult}>
-            <Suspense
-              fallback={
-                <div className="minigame-host-loading" role="status" aria-live="polite">
-                  Preparing {launchedGame.title}…
-                </div>
-              }
-            >
-              {renderActiveGame()}
-            </Suspense>
+            <SeasonAiContext.Provider value={aiRuntime}>
+              <Suspense
+                fallback={
+                  <div className="minigame-host-loading" role="status" aria-live="polite">
+                    Preparing {launchedGame.title}…
+                  </div>
+                }
+              >
+                {renderActiveGame()}
+              </Suspense>
+            </SeasonAiContext.Provider>
           </CompetitionResultContext.Provider>
         </div>
       )}

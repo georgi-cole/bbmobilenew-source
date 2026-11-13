@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 /**
  * RiskWheelComp — Full-screen multi-round wheel competition component.
  *
@@ -442,6 +443,7 @@ export default function RiskWheelComp({
   standalone = false,
   premiumPresentation = false,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const dispatch = useDispatch<AppDispatch>()
   const premiumRootClass = premiumPresentation ? ' rw-root--vip' : ''
   const rw = useSelector((s: RootState) => s.riskWheel)
@@ -561,6 +563,7 @@ export default function RiskWheelComp({
     }
     dispatch(
       initRiskWheel({
+        aiCapability,
         participantIds,
         competitionType: prizeType,
         seed: forwardedSeed,

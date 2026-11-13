@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import {
   useCallback,
   useEffect,
@@ -241,6 +242,7 @@ export default function HouseOfCardsComp({
   previewStage,
   onComplete,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   useCoveredGameScreen(false)
   const dispatch = useAppDispatch()
   const [sessionSeed] = useState(() => seed ?? cryptoSeed())
@@ -262,8 +264,8 @@ export default function HouseOfCardsComp({
     return [...new Map(merged.map((player) => [player.id, player])).values()]
   }, [participantIds, participants])
   const aiProfiles = useMemo(
-    () => createHouseOfCardsAiProfiles(participantIds, humanId, sessionSeed),
-    [participantIds, humanId, sessionSeed]
+    () => createHouseOfCardsAiProfiles(participantIds, humanId, sessionSeed, aiCapability),
+    [participantIds, humanId, sessionSeed, aiCapability]
   )
   const hoc = useAppSelector(
     (state: RootState) => (state as RootState & { houseOfCards?: HouseOfCardsState }).houseOfCards

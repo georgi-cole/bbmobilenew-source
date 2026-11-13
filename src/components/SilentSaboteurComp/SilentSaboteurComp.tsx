@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 /**
  * SilentSaboteurComp — React UI for the "Silent Saboteur" minigame.
  *
@@ -360,6 +361,7 @@ export default function SilentSaboteurComp({
   onComplete,
   standalone = false,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const dispatch = useDispatch<AppDispatch>();
   const ss = useSelector(
     (s: RootState & { silentSaboteur?: ReturnType<typeof import('../../features/silentSaboteur/silentSaboteurSlice').default> }) =>
@@ -514,7 +516,7 @@ export default function SilentSaboteurComp({
   useEffect(() => {
     const humanId = participants?.find((p) => p.isHuman)?.id ?? null;
     dispatch(
-      initSilentSaboteur({
+      initSilentSaboteur({ aiCapability,
         participantIds,
         prizeType,
         seed,
@@ -611,6 +613,7 @@ export default function SilentSaboteurComp({
           victimId,
           roundEvidence,
           strategicContext,
+          aiCapability,
         );
         if (accused == null) return;
         dispatch(submitVote({ voterId, accusedId: accused }));

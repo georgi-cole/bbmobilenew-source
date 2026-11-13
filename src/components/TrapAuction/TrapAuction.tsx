@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 /**
  * TrapAuction.tsx
  *
@@ -136,6 +137,7 @@ export default function TrapAuction({
   onFinish,
   autoStart = false,
 }: TrapAuctionProps) {
+  const aiCapability = useSeasonAiCapability()
   const resolvedParticipants = participants && participants.length > 0
     ? participants
     : MOCK_PARTICIPANTS;
@@ -144,7 +146,7 @@ export default function TrapAuction({
     trapAuctionReducer,
     { resolvedParticipants, seed, prizeType },
     ({ resolvedParticipants, seed, prizeType }) =>
-      buildInitialState(resolvedParticipants, seed, prizeType),
+      ({ ...buildInitialState(resolvedParticipants, seed, prizeType), aiCapability }),
   );
   const [bidValue, setBidValue] = useState<number>(0);
   const [personalityMapOpen, setPersonalityMapOpen] = useState(false);

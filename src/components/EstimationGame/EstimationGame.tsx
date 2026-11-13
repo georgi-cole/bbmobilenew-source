@@ -1,3 +1,4 @@
+import { runtimeCompetitionProfile } from '../../ai/competition/seasonAiDifficulty'
 /**
  * EstimationGame — native React minigame component.
  *
@@ -215,7 +216,10 @@ function buildAllScores(
       .filter((id) => id !== humanId)
       .map((id) => {
         const p = players.find((pl) => pl.id === id)
-        return { id, profile: p?.competitionProfile }
+        return {
+          id,
+          profile: runtimeCompetitionProfile(session.aiRuntime, id, p?.competitionProfile),
+        }
       })
     aiScores = resolveHybridAiScores({
       gameKey: session.key,

@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 /**
  * MemoryColorsComp — full-screen Memory Colors competition component.
  *
@@ -86,6 +87,7 @@ export default function MemoryColorsComp({
   seed = 0,
   onComplete,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const dispatch = useDispatch<AppDispatch>();
   const { play } = useSound();
   const mc = useSelector((s: RootState) =>
@@ -122,7 +124,7 @@ export default function MemoryColorsComp({
     initDoneRef.current = true;
     dispatch(resetMemoryColors());
     dispatch(
-      initMemoryColors({
+      initMemoryColors({ aiCapability,
         participantIds,
         competitionType: prizeType,
         seed,
@@ -136,7 +138,7 @@ export default function MemoryColorsComp({
       if (pressResetTimeoutRef.current) clearTimeout(pressResetTimeoutRef.current);
       if (mixingPairTimeoutRef.current) clearTimeout(mixingPairTimeoutRef.current);
     };
-  }, [dispatch, humanPlayerId, participantIds, prizeType, seed]);
+  }, [aiCapability, dispatch, humanPlayerId, participantIds, prizeType, seed]);
 
   const runReveal = useCallback((sequence: number[]) => {
     if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);

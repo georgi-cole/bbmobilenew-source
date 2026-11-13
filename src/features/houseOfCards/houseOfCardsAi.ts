@@ -63,14 +63,21 @@ export function createHouseOfCardsSessionAbility(playerId: string, tournamentSee
 export function createHouseOfCardsAiProfiles(
   participantIds: string[],
   humanId: string | null,
-  tournamentSeed: number
+  tournamentSeed: number,
+  capability = 1
 ): Record<string, HouseOfCardsAiSessionProfile> {
   return Object.fromEntries(
     participantIds
       .filter((id) => id !== humanId)
       .map((playerId) => [
         playerId,
-        { playerId, sessionAbility: createHouseOfCardsSessionAbility(playerId, tournamentSeed) },
+        {
+          playerId,
+          sessionAbility: Math.min(
+            100,
+            createHouseOfCardsSessionAbility(playerId, tournamentSeed) * capability
+          ),
+        },
       ])
   )
 }

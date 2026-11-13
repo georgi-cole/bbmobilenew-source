@@ -215,6 +215,7 @@ export function drawCollapsingDoor(profile: DoorProfile, rng: () => number): str
 }
 
 export function chooseAiDoor(options: {
+  aiCapability?: number
   participant: GateParticipant
   activeParticipants: readonly GateParticipant[]
   profile: DoorProfile
@@ -266,7 +267,7 @@ export function chooseAiDoor(options: {
           ? (4 + getStreakBonusPercent(participant.streak) * 0.45) * style.streakValue
           : 0
       const survivalCost = risk * Math.max(1, lifeCost + streakProtection - comebackPressure)
-      const noise = (rng() - 0.5) * style.noise
+      const noise = ((rng() - 0.5) * style.noise) / (options.aiCapability ?? 1)
       return { id: door.id, value: expectedPoints - survivalCost + noise }
     })
     .sort((left, right) => right.value - left.value)
@@ -277,7 +278,11 @@ export function chooseAiDoor(options: {
   const roll = rng()
   let cumulativeChance = 0
   for (let index = 0; index < style.exploration.length; index += 1) {
-    cumulativeChance += style.exploration[index]!
+    const capability = options.aiCapability ?? 1
+    cumulativeChance +=
+      index === 0
+        ? 1 - (1 - style.exploration[0]!) / capability
+        : style.exploration[index]! / capability
     if (roll < cumulativeChance && ranked[index]) return ranked[index]!.id
   }
   return ranked[0]!.id

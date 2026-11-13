@@ -86,6 +86,7 @@ export interface SilentSaboteurRoundHistoryEntry {
 }
 
 export interface SilentSaboteurState {
+  aiCapability?: number;
   phase: SilentSaboteurPhase;
   prizeType: SilentSaboteurPrizeType;
   seed: number;
@@ -177,6 +178,7 @@ const silentSaboteurSlice = createSlice({
     initSilentSaboteur(
       _state,
       action: PayloadAction<{
+        aiCapability?: number;
         participantIds: string[];
         prizeType: SilentSaboteurPrizeType;
         seed: number;
@@ -187,6 +189,7 @@ const silentSaboteurSlice = createSlice({
       const { participantIds, prizeType, seed, humanPlayerId, strategicContext } = action.payload;
       return {
         ...initialState,
+        aiCapability: action.payload.aiCapability,
         phase: 'intro',
         prizeType,
         seed,
@@ -450,6 +453,7 @@ function _fastForwardToWinner(state: SilentSaboteurState) {
           state.victimId,
           state.roundEvidence,
           state.strategicContext,
+          state.aiCapability,
         );
         if (accusedId !== null) state.votes[voterId] = accusedId;
       }

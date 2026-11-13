@@ -1,3 +1,5 @@
+import { useSeasonAiRuntime } from '../../ai/competition/SeasonAiContext'
+import { runtimeCompetitionProfile } from '../../ai/competition/seasonAiDifficulty'
 /**
  * TimingBar — native React minigame component (migrated from legacy timing-bar.js).
  *
@@ -236,6 +238,8 @@ export default function TimingBar({
   initialRound = 1,
 }: Props) {
   const dispatch = useAppDispatch();
+  const hostedAi = useSeasonAiRuntime();
+  const seasonAi = session?.aiRuntime ?? hostedAi;
   const storePlayers = useAppSelector((s) => s.game.players);
   const humanId = storePlayers.find((p) => p.isUser)?.id;
   const challengeParticipantId = humanId ?? 'human';
@@ -261,7 +265,7 @@ export default function TimingBar({
     const map: Record<string, AiSkillProfile> = {};
     effectivePlayers.forEach((p) => {
       if (!p.isUser && p.id !== effectiveHumanId) {
-        map[p.id] = p.competitionProfile ?? {
+        map[p.id] = runtimeCompetitionProfile(seasonAi, p.id, p.competitionProfile) ?? {
           precision: 50,
           nerve: 50,
           clutch: 50,
@@ -275,7 +279,7 @@ export default function TimingBar({
       }
     });
     return map;
-  }, [effectivePlayers, effectiveHumanId]);
+  }, [effectivePlayers, effectiveHumanId, seasonAi]);
 
   const defaultAiProfile = useMemo(() => ({
     precision: 50,

@@ -52,6 +52,7 @@ export interface MemoryColorsPlayerResult {
 }
 
 export interface MemoryColorsState {
+  aiCapability?: number
   phase: MemoryColorsPhase;
   participantIds: string[];
   competitionType: MemoryColorsCompetitionType | null;
@@ -134,7 +135,7 @@ export function computePlayerScore(result: Omit<MemoryColorsPlayerResult, 'score
   );
 }
 
-export function simulateAiResult(seed: number, playerId: string): MemoryColorsPlayerResult {
+export function simulateAiResult(seed: number, playerId: string, capability = 1): MemoryColorsPlayerResult {
   let idHash = 0x811c9dc5;
   for (let i = 0; i < playerId.length; i += 1) {
     idHash ^= playerId.charCodeAt(i);
@@ -142,7 +143,7 @@ export function simulateAiResult(seed: number, playerId: string): MemoryColorsPl
   }
 
   const rng = mulberry32(((seed ^ SALT_AI) ^ idHash) >>> 0);
-  const skill = 0.48 + rng() * 0.52;
+  const skill = Math.min(1, (0.48 + rng() * 0.52) * capability);
   const furthestRoundReached = Math.max(1, Math.floor(1 + skill * 9 + rng() * 4));
   const likelyMistakes = Math.max(0, Math.round((1 - skill) * MAX_MISTAKES + rng()));
   const mistakesUsed = Math.min(MAX_MISTAKES, likelyMistakes);
@@ -209,6 +210,7 @@ const memoryColorsSlice = createSlice({
     initMemoryColors(
       state,
       action: PayloadAction<{
+        aiCapability?: number
         participantIds: string[];
         competitionType: MemoryColorsCompetitionType;
         seed: number;
@@ -216,6 +218,7 @@ const memoryColorsSlice = createSlice({
       }>,
     ) {
       const { participantIds, competitionType, seed, humanPlayerId } = action.payload;
+      state.aiCapability = action.payload.aiCapability
       Object.assign(state, {
         ...initialState,
         participantIds,
@@ -229,8 +232,9 @@ const memoryColorsSlice = createSlice({
 
       const aiResults: Record<string, MemoryColorsPlayerResult> = {};
       for (const id of participantIds) {
-        if (id !== humanPlayerId) aiResults[id] = simulateAiResult(seed, id);
+        if (id !== humanPlayerId) aiResults[id] = simulateAiResult(seed, id, action.payload.aiCapability);
       }
+      state.aiCapability = action.payload.aiCapability;
       state.aiResults = aiResults;
 
       if (!humanPlayerId) {

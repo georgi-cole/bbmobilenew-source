@@ -1,3 +1,5 @@
+import { runtimeCompetitionProfile } from '../../ai/competition/seasonAiDifficulty'
+import { SeasonAiContext } from '../../ai/competition/SeasonAiContext'
 import { useVipPresentation } from '../../cinematic/ceremonies/presentation'
 import { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
@@ -2224,6 +2226,7 @@ export default function GameScreen() {
                 }
               },
             }}
+            aiRuntime={pendingChallenge.aiRuntime}
             participants={pendingChallenge.participants.map((id): MinigameParticipant => {
               const player = game.players.find((p) => p.id === id)
               const aiScore = pendingChallenge.aiScores[id] ?? 0
@@ -2232,6 +2235,14 @@ export default function GameScreen() {
                 name: player?.name ?? id,
                 isHuman: !!player?.isUser,
                 avatar: player?.avatar,
+                competitionProfile: pendingChallenge.aiRuntime
+                  ? runtimeCompetitionProfile(
+                      pendingChallenge.aiRuntime,
+                      id,
+                      player?.competitionProfile,
+                      pendingChallenge.game.key
+                    )
+                  : undefined,
                 precomputedScore: aiScore,
                 previousPR: player?.stats?.gamePRs?.[pendingChallenge.game.key] ?? null,
               }
@@ -2554,16 +2565,18 @@ export default function GameScreen() {
             className="game-screen__battle-back-minigame"
             aria-label="Back 2 the Game competition"
           >
-            <Capitalization
-              key={`${battleBackCandidateIds.join('-')}-bb-cap-${battleBackAttemptIndex}`}
-              context="battleBack"
-              participantIds={battleBackCandidateIds}
-              participants={battleBackCapitalizationParticipants}
-              seed={battleBackAttemptSeed}
-              onFinish={(_value, _tiebreakerMs, completion) => {
-                handleBattleBackComplete(completion?.authoritativeWinnerId ?? null)
-              }}
-            />
+            <SeasonAiContext.Provider value={game.battleBack?.aiRuntime}>
+              <Capitalization
+                key={`${battleBackCandidateIds.join('-')}-bb-cap-${battleBackAttemptIndex}`}
+                context="battleBack"
+                participantIds={battleBackCandidateIds}
+                participants={battleBackCapitalizationParticipants}
+                seed={battleBackAttemptSeed}
+                onFinish={(_value, _tiebreakerMs, completion) => {
+                  handleBattleBackComplete(completion?.authoritativeWinnerId ?? null)
+                }}
+              />
+            </SeasonAiContext.Provider>
           </div>
         )}
         {showBattleBackOverlay && !useBattleBackMinigame && (

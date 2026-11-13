@@ -732,6 +732,7 @@ export default function TiltLabyrinthComp({
     participants?.forEach((p, idx) => {
       if (p.isHuman) return
       const profile =
+        p.competitionProfile ??
         gamePlayers.find((player) => player.id === p.id)?.competitionProfile ??
         getDefaultCompetitionProfile()
       const aiRng = makeRng((seed ^ Math.imul(idx + 1, 0x9e3779b9)) >>> 0)

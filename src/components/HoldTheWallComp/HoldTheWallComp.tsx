@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 /**
  * HoldTheWallComp – "Hold the Wall" endurance competition screen.
  *
@@ -163,6 +164,7 @@ export default function HoldTheWallComp({
   seed,
   onComplete,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const dispatch = useAppDispatch()
   const htw = useAppSelector(
     (s: RootState) => (s as RootState & { holdTheWall: HoldTheWallState }).holdTheWall
@@ -291,14 +293,7 @@ export default function HoldTheWallComp({
     controllerRef.current = ctrl
     setController(ctrl)
 
-    dispatch(
-      startHoldTheWall({
-        participantIds,
-        humanId,
-        prizeType,
-        seed,
-      })
-    )
+    dispatch(startHoldTheWall({ aiCapability, participantIds, humanId, prizeType, seed }))
     return () => {
       ctrl.destroy()
       controllerRef.current = null
@@ -421,13 +416,21 @@ export default function HoldTheWallComp({
 
     const interval = window.setInterval(() => {
       finalDuelRollRef.current += 1
-      if (shouldFinalDuelAiDrop(seed, finalTwoAiId, finalDuelRollRef.current)) {
+      if (shouldFinalDuelAiDrop(seed, finalTwoAiId, finalDuelRollRef.current, aiCapability)) {
         dispatch(dropFinalDuelAi(finalTwoAiId))
       }
     }, FINAL_DUEL_AI_DROP_INTERVAL_MS)
 
     return () => window.clearInterval(interval)
-  }, [dispatch, finalTwoAiId, finalTwoDealWindowOpen, finalTwoResumePending, htw.status, seed])
+  }, [
+    aiCapability,
+    dispatch,
+    finalTwoAiId,
+    finalTwoDealWindowOpen,
+    finalTwoResumePending,
+    htw.status,
+    seed,
+  ])
 
   // A declined or skipped Final Two deal gives the human a clear three-second
   // window to return their finger to the wall after using the popup controls.

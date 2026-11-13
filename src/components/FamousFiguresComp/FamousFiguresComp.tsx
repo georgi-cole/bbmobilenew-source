@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 /**
  * FamousFiguresComp — React UI for the "Famous Figures" competition.
  *
@@ -200,6 +201,7 @@ export default function FamousFiguresComp({
   revealPauseMs = DEFAULT_REVEAL_PAUSE_MS,
   avoidRecentFigures = true,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   // Guard: the reveal pause must always be positive to prevent visual jank.
   const safeRevealPauseMs = revealPauseMs > 0 ? revealPauseMs : DEFAULT_REVEAL_PAUSE_MS
   const dispatch = useAppDispatch()
@@ -303,6 +305,7 @@ export default function FamousFiguresComp({
   useEffect(() => {
     dispatch(
       startFamousFigures({
+        aiCapability,
         participantIds,
         competitionType: prizeType,
         seed: effectiveSeed,
@@ -418,7 +421,13 @@ export default function FamousFiguresComp({
     const submissions: Record<string, boolean> = {}
     for (const aiId of aiIds) {
       const aiFigIdx = getPlayerFigureIndex(ff, aiId, round)
-      const aiResult = buildAiSubmissionsForRound([aiId], aiFigIdx, ff.hintsRevealed, rng)
+      const aiResult = buildAiSubmissionsForRound(
+        [aiId],
+        aiFigIdx,
+        ff.hintsRevealed,
+        rng,
+        aiCapability
+      )
       submissions[aiId] = aiResult[aiId] ?? false
     }
     dispatch(setAiSubmissionsForRound({ round, submissions }))
@@ -462,7 +471,13 @@ export default function FamousFiguresComp({
       const aiFigIdx = getPlayerFigureIndex(ff, aiId, round)
       const aiFigure = FAMOUS_FIGURES[aiFigIdx]
       if (!aiFigure) continue
-      const plan = getFamousFiguresAiPlan(effectiveSeed, round, aiId, aiFigure.difficulty)
+      const plan = getFamousFiguresAiPlan(
+        effectiveSeed,
+        round,
+        aiId,
+        aiFigure.difficulty,
+        aiCapability
+      )
       if (visibleClue < plan.clueNumber) continue
       aiSubmissionKeysRef.current.add(key)
       const t = setTimeout(() => {

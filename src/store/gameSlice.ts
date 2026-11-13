@@ -1,4 +1,8 @@
 import {
+  captureSeasonAiRuntime,
+  runtimeCompetitionProfile,
+} from '../ai/competition/seasonAiDifficulty'
+import {
   answerMissionPowerDecision,
   selectMissionBackup,
   expireNewMissionReward,
@@ -6140,7 +6144,13 @@ const gameSlice = createSlice({
             resolvedAiScores[id] = simulateSnakeAiScore({
               sessionSeed: session.seed,
               playerId: id,
-              profile: p?.competitionProfile ?? getDefaultCompetitionProfile(),
+              profile:
+                runtimeCompetitionProfile(
+                  session.aiRuntime,
+                  id,
+                  p?.competitionProfile,
+                  session.key
+                ) ?? getDefaultCompetitionProfile(),
             }).score
           }
         } else {
@@ -6150,7 +6160,15 @@ const gameSlice = createSlice({
             .filter((id) => id !== humanPlayer?.id)
             .map((id) => {
               const p = state.players.find((pl) => pl.id === id)
-              return { id, profile: p?.competitionProfile }
+              return {
+                id,
+                profile: runtimeCompetitionProfile(
+                  session.aiRuntime,
+                  id,
+                  p?.competitionProfile,
+                  session.key
+                ),
+              }
             })
 
           resolvedAiScores = resolveHybridAiScores({
@@ -8197,6 +8215,12 @@ const gameSlice = createSlice({
      */
     openBattleBackCompetition(state) {
       if (state.battleBack && state.battleBack.active) {
+        if (!state.battleBack.competitionActive && !state.battleBack.aiRuntime) {
+          state.battleBack.aiRuntime = captureSeasonAiRuntime(
+            state,
+            state.players.filter((player) => state.battleBack?.candidates.includes(player.id))
+          )
+        }
         state.battleBack.competitionActive = true
       }
     },
@@ -15018,6 +15042,10 @@ export const startMinigame =
       const p = state.players.find((pl) => pl.id === id)
       return !!p?.isUser
     })
+    const aiRuntime = captureSeasonAiRuntime(
+      state,
+      state.players.filter((p) => opts.participants.includes(p.id))
+    )
     const competitionIntents: Record<string, CompetitionIntent> = {}
     for (const id of opts.participants) {
       const player = state.players.find((candidate) => candidate.id === id)
@@ -15036,7 +15064,15 @@ export const startMinigame =
       const profiles = Object.fromEntries(
         opts.participants.map((id) => {
           const player = state.players.find((candidate) => candidate.id === id)
-          return [id, player?.competitionProfile ?? getDefaultCompetitionProfile()]
+          return [
+            id,
+            runtimeCompetitionProfile(
+              aiRuntime,
+              id,
+              player?.competitionProfile,
+              hasHuman ? opts.key : undefined
+            ) ?? getDefaultCompetitionProfile(),
+          ]
         })
       )
       Object.assign(
@@ -15059,7 +15095,13 @@ export const startMinigame =
             seed: invocationSeed,
             playerId: id,
             participantIndex: index,
-            profile: p.competitionProfile ?? getDefaultCompetitionProfile(),
+            profile:
+              runtimeCompetitionProfile(
+                aiRuntime,
+                id,
+                p.competitionProfile,
+                hasHuman ? opts.key : undefined
+              ) ?? getDefaultCompetitionProfile(),
             seasonState: getCompetitionSeasonState(state.competitionSeasonStateByPlayerId, id),
             aiGameIdentity: p.aiGameIdentity,
             identityMode: getAiIdentityMode(state),
@@ -15112,6 +15154,7 @@ export const startMinigame =
       seed: invocationSeed,
       options: opts.options,
       aiScores,
+      aiRuntime,
       competitionIntents,
       ...(opts.key === 'quickTap' || opts.key === 'quickTapSeasons'
         ? { quickTapVariant: isVipQuickTap ? ('vip' as const) : ('classic' as const) }

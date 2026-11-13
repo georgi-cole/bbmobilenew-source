@@ -239,6 +239,7 @@ export function computeAiSolveProfile(
   masterSeed: number,
   playerId: string,
   elapsedScoreCapMs = DEFAULT_ELAPSED_SCORE_CAP_MS,
+  capability = 1,
 ): AiSolveProfile {
   const rng = playerRng(masterSeed, playerId);
   const roll = rng();
@@ -252,7 +253,7 @@ export function computeAiSolveProfile(
   else attempts = 16 + Math.floor(rng() * 5);
   const elapsedMs = Math.min(
     elapsedScoreCapMs,
-    12_000 + attempts * 4_000 + Math.round(rng() * 20_000),
+    (12_000 + attempts * 4_000 + Math.round(rng() * 20_000)) / capability,
   );
   return {
     attempts,
@@ -284,11 +285,12 @@ export function computeAllAiSolveProfiles(
   participantIds: string[],
   humanId: string | null,
   elapsedScoreCapMs = DEFAULT_ELAPSED_SCORE_CAP_MS,
+  capability = 1,
 ): Record<string, AiSolveProfile> {
   const profiles: Record<string, AiSolveProfile> = {};
   for (const id of participantIds) {
     if (id !== humanId) {
-      profiles[id] = computeAiSolveProfile(masterSeed, id, elapsedScoreCapMs);
+      profiles[id] = computeAiSolveProfile(masterSeed, id, elapsedScoreCapMs, capability);
     }
   }
   return profiles;

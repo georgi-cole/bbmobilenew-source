@@ -77,6 +77,7 @@ export interface BlackjackDuelState {
 }
 
 export interface BlackjackTournamentState {
+  aiCapability?: number
   competitionType: BlackjackTournamentCompetitionType
   phase: BlackjackTournamentPhase
   stage: 'league' | 'final'
@@ -313,15 +314,20 @@ function rematchCapWinner(
  * Uses the standard soft-17 heuristic with a probabilistic zone between
  * AI_HIT_ALWAYS_BELOW and AI_STAND_THRESHOLD.
  */
-export function aiShouldHit(total: number, rngValue: number): boolean {
+export function aiShouldHit(total: number, rngValue: number, capability = 1): boolean {
   if (total >= AI_STAND_THRESHOLD) return false
   if (total <= AI_HIT_ALWAYS_BELOW) return true
-  return rngValue < AI_HIT_PROBABILITY
+  return rngValue < 1 - (1 - AI_HIT_PROBABILITY) / capability
 }
 
 /** An AI stops drawing once its opponent has already busted. */
-export function aiShouldHitDuel(total: number, rngValue: number, opponentBust: boolean): boolean {
-  return !opponentBust && aiShouldHit(total, rngValue)
+export function aiShouldHitDuel(
+  total: number,
+  rngValue: number,
+  opponentBust: boolean,
+  capability = 1
+): boolean {
+  return !opponentBust && aiShouldHit(total, rngValue, capability)
 }
 
 /**
@@ -618,7 +624,8 @@ function simulateAiFinals(state: BlackjackTournamentState): void {
         const shouldHit = aiShouldHitDuel(
           computeTotal(cards),
           aiDecisionRng(state.seed, state.duelIndex, playerId, decisions[playerId]++),
-          isA ? duel.fighterBBust : duel.fighterABust
+          isA ? duel.fighterBBust : duel.fighterABust,
+          state.aiCapability
         )
         if (shouldHit) {
           cards.push(dealDuelCard(state.seed, state.duelIndex, duel.rngCallCount++, rematch))
@@ -691,6 +698,7 @@ const blackjackTournamentSlice = createSlice({
     initBlackjackTournament(
       state,
       action: PayloadAction<{
+        aiCapability?: number
         participantIds: string[]
         competitionType: BlackjackTournamentCompetitionType
         seed: number
@@ -700,6 +708,7 @@ const blackjackTournamentSlice = createSlice({
     ) {
       const { participantIds, competitionType, seed, humanPlayerId, strategicContext } =
         action.payload
+      state.aiCapability = action.payload.aiCapability
       state.competitionType = competitionType
       state.stage = 'league'
       state.allPlayerIds = [...participantIds]
