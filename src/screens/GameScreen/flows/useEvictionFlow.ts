@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  formatVotePercentage,
+  getVotePercentagePrecision,
+} from '../../../utils/votePercentages.mjs'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import {
   activateVoteDeductionReward,
@@ -369,6 +373,8 @@ export function useEvictionFlow({
       const defaultAnnouncement = (() => {
         const evicteeVotes = game.voteResults?.[evictee.id] ?? 0
         if (game.voteResultsMode === 'public') {
+          const precision = getVotePercentagePrecision(Object.values(game.voteResults ?? {}))
+          const evicteeShare = formatVotePercentage(evicteeVotes, precision)
           const secondEvictee = secondPendingEvictionId
             ? game.players.find((player) => player.id === secondPendingEvictionId)
             : null
@@ -376,16 +382,16 @@ export function useEvictionFlow({
             const secondPercent = game.voteResults?.[secondEvictee.id] ?? 0
             return {
               title: 'DOUBLE ELIMINATION RESULT',
-              subtitle: `${evictee.name} (${evicteeVotes.toFixed(1)}%) and ${secondEvictee.name} (${secondPercent.toFixed(1)}%) received the two highest audience totals and are eliminated tonight.`,
+              subtitle: `${evictee.name} (${evicteeShare}) and ${secondEvictee.name} (${formatVotePercentage(secondPercent, precision)}) received the two highest audience totals and are eliminated tonight.`,
             }
           }
           const isFinalThree = game.voxPopuli?.publicVoteContext === 'final3'
           return {
             title: isFinalThree
               ? 'THE PUBLIC HAS CHOSEN THE FINAL 2'
-              : `${evicteeVotes.toFixed(1)}% OF THE PUBLIC VOTE`,
+              : `${evicteeShare} OF THE PUBLIC VOTE`,
             subtitle: isFinalThree
-              ? `With ${evicteeVotes.toFixed(1)}% of the vote to eliminate, ${evictee.name} finishes in third place. The Hub lights now belong to the Final 2.`
+              ? `With ${evicteeShare} of the vote to eliminate, ${evictee.name} finishes in third place. The Hub lights now belong to the Final 2.`
               : `${evictee.name}, the audience has decided that you must leave the Hub.`,
           }
         }

@@ -1,3 +1,7 @@
+import {
+  formatVotePercentage as formatShare,
+  getVotePercentagePrecision,
+} from '../../utils/votePercentages.mjs'
 import { memo, useState, useEffect, useCallback, useMemo, useRef, type CSSProperties } from 'react'
 import type { CupidArrowPair, Player } from '../../types'
 import { store } from '../../store/store'
@@ -77,24 +81,18 @@ const SHOW_SAVED_MS = 7600
 const EXIT_MS = 9300
 const DONE_MS = 10000
 
-function formatShare(value: number): string {
-  const rounded = Number(value.toFixed(4))
-  const formatted = Number.isInteger(rounded)
-    ? rounded.toFixed(0)
-    : rounded.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
-  return `${formatted}%`
-}
-
 const PublicSaveShareCount = memo(function PublicSaveShareCount({
   label,
   value,
   phase,
   active,
+  precision,
 }: {
   label: string
   value: number
   phase: AnimPhase
   active: boolean
+  precision: number
 }) {
   const [displayedValue, setDisplayedValue] = useState(0)
   const elapsedRef = useRef(0)
@@ -120,9 +118,11 @@ const PublicSaveShareCount = memo(function PublicSaveShareCount({
   return (
     <span
       className={`psr__approval-value${phase === 'revealing' ? ' psr__approval-value--counting' : ''}`}
-      aria-label={`${label} save vote: ${phase === 'revealing' ? 'counting' : formatShare(value)}`}
+      aria-label={`${label} save vote: ${phase === 'revealing' ? 'counting' : formatShare(value, precision)}`}
     >
-      {phase === 'entering' ? '—' : formatShare(phase === 'revealing' ? displayedValue : value)}
+      {phase === 'entering'
+        ? '—'
+        : formatShare(phase === 'revealing' ? displayedValue : value, precision)}
     </span>
   )
 })
@@ -158,18 +158,16 @@ function NormalPublicSaveReveal({
   const savedUnit = displayUnits.find((unit) =>
     unit.members.some((member) => member.id === savedId)
   )
+  const percentagePrecision = getVotePercentagePrecision(displayUnits.map((unit) => unit.voteShare))
   const hasPairedUnits = displayUnits.some((unit) => unit.members.length > 1)
   const displayedTie = Boolean(
     savedUnit &&
-    displayUnits.some(
-      (unit) =>
-        unit.id !== savedUnit.id && formatShare(unit.voteShare) === formatShare(savedUnit.voteShare)
-    )
+    displayUnits.some((unit) => unit.id !== savedUnit.id && unit.voteShare === savedUnit.voteShare)
   )
   const decisionNote = tieBreakUsed
     ? 'Audience scores tied. Season average, completed goals, then stable player order settled the save.'
     : displayedTie
-      ? 'These shares match at 0.0001% precision. The saved result follows the full audience-ballot calculation.'
+      ? 'These vote shares are equal. The saved result follows the full audience-ballot calculation.'
       : null
 
   const fireDone = useCallback(() => {
@@ -253,6 +251,7 @@ function NormalPublicSaveReveal({
                   value={voteShare}
                   phase={phase}
                   active={active}
+                  precision={percentagePrecision}
                 />
               </div>
             )

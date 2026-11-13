@@ -3,7 +3,8 @@
   display: grid;
   grid-template-rows: auto minmax(0, auto) auto;
   gap: 0.65rem;
-  padding: calc(env(safe-area-inset-top, 0px) + 0.7rem) 0.75rem calc(env(safe-area-inset-bottom, 0px) + 0.7rem);
+  padding: calc(var(--minigame-safe-top, env(safe-area-inset-top, 0px)) + 0.7rem) 0.75rem
+    calc(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)) + 0.7rem);
   box-sizing: border-box;
   color: #f8fbff;
   background:
@@ -94,8 +95,8 @@
   height: 0.35rem;
   flex: 0 0 auto;
   border-radius: 999px;
-  background:
-    radial-gradient(circle, rgba(255, 226, 139, 0.95) 0 0.12rem, transparent 0.14rem) 0 50% / 0.48rem 100% repeat-x;
+  background: radial-gradient(circle, rgba(255, 226, 139, 0.95) 0 0.12rem, transparent 0.14rem) 0
+    50% / 0.48rem 100% repeat-x;
   animation: big-spender-status-loader 720ms linear infinite;
 }
 
@@ -193,7 +194,10 @@
   color: #fff;
   cursor: pointer;
   transform: translateZ(0);
-  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease,
+    box-shadow 160ms ease;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
     inset 0 -1.35rem 2.8rem rgba(0, 0, 0, 0.28),
@@ -249,12 +253,24 @@
   outline-offset: 2px;
 }
 
-.big-spender__wallet--color-0 { background: linear-gradient(145deg, #1f9a8a, #0f4546); }
-.big-spender__wallet--color-1 { background: linear-gradient(145deg, #5865d9, #202764); }
-.big-spender__wallet--color-2 { background: linear-gradient(145deg, #c44f76, #4b1731); }
-.big-spender__wallet--color-3 { background: linear-gradient(145deg, #c89134, #4a2b0b); }
-.big-spender__wallet--color-4 { background: linear-gradient(145deg, #4f9c4a, #183f23); }
-.big-spender__wallet--color-5 { background: linear-gradient(145deg, #527caa, #182a44); }
+.big-spender__wallet--color-0 {
+  background: linear-gradient(145deg, #1f9a8a, #0f4546);
+}
+.big-spender__wallet--color-1 {
+  background: linear-gradient(145deg, #5865d9, #202764);
+}
+.big-spender__wallet--color-2 {
+  background: linear-gradient(145deg, #c44f76, #4b1731);
+}
+.big-spender__wallet--color-3 {
+  background: linear-gradient(145deg, #c89134, #4a2b0b);
+}
+.big-spender__wallet--color-4 {
+  background: linear-gradient(145deg, #4f9c4a, #183f23);
+}
+.big-spender__wallet--color-5 {
+  background: linear-gradient(145deg, #527caa, #182a44);
+}
 
 .big-spender__wallet-flap {
   position: absolute;
@@ -336,9 +352,16 @@
   box-shadow: inset 0 0 0 1px rgba(247, 198, 83, 0.18);
 }
 
-.big-spender__player--locked { opacity: 0.82; }
-.big-spender__player--zeroFinished { border-color: rgba(95, 232, 175, 0.4); }
-.big-spender__player--bombed { opacity: 0.5; border-color: rgba(255, 91, 91, 0.35); }
+.big-spender__player--locked {
+  opacity: 0.82;
+}
+.big-spender__player--zeroFinished {
+  border-color: rgba(95, 232, 175, 0.4);
+}
+.big-spender__player--bombed {
+  opacity: 0.5;
+  border-color: rgba(255, 91, 91, 0.35);
+}
 
 .big-spender__avatar {
   width: 2rem;
@@ -621,14 +644,18 @@
 
 .big-spender__screen-drama::before,
 .big-spender__screen-drama::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
 }
 
 .big-spender__screen-drama--impact {
-  background:
-    radial-gradient(circle, rgba(255, 242, 181, 0.72), rgba(255, 87, 72, 0.32) 30%, rgba(2, 5, 10, 0.82) 74%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 242, 181, 0.72),
+    rgba(255, 87, 72, 0.32) 30%,
+    rgba(2, 5, 10, 0.82) 74%
+  );
   animation: big-spender-blast-fade 960ms ease-out both;
 }
 
@@ -641,10 +668,14 @@
 .big-spender__screen-drama--cracked::before,
 .big-spender__screen-drama--zero::before {
   background:
-    linear-gradient(38deg, transparent 47%, rgba(235, 247, 255, 0.5) 48%, transparent 49%) 22% 16% / 42% 34% no-repeat,
-    linear-gradient(118deg, transparent 48%, rgba(235, 247, 255, 0.42) 49%, transparent 50%) 48% 4% / 36% 48% no-repeat,
-    linear-gradient(74deg, transparent 49%, rgba(235, 247, 255, 0.36) 50%, transparent 51%) 38% 46% / 52% 42% no-repeat,
-    linear-gradient(145deg, transparent 48%, rgba(235, 247, 255, 0.34) 49%, transparent 50%) 10% 55% / 52% 34% no-repeat;
+    linear-gradient(38deg, transparent 47%, rgba(235, 247, 255, 0.5) 48%, transparent 49%) 22% 16% /
+      42% 34% no-repeat,
+    linear-gradient(118deg, transparent 48%, rgba(235, 247, 255, 0.42) 49%, transparent 50%) 48%
+      4% / 36% 48% no-repeat,
+    linear-gradient(74deg, transparent 49%, rgba(235, 247, 255, 0.36) 50%, transparent 51%) 38%
+      46% / 52% 42% no-repeat,
+    linear-gradient(145deg, transparent 48%, rgba(235, 247, 255, 0.34) 49%, transparent 50%) 10%
+      55% / 52% 34% no-repeat;
   opacity: 0.75;
   animation: big-spender-crack-in 760ms ease-out both;
 }
@@ -654,7 +685,7 @@
   z-index: 1;
   font-size: clamp(4rem, 24vw, 10rem);
   filter: drop-shadow(0 0 2rem rgba(255, 83, 72, 0.72));
-  animation: big-spender-bomb-pop 980ms cubic-bezier(.2, 1.4, .36, 1) both;
+  animation: big-spender-bomb-pop 980ms cubic-bezier(0.2, 1.4, 0.36, 1) both;
 }
 
 .big-spender__screen-drama--zero {
@@ -712,10 +743,14 @@
 
 .big-spender__screen-drama--winner::after {
   background:
-    linear-gradient(90deg, transparent 0 44%, #ffe38a 44% 56%, transparent 56% 100%) 16% 24% / 2.4rem 0.45rem no-repeat,
-    linear-gradient(90deg, transparent 0 44%, #5cecb9 44% 56%, transparent 56% 100%) 76% 28% / 2.6rem 0.45rem no-repeat,
-    linear-gradient(90deg, transparent 0 44%, #ff738a 44% 56%, transparent 56% 100%) 32% 72% / 2.8rem 0.45rem no-repeat,
-    linear-gradient(90deg, transparent 0 44%, #8eb8ff 44% 56%, transparent 56% 100%) 68% 70% / 2.5rem 0.45rem no-repeat;
+    linear-gradient(90deg, transparent 0 44%, #ffe38a 44% 56%, transparent 56% 100%) 16% 24% /
+      2.4rem 0.45rem no-repeat,
+    linear-gradient(90deg, transparent 0 44%, #5cecb9 44% 56%, transparent 56% 100%) 76% 28% /
+      2.6rem 0.45rem no-repeat,
+    linear-gradient(90deg, transparent 0 44%, #ff738a 44% 56%, transparent 56% 100%) 32% 72% /
+      2.8rem 0.45rem no-repeat,
+    linear-gradient(90deg, transparent 0 44%, #8eb8ff 44% 56%, transparent 56% 100%) 68% 70% /
+      2.5rem 0.45rem no-repeat;
   animation: big-spender-confetti-pop 1500ms ease-out both;
 }
 
@@ -740,7 +775,8 @@
 @media (max-width: 760px) {
   .big-spender {
     gap: 0.5rem;
-    padding: calc(env(safe-area-inset-top, 0px) + 0.55rem) 0.55rem calc(env(safe-area-inset-bottom, 0px) + 0.55rem);
+    padding: calc(var(--minigame-safe-top, env(safe-area-inset-top, 0px)) + 0.55rem) 0.55rem
+      calc(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)) + 0.55rem);
   }
 
   .big-spender__board {
@@ -773,23 +809,48 @@
 }
 
 @keyframes big-spender-screen-jolt {
-  0% { transform: translate3d(0, 0, 0); }
-  18% { transform: translate3d(-0.16rem, 0.08rem, 0); }
-  38% { transform: translate3d(0.14rem, -0.06rem, 0); }
-  58% { transform: translate3d(-0.08rem, 0.04rem, 0); }
-  100% { transform: translate3d(0, 0, 0); }
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  18% {
+    transform: translate3d(-0.16rem, 0.08rem, 0);
+  }
+  38% {
+    transform: translate3d(0.14rem, -0.06rem, 0);
+  }
+  58% {
+    transform: translate3d(-0.08rem, 0.04rem, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 @keyframes big-spender-status-loader {
-  from { background-position-x: 0; }
-  to { background-position-x: 0.48rem; }
+  from {
+    background-position-x: 0;
+  }
+  to {
+    background-position-x: 0.48rem;
+  }
 }
 
 @keyframes big-spender-winner-fade {
-  0% { opacity: 0; transform: scale(0.98); }
-  16% { opacity: 1; transform: scale(1); }
-  78% { opacity: 1; }
-  100% { opacity: 0; transform: scale(1.02); }
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  16% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.02);
+  }
 }
 
 @media (max-width: 340px) {
@@ -824,15 +885,26 @@
 }
 
 @keyframes big-spender-wallet-bomb {
-  0% { transform: scale(0.92) rotate(-2deg); }
-  18% { transform: scale(1.06) rotate(2deg); }
-  34% { transform: scale(0.98) rotate(-2deg); }
-  56% { transform: scale(1.03) rotate(1deg); }
-  100% { transform: scale(1) rotate(0deg); }
+  0% {
+    transform: scale(0.92) rotate(-2deg);
+  }
+  18% {
+    transform: scale(1.06) rotate(2deg);
+  }
+  34% {
+    transform: scale(0.98) rotate(-2deg);
+  }
+  56% {
+    transform: scale(1.03) rotate(1deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
 }
 
 @keyframes big-spender-second-chance-pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
     filter: brightness(1);
   }
@@ -856,29 +928,70 @@
 }
 
 @keyframes big-spender-blast-fade {
-  0% { opacity: 0; transform: scale(0.9); }
-  18% { opacity: 1; transform: scale(1.04); }
-  64% { opacity: 0.96; transform: scale(1); }
-  100% { opacity: 0.88; transform: scale(1.01); }
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  64% {
+    opacity: 0.96;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.88;
+    transform: scale(1.01);
+  }
 }
 
 @keyframes big-spender-bomb-pop {
-  0% { opacity: 0; transform: scale(0.22) rotate(-16deg); }
-  28% { opacity: 1; transform: scale(1.26) rotate(10deg); }
-  54% { transform: scale(0.94) rotate(-4deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+  0% {
+    opacity: 0;
+    transform: scale(0.22) rotate(-16deg);
+  }
+  28% {
+    opacity: 1;
+    transform: scale(1.26) rotate(10deg);
+  }
+  54% {
+    transform: scale(0.94) rotate(-4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
 }
 
 @keyframes big-spender-crack-in {
-  0% { opacity: 0; transform: scale(1.08); }
-  100% { opacity: 0.75; transform: scale(1); }
+  0% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
 }
 
 @keyframes big-spender-zero-fade {
-  0% { opacity: 0; transform: scale(0.96); }
-  16% { opacity: 1; transform: scale(1.04); }
-  78% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.03); }
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  16% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  78% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.03);
+  }
 }
 
 @keyframes big-spender-confetti-pop {

@@ -12,6 +12,7 @@ import {
   writeDurableItem,
 } from './support/test'
 import { openProfileCreationForm } from './support/profile'
+import { mkdir } from 'node:fs/promises'
 import { incomingDockButton, replyToOptionalIncoming } from './support/incomingSocial'
 
 const JOURNEY_TIMEOUT_MS = 90_000
@@ -749,7 +750,7 @@ test.describe('Real player core journeys', () => {
     await waitForHome(page)
   })
 
-  test('a rapidly repeated social action charges once and the resource balance survives reload @core-journey @economy @mobile @release', async ({
+  test('social cards scroll below the fixed controls and a repeated action charges once @smoke @core-journey @economy @mobile @release', async ({
     page,
   }) => {
     await startFreshCampaign(page, 'Economy Journey Player')
@@ -773,6 +774,29 @@ test.describe('Real player core journeys', () => {
     expect(initialEnergy).toBeGreaterThanOrEqual(1)
 
     await socialDialog.locator('[aria-label="Player roster"]').getByRole('button').first().click()
+    if ((page.viewportSize()?.width ?? 0) < 700) {
+      const focus = socialDialog.locator('.sp2-focus--active')
+      const heading = socialDialog.locator('.sp2-moves__top')
+      const cards = socialDialog.locator('[aria-label="Action grid"]')
+      const beforeFocus = (await focus.boundingBox())!
+      const beforeHeading = (await heading.boundingBox())!
+      await cards.evaluate((element) => {
+        element.scrollTop = 300
+      })
+      await expect.poll(() => cards.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+      const afterFocus = (await focus.boundingBox())!
+      const afterHeading = (await heading.boundingBox())!
+      const cardBox = (await cards.boundingBox())!
+      expect(afterFocus.y).toBeCloseTo(beforeFocus.y, 0)
+      expect(afterHeading.y).toBeCloseTo(beforeHeading.y, 0)
+      expect(cardBox.y).toBeGreaterThanOrEqual(afterHeading.y + afterHeading.height - 1)
+      expect(await cards.evaluate((element) => getComputedStyle(element).overflowY)).toBe('auto')
+      await mkdir('visual-evidence/followups', { recursive: true })
+      await page.screenshot({ path: 'visual-evidence/followups/social-scroll.png' })
+      await cards.evaluate((element) => {
+        element.scrollTop = 0
+      })
+    }
     await socialDialog
       .locator('[aria-label="Action grid"]')
       .getByRole('button', { name: /Compliment/ })

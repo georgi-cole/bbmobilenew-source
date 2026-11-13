@@ -80,6 +80,7 @@ describe('secret mission v2 follow-up', () => {
     store.dispatch(
       hydrateGame({
         ...game,
+        week: 5,
         phase: 'loh_comp',
       })
     )

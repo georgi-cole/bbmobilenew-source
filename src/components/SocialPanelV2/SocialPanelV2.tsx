@@ -1820,42 +1820,6 @@ export default function SocialPanelV2() {
     usesMultipleTargets,
   ])
 
-  const hasSocialHumanPlayer = Boolean(humanPlayer)
-  useEffect(() => {
-    const body = socialBodyRef.current
-    const focus = body?.querySelector<HTMLElement>('.sp2-focus--active')
-    if (!body) return
-
-    if (!focus || !body.classList.contains('sp2-body--focused-target')) {
-      body.style.removeProperty('--sp2-focused-row-offset')
-      return
-    }
-
-    const measureStickyOffset = () =>
-      body.style.setProperty(
-        '--sp2-focused-row-offset',
-        `${Math.max(0, focus.getBoundingClientRect().height - 4)}px`
-      )
-
-    const resizeObserver =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measureStickyOffset)
-    resizeObserver?.observe(focus)
-    measureStickyOffset()
-
-    return () => {
-      resizeObserver?.disconnect()
-      body.style.removeProperty('--sp2-focused-row-offset')
-    }
-  }, [
-    open,
-    hasSocialHumanPlayer,
-    primaryTargetId,
-    selectedTargets.size,
-    multiSelectActive,
-    selectedAllianceId,
-    selectedActionId,
-  ])
-
   const allNonUser = game.players.filter((player) => !player.isUser && player.status !== 'evicted')
   const activePlayers = allNonUser.filter((player) => player.status !== 'jury')
   const juryPlayers = allNonUser.filter((player) => player.status === 'jury')

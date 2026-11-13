@@ -59,6 +59,7 @@ const tvZoneGameEquality = createGameFieldEquality([
   'tvFeed',
   'twistActive',
   'voxPopuli',
+  'voteResults',
   'week',
   'weekendInterlude',
 ])
@@ -87,6 +88,8 @@ import { getViewportMessageKey } from './tvZoneKeys'
 import {
   createPresentationEventClaim,
   hasPresentationEventClaim,
+  getPhaseBroadcastCopy,
+  isUnrevealedVoteOutcome,
   selectCurrentBroadcastEvents,
   selectFauxTvFrame,
 } from '../../broadcasting/fauxTvPresentation'
@@ -426,21 +429,30 @@ export default function TvZone(props: TvZoneProps) {
         extractMajorKey(event) === 'vox_public_vote'),
     [gameState.voxPopuli?.status]
   )
+  const voteOutcomePending = gameState.voteResults != null || Boolean(props.voteResultsReveal)
   // The post-vote result is the canonical Vox verdict card. Hide the earlier
   // generic intro from both live TV and the compact log while Vox is active.
   const tvVisibleFeed = useMemo(
     () =>
-      gameState.tvFeed.filter((event) => isVisibleOnTv(event) && !isRedundantVoxVoteIntro(event)),
-    [gameState.tvFeed, isRedundantVoxVoteIntro]
+      gameState.tvFeed.filter(
+        (event) =>
+          isVisibleOnTv(event) &&
+          !isRedundantVoxVoteIntro(event) &&
+          !isUnrevealedVoteOutcome(event, gameState.week, voteOutcomePending)
+      ),
+    [gameState.tvFeed, gameState.week, isRedundantVoxVoteIntro, voteOutcomePending]
   )
   // Filter entries for the main-screen log strip (excludes DR-only events and
   // the redundant Vox pre-vote card).
   const mainLogFeed = useMemo(
     () =>
       gameState.tvFeed.filter(
-        (event) => isVisibleInMainLog(event) && !isRedundantVoxVoteIntro(event)
+        (event) =>
+          isVisibleInMainLog(event) &&
+          !isRedundantVoxVoteIntro(event) &&
+          !isUnrevealedVoteOutcome(event, gameState.week, voteOutcomePending)
       ),
-    [gameState.tvFeed, isRedundantVoxVoteIntro]
+    [gameState.tvFeed, gameState.week, isRedundantVoxVoteIntro, voteOutcomePending]
   )
   const isBroadcastRelevant = useCallback(
     (event: TvEvent) => {
@@ -1155,7 +1167,7 @@ export default function TvZone(props: TvZoneProps) {
     ),
     override: viewportMessageOverride,
     eventText: viewportEventText,
-    stateFallback: `Current phase: ${formatPhaseLabel(gameState.phase)}.`,
+    stateFallback: getPhaseBroadcastCopy(gameState.phase),
   })
   const hideViewportMessage = !fauxTvFrame.visible
   const viewportDisplayText = fauxTvFrame.text ?? undefined
@@ -1178,7 +1190,7 @@ export default function TvZone(props: TvZoneProps) {
   } else {
     mainTvMessage = guestSaveReminderQueued
       ? 'Guest mode. Create a profile to keep your season. Open More, then Profile, then Create Profile.'
-      : (viewportDisplayText ?? `Current phase: ${formatPhaseLabel(gameState.phase)}.`)
+      : (viewportDisplayText ?? getPhaseBroadcastCopy(gameState.phase))
   }
 
   useEffect(() => {

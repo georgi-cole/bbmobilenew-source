@@ -1,4 +1,5 @@
 import { socialStoryReceiptKey } from './socialConductEvidence'
+import { getPublicRequestCompletedBroadcast } from './publicRequestBroadcast'
 import type { Middleware, MiddlewareAPI, Dispatch, UnknownAction } from '@reduxjs/toolkit'
 import type { Player } from '../types'
 import {
@@ -267,7 +268,7 @@ function dispatchMissionProgress(
       const direction = directions.find((item) => item.id === signal.directionId)
       store.dispatch(
         addTvEvent({
-          text: `Audience approval rises: ${direction?.description ?? 'Public request completed'}.`,
+          text: getPublicRequestCompletedBroadcast(direction, state.game.players),
           type: 'social',
           meta: { major: 'public_request_completed', week: event.week },
           channels: ['tv', 'mainLog', 'dr'],

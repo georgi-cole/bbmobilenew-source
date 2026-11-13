@@ -1,5 +1,60 @@
 import type { Phase, PresentationEventClaim, TvEvent } from '../types'
 
+/** Quiet moments on the channel still belong to the show, not its machinery. */
+const PHASE_BROADCAST_COPY: Record<Phase, string> = {
+  season_start: 'New faces. Hidden agendas. One watchful Eye. Welcome to the Hub.',
+  week_start: "A new day in the Hub. Yesterday's promises are about to be tested.",
+  loh_comp_announcement: 'Power is up for grabs. The Hub is watching.',
+  loh_comp: 'The battle for power is on. Who will take control?',
+  loh_results: 'Power has a new holder. Every alliance is doing the maths.',
+  democracia_vote: 'The Hub has a choice to make. Who deserves the power?',
+  democracia_results: 'The ballots are in. A new balance of power takes shape.',
+  social_1: 'Whispers travel fast in the Hub. Choose who hears yours.',
+  nominations: 'Promises meet power. Who will end up on the block?',
+  nomination_results: 'The names are out. Now the fight to stay begins.',
+  pre_veto_public_save: 'The audience holds a lifeline. Who will they pull from danger?',
+  pos_comp_announcement: 'One more chance to change the block. Safety is on the line.',
+  pos_comp: 'Safety is within reach. Who will take their fate into their own hands?',
+  pos_results: 'Safety has a new holder. The block is holding its breath.',
+  pos_ceremony: 'One Safety decision. A room full of consequences.',
+  pos_ceremony_results: 'Safety has spoken. Every seat on the block comes at a price.',
+  social_2: 'The vote is getting closer. Every conversation could change a mind.',
+  live_vote: 'The promises are over. Now the votes will tell the story.',
+  eviction_results: 'The verdict is in. One journey is about to change forever.',
+  week_end: 'The day is over. In the Hub, the consequences never sleep.',
+  final4_eviction: 'Four remain. One decision stands between them and the final three.',
+  final3: 'Three finalists. One last battle for a place in the finale.',
+  final3_comp1: 'The final battle begins. Who will claim the first advantage?',
+  final3_comp1_minigame: 'The final battle begins. Who will claim the first advantage?',
+  final3_comp2: 'One more chance to reach the final showdown.',
+  final3_comp2_minigame: 'One more chance to reach the final showdown.',
+  final3_comp3: 'The last power of the season is on the line.',
+  final3_comp3_minigame: 'The last power of the season is on the line.',
+  final3_decision: 'One final choice. Who gets a seat in the finale?',
+  jury_announcement: 'The finalists have made their case. The verdict draws closer.',
+  jury_cinematic: 'The season comes full circle. Every choice has led to this.',
+  jury: 'Two finalists. One title. The Big Eye is watching.',
+}
+
+export function getPhaseBroadcastCopy(phase: Phase): string {
+  return PHASE_BROADCAST_COPY[phase]
+}
+
+/** Keep committed outcomes in history, but release them to the audience with the film. */
+export function isUnrevealedVoteOutcome(
+  event: TvEvent,
+  week: number,
+  revealPending: boolean
+): boolean {
+  if (!revealPending || (typeof event.meta?.week === 'number' && event.meta.week !== week))
+    return false
+  return (
+    event.type === 'vote' ||
+    event.meta?.evictionVoteResults === true ||
+    event.meta?.phase === 'eviction_results'
+  )
+}
+
 export function createPresentationEventClaim(
   gameId: string,
   event: TvEvent

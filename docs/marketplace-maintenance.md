@@ -1,7 +1,7 @@
 # Marketplace maintenance
 
 Premium Challenges and VIP both unlock every premium minigame version. VIP also
-includes every released standalone product and VIP themes. This covers enhanced
+includes every released standalone product. This covers enhanced
 presentations, alternate premium rules, and replacement remasters.
 
 ## What stays synchronized
@@ -43,6 +43,19 @@ reference when updating their descriptions; repository checks do not publish
 store listings or change configured prices.
 
 ## Review log
+
+- 2026-11-13: Reviewed the cumulative TestFlight follow-up fixes. Retired the
+  selectable player themes from Settings and Advanced Settings, normalized saved
+  selections to Midnight, and removed the theme benefit from VIP and Store copy.
+  Reviewed shared minigame safe areas, Famous Figures standings and mission
+  receipts, Social scrolling, broadcast wording, vote-reveal log timing, and
+  adaptive public-vote precision. VIP and Premium Challenges still unlock every
+  premium minigame version. All other benefits, purchase access, prices, ads,
+  scoring and rewards are unchanged.
+  Also reviewed Android billing serialization and reconnect recovery, one-time
+  purchase-only restoration, production account build validation, and fresh
+  profile season-pill visibility. Checkout is never automatically repeated;
+  permanent acknowledgment and durable consumable delivery retain their rules.
 
 - 2026-11-13: Reviewed the Android startup investigation candidate. Foreground
   launcher-icon rotation is paused for both remote-switch values, retaining the

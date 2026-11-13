@@ -11,6 +11,7 @@
  */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { mulberry32 } from '../../store/rng'
+import { rankFamousFigures } from './standings'
 import {
   MAX_VISIBLE_HINTS,
   type FigureDifficulty,
@@ -286,38 +287,9 @@ function determineWinner(
   playerRoundScores: Record<string, number[]>,
   tieBreakOrder: string[]
 ): string | null {
-  if (participantIds.length === 0) return null
-
-  let bestScore = -1
-  let winners: string[] = []
-
-  for (const id of participantIds) {
-    const score = playerScores[id] ?? 0
-    if (score > bestScore) {
-      bestScore = score
-      winners = [id]
-    } else if (score === bestScore) {
-      winners.push(id)
-    }
-  }
-
-  if (winners.length === 1) return winners[0]
-
-  // Tiebreak: count correct rounds
-  let bestCorrect = -1
-  let tiedWinners: string[] = []
-  for (const id of winners) {
-    const correctRounds = (playerRoundScores[id] ?? []).filter((s) => s > 0).length
-    if (correctRounds > bestCorrect) {
-      bestCorrect = correctRounds
-      tiedWinners = [id]
-    } else if (correctRounds === bestCorrect) {
-      tiedWinners.push(id)
-    }
-  }
-
-  const priority = new Map(tieBreakOrder.map((id, index) => [id, index]))
-  return tiedWinners.sort((a, b) => (priority.get(a) ?? Number.MAX_SAFE_INTEGER) - (priority.get(b) ?? Number.MAX_SAFE_INTEGER))[0]
+  return (
+    rankFamousFigures(participantIds, playerScores, playerRoundScores, tieBreakOrder)[0] ?? null
+  )
 }
 
 /** Initialise per-round player state. */
@@ -398,10 +370,11 @@ const famousFiguresSlice = createSlice({
       const freshIndices = FAMOUS_FIGURES.flatMap((figure, index) =>
         recentNames.has(figure.canonicalName) ? [] : [index]
       )
-      const candidateIndices = freshIndices.length >= 6
-        ? freshIndices
-        : FAMOUS_FIGURES.map((_, index) => index)
-      const order = shuffleIndices(rng, candidateIndices.length).map((index) => candidateIndices[index])
+      const candidateIndices =
+        freshIndices.length >= 6 ? freshIndices : FAMOUS_FIGURES.map((_, index) => index)
+      const order = shuffleIndices(rng, candidateIndices.length).map(
+        (index) => candidateIndices[index]
+      )
 
       state.competitionType = competitionType
       state.status = 'round_active'
@@ -417,7 +390,9 @@ const famousFiguresSlice = createSlice({
       state.seed = seed
       state.outcomeResolved = false
       state.winnerId = null
-      state.tieBreakOrder = shuffleIndices(rng, participantIds.length).map((index) => participantIds[index])
+      state.tieBreakOrder = shuffleIndices(rng, participantIds.length).map(
+        (index) => participantIds[index]
+      )
       state.correctPlayers = []
       state.roundComplete = false
       state.timerPhase = 'clue'
@@ -457,7 +432,14 @@ const famousFiguresSlice = createSlice({
       if (state.roundComplete) return
       if (state.hintsRevealed >= MAX_VISIBLE_HINTS) return
       state.hintsRevealed += 1
-      const phases: FamousFiguresTimerPhase[] = ['clue', 'hint_1', 'hint_3', 'hint_4', 'hint_5', 'hint_6']
+      const phases: FamousFiguresTimerPhase[] = [
+        'clue',
+        'hint_1',
+        'hint_3',
+        'hint_4',
+        'hint_5',
+        'hint_6',
+      ]
       const phaseIdx = Math.min(state.hintsRevealed, phases.length - 1)
       state.timerPhase = phases[phaseIdx]
     },
@@ -671,7 +653,12 @@ const famousFiguresSlice = createSlice({
       if (nextRoundIndex >= state.totalRounds) {
         // All rounds complete â€” determine winner
         state.status = 'complete'
-        state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores, state.tieBreakOrder)
+        state.winnerId = determineWinner(
+          allIds,
+          state.playerScores,
+          state.playerRoundScores,
+          state.tieBreakOrder
+        )
         return
       }
 
@@ -770,7 +757,13 @@ const famousFiguresSlice = createSlice({
           const rng = mulberry32(state.seed ^ (roundIdx * 0x9e3779b9))
           const submissions: Record<string, boolean> = {}
           for (const id of allIds) {
-            const result = buildAiSubmissionsForRound([id], figIdx, state.hintsRevealed, rng, state.aiCapability)
+            const result = buildAiSubmissionsForRound(
+              [id],
+              figIdx,
+              state.hintsRevealed,
+              rng,
+              state.aiCapability
+            )
             submissions[id] = result[id] ?? false
           }
           state.aiSubmissions[roundIdx] = submissions
@@ -829,7 +822,12 @@ const famousFiguresSlice = createSlice({
         // If this was the last round, determine winner and finish.
         if (roundIdx + 1 >= state.totalRounds) {
           state.status = 'complete'
-          state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores, state.tieBreakOrder)
+          state.winnerId = determineWinner(
+            allIds,
+            state.playerScores,
+            state.playerRoundScores,
+            state.tieBreakOrder
+          )
           return
         }
         // Otherwise, prepare state for the next iteration of the loop.
@@ -838,7 +836,12 @@ const famousFiguresSlice = createSlice({
 
       // Fallback: ensure we always end in complete state.
       state.status = 'complete'
-      state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores, state.tieBreakOrder)
+      state.winnerId = determineWinner(
+        allIds,
+        state.playerScores,
+        state.playerRoundScores,
+        state.tieBreakOrder
+      )
     },
 
     /** Idempotency guard â€” prevents outcome thunk from firing twice. */

@@ -34,6 +34,7 @@ import type {
 } from '../../features/famousFigures/famousFiguresSlice'
 import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import { resolveFamousFiguresOutcome } from '../../features/famousFigures/thunks'
+import { explainFamousFiguresTies, rankFamousFigures } from '../../features/famousFigures/standings'
 import { mulberry32 } from '../../store/rng'
 import { getDicebear, resolveAvatar } from '../../utils/avatar'
 import { isAcceptedGuess, normalizeForMatching } from '../../games/famous-figures/fuzzy'
@@ -144,18 +145,12 @@ function buildFamousFiguresCompletion(
   state: FamousFiguresState,
   participantIds: string[]
 ): ReactMinigameCompletion {
-  const priority = new Map(state.tieBreakOrder.map((id, index) => [id, index]))
-  const authoritativeRankedIds = [...participantIds].sort((a, b) => {
-    const scoreDifference = (state.playerScores[b] ?? 0) - (state.playerScores[a] ?? 0)
-    if (scoreDifference) return scoreDifference
-    const correctDifference =
-      (state.playerRoundScores[b] ?? []).filter((score) => score > 0).length -
-      (state.playerRoundScores[a] ?? []).filter((score) => score > 0).length
-    if (correctDifference) return correctDifference
-    return (
-      (priority.get(a) ?? Number.MAX_SAFE_INTEGER) - (priority.get(b) ?? Number.MAX_SAFE_INTEGER)
-    )
-  })
+  const authoritativeRankedIds = rankFamousFigures(
+    participantIds,
+    state.playerScores,
+    state.playerRoundScores,
+    state.tieBreakOrder
+  )
   return {
     authoritativeWinnerId: state.winnerId,
     authoritativeLastPlaceId: authoritativeRankedIds.at(-1) ?? null,
@@ -1117,9 +1112,18 @@ function renderScoreboard(
   displayName: (id: string) => string,
   playerAvatar: (id: string) => string
 ) {
-  const sorted = [...participantIds].sort(
-    (a, b) => (ff.playerScores[b] ?? 0) - (ff.playerScores[a] ?? 0)
+  const sorted = rankFamousFigures(
+    participantIds,
+    ff.playerScores,
+    ff.playerRoundScores,
+    ff.tieBreakOrder
   )
+  const tieExplanations =
+    ff.status === 'complete'
+      ? explainFamousFiguresTies(sorted, ff.playerScores, ff.playerRoundScores, (id) =>
+          id === humanId ? 'you' : displayName(id)
+        )
+      : []
 
   return (
     <div className="ff-scoreboard" aria-label="Scoreboard">
@@ -1143,7 +1147,7 @@ function renderScoreboard(
           </tr>
         </thead>
         <tbody>
-          {sorted.map((id) => {
+          {sorted.map((id, placement) => {
             const isHuman = id === humanId
             const name = displayName(id)
             const total = ff.playerScores[id] ?? 0
@@ -1156,6 +1160,11 @@ function renderScoreboard(
             return (
               <tr key={id}>
                 <th scope="row" className="ff-scoreboard-player">
+                  {ff.status === 'complete' && (
+                    <span className="ff-scoreboard-rank" aria-label={`Place ${placement + 1}`}>
+                      {placement + 1}.
+                    </span>
+                  )}
                   <span className="ff-scoreboard-avatar-wrap">
                     <img
                       className="ff-scoreboard-avatar"
@@ -1204,6 +1213,11 @@ function renderScoreboard(
           })}
         </tbody>
       </table>
+      {tieExplanations.map((explanation) => (
+        <p className="ff-tie-break" role="note" key={explanation}>
+          {explanation}
+        </p>
+      ))}
     </div>
   )
 }

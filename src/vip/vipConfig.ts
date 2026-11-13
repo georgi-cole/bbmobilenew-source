@@ -334,7 +334,6 @@ export const VIP_BENEFIT_DETAILS = [
     title: product.vipBenefitLabel ?? product.title,
     detail: product.shortTagline,
   })),
-  { title: 'VIP themes', detail: 'Give every season a premium finish.' },
   {
     title: 'Cinematic ceremonies',
     detail:
@@ -353,7 +352,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     entitlement: null,
     shortTagline: 'Every premium advantage. One permanent unlock.',
     fullDescription:
-      'Own the complete premium collection in one purchase, including every permanent Store unlock, VIP theme and cinematic ceremony. Consumable Survival runs are purchased separately.',
+      'Own the complete premium collection in one purchase, including every permanent Store unlock and cinematic ceremony. Consumable Survival runs are purchased separately.',
     benefits: VIP_BENEFITS,
     icon: 'vip',
     visualTheme: 'spotlight',

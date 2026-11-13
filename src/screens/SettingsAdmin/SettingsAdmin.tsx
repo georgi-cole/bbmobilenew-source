@@ -10,7 +10,6 @@ import {
   setGameUX,
   setSim,
   setVisual,
-  type ThemePreset,
 } from '../../store/settingsSlice'
 import CompSelection from '../../components/CompSelection'
 import MusicManagerPanel from './MusicManagerPanel'
@@ -74,14 +73,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'display', label: '🎨 Display' },
   { id: 'gameux', label: '🎮 Game UX' },
   { id: 'about', label: 'ℹ️ About' },
-]
-
-const THEME_PRESETS: { id: ThemePreset; label: string; swatch: string }[] = [
-  { id: 'midnight', label: 'Midnight', swatch: '#6366f1' },
-  { id: 'neon', label: 'Neon', swatch: '#22d3ee' },
-  { id: 'sunset', label: 'Sunset', swatch: '#f97316' },
-  { id: 'ocean', label: 'Ocean', swatch: '#0ea5e9' },
-  { id: 'surveyeval', label: 'Surveyeval', swatch: '#8b9a72' },
 ]
 
 export default function SettingsAdmin() {
@@ -272,25 +263,6 @@ export default function SettingsAdmin() {
         {/* ── Display ───────────────────────────────────────────────────── */}
         {activeTab === 'display' && (
           <section className="settings-section">
-            <p className="settings-section__heading">Theme</p>
-            <div className="settings-theme-grid">
-              {THEME_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  className={`settings-theme-btn ${settings.display.themePreset === preset.id ? 'settings-theme-btn--active' : ''}`}
-                  onClick={() => dispatch(setDisplay({ themePreset: preset.id }))}
-                  aria-pressed={settings.display.themePreset === preset.id}
-                >
-                  <span
-                    className="settings-theme-swatch"
-                    style={{ background: preset.swatch }}
-                    aria-hidden="true"
-                  />
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-
             <div className="settings-row">
               <label className="settings-row__label">Reduce Motion</label>
               <input

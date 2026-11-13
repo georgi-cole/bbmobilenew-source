@@ -12,9 +12,9 @@
   position: fixed;
   /* The dock is portalled to document.body so it stays above full-screen
      minigames. Re-establish the host's safe-area token at the root layer. */
-  --minigame-safe-top: var(--safe-top, 0px);
+  --minigame-safe-top: var(--app-safe-area-top, var(--safe-top, 0px));
   top: max(10px, calc(var(--minigame-safe-top, 0px) + 10px));
-  right: 0;
+  right: max(var(--safe-right, 0px), env(safe-area-inset-right, 0px));
   z-index: 9700;
   display: flex;
   align-items: flex-start;

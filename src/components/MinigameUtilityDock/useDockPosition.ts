@@ -41,7 +41,7 @@ export function useDockPosition(closeMenu: () => void) {
     const measure = () => {
       const probe = document.createElement('div')
       probe.style.cssText =
-        'position:fixed;visibility:hidden;pointer-events:none;padding-top:var(--safe-top,env(safe-area-inset-top,0px));padding-bottom:var(--safe-bottom,env(safe-area-inset-bottom,0px))'
+        'position:fixed;visibility:hidden;pointer-events:none;padding-top:var(--app-safe-area-top,var(--safe-top,env(safe-area-inset-top,0px)));padding-bottom:var(--safe-bottom,env(safe-area-inset-bottom,0px))'
       document.body.append(probe)
       const style = getComputedStyle(probe)
       const next = dockBounds(

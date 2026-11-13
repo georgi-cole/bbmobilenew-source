@@ -2,6 +2,7 @@ import {
   captureSeasonAiRuntime,
   runtimeCompetitionProfile,
 } from '../ai/competition/seasonAiDifficulty'
+import { formatVotePercentage, getVotePercentagePrecision } from '../utils/votePercentages.mjs'
 import {
   answerMissionPowerDecision,
   selectMissionBackup,
@@ -7724,12 +7725,15 @@ const gameSlice = createSlice({
       const first = state.players.find((player) => player.id === firstId)
       if (!first) return
       const firstPercent = action.payload.percentages[firstId] ?? 0
+      const percentagePrecision = getVotePercentagePrecision(
+        Object.values(action.payload.percentages)
+      )
       state.pendingEviction = {
         evicteeId: firstId,
         evictionMessage:
           action.payload.context === 'final3'
-            ? `${first.name} receives ${firstPercent.toFixed(1)}% of the audience vote to eliminate and finishes in 3rd place.`
-            : `${first.name} receives the highest audience vote to eliminate at ${firstPercent.toFixed(1)}% and leaves the Hub.`,
+            ? `${first.name} receives ${formatVotePercentage(firstPercent, percentagePrecision)} of the audience vote to eliminate and finishes in 3rd place.`
+            : `${first.name} receives the highest audience vote to eliminate at ${formatVotePercentage(firstPercent, percentagePrecision)} and leaves the Hub.`,
       }
 
       if (
@@ -7744,7 +7748,7 @@ const gameSlice = createSlice({
           const secondPercent = action.payload.percentages[secondId] ?? 0
           state.doubleEviction.pendingSecondEviction = {
             evicteeId: secondId,
-            evictionMessage: `${second.name} receives the second-highest audience vote to eliminate at ${secondPercent.toFixed(1)}% and also leaves in tonight's Double Elimination.`,
+            evictionMessage: `${second.name} receives the second-highest audience vote to eliminate at ${formatVotePercentage(secondPercent, percentagePrecision)} and also leaves in tonight's Double Elimination.`,
           }
         }
       }

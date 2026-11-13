@@ -231,6 +231,7 @@ describe('permanent purchases with manual native finishing', () => {
         processed = true
       })
       native.getPurchases.mockImplementation(async () => {
+        if (platform === 'android' && !processed) return { purchases: [permanent, consumable] }
         expect(processed).toBe(true)
         return { purchases: [{ ...permanent, isAcknowledged: true }] }
       })
@@ -245,6 +246,7 @@ describe('permanent purchases with manual native finishing', () => {
         })
         expect(native.acknowledgePurchase).not.toHaveBeenCalled()
       } else {
+        expect(native.getUnfinishedTransactions).not.toHaveBeenCalled()
         expect(native.acknowledgePurchase).toHaveBeenCalledExactlyOnceWith({
           purchaseToken: permanent.purchaseToken,
         })
@@ -254,4 +256,39 @@ describe('permanent purchases with manual native finishing', () => {
       expect(native.purchaseProduct).not.toHaveBeenCalled()
     }
   )
+
+  it('restores Android one-time purchases without the failing subscription helper', async () => {
+    native.platform = 'android'
+    native.getUnfinishedTransactions.mockRejectedValue(
+      new Error('Failed to query purchases: subs: SERVICE_DISCONNECTED (-1)')
+    )
+    native.getPurchases.mockResolvedValue({
+      purchases: [transaction(noAdsProductId, { purchaseState: '1', isAcknowledged: true })],
+    })
+    const { loadVipStoreSnapshot } = await import('./vipPurchaseService')
+    const result = await loadVipStoreSnapshot({ restore: true })
+    expect(result.billingAvailable).toBe(true)
+    expect(result.entitlements.noAds).toBe(true)
+    expect(native.getUnfinishedTransactions).not.toHaveBeenCalled()
+    expect(native.restorePurchases).not.toHaveBeenCalled()
+    expect(native.getPurchases).toHaveBeenCalledWith({ productType: 'inapp' })
+  })
+
+  it('keeps concurrent Android refreshes from closing each other’s billing queries', async () => {
+    native.platform = 'android'
+    let active = false
+    const bridgeQuery = async <T>(result: T) => {
+      if (active) throw new Error('SERVICE_DISCONNECTED: another call closed the BillingClient')
+      active = true
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      active = false
+      return result
+    }
+    native.isBillingSupported.mockImplementation(() => bridgeQuery({ isBillingSupported: true }))
+    native.getPurchases.mockImplementation(() => bridgeQuery({ purchases: [] }))
+    native.getProducts.mockImplementation(() => bridgeQuery({ products: [] }))
+    const { loadVipStoreSnapshot } = await import('./vipPurchaseService')
+    const results = await Promise.all([loadVipStoreSnapshot(), loadVipStoreSnapshot()])
+    expect(results.map((result) => result.billingAvailable)).toEqual([true, true])
+  })
 })

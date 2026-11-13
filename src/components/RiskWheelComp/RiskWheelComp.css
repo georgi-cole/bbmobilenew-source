@@ -1167,7 +1167,7 @@
   flex-direction: column;
   align-items: center;
   gap: 11px;
-  padding: 11px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: 11px 0 calc(16px + var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 .rw-winner-screen {

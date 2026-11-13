@@ -1,3 +1,4 @@
+import { getVotePercentagePrecision } from '../../utils/votePercentages.mjs'
 /**
  * AnimatedVoteResultsModal — sequentially reveals votes then announces the outcome.
  *
@@ -192,6 +193,7 @@ export default function AnimatedVoteResultsModal({
   const firedRef = useRef(false)
   const publicResolvedRef = useRef(false)
   const showVoteStage = !publicTiebreakVisible
+  const percentagePrecision = getVotePercentagePrecision(nominees.map((tally) => tally.voteCount))
   const effectiveRevealIntervalMs = revealIntervalMs ?? (resultMode === 'public' ? 28 : 700)
 
   const totalVotes = useMemo(() => nominees.reduce((s, t) => s + t.voteCount, 0), [nominees])
@@ -345,7 +347,8 @@ export default function AnimatedVoteResultsModal({
             <div className="avrm__tallies avrm__tallies--tv" data-nominee-count={nominees.length}>
               {nominees.map((t, index) => {
                 const shown = displayedCounts[t.nominee.id] ?? 0
-                const shownLabel = resultMode === 'public' ? shown.toFixed(1) : String(shown)
+                const shownLabel =
+                  resultMode === 'public' ? shown.toFixed(percentagePrecision) : String(shown)
                 const isEvictee =
                   resolvedEvicteeIds.has(t.nominee.id) ||
                   (t.partner ? resolvedEvicteeIds.has(t.partner.id) : false)
@@ -409,7 +412,8 @@ export default function AnimatedVoteResultsModal({
           <div className="avrm__tallies">
             {nominees.map((t) => {
               const shown = displayedCounts[t.nominee.id] ?? 0
-              const shownLabel = resultMode === 'public' ? shown.toFixed(1) : String(shown)
+              const shownLabel =
+                resultMode === 'public' ? shown.toFixed(percentagePrecision) : String(shown)
               const isEvictee =
                 resolvedEvicteeIds.has(t.nominee.id) ||
                 (t.partner ? resolvedEvicteeIds.has(t.partner.id) : false)

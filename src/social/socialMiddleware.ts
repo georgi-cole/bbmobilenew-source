@@ -1,3 +1,4 @@
+import { formatVotePercentage, getVotePercentagePrecision } from '../utils/votePercentages.mjs'
 /**
  * socialMiddleware — Redux middleware that hooks the SocialEngine into the
  * game phase lifecycle and dispatches social resource deltas for game events.
@@ -1491,9 +1492,14 @@ function recordEvictionVoteSummary(api: MiddlewareAPI, game: FullGameState): voi
   )
   const highestVoteCount = orderedTallies[0]?.voteCount ?? 0
   const leaders = orderedTallies.filter((entry) => entry.voteCount === highestVoteCount)
+  const percentagePrecision = getVotePercentagePrecision(
+    orderedTallies.map((entry) => entry.voteCount)
+  )
   const tallySummary = orderedTallies
     .map(({ name, voteCount }) =>
-      isAudienceVote ? `${name} ${voteCount.toFixed(1)}%` : `${name} ${Math.round(voteCount)}`
+      isAudienceVote
+        ? `${name} ${formatVotePercentage(voteCount, percentagePrecision)}`
+        : `${name} ${Math.round(voteCount)}`
     )
     .join(', ')
   const evictee = game.players.find((player) => player.id === game.pendingEviction?.evicteeId)

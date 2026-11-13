@@ -1,13 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { setDisplay, setGameUX, setSim } from '../../store/settingsSlice'
+import { setGameUX, setSim } from '../../store/settingsSlice'
 import { refreshSurvivalRuns } from '../../vip/survivalRunPurchaseService'
 import {
   initializeVip,
   selectHasDramaModeAccess,
   selectHasPublicModeAccess,
   selectHasTribunalHouseAccess,
-  selectIsVipActive,
   selectVip,
 } from '../../store/vipSlice'
 
@@ -32,7 +31,6 @@ function markRealityModeDefaultApplied(): void {
 export default function VipEntitlementSync() {
   const dispatch = useAppDispatch()
   const storeState = useAppSelector(selectVip)
-  const isVipActive = useAppSelector(selectIsVipActive)
   const hasDramaMode = useAppSelector(selectHasDramaModeAccess)
   const hasPublicMode = useAppSelector(selectHasPublicModeAccess)
   const hasTribunalHouse = useAppSelector(selectHasTribunalHouseAccess)
@@ -42,7 +40,6 @@ export default function VipEntitlementSync() {
     (state) => state.settings.sim.publicModeAdminOverride
   )
   const tribunalHouse = useAppSelector((state) => state.settings.sim.enableJuryHouse)
-  const theme = useAppSelector((state) => state.settings.display.themePreset)
   const realityDefaultAppliedRef = useRef(false)
 
   useEffect(() => {
@@ -68,18 +65,13 @@ export default function VipEntitlementSync() {
       dispatch(setSim({ publicMode: false }))
     }
     if (!hasTribunalHouse && tribunalHouse) dispatch(setSim({ enableJuryHouse: false }))
-    if (!isVipActive && theme !== 'midnight') {
-      dispatch(setDisplay({ themePreset: 'midnight' }))
-    }
   }, [
     dispatch,
     hasPublicMode,
     hasTribunalHouse,
-    isVipActive,
     publicMode,
     publicModeAdminOverride,
     storeState.status,
-    theme,
     tribunalHouse,
   ])
 

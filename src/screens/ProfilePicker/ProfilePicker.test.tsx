@@ -607,7 +607,8 @@ describe('ProfilePicker', () => {
     'does not invent a current season for a fresh profile at %s',
     (phase) => {
       setupActiveSeason()
-      mockState.game = { status: 'inactive', week: 1, phase }
+      // resetGame marks even an unplayed profile active. It is not proof of play.
+      mockState.game = { status: 'active', week: 1, phase }
       render(<ProfilePicker />)
 
       expect(screen.queryByRole('region', { name: 'Current season status' })).toBeNull()

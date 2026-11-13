@@ -3,7 +3,6 @@ import { render, screen, act } from '@testing-library/react'
 import type { CupidArrowPair, Player } from '../../../types'
 import { store } from '../../../store/store'
 import { setGameUX } from '../../../store/settingsSlice'
-import { normalisePublicSaveVoteShares } from '../../../publicOpinion/PublicSaveService'
 import PublicSaveReveal from '../PublicSaveReveal'
 
 function makePlayer(id: string, name: string): Player {
@@ -21,14 +20,6 @@ const rawApprovals = {
   p1: 42,
   p2: 43,
   p3: 50,
-}
-
-function formatShare(value: number): string {
-  const rounded = Number(value.toFixed(4))
-  const formatted = Number.isInteger(rounded)
-    ? rounded.toFixed(0)
-    : rounded.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
-  return `${formatted}%`
 }
 
 function advanceReveal(ms = 5000): void {
@@ -63,11 +54,6 @@ describe('PublicSaveReveal', () => {
   })
 
   it('keeps vote shares hidden until the existing five-second reveal point', () => {
-    const expectedShares = normalisePublicSaveVoteShares(
-      nominees.map((nominee) => nominee.id),
-      rawApprovals
-    )
-
     render(
       <PublicSaveReveal
         nominees={nominees}
@@ -82,8 +68,8 @@ describe('PublicSaveReveal', () => {
     advanceReveal()
 
     expect(screen.queryByText('—')).toBeNull()
-    nominees.forEach((nominee) => {
-      expect(screen.getByText(formatShare(expectedShares[nominee.id]))).toBeTruthy()
+    ;['31.1%', '31.9%', '37.0%'].forEach((label) => {
+      expect(screen.getByText(label)).toBeTruthy()
     })
   })
 
@@ -100,7 +86,7 @@ describe('PublicSaveReveal', () => {
 
     advanceReveal()
 
-    expect(screen.getAllByText('40%')).toHaveLength(2)
+    expect(screen.getAllByText('40.0%')).toHaveLength(2)
     expect(screen.queryByText('40.1%')).toBeNull()
     expect(screen.queryByText('39.9%')).toBeNull()
     act(() => {
@@ -113,7 +99,7 @@ describe('PublicSaveReveal', () => {
     ).toBeTruthy()
   })
 
-  it('shows distinct four-decimal shares for close but different scores', () => {
+  it('adds only the decimals needed to distinguish close scores', () => {
     render(
       <PublicSaveReveal
         nominees={nominees}
@@ -125,12 +111,13 @@ describe('PublicSaveReveal', () => {
 
     advanceReveal(7600)
 
-    expect(screen.getByText('39.9968%')).toBeTruthy()
-    expect(screen.getByText('40.0048%')).toBeTruthy()
+    expect(screen.getByText('39.997%')).toBeTruthy()
+    expect(screen.getByText('40.005%')).toBeTruthy()
+    expect(screen.queryByText('39.9968%')).toBeNull()
     expect(screen.queryByText(/round to a tie/)).toBeNull()
   })
 
-  it('explains when displayed shares match at the reveal precision', () => {
+  it('keeps actual equal shares equal', () => {
     render(
       <PublicSaveReveal
         nominees={nominees}
@@ -142,10 +129,10 @@ describe('PublicSaveReveal', () => {
 
     advanceReveal(7600)
 
-    expect(screen.getAllByText('40%')).toHaveLength(2)
+    expect(screen.getAllByText('40.0%')).toHaveLength(2)
     expect(
       screen.getByText(
-        'These shares match at 0.0001% precision. The saved result follows the full audience-ballot calculation.'
+        'These vote shares are equal. The saved result follows the full audience-ballot calculation.'
       )
     ).toBeTruthy()
   })
@@ -263,6 +250,6 @@ describe('PublicSaveReveal', () => {
     advanceReveal()
 
     expect(screen.queryByText('—')).toBeNull()
-    expect(screen.getByText('46.6666%')).toBeTruthy()
+    expect(screen.getByText('46.7%')).toBeTruthy()
   })
 })

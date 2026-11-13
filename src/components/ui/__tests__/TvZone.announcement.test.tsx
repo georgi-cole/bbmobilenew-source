@@ -33,6 +33,8 @@ import gameReducer, {
   claimActiveBroadcastEvent,
   consumeBroadcastEvent,
   debugActivateWeekendInterlude,
+  dismissVoteResults,
+  hydrateGame,
   setPhase,
   updatePlayer,
 } from '../../../store/gameSlice'
@@ -2346,7 +2348,8 @@ describe('TvZone current-frame fallback and handoff', () => {
 
     const viewport = screen.getByRole('region', { name: 'Live game events display' })
     expect(viewport.textContent?.trim()).not.toBe('')
-    expect(viewport).toHaveTextContent('Current phase:')
+    expect(viewport).not.toHaveTextContent('Current phase:')
+    expect(viewport).toHaveTextContent("Yesterday's promises are about to be tested.")
   })
 
   it('does not fall back to an unconsumed event from an earlier phase and week', () => {
@@ -2364,7 +2367,8 @@ describe('TvZone current-frame fallback and handoff', () => {
 
     const viewport = screen.getByRole('region', { name: 'Live game events display' })
     expect(viewport).not.toHaveTextContent('old week-four Ambush')
-    expect(viewport).toHaveTextContent('Current phase:')
+    expect(viewport).not.toHaveTextContent('Current phase:')
+    expect(viewport).toHaveTextContent('Whispers travel fast in the Hub.')
   })
 
   it('keeps optional messages queued while the synchronous competition handoff owns TV', () => {
@@ -2390,6 +2394,34 @@ describe('TvZone current-frame fallback and handoff', () => {
     expect(
       store.getState().game.tvFeed.find((event) => event.id === optionalEvent.id)?.meta
     ).not.toHaveProperty('broadcastConsumed', true)
+  })
+
+  it('withholds the committed result log until the vote reveal is dismissed', () => {
+    const store = makeStore()
+    const game = store.getState().game
+    const spoiler = 'Vote results: Nico 12, Georgi 1. Nico was eliminated.'
+    store.dispatch(
+      hydrateGame({
+        ...game,
+        phase: 'eviction_results',
+        voteResults: { nico: 12, georgi: 1 },
+        tvFeed: [
+          {
+            id: 'unrevealed-vote',
+            type: 'vote',
+            text: spoiler,
+            timestamp: Date.now(),
+            channels: ['mainLog'],
+            meta: { week: game.week, phase: 'eviction_results', evictionVoteResults: true },
+          },
+        ],
+      })
+    )
+    renderTvZone(store, { mainLogMaxVisible: 3 })
+    expect(screen.queryByText(/Nico 12, Georgi 1/)).not.toBeInTheDocument()
+    expect(store.getState().game.tvFeed.some((entry) => entry.text === spoiler)).toBe(true)
+    act(() => store.dispatch(dismissVoteResults()))
+    expect(screen.getAllByText(/Nico 12, Georgi 1/).length).toBeGreaterThan(0)
   })
 
   it('keeps the visible unread event ahead of a higher-priority late arrival', () => {

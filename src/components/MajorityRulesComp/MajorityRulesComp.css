@@ -723,8 +723,8 @@ button.majority-rules-player-card:hover {
   z-index: 40;
   display: grid;
   place-items: center;
-  padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1rem
-    calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  padding: calc(var(--minigame-safe-top, env(safe-area-inset-top, 0px)) + 1rem) 1rem
+    calc(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)) + 1rem);
   background: rgba(2, 6, 23, 0.82);
   backdrop-filter: blur(12px);
 }
@@ -1520,8 +1520,10 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
 }
 
 .majority-rules-shell::after {
-  inset: max(0.55rem, env(safe-area-inset-top, 0px)) max(0.55rem, env(safe-area-inset-right, 0px))
-    max(0.55rem, env(safe-area-inset-bottom, 0px)) max(0.55rem, env(safe-area-inset-left, 0px));
+  inset: max(0.55rem, var(--minigame-safe-top, env(safe-area-inset-top, 0px)))
+    max(0.55rem, var(--minigame-safe-right, env(safe-area-inset-right, 0px)))
+    max(0.55rem, var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)))
+    max(0.55rem, var(--minigame-safe-left, env(safe-area-inset-left, 0px)));
   border: 1px solid rgba(234, 207, 139, 0.24);
   box-shadow:
     inset 0 0 60px rgba(148, 89, 255, 0.1),
@@ -1931,8 +1933,10 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
 .majority-rules-shell {
   min-height: 100dvh;
   height: 100dvh;
-  padding: max(0.65rem, env(safe-area-inset-top, 0px)) max(0.8rem, env(safe-area-inset-right, 0px))
-    max(0.65rem, env(safe-area-inset-bottom, 0px)) max(0.8rem, env(safe-area-inset-left, 0px));
+  padding: max(0.65rem, var(--minigame-safe-top, env(safe-area-inset-top, 0px)))
+    max(0.8rem, var(--minigame-safe-right, env(safe-area-inset-right, 0px)))
+    max(0.65rem, var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)))
+    max(0.8rem, var(--minigame-safe-left, env(safe-area-inset-left, 0px)));
   background:
     radial-gradient(ellipse at 50% 10%, rgba(105, 73, 220, 0.3), transparent 38%),
     radial-gradient(ellipse at 83% 78%, rgba(224, 72, 85, 0.16), transparent 34%),
