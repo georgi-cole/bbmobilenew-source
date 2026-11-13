@@ -44,6 +44,14 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-13: Reviewed account/profile flow maintenance. Profile creation uses
+  one three-profile device limit before and after sign-in; existing extra
+  profiles and their saves remain available for management. Account-wide
+  linking, sync retries, deletion reconciliation, and account-only management
+  navigation do not change wallet balances, Eyeolean inventory, purchases,
+  entitlements, ads, prices, rewards, or premium benefits. VIP and Premium
+  Challenges still unlock every premium minigame version; offer copy is accurate.
+
 - 2026-11-13: Reviewed the cumulative TestFlight follow-up fixes. Retired the
   selectable player themes from Settings and Advanced Settings, normalized saved
   selections to Midnight, and removed the theme benefit from VIP and Store copy.

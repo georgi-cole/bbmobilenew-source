@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { store as appStore } from '../../store/store'
 import {
   coerceStoredProfile,
+  linkLocalProfilesToPlayerAccount,
   MAX_PROFILES,
   mergePlayerAccountProfiles,
   unlinkProfileFromPlayerAccount,
@@ -35,9 +36,14 @@ type AccountProfileRow = {
   deleted_at: string | null
 }
 
-export type AccountProfileSyncStatus = 'disabled' | 'syncing' | 'synced' | 'error'
+export type AccountProfileSyncStatus = 'disabled' | 'syncing' | 'synced' | 'limit' | 'error'
 let syncStatus: AccountProfileSyncStatus = 'disabled'
 const listeners = new Set<() => void>()
+const syncRequests = new Set<() => void>()
+
+export function retryAccountProfileSync() {
+  syncRequests.forEach((request) => request())
+}
 
 export function getAccountProfileSyncStatus() {
   return syncStatus
@@ -51,6 +57,7 @@ export function subscribeAccountProfileSync(listener: () => void) {
 }
 
 function setSyncStatus(next: AccountProfileSyncStatus) {
+  if (syncStatus === next) return
   syncStatus = next
   listeners.forEach((listener) => listener())
 }
@@ -71,6 +78,14 @@ function snapshotFor(profile: StoredProfile): AccountProfileSnapshot {
       accountProfileUpdatedAt: profile.accountProfileUpdatedAt ?? profile.createdAt,
     },
   }
+}
+
+function syncSignature(profiles: StoredProfile[], accountId: string): string {
+  return JSON.stringify(
+    profiles
+      .filter((profile) => !profile.playerAccountId || profile.playerAccountId === accountId)
+      .map((profile) => [profile.playerAccountId ?? null, snapshotFor(profile)])
+  )
 }
 
 function parseSnapshot(value: unknown, expectedId: string): StoredProfile | null {
@@ -241,7 +256,7 @@ export function initializePlayerAccountProfiles(store: typeof appStore): () => v
         return
       }
       activeAccountId = accountId
-      setSyncStatus('syncing')
+      if (syncStatus !== 'synced' && syncStatus !== 'limit') setSyncStatus('syncing')
 
       let pendingDeletes = readPendingDeletes()
       const currentlyLinkedIds = new Set(
@@ -288,7 +303,7 @@ export function initializePlayerAccountProfiles(store: typeof appStore): () => v
         if (!local || local.playerAccountId !== accountId) return true
         const localTime = Date.parse(local.accountProfileUpdatedAt ?? local.createdAt)
         const remoteTime = Date.parse(profile.accountProfileUpdatedAt ?? profile.createdAt)
-        return !Number.isFinite(localTime) || localTime <= remoteTime
+        return !Number.isFinite(localTime) || localTime < remoteTime
       })
       for (const profile of remoteProfiles)
         uploaded.set(`${accountId}:${profile.id}`, JSON.stringify(snapshotFor(profile)))
@@ -300,15 +315,31 @@ export function initializePlayerAccountProfiles(store: typeof appStore): () => v
       const knownIds = new Set(accountLocal.map((profile) => profile.id))
       const missingCount = profilesToMerge.filter((profile) => !knownIds.has(profile.id)).length
       if (accountLocal.length + missingCount > MAX_PROFILES) {
-        setSyncStatus('error')
+        setSyncStatus('limit')
         return
       }
       store.dispatch(mergePlayerAccountProfiles({ accountId, profiles: profilesToMerge }))
 
       const currentProfiles = store.getState().profiles.profiles
       const localOwned = currentProfiles.filter((profile) => profile.playerAccountId === accountId)
-      if (localOwned.length > MAX_PROFILES) throw new Error('This account already has 3 profiles.')
-      for (const profile of localOwned) {
+      const unclaimed = currentProfiles.filter(
+        (profile) => !profile.playerAccountId && !deletedIds.has(profile.id)
+      )
+      if (localOwned.length + unclaimed.length > MAX_PROFILES) {
+        setSyncStatus('limit')
+        return
+      }
+      if (unclaimed.length)
+        store.dispatch(
+          linkLocalProfilesToPlayerAccount({
+            accountId,
+            profileIds: unclaimed.map((profile) => profile.id),
+          })
+        )
+      const accountProfiles = store
+        .getState()
+        .profiles.profiles.filter((profile) => profile.playerAccountId === accountId)
+      for (const profile of accountProfiles) {
         const encoded = JSON.stringify(snapshotFor(profile))
         if (uploaded.get(`${accountId}:${profile.id}`) !== encoded) {
           await saveAccountProfile(client, profile, accountId)
@@ -330,6 +361,10 @@ export function initializePlayerAccountProfiles(store: typeof appStore): () => v
   const unsubscribeStore = store.subscribe(() => {
     const profiles = store.getState().profiles.profiles
     if (profiles === previousProfiles) return
+    const relevantChanged = activeAccountId
+      ? syncSignature(previousProfiles, activeAccountId) !==
+        syncSignature(profiles, activeAccountId)
+      : false
     const currentById = new Map(profiles.map((profile) => [profile.id, profile]))
     for (const before of previousProfiles) {
       if (!before.playerAccountId) continue
@@ -343,7 +378,7 @@ export function initializePlayerAccountProfiles(store: typeof appStore): () => v
       if (!before?.playerAccountId) explicitlyRelinked.add(`${after.playerAccountId}:${after.id}`)
     }
     previousProfiles = profiles
-    if (activeAccountId) {
+    if (activeAccountId && relevantChanged) {
       setSyncStatus('syncing')
       schedule()
     }
@@ -361,6 +396,7 @@ export function initializePlayerAccountProfiles(store: typeof appStore): () => v
   }
   window.addEventListener('online', online)
   document.addEventListener('visibilitychange', visible)
+  syncRequests.add(schedule)
 
   void getBackendClient(PURPOSE)
     .then(async (client) => {
@@ -376,5 +412,6 @@ export function initializePlayerAccountProfiles(store: typeof appStore): () => v
     unsubscribeAccount()
     window.removeEventListener('online', online)
     document.removeEventListener('visibilitychange', visible)
+    syncRequests.delete(schedule)
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, type ChangeEvent } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, type ChangeEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useAppSelector, useAppDispatch } from '../../store/hooks'
 import {
@@ -78,18 +78,29 @@ export default function ProfilePicker() {
   const location = useLocation()
   const dispatch = useAppDispatch()
   const requestedReturnTo = (location.state as { from?: string } | null)?.from
-  const returnTo =
-    requestedReturnTo === '/' || requestedReturnTo === '/profile' ? requestedReturnTo : '/game'
+  const manageOnly = (location.state as { manageOnly?: boolean } | null)?.manageOnly === true
+  const returnTo = manageOnly
+    ? '/profile/account'
+    : requestedReturnTo === '/' || requestedReturnTo === '/profile'
+      ? requestedReturnTo
+      : '/game'
 
   const profiles = useAppSelector(selectAllProfiles)
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const isGuest = useAppSelector(selectIsGuest)
+  const autoSelectingSingle =
+    (location.state as { autoSelectSingle?: boolean } | null)?.autoSelectSingle === true &&
+    profiles.length === 1
+  const autoSelectionStarted = useRef(false)
   const [playerAccount, setPlayerAccount] = useState<PlayerAccount | null>(null)
   const [accountKnown, setAccountKnown] = useState(false)
   const [accountSyncStatus, setAccountSyncStatus] = useState(getAccountProfileSyncStatus())
 
   const isGameActive = useAppSelector(
-    (s) => s.game.status === 'active' || s.game.week > 1 || s.game.phase !== 'week_start'
+    (s) =>
+      s.game.status === 'active' ||
+      s.game.week > 1 ||
+      (s.game.phase !== 'season_start' && s.game.phase !== 'week_start')
   )
   const hasGuestRunProgress = useAppSelector(
     (s) =>
@@ -135,10 +146,7 @@ export default function ProfilePicker() {
   const [pendingHome, setPendingHome] = useState(false)
   const [pendingResumeId, setPendingResumeId] = useState<string | null>(null)
 
-  const ownedProfileCount = profiles.filter((profile) =>
-    playerAccount ? profile.playerAccountId === playerAccount.id : !profile.playerAccountId
-  ).length
-  const atLimit = ownedProfileCount >= MAX_PROFILES
+  const atLimit = profiles.length >= MAX_PROFILES
   const waitingForAccountSync = Boolean(playerAccount && accountSyncStatus !== 'synced')
   const parsedNewAge = Number(newAge)
   const canCreateProfile =
@@ -198,6 +206,7 @@ export default function ProfilePicker() {
         createProfile: true,
         adoptGuestRun: isGuest && hasGuestRunProgress,
         ...(playerAccount && { playerAccountId: playerAccount.id }),
+        ...(manageOnly && { fromPlayerAccount: true }),
       },
     })
   }, [
@@ -206,6 +215,7 @@ export default function ProfilePicker() {
     hasGuestRunProgress,
     isGuest,
     location.state,
+    manageOnly,
     navigate,
     playerAccount,
     waitingForAccountSync,
@@ -236,35 +246,48 @@ export default function ProfilePicker() {
     }
   }, [])
 
-  function handleSelectProfile(id: string) {
-    if (id === activeProfileId && !isGuest) {
+  const commitSwitch = useCallback(
+    (id: string) => {
+      // Inspect the target profile before changing activeProfileId. This closes a
+      // window where visibility autosave could otherwise write the old profile's
+      // in-memory game under the newly selected profile ID.
+      const snapshot = getPlayableLastRun(loadSavedRunProfile(id))
+      if (snapshot?.profileId === id) {
+        setPendingResumeId(id)
+        return
+      }
+
+      const archives = loadSeasonArchives(archiveKeyForProfile(id)) ?? []
+      withRunAutosaveSuspended(() => {
+        dispatch(selectActiveProfile(id))
+        dispatch(resetGame(archives))
+      })
       navigate('/profile', { replace: true, state: { from: returnTo } })
-      return
-    }
-    if (isGameActive) {
-      setPendingSwitchId(id)
-    } else {
-      commitSwitch(id)
-    }
-  }
+    },
+    [dispatch, navigate, returnTo]
+  )
 
-  function commitSwitch(id: string) {
-    // Inspect the target profile before changing activeProfileId. This closes a
-    // window where visibility autosave could otherwise write the old profile's
-    // in-memory game under the newly selected profile ID.
-    const snapshot = getPlayableLastRun(loadSavedRunProfile(id))
-    if (snapshot?.profileId === id) {
-      setPendingResumeId(id)
-      return
-    }
+  const handleSelectProfile = useCallback(
+    (id: string) => {
+      if (id === activeProfileId && !isGuest) {
+        navigate('/profile', { replace: true, state: { from: returnTo } })
+        return
+      }
+      if (isGameActive) {
+        setPendingSwitchId(id)
+      } else {
+        commitSwitch(id)
+      }
+    },
+    [activeProfileId, isGuest, navigate, returnTo, isGameActive, commitSwitch]
+  )
 
-    const archives = loadSeasonArchives(archiveKeyForProfile(id)) ?? []
-    withRunAutosaveSuspended(() => {
-      dispatch(selectActiveProfile(id))
-      dispatch(resetGame(archives))
-    })
-    navigate('/profile', { replace: true, state: { from: returnTo } })
-  }
+  useEffect(() => {
+    if (autoSelectingSingle && !autoSelectionStarted.current) {
+      autoSelectionStarted.current = true
+      handleSelectProfile(profiles[0].id)
+    }
+  }, [autoSelectingSingle, handleSelectProfile, profiles])
 
   function commitResume(id: string) {
     const snapshot = getPlayableLastRun(loadSavedRunProfile(id))
@@ -313,6 +336,10 @@ export default function ProfilePicker() {
   }
 
   function handleHome() {
+    if (manageOnly) {
+      navigate('/profile/account', { replace: true })
+      return
+    }
     if (returnTo === '/profile') {
       navigate('/profile', { replace: true })
       return
@@ -420,7 +447,10 @@ export default function ProfilePicker() {
       emailForm.reset()
       setDraftIdentity(createProfileDraftIdentity())
       clearNewPhoto()
-      navigate(adoptGuestRun ? '/game' : '/profile', { replace: true, state: { from: returnTo } })
+      navigate(manageOnly ? '/profile/account' : adoptGuestRun ? '/game' : '/profile', {
+        replace: true,
+        state: { from: returnTo },
+      })
     } finally {
       creatingRef.current = false
       if (mounted.current) setSavingProfile(false)
@@ -521,328 +551,339 @@ export default function ProfilePicker() {
   }
 
   return (
-    <div className="placeholder-screen profile-picker">
-      <div className="profile-picker__topbar">
-        <GameBackButton
-          onClick={handleHome}
-          disabled={savingProfile}
-          label={
-            returnTo === '/profile'
-              ? 'Back to profile'
-              : returnTo === '/game'
-                ? 'Back to game'
-                : 'Back to home'
-          }
-        />
-      </div>
-      <h1 className="profile-picker__title">👤 Profiles</h1>
-      <p className="profile-picker__subtitle">Select a profile to play as</p>
-      {!showCreateForm && isPlayerSignInConfigured() && (
-        <button
-          type="button"
-          className="game-button game-button--secondary"
-          onClick={() => navigate('/profile/account', { state: { pickerFrom: returnTo } })}
-        >
-          Account sign-in
-        </button>
-      )}
-
-      {profiles.length > 0 && (
-        <div className="profile-picker__list">
-          {profiles.map((p) => {
-            const isActive = p.id === activeProfileId && !isGuest
-            return (
-              <div
-                key={p.id}
-                className={`profile-picker__card${isActive ? ' profile-picker__card--active' : ''}`}
-              >
-                <div className="profile-picker__card-header">
-                  {renderAvatar(p)}
-                  <div className="profile-picker__info">
-                    <div className="profile-picker__name">{p.name}</div>
-                    <div className="profile-picker__meta">
-                      {new Date(p.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  {isActive && <span className="profile-picker__badge">Active</span>}
-                  <div className="profile-picker__actions">
-                    {!isActive && (
-                      <button
-                        type="button"
-                        className="profile-picker__btn profile-picker__btn--select"
-                        onClick={() => handleSelectProfile(p.id)}
-                      >
-                        Select
-                      </button>
-                    )}
-                    {isActive && (
-                      <button
-                        type="button"
-                        className="profile-picker__btn profile-picker__btn--edit"
-                        onClick={() =>
-                          navigate('/profile-edit', { state: { from: '/profile-picker' } })
-                        }
-                        aria-label={`Edit profile ${p.name}`}
-                        title={`Edit profile ${p.name}`}
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M4 16.5V20h3.5L18.8 8.7l-3.5-3.5L4 16.5Z" />
-                          <path d="m13.8 6.7 3.5 3.5M4 20l4.2-1" />
-                        </svg>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="profile-picker__btn profile-picker__btn--delete"
-                      onClick={() => handleDeleteRequest(p.id)}
-                      aria-label={`Delete profile ${p.name}`}
-                    >
-                      🗑
-                    </button>
-                  </div>
-                </div>
-                {isActive && <ProfileSeasonStatus />}
-              </div>
-            )
-          })}
+    <>
+      <div
+        className="placeholder-screen profile-picker"
+        style={autoSelectingSingle ? { display: 'none' } : undefined}
+      >
+        <div className="profile-picker__topbar">
+          <GameBackButton
+            onClick={handleHome}
+            disabled={savingProfile}
+            label={
+              manageOnly
+                ? 'Back to account'
+                : returnTo === '/profile'
+                  ? 'Back to profile'
+                  : returnTo === '/game'
+                    ? 'Back to game'
+                    : 'Back to home'
+            }
+          />
         </div>
-      )}
+        <h1 className="profile-picker__title">{manageOnly ? 'Manage profiles' : 'Profiles'}</h1>
+        <p className="profile-picker__subtitle">
+          {manageOnly ? 'Keep up to three profiles.' : 'Select a profile to play as'}
+        </p>
+        {!manageOnly && !showCreateForm && isPlayerSignInConfigured() && (
+          <button
+            type="button"
+            className="game-button game-button--secondary"
+            onClick={() => navigate('/profile/account', { state: { pickerFrom: returnTo } })}
+          >
+            {playerAccount ? 'Account' : 'Account sign-in'}
+          </button>
+        )}
 
-      {atLimit && !showCreateForm && (
-        <div className="profile-picker__limit-notice">
-          <span>⚠️</span>
-          <div>
-            {playerAccount
-              ? `This account can have up to ${MAX_PROFILES} profiles.`
-              : `Up to ${MAX_PROFILES} local profiles can be created on this device. Sign in to manage account profiles.`}
-          </div>
-        </div>
-      )}
-
-      {waitingForAccountSync && (
-        <p role="status">Checking this account’s profiles before creating another one…</p>
-      )}
-
-      {!atLimit && !waitingForAccountSync && accountKnown && (
-        <>
-          {profiles.length > 0 && (
-            <div className="profile-picker__divider">
-              <span className="profile-picker__divider-line" />
-              <span className="profile-picker__divider-label">or</span>
-              <span className="profile-picker__divider-line" />
-            </div>
-          )}
-
-          {!showCreateForm ? (
-            <>
-              {isGuest && (
-                <div className="profile-picker__save-invite" role="note">
-                  <span className="profile-picker__save-invite-icon" aria-hidden="true">
-                    ✦
-                  </span>
-                  <span>
-                    <strong>Keep your season</strong>
-                    <small>Create a profile to save your progress.</small>
-                  </span>
-                </div>
-              )}
-              <button
-                type="button"
-                className={`profile-picker__btn profile-picker__btn--create${isGuest ? ' profile-picker__btn--save-spotlight' : ''}`}
-                style={{ width: '100%', marginBottom: 12 }}
-                onClick={() => {
-                  // Keep the legacy in-place draft mounted until the router commits the
-                  // transition. In production the Changing room route replaces it in the
-                  // same interaction; this also gives a safe fallback if navigation fails.
-                  setShowCreateForm(true)
-                  navigate('/profile/dressing-room', {
-                    state: {
-                      from: '/',
-                      createProfile: true,
-                      adoptGuestRun: isGuest && hasGuestRunProgress,
-                      ...(playerAccount && { playerAccountId: playerAccount.id }),
-                    },
-                  })
-                }}
-              >
-                ➕ Create New Profile
-              </button>
-            </>
-          ) : (
-            <div
-              className={`profile-picker__create${isGuest ? ' profile-picker__create--save-spotlight' : ''}`}
-            >
-              <p className="profile-picker__create-title">New Profile</p>
-              {isGuest && (
-                <div className="profile-picker__save-invite" role="note">
-                  <span className="profile-picker__save-invite-icon" aria-hidden="true">
-                    ✦
-                  </span>
-                  <span>
-                    <strong>Save this season to your profile</strong>
-                    <small>Your current progress will stay right where it is.</small>
-                  </span>
-                </div>
-              )}
-              {createStep === 'look' ? (
-                <div className="profile-picker__look-step">
-                  <h2>Choose your look</h2>
-                  <p>Your name. Your story. Your style.</p>
-                  <AppearanceCarousel
-                    selectedId={newLookId}
-                    onSelect={setNewLookId}
-                    onConfirm={() => setCreateStep('details')}
-                  />
-                  <button
-                    type="button"
-                    className="profile-picker__btn--cancel"
-                    onClick={cancelCreate}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p className="profile-picker__look-note">
-                    Your chosen look represents you in the game. A photo here appears on your local
-                    profile card.
-                  </p>
-                  <div className="profile-picker__create-photo-section">
-                    <div className="profile-picker__create-photo-wrap">
-                      <ProfilePhotoPreview
-                        className="profile-picker__create-photo-img"
-                        photoUrl={newPhotoPreview}
-                        appearance={{ kind: 'catalog', lookId: newLookId, revision: 1 }}
-                        alt="Selected profile portrait"
-                      />
-                      <button
-                        type="button"
-                        className="profile-picker__create-photo-btn"
-                        onClick={() => fileInputRef.current?.click()}
-                        aria-label="Upload profile photo"
-                        disabled={savingProfile}
-                      >
-                        📷
-                      </button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
-                        style={{ display: 'none' }}
-                        onChange={handleNewPhotoChange}
-                        disabled={savingProfile}
-                      />
+        {profiles.length > 0 && (
+          <div className="profile-picker__list">
+            {profiles.map((p) => {
+              const isActive = p.id === activeProfileId && !isGuest
+              return (
+                <div
+                  key={p.id}
+                  className={`profile-picker__card${isActive ? ' profile-picker__card--active' : ''}`}
+                >
+                  <div className="profile-picker__card-header">
+                    {renderAvatar(p)}
+                    <div className="profile-picker__info">
+                      <div className="profile-picker__name">{p.name}</div>
+                      <div className="profile-picker__meta">
+                        {new Date(p.createdAt).toLocaleDateString()}
+                      </div>
                     </div>
-                    <div className="profile-picker__create-photo-copy">
-                      <span className="profile-picker__create-photo-label">Profile Photo</span>
-                      <span className="profile-picker__create-photo-hint">
-                        Upload from your gallery
-                      </span>
-                      {processingPhoto && (
-                        <span className="profile-picker__create-photo-processing">
-                          Processing image...
-                        </span>
+                    {isActive && <span className="profile-picker__badge">Active</span>}
+                    <div className="profile-picker__actions">
+                      {!manageOnly && !isActive && (
+                        <button
+                          type="button"
+                          className="profile-picker__btn profile-picker__btn--select"
+                          onClick={() => handleSelectProfile(p.id)}
+                        >
+                          Select
+                        </button>
                       )}
+                      {!manageOnly && isActive && (
+                        <button
+                          type="button"
+                          className="profile-picker__btn profile-picker__btn--edit"
+                          onClick={() =>
+                            navigate('/profile-edit', { state: { from: '/profile-picker' } })
+                          }
+                          aria-label={`Edit profile ${p.name}`}
+                          title={`Edit profile ${p.name}`}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 16.5V20h3.5L18.8 8.7l-3.5-3.5L4 16.5Z" />
+                            <path d="m13.8 6.7 3.5 3.5M4 20l4.2-1" />
+                          </svg>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="profile-picker__btn profile-picker__btn--delete"
+                        onClick={() => handleDeleteRequest(p.id)}
+                        aria-label={`Delete profile ${p.name}`}
+                      >
+                        🗑
+                      </button>
                     </div>
                   </div>
-                  <label className="profile-picker__create-label" htmlFor="profile-create-name">
-                    Display name <span aria-hidden="true">*</span>
-                  </label>
-                  <input
-                    id="profile-create-name"
-                    className="profile-picker__input"
-                    type="text"
-                    placeholder="Enter display name"
-                    maxLength={24}
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    autoFocus
-                    required
-                  />
-                  <label className="profile-picker__create-label" htmlFor="profile-create-age">
-                    Age <span aria-hidden="true">*</span>
-                  </label>
-                  <input
-                    id="profile-create-age"
-                    className="profile-picker__input"
-                    type="number"
-                    min="0"
-                    max="120"
-                    step="1"
-                    placeholder="Enter your age"
-                    value={newAge}
-                    onChange={(e) => setNewAge(e.target.value)}
-                    required
-                  />
-                  <label className="profile-picker__create-label" htmlFor="profile-create-sex">
-                    Sex (Reality storylines) <span aria-hidden="true">*</span>
-                  </label>
-                  <select
-                    id="profile-create-sex"
-                    className="profile-picker__input"
-                    value={newSex}
-                    onChange={(e) => setNewSex(e.target.value)}
-                    required
-                  >
-                    <option value="" disabled>
-                      Select your sex
-                    </option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                    <option value="Prefer not to say">Prefer not to say</option>
-                  </select>
-                  <ProfileEmailFields
-                    form={emailForm}
-                    idPrefix="profile-create"
-                    disabled={savingProfile}
-                  />
-                  <ProfileOptionalDetails value={newBio} onChange={setNewBio} />
-                  <div className="profile-picker__create-actions">
+                  {!manageOnly && isActive && <ProfileSeasonStatus />}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {atLimit && !showCreateForm && (
+          <div className="profile-picker__limit-notice">
+            <span>⚠️</span>
+            <div>{`You can keep up to ${MAX_PROFILES} profiles. Delete one to make room.`}</div>
+          </div>
+        )}
+
+        {playerAccount && accountSyncStatus === 'syncing' && <p role="status">Syncing profiles…</p>}
+
+        {playerAccount && accountSyncStatus === 'error' && (
+          <p role="status">Could not sync profiles. Open Account to retry.</p>
+        )}
+
+        {!atLimit && !waitingForAccountSync && accountKnown && (
+          <>
+            {profiles.length > 0 && (
+              <div className="profile-picker__divider">
+                <span className="profile-picker__divider-line" />
+                <span className="profile-picker__divider-label">or</span>
+                <span className="profile-picker__divider-line" />
+              </div>
+            )}
+
+            {!showCreateForm ? (
+              <>
+                {isGuest && (
+                  <div className="profile-picker__save-invite" role="note">
+                    <span className="profile-picker__save-invite-icon" aria-hidden="true">
+                      ✦
+                    </span>
+                    <span>
+                      <strong>Keep your season</strong>
+                      <small>Create a profile to save your progress.</small>
+                    </span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className={`profile-picker__btn profile-picker__btn--create${isGuest ? ' profile-picker__btn--save-spotlight' : ''}`}
+                  style={{ width: '100%', marginBottom: 12 }}
+                  onClick={() => {
+                    // Keep the legacy in-place draft mounted until the router commits the
+                    // transition. In production the Changing room route replaces it in the
+                    // same interaction; this also gives a safe fallback if navigation fails.
+                    setShowCreateForm(true)
+                    navigate('/profile/dressing-room', {
+                      state: {
+                        from: '/',
+                        createProfile: true,
+                        adoptGuestRun: isGuest && hasGuestRunProgress,
+                        ...(playerAccount && { playerAccountId: playerAccount.id }),
+                        ...(manageOnly && { fromPlayerAccount: true }),
+                      },
+                    })
+                  }}
+                >
+                  ➕ Create New Profile
+                </button>
+              </>
+            ) : (
+              <div
+                className={`profile-picker__create${isGuest ? ' profile-picker__create--save-spotlight' : ''}`}
+              >
+                <p className="profile-picker__create-title">New Profile</p>
+                {isGuest && (
+                  <div className="profile-picker__save-invite" role="note">
+                    <span className="profile-picker__save-invite-icon" aria-hidden="true">
+                      ✦
+                    </span>
+                    <span>
+                      <strong>Save this season to your profile</strong>
+                      <small>Your current progress will stay right where it is.</small>
+                    </span>
+                  </div>
+                )}
+                {createStep === 'look' ? (
+                  <div className="profile-picker__look-step">
+                    <h2>Choose your look</h2>
+                    <p>Your name. Your story. Your style.</p>
+                    <AppearanceCarousel
+                      selectedId={newLookId}
+                      onSelect={setNewLookId}
+                      onConfirm={() => setCreateStep('details')}
+                    />
                     <button
                       type="button"
                       className="profile-picker__btn--cancel"
-                      disabled={savingProfile}
-                      onClick={() => {
-                        setCreateStep('look')
-                      }}
+                      onClick={cancelCreate}
                     >
-                      Back to looks
-                    </button>
-                    <button
-                      type="button"
-                      className="profile-picker__btn profile-picker__btn--create"
-                      disabled={!canCreateProfile || processingPhoto || savingProfile}
-                      onClick={() => void handleCreate()}
-                    >
-                      {savingProfile ? 'Saving…' : 'Create Profile'}
+                      Cancel
                     </button>
                   </div>
-                </>
-              )}
+                ) : (
+                  <>
+                    <p className="profile-picker__look-note">
+                      Your chosen look represents you in the game. A photo here appears on your
+                      local profile card.
+                    </p>
+                    <div className="profile-picker__create-photo-section">
+                      <div className="profile-picker__create-photo-wrap">
+                        <ProfilePhotoPreview
+                          className="profile-picker__create-photo-img"
+                          photoUrl={newPhotoPreview}
+                          appearance={{ kind: 'catalog', lookId: newLookId, revision: 1 }}
+                          alt="Selected profile portrait"
+                        />
+                        <button
+                          type="button"
+                          className="profile-picker__create-photo-btn"
+                          onClick={() => fileInputRef.current?.click()}
+                          aria-label="Upload profile photo"
+                          disabled={savingProfile}
+                        >
+                          📷
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          style={{ display: 'none' }}
+                          onChange={handleNewPhotoChange}
+                          disabled={savingProfile}
+                        />
+                      </div>
+                      <div className="profile-picker__create-photo-copy">
+                        <span className="profile-picker__create-photo-label">Profile Photo</span>
+                        <span className="profile-picker__create-photo-hint">
+                          Upload from your gallery
+                        </span>
+                        {processingPhoto && (
+                          <span className="profile-picker__create-photo-processing">
+                            Processing image...
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <label className="profile-picker__create-label" htmlFor="profile-create-name">
+                      Display name <span aria-hidden="true">*</span>
+                    </label>
+                    <input
+                      id="profile-create-name"
+                      className="profile-picker__input"
+                      type="text"
+                      placeholder="Enter display name"
+                      maxLength={24}
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      autoFocus
+                      required
+                    />
+                    <label className="profile-picker__create-label" htmlFor="profile-create-age">
+                      Age <span aria-hidden="true">*</span>
+                    </label>
+                    <input
+                      id="profile-create-age"
+                      className="profile-picker__input"
+                      type="number"
+                      min="0"
+                      max="120"
+                      step="1"
+                      placeholder="Enter your age"
+                      value={newAge}
+                      onChange={(e) => setNewAge(e.target.value)}
+                      required
+                    />
+                    <label className="profile-picker__create-label" htmlFor="profile-create-sex">
+                      Sex (Reality storylines) <span aria-hidden="true">*</span>
+                    </label>
+                    <select
+                      id="profile-create-sex"
+                      className="profile-picker__input"
+                      value={newSex}
+                      onChange={(e) => setNewSex(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>
+                        Select your sex
+                      </option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                      <option value="Prefer not to say">Prefer not to say</option>
+                    </select>
+                    <ProfileEmailFields
+                      form={emailForm}
+                      idPrefix="profile-create"
+                      disabled={savingProfile}
+                    />
+                    <ProfileOptionalDetails value={newBio} onChange={setNewBio} />
+                    <div className="profile-picker__create-actions">
+                      <button
+                        type="button"
+                        className="profile-picker__btn--cancel"
+                        disabled={savingProfile}
+                        onClick={() => {
+                          setCreateStep('look')
+                        }}
+                      >
+                        Back to looks
+                      </button>
+                      <button
+                        type="button"
+                        className="profile-picker__btn profile-picker__btn--create"
+                        disabled={!canCreateProfile || processingPhoto || savingProfile}
+                        onClick={() => void handleCreate()}
+                      >
+                        {savingProfile ? 'Saving…' : 'Create Profile'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {!manageOnly && !showCreateForm && (
+          <>
+            <div className="profile-picker__divider">
+              <span className="profile-picker__divider-line" />
+              <span className="profile-picker__divider-label">play without saving</span>
+              <span className="profile-picker__divider-line" />
             </div>
-          )}
-        </>
-      )}
-
-      {!showCreateForm && (
-        <>
-          <div className="profile-picker__divider">
-            <span className="profile-picker__divider-line" />
-            <span className="profile-picker__divider-label">play without saving</span>
-            <span className="profile-picker__divider-line" />
-          </div>
-          <div className="profile-picker__guest">
-            <button type="button" className="profile-picker__btn--guest" onClick={handleGuestMode}>
-              Continue as Guest
-            </button>
-            <p className="profile-picker__guest-warning">
-              ⚠️ Guest mode — stats and season archives will not be saved.
-            </p>
-          </div>
-        </>
-      )}
-
+            <div className="profile-picker__guest">
+              <button
+                type="button"
+                className="profile-picker__btn--guest"
+                onClick={handleGuestMode}
+              >
+                Continue as Guest
+              </button>
+              <p className="profile-picker__guest-warning">
+                ⚠️ Guest mode — stats and season archives will not be saved.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
       <ConfirmExitModal
         open={Boolean(pendingSwitchId)}
         title="Switch Profile?"
@@ -853,7 +894,11 @@ export default function ProfilePicker() {
           if (pendingSwitchId) commitSwitch(pendingSwitchId)
           setPendingSwitchId(null)
         }}
-        onCancel={() => setPendingSwitchId(null)}
+        onCancel={() => {
+          setPendingSwitchId(null)
+          if (autoSelectingSingle)
+            navigate('/profile/account', { replace: true, state: { entryFrom: returnTo } })
+        }}
       />
 
       <ConfirmExitModal
@@ -910,6 +955,6 @@ export default function ProfilePicker() {
         }}
         onCancel={() => setPendingDeleteId(null)}
       />
-    </div>
+    </>
   )
 }

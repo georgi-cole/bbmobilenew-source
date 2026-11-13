@@ -5,7 +5,7 @@ import { warmAppearanceRole, warmSelectedAppearance } from '../../appearance/pre
 import { getAppearanceAsset, SELECTABLE_LOOKS } from '../../appearance/catalog'
 import { canFillInitialSeasonAppearance } from '../../appearance/initialSeasonAppearance'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { selectCurrentProfile, updateProfile } from '../../store/profilesSlice'
+import { MAX_PROFILES, selectCurrentProfile, updateProfile } from '../../store/profilesSlice'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import { joinPublicAssetPath } from '../../utils/avatar'
 import LookLockInReveal, { LOCK_IN_FRAME_URL, type LockInLook } from './LookLockInReveal'
@@ -26,6 +26,7 @@ export default function DressingRoom() {
   const creatingProfile = routeState?.createProfile === true
   const dispatch = useAppDispatch()
   const profile = useAppSelector(selectCurrentProfile)
+  const atProfileLimit = useAppSelector((state) => state.profiles.profiles.length >= MAX_PROFILES)
   const canFillCurrentLook = useAppSelector((state) =>
     Boolean(state.game && canFillInitialSeasonAppearance(state.game))
   )
@@ -41,6 +42,16 @@ export default function DressingRoom() {
   )
   const returnTo = routeState?.from === '/' ? '/' : '/game'
   const creationBack = routeState?.fromPlayerAccount ? '/profile/account' : '/'
+
+  useEffect(() => {
+    if (creatingProfile && atProfileLimit)
+      navigate('/profile-picker', {
+        replace: true,
+        state: routeState?.fromPlayerAccount
+          ? { from: '/profile/account', manageOnly: true }
+          : { from: returnTo },
+      })
+  }, [creatingProfile, atProfileLimit, navigate, routeState?.fromPlayerAccount, returnTo])
 
   useEffect(() => {
     void preloadImage(LOCK_IN_FRAME_URL)
@@ -59,7 +70,7 @@ export default function DressingRoom() {
     }
   }, [selectedId])
 
-  if (!creatingProfile && !profile) return null
+  if ((!creatingProfile && !profile) || (creatingProfile && atProfileLimit)) return null
 
   function confirmSelection() {
     if ((!creatingProfile && (!profile || profile.id !== profileIdAtOpen.current)) || lockIn) return
@@ -149,7 +160,11 @@ export default function DressingRoom() {
               })
             }
             label={
-              creatingProfile && !routeState?.fromPlayerAccount ? 'Back to home' : 'Back to profile'
+              creatingProfile
+                ? routeState?.fromPlayerAccount
+                  ? 'Back to account'
+                  : 'Back to home'
+                : 'Back to profile'
             }
           />
           <span>Changing room</span>

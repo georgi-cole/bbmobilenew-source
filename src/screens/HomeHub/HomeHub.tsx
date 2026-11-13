@@ -114,7 +114,7 @@ function HomeHubButtonIcon({ name }: { name: HomeHubIconName }) {
 const HUB_BUTTONS = [
   { to: '/game', label: 'Play', icon: 'play', variant: 'primary_large' },
   { to: '/rules', label: 'Rules', icon: 'rules', variant: 'secondary_medium' },
-  { to: '/profile', label: 'Profile', icon: 'profile', variant: 'secondary_medium' },
+  { to: '/profile/account', label: 'Profile', icon: 'profile', variant: 'secondary_medium' },
   { to: '/housemates', label: 'Hubmates', icon: 'housemates', variant: 'secondary_wide' },
   { to: '/store', label: 'Market', icon: 'market', variant: 'secondary_wide' },
   { to: '/credits', label: 'Credits', icon: 'credits', variant: 'secondary_small' },
@@ -244,7 +244,9 @@ function HomeHubAssetLayer({
                               : () =>
                                   onNavigate(
                                     to,
-                                    to === '/profile' ? { state: { from: '/' } } : undefined
+                                    to === '/profile/account'
+                                      ? { state: { entryFrom: '/' } }
+                                      : undefined
                                   )
                     }
                   />

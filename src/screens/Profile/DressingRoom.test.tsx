@@ -114,6 +114,18 @@ describe('Changing room look lock-in', () => {
     })
   })
 
+  it('returns a full device to account management instead of opening another creation draft', () => {
+    while (mockProfiles.profiles.length < 3)
+      mockProfiles = profilesReducer(mockProfiles, createProfile({ name: 'Existing', avatar: 'E' }))
+    mockLocationState = { createProfile: true, fromPlayerAccount: true }
+    render(<DressingRoom />)
+    expect(mockNavigate).toHaveBeenCalledWith('/profile-picker', {
+      replace: true,
+      state: { from: '/profile/account', manageOnly: true },
+    })
+    expect(screen.queryByRole('button', { name: 'Choose this look' })).toBeNull()
+  })
+
   it('allows the reveal to be skipped while its portrait is still loading', () => {
     render(<DressingRoom />)
     fireEvent.click(screen.getByRole('button', { name: 'Use this look' }))

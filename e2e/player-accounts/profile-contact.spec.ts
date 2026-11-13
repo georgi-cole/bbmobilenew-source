@@ -434,7 +434,6 @@ test('email verification leaves the player in the normal profile setup and keeps
     await route.fulfill({ json: { appleNeedsManualRevocation: false } })
   })
   await page.goto(`${APP_URL}#/profile`)
-  await page.getByRole('button', { name: 'Account sign-in' }).click()
   await page.getByRole('button', { name: 'Continue with email' }).click()
   await page.getByLabel('Sign-in email').fill('SignIn@Example.com')
   await page.getByRole('button', { name: 'Send sign-in code' }).click()
@@ -452,13 +451,13 @@ test('email verification leaves the player in the normal profile setup and keeps
   await expect(page.getByRole('button', { name: 'Save Profile' })).toBeDisabled()
   await fillRequiredDetails(page, 'Sky')
   await page.getByRole('button', { name: 'Save Profile' }).click()
-  await expect(page.getByText('Profiles are synced across devices.')).toBeVisible()
+  await expect(page.getByText('Profiles synced.')).toBeVisible()
   expect((await readAppState(page)).profiles.profiles[0]).toMatchObject({
     name: 'Sky',
     playerAccountId: PLAYER_ACCOUNT_ID,
   })
   await page.reload()
-  await expect(page.getByText('Profiles are synced across devices.')).toBeVisible()
+  await expect(page.getByText('Profiles synced.')).toBeVisible()
 
   await page.getByRole('button', { name: 'Delete sign-in account' }).click()
   await page

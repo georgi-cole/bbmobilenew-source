@@ -4,6 +4,7 @@ import profilesReducer, { createProfile, type ProfilesState } from '../../store/
 import Profile from './Profile'
 
 const mockNavigate = vi.fn()
+vi.mock('../../services/backend/config', () => ({ isPlayerSignInConfigured: () => true }))
 let mockProfiles: ProfilesState
 let mockLocation: { pathname: string; state: { from: string; fromLookReveal?: boolean } }
 
@@ -55,5 +56,15 @@ describe('Profile return entrance', () => {
     const { container } = render(<Profile />)
     expect(mockNavigate).not.toHaveBeenCalled()
     expect(container.firstChild).not.toHaveClass('profile-screen--look-return')
+  })
+
+  it('skips the empty profile screen and returns through the account entry', () => {
+    mockProfiles = { profiles: [], activeProfileId: null, isGuest: false }
+    const { container } = render(<Profile />)
+    expect(container.firstChild).toBeNull()
+    expect(mockNavigate).toHaveBeenCalledWith('/profile/account', {
+      replace: true,
+      state: { entryFrom: '/' },
+    })
   })
 })

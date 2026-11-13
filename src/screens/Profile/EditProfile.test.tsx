@@ -140,6 +140,22 @@ describe('EditProfile details', () => {
     )
   })
 
+  it('guards a direct creation route when the device already has three profiles', () => {
+    while (mockProfiles.profiles.length < 3)
+      mockProfiles = profilesReducer(mockProfiles, createProfile({ name: 'Existing', avatar: 'E' }))
+    mockLocationState = {
+      createProfile: true,
+      fromPlayerAccount: true,
+      appearanceSelection: { kind: 'catalog', lookId: 'pc-003', revision: 1 },
+    }
+    render(<EditProfile />)
+    expect(mockNavigate).toHaveBeenCalledWith('/profile-picker', {
+      replace: true,
+      state: { from: '/profile/account', manageOnly: true },
+    })
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
   it('preserves all unopened biography fields and the existing avatar when saving', async () => {
     render(<EditProfile />)
     fireEvent.click(screen.getByRole('button', { name: 'Save Profile' }))
