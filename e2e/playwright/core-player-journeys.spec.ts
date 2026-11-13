@@ -791,6 +791,41 @@ test.describe('Real player core journeys', () => {
       expect(afterHeading.y).toBeCloseTo(beforeHeading.y, 0)
       expect(cardBox.y).toBeGreaterThanOrEqual(afterHeading.y + afterHeading.height - 1)
       expect(await cards.evaluate((element) => getComputedStyle(element).overflowY)).toBe('auto')
+      // A bounded scroll grid must not squeeze rows below their cards' contents.
+      const cardMetrics = await cards.locator('.ac-card').evaluateAll((elements) =>
+        elements.map((element) => {
+          const { top, bottom, left, right } = element.getBoundingClientRect()
+          return {
+            id: element.getAttribute('data-action-id'),
+            top,
+            bottom,
+            left,
+            right,
+            contents: Array.from(
+              element.querySelectorAll('.ac-card__header, .ac-card__chips, .ac-card__description')
+            ).map((content) => {
+              const bounds = content.getBoundingClientRect()
+              return { name: content.className, top: bounds.top, bottom: bounds.bottom }
+            }),
+          }
+        })
+      )
+      expect(cardMetrics.length).toBeGreaterThan(2)
+      for (const [index, card] of cardMetrics.entries()) {
+        for (const content of card.contents) {
+          expect(content.top, `${card.id} ${content.name} top`).toBeGreaterThanOrEqual(card.top - 1)
+          expect(content.bottom, `${card.id} ${content.name} bottom`).toBeLessThanOrEqual(
+            card.bottom + 1
+          )
+        }
+        for (const next of cardMetrics.slice(index + 1)) {
+          if (next.top > card.top + 1 && next.left < card.right && next.right > card.left) {
+            expect(next.top, `${card.id} overlaps ${next.id}`).toBeGreaterThanOrEqual(
+              card.bottom - 1
+            )
+          }
+        }
+      }
       await mkdir('visual-evidence/followups', { recursive: true })
       await page.screenshot({ path: 'visual-evidence/followups/social-scroll.png' })
       await cards.evaluate((element) => {

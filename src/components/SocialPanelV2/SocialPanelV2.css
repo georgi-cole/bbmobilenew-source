@@ -2981,6 +2981,8 @@
   .sp2-body--focused-target .sp2-action-grid {
     flex: 1 1 0;
     min-height: 0;
+    grid-auto-rows: max-content;
+    align-content: start;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior-y: contain;
