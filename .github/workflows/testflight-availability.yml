@@ -50,7 +50,7 @@ jobs:
             if (!response.ok) throw new Error(JSON.stringify({ status: response.status, errors: body.errors }));
             return body;
           }
-          const builds = await get('/v1/apps/' + appId + '/builds?limit=20&sort=-uploadedDate');
+          const builds = await get('/v1/builds?filter[app]=' + appId + '&limit=20&sort=-uploadedDate');
           console.log('Recent builds:', JSON.stringify(builds.data.map(({ id, attributes }) => ({ id, ...attributes }))));
           const target = builds.data.find(({ attributes }) => attributes.version === targetVersion);
           if (!target) throw new Error('Uploaded build not present in the latest 20 builds');
@@ -61,7 +61,7 @@ jobs:
           const details = await get('/v1/builds/' + target.id + '/buildBetaDetail');
           console.log('Target build beta state:', JSON.stringify(details.data.attributes));
           for (const group of groups.data) {
-            const groupBuilds = await get('/v1/betaGroups/' + group.id + '/builds?limit=20&sort=-uploadedDate');
+            const groupBuilds = await get('/v1/betaGroups/' + group.id + '/builds?limit=200');
             console.log('Group build access:', JSON.stringify({ id: group.id, name: group.attributes.name, builds: groupBuilds.data.map(({ id, attributes }) => ({ id, version: attributes.version, processingState: attributes.processingState })) }));
           }
           NODE
