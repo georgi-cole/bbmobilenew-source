@@ -23,6 +23,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { MinigamePortalContext } from './minigamePortal'
 import { isPlacementRankingGame, type GameRegistryEntry } from '../../minigames/registry'
 import { resolvePremiumGameForAccess } from '../../minigames/premiumGameAccess'
 import {
@@ -212,6 +213,18 @@ export default function MinigameHost({
   participants,
   competitionRetry,
 }: Props) {
+  const [gamePortalTarget] = useState(() => {
+    const target = document.createElement('div')
+    target.className = 'minigame-host-portal-target'
+    return target
+  })
+  const attachGamePortal = useCallback(
+    (container: HTMLDivElement | null) => {
+      if (container) container.appendChild(gamePortalTarget)
+      else gamePortalTarget.remove()
+    },
+    [gamePortalTarget]
+  )
   const sessionId = typeof gameOptions.sessionId === 'string' ? gameOptions.sessionId : game.key
   const savedChallenge = useSyncExternalStore(store.subscribe, () => {
     const pending = store.getState().challenge.pending
@@ -1374,6 +1387,7 @@ export default function MinigameHost({
 
         {phase === 'playing' && (
           <div
+            ref={attachGamePortal}
             className={[
               'minigame-host-playing',
               launchedGame.reactComponentKey === 'NumberTrivia'
@@ -1388,19 +1402,21 @@ export default function MinigameHost({
               .join(' ')}
             key={`${sessionId}:${attempt}`}
           >
-            <CompetitionResultContext.Provider value={checkpointResult}>
-              <SeasonAiContext.Provider value={aiRuntime}>
-                <Suspense
-                  fallback={
-                    <div className="minigame-host-loading" role="status" aria-live="polite">
-                      Preparing {launchedGame.title}…
-                    </div>
-                  }
-                >
-                  {renderActiveGame()}
-                </Suspense>
-              </SeasonAiContext.Provider>
-            </CompetitionResultContext.Provider>
+            <MinigamePortalContext.Provider value={gamePortalTarget}>
+              <CompetitionResultContext.Provider value={checkpointResult}>
+                <SeasonAiContext.Provider value={aiRuntime}>
+                  <Suspense
+                    fallback={
+                      <div className="minigame-host-loading" role="status" aria-live="polite">
+                        Preparing {launchedGame.title}…
+                      </div>
+                    }
+                  >
+                    {renderActiveGame()}
+                  </Suspense>
+                </SeasonAiContext.Provider>
+              </CompetitionResultContext.Provider>
+            </MinigamePortalContext.Provider>
           </div>
         )}
 

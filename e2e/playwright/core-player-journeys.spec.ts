@@ -801,7 +801,10 @@ test.describe('Real player core journeys', () => {
       .locator('[aria-label="Action grid"]')
       .getByRole('button', { name: /Compliment/ })
       .click()
-    await expect(socialDialog.getByText(/Cost:/)).toContainText('1')
+    await expect(
+      socialDialog.locator('[aria-label="Action grid"]').getByRole('button', { name: /Compliment/ })
+    ).toHaveAttribute('aria-pressed', 'true')
+    await expect(socialDialog.getByRole('button', { name: 'Execute' })).toBeEnabled()
 
     await socialDialog.getByRole('button', { name: 'Execute' }).dblclick()
     const remainingEnergy = initialEnergy - 1

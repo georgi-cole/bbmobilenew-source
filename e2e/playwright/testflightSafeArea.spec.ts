@@ -7,27 +7,30 @@ const viewports = [
   { name: 'no cutout', width: 390, height: 844, top: 0, right: 0, bottom: 0, left: 0 },
 ]
 
-for (const game of ['famousFigures', 'quickTap', 'logicLocks']) {
+for (const game of ['famousFigures', 'quickTap', 'quickTapVip', 'logicLocks']) {
   for (const viewport of viewports) {
     test(`${game} keeps its viewport clear of the ${viewport.name} @smoke @core-journey`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height })
       await page.goto(
-        `./#/minigame-lab?game=${game}&seed=424242&players=8&skipRules=1&skipCountdown=1&showLab=1&freeze=1`
+        `./#/minigame-lab?game=${game === 'quickTapVip' ? 'quickTap' : game}&seed=424242&players=8&skipRules=1&skipCountdown=1&showLab=1&freeze=1${game === 'quickTapVip' ? '&quickTapVip=1' : ''}`
       )
       await closeDebugPanelIfOpen(page)
       await page.addStyleTag({
         content: `
-          :root {
-            --safe-area-inset-top: ${viewport.top}px;
-            --safe-area-inset-right: ${viewport.right}px;
-            --safe-area-inset-bottom: ${viewport.bottom}px;
-            --safe-area-inset-left: ${viewport.left}px;
-          }
           .minigame-lab__panel, .dbg-fab { visibility: hidden !important; }
         `,
       })
+      // Match MainViewController's native inset publication, including its event.
+      await page.evaluate((insets) => {
+        const style = document.documentElement.style
+        style.setProperty('--safe-area-inset-top', `${insets.top}px`)
+        style.setProperty('--safe-area-inset-right', `${insets.right}px`)
+        style.setProperty('--safe-area-inset-bottom', `${insets.bottom}px`)
+        style.setProperty('--safe-area-inset-left', `${insets.left}px`)
+        window.dispatchEvent(new Event('resize'))
+      }, viewport)
       const host = page.locator('.minigame-host')
       await expect(host).toBeVisible()
       const shellBox = (await page.locator('.app-shell').boundingBox())!
@@ -45,7 +48,13 @@ for (const game of ['famousFigures', 'quickTap', 'logicLocks']) {
       const playing = host.locator('.minigame-host-playing')
       await expect(playing).toBeVisible()
       const gameRoot = playing.locator(
-        game === 'famousFigures' ? '.ff-container' : game === 'quickTap' ? '.qtr-canvas' : '.cb'
+        game === 'famousFigures'
+          ? '.ff-container'
+          : game === 'quickTap'
+            ? '.qtr-canvas'
+            : game === 'quickTapVip'
+              ? '.qtr-vip'
+              : '.cb'
       )
       await expect(gameRoot).toBeVisible()
       const contentBox = (await gameRoot.boundingBox())!
@@ -53,6 +62,9 @@ for (const game of ['famousFigures', 'quickTap', 'logicLocks']) {
       expect(contentBox.y + contentBox.height).toBeLessThanOrEqual(gameBox.y + gameBox.height + 1)
       const menu = page.getByRole('button', { name: 'Open minigame menu', exact: true })
       await expect(menu).toBeVisible()
+      await expect
+        .poll(async () => (await menu.boundingBox())?.y ?? -1)
+        .toBeGreaterThanOrEqual(viewport.top - 1)
       const menuBox = (await menu.boundingBox())!
       expect(menuBox.y).toBeGreaterThanOrEqual(viewport.top - 1)
       expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(viewport.width - viewport.right + 1)

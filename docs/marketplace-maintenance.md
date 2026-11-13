@@ -56,6 +56,9 @@ store listings or change configured prices.
   purchase-only restoration, production account build validation, and fresh
   profile season-pill visibility. Checkout is never automatically repeated;
   permanent acknowledgment and durable consumable delivery retain their rules.
+  Classic and premium Quick Tap overlays also remain inside the hosted safe
+  viewport; standalone launches retain their existing page portal. Variant
+  access, game rules, scores and rewards are unchanged.
 
 - 2026-11-13: Reviewed the Android startup investigation candidate. Foreground
   launcher-icon rotation is paused for both remote-switch values, retaining the

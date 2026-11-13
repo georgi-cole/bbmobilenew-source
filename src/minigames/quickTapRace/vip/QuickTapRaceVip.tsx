@@ -1,4 +1,5 @@
 import { useSeasonAiRuntime } from '../../../ai/competition/SeasonAiContext'
+import { useMinigamePortalTarget } from '../../../components/MinigameHost/minigamePortal'
 import { runtimeCompetitionProfile } from '../../../ai/competition/seasonAiDifficulty'
 import { useCompetitionResultCheckpoint } from '../../competitionResultContext'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
@@ -246,6 +247,7 @@ export default function QuickTapRaceVip({
   onFinish,
   mode = 'race',
 }: Props) {
+  const portalTarget = useMinigamePortalTarget()
   useCoveredGameScreen()
   const dispatch = useAppDispatch()
   const hostedAi = useSeasonAiRuntime()
@@ -1115,5 +1117,5 @@ export default function QuickTapRaceVip({
       )}
     </main>
   )
-  return createPortal(stage, document.body)
+  return createPortal(stage, portalTarget)
 }
