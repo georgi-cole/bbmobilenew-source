@@ -898,6 +898,7 @@ export default function GameScreen() {
     dispatch,
     sequenceHandled: replacementSequence.handled,
     sequenceActive: replacementSequence.active,
+    saveHandledBySequence: replacementSequence.presentedSaveIds.includes(game.povSavedId ?? ''),
   })
   const {
     finalPowerBattleIntroActive,

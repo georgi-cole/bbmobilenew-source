@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-13: Reviewed Safety/replacement cinematic sequencing. Committed saves
+  play before backup nominations and consumed saves cannot replay through the
+  standalone ceremony. VIP cinematic access, paired/special-power rules,
+  purchases, offers and rewards remain unchanged.
+
 - 2026-11-13: Reviewed the shared shock cinematic art-plane alignment and
   pre-merge TestFlight candidate upload path. Premium cinematic eligibility,
   VIP and Premium Challenges benefits, purchases, prices and rewards are
