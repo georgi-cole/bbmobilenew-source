@@ -678,6 +678,19 @@ const profilesSlice = createSlice({
       profile.accountProfileUpdatedAt = nextAccountProfileTimestamp(profile)
     },
 
+    /** Attach all unclaimed local profiles to the verified account together. */
+    linkLocalProfilesToPlayerAccount(state, action: PayloadAction<{ accountId: string }>) {
+      const { accountId } = action.payload
+      if (!accountId) return
+      const local = state.profiles.filter((profile) => !profile.playerAccountId)
+      const owned = state.profiles.filter((profile) => profile.playerAccountId === accountId)
+      if (owned.length + local.length > MAX_PROFILES) return
+      for (const profile of local) {
+        profile.playerAccountId = accountId
+        profile.accountProfileUpdatedAt = nextAccountProfileTimestamp(profile)
+      }
+    },
+
     mergePlayerAccountProfiles(
       state,
       action: PayloadAction<{ accountId: string; profiles: unknown[] }>
@@ -1138,6 +1151,7 @@ export const {
   createProfile,
   selectActiveProfile,
   linkActiveProfileToPlayerAccount,
+  linkLocalProfilesToPlayerAccount,
   mergePlayerAccountProfiles,
   unlinkProfileFromPlayerAccount,
   updateProfile,
