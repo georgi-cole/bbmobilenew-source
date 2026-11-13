@@ -562,7 +562,7 @@ export const DEFAULT_MUSIC_CONFIG: MusicConfigDocument = {
     weekend2: musicTrack('weekend_2', BUILT_IN_MUSIC_CUE_IDS.weekend2),
     weekend3: musicTrack('weekend_3', BUILT_IN_MUSIC_CUE_IDS.weekend3),
     spectator: musicTrack('spectator'),
-    social: musicTrack('social'),
+    social: musicTrack('move_into_me_confessional', BUILT_IN_MUSIC_CUE_IDS.confessional),
     seasonComplete: musicTrack('final_modal', BUILT_IN_MUSIC_CUE_IDS.finalModal),
     gameOver: musicTrack('final_modal', BUILT_IN_MUSIC_CUE_IDS.finalModal),
     fallback: SILENT_MUSIC,

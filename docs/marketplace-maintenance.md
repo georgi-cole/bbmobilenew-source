@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-13: Reviewed TestFlight Package 8 Social fallback audio and HomeHub
+  utility spacing. Social reuses the existing Confessional loop only when no
+  phase music owns playback; explicit local/remote assignments remain in force.
+  Corner stacks use equal 4px gaps at desktop and narrow sizes. Standard/VIP
+  access, products, prices, benefits, rewards, and marketplace copy are unchanged.
+
 - 2026-11-12: Reviewed Social catalogue ordering, Group Chat discovery and
   selection resets, subject-picker navigation, and focused-player swipes.
   Existing execution eligibility, group prices, resource costs, paid access,

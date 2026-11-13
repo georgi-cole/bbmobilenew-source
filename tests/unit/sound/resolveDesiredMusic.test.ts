@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RootState } from '../../../src/store/store'
+import { BUILT_IN_MUSIC_CUE_IDS } from '../../../src/services/sound/musicConfig'
 import {
   resolveDesiredMusic,
   resolveDesiredMusicCue,
@@ -172,8 +173,21 @@ describe('resolveDesiredMusic', () => {
     const socialState = makeState({ social: { panelOpen: true, incomingInboxOpen: false } })
     const phaseState = makeState({ game: { phase: 'nominations' } })
 
-    expect(resolveDesiredMusic(socialState, '#/game')).toBe('social')
+    expect(resolveDesiredMusic(socialState, '#/game')).toBe('move_into_me_confessional')
     expect(resolveDesiredMusic(phaseState, '#/game')).toBe('nominations')
+  })
+
+  it.each([
+    { panelOpen: true, incomingInboxOpen: false },
+    { panelOpen: false, incomingInboxOpen: true },
+  ])('uses the shared Confessional loop only while Social owns a silent phase', (social) => {
+    const state = makeState({ game: { phase: 'loh_comp_announcement' }, social })
+    const fallback = resolveDesiredMusicCue(state, '#/game')
+    expect(fallback.track).toBe('move_into_me_confessional')
+    expect(fallback.playbackCue?.id).toBe(BUILT_IN_MUSIC_CUE_IDS.confessional)
+    expect(fallback.playbackCue).toEqual(resolveDesiredMusicCue(state, '#/diary-room').playbackCue)
+    state.social = { panelOpen: false, incomingInboxOpen: false }
+    expect(resolveDesiredMusic(state, '#/game')).toBe('none')
   })
 
   it.each([
