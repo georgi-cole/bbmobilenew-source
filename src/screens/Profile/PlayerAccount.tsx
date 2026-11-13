@@ -21,10 +21,8 @@ import {
 } from '../../services/backend/playerAccountProfiles'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
-  linkActiveProfileToPlayerAccount,
   MAX_PROFILES,
   selectAllProfiles,
-  selectCurrentProfile,
   selectIsGuest,
   unlinkProfileFromPlayerAccount,
 } from '../../store/profilesSlice'
@@ -41,7 +39,6 @@ export default function PlayerAccount() {
     pickerFrom?: string
   } | null
   const dispatch = useAppDispatch()
-  const profile = useAppSelector(selectCurrentProfile)
   const profiles = useAppSelector(selectAllProfiles)
   const isGuest = useAppSelector(selectIsGuest)
   const gameInProgress = useAppSelector(
@@ -67,10 +64,8 @@ export default function PlayerAccount() {
   const linkedProfiles = account
     ? profiles.filter((entry) => entry.playerAccountId === account.id)
     : []
-  const profileIsLinked = Boolean(account && profile?.playerAccountId === account.id)
   const [profileSyncStatus, setProfileSyncStatus] = useState(getAccountProfileSyncStatus())
   const signInError = error || routeState?.signInError
-  const canSelectProfile = profiles.length > 1 || (!profile && profiles.length > 0)
 
   useEffect(() => {
     if (!configured || !eligible || preview) return
@@ -218,9 +213,9 @@ export default function PlayerAccount() {
         ) : account ? (
           <>
             <p className="player-account__email">Signed in as {account.email}</p>
-            {linkedProfiles.length > 0 ? (
+            {profileSyncStatus !== 'synced' ? null : linkedProfiles.length > 0 ? (
               <div>
-                <p>Your profiles on this account:</p>
+                <p>All your game profiles belong to this account:</p>
                 <ul className="player-account__profile-list">
                   {linkedProfiles.map((entry) => (
                     <li key={entry.id}>{entry.name}</li>
@@ -233,31 +228,6 @@ export default function PlayerAccount() {
                 <p>Choose your character and fill in your profile details.</p>
               </>
             )}
-            {profile &&
-              !profileIsLinked &&
-              (profile.playerAccountId ? (
-                <p>
-                  This profile is linked to another sign-in. Remove that link to use this account.
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  className="game-button player-account__gold"
-                  disabled={
-                    busy || profileSyncStatus !== 'synced' || linkedProfiles.length >= MAX_PROFILES
-                  }
-                  onClick={() =>
-                    dispatch(
-                      linkActiveProfileToPlayerAccount({
-                        profileId: profile.id,
-                        accountId: account.id,
-                      })
-                    )
-                  }
-                >
-                  Link {profile.name} to this account
-                </button>
-              ))}
             {linkedProfiles.length < MAX_PROFILES ? (
               <button
                 type="button"
@@ -278,24 +248,15 @@ export default function PlayerAccount() {
             )}
             {profileSyncStatus === 'error' && (
               <p role="alert">
-                Profile sync could not finish. Check your connection and reopen this screen before
-                creating or linking a profile.
+                Profile sync could not finish. Check your connection and reopen this screen. If this
+                account already has three profiles, your other local profiles remain safe on this
+                device.
               </p>
             )}
             <p className="player-account__detail">
               Your display name, character look, age, and any bio details you add sync across
               devices under this account. Profile photos and saved games stay on each device.
             </p>
-            {canSelectProfile && (
-              <button
-                type="button"
-                className="game-button game-button--secondary"
-                disabled={busy}
-                onClick={() => navigate('/profile-picker', { state: { from: '/profile' } })}
-              >
-                Select a profile
-              </button>
-            )}
             <button
               type="button"
               className="game-button game-button--secondary"
@@ -393,23 +354,6 @@ export default function PlayerAccount() {
               separately, and you can also continue as a guest.
             </p>
           </>
-        )}
-        {profile?.playerAccountId && configured && (
-          <button
-            type="button"
-            className="game-button game-button--secondary"
-            disabled={busy}
-            onClick={() =>
-              dispatch(
-                unlinkProfileFromPlayerAccount({
-                  profileId: profile.id,
-                  accountId: profile.playerAccountId!,
-                })
-              )
-            }
-          >
-            Remove this profile’s account link
-          </button>
         )}
         <div className="player-account__footer">
           <GameBackButton
