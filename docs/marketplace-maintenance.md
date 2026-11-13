@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-13: Reviewed the shared shock cinematic art-plane alignment and
+  pre-merge TestFlight candidate upload path. Premium cinematic eligibility,
+  VIP and Premium Challenges benefits, purchases, prices and rewards are
+  unchanged. Candidate uploads use the existing production iOS configuration.
+
 - 2026-11-13: Reviewed TestFlight Package 9 season competition AI calibration.
   Active Classic, Vox and Cupid launches capture bounded skill or local decision
   capability once, including premium variants and Battle Back. Surveyeval, Lab,

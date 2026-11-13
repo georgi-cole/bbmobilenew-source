@@ -13,11 +13,13 @@ concurrency:
 jobs:
   upload:
     name: Build, sign, and upload iOS app
-    if: github.ref == 'refs/heads/main'
+    # Candidate uploads let the owner test stacked fixes before merging them.
+    # These jobs still require an explicit workflow dispatch by a repository writer.
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/testflight-')
     runs-on: macos-26
     timeout-minutes: 60
     steps:
-      - name: Check out merged release source
+      - name: Check out selected TestFlight source
         uses: actions/checkout@v4
 
       - name: Set up Node

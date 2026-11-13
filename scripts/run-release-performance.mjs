@@ -435,8 +435,18 @@ try {
     await start()
     let lastPhase = await page.evaluate(() => window.__releasePerf.store.getState().game.phase)
     let phaseChanges = 0,
-      taps = 0
+      taps = 0,
+      shockAcknowledgements = 0
     while (phaseChanges < 2 && taps < 10) {
+      // Retained seasons can have a real, unread shock. A player acknowledges
+      // its consequence before using Play; never force a tap through the card.
+      const shock = page.getByTestId('shock-intro-overlay')
+      if (await shock.isVisible()) {
+        assert(shockAcknowledgements++ < 10, 'Retained shocks must settle without replaying')
+        await shock.getByRole('button', { name: 'OK', exact: true }).tap()
+        await page.waitForTimeout(100)
+        continue
+      }
       await page.getByRole('button', { name: 'Advance to next phase', exact: true }).tap()
       taps++
       await page.waitForTimeout(300)
@@ -501,7 +511,9 @@ try {
     budget(entry.pointerResponses.max, 400, `${key}: entry pointer response`)
     budget(entry.frames.max, 400, `${key}: entry/countdown stalled frame`)
     if (key === 'cardClash') {
-      await page.locator('.hoc-tool-choice--peek').click()
+      const tools = page.locator('.hoc-tool-choice')
+      assert.equal(await tools.count(), 3, 'Deck of Light must offer three tools')
+      await tools.first().click()
       await page.locator('.hoc-root[data-phase="playing"]').waitFor()
     }
     const target = page
@@ -530,7 +542,7 @@ try {
     if (key === 'cardClash') {
       const deadline = Date.now() + 120000
       while (Date.now() < deadline) {
-        const tool = page.locator('.hoc-tool-choice--peek')
+        const tool = page.locator('.hoc-tool-choice').first()
         if (await tool.isVisible()) {
           await tool.click()
           continue
