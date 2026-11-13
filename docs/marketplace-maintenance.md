@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-13: Reviewed the Android startup investigation candidate. Foreground
+  launcher-icon rotation is paused for both remote-switch values, retaining the
+  currently enabled alias on launch and resume. This tests a possible cause of
+  repeated splash-screen exits reported before and after build 5; the cause and
+  device outcome remain unconfirmed. Paid access, purchases, ads, offers, prices
+  and rewards are unchanged.
+
 - 2026-11-13: Reviewed Safety/replacement cinematic sequencing. Committed saves
   play before backup nominations and consumed saves cannot replay through the
   standalone ceremony. VIP cinematic access, paired/special-power rules,
@@ -126,12 +133,12 @@ store listings or change configured prices.
   maintenance of the existing conversations and ceremony rules. Store offers,
   access, and prices are unchanged.
 
-- 2026-11-09 — Reviewed the Home Hub glass finish, the order of the Safety
+- 2026-11-09 - Reviewed the Home Hub glass finish, the order of the Safety
   ceremony announcements, and the Twin Shock portrait reveal. This review
   covers the shared presentation of the standard and VIP ceremonies, paid-mode
   buttons, and existing roster artwork.
 
-- 2026-11-09 — Reviewed the TestFlight fixes for the Store, paid-mode launch
+- 2026-11-09 - Reviewed the TestFlight fixes for the Store, paid-mode launch
   buttons, Reality Mode portraits, and elimination markers. The VIP card now
   shows Owned in place of the purchase price when VIP access is active. Prices,
   product contents, upgrade credit, eligibility, and benefits stay the same.
@@ -235,7 +242,7 @@ store listings or change configured prices.
   are unchanged.
 
 - 2026-11-01: Reviewed ceremony coverage for all 35 existing selectable player
-  looks, including six matching poses for Looks 28–35 and resolution from the
+  looks, including six matching poses for Looks 28-35 and resolution from the
   season-owned appearance. Also reviewed immediate first-character selection
   when registering during a guest season and owner-checked repair of adopted
   silhouette saves. These fixes fulfill existing character and VIP cinematic
