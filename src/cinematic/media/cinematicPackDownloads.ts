@@ -149,7 +149,7 @@ export function createCinematicPackDownloads(
             update({
               status: 'error',
               error:
-                'The download could not be completed. Check your connection and available storage, then try again. Standard play is available offline.',
+                "We couldn't bring the cinematic scenes to your device. Check your connection and free space, then try again. The show goes on in Standard, even offline.",
             })
           return false
         } finally {

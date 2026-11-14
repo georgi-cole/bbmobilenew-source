@@ -5,8 +5,13 @@
 The app exports optional media, downloads one immutable media file on Android and
 iPhone, verifies complete local installations, and routes ceremony images through a
 local media library. After VIP purchase/restore, players can download and enable
-cinematics or keep Standard. Settings offers the same prompt later and can remove
-the download. A declined offer is remembered on the device. Download failure never
+cinematics or keep Standard. There is no separate download-management row in Settings.
+Choosing Cinematic under Animation style offers the download again if needed; a
+verified installed pack switches immediately without another download. Switching
+from Cinematic to Standard takes effect immediately and asks whether to remove the
+scenes to free space or keep them for a faster switch later. Removal errors leave
+Standard selected and offer retry or keep; active scenes block removal. A declined
+offer is remembered on the device. Download failure never
 changes VIP ownership or saved seasons. The online-only option is deferred.
 
 Normal builds still bundle the current artwork while this delivery path is tested.

@@ -61,13 +61,11 @@ export default function CinematicPackController({ hash }: { hash: string }) {
         className="confirm-modal__backdrop"
         role="dialog"
         aria-modal="true"
-        aria-label="Downloading cinematic animations"
+        aria-label="Setting the stage for Cinematic"
       >
         <div className="confirm-modal__card">
           <h2 className="confirm-modal__title">
-            {state.status === 'verifying'
-              ? 'Checking your download'
-              : 'Downloading cinematic animations'}
+            {state.status === 'verifying' ? 'Final checks before showtime…' : 'Setting the stage…'}
           </h2>
           <progress
             aria-label="Cinematic download progress"
@@ -76,7 +74,7 @@ export default function CinematicPackController({ hash }: { hash: string }) {
           />
           <p className="confirm-modal__desc">
             {Math.floor((state.bytes / VIP_CINEMATIC_PACK.totalBytes) * 100)}% · Keep the app open
-            until the download finishes. You can cancel and continue with Standard.
+            while we get your cinematic scenes ready. Or stay with Standard and come back later.
           </p>
           <button
             className="game-button game-button--ghost"
@@ -84,7 +82,7 @@ export default function CinematicPackController({ hash }: { hash: string }) {
               void cinematicPackDownloads.cancel().then(keepStandard)
             }}
           >
-            Cancel download
+            Cancel &amp; stay Standard
           </button>
         </div>
       </div>,
@@ -93,21 +91,27 @@ export default function CinematicPackController({ hash }: { hash: string }) {
   return (
     <ConfirmExitModal
       open
-      title={state.status === 'error' ? 'Download interrupted' : 'Enable cinematic animations?'}
+      title={
+        state.status === 'error'
+          ? 'A pause behind the scenes'
+          : state.status === 'ready'
+            ? 'Roll the cameras?'
+            : 'Ready for the full TV treatment?'
+      }
       description={
         state.error ??
         (state.status === 'ready'
-          ? 'Your cinematic animations are installed and available offline. Changes apply to the next ceremony.'
-          : `Download ${(VIP_CINEMATIC_PACK.totalBytes / 1_000_000).toFixed(1)} MB for cinematic VIP animations. After downloading, they work offline. Standard play, music and credits are already available offline. You can enable cinematics later in Settings.`)
+          ? 'Your cinematic scenes are ready to go, even offline. The next ceremony gets the full TV treatment.'
+          : `Turn up the drama with cinematic exits and ceremonies. Download ${(VIP_CINEMATIC_PACK.totalBytes / 1_000_000).toFixed(1)} MB once, then enjoy the show offline. Your game, music and credits already work offline. You can switch styles anytime in Settings → Animation style.`)
       }
       confirmLabel={
         state.status === 'ready'
-          ? 'Enable Cinematic'
+          ? 'Go Cinematic'
           : state.status === 'error'
-            ? 'Retry download'
-            : 'Download and enable'
+            ? 'Try the download again'
+            : 'Download & go Cinematic'
       }
-      cancelLabel="Keep Standard"
+      cancelLabel="Stay with Standard"
       onConfirm={() => {
         void enable()
       }}

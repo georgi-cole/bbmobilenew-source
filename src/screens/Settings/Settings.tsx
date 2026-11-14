@@ -42,6 +42,7 @@ import {
   supportsCinematicDownloads,
   useCinematicPackDownload,
 } from '../../cinematic/media/cinematicPackDownloads'
+import { VIP_CINEMATIC_PACK } from '../../cinematic/media/vipCinematicPack'
 
 type LockedFeature = 'realityMode' | 'publicMode'
 
@@ -91,6 +92,7 @@ export default function Settings() {
   const pack = useCinematicPackDownload()
   const [packError, setPackError] = useState<string | null>(null)
   const [confirmRemovePack, setConfirmRemovePack] = useState(false)
+  const [removingPack, setRemovingPack] = useState(false)
   const navigate = useNavigate()
   const settings = useAppSelector(selectSettings)
   const weekendGame = useAppSelector((state) => state.game)
@@ -271,11 +273,11 @@ export default function Settings() {
             { value: 'cinematic', label: 'Cinematic', vipOnly: true },
           ],
           get: (s: SettingsState) =>
-            !isVipActive
+            !isVipActive ||
+            s.gameUX.animationMode === 'standard' ||
+            (supportsCinematicDownloads() && pack.status !== 'ready')
               ? 'standard'
-              : s.gameUX.animationMode === 'standard'
-                ? 'standard'
-                : 'cinematic',
+              : 'cinematic',
           onChange: (settingsDispatch: AppDispatch, val: string) =>
             settingsDispatch(setGameUX({ animationMode: val as 'standard' | 'cinematic' })),
         },
@@ -426,10 +428,20 @@ export default function Settings() {
                     requestCinematicPack()
                     return
                   }
-                  if (item.id === 'animationMode')
+                  if (item.id === 'animationMode') {
                     cinematicPackDownloads.choose(
                       event.target.value === 'cinematic' ? 'cinematic' : 'standard'
                     )
+                    if (
+                      event.target.value === 'standard' &&
+                      value === 'cinematic' &&
+                      supportsCinematicDownloads() &&
+                      pack.status === 'ready'
+                    ) {
+                      setPackError(null)
+                      setConfirmRemovePack(true)
+                    }
+                  }
                   item.onChange(dispatch, event.target.value)
                 }}
               >
@@ -506,27 +518,6 @@ export default function Settings() {
           <p className="settings-helper-text">Turn off and on to replay the guides.</p>
         </div>
         {orderedItems.slice(8).map(renderItem)}
-        {isVipActive && supportsCinematicDownloads() && (
-          <div className="settings-row settings-row--col">
-            <strong>Cinematic download</strong>
-            <p className="settings-helper-text">
-              {pack.status === 'ready'
-                ? 'Installed · Available offline'
-                : 'Optional VIP animations. Standard play, music and credits work offline.'}
-            </p>
-            <button
-              className="game-button game-button--ghost"
-              onClick={() =>
-                pack.status === 'ready' ? setConfirmRemovePack(true) : requestCinematicPack()
-              }
-            >
-              {pack.status === 'ready'
-                ? 'Remove cinematic download'
-                : 'Download cinematic animations'}
-            </button>
-            {packError && <p role="alert">{packError}</p>}
-          </div>
-        )}
         <button
           type="button"
           className="settings-row settings-row--legal"
@@ -564,24 +555,38 @@ export default function Settings() {
       />
       <ConfirmExitModal
         open={confirmRemovePack}
-        title="Remove cinematic download?"
-        description="This removes downloaded animations and switches to Standard. Your VIP purchase, saves, music and credits are kept. You can download the animations again later."
-        confirmLabel="Remove download"
-        cancelLabel="Keep download"
-        onCancel={() => setConfirmRemovePack(false)}
-        onConfirm={() => {
+        title={removingPack ? 'Clearing the stage…' : 'Remove the cinematic scenes?'}
+        description={
+          packError ??
+          `Your season is back in Standard. Remove the downloaded scenes to free up ${(VIP_CINEMATIC_PACK.totalBytes / 1_000_000).toFixed(1)} MB, or keep them ready for an instant return to Cinematic. You can download them again anytime.`
+        }
+        confirmLabel="Remove scenes"
+        cancelLabel="Keep for later"
+        busy={removingPack}
+        onCancel={() => {
           setConfirmRemovePack(false)
+          setPackError(null)
+        }}
+        onConfirm={() => {
           if (document.querySelector('[data-cinematic-active="true"]')) {
-            setPackError('Finish the current cinematic before removing its download.')
+            setPackError(
+              'The cameras are still rolling. Let the current scene finish before removing the cinematic scenes.'
+            )
             return
           }
+          setPackError(null)
+          setRemovingPack(true)
           void cinematicPackDownloads
             .remove()
             .then(() => {
-              dispatch(setGameUX({ animationMode: 'standard' }))
-              setPackError(null)
+              setConfirmRemovePack(false)
             })
-            .catch(() => setPackError('The download could not be removed. Please try again.'))
+            .catch(() =>
+              setPackError(
+                "The scenes couldn't be removed just yet. Your season is still in Standard. Try again, or keep them for later."
+              )
+            )
+            .finally(() => setRemovingPack(false))
         }}
       />
       <ConfirmExitModal
