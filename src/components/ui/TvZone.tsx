@@ -20,6 +20,8 @@ import { createGameFieldEquality } from '../../store/gameFieldEquality'
 import {
   advance,
   consumeBroadcastEvent,
+  claimActiveBroadcastEvent,
+  claimPresentationEvent,
   finishCupidArrowVisualReturn,
   revealCupidArrowVisuals,
   selectAlivePlayers,
@@ -37,6 +39,7 @@ import type { RootState } from '../../store/store'
 import { normalizePlayerFacingCopy } from '../../utils/playerFacingCopy'
 
 const tvZoneGameEquality = createGameFieldEquality([
+  'activeBroadcastEventId',
   'battleBack',
   'broadcastOverrides',
   'broadcastQueue',
@@ -50,11 +53,13 @@ const tvZoneGameEquality = createGameFieldEquality([
   'mode',
   'phase',
   'players',
+  'presentationEventClaims',
   'season',
   'seasonFinale',
   'tvFeed',
   'twistActive',
   'voxPopuli',
+  'voteResults',
   'week',
   'weekendInterlude',
 ])
@@ -81,9 +86,14 @@ import type { TvEvent } from '../../types'
 import TopUtilityButton from '../TopUtilityButton/TopUtilityButton'
 import { getViewportMessageKey } from './tvZoneKeys'
 import {
-  getTvPresentationBroadcastLevel,
-  isCurrentPhaseBroadcastEvent,
-} from './tvZoneBroadcastGuards'
+  createPresentationEventClaim,
+  hasPresentationEventClaim,
+  getPhaseBroadcastCopy,
+  isUnrevealedVoteOutcome,
+  selectCurrentBroadcastEvents,
+  selectFauxTvFrame,
+} from '../../broadcasting/fauxTvPresentation'
+import { getTvPresentationBroadcastLevel } from './tvZoneBroadcastGuards'
 import { getPhaseCardTemplate } from '../../broadcasting/broadcastTemplateCatalog'
 import {
   getBroadcastAnnouncementPresentation,
@@ -342,6 +352,8 @@ type LiveVoteBackdropMetrics = {
 type TvZoneProps = {
   /** A full-screen sequence owns the shared Play press outside the Faux TV. */
   playOwnedExternally?: boolean
+  /** Synchronously owns the Faux TV during the phase-to-rules challenge handoff. */
+  competitionStarting?: boolean
   /**
    * Temporarily owns the viewport copy while a full-screen flow is in progress.
    * This keeps an older feed item from showing through a dimmed game background.
@@ -417,36 +429,94 @@ export default function TvZone(props: TvZoneProps) {
         extractMajorKey(event) === 'vox_public_vote'),
     [gameState.voxPopuli?.status]
   )
+  const voteOutcomePending = gameState.voteResults != null || Boolean(props.voteResultsReveal)
   // The post-vote result is the canonical Vox verdict card. Hide the earlier
   // generic intro from both live TV and the compact log while Vox is active.
   const tvVisibleFeed = useMemo(
     () =>
-      gameState.tvFeed.filter((event) => isVisibleOnTv(event) && !isRedundantVoxVoteIntro(event)),
-    [gameState.tvFeed, isRedundantVoxVoteIntro]
+      gameState.tvFeed.filter(
+        (event) =>
+          isVisibleOnTv(event) &&
+          !isRedundantVoxVoteIntro(event) &&
+          !isUnrevealedVoteOutcome(event, gameState.week, voteOutcomePending)
+      ),
+    [gameState.tvFeed, gameState.week, isRedundantVoxVoteIntro, voteOutcomePending]
   )
   // Filter entries for the main-screen log strip (excludes DR-only events and
   // the redundant Vox pre-vote card).
   const mainLogFeed = useMemo(
     () =>
       gameState.tvFeed.filter(
-        (event) => isVisibleInMainLog(event) && !isRedundantVoxVoteIntro(event)
+        (event) =>
+          isVisibleInMainLog(event) &&
+          !isRedundantVoxVoteIntro(event) &&
+          !isUnrevealedVoteOutcome(event, gameState.week, voteOutcomePending)
       ),
-    [gameState.tvFeed, isRedundantVoxVoteIntro]
+    [gameState.tvFeed, gameState.week, isRedundantVoxVoteIntro, voteOutcomePending]
   )
-  const queuedBroadcastEvent = useMemo(() => {
-    for (const queuedId of gameState.broadcastQueue ?? []) {
-      const event = gameState.tvFeed.find((candidate) => candidate.id === queuedId) ?? null
-      if (event && isRedundantVoxVoteIntro(event)) continue
-      if (isCurrentPhaseBroadcastEvent(event, gameState.phase, gameState.week)) return event
-    }
-    return null
-  }, [
-    gameState.broadcastQueue,
-    gameState.phase,
-    gameState.tvFeed,
-    gameState.week,
-    isRedundantVoxVoteIntro,
-  ])
+  const isBroadcastRelevant = useCallback(
+    (event: TvEvent) => {
+      if (typeof event.meta?.gameId === 'string' && event.meta.gameId !== gameState.gameId) {
+        return false
+      }
+      const templateId = event.meta?.broadcastTemplateId
+      if (typeof templateId === 'string' && gameState.broadcastOverrides?.[templateId]?.disabled) {
+        return false
+      }
+      const customId = event.meta?.customBroadcastId
+      if (
+        typeof customId === 'string' &&
+        !gameState.customBroadcasts?.some((message) => message.id === customId && message.enabled)
+      ) {
+        return false
+      }
+      if (gameState.phase === 'season_start' && isFinalThreeResultAnnouncement(event)) return false
+      const transitionPhase = getDailyTransitionPhase(event)
+      return (
+        (transitionPhase === null || transitionPhase === gameState.phase) &&
+        !(
+          extractMajorKey(event) === 'vox_populi_final_three_vote' &&
+          (alivePlayers.length !== 3 || gameState.voxPopuli?.publicVoteContext !== 'final3')
+        )
+      )
+    },
+    [
+      alivePlayers.length,
+      gameState.broadcastOverrides,
+      gameState.customBroadcasts,
+      gameState.gameId,
+      gameState.phase,
+      gameState.voxPopuli?.publicVoteContext,
+    ]
+  )
+  const currentQueuedBroadcastEvents = useMemo(
+    () =>
+      selectCurrentBroadcastEvents(
+        gameState.broadcastQueue,
+        gameState.tvFeed,
+        gameState.phase,
+        gameState.week,
+        gameState.activeBroadcastEventId,
+        (event) =>
+          isVisibleOnTv(event) &&
+          !isRedundantVoxVoteIntro(event) &&
+          isBroadcastRelevant(event) &&
+          (!props.competitionStarting || getTvPresentationBroadcastLevel(event) !== 'minor')
+      ),
+    [
+      gameState.activeBroadcastEventId,
+      gameState.broadcastQueue,
+      gameState.phase,
+      gameState.tvFeed,
+      gameState.week,
+      isRedundantVoxVoteIntro,
+      isBroadcastRelevant,
+      props.competitionStarting,
+    ]
+  )
+  const queuedBroadcastEvent = currentQueuedBroadcastEvents[0] ?? null
+  const pinnedQueuedBroadcastEvent =
+    gameState.activeBroadcastEventId === queuedBroadcastEvent?.id ? queuedBroadcastEvent : null
   // Season-start expansion activations must outrank the onboarding welcome in
   // presentation even when an older/persisted queue was seeded in template
   // order. They remain normal managed events and are consumed normally after
@@ -457,11 +527,15 @@ export default function TvZone(props: TvZoneProps) {
       tvVisibleFeed.find((event) => {
         const key = extractMajorKey(event)
         return (
-          (key === 'vox_populi' || key === 'cupid_arrow') && event.meta?.broadcastConsumed !== true
+          (key === 'vox_populi' || key === 'cupid_arrow') &&
+          event.meta?.broadcastConsumed !== true &&
+          isBroadcastRelevant(event) &&
+          event.meta?.phase === gameState.phase &&
+          event.meta?.week === gameState.week
         )
       }) ?? null
     )
-  }, [gameState.phase, gameState.week, tvVisibleFeed])
+  }, [gameState.phase, gameState.week, isBroadcastRelevant, tvVisibleFeed])
   const queuedBroadcastLevel = getTvPresentationBroadcastLevel(queuedBroadcastEvent)
   const queuedBroadcastIsCard =
     queuedBroadcastLevel === 'major' || queuedBroadcastLevel === 'critical'
@@ -483,16 +557,13 @@ export default function TvZone(props: TvZoneProps) {
   const occupancyChip = props.occupancyChip ?? null
 
   const latestEvent = tvVisibleFeed[0]
-  const latestUnconsumedEvent =
-    tvVisibleFeed.find(
-      (event) =>
-        event.meta?.broadcastConsumed !== true &&
-        !(gameState.phase === 'season_start' && isFinalThreeResultAnnouncement(event))
-    ) ?? null
   // Final Three result cards stay in history but cannot own the Faux TV once a
   // fresh season starts, where they otherwise overshadow the season welcome.
   const latestExplicitMajorEvent =
     latestEvent &&
+    latestEvent.meta?.phase === gameState.phase &&
+    latestEvent.meta?.week === gameState.week &&
+    isBroadcastRelevant(latestEvent) &&
     extractMajorKey(latestEvent) &&
     latestEvent.meta?.broadcastConsumed !== true &&
     !(gameState.phase === 'season_start' && isFinalThreeResultAnnouncement(latestEvent))
@@ -627,25 +698,6 @@ export default function TvZone(props: TvZoneProps) {
   }, [voteResultsRevealActive])
 
   const activeDetoxEvent = detoxMessageQueue[detoxMessageIndex]
-  const isBroadcastRelevant = useCallback(
-    (event: TvEvent) => {
-      // A new season must not replay a result card from the previous Final
-      // Three. This is intentionally scoped to those cards; legacy broadcasts
-      // elsewhere still use the existing compatibility behavior.
-      if (gameState.phase === 'season_start' && isFinalThreeResultAnnouncement(event)) {
-        return false
-      }
-      const transitionPhase = getDailyTransitionPhase(event)
-      return (
-        (transitionPhase === null || transitionPhase === gameState.phase) &&
-        !(
-          extractMajorKey(event) === 'vox_populi_final_three_vote' &&
-          (alivePlayers.length !== 3 || gameState.voxPopuli?.publicVoteContext !== 'final3')
-        )
-      )
-    },
-    [alivePlayers.length, gameState.phase, gameState.voxPopuli?.publicVoteContext]
-  )
   // A critical broadcast is a single viewing experience: once the player has
   // dismissed its major card, do not immediately replay the identical copy as
   // the ordinary "Now" message beneath it. It remains available in the log.
@@ -655,23 +707,20 @@ export default function TvZone(props: TvZoneProps) {
         (event) =>
           isBroadcastRelevant(event) &&
           event.meta?.broadcastConsumed !== true &&
-          ((event.meta?.phase === gameState.phase && event.meta?.week === gameState.week) ||
-            // Legacy critical result events were emitted without phase
-            // metadata. Keep those broadcasts discoverable, but do not apply
-            // this compatibility path to named major warnings that may be
-            // stale after the game has moved on.
-            (event.meta?.broadcastPriority === 'critical' &&
-              event.meta?.major === undefined &&
-              event.meta?.phase === undefined) ||
-            // Preserve older explicit major events that were persisted before
-            // phase/week metadata was added. Ordinary messages stay scoped.
-            (extractMajorKey(event) !== null &&
-              event.meta?.phase === undefined &&
-              event.meta?.week === undefined)) &&
+          (!props.competitionStarting || getTvPresentationBroadcastLevel(event) !== 'minor') &&
+          event.meta?.phase === gameState.phase &&
+          event.meta?.week === gameState.week &&
           (event.meta?.broadcastManaged !== true || event.meta?.forceOnTv === true) &&
           !(event.meta?.broadcastPriority === 'critical' && dismissedPriorityEventIds.has(event.id))
       ) ?? null,
-    [dismissedPriorityEventIds, gameState.phase, gameState.week, isBroadcastRelevant, tvVisibleFeed]
+    [
+      dismissedPriorityEventIds,
+      gameState.phase,
+      gameState.week,
+      isBroadcastRelevant,
+      props.competitionStarting,
+      tvVisibleFeed,
+    ]
   )
   // Once a phase card has been acknowledged it leaves the announcement queue,
   // but its copy remains the canonical content for that phase. Include every
@@ -682,14 +731,15 @@ export default function TvZone(props: TvZoneProps) {
       tvVisibleFeed.find(
         (event) =>
           (event.meta?.broadcastConsumed !== true ||
-            getTvPresentationBroadcastLevel(event) !== 'minor') &&
-          ((event.meta?.phase === gameState.phase && event.meta?.week === gameState.week) ||
-            (extractMajorKey(event) !== null &&
-              event.meta?.phase === undefined &&
-              event.meta?.week === undefined)) &&
+            (getTvPresentationBroadcastLevel(event) !== 'minor' &&
+              getTvPresentationBroadcastLevel(event) !== 'critical' &&
+              event.meta?.broadcastPriority !== 'critical')) &&
+          (!props.competitionStarting || getTvPresentationBroadcastLevel(event) !== 'minor') &&
+          event.meta?.phase === gameState.phase &&
+          event.meta?.week === gameState.week &&
           isBroadcastRelevant(event)
       ) ?? null,
-    [gameState.phase, gameState.week, isBroadcastRelevant, tvVisibleFeed]
+    [gameState.phase, gameState.week, isBroadcastRelevant, props.competitionStarting, tvVisibleFeed]
   )
   const priorityBroadcastEvent = useMemo(
     () =>
@@ -699,11 +749,12 @@ export default function TvZone(props: TvZoneProps) {
           (event) =>
             event.meta?.broadcastPriority === 'critical' &&
             event.meta?.broadcastManaged !== true &&
+            event.meta?.phase === gameState.phase &&
             event.meta?.week === gameState.week &&
             isBroadcastRelevant(event) &&
             !dismissedPriorityEventIds.has(event.id)
         ) ?? null,
-    [dismissedPriorityEventIds, gameState.week, isBroadcastRelevant, tvVisibleFeed]
+    [dismissedPriorityEventIds, gameState.phase, gameState.week, isBroadcastRelevant, tvVisibleFeed]
   )
   const displayedEvent =
     activeDetoxEvent ??
@@ -711,11 +762,7 @@ export default function TvZone(props: TvZoneProps) {
     priorityBroadcastEvent ??
     latestRelevantEvent ??
     lastPlainBroadcastEvent ??
-    latestCurrentPhaseMessage ??
-    // Results can advance their phase before their final feed item is tagged
-    // with that new phase. Preserve that latest visible result in the faux TV
-    // instead of presenting an empty viewport during the handoff.
-    latestUnconsumedEvent
+    latestCurrentPhaseMessage
   // Older guest reminders may already be in a browser's persisted TV feed
   // without the marker added for the branded TV treatment. Recognize that
   // copy too, so a player who has already reached the reminder sees the new
@@ -801,6 +848,7 @@ export default function TvZone(props: TvZoneProps) {
   // ── Shock announcement sequence state ────────────────────────────────────────
   // Phase A: full-screen shock stinger (ShockIntroOverlay).
   const [shockIntroActive, setShockIntroActive] = useState(false)
+  const startedShockSequenceRef = useRef<string | null>(null)
   const [cupidIntroAcknowledged, setCupidIntroAcknowledged] = useState(false)
   // Phase C: info-button spotlight (ConfessionalSpotlightOverlay reused).
   const [shockInfoSpotlightActive, setShockInfoSpotlightActive] = useState(false)
@@ -844,7 +892,9 @@ export default function TvZone(props: TvZoneProps) {
     // The Day 1 guest reminder is a regular on-air segment. Let it use the TV
     // message stage before the competition title card takes over.
     if (guestSaveReminderQueued) return null
+    if (pinnedQueuedBroadcastEvent && !queuedBroadcastIsCard) return null
     const announcementEvent =
+      (pinnedQueuedBroadcastEvent && queuedBroadcastIsCard ? pinnedQueuedBroadcastEvent : null) ??
       seasonStartExpansionEvent ??
       (queuedBroadcastIsCard ? queuedBroadcastEvent : null) ??
       announcementPrerollEvent ??
@@ -874,6 +924,7 @@ export default function TvZone(props: TvZoneProps) {
   }, [
     announcementPrerollEvent,
     guestSaveReminderQueued,
+    pinnedQueuedBroadcastEvent,
     seasonStartExpansionEvent,
     queuedBroadcastIsCard,
     priorityBroadcastEvent,
@@ -885,6 +936,7 @@ export default function TvZone(props: TvZoneProps) {
     gameState.battleBack?.winnerId,
   ])
   const eventAnnouncementSource =
+    pinnedQueuedBroadcastEvent ??
     seasonStartExpansionEvent ??
     (queuedBroadcastIsCard ? queuedBroadcastEvent : null) ??
     announcementPrerollEvent ??
@@ -914,6 +966,16 @@ export default function TvZone(props: TvZoneProps) {
     const newEventCount = previousIndex === -1 ? 1 : previousIndex
     const newEvents = tvVisibleFeed.slice(0, newEventCount)
     const queued = [...newEvents].reverse().flatMap((event) => {
+      // Managed items already use the durable queue. This compatibility FIFO
+      // must never create a second owner or revive an off-phase saved shock.
+      if (
+        event.meta?.broadcastManaged === true ||
+        event.meta?.broadcastConsumed === true ||
+        event.meta?.phase !== gameState.phase ||
+        event.meta?.week !== gameState.week ||
+        !isBroadcastRelevant(event)
+      )
+        return []
       if (event.meta?.broadcastManaged === true && event.meta?.forceOnTv !== true) return []
       const key = extractMajorKey(event)
       if (!key || !isBroadcastShockAnnouncementKey(key)) return []
@@ -934,7 +996,7 @@ export default function TvZone(props: TvZoneProps) {
     startTransition(() => {
       setShockAnnouncementQueue((current) => [...current, ...queued])
     })
-  }, [gameState.phase, tvVisibleFeed])
+  }, [gameState.phase, gameState.week, isBroadcastRelevant, tvVisibleFeed])
 
   // The core game phase remains jury while the post-finale sequence plays.
   // Replace its stale Tribunal Votes card with the resolved winner on the
@@ -1008,9 +1070,19 @@ export default function TvZone(props: TvZoneProps) {
         queuedBroadcastLevel === 'critical'
       : isBroadcastShockAnnouncementKey(activeAnnouncement.key))
   const audiencePreviewRevealActive = Boolean(props.audiencePreviewReveal)
+  const broadcastPresentationCovered = Boolean(
+    props.playOwnedExternally ||
+    hasPendingChallenge ||
+    gameState.weekendInterlude?.active ||
+    winnerBroadcast ||
+    weatherBulletinIsActive ||
+    publicSaveRevealActive ||
+    voteResultsRevealActive ||
+    democraciaResultsRevealActive ||
+    audiencePreviewRevealActive
+  )
   const showInlineAnnouncement =
-    !gameState.weekendInterlude?.active &&
-    winnerBroadcast == null &&
+    !broadcastPresentationCovered &&
     activeAnnouncement != null &&
     !(shockIntroActive && isShockAnnouncement) &&
     !(cupidFauxTvAnnouncement && !cupidIntroAcknowledged) &&
@@ -1018,6 +1090,27 @@ export default function TvZone(props: TvZoneProps) {
     !voteResultsRevealActive &&
     !democraciaResultsRevealActive &&
     !audiencePreviewRevealActive
+  const queuedBroadcastPresentationId =
+    queuedBroadcastEvent &&
+    (displayedEvent?.id === queuedBroadcastEvent.id ||
+      eventAnnouncementSource?.id === queuedBroadcastEvent.id)
+      ? queuedBroadcastEvent.id
+      : null
+
+  useLayoutEffect(() => {
+    if (
+      queuedBroadcastPresentationId &&
+      !broadcastPresentationCovered &&
+      gameState.activeBroadcastEventId !== queuedBroadcastPresentationId
+    ) {
+      dispatch(claimActiveBroadcastEvent(queuedBroadcastPresentationId))
+    }
+  }, [
+    dispatch,
+    gameState.activeBroadcastEventId,
+    broadcastPresentationCovered,
+    queuedBroadcastPresentationId,
+  ])
   // Keep the Safety Ceremony bed present through the title card, then duck it
   // under voting and reveal audio until the next phase resumes normal volume.
   useEffect(() => {
@@ -1040,34 +1133,44 @@ export default function TvZone(props: TvZoneProps) {
     winnerBroadcast == null
   const viewportMessageOverride =
     props.viewportMessageOverride?.trim() ||
-    (voxFinaleReady && !activeAnnouncement ? 'Ready for the Finale? Make your move.' : null)
-  const hideViewportMessage =
-    !viewportMessageOverride &&
-    (!displayedEvent ||
-      (!!activeAnnouncement && !cupidFollowUpVisible) ||
-      winnerBroadcast != null ||
-      weatherBulletinIsActive ||
-      publicSaveRevealActive ||
-      voteResultsRevealActive ||
-      democraciaResultsRevealActive ||
-      audiencePreviewRevealActive ||
-      gameState.weekendInterlude?.active === true)
+    (voxFinaleReady && !activeAnnouncement
+      ? 'Ready for the Finale? Make your move.'
+      : props.competitionStarting
+        ? 'Your competition is getting ready.'
+        : null)
   // Existing saved seasons can still hold the former default welcome copy.
   // Normalize that exact legacy phrase until those broadcasts are regenerated.
-  const displayedEventText = displayedEvent?.text
+  const displayedEventText = displayedEvent?.text?.trim()
     ? decorateDepressionShockFauxTvText(
         normalizeHubCopy(displayedEvent.text),
         depressionShockPhase,
         `${gameState.gameId}|${gameState.week}|${displayedEvent.id}`
       )
     : undefined
-  const viewportDisplayText =
-    viewportMessageOverride ??
-    (guestSaveReminderQueued
-      ? 'Guest mode. Create a profile to keep your season.'
-      : cupidFollowUpVisible
-        ? cupidFollowUpAnnouncement.subtitle
-        : (dailyTransitionTitle ?? displayedEventText))
+  const viewportEventText = guestSaveReminderQueued
+    ? 'Guest mode. Create a profile to keep your season.'
+    : cupidFollowUpVisible
+      ? cupidFollowUpAnnouncement.subtitle
+      : (dailyTransitionTitle ?? displayedEventText)
+  const fauxTvFrame = selectFauxTvFrame({
+    foregroundOwnerVisible: Boolean(
+      broadcastPresentationCovered ||
+      shockIntroActive ||
+      (showInlineAnnouncement && !cupidFollowUpVisible) ||
+      winnerBroadcast != null ||
+      weatherBulletinIsActive ||
+      publicSaveRevealActive ||
+      voteResultsRevealActive ||
+      democraciaResultsRevealActive ||
+      audiencePreviewRevealActive ||
+      gameState.weekendInterlude?.active === true
+    ),
+    override: viewportMessageOverride,
+    eventText: viewportEventText,
+    stateFallback: getPhaseBroadcastCopy(gameState.phase),
+  })
+  const hideViewportMessage = !fauxTvFrame.visible
+  const viewportDisplayText = fauxTvFrame.text ?? undefined
   const baseViewportMessageKey = getViewportMessageKey(displayedEvent)
   const viewportMessageKey = viewportMessageOverride
     ? `override-${viewportMessageOverride}`
@@ -1087,7 +1190,7 @@ export default function TvZone(props: TvZoneProps) {
   } else {
     mainTvMessage = guestSaveReminderQueued
       ? 'Guest mode. Create a profile to keep your season. Open More, then Profile, then Create Profile.'
-      : displayedEventText
+      : (viewportDisplayText ?? getPhaseBroadcastCopy(gameState.phase))
   }
 
   useEffect(() => {
@@ -1095,19 +1198,30 @@ export default function TvZone(props: TvZoneProps) {
     const previousLatestId = detoxSequenceLatestIdRef.current
     detoxSequenceLatestIdRef.current = latestVisibleId
 
-    if (previousLatestId === null || latestVisibleId === previousLatestId) return
+    if (latestVisibleId === previousLatestId) return
 
     const previousIndex = tvVisibleFeed.findIndex((event) => event.id === previousLatestId)
-    const newEventCount = previousIndex === -1 ? 1 : previousIndex
+    const newEventCount =
+      previousLatestId === null ? tvVisibleFeed.length : previousIndex === -1 ? 1 : previousIndex
     const newEvents = tvVisibleFeed.slice(0, newEventCount)
-    const detoxEvents = newEvents.filter(isDetoxSequenceEvent)
+    const detoxEvents = newEvents.filter(
+      (event) =>
+        isDetoxSequenceEvent(event) &&
+        event.meta?.phase === gameState.phase &&
+        event.meta?.week === gameState.week &&
+        event.meta?.broadcastConsumed !== true &&
+        !hasPresentationEventClaim(
+          reduxStore.getState().game.presentationEventClaims,
+          createPresentationEventClaim(gameState.gameId, event)
+        )
+    )
     if (detoxEvents.length === 0) return
 
     startTransition(() => {
       setDetoxMessageQueue(detoxEvents.reverse())
       setDetoxMessageIndex(0)
     })
-  }, [tvVisibleFeed])
+  }, [gameState.gameId, gameState.phase, gameState.week, reduxStore, tvVisibleFeed])
 
   useEffect(() => {
     if (detoxMessageTimerRef.current !== null) {
@@ -1115,6 +1229,10 @@ export default function TvZone(props: TvZoneProps) {
       detoxMessageTimerRef.current = null
     }
     if (detoxMessageQueue.length === 0) return
+    if (broadcastPresentationCovered || showInlineAnnouncement || winnerBroadcast) return
+    const current = detoxMessageQueue[detoxMessageIndex]
+    if (current)
+      dispatch(claimPresentationEvent(createPresentationEventClaim(gameState.gameId, current)))
 
     detoxMessageTimerRef.current = setTimeout(() => {
       startTransition(() => {
@@ -1134,7 +1252,15 @@ export default function TvZone(props: TvZoneProps) {
         detoxMessageTimerRef.current = null
       }
     }
-  }, [detoxMessageIndex, detoxMessageQueue])
+  }, [
+    detoxMessageIndex,
+    detoxMessageQueue,
+    dispatch,
+    gameState.gameId,
+    broadcastPresentationCovered,
+    showInlineAnnouncement,
+    winnerBroadcast,
+  ])
 
   const handleDismiss = useCallback(() => {
     const currentAnnouncement = activeAnnouncement
@@ -1296,19 +1422,49 @@ export default function TvZone(props: TvZoneProps) {
   // Fires whenever the active announcement key changes.
   // - Shock key  → start the stinger (phase A); spotlight cleared.
   // - Non-shock  → clear both phases (handles dismissal mid-sequence).
-  useEffect(() => {
+  useLayoutEffect(() => {
     const key = activeAnnouncement?.key ?? null
     const isShock = key !== null && isBroadcastShockAnnouncementKey(key)
+    if (isShock && broadcastPresentationCovered) return
+    const sequence = `${gameState.gameId}|${activeAnnouncementSequenceId}|${key}`
+    if (startedShockSequenceRef.current === sequence) return
+    startedShockSequenceRef.current = sequence
+    const sourceEventId =
+      queuedShockAnnouncement?.eventId ??
+      (activeAnnouncement === eventAnnouncement ? eventAnnouncementSource?.id : null) ??
+      null
+    const sourceEvent = sourceEventId
+      ? gameState.tvFeed.find((event) => event.id === sourceEventId)
+      : undefined
+    const claim =
+      isShock && sourceEvent ? createPresentationEventClaim(gameState.gameId, sourceEvent) : null
+    const alreadyClaimed = Boolean(
+      claim && hasPresentationEventClaim(reduxStore.getState().game.presentationEventClaims, claim)
+    )
+
+    if (claim && !alreadyClaimed) {
+      dispatch(claimPresentationEvent(claim))
+    }
+
     startTransition(() => {
-      if (isShock) {
-        setShockIntroActive(true)
-        setShockInfoSpotlightActive(false)
-      } else {
-        setShockIntroActive(false)
-        setShockInfoSpotlightActive(false)
-      }
+      setShockIntroActive(isShock && !alreadyClaimed)
+      setShockInfoSpotlightActive(false)
+      if (alreadyClaimed && key === 'cupid_arrow') setCupidIntroAcknowledged(true)
     })
-  }, [activeAnnouncementSequenceId, activeAnnouncement?.key])
+  }, [
+    activeAnnouncementSequenceId,
+    activeAnnouncement,
+    activeAnnouncement?.key,
+    dispatch,
+    eventAnnouncementSource,
+    eventAnnouncement,
+    gameState.gameId,
+    gameState.tvFeed,
+    queuedShockAnnouncement,
+    reduxStore,
+    broadcastPresentationCovered,
+    winnerBroadcast,
+  ])
 
   useEffect(() => {
     if (activeAnnouncement?.key !== 'cupid_arrow') {
@@ -1409,6 +1565,20 @@ export default function TvZone(props: TvZoneProps) {
     const handlePlay = (event: Event) => {
       // A full-screen sequence owns Play; don't also consume an older TV card.
       if (props.playOwnedExternally) return
+      if (props.competitionStarting || hasPendingChallenge) {
+        event.preventDefault()
+        return
+      }
+      // A callback from the previous render must not advance or consume the
+      // next item after its own source has already been acknowledged.
+      if (
+        queuedBroadcastEvent &&
+        reduxStore.getState().game.tvFeed.find((item) => item.id === queuedBroadcastEvent.id)?.meta
+          ?.broadcastConsumed === true
+      ) {
+        event.preventDefault()
+        return
+      }
       // A final appeal is a modal decision.  The global Play button must not
       // dismiss a TV card or advance the season underneath it.
       if (document.querySelector('[aria-label="Final appeal to the audience"]')) {
@@ -1424,7 +1594,8 @@ export default function TvZone(props: TvZoneProps) {
           // missing that welcome id).
           if (
             isSeasonStartExpansionActivation(eventAnnouncementSource) ||
-            (gameState.broadcastQueue?.length ?? 0) > 1
+            activeAnnouncement?.key === 'vox_populi_finale_ready' ||
+            currentQueuedBroadcastEvents.length > 1
           ) {
             event.preventDefault()
           }
@@ -1436,7 +1607,7 @@ export default function TvZone(props: TvZoneProps) {
           // A plain message needs to block Play only when another eligible TV
           // item follows it. Acknowledging the final plain message and moving
           // into the next phase should happen on the same button press.
-          if ((gameState.broadcastQueue?.length ?? 0) > 1) event.preventDefault()
+          if (currentQueuedBroadcastEvents.length > 1) event.preventDefault()
           dispatch(consumeBroadcastEvent(queuedBroadcastEvent.id))
         }
         return
@@ -1490,9 +1661,12 @@ export default function TvZone(props: TvZoneProps) {
     priorityBroadcastEvent,
     queuedBroadcastEvent,
     eventAnnouncementSource,
-    gameState.broadcastQueue?.length,
+    currentQueuedBroadcastEvents.length,
     cupidFollowUpVisible,
     props.playOwnedExternally,
+    props.competitionStarting,
+    hasPendingChallenge,
+    reduxStore,
   ])
 
   const handleModalClose = useCallback(() => setModalOpen(false), [])

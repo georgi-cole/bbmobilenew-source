@@ -1,3 +1,6 @@
+import { useSeasonAiRuntime } from '../../../ai/competition/SeasonAiContext'
+import { useMinigamePortalTarget } from '../../../components/MinigameHost/minigamePortal'
+import { runtimeCompetitionProfile } from '../../../ai/competition/seasonAiDifficulty'
 import { useCompetitionResultCheckpoint } from '../../competitionResultContext'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
@@ -244,8 +247,11 @@ export default function QuickTapRaceVip({
   onFinish,
   mode = 'race',
 }: Props) {
+  const portalTarget = useMinigamePortalTarget()
   useCoveredGameScreen()
   const dispatch = useAppDispatch()
+  const hostedAi = useSeasonAiRuntime()
+  const seasonAi = session?.aiRuntime ?? hostedAi
   const storePlayers = useAppSelector((state) => state.game.players)
   const roster = players.length ? players : storePlayers
   const [run] = useState(() => ({ seed: session?.seed ?? seed ?? 424242, mode }))
@@ -260,12 +266,13 @@ export default function QuickTapRaceVip({
         id,
         name: host?.name ?? player?.name ?? (index === 0 ? 'You' : `AI ${index}`),
         isHuman: host?.isHuman ?? player?.isUser ?? index === 0,
-        profile: (player ? (player.competitionProfile ?? DEFAULT_TAP_PROFILE) : undefined) as
+        profile: (runtimeCompetitionProfile(seasonAi, id, player?.competitionProfile) ??
+          (player ? DEFAULT_TAP_PROFILE : undefined)) as
           | Partial<CompetitionSkillProfile>
           | undefined,
       }
     })
-  }, [session?.participants, participantIds, participants, roster])
+  }, [session?.participants, participantIds, participants, roster, seasonAi])
   const offers = useMemo(() => createQuickTapVipOffers(run.seed, run.mode), [run])
   const aiRaces = useMemo(
     () =>
@@ -1110,5 +1117,5 @@ export default function QuickTapRaceVip({
       )}
     </main>
   )
-  return createPortal(stage, document.body)
+  return createPortal(stage, portalTarget)
 }

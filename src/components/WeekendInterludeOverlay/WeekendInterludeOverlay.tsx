@@ -12,6 +12,7 @@ import { getWeatherRuntime, type WeatherConditionId } from '../../weather/weathe
 import { formatSystemWeatherTemperature } from '../../weather/weatherTemperatureUnit'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
+import { useHorizontalSwipe } from '../../hooks/useHorizontalSwipe'
 import type { Player } from '../../types'
 import './WeekendInterludeOverlay.css'
 
@@ -38,7 +39,7 @@ function getWeatherLine(condition: WeatherConditionId): string {
   return 'Clouds gather as the Hub settles in for the night.'
 }
 
-function WeekendHubSaysChoices({
+export function WeekendHubSaysChoices({
   players,
   selectedPlayerId,
   onSelect,
@@ -50,26 +51,30 @@ function WeekendHubSaysChoices({
   const [choicePage, setChoicePage] = useState(0)
   const pageSize = 4
   const pageCount = Math.max(1, Math.ceil(players.length / pageSize))
-  const visiblePlayers = players.slice(choicePage * pageSize, choicePage * pageSize + pageSize)
+  const currentPage = Math.min(choicePage, pageCount - 1)
+  const visiblePlayers = players.slice(currentPage * pageSize, currentPage * pageSize + pageSize)
+  const movePage = (delta: number) =>
+    setChoicePage(Math.max(0, Math.min(pageCount - 1, currentPage + delta)))
+  const swipe = useHorizontalSwipe(movePage)
 
   return (
     <div
       className="weekend-interlude__carousel"
       role="group"
-      aria-label={`Choose a Hubmate, page ${choicePage + 1} of ${pageCount}`}
+      aria-label={`Choose a Hubmate, page ${currentPage + 1} of ${pageCount}`}
     >
       <button
         className="weekend-interlude__carousel-arrow"
         type="button"
         aria-label="Previous Hubmates"
-        disabled={choicePage === 0}
-        onClick={() => setChoicePage((page) => Math.max(0, page - 1))}
+        disabled={currentPage === 0}
+        onClick={() => movePage(-1)}
       >
         <svg viewBox="0 0 32 32" aria-hidden="true">
           <path d="M19.5 6.5 10 16l9.5 9.5M11 16h14" />
         </svg>
       </button>
-      <div className="weekend-interlude__players">
+      <div className="weekend-interlude__players" style={{ touchAction: 'pan-y' }} {...swipe}>
         {visiblePlayers.map((player) => {
           const selected = selectedPlayerId === player.id
           return (
@@ -96,8 +101,8 @@ function WeekendHubSaysChoices({
         className="weekend-interlude__carousel-arrow"
         type="button"
         aria-label="Next Hubmates"
-        disabled={choicePage >= pageCount - 1}
-        onClick={() => setChoicePage((page) => Math.min(pageCount - 1, page + 1))}
+        disabled={currentPage >= pageCount - 1}
+        onClick={() => movePage(1)}
       >
         <svg viewBox="0 0 32 32" aria-hidden="true">
           <path d="m12.5 6.5 9.5 9.5-9.5 9.5M21 16H7" />

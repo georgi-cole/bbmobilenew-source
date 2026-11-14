@@ -275,9 +275,9 @@ export type AiPersonality = 'cautious' | 'balanced' | 'gambler';
 export function pickAiPersonality(profile: CompetitionSkillProfile | undefined, rng: () => number): AiPersonality {
   // Map profile traits loosely, else random.
   if (profile) {
-    const nerve = profile.nerve ?? 0.5;
-    if (nerve > 0.7) return 'gambler';
-    if (nerve < 0.35) return 'cautious';
+    const nerve = profile.nerve ?? 50;
+    if (nerve > 70) return 'gambler';
+    if (nerve < 35) return 'cautious';
     return 'balanced';
   }
   const r = rng();
@@ -303,9 +303,12 @@ export function aiPickSide(
   row: BridgeRow,
   personality: AiPersonality,
   rng: () => number,
+  profile?: CompetitionSkillProfile,
 ): TileSide {
   // 50/50 baseline with small personality skew (gamblers guess more "confidently").
-  const correctChance = personality === 'gambler' ? 0.52 : personality === 'cautious' ? 0.5 : 0.51;
+  const baseline = personality === 'gambler' ? 0.52 : personality === 'cautious' ? 0.5 : 0.51;
+  const skill = profile ? (profile.mental + profile.precision) / 200 : 0.5;
+  const correctChance = Math.min(0.8, Math.max(0.45, baseline + (skill - 0.5) * 0.2));
   return rng() < correctChance ? row.safeSide : (row.safeSide === 'left' ? 'right' : 'left');
 }
 
@@ -381,7 +384,7 @@ export function simulateAiRun(
 
     const chosenSide = useHint
       ? (rng() < 0.85 ? row.safeSide : (row.safeSide === 'left' ? 'right' : 'left'))
-      : aiPickSide(row, personality, rng);
+      : aiPickSide(row, personality, rng, state.profile);
     const wrong = chosenSide !== row.safeSide;
     const stepMs = wrong ? WRONG_STEP_MS : SAFE_STEP_MS;
 

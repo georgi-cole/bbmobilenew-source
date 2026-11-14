@@ -1,5 +1,5 @@
 /**
- * MinigameHost — House of Cards seed isolation test.
+ * MinigameHost — House of Cards attempt seed continuity test.
  *
  * Bug: MinigameHost was forwarding `gameOptions.seed` (the challenge-derived
  * seed) directly to `HouseOfCardsComp`. When `game.seed` stayed the same on a
@@ -18,56 +18,56 @@
  *     seed unchanged.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
-import gameReducer from '../../../src/store/gameSlice';
-import challengeReducer from '../../../src/store/challengeSlice';
-import MinigameHost from '../../../src/components/MinigameHost/MinigameHost';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
+import { Provider } from 'react-redux'
+import { configureStore } from '@reduxjs/toolkit'
+import gameReducer from '../../../src/store/gameSlice'
+import challengeReducer from '../../../src/store/challengeSlice'
+import MinigameHost from '../../../src/components/MinigameHost/MinigameHost'
 
-let capturedHouseOfCardsSeed: number | undefined | 'NOT_RENDERED' = 'NOT_RENDERED';
+let capturedHouseOfCardsSeed: number | undefined | 'NOT_RENDERED' = 'NOT_RENDERED'
 
 vi.mock('../../../src/components/HouseOfCardsComp/HouseOfCardsComp', () => ({
   default: ({ seed }: { seed?: number }) => {
-    capturedHouseOfCardsSeed = seed;
-    return <div data-testid="hoc-comp" />;
+    capturedHouseOfCardsSeed = seed
+    return <div data-testid="hoc-comp" />
   },
-}));
+}))
 
-let capturedCwgoSeed: number | undefined | 'NOT_RENDERED' = 'NOT_RENDERED';
+let capturedCwgoSeed: number | undefined | 'NOT_RENDERED' = 'NOT_RENDERED'
 
 vi.mock('../../../src/components/ClosestWithoutGoingOverComp', () => ({
   default: ({ seed }: { seed?: number }) => {
-    capturedCwgoSeed = seed;
-    return <div data-testid="cwgo-comp" />;
+    capturedCwgoSeed = seed
+    return <div data-testid="cwgo-comp" />
   },
-}));
+}))
 
 vi.mock('../../../src/components/HoldTheWallComp/HoldTheWallComp', () => ({
   default: () => <div data-testid="htw-comp" />,
-}));
+}))
 vi.mock('../../../src/components/BiographyBlitzComp/biography_blitz_game', () => ({
   default: () => <div data-testid="bioblitz-comp" />,
-}));
+}))
 vi.mock('../../../src/components/FamousFiguresComp/FamousFiguresComp', () => ({
   default: () => <div data-testid="famous-comp" />,
-}));
+}))
 vi.mock('../../../src/components/SilentSaboteurComp/SilentSaboteurComp', () => ({
   default: () => <div data-testid="ss-comp" />,
-}));
+}))
 vi.mock('../../../src/components/GlassBridgeComp/GlassBridgeComp', () => ({
   default: () => <div data-testid="gb-comp" />,
-}));
+}))
 vi.mock('../../../src/components/BlackjackTournamentComp/BlackjackTournamentComp', () => ({
   default: () => <div data-testid="bj-comp" />,
-}));
+}))
 vi.mock('../../../src/components/RiskWheelComp/RiskWheelComp', () => ({
   default: () => <div data-testid="rw-comp" />,
-}));
+}))
 vi.mock('../../../src/minigames/LegacyMinigameWrapper', () => ({
   default: () => <div data-testid="legacy-game" />,
-}));
+}))
 
 const HOUSE_OF_CARDS_GAME = {
   key: 'houseOfCards',
@@ -86,7 +86,7 @@ const HOUSE_OF_CARDS_GAME = {
   weight: 1,
   category: 'arcade' as const,
   retired: false,
-};
+}
 
 const CWGO_GAME = {
   key: 'dontGoOver',
@@ -104,28 +104,28 @@ const CWGO_GAME = {
   weight: 1,
   category: 'arcade' as const,
   retired: false,
-};
+}
 
 const PARTICIPANTS = [
   { id: 'p0', name: 'Human', isHuman: true, precomputedScore: 0, previousPR: null },
   { id: 'p1', name: 'AI-1', isHuman: false, precomputedScore: 80, previousPR: null },
-];
+]
 
 function makeStore() {
-  return configureStore({ reducer: { game: gameReducer, challenge: challengeReducer } });
+  return configureStore({ reducer: { game: gameReducer, challenge: challengeReducer } })
 }
 
-describe('MinigameHost — House of Cards seed isolation', () => {
+describe('MinigameHost — House of Cards attempt seed continuity', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-    capturedHouseOfCardsSeed = 'NOT_RENDERED';
-    capturedCwgoSeed = 'NOT_RENDERED';
-  });
+    vi.useFakeTimers()
+    capturedHouseOfCardsSeed = 'NOT_RENDERED'
+    capturedCwgoSeed = 'NOT_RENDERED'
+  })
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => vi.useRealTimers())
 
-  it('HouseOfCardsComp receives a fresh-session seed even when gameOptions.seed is non-zero', async () => {
-    const CHALLENGE_SEED = 99999;
+  it('HouseOfCardsComp receives the saved challenge seed for a reload-stable tool offer', async () => {
+    const CHALLENGE_SEED = 99999
     render(
       <Provider store={makeStore()}>
         <MinigameHost
@@ -136,16 +136,18 @@ describe('MinigameHost — House of Cards seed isolation', () => {
           skipRules
           skipCountdown
         />
-      </Provider>,
-    );
+      </Provider>
+    )
 
-    await act(async () => { vi.runAllTimers(); });
+    await act(async () => {
+      vi.runAllTimers()
+    })
 
-    expect(screen.getByTestId('hoc-comp')).toBeTruthy();
-    expect(capturedHouseOfCardsSeed).toBeUndefined();
-  });
+    expect(screen.getByTestId('hoc-comp')).toBeTruthy()
+    expect(capturedHouseOfCardsSeed).toBe(CHALLENGE_SEED)
+  })
 
-  it('HouseOfCardsComp receives a fresh-session seed for challenge seed=0 as well', async () => {
+  it('HouseOfCardsComp preserves the valid zero challenge seed', async () => {
     render(
       <Provider store={makeStore()}>
         <MinigameHost
@@ -156,37 +158,44 @@ describe('MinigameHost — House of Cards seed isolation', () => {
           skipRules
           skipCountdown
         />
-      </Provider>,
-    );
+      </Provider>
+    )
 
-    await act(async () => { vi.runAllTimers(); });
+    await act(async () => {
+      vi.runAllTimers()
+    })
 
-    expect(screen.getByTestId('hoc-comp')).toBeTruthy();
-    expect(capturedHouseOfCardsSeed).toBeUndefined();
-  });
+    expect(screen.getByTestId('hoc-comp')).toBeTruthy()
+    expect(capturedHouseOfCardsSeed).toBe(0)
+  })
 
-  it.each([424242, 0])('HouseOfCardsComp receives its exact Lab seed %i in development preview', async (LAB_SEED) => {
-    render(
-      <Provider store={makeStore()}>
-        <MinigameHost
-          game={HOUSE_OF_CARDS_GAME}
-          gameOptions={{ seed: LAB_SEED, minigameLabPreview: true }}
-          participants={PARTICIPANTS}
-          onDone={vi.fn()}
-          skipRules
-          skipCountdown
-        />
-      </Provider>,
-    );
+  it.each([424242, 0])(
+    'HouseOfCardsComp receives its exact Lab seed %i in development preview',
+    async (LAB_SEED) => {
+      render(
+        <Provider store={makeStore()}>
+          <MinigameHost
+            game={HOUSE_OF_CARDS_GAME}
+            gameOptions={{ seed: LAB_SEED, minigameLabPreview: true }}
+            participants={PARTICIPANTS}
+            onDone={vi.fn()}
+            skipRules
+            skipCountdown
+          />
+        </Provider>
+      )
 
-    await act(async () => { vi.runAllTimers(); });
+      await act(async () => {
+        vi.runAllTimers()
+      })
 
-    expect(screen.getByTestId('hoc-comp')).toBeTruthy();
-    expect(capturedHouseOfCardsSeed).toBe(LAB_SEED);
-  });
+      expect(screen.getByTestId('hoc-comp')).toBeTruthy()
+      expect(capturedHouseOfCardsSeed).toBe(LAB_SEED)
+    }
+  )
 
   it('ClosestWithoutGoingOver (non-HouseOfCards) still receives the challenge seed unchanged', async () => {
-    const CHALLENGE_SEED = 77777;
+    const CHALLENGE_SEED = 77777
     render(
       <Provider store={makeStore()}>
         <MinigameHost
@@ -197,12 +206,14 @@ describe('MinigameHost — House of Cards seed isolation', () => {
           skipRules
           skipCountdown
         />
-      </Provider>,
-    );
+      </Provider>
+    )
 
-    await act(async () => { vi.runAllTimers(); });
+    await act(async () => {
+      vi.runAllTimers()
+    })
 
-    expect(screen.getByTestId('cwgo-comp')).toBeTruthy();
-    expect(capturedCwgoSeed).toBe(CHALLENGE_SEED);
-  });
-});
+    expect(screen.getByTestId('cwgo-comp')).toBeTruthy()
+    expect(capturedCwgoSeed).toBe(CHALLENGE_SEED)
+  })
+})

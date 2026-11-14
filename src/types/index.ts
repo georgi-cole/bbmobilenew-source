@@ -123,6 +123,14 @@ export interface CompetitionResolution {
   runId: string
   gameKey: string
   week: number
+  /** Campaign game boundary captured when this competition was scheduled. */
+  gameId?: string
+  originPhase?: string
+  /** Attempt number distinguishes rewarded retries of the same game. */
+  attemptNumber?: number
+  prizeType?: 'LOH' | 'POS' | string
+  /** Measured result retained when an explicit manager override determines the award. */
+  winnerOverride?: { configuredWinnerId: string; measuredWinnerId: string }
   participants: string[]
   status: 'completed' | 'quit' | 'skipped' | 'interrupted'
   humanId?: string
@@ -159,6 +167,7 @@ export interface CompleteMinigamePayload {
 
 /** Active minigame session stored in game state while waiting for player input. */
 export interface MinigameSession {
+  aiRuntime?: import('../ai/competition/seasonAiDifficulty').SeasonAiRuntime
   key: string
   participants: string[]
   seed: number
@@ -317,6 +326,12 @@ export interface TvEvent {
   source?: ActivitySource
 }
 
+export interface PresentationEventClaim {
+  gameId: string
+  runId: string
+  eventId: string
+}
+
 export type BroadcastLevel = 'minor' | 'major' | 'critical'
 
 /** Campaign filter used by the Broadcast Manager. Undefined means shared by every campaign. */
@@ -391,6 +406,7 @@ export interface SpectatorActiveState {
  * attempted (first-time lazy initialisation).
  */
 export interface BattleBackState {
+  aiRuntime?: import('../ai/competition/seasonAiDifficulty').SeasonAiRuntime
   /** True once this Battle Back session has resolved. */
   used: boolean
   /**
@@ -968,6 +984,10 @@ export interface GameState {
   pulseChronicles?: PulseChronicle[]
   /** Ordered event IDs waiting to be presented by the faux-TV player. */
   broadcastQueue?: string[]
+  /** Unread event whose presentation has begun and must remain at the queue head. */
+  activeBroadcastEventId?: string | null
+  /** Durable one-shot media claims, keyed by game, run, and source event. */
+  presentationEventClaims?: PresentationEventClaim[]
   /** Last consumed plain faux-TV message, retained until another message replaces it. */
   lastPlainBroadcastEventId?: string | null
   /** Editable built-in broadcast copy, keyed by the stable registry ID. */

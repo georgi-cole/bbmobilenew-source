@@ -72,6 +72,14 @@ export default function Profile() {
     }
   }, [profile?.photoId])
 
+  useEffect(() => {
+    if (!profile && !isGuest)
+      navigate(showAccount ? '/profile/account' : '/profile-picker', {
+        replace: true,
+        state: showAccount ? { entryFrom: returnTo } : { from: returnTo },
+      })
+  }, [profile, isGuest, showAccount, returnTo, navigate])
+
   if (isGuest) {
     return (
       <div className="placeholder-screen profile-screen">
@@ -116,43 +124,7 @@ export default function Profile() {
     )
   }
 
-  if (!profile) {
-    return (
-      <div className="placeholder-screen profile-screen">
-        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.55)', marginBottom: 20 }}>
-          No profile selected.
-        </p>
-        <button
-          type="button"
-          className="profile-screen__switch-btn game-button game-button--secondary"
-          onClick={() =>
-            navigate('/profile/dressing-room', {
-              state: { from: '/', createProfile: true },
-            })
-          }
-          style={{ marginBottom: 12 }}
-        >
-          Create Profile
-        </button>
-        <button
-          type="button"
-          className="profile-screen__switch-btn game-button game-button--secondary"
-          onClick={() => navigate('/profile-picker', { state: { from: '/' } })}
-        >
-          Select Existing Profile
-        </button>
-        {showAccount && (
-          <button
-            type="button"
-            className="profile-screen__switch-btn game-button game-button--secondary"
-            onClick={openAccount}
-          >
-            Account sign-in
-          </button>
-        )}
-      </div>
-    )
-  }
+  if (!profile) return null
 
   const bio = profile.bio
   const profileFacts = [

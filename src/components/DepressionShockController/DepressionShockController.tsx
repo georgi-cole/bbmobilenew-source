@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
-import { consumeBroadcastEvent } from '../../store/gameSlice'
+import { consumeBroadcastEvent, claimPresentationEvent } from '../../store/gameSlice'
+import { hasPresentationEventClaim } from '../../broadcasting/fauxTvPresentation'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   buildDepressionShockDayContext,
@@ -229,8 +230,14 @@ export default function DepressionShockController() {
 
   const handleChocolatePresented = useCallback(() => {
     const key = chocolatePresentationKey(game.gameId, game.week)
-    if (completedChocolatePresentationKeys.has(key)) return
+    const claim = { gameId: game.gameId, runId: key, eventId: `chocolates:${key}` }
+    if (
+      completedChocolatePresentationKeys.has(key) ||
+      hasPresentationEventClaim(game.presentationEventClaims, claim)
+    )
+      return
     completedChocolatePresentationKeys.add(key)
+    dispatch(claimPresentationEvent(claim))
 
     // Consume all equivalent sources, not just the event TvZone happened to
     // select first. This repairs both the current queue-order repro and older
@@ -247,7 +254,7 @@ export default function DepressionShockController() {
     }
 
     setCinematic('chocolate')
-  }, [dispatch, game.gameId, game.tvFeed, game.week])
+  }, [dispatch, game.gameId, game.tvFeed, game.week, game.presentationEventClaims])
 
   useEffect(() => {
     const handleThunder = () => setCinematic('thunder')

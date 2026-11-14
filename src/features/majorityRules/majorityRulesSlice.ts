@@ -42,6 +42,7 @@ export interface MajorityRulesRevealState {
 }
 
 export interface MajorityRulesState {
+  aiCapability?: number
   phase: MajorityRulesPhase
   competitionType: MajorityRulesCompetitionType
   seed: number
@@ -248,6 +249,7 @@ const majorityRulesSlice = createSlice({
     initMajorityRules(
       _state,
       action: PayloadAction<{
+        aiCapability?: number
         participantIds: string[]
         competitionType: MajorityRulesCompetitionType
         seed: number
@@ -276,6 +278,7 @@ const majorityRulesSlice = createSlice({
         finalDuel: null,
         winnerId: null,
         outcomeResolved: false,
+        aiCapability: action.payload.aiCapability,
         aiIdentities: action.payload.aiIdentities ?? {},
         vipExperience: action.payload.vipExperience === true,
       }
@@ -357,6 +360,7 @@ const majorityRulesSlice = createSlice({
       }
 
       const baseAiAnswers = buildBaseAiAnswers({
+        aiCapability: state.aiCapability,
         activeIds: state.activeIds,
         humanPlayerId: state.humanPlayerId,
         seed: state.seed,
@@ -424,6 +428,7 @@ const majorityRulesSlice = createSlice({
       }
       const humanId = state.humanPlayerId
       const simulation = simulateMajorityRulesBallot({
+        aiCapability: state.aiCapability,
         activeIds: state.activeIds,
         humanPlayerId: humanId,
         humanAnswer: humanId ? (state.draftAnswers[humanId] ?? null) : null,

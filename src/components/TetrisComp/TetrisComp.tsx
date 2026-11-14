@@ -389,7 +389,7 @@ export default function TetrisComp({
           humanScore: humanId ? humanScore : null,
         })
       )
-      dispatch(resolveTetrisOutcome())
+      if (!onComplete) dispatch(resolveTetrisOutcome())
       setFinalResult({
         rankingBestFirst: finalRankingBestFirst,
         finalistIds: finalStandings.map((entry) => entry.playerId),
@@ -402,7 +402,7 @@ export default function TetrisComp({
       setScreen('finalResults')
       setSimulatingRemainder(false)
     },
-    [dispatch, humanId]
+    [dispatch, humanId, onComplete]
   )
 
   const finishRound = useCallback(
@@ -925,6 +925,9 @@ export default function TetrisComp({
             rawResults: finalResult.outcomeScores,
             authoritativeWinnerId: finalResult.winnerId,
             authoritativeLastPlaceId: finalResult.lastPlaceId,
+            authoritativeRankedIds: finalResult.rankingBestFirst,
+            authoritativeTiedGroups: [],
+            lastPlaceType: 'scored',
           },
         }}
         onContinue={() =>

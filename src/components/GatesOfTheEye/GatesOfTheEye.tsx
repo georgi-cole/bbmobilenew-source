@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { mulberry32 } from '../../store/rng'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
@@ -79,6 +80,7 @@ export default function GatesOfTheEye({
   participants: participantProps,
   participantIds,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const resolvedParticipants = useMemo(() => {
     const fromProps = participantProps?.length
       ? participantProps
@@ -203,6 +205,7 @@ export default function GatesOfTheEye({
         }
         const aiRng = mulberry32(chooseRoundSeed(gameSeed, roundOrdinal, `ai-choice:${player.id}`))
         nextChoices[player.id] = chooseAiDoor({
+          aiCapability,
           participant: player,
           activeParticipants: active,
           profile: nextProfile,
@@ -219,7 +222,7 @@ export default function GatesOfTheEye({
       setRevealBeat('opening')
       setPhase('reveal')
     },
-    [gameSeed, humanIsActive, players, profiles, roundOrdinal]
+    [aiCapability, gameSeed, humanIsActive, players, profiles, roundOrdinal]
   )
 
   const handleLockChoice = useCallback(() => {

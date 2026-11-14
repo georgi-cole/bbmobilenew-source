@@ -27,6 +27,14 @@
   transform-origin: 50% 25.6667%;
 }
 .shock-lens {
+  /* Keep the 2:3 wall, SVG eye mask and circular iris on one art plane.
+     Stretching this plane to a tall phone letterboxes the SVG mask itself. */
+  right: auto;
+  left: 50%;
+  width: 66.666667vh;
+  width: 66.666667dvh;
+  margin-left: -33.333333vh;
+  margin-left: -33.333333dvh;
   transform-origin: 50% 25.6667%;
 }
 .shock-film .eye-window-room {

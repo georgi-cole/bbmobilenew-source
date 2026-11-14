@@ -162,12 +162,14 @@ export function simulateColorMatchAiRoundScore(
   participant: Pick<ColorMatchCompetitionParticipant, 'id' | 'participantIndex' | 'precomputedScore'>,
   roundNumber: number,
   seed: number,
+  capability = 1,
 ): number {
   const rng = mulberry32(
     ((seed >>> 0) ^ hashString(`${participant.id}:${participant.participantIndex ?? 0}:${roundNumber}:color-match`)) >>> 0,
   );
   const clusteredRoll = (rng() + rng() + rng()) / 3;
-  const rawScore = 67 + clusteredRoll * 22 + getRoundBoost(roundNumber) + getParticipantScoreBias(participant);
+  const baseError = 100 - (67 + clusteredRoll * 22 + getRoundBoost(roundNumber) + getParticipantScoreBias(participant));
+  const rawScore = 100 - baseError / capability;
   return normalizeColorMatchCompetitionScore(clamp(rawScore, 65, 99));
 }
 

@@ -135,9 +135,11 @@ export default function DownMemoryLane({
   )
 
   const opponentAbility = useMemo(() => {
-    const profile = gamePlayersById.get(duelists.ai?.id ?? '')?.competitionProfile
+    const profile =
+      duelists.ai?.competitionProfile ??
+      gamePlayersById.get(duelists.ai?.id ?? '')?.competitionProfile
     return deriveMemoryLaneAiAbility(profile)
-  }, [duelists.ai?.id, gamePlayersById])
+  }, [duelists.ai?.id, duelists.ai?.competitionProfile, gamePlayersById])
 
   const advanceQuestion = () => {
     clearTimers()

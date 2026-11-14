@@ -31,6 +31,7 @@ import { expandCupidIds, isCupidArrowActive } from '../../../features/twists/cup
 import { updateRelationship } from '../../../social/socialSlice'
 import {
   createAbandonedChallengeResult,
+  isCurrentChallengeResolution,
   rankChallengeResults,
   recoverCommittedChallengeResult,
 } from '../../../store/challengeResults'
@@ -377,15 +378,8 @@ export function useCompetitionFlow({
           : null
       const authoritativeWinnerId = explicitWinnerId ?? abandonedPlacementWinnerId
 
-      const featureAppliedWinnerBeforeCompletion =
-        capturedPrizeType === 'POS' ? current.game.posWinnerId : current.game.lohId
       const expectedPhase = capturedPrizeType === 'POS' ? 'pos_comp' : 'loh_comp'
-      const featureAlreadyResolved =
-        current.game.phase !== expectedPhase &&
-        Boolean(
-          featureAppliedWinnerBeforeCompletion &&
-          capturedParticipants.includes(featureAppliedWinnerBeforeCompletion)
-        )
+      const featureAlreadyResolved = isCurrentChallengeResolution(pendingChallenge, current.game)
 
       dispatch(
         acceptChallengeResult({
@@ -400,6 +394,16 @@ export function useCompetitionFlow({
       )
       // Save the accepted result before any campaign reducer can advance the week.
       void persistCompetitionCheckpoint()
+      const measuredWinnerIdForOverride = authoritativeWinnerId ?? ranked[0]?.playerId
+      const winnerOverride =
+        scheduledWinnerId &&
+        measuredWinnerIdForOverride &&
+        scheduledWinnerId !== measuredWinnerIdForOverride
+          ? {
+              configuredWinnerId: scheduledWinnerId,
+              measuredWinnerId: measuredWinnerIdForOverride,
+            }
+          : undefined
 
       if (import.meta.env.DEV) {
         console.log('[LOH_CROWN] MinigameHost onDone — challenge completion', {
@@ -422,6 +426,7 @@ export function useCompetitionFlow({
           keepPending: true,
           skipSeasonUpdate: featureAlreadyResolved,
           authoritativeRankedIds: reactCompletion?.authoritativeRankedIds,
+          ...(winnerOverride ? { winnerOverride } : {}),
         })
       ) as string | null
 
@@ -542,6 +547,18 @@ export function useCompetitionFlow({
         placements: missionPlacements,
         runId: pendingChallenge.id,
         gameKey: capturedGameKey,
+        gameId: pendingChallenge.origin?.gameId,
+        originPhase: pendingChallenge.origin?.phase,
+        attemptNumber: livePending.attempt?.number ?? 0,
+        prizeType: capturedPrizeType,
+        ...(scheduledWinnerId && explicitWinnerId && scheduledWinnerId !== explicitWinnerId
+          ? {
+              winnerOverride: {
+                configuredWinnerId: scheduledWinnerId,
+                measuredWinnerId: explicitWinnerId,
+              },
+            }
+          : {}),
       }
 
       if (import.meta.env.DEV) {
@@ -673,6 +690,10 @@ export function useCompetitionFlow({
           ]
         : winnerTileMetadata
       const winnerNames = winnerPlayers.map((player) => player.name).join(' & ')
+      const managerOverrideCopy =
+        scheduledWinnerId && explicitWinnerId && scheduledWinnerId !== explicitWinnerId
+          ? ' Game Manager override.'
+          : ''
       const voxLastPlaceCopy = voxLastPlace
         ? ` ${voxLastPlace.name} finishes last and is nominated.`
         : ''
@@ -728,9 +749,9 @@ export function useCompetitionFlow({
         // Geometry is deliberately absent: the lift animation resolves and
         // snapshots the live roster element after MinigameHost has unmounted.
         tiles: ceremonyTiles,
-        caption: `${winnerNames} ${isCupidArrowActive(game) ? 'win' : 'wins'} ${winLabel}!${voxLastPlaceCopy}`,
+        caption: `${winnerNames} ${isCupidArrowActive(game) ? 'win' : 'wins'} ${winLabel}!${voxLastPlaceCopy}${managerOverrideCopy}`,
         subtitle: winSymbol,
-        ariaLabel: `${winnerNames} ${isCupidArrowActive(game) ? 'win' : 'wins'} ${winLabel}.${voxLastPlaceCopy}`,
+        ariaLabel: `${winnerNames} ${isCupidArrowActive(game) ? 'win' : 'wins'} ${winLabel}.${voxLastPlaceCopy}${managerOverrideCopy}`,
       })
     },
     [aliveIds.length, dispatch, game, humanPlayer, isF3MinigamePhase, pendingChallenge, store]

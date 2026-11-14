@@ -49,6 +49,37 @@ if (values.VITE_BUILD_TARGET === 'mobile-dev') {
   issues.push('VITE_BUILD_TARGET=mobile-dev must not be used in a store build.')
 }
 
+// Account sign-in is part of both store releases. Android must use the same
+// production account services as iOS, rather than silently shipping hidden UI.
+for (const key of [
+  'VITE_SUPABASE_ENABLED',
+  'VITE_PLAYER_ACCOUNTS_ENABLED',
+  'VITE_PLAYER_SIGN_IN_ENABLED',
+]) {
+  if (values[key] !== 'true') issues.push(`${key} must be true in a store build.`)
+}
+if (
+  !isProductionHttpsUrl(values.VITE_SUPABASE_URL ?? '') ||
+  /PROJECT_REF|REPLACE_ME/i.test(values.VITE_SUPABASE_URL ?? '')
+) {
+  issues.push('VITE_SUPABASE_URL must be the production account service HTTPS URL.')
+}
+const publicKey = values.VITE_SUPABASE_PUBLISHABLE_KEY ?? ''
+let validPublicKey =
+  /^sb_publishable_[A-Za-z0-9_-]+$/.test(publicKey) && !/REPLACE_ME/i.test(publicKey)
+if (publicKey.startsWith('eyJ')) {
+  try {
+    validPublicKey = JSON.parse(Buffer.from(publicKey.split('.')[1], 'base64url')).role === 'anon'
+  } catch {
+    validPublicKey = false
+  }
+}
+if (!validPublicKey) {
+  issues.push(
+    'VITE_SUPABASE_PUBLISHABLE_KEY must be a publishable or anon key, never a server key.'
+  )
+}
+
 const adsMode = values.VITE_ADMOB_MODE || 'off'
 if (!['off', 'live'].includes(adsMode)) {
   issues.push(

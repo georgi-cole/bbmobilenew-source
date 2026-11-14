@@ -330,4 +330,33 @@ describe('AnimatedVoteResultsModal public tie-break reveal', () => {
     expect(updatedValues[1]).toBeGreaterThan(30)
     expect(container.querySelector('.avrm__tally--leading')).toBeNull()
   })
+
+  it.each([
+    { values: [61.432198, 38.567802], labels: ['61.4%', '38.6%'] },
+    { values: [50.041, 49.959], labels: ['50.04%', '49.96%'] },
+    { values: [50.004, 49.996], labels: ['50.004%', '49.996%'] },
+    { values: [50, 50], labels: ['50.0%', '50.0%'] },
+  ])('settles on readable public percentages for $values', async ({ values, labels }) => {
+    const { container } = render(
+      <AnimatedVoteResultsModal
+        nominees={values.map((voteCount, index) => ({
+          nominee: makePlayer(`p${index}`, `Nominee ${index}`),
+          voteCount,
+        }))}
+        onDone={vi.fn()}
+        variant="tv"
+        resultMode="public"
+        revealIntervalMs={1}
+      />
+    )
+    // Let React commit each reveal tick before scheduling the next one.
+    for (let tick = 0; tick < 50; tick += 1) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1)
+      })
+    }
+    expect(
+      Array.from(container.querySelectorAll('.avrm__tally-count'), (node) => node.textContent)
+    ).toEqual(labels)
+  })
 })

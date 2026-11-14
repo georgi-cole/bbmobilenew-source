@@ -12,6 +12,7 @@ import {
   writeDurableItem,
 } from './support/test'
 import { openProfileCreationForm } from './support/profile'
+import { mkdir } from 'node:fs/promises'
 import { incomingDockButton, replyToOptionalIncoming } from './support/incomingSocial'
 
 const JOURNEY_TIMEOUT_MS = 90_000
@@ -749,7 +750,7 @@ test.describe('Real player core journeys', () => {
     await waitForHome(page)
   })
 
-  test('a rapidly repeated social action charges once and the resource balance survives reload @core-journey @economy @mobile @release', async ({
+  test('social cards scroll below the fixed controls and a repeated action charges once @smoke @core-journey @economy @mobile @release', async ({
     page,
   }) => {
     await startFreshCampaign(page, 'Economy Journey Player')
@@ -773,11 +774,72 @@ test.describe('Real player core journeys', () => {
     expect(initialEnergy).toBeGreaterThanOrEqual(1)
 
     await socialDialog.locator('[aria-label="Player roster"]').getByRole('button').first().click()
+    if ((page.viewportSize()?.width ?? 0) < 700) {
+      const focus = socialDialog.locator('.sp2-focus--active')
+      const heading = socialDialog.locator('.sp2-moves__top')
+      const cards = socialDialog.locator('[aria-label="Action grid"]')
+      const beforeFocus = (await focus.boundingBox())!
+      const beforeHeading = (await heading.boundingBox())!
+      await cards.evaluate((element) => {
+        element.scrollTop = 300
+      })
+      await expect.poll(() => cards.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+      const afterFocus = (await focus.boundingBox())!
+      const afterHeading = (await heading.boundingBox())!
+      const cardBox = (await cards.boundingBox())!
+      expect(afterFocus.y).toBeCloseTo(beforeFocus.y, 0)
+      expect(afterHeading.y).toBeCloseTo(beforeHeading.y, 0)
+      expect(cardBox.y).toBeGreaterThanOrEqual(afterHeading.y + afterHeading.height - 1)
+      expect(await cards.evaluate((element) => getComputedStyle(element).overflowY)).toBe('auto')
+      // A bounded scroll grid must not squeeze rows below their cards' contents.
+      const cardMetrics = await cards.locator('.ac-card').evaluateAll((elements) =>
+        elements.map((element) => {
+          const { top, bottom, left, right } = element.getBoundingClientRect()
+          return {
+            id: element.getAttribute('data-action-id'),
+            top,
+            bottom,
+            left,
+            right,
+            contents: Array.from(
+              element.querySelectorAll('.ac-card__header, .ac-card__chips, .ac-card__description')
+            ).map((content) => {
+              const bounds = content.getBoundingClientRect()
+              return { name: content.className, top: bounds.top, bottom: bounds.bottom }
+            }),
+          }
+        })
+      )
+      expect(cardMetrics.length).toBeGreaterThan(2)
+      for (const [index, card] of cardMetrics.entries()) {
+        for (const content of card.contents) {
+          expect(content.top, `${card.id} ${content.name} top`).toBeGreaterThanOrEqual(card.top - 1)
+          expect(content.bottom, `${card.id} ${content.name} bottom`).toBeLessThanOrEqual(
+            card.bottom + 1
+          )
+        }
+        for (const next of cardMetrics.slice(index + 1)) {
+          if (next.top > card.top + 1 && next.left < card.right && next.right > card.left) {
+            expect(next.top, `${card.id} overlaps ${next.id}`).toBeGreaterThanOrEqual(
+              card.bottom - 1
+            )
+          }
+        }
+      }
+      await mkdir('visual-evidence/followups', { recursive: true })
+      await page.screenshot({ path: 'visual-evidence/followups/social-scroll.png' })
+      await cards.evaluate((element) => {
+        element.scrollTop = 0
+      })
+    }
     await socialDialog
       .locator('[aria-label="Action grid"]')
       .getByRole('button', { name: /Compliment/ })
       .click()
-    await expect(socialDialog.getByText(/Cost:/)).toContainText('1')
+    await expect(
+      socialDialog.locator('[aria-label="Action grid"]').getByRole('button', { name: /Compliment/ })
+    ).toHaveAttribute('aria-pressed', 'true')
+    await expect(socialDialog.getByRole('button', { name: 'Execute' })).toBeEnabled()
 
     await socialDialog.getByRole('button', { name: 'Execute' }).dblclick()
     const remainingEnergy = initialEnergy - 1

@@ -277,6 +277,7 @@ export const BROADCAST_PRESENTATION_REGISTRY: Readonly<Record<string, BroadcastP
       ),
     },
     vox_populi_finale_ready: {
+      eventMajor: true,
       announcement: liveCard(
         'Ready for the Finale?',
         'The final two have made their case. Press Play to open the final audience vote.'
@@ -322,6 +323,7 @@ export const BROADCAST_PRESENTATION_REGISTRY: Readonly<Record<string, BroadcastP
       announcement: liveCard('DEMOCRACIA!', 'The hub will elect its new leader by secret vote.'),
     },
     tribunal_phase: {
+      eventMajor: true,
       announcement: liveCard(
         'Welcome to the Tribunal',
         'The game is over for you, but your final vote will decide who deserves the crown.'

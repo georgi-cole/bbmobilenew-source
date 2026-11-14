@@ -118,9 +118,17 @@ export function shouldAiAcceptHoldTheWallDeal(
   )
 }
 
-export function shouldFinalDuelAiDrop(seed: number, aiId: string, rollIndex: number): boolean {
+export function shouldFinalDuelAiDrop(
+  seed: number,
+  aiId: string,
+  rollIndex: number,
+  capability = 1
+): boolean {
   if (rollIndex < 1) return false
-  return seededUnit(`${seed}:${aiId}:hold-wall-final-duel:${rollIndex}`) < FINAL_DUEL_AI_DROP_CHANCE
+  return (
+    seededUnit(`${seed}:${aiId}:hold-wall-final-duel:${rollIndex}`) <
+    FINAL_DUEL_AI_DROP_CHANCE / capability
+  )
 }
 
 export function getHoldTheWallDealBetrayalChance(

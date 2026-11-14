@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
@@ -72,11 +73,12 @@ export default function PercentagePanic({
   prizeType = 'LOH',
   onComplete,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const [assetsReady, setAssetsReady] = useState(false)
   const [sessionSeed] = useState(() => seed ?? cryptoSeed())
   const [state, setState] = useState<PercentagePanicState>(() => {
     const humanId = participants.find((p) => p.isHuman)?.id ?? null
-    return createPercentagePanic(participantIds, humanId, sessionSeed)
+    return { ...createPercentagePanic(participantIds, humanId, sessionSeed), aiCapability }
   })
   const [guess, setGuess] = useState(50)
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)

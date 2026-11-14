@@ -1,3 +1,4 @@
+import { createRealityAlliance } from '../reality'
 import { configureStore, type Reducer, type UnknownAction } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import gameReducer, { getNominationTargetScore } from '../../store/gameSlice'
@@ -377,4 +378,109 @@ describe('canonical LOH Ambush advice', () => {
     state.lohNominationPlan!.targetId = 'human'
     expect(consult(state)).not.toContain('ambush')
   })
+})
+
+describe('LOH protection offered to a current pact partner', () => {
+  it.each([0, 0.5, 0.999])('publicly accepts the concrete offer at draw %s', (draw) => {
+    const reality = createInitialRealityDomainState()
+    const pact = createRealityAlliance(reality, {
+      id: 'protection-pact',
+      memberIds: ['human', 'nominee'],
+      kind: 'PACT',
+      founderIds: ['human', 'nominee'],
+      purpose: 'Mutual protection',
+      at: { day: 4, phase: 'social_1' },
+    })
+    pact.status = 'ACTIVE'
+    const lohContext = {
+      ...context,
+      phase: 'social_1',
+      nominationLeaderId: 'human',
+      atRiskActorIds: [],
+      rolesByActor: { human: ['loh'], nominee: ['active'] },
+    }
+    expect(
+      resolveRealityTargetResponse({
+        action: REALITY_ACTION_BY_ID.get('protect')!,
+        actorId: 'human',
+        targetId: 'nominee',
+        reality,
+        context: lohContext,
+        draw,
+      })
+    ).toMatchObject({ accepted: true, reason: 'loh_pact_protection_acknowledged' })
+  })
+})
+
+describe('LOH protection acknowledgement integrity', () => {
+  function setup() {
+    const domain = createInitialRealityDomainState()
+    createRealityAlliance(domain, {
+      id: 'pact',
+      kind: 'PACT',
+      founderIds: ['human', 'nominee'],
+      memberIds: ['human', 'nominee'],
+      purpose: 'Protection',
+      at: { day: 4, phase: 'social_1' },
+    }).status = 'ACTIVE'
+    domain.relationships.nominee = { human: createDirectedRelationship('nominee', 'human', -80) }
+    const lohContext: RealityContext = {
+      ...context,
+      phase: 'social_1',
+      nominationLeaderId: 'human',
+      atRiskActorIds: [],
+      rolesByActor: { human: ['loh'], nominee: ['active'] },
+    }
+    return { domain, lohContext }
+  }
+  it('acknowledges a strained pact without granting trust or stacking promises', () => {
+    const { domain, lohContext } = setup()
+    const originalTrust = domain.relationships.nominee.human.trust
+    let simulation = createInitialRealitySimulationState(17)
+    let current = domain
+    for (let i = 0; i < 2; i++) {
+      const result = runRealityOpportunity({
+        domain: current,
+        simulation,
+        opportunity: {
+          actorId: 'human',
+          direction: 'HUMAN_TO_AI',
+          context: lohContext,
+          actors: {
+            ...actors,
+            human: { ...actors.human, roles: ['loh'] },
+            nominee: { ...actors.nominee, roles: ['active'] },
+          },
+          candidates: [{ action: REALITY_ACTION_BY_ID.get('protect')!, targetIds: ['nominee'] }],
+        },
+      })
+      current = result.domain
+      simulation = result.simulation
+      expect(result.targetResponses?.[0]?.response.reason).toBe('loh_pact_protection_acknowledged')
+    }
+    expect(current.relationships.nominee.human.trust).toBe(originalTrust)
+    expect(Object.values(current.promises).filter((p) => p.kind === 'protect')).toHaveLength(1)
+    expect(Object.values(current.alliances)).toHaveLength(1)
+  })
+  it.each(['no-authority', 'no-pact', 'nominated', 'late'] as const)(
+    'does not guarantee acceptance with %s',
+    (kind) => {
+      const { domain, lohContext } = setup()
+      if (kind === 'no-authority') lohContext.nominationLeaderId = undefined
+      if (kind === 'no-pact') domain.alliances = {}
+      if (kind === 'nominated') lohContext.atRiskActorIds = ['nominee']
+      if (kind === 'late') lohContext.phase = 'social_2'
+      expect(
+        resolveRealityTargetResponse({
+          action: REALITY_ACTION_BY_ID.get('protect')!,
+          actorId: 'human',
+          targetId: 'nominee',
+          reality: domain,
+          context: lohContext,
+          draw: 0.999,
+          repetition: { initialChance: 0.1, factor: 0.01 },
+        }).reason
+      ).not.toBe('loh_pact_protection_acknowledged')
+    }
+  )
 })

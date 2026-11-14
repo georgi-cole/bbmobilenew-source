@@ -239,6 +239,66 @@ describe('RiskWheelComp', () => {
     expect(screen.getByRole('button', { name: /continue as spectator/i })).toBeInTheDocument()
   })
 
+  it('shows only See Winner when the eliminated human is in the terminal summary', async () => {
+    const initialized = riskWheelReducer(
+      undefined,
+      initRiskWheel({
+        participantIds: ['human', 'survivor'],
+        competitionType: 'POS',
+        seed: 42,
+        humanPlayerId: 'human',
+      })
+    )
+    const terminalSummary: RiskWheelState = {
+      ...initialized,
+      phase: 'round_summary',
+      round: initialized.initialPlayerCount >= 5 ? 5 : 3,
+      activePlayerIds: ['human', 'survivor'],
+      eliminatedThisRound: ['human'],
+      eliminatedPlayerIds: [],
+      roundScores: { human: 0, survivor: 100 },
+      tieBreaker: null,
+      humanPlayerId: 'human',
+    }
+    const testRiskWheelReducer = (
+      state: RiskWheelState | undefined,
+      action: Parameters<typeof riskWheelReducer>[1]
+    ) =>
+      action.type === 'test/terminal-summary' ? terminalSummary : riskWheelReducer(state, action)
+    const store = configureStore({
+      reducer: { riskWheel: testRiskWheelReducer, game: gameReducer },
+    })
+
+    render(
+      <Provider store={store}>
+        <RiskWheelComp
+          participantIds={['human', 'survivor']}
+          participants={[
+            { id: 'human', name: 'Human', isHuman: true },
+            { id: 'survivor', name: 'Survivor', isHuman: false },
+          ]}
+          prizeType="POS"
+          seed={42}
+          standalone
+        />
+      </Provider>
+    )
+
+    await screen.findByRole('button', { name: /spin the wheel/i })
+    await act(async () => {
+      store.dispatch({ type: 'test/terminal-summary' })
+    })
+
+    expect(screen.getByRole('button', { name: /see winner/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /continue as spectator/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /skip to results/i })).not.toBeInTheDocument()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /see winner/i }))
+    })
+    expect(store.getState().riskWheel.phase).toBe('complete')
+    expect(store.getState().riskWheel.winnerId).toBe('survivor')
+  })
+
   it('plays playStopAndBankSound when the Stop and Bank button is clicked', async () => {
     mockAudio.playStopAndBankSound.mockClear()
 

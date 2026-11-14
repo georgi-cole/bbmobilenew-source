@@ -5,6 +5,7 @@ import {
 } from '../relationshipSemantics'
 import type { RealityContext, RealityDomainState, RealityResponseResolution } from './types'
 import { isSafetyProtectionOffer } from '../protectionOffer'
+import { getCurrentPact } from './allianceIdentity'
 
 export type { RealityResponseKind, RealityResponseResolution } from './types'
 
@@ -19,7 +20,9 @@ export function resolveRealityTargetResponse(input: {
   targetId: string
   reality: RealityDomainState
   context?: Pick<RealityContext, 'atRiskActorIds' | 'day'> &
-    Partial<Pick<RealityContext, 'phase' | 'rolesByActor'>>
+    Partial<
+      Pick<RealityContext, 'phase' | 'rolesByActor' | 'activeActorIds' | 'nominationLeaderId'>
+    >
   draw: number
   acceptanceChanceOverride?: number
   repetition?: RealityResponseRepetition
@@ -33,6 +36,24 @@ export function resolveRealityTargetResponse(input: {
   const suspicion = edge?.suspicion ?? 0
   const resentment = edge?.resentment ?? 0
   const threat = edge?.perceivedThreat ?? 0
+  // Accept the concrete protection being offered; private loyalty is judged
+  // separately when the LOH fulfils or breaks the promise.
+  if (
+    input.action.id === 'protect' &&
+    input.context?.nominationLeaderId === input.actorId &&
+    ['loh_results', 'social_1', 'nominations'].includes(input.context.phase ?? '') &&
+    input.context.rolesByActor?.[input.actorId]?.some((role) => role.split('+').includes('loh')) &&
+    input.context.activeActorIds?.includes(input.targetId) &&
+    !input.context.atRiskActorIds.includes(input.targetId) &&
+    getCurrentPact(input.reality, input.actorId, input.targetId)
+  ) {
+    return {
+      kind: 'ACCEPT',
+      utility: 1,
+      reason: 'loh_pact_protection_acknowledged',
+      accepted: true,
+    }
+  }
   if (input.action.purposes.includes('CONFLICT')) {
     const escalation = (resentment + threat - trust) / 240
     if (input.draw < Math.max(0.08, escalation)) {

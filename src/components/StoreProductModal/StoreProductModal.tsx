@@ -10,6 +10,7 @@ interface StoreProductModalProps {
   owned: boolean
   includedWithVip: boolean
   billingAvailable: boolean
+  canReconnect?: boolean
   purchasing: boolean
   restoring: boolean
   error: string | null
@@ -139,6 +140,7 @@ export default function StoreProductModal({
   owned,
   includedWithVip,
   billingAvailable,
+  canReconnect = false,
   purchasing,
   restoring,
   error,
@@ -252,13 +254,19 @@ export default function StoreProductModal({
                   type="button"
                   className="store-product-modal__restore"
                   onClick={onRestore}
-                  disabled={busy || !billingAvailable}
+                  disabled={busy || (!billingAvailable && !canReconnect)}
                 >
-                  {restoring ? 'Restoring purchases...' : 'Restore Purchases'}
+                  {restoring
+                    ? 'Connecting to Store...'
+                    : !billingAvailable && canReconnect
+                      ? 'Reconnect to Store'
+                      : 'Restore Purchases'}
                 </button>
                 {!billingAvailable && (
                   <p className="store-product-modal__availability">
-                    Purchases are available in the iOS and Android app.
+                    {canReconnect
+                      ? 'Reconnect to load store prices and purchases.'
+                      : 'Purchases are available in the iOS and Android app.'}
                   </p>
                 )}
                 {definition.legalNote && (

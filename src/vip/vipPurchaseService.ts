@@ -17,6 +17,7 @@ import { getVipBillingProductId, isVipBillingProductId } from './vipUpgrade'
 import { TEMPORARY_STORE_UNLOCKS_ENABLED } from './effectiveEntitlements'
 import { IS_MOBILE_DEV_BUILD } from '../config/buildTarget'
 import { configureNativePurchaseLifecycle } from './nativePurchaseLifecycle'
+import { withNativeBilling } from './nativeBillingQueue'
 
 export interface StoreProduct {
   key: StoreProductKey
@@ -105,10 +106,14 @@ async function loadProducts(
   const requestedProductIds = releasedProducts.map((definition) =>
     definition.key === 'vip' ? vipBillingProductId : definition.productId
   )
-  const { products } = await NativePurchases.getProducts({
-    productIdentifiers: requestedProductIds,
-    productType: PURCHASE_TYPE.INAPP,
-  })
+  const { products } = await withNativeBilling(
+    () =>
+      NativePurchases.getProducts({
+        productIdentifiers: requestedProductIds,
+        productType: PURCHASE_TYPE.INAPP,
+      }),
+    { retryDisconnected: true }
+  )
   const catalog: Partial<Record<StoreProductKey, StoreProduct>> = {}
   for (const definition of releasedProducts) {
     const productId = definition.key === 'vip' ? vipBillingProductId : definition.productId
@@ -141,10 +146,14 @@ async function loadOwnership(): Promise<{
   isActive: boolean
   entitlements: StoreEntitlements
 }> {
-  const { purchases } = await NativePurchases.getPurchases({
-    productType: PURCHASE_TYPE.INAPP,
-    onlyCurrentEntitlements: true,
-  })
+  const { purchases } = await withNativeBilling(
+    () =>
+      NativePurchases.getPurchases({
+        productType: PURCHASE_TYPE.INAPP,
+        onlyCurrentEntitlements: true,
+      }),
+    { retryDisconnected: true }
+  )
   return ownershipFromTransactions(purchases)
 }
 
@@ -174,7 +183,9 @@ async function finishPermanentPurchase(transaction: Transaction): Promise<boolea
     )
       return false
     if (!transaction.isAcknowledged)
-      await NativePurchases.acknowledgePurchase({ purchaseToken: transaction.purchaseToken })
+      await withNativeBilling(() =>
+        NativePurchases.acknowledgePurchase({ purchaseToken: transaction.purchaseToken! })
+      )
   } else {
     await NativePurchases.finishTransaction({ transactionId: transaction.transactionId })
   }
@@ -182,7 +193,17 @@ async function finishPermanentPurchase(transaction: Transaction): Promise<boolea
 }
 
 async function finishUnfinishedPermanentPurchases(): Promise<void> {
-  const { transactions } = await NativePurchases.getUnfinishedTransactions()
+  // All permanent products are one-time purchases. Android's unfinished helper
+  // also queries subscriptions and can fail an otherwise valid in-app catalog.
+  const transactions =
+    Capacitor.getPlatform() === 'android'
+      ? (
+          await withNativeBilling(
+            () => NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP }),
+            { retryDisconnected: true }
+          )
+        ).purchases
+      : (await NativePurchases.getUnfinishedTransactions()).transactions
   for (const transaction of transactions) await finishPermanentPurchase(transaction)
 }
 
@@ -214,7 +235,7 @@ export async function loadVipStoreSnapshot(options?: {
     }
   }
 
-  const { isBillingSupported } = await NativePurchases.isBillingSupported()
+  const { isBillingSupported } = await withNativeBilling(() => NativePurchases.isBillingSupported())
   if (!isBillingSupported) {
     return {
       billingAvailable: false,
@@ -226,7 +247,10 @@ export async function loadVipStoreSnapshot(options?: {
   }
 
   await configureNativePurchaseLifecycle()
-  if (options?.restore) await NativePurchases.restorePurchases()
+  // Google Play ownership is restored by the INAPP query and acknowledgment
+  // below. The Android restore helper starts queries before its promise settles.
+  if (options?.restore && Capacitor.getPlatform() !== 'android')
+    await NativePurchases.restorePurchases()
   // Manual native finishing protects consumables. Permanent unlocks remain
   // restorable, so acknowledge their completed transactions before ownership refresh.
   await finishUnfinishedPermanentPurchases()
@@ -258,12 +282,14 @@ export async function purchaseStoreProduct(productKey: StoreProductKey): Promise
     productKey === 'vip'
       ? getVipBillingProductId((await loadOwnership()).entitlements)
       : definition.productId
-  const transaction = await NativePurchases.purchaseProduct({
-    productIdentifier: billingProductId,
-    productType: PURCHASE_TYPE.INAPP,
-    isConsumable: false,
-    autoAcknowledgePurchases: false,
-  })
+  const transaction = await withNativeBilling(() =>
+    NativePurchases.purchaseProduct({
+      productIdentifier: billingProductId,
+      productType: PURCHASE_TYPE.INAPP,
+      isConsumable: false,
+      autoAcknowledgePurchases: false,
+    })
+  )
 
   // Check payment state before manual acknowledgment. Consumable transactions
   // never reach this permanent-entitlement path.

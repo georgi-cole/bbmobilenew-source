@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { useLocation, useNavigate } from 'react-router'
 import StoreProductIcon from '../../components/StoreProductModal/StoreProductIcon'
 import StoreProductModal from '../../components/StoreProductModal/StoreProductModal'
@@ -67,7 +68,6 @@ const VIP_BENEFIT_HIGHLIGHTS: Record<string, string> = {
   'Reality Mode': 'Turn the social game all the way up.',
   "Cupid's Arrow expansion": 'Shared fates. Doubled consequences.',
   'Vox Populi expansion': 'The audience gets the final say.',
-  'VIP themes': 'Give every season a premium finish.',
   'Premium Challenges remasters': 'Two fan-favourite rescues, rebuilt.',
   'No automatic ads': 'Keep the broadcast moving without forced commercial breaks.',
 }
@@ -104,6 +104,7 @@ export default function Store() {
       ? resolveVipUpgradeOffer(storeState.entitlements)
       : null
   const developerAccess = TEMPORARY_STORE_UNLOCKS_ENABLED
+  const canReconnect = Capacitor.isNativePlatform() && !developerAccess
   const vipPriceLabel = developerAccess
     ? 'Developer access'
     : effectiveVipActive
@@ -231,17 +232,22 @@ export default function Store() {
     if (busy || developerAccess) return
     setNotice(null)
     setModalError(null)
-    const result = await dispatch(restoreVip())
-    if (restoreVip.fulfilled.match(result)) {
+    const reconnecting = !storeState.billingAvailable
+    const result = reconnecting ? await dispatch(initializeVip()) : await dispatch(restoreVip())
+    if (restoreVip.fulfilled.match(result) || initializeVip.fulfilled.match(result)) {
       const ownedCount = STANDALONE_PRODUCT_KEYS.filter(
         (key) => result.payload.entitlements[key]
       ).length
       setNotice(
-        result.payload.isActive || ownedCount > 0
-          ? 'Your purchases have been restored.'
-          : 'No owned products were found for this store account.'
+        !result.payload.billingAvailable
+          ? 'The store is still unavailable. Check your connection and try again.'
+          : result.payload.isActive || ownedCount > 0
+            ? 'Your purchases have been restored.'
+            : reconnecting
+              ? 'Store connected. Available purchases are ready.'
+              : 'No owned products were found for this store account.'
       )
-    } else if (restoreVip.rejected.match(result)) {
+    } else if (restoreVip.rejected.match(result) || initializeVip.rejected.match(result)) {
       setModalError(result.payload ?? 'Purchases could not be restored.')
     }
   }
@@ -648,14 +654,22 @@ export default function Store() {
             type="button"
             className="vip-store__restore"
             onClick={() => void handleRestore()}
-            disabled={busy || !storeState.billingAvailable || developerAccess}
+            disabled={busy || (!storeState.billingAvailable && !canReconnect) || developerAccess}
           >
-            {storeState.status === 'restoring' ? 'Restoring...' : 'Restore Purchases'}
+            {storeState.status === 'restoring'
+              ? 'Restoring...'
+              : storeState.status === 'loading'
+                ? 'Connecting...'
+                : !storeState.billingAvailable && canReconnect
+                  ? 'Reconnect to Store'
+                  : 'Restore Purchases'}
           </button>
 
           {!developerAccess && !storeState.billingAvailable && storeState.status !== 'loading' && (
             <p className="vip-store__availability">
-              Purchases appear here when the app is installed from Apple App Store or Google Play.
+              {canReconnect
+                ? 'The store connection is unavailable. Reconnect to load prices and purchases.'
+                : 'Purchases appear here when the app is installed from Apple App Store or Google Play.'}
             </p>
           )}
           {(notice || (selectedProductKey == null && storeState.error)) && (
@@ -691,11 +705,12 @@ export default function Store() {
           owned={selectedOwned}
           includedWithVip={selectedIncludedWithVip}
           billingAvailable={developerAccess ? false : storeState.billingAvailable}
+          canReconnect={canReconnect}
           purchasing={
             storeState.status === 'purchasing' &&
             storeState.activePurchaseKey === selectedProductKey
           }
-          restoring={storeState.status === 'restoring'}
+          restoring={storeState.status === 'restoring' || storeState.status === 'loading'}
           error={modalError}
           notice={notice}
           onClose={() => {

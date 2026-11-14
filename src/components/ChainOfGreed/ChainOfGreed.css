@@ -31,8 +31,8 @@
   max-width: 32rem;
   min-height: 100dvh;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top, 0px) + 0.6rem) 0.85rem
-    calc(env(safe-area-inset-bottom, 0px) + 0.4rem);
+  padding: calc(var(--minigame-safe-top, env(safe-area-inset-top, 0px)) + 0.6rem) 0.85rem
+    calc(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)) + 0.4rem);
   box-sizing: border-box;
 }
 
@@ -1122,7 +1122,7 @@
   width: min(100%, 36rem);
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.1rem);
+  padding-bottom: calc(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)) + 1.1rem);
 }
 
 .chain-of-greed__modal--flash {
@@ -1543,7 +1543,7 @@
 /* ── Action bar safe-area fix ──────────────────────────────────────────────── */
 
 .chain-of-greed__action-bar {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.2rem);
+  padding-bottom: max(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)), 0.2rem);
 }
 
 /* -- Broadcast ladder stability pass --------------------------------------- */
@@ -1759,7 +1759,8 @@
 }
 
 .chain-of-greed__action-bar {
-  padding: 0.45rem 0.5rem max(env(safe-area-inset-bottom, 0px), 0.45rem);
+  padding: 0.45rem 0.5rem
+    max(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)), 0.45rem);
   border: 1px solid rgba(133, 180, 255, 0.12);
   border-radius: 0.85rem;
   background: rgba(3, 9, 18, 0.72);
@@ -2284,7 +2285,8 @@
 .chain-of-greed__action-bar {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.45rem;
-  padding: 0.45rem 0.5rem max(env(safe-area-inset-bottom, 0px), 0.45rem);
+  padding: 0.45rem 0.5rem
+    max(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)), 0.45rem);
 }
 
 .chain-of-greed__buttons {
@@ -2474,7 +2476,8 @@
 
 .chain-of-greed__action-bar {
   grid-template-columns: 1fr;
-  padding: 0.38rem 0.45rem max(env(safe-area-inset-bottom, 0px), 0.38rem);
+  padding: 0.38rem 0.45rem
+    max(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)), 0.38rem);
 }
 
 .chain-of-greed__buttons {
@@ -3999,7 +4002,7 @@
 
   .chain-of-greed__action-bar {
     position: sticky;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.3rem);
+    bottom: calc(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)) + 0.3rem);
     z-index: 4;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
   }
@@ -4686,7 +4689,8 @@
 
 .chain-of-greed__action-bar {
   gap: 0.3rem;
-  padding: 0.28rem 0.35rem max(env(safe-area-inset-bottom, 0px), 0.3rem);
+  padding: 0.28rem 0.35rem
+    max(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)), 0.3rem);
 }
 
 .chain-of-greed__ladder-node:first-child .chain-of-greed__ladder-step-copy--center {

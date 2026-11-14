@@ -3,7 +3,7 @@
 // Multi-profile system.
 //
 // Key behaviours:
-//  - Up to MAX_PROFILES profiles per local owner or signed-in account.
+//  - Up to MAX_PROFILES profiles can be created on a device, signed in or out.
 //  - "Login" = selecting an active profile (no password/auth).
 //  - Guest mode: no stats/archives saved, warning displayed.
 //  - Switching profiles always prompts a season-reset confirmation (handled in UI).
@@ -624,10 +624,7 @@ const profilesSlice = createSlice({
       }>
     ) {
       const accountId = action.payload.playerAccountId
-      const sameOwnerCount = state.profiles.filter((profile) =>
-        accountId ? profile.playerAccountId === accountId : !profile.playerAccountId
-      ).length
-      if (sameOwnerCount >= MAX_PROFILES) return
+      if (state.profiles.length >= MAX_PROFILES) return
       const id = action.payload.id ?? generateId()
       if (!id.trim() || state.profiles.some((profile) => profile.id === id)) return
       const appearance = coerceAppearanceSelection(action.payload.appearanceSelection)
@@ -676,6 +673,26 @@ const profilesSlice = createSlice({
         return
       profile.playerAccountId = accountId
       profile.accountProfileUpdatedAt = nextAccountProfileTimestamp(profile)
+    },
+
+    /** Attach all unclaimed local profiles to the verified account together. */
+    linkLocalProfilesToPlayerAccount(
+      state,
+      action: PayloadAction<{ accountId: string; profileIds?: string[] }>
+    ) {
+      const { accountId } = action.payload
+      if (!accountId) return
+      const local = state.profiles.filter(
+        (profile) =>
+          !profile.playerAccountId &&
+          (!action.payload.profileIds || action.payload.profileIds.includes(profile.id))
+      )
+      const owned = state.profiles.filter((profile) => profile.playerAccountId === accountId)
+      if (owned.length + local.length > MAX_PROFILES) return
+      for (const profile of local) {
+        profile.playerAccountId = accountId
+        profile.accountProfileUpdatedAt = nextAccountProfileTimestamp(profile)
+      }
     },
 
     mergePlayerAccountProfiles(
@@ -1138,6 +1155,7 @@ export const {
   createProfile,
   selectActiveProfile,
   linkActiveProfileToPlayerAccount,
+  linkLocalProfilesToPlayerAccount,
   mergePlayerAccountProfiles,
   unlinkProfileFromPlayerAccount,
   updateProfile,

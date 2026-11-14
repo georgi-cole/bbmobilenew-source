@@ -50,7 +50,7 @@ function makeRiskWheelState(overrides: Partial<RiskWheelState> = {}): RiskWheelS
     phase: 'complete',
     allPlayerIds: ['p0', 'p1'],
     activePlayerIds: ['p0', 'p1'],
-    eliminatedPlayerIds: [],
+    eliminatedPlayerIds: ['p1'],
     humanPlayerId: 'p0',
     initialPlayerCount: 2,
     round: 3,
@@ -117,22 +117,27 @@ describe('RiskWheelComp completion flow', () => {
     });
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalledWith({ authoritativeWinnerId: 'p0' });
+      expect(onComplete).toHaveBeenCalledWith({
+        authoritativeWinnerId: 'p0',
+        authoritativeLastPlaceId: 'p1',
+        authoritativeRankedIds: ['p0', 'p1'],
+        authoritativeTiedGroups: [],
+        lastPlaceType: 'survival',
+        rawResults: { p0: 100, p1: 80 },
+      });
     });
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(resolveRiskWheelOutcomeMock).not.toHaveBeenCalled();
   });
 
-  it('still resolves normal hosted LOH runs through the outcome thunk first', async () => {
+  it('returns normal hosted LOH results without committing before host acceptance', async () => {
     const { onComplete } = renderComponent({
       gamePhase: 'loh_comp',
       riskWheelState: makeRiskWheelState({ outcomeResolved: false }),
     });
 
-    await waitFor(() => {
-      expect(resolveRiskWheelOutcomeMock).toHaveBeenCalledTimes(1);
-    });
-    expect(onComplete).not.toHaveBeenCalled();
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(resolveRiskWheelOutcomeMock).not.toHaveBeenCalled();
   });
 
   it('still completes normal hosted runs after outcomeResolved is true', async () => {
@@ -142,7 +147,14 @@ describe('RiskWheelComp completion flow', () => {
     });
 
     await waitFor(() => {
-      expect(onComplete).toHaveBeenCalledWith({ authoritativeWinnerId: 'p0' });
+      expect(onComplete).toHaveBeenCalledWith({
+        authoritativeWinnerId: 'p0',
+        authoritativeLastPlaceId: 'p1',
+        authoritativeRankedIds: ['p0', 'p1'],
+        authoritativeTiedGroups: [],
+        lastPlaceType: 'survival',
+        rawResults: { p0: 100, p1: 80 },
+      });
     });
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(resolveRiskWheelOutcomeMock).not.toHaveBeenCalled();

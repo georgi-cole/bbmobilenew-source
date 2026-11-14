@@ -39,6 +39,7 @@ export interface HoldTheWallFinalTwoDeal {
 }
 
 export interface HoldTheWallState {
+  aiCapability?: number
   status: HoldTheWallStatus;
   prizeType: HoldTheWallPrizeType;
   seed: number;
@@ -92,13 +93,14 @@ export function buildAiDropSchedule(
   seed: number,
   participantIds: string[],
   humanId: string | null,
+  capability = 1,
 ): Record<string, number> {
   const rng = mulberry32(seed);
   const schedule: Record<string, number> = {};
   const range = AI_DROP_MAX_MS - AI_DROP_MIN_MS;
   for (const id of participantIds) {
     if (id !== humanId) {
-      schedule[id] = AI_DROP_MIN_MS + Math.floor(rng() * range);
+      schedule[id] = Math.round((AI_DROP_MIN_MS + Math.floor(rng() * range)) * capability);
     }
   }
   return schedule;
@@ -162,6 +164,7 @@ const holdTheWallSlice = createSlice({
     startHoldTheWall(
       state,
       action: PayloadAction<{
+        aiCapability?: number
         participantIds: string[];
         humanId: string | null;
         prizeType: HoldTheWallPrizeType;
@@ -169,12 +172,13 @@ const holdTheWallSlice = createSlice({
       }>,
     ) {
       const { participantIds, humanId, prizeType, seed } = action.payload;
+      state.aiCapability = action.payload.aiCapability
       state.status = 'active';
       state.prizeType = prizeType;
       state.seed = seed;
       state.humanId = humanId;
       state.participantIds = participantIds;
-      state.aiDropSchedule = buildAiDropSchedule(seed, participantIds, humanId);
+      state.aiDropSchedule = buildAiDropSchedule(seed, participantIds, humanId, action.payload.aiCapability);
       state.droppedIds = [];
       state.winnerId = null;
       state.finalTwoDeal = null;

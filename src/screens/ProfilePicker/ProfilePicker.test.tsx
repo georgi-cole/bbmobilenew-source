@@ -13,7 +13,8 @@ import Profile from '../Profile/Profile'
 const mockNavigate = vi.fn()
 const mockDispatch = vi.fn()
 const mockLoadSavedRunProfile = vi.fn()
-let mockLocationState: { from?: string } | null = null
+let mockLocationState: { from?: string; manageOnly?: boolean; autoSelectSingle?: boolean } | null =
+  null
 
 const mockState: {
   profiles: {
@@ -23,6 +24,7 @@ const mockState: {
       avatar: string
       createdAt: string
       photoId?: string
+      playerAccountId?: string
     }>
     activeProfileId: string | null
     isGuest: boolean
@@ -173,6 +175,59 @@ describe('ProfilePicker', () => {
         state: { from: '/game' },
       })
     })
+  })
+
+  it('blocks signed-out creation when three account profiles already exist on the device', () => {
+    mockState.profiles.profiles = Array.from({ length: 3 }, (_, index) => ({
+      id: `linked-${index}`,
+      name: `Linked ${index}`,
+      avatar: 'P',
+      createdAt: '2026-11-13T12:00:00Z',
+      playerAccountId: 'account',
+    }))
+    render(<ProfilePicker />)
+    expect(screen.queryByRole('button', { name: /create new profile/i })).toBeNull()
+    expect(screen.getByText(/Delete one to make room/)).toBeDefined()
+  })
+
+  it('manages profiles without offering gameplay or switching the active profile', () => {
+    mockState.profiles.profiles = [
+      { id: 'p1', name: 'Deni', avatar: 'D', createdAt: '2026-11-13T12:00:00Z' },
+      { id: 'p2', name: 'Sara', avatar: 'S', createdAt: '2026-11-13T12:00:00Z' },
+    ]
+    mockState.profiles.activeProfileId = 'p1'
+    mockLocationState = { from: '/profile/account', manageOnly: true }
+    render(<ProfilePicker />)
+    expect(screen.getByRole('heading', { name: 'Manage profiles' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Select' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /continue as guest/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /back to account/i }))
+    expect(mockNavigate).toHaveBeenCalledWith('/profile/account', { replace: true })
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('returns home without a leave-game prompt before any season has started', () => {
+    mockState.game = { status: 'idle', week: 1, phase: 'season_start' }
+    mockLocationState = { from: '/' }
+    render(<ProfilePicker />)
+    fireEvent.click(screen.getByRole('button', { name: 'Back to home' }))
+    expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true })
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('opens the only profile through the normal save lifecycle without showing a chooser', () => {
+    mockState.profiles.profiles = [
+      { id: 'only-profile', name: 'Deni', avatar: 'D', createdAt: '2026-11-13T12:00:00Z' },
+    ]
+    mockState.game = { status: 'idle', week: 1, phase: 'season_start' }
+    mockLocationState = { from: '/', autoSelectSingle: true }
+    render(<ProfilePicker />)
+    expect(screen.queryByRole('heading', { name: 'Profiles' })).toBeNull()
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'profiles/selectActiveProfile',
+      payload: 'only-profile',
+    })
+    expect(mockNavigate).toHaveBeenCalledWith('/profile', { replace: true, state: { from: '/' } })
   })
 
   it('keeps optional email inside the fallback creation form with no separate account entry', async () => {
@@ -607,7 +662,8 @@ describe('ProfilePicker', () => {
     'does not invent a current season for a fresh profile at %s',
     (phase) => {
       setupActiveSeason()
-      mockState.game = { status: 'inactive', week: 1, phase }
+      // resetGame marks even an unplayed profile active. It is not proof of play.
+      mockState.game = { status: 'active', week: 1, phase }
       render(<ProfilePicker />)
 
       expect(screen.queryByRole('region', { name: 'Current season status' })).toBeNull()

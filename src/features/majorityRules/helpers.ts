@@ -428,6 +428,7 @@ function getIdentityNoiseWeight(identity: AiGameIdentity | undefined): number {
 }
 
 function buildPlayerScores(params: {
+  aiCapability?: number
   seed: number
   roundNumber: number
   playerId: string
@@ -442,7 +443,7 @@ function buildPlayerScores(params: {
   const scores: Record<string, number> = {}
   const conformity = getIdentityConformity(identity)
   const choicePower = getQuestionConsensusPower(question) * (0.9 + conformity * 0.1)
-  const noiseWeight = getIdentityNoiseWeight(identity)
+  const noiseWeight = getIdentityNoiseWeight(identity) / (params.aiCapability ?? 1)
 
   for (const option of question.options) {
     if (!optionIds.includes(option.id)) continue
@@ -465,6 +466,7 @@ function buildPlayerScores(params: {
 }
 
 export function chooseAiAnswer(params: {
+  aiCapability?: number
   seed: number
   roundNumber: number
   playerId: string
@@ -521,6 +523,7 @@ export function buildPollEstimate(
 }
 
 export function buildBaseAiAnswers(params: {
+  aiCapability?: number
   activeIds: string[]
   humanPlayerId: string | null
   seed: number
@@ -544,6 +547,7 @@ export function buildBaseAiAnswers(params: {
   for (const playerId of activeIds) {
     if (playerId === humanPlayerId) continue
     answers[playerId] = chooseAiAnswer({
+      aiCapability: params.aiCapability,
       seed,
       roundNumber,
       playerId,
@@ -723,6 +727,7 @@ function applyHintToAnswer(params: {
 }
 
 export function simulateMajorityRulesBallot(params: {
+  aiCapability?: number
   activeIds: string[]
   humanPlayerId: string | null
   humanAnswer?: string | null
@@ -750,6 +755,7 @@ export function simulateMajorityRulesBallot(params: {
   } = params
 
   const baseAiAnswers = buildBaseAiAnswers({
+    aiCapability: params.aiCapability,
     activeIds,
     humanPlayerId,
     seed,

@@ -5,6 +5,7 @@ import {
   canAdvanceReplacementStep,
   nextReplacementStep,
   replacementDecision,
+  replacementFilmScene,
 } from './replacementSequence'
 import { replacementBeats, replacementDuration } from './replacement-timing.js'
 
@@ -50,8 +51,14 @@ describe('connected replacement decisions', () => {
       { ...outcome, actionHistory: [...outcome.actionHistory, decline] },
       0
     )
-    expect(step?.end).toBe(5)
-    expect(step?.outcome.actionHistory).toEqual(outcome.actionHistory)
+    expect(step?.end).toBe(1)
+    expect(step?.outcome.actionHistory).toEqual([outcome.actionHistory[0]])
+    const last = nextReplacementStep(
+      { ...outcome, actionHistory: [...outcome.actionHistory, decline] },
+      3
+    )
+    expect(last?.end).toBe(5)
+    expect(last?.outcome.actionHistory).toEqual([outcome.actionHistory[3]])
     expect(
       nextReplacementStep({ ...outcome, actionHistory: [...outcome.actionHistory, decline] }, 4)
     ).toBeNull()
@@ -65,10 +72,11 @@ describe('connected replacement decisions', () => {
     ]
     expected.forEach((_, index) => {
       const next = nextReplacementStep(outcome, index)!
-      expect(next.end).toBe(4)
+      expect(next.end).toBe(index + 1)
       expect(
         next.outcome.actionHistory.map(({ kind, playerId, actorId }) => [kind, playerId, actorId])
-      ).toEqual(expected.slice(index))
+      ).toEqual([expected[index]])
+      expect(replacementFilmScene(next.outcome)).toBe(index % 2 === 0 ? 'save' : 'replacement')
       expect(next.outcome.openingSlots?.a).toBe(0)
     })
     const partial = { ...outcome, actionHistory: outcome.actionHistory.slice(0, 1) }
@@ -115,7 +123,8 @@ describe('connected replacement decisions', () => {
     expect(beats.map((b) => b.actions.length)).toEqual([2, 2])
     expect(beats.map((b) => b.showAuthority)).toEqual([true, false])
     expect(beats[1].reveals[1].at - beats[1].reveals[0].at).toBeGreaterThanOrEqual(1500)
-    expect(nextReplacementStep(detox, 0)?.end).toBe(4)
+    expect(nextReplacementStep(detox, 0)?.end).toBe(2)
+    expect(nextReplacementStep(detox, 2)?.end).toBe(4)
   })
   it('requires the real human choice and recognizes a human Cupid coholder', () => {
     const current = game({

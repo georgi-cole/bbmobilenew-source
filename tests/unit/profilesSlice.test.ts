@@ -18,6 +18,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { configureStore } from '@reduxjs/toolkit'
 import profilesReducer, {
   createProfile,
+  linkLocalProfilesToPlayerAccount,
   selectActiveProfile,
   deleteProfile,
   updateProfile,
@@ -97,6 +98,59 @@ describe('createProfile', () => {
     const store = makeStore({ profiles: [], activeProfileId: null, isGuest: true })
     store.dispatch(createProfile({ name: 'Bob', avatar: '🧑' }))
     expect(store.getState().profiles.isGuest).toBe(false)
+  })
+
+  it('counts account-linked profiles toward the creation limit after signing out', () => {
+    const store = makeStore()
+    for (let i = 0; i < MAX_PROFILES; i++)
+      store.dispatch(
+        createProfile({ name: `Linked ${i}`, avatar: 'L', playerAccountId: 'account' })
+      )
+    const before = store.getState().profiles
+    store.dispatch(createProfile({ name: 'Signed-out extra', avatar: 'E' }))
+    store.dispatch(
+      createProfile({ name: 'Other account extra', avatar: 'E', playerAccountId: 'other' })
+    )
+    expect(store.getState().profiles).toBe(before)
+  })
+})
+
+describe('account profile ownership', () => {
+  it('claims every unlinked local profile together without changing the active game profile', () => {
+    const store = makeStore()
+    store.dispatch(createProfile({ id: 'local-a', name: 'A', avatar: 'A' }))
+    store.dispatch(createProfile({ id: 'local-b', name: 'B', avatar: 'B' }))
+    store.dispatch(linkLocalProfilesToPlayerAccount({ accountId: 'verified-account' }))
+
+    const state = store.getState().profiles
+    expect(state.activeProfileId).toBe('local-b')
+    expect(state.profiles.map((profile) => profile.playerAccountId)).toEqual([
+      'verified-account',
+      'verified-account',
+    ])
+    expect(state.profiles.every((profile) => Boolean(profile.accountProfileUpdatedAt))).toBe(true)
+  })
+
+  it('keeps local profiles unclaimed together when the account has too few free slots', () => {
+    const store = makeStore({
+      profiles: ['remote-a', 'remote-b', 'local-c', 'local-d'].map((id) => ({
+        id,
+        name: id,
+        avatar: 'P',
+        createdAt: '2026-11-13T12:00:00Z',
+        ...(id.startsWith('remote') ? { playerAccountId: 'verified-account' } : {}),
+      })),
+      activeProfileId: 'local-d',
+      isGuest: false,
+    })
+    store.dispatch(linkLocalProfilesToPlayerAccount({ accountId: 'verified-account' }))
+
+    const state = store.getState().profiles
+    expect(
+      state.profiles.filter((profile) => profile.playerAccountId === 'verified-account')
+    ).toHaveLength(2)
+    expect(state.profiles.filter((profile) => !profile.playerAccountId)).toHaveLength(2)
+    expect(state.activeProfileId).toBe('local-d')
   })
 })
 

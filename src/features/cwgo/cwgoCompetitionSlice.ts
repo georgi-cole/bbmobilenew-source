@@ -55,6 +55,7 @@ export type CwgoStatus =
 export type CwgoPrizeType = 'LOH' | 'POS'
 
 export interface CwgoState {
+  aiCapability?: number
   status: CwgoStatus
   stage: 'qualifier' | 'final'
   prizeType: CwgoPrizeType
@@ -146,7 +147,8 @@ function fillAIGuesses(
   humanIds: Set<string>,
   question: CwgoQuestion,
   seed: number,
-  round: number
+  round: number,
+  capability = 1
 ): { guesses: Record<string, number>; responseTimesMs: Record<string, number> } {
   const updated = { ...guesses }
   const updatedTimes = { ...responseTimesMs }
@@ -156,7 +158,7 @@ function fillAIGuesses(
       // The contestant's knowledge trait is stable. Question difficulty now
       // changes recall probability/uncertainty instead of replacing the person
       // with a newly sampled weak or strong AI every round.
-      const aiSkill = aiSkillForPlayer(id)
+      const aiSkill = Math.min(1, aiSkillForPlayer(id) * capability)
       aiSeed = (mulberry32(aiSeed)() * 0x100000000) >>> 0
       const guess = generateAIQuestionGuess(question, aiSkill, aiSeed)
       updated[id] = guess
@@ -182,12 +184,14 @@ const cwgoSlice = createSlice({
     startCwgoCompetition(
       state,
       action: PayloadAction<{
+        aiCapability?: number
         participantIds: string[]
         prizeType: CwgoPrizeType
         seed: number
       }>
     ) {
       const { participantIds, prizeType, seed } = action.payload
+      state.aiCapability = action.payload.aiCapability
       // Defensive: if seed is zero or missing, generate one from Date.now() to
       // avoid every challenge with an unset seed producing the same question.
       const safeSeed =
@@ -264,7 +268,8 @@ const cwgoSlice = createSlice({
         humanSet,
         question,
         state.seed,
-        state.round
+        state.round,
+        state.aiCapability
       )
       state.guesses = filled.guesses
       state.responseTimesMs = filled.responseTimesMs

@@ -1,11 +1,6 @@
 import type { Phase, PlayerStatus } from '../types'
 import type { GameMode } from '../modes/modeTypes'
 
-const OUTGOING_SOCIAL_BLOCKED_PHASES: ReadonlySet<Phase> = new Set<Phase>([
-  'live_vote',
-  'eviction_results',
-])
-
 const SURVIVAL_SOCIAL_BLOCK_REASON = 'Surveyeval Mode disables social modules.'
 
 export type SocialModuleKind = 'outgoing' | 'incoming'
@@ -104,24 +99,6 @@ export function getSocialModuleAvailability(
     return {
       canOpen: false,
       reason: 'The weekend Faux TV moment is still playing.',
-      phase,
-      humanPlayerId: humanPlayer.id,
-      humanStatus: humanPlayer.status,
-      moduleKind,
-    }
-  }
-
-  // Vox Populi runs on social relationships right through the audience-vote
-  // window; only the classic game keeps its ceremony-time conversation lock.
-  if (
-    moduleKind === 'outgoing' &&
-    game.voxPopuli?.status !== 'active' &&
-    phase &&
-    OUTGOING_SOCIAL_BLOCKED_PHASES.has(phase)
-  ) {
-    return {
-      canOpen: false,
-      reason: `Outgoing social actions are blocked during the ${phase} phase.`,
       phase,
       humanPlayerId: humanPlayer.id,
       humanStatus: humanPlayer.status,

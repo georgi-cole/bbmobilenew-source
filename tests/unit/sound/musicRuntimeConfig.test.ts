@@ -9,6 +9,25 @@ import {
 } from '../../../src/services/sound/musicRuntimeConfig'
 
 describe('music runtime configuration', () => {
+  it('keeps explicit Social assignments above the new bundled fallback', () => {
+    const remote: MusicConfigOverrides = {
+      contextMusic: { social: { kind: 'track', track: 'veto' } },
+    }
+    const local: MusicConfigOverrides = {
+      contextMusic: { social: { kind: 'track', track: 'competition' } },
+    }
+    expect(buildEffectiveMusicConfig().contextMusic.social).toMatchObject({
+      kind: 'track',
+      track: 'move_into_me_confessional',
+    })
+    expect(buildEffectiveMusicConfig(remote).contextMusic.social).toEqual(
+      remote.contextMusic?.social
+    )
+    expect(buildEffectiveMusicConfig(remote, local).contextMusic.social).toEqual(
+      local.contextMusic?.social
+    )
+  })
+
   it('gives local Advanced Settings assignments precedence over remote assignments', () => {
     const remote: MusicConfigOverrides = {
       phaseMusic: { nominations: { kind: 'track', track: 'veto' } },

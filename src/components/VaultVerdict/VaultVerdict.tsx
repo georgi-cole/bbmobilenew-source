@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import type { CSSProperties } from 'react'
@@ -250,6 +251,7 @@ function BatteryTile({
 }
 
 export default function BatteryLow(props: GenericMinigameProps) {
+  const aiCapability = useSeasonAiCapability()
   const { seed: seedProp = 0, onFinish, voteEffectsEnabled = true } = props
   const [sessionSeed] = useState(() => createVaultVerdictRng(seedProp).seed)
   const rng = useMemo(() => createVaultVerdictRng(sessionSeed).rng, [sessionSeed])
@@ -276,9 +278,9 @@ export default function BatteryLow(props: GenericMinigameProps) {
       )
       return participant.isHuman
         ? contestant
-        : simulateAiContestant(contestant, sessionSeed + 909, participants.length)
+        : simulateAiContestant(contestant, sessionSeed + 909, participants.length, aiCapability)
     })
-  }, [props, sessionSeed, voteEffectsEnabled])
+  }, [props, sessionSeed, voteEffectsEnabled, aiCapability])
 
   const [contestants, setContestants] = useState<VaultContestantState[]>(initialContestants)
   const human = contestants.find((contestant) => contestant.isUserControlled) ?? contestants[0]!

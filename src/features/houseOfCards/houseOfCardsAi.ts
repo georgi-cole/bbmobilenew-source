@@ -2,11 +2,9 @@ import { mulberry32 } from '../../store/rng'
 import {
   HOUSE_OF_CARDS_BONUS_BET_PENALTY,
   HOUSE_OF_CARDS_BONUS_BET_REWARD,
-  HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS,
   HOUSE_OF_CARDS_PEEK_REVEALS,
   buildHouseOfCardsBoard,
-  chooseHouseOfCardsBrightPairSymbol,
-  getHouseOfCardsEarlyPairLimit,
+  getHouseOfCardsAttemptToolOffer,
   getHouseOfCardsScoringMistakes,
   getHouseOfCardsShieldAllowance,
   isHouseOfCardsBlindBetPair,
@@ -30,7 +28,6 @@ export interface HouseOfCardsRoundPerformance {
   tool: HouseOfCardsRoundToolId
   toolDelta: number
   toolOutcome: string
-  brightPairBonus: number
 }
 
 export interface HouseOfCardsAiWagerParams {
@@ -41,6 +38,7 @@ export interface HouseOfCardsAiWagerParams {
   isBehind: boolean
   recentMistakes?: number
   pairCount?: number
+  attemptNumber?: number
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -65,14 +63,21 @@ export function createHouseOfCardsSessionAbility(playerId: string, tournamentSee
 export function createHouseOfCardsAiProfiles(
   participantIds: string[],
   humanId: string | null,
-  tournamentSeed: number
+  tournamentSeed: number,
+  capability = 1
 ): Record<string, HouseOfCardsAiSessionProfile> {
   return Object.fromEntries(
     participantIds
       .filter((id) => id !== humanId)
       .map((playerId) => [
         playerId,
-        { playerId, sessionAbility: createHouseOfCardsSessionAbility(playerId, tournamentSeed) },
+        {
+          playerId,
+          sessionAbility: Math.min(
+            100,
+            createHouseOfCardsSessionAbility(playerId, tournamentSeed) * capability
+          ),
+        },
       ])
   )
 }
@@ -86,6 +91,7 @@ export function chooseHouseOfCardsAiTool({
   isBehind,
   recentMistakes = 1,
   pairCount = 4,
+  attemptNumber = 0,
 }: HouseOfCardsAiWagerParams): HouseOfCardsRoundToolId {
   const rng = mulberry32(
     (tournamentSeed ^ hashId(playerId) ^ Math.imul(round, 0x27d4eb2d) ^ 0x19a4c2d1) >>> 0
@@ -106,12 +112,12 @@ export function chooseHouseOfCardsAiTool({
     { tool: 'keep-open' as const, value: 64 + pairCount * 4 + (100 - ability) * 0.3 },
     { tool: 'replay' as const, value: 40 + pairCount * 4 + recentMistakes * 5 },
   ].map((entry) => ({ ...entry, value: entry.value + (rng() - 0.5) * 12 }))
-  toolValues.sort((a, b) => b.value - a.value)
+  const offered = getHouseOfCardsAttemptToolOffer(tournamentSeed, attemptNumber)
+  const available = toolValues.filter((entry) => offered.includes(entry.tool))
+  available.sort((a, b) => b.value - a.value)
   const pool =
-    rng() < 0.8
-      ? toolValues.filter((entry) => entry.value >= toolValues[0]!.value - 12)
-      : toolValues
-  return pool[Math.floor(rng() * pool.length)]?.tool ?? 'peek'
+    rng() < 0.8 ? available.filter((entry) => entry.value >= available[0]!.value - 12) : available
+  return pool[Math.floor(rng() * pool.length)]?.tool ?? offered[0]!
 }
 
 /**
@@ -126,17 +132,19 @@ export function simulateHouseOfCardsAiRound(params: {
   tournamentSeed: number
   sessionAbility: number
   tool?: HouseOfCardsRoundToolId
+  attemptNumber?: number
   peekReveals?: number
   recentMistakes?: number
-  brightTargetSymbol?: string
   isBehind?: boolean
 }): HouseOfCardsRoundPerformance {
   const { playerId, round, pairCount, tournamentSeed, sessionAbility } = params
-  const tool = params.tool ?? 'peek'
+  const offered = getHouseOfCardsAttemptToolOffer(tournamentSeed, params.attemptNumber)
+  const tool =
+    params.tool && offered.includes(params.tool)
+      ? params.tool
+      : chooseHouseOfCardsAiTool({ ...params, isBehind: params.isBehind ?? false })
   const roundSeed = (tournamentSeed ^ Math.imul(round, 0x85ebca6b)) >>> 0
   const board = buildHouseOfCardsBoard(roundSeed, pairCount)
-  const brightTarget =
-    params.brightTargetSymbol || chooseHouseOfCardsBrightPairSymbol(tournamentSeed, round, board)
   const outcomeRng = mulberry32(
     (tournamentSeed ^ hashId(playerId) ^ Math.imul(round, 0x9e3779b9) ^ 0x6c8e9cf5) >>> 0
   )
@@ -160,12 +168,10 @@ export function simulateHouseOfCardsAiRound(params: {
   let streak = 0
   let bestStreak = 0
   let completedPairs = 0
-  let brightPairBonus = 0
   let toolDelta = 0
   let toolUsed = false
   let attemptCount = 0
   let replayCount = 0
-  const targetWindow = getHouseOfCardsEarlyPairLimit(pairCount)
   const peekReveals = tool === 'peek' ? (params.peekReveals ?? HOUSE_OF_CARDS_PEEK_REVEALS) : 0
   let peeksRemaining = peekReveals
 
@@ -282,8 +288,6 @@ export function simulateHouseOfCardsAiRound(params: {
       completedPairs += 1
       streak += 1
       bestStreak = Math.max(bestStreak, streak)
-      if (brightPairBonus === 0 && first.symbol === brightTarget && completedPairs <= targetWindow)
-        brightPairBonus = HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS
     } else {
       mistakes += 1
       streak = 0
@@ -335,7 +339,6 @@ export function simulateHouseOfCardsAiRound(params: {
     timeMs,
     bestStreak,
     toolBonus: toolDelta,
-    brightPairBonus,
   })
   return {
     score,
@@ -347,6 +350,5 @@ export function simulateHouseOfCardsAiRound(params: {
     tool,
     toolDelta,
     toolOutcome,
-    brightPairBonus,
   }
 }

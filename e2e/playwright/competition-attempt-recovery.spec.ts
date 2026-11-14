@@ -25,14 +25,23 @@ async function waitForHome(page: Page): Promise<void> {
 
 async function createProfile(page: Page, name: string): Promise<string> {
   const mainMenu = page.getByRole('navigation', { name: 'Main menu' })
-  const createProfileButton = page.getByRole('button', { name: 'Create Profile', exact: true })
-  await expect(mainMenu.or(createProfileButton)).toBeVisible({ timeout: SCREEN_TIMEOUT_MS * 2 })
+  const createProfileButton = page.getByRole('button', { name: /Create (New )?Profile$/i })
+  const playWithoutSignIn = page.getByRole('button', {
+    name: 'Play without signing in',
+    exact: true,
+  })
+  await expect(mainMenu.or(createProfileButton).or(playWithoutSignIn)).toBeVisible({
+    timeout: SCREEN_TIMEOUT_MS * 2,
+  })
   await closeDebugPanelIfOpen(page)
   if (await mainMenu.isVisible().catch(() => false)) {
     await mainMenu.getByRole('button', { name: 'Profile', exact: true }).click()
   }
-  await expect(createProfileButton).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
-  await createProfileButton.click()
+  await expect(playWithoutSignIn.or(createProfileButton)).toBeVisible({
+    timeout: SCREEN_TIMEOUT_MS,
+  })
+  if (await playWithoutSignIn.isVisible()) await playWithoutSignIn.click()
+  else await createProfileButton.click()
   await page.getByRole('button', { name: 'Choose this look', exact: true }).click()
   const reveal = page.getByRole('dialog', { name: /^Look \d+$/ })
   await expect(reveal).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })

@@ -368,6 +368,7 @@ export interface IncomingInteraction {
   resolved: boolean
   resolvedAt?: number
   resolvedWeek?: number
+  resolutionOrigin?: 'player' | 'deadline' | 'invalidation'
   resolvedWith?: IncomingInteractionResponseType
   resolvedLabel?: string
   resolvedChoiceId?: string

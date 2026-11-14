@@ -11,6 +11,7 @@ import {
   nextReplacementStep,
   replacementDecision,
   replacementBlockAt,
+  replacementFilmScene,
 } from '../../../cinematic/ceremonies/replacementSequence'
 import {
   authorityIds,
@@ -77,7 +78,11 @@ export function useReplacementSequence(game: GameState, enabled: boolean) {
     if (playing) {
       setReceipt(String(playing.end))
       const last = playing.outcome.actionHistory.at(-1)?.actorId
-      setSeenAuthority(last ? authorityIds(playing.outcome, last).join('|') : '')
+      setSeenAuthority(
+        last && replacementFilmScene(playing.outcome) !== 'save'
+          ? authorityIds(playing.outcome, last).join('|')
+          : ''
+      )
     }
   }
   const onError = useCallback(() => setFailure(scope), [scope, setFailure])
@@ -130,6 +135,9 @@ export function useReplacementSequence(game: GameState, enabled: boolean) {
       ((available && (tracked?.actionHistory.length || decision)) || consumed > 0)
     ),
     playing: playing?.outcome ?? null,
+    presentedSaveIds: (tracked?.actionHistory.slice(0, consumed) ?? [])
+      .filter((action) => action.kind === 'save')
+      .map((action) => action.playerId),
     held,
     decision: !playing && available ? decision : null,
     interceptDecision: Boolean(available && decision),

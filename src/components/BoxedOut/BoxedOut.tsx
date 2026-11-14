@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useGlassBridgeAudio } from '../../hooks/useGlassBridgeAudio'
@@ -59,6 +60,7 @@ const BOX_NAMES = ['A', 'B', 'C'] as const
 const SELECTION_SECONDS = 15
 
 export default function BoxedOut({ seed = 0, participants, participantIds, onFinish }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const players = useMemo<BoxedOutPlayer[]>(() => {
     if (participants?.length)
       return participants.map(({ id, name, isHuman }) => ({ id, name, isHuman }))
@@ -68,7 +70,7 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
   const [game, setGame] = useState<BoxedOutState | null>(() => {
     if (players.length < 2) return null
     try {
-      return createBoxedOutState(players, seed)
+      return { ...createBoxedOutState(players, seed), aiCapability }
     } catch {
       return null
     }

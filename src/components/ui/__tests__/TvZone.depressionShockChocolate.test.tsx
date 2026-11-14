@@ -123,6 +123,9 @@ describe('Depression Shock chocolate presentation', () => {
     const chocolatePresented = vi.fn()
     window.addEventListener('depression-shock:chocolate-presented', chocolatePresented)
     renderHarness(store)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
+    })
 
     expect(screen.getByRole('dialog', { name: /Announcement: A small comfort/i })).toBeDefined()
 
@@ -196,6 +199,9 @@ describe('Depression Shock chocolate presentation', () => {
     const fightEventId = store.getState().game.tvFeed.find((event) => event.text === FIGHT_TEXT)?.id
     expect(fightEventId).toBeTruthy()
     renderHarness(store)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
+    })
 
     expect(screen.getByRole('dialog')).toHaveTextContent(FIGHT_TEXT)
     act(() => {

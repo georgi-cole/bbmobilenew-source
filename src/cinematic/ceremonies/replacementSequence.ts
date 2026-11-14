@@ -69,10 +69,22 @@ export function nextReplacementStep(progress: ReplacementPresentation, consumed:
   if (consumed >= progress.actionHistory.length) return null
   // Keep declined uses in the receipt ledger, but leave their presentation to
   // the existing faux-TV message. The dormant decline film remains reusable.
+  const first = progress.actionHistory.findIndex(
+    (action, index) => index >= consumed && action.kind !== 'decline'
+  )
+  if (first < 0) return null
+  const kind = progress.actionHistory[first].kind
+  let end = first + 1
+  while (end < progress.actionHistory.length) {
+    const action = progress.actionHistory[end]
+    if (action.kind !== 'decline' && action.kind !== kind) break
+    end++
+  }
+  // An off-block scene must finish before the backup enters. Keep simultaneous
+  // pair/Detox saves together, and keep their original receipt indices intact.
   const actions = progress.actionHistory
-    .slice(consumed)
+    .slice(consumed, end)
     .filter((action) => action.kind !== 'decline')
-  if (!actions.length) return null
   const opening = [...progress.openingNomineeIds]
   const openingSlots = Object.fromEntries(opening.map((id, index) => [id, index]))
   const apply = (ids: string[], action: ReplacementPresentation['actionHistory'][number]) => {
@@ -91,7 +103,7 @@ export function nextReplacementStep(progress: ReplacementPresentation, consumed:
   actions.forEach((action) => apply(final, action))
   const step: ReplacementPresentation = {
     ...progress,
-    eventKey: `${progress.sequenceKey ?? progress.eventKey}:step:${consumed}:${progress.actionHistory.length}`,
+    eventKey: `${progress.sequenceKey ?? progress.eventKey}:step:${consumed}:${end}`,
     openingNomineeIds: opening,
     nomineeIds: final,
     continuingNomineeIds: opening.filter((id) => final.includes(id)),
@@ -114,7 +126,16 @@ export function nextReplacementStep(progress: ReplacementPresentation, consumed:
     ),
   }
   step.durationMs = replacementDuration(step)
-  return { outcome: step, end: progress.actionHistory.length }
+  return { outcome: step, end }
+}
+
+export function replacementFilmScene(outcome: ReplacementPresentation): 'save' | 'replacement' {
+  return !outcome.decisionOnly &&
+    outcome.savedIds.length === 1 &&
+    outcome.actionHistory.length > 0 &&
+    outcome.actionHistory.every((action) => action.kind === 'save')
+    ? 'save'
+    : 'replacement'
 }
 
 export function replacementBlockAt(progress: ReplacementPresentation, count: number) {

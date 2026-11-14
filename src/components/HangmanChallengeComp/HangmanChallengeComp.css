@@ -13,8 +13,10 @@
   box-sizing: border-box;
   overflow: hidden;
   color: #f8fbff;
-  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
-    max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  padding: max(10px, var(--minigame-safe-top, env(safe-area-inset-top)))
+    max(10px, var(--minigame-safe-right, env(safe-area-inset-right)))
+    max(10px, var(--minigame-safe-bottom, env(safe-area-inset-bottom)))
+    max(10px, var(--minigame-safe-left, env(safe-area-inset-left)));
   background:
     radial-gradient(circle at 15% 15%, rgba(146, 21, 48, 0.25), transparent 30%),
     radial-gradient(circle at 85% 70%, rgba(40, 115, 187, 0.22), transparent 35%),
@@ -364,8 +366,10 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
-    max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  padding: max(10px, var(--minigame-safe-top, env(safe-area-inset-top)))
+    max(10px, var(--minigame-safe-right, env(safe-area-inset-right)))
+    max(10px, var(--minigame-safe-bottom, env(safe-area-inset-bottom)))
+    max(10px, var(--minigame-safe-left, env(safe-area-inset-left)));
   background: rgba(1, 4, 9, 0.72);
   backdrop-filter: blur(10px);
 }
@@ -718,8 +722,10 @@
 
 @media (max-width: 640px) {
   .verdict-v2 {
-    padding: max(7px, env(safe-area-inset-top)) max(7px, env(safe-area-inset-right))
-      max(7px, env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-left));
+    padding: max(7px, var(--minigame-safe-top, env(safe-area-inset-top)))
+      max(7px, var(--minigame-safe-right, env(safe-area-inset-right)))
+      max(7px, var(--minigame-safe-bottom, env(safe-area-inset-bottom)))
+      max(7px, var(--minigame-safe-left, env(safe-area-inset-left)));
   }
 
   .verdict-v2__hud {

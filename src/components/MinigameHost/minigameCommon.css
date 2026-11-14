@@ -17,11 +17,10 @@
   max-width: none;
   min-height: 100%;
   margin: 0;
-  padding:
-    max(1rem, env(safe-area-inset-top, 0px))
-    max(1rem, env(safe-area-inset-right, 0px))
-    max(1.25rem, env(safe-area-inset-bottom, 0px))
-    max(1rem, env(safe-area-inset-left, 0px));
+  padding: max(1rem, var(--minigame-safe-top, env(safe-area-inset-top, 0px)))
+    max(1rem, var(--minigame-safe-right, env(safe-area-inset-right, 0px)))
+    max(1.25rem, var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)))
+    max(1rem, var(--minigame-safe-left, env(safe-area-inset-left, 0px)));
   box-sizing: border-box;
   overflow-y: auto;
   background:
@@ -58,10 +57,10 @@
   gap: 0.5rem;
   /* always sit below the scroll area */
   position: sticky;
-  bottom: calc(-1.25rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(-1.25rem + var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)));
   z-index: 4;
   margin-top: auto;
-  padding: 0.75rem 0 max(0.25rem, env(safe-area-inset-bottom, 0px));
+  padding: 0.75rem 0 max(0.25rem, var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)));
   background: linear-gradient(180deg, transparent, rgba(7, 20, 38, 0.96) 32%);
 }
 
@@ -79,7 +78,10 @@
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 8px 22px rgba(233, 69, 96, 0.24);
-  transition: background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    transform 0.12s ease,
+    box-shadow 0.15s ease;
 }
 
 .minigame-complete-continue:hover:not(:disabled) {

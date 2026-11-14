@@ -16,7 +16,6 @@ import {
   setGameUX,
   setLocalization,
   setSim,
-  type ThemePreset,
   type SettingsState,
 } from '../../store/settingsSlice'
 import {
@@ -38,7 +37,7 @@ import {
 } from '../../i18n'
 import './Settings.css'
 
-type LockedFeature = 'realityMode' | 'publicMode' | 'vipThemes'
+type LockedFeature = 'realityMode' | 'publicMode'
 
 const REALITY_PRESET_LABEL_KEYS: Record<RealityModePreset, TranslationKey> = {
   casual: 'settings.realityStyle.casual',
@@ -49,7 +48,6 @@ const REALITY_PRESET_LABEL_KEYS: Record<RealityModePreset, TranslationKey> = {
 const LOCKED_FEATURE_KEYS: Record<LockedFeature, TranslationKey> = {
   realityMode: 'settings.feature.realityMode',
   publicMode: 'settings.feature.publicMode',
-  vipThemes: 'settings.feature.vipThemes',
 }
 
 type ToggleItem = {
@@ -118,13 +116,6 @@ export default function Settings() {
     isTutorialReplayEnabled(activeProfileId, isGuest)
   )
 
-  const themeOptions: DropdownItem['options'] = [
-    { value: 'midnight', label: t('settings.theme.midnight') },
-    { value: 'neon', vipOnly: true, label: t('settings.theme.neon') },
-    { value: 'sunset', vipOnly: true, label: t('settings.theme.sunset') },
-    { value: 'ocean', vipOnly: true, label: t('settings.theme.ocean') },
-    { value: 'surveyeval', vipOnly: true, label: 'Surveyeval theme' },
-  ]
   const languageOptions: DropdownItem['options'] = LANGUAGE_OPTIONS.map((option) => ({
     value: option.value,
     label:
@@ -158,20 +149,6 @@ export default function Settings() {
     : []
 
   const sections: SettingSection[] = [
-    {
-      id: 'theme',
-      items: [
-        {
-          type: 'dropdown',
-          id: 'theme-preset',
-          label: t('settings.theme'),
-          options: themeOptions,
-          get: (s) => s.display.themePreset,
-          onChange: (settingsDispatch, val) =>
-            settingsDispatch(setDisplay({ themePreset: val as ThemePreset })),
-        },
-      ],
-    },
     {
       id: 'gameplay',
       items: [
@@ -317,7 +294,6 @@ export default function Settings() {
     'realityModePreset',
     'romanceStorylines',
     'weekends',
-    'theme-preset',
     'compactRoster',
     'animations',
     'animationMode',
@@ -430,10 +406,6 @@ export default function Settings() {
                   if (item.id === 'animationMode' && option?.vipOnly && !isVipActive) {
                     item.onChange(dispatch, event.target.value)
                     navigate('/store')
-                    return
-                  }
-                  if (option?.vipOnly && !isVipActive) {
-                    setLockedFeature('vipThemes')
                     return
                   }
                   item.onChange(dispatch, event.target.value)

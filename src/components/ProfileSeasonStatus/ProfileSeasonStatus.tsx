@@ -252,7 +252,12 @@ export default function ProfileSeasonStatus() {
   })
 
   const gameInProgress =
-    game.status === 'active' || week > 1 || (phase !== 'season_start' && phase !== 'week_start')
+    game.mode === 'survival' ||
+    Boolean(game.runId) ||
+    week > 1 ||
+    (phase !== 'season_start' && phase !== 'week_start') ||
+    Boolean(game.pendingEviction) ||
+    Boolean(game.seasonFinale)
 
   const statusChips = useMemo<StatusChipData[]>(() => {
     if (!gameInProgress) return []

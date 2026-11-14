@@ -351,7 +351,7 @@ describe('MinigameHost competition retry', () => {
     fireEvent.click(continueButton)
 
     expect(onDone).toHaveBeenCalledTimes(1)
-    expect(onDone).toHaveBeenCalledWith(5, false)
+    expect(onDone).toHaveBeenCalledWith(5, false, { rawResults: { human: 5, 'ai-1': 1 } })
   })
 
   it('starts a fresh run when a challenge repeats the same minigame key', () => {
@@ -549,7 +549,7 @@ describe('MinigameHost competition retry', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close results' }))
 
     expect(onContinueWithoutRetry).toHaveBeenCalledTimes(1)
-    expect(onDone).toHaveBeenCalledWith(5, false)
+    expect(onDone).toHaveBeenCalledWith(5, false, { rawResults: { human: 5, 'ai-1': 50 } })
   })
 
   it('uses placement labels and numeric ranks beyond the medal positions', () => {

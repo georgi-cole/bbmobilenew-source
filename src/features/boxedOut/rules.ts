@@ -19,6 +19,7 @@ export interface BoxedOutReveal {
 }
 
 export interface BoxedOutState {
+  aiCapability?: number
   seed: number
   round: number
   phase: BoxedOutPhase
@@ -266,7 +267,10 @@ export function tiebreakQuestion(state: BoxedOutState) {
 
 function aiTiebreakAnswer(state: BoxedOutState, id: string, correct: number): number {
   const estimate = 0.72 + random01(state.seed, 'tb:guess:' + id + ':' + state.questionIndex) * 0.25
-  return Math.max(0, Math.min(correct, Math.round(correct * estimate)))
+  return Math.max(
+    0,
+    Math.min(correct, Math.round(correct * (1 - (1 - estimate) / (state.aiCapability ?? 1))))
+  )
 }
 
 export function resolveBoxedOutTiebreak(

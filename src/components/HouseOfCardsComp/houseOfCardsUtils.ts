@@ -40,7 +40,6 @@ export type HouseOfCardsRoundToolId = 'peek' | 'shield' | 'bonus-bet' | 'keep-op
 export const HOUSE_OF_CARDS_PEEK_REVEALS = 1
 export const HOUSE_OF_CARDS_BONUS_BET_REWARD = 150
 export const HOUSE_OF_CARDS_BONUS_BET_PENALTY = 120
-export const HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS = 120
 
 export function getHouseOfCardsShieldAllowance(round: number): number {
   return round <= 2 ? 1 : 2
@@ -71,10 +70,6 @@ export function chooseHouseOfCardsReplayIndexes(eligibleIndexes: number[], seed:
   return [first!, indexes[Math.floor(rng() * indexes.length)]!]
 }
 
-export function getHouseOfCardsEarlyPairLimit(pairCount: number): number {
-  return Math.ceil(pairCount / 2)
-}
-
 export function resolveHouseOfCardsRoundScore(params: {
   pairCount: number
   matchedPairs?: number
@@ -83,7 +78,6 @@ export function resolveHouseOfCardsRoundScore(params: {
   timeMs: number
   bestStreak: number
   toolBonus?: number
-  brightPairBonus?: number
 }): number {
   const { pairCount, mistakes, timeMs, bestStreak } = params
   const matchedPairs = Math.min(pairCount, Math.max(0, params.matchedPairs ?? pairCount))
@@ -94,19 +88,8 @@ export function resolveHouseOfCardsRoundScore(params: {
       scoringMistakes * 90 -
       Math.floor(timeMs / 1_000) +
       bestStreak * 15 +
-      (params.toolBonus ?? 0) +
-      (params.brightPairBonus ?? 0)
+      (params.toolBonus ?? 0)
   )
-}
-
-export function chooseHouseOfCardsBrightPairSymbol(
-  sessionSeed: number,
-  round: number,
-  board: HouseOfCardsBoardCard[]
-): string {
-  const symbols = [...new Set(board.map((card) => card.symbol))]
-  const rng = mulberry32((sessionSeed ^ Math.imul(round, 0x27d4eb2d) ^ 0x6270a91) >>> 0)
-  return symbols[Math.floor(rng() * symbols.length)] ?? ''
 }
 
 /** Draw a board with exactly two copies of every portrait identity. If the
@@ -275,4 +258,28 @@ export function buildHouseOfCardsPortraitBoard(
     Math.min(HOUSE_OF_CARDS_SYMBOLS.length, players.length),
     players
   )
+}
+
+export const HOUSE_OF_CARDS_TOOL_POOL: readonly HouseOfCardsRoundToolId[] = [
+  'peek',
+  'shield',
+  'bonus-bet',
+  'keep-open',
+  'replay',
+]
+
+/** A separate random stream keeps the offer stable across rounds and reloads. */
+export function getHouseOfCardsAttemptToolOffer(
+  sessionSeed: number,
+  attemptNumber = 0
+): HouseOfCardsRoundToolId[] {
+  const rng = mulberry32(
+    (sessionSeed ^ Math.imul(attemptNumber + 1, 0x27d4eb2d) ^ 0x635a21ef) >>> 0
+  )
+  const pool = [...HOUSE_OF_CARDS_TOOL_POOL]
+  for (let index = pool.length - 1; index > 0; index--) {
+    const swap = Math.floor(rng() * (index + 1))
+    ;[pool[index], pool[swap]] = [pool[swap]!, pool[index]!]
+  }
+  return pool.slice(0, 3)
 }

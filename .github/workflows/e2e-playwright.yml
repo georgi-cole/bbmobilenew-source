@@ -79,5 +79,6 @@ jobs:
             playwright-report/
             test-results/
             visual-evidence/nemesis/
+            visual-evidence/followups/
           if-no-files-found: warn
           retention-days: 7

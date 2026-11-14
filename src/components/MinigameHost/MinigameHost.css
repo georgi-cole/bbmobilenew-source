@@ -1,4 +1,39 @@
 /* MinigameHost.css */
+.minigame-stage {
+  --minigame-window-top: max(
+    var(--app-safe-area-top, 0px),
+    var(--safe-top, 0px),
+    env(safe-area-inset-top, 0px)
+  );
+  --minigame-window-right: max(var(--safe-right, 0px), env(safe-area-inset-right, 0px));
+  --minigame-window-bottom: max(var(--safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  --minigame-window-left: max(var(--safe-left, 0px), env(safe-area-inset-left, 0px));
+  position: absolute;
+  inset: 0;
+  z-index: 9500;
+  overflow: hidden;
+  isolation: isolate;
+  background: #09060f;
+}
+
+/* The stage paints behind the hardware; the game and all of its controls do not. */
+.minigame-stage > .minigame-host {
+  inset: var(--minigame-window-top) var(--minigame-window-right) var(--minigame-window-bottom)
+    var(--minigame-window-left);
+  width: auto;
+  height: auto;
+  contain: layout paint;
+  --safe-top: 0px;
+  --safe-right: 0px;
+  --safe-bottom: 0px;
+  --safe-left: 0px;
+  --app-safe-area-top: 0px;
+  --minigame-safe-top: 0px;
+  --minigame-safe-right: 0px;
+  --minigame-safe-bottom: 0px;
+  --minigame-safe-left: 0px;
+}
+
 .minigame-host {
   position: absolute;
   inset: 0;
@@ -252,6 +287,17 @@
   touch-action: none;
 }
 
+.minigame-host-portal-target {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.minigame-host-portal-target > * {
+  pointer-events: auto;
+}
+
 .minigame-host-loading {
   flex: 1;
   display: grid;
@@ -294,12 +340,17 @@
     calc(16px + var(--minigame-safe-bottom)) calc(16px + var(--minigame-safe-left));
 }
 
-.minigame-host-playing > .qtr-canvas {
+.minigame-host-playing > .qtr-canvas,
+.minigame-host-portal-target > .qtr-canvas {
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
   padding: calc(12px + var(--minigame-stage-top-padding)) calc(12px + var(--minigame-safe-right))
     calc(12px + var(--minigame-safe-bottom)) calc(12px + var(--minigame-safe-left));
 }
 
-.minigame-host-playing > .qtr-canvas .qtr-canvas__card {
+.minigame-host-playing > .qtr-canvas .qtr-canvas__card,
+.minigame-host-portal-target > .qtr-canvas .qtr-canvas__card {
   max-height: min(
     760px,
     calc(100% - var(--minigame-stage-top-padding) - var(--minigame-safe-padding-bottom) - 24px)

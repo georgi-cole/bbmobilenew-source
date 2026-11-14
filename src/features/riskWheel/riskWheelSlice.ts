@@ -149,6 +149,7 @@ export interface WheelSector {
 }
 
 export interface RiskWheelState {
+  aiCapability?: number
   competitionType: RiskWheelCompetitionType
   phase: RiskWheelPhase
 
@@ -458,6 +459,7 @@ export function computePressureFactor(
  * the original field size even after eliminations.
  */
 export interface RiskWheelAiDecisionContext {
+  aiCapability?: number
   seed: number
   round: number
   playerId: string
@@ -490,6 +492,7 @@ export function computeAiRiskDesire({
   spinsRemaining,
   initialPlayerCount,
   decisionIndex,
+  aiCapability = 1,
 }: RiskWheelAiDecisionContext): number {
   const baseRisk = AI_PERSONALITY_BASE_RISK[personality]
   const scoreFactor = clamp01(1 - currentScore / MAX_SCORE_REFERENCE)
@@ -499,7 +502,7 @@ export function computeAiRiskDesire({
   const noise =
     (aiDecisionRng(seed, round, playerId, decisionIndex, AI_NOISE_CHANNEL) - 0.5) *
     2 *
-    AI_NOISE_MAGNITUDE
+    (AI_NOISE_MAGNITUDE / aiCapability)
 
   let risk =
     AI_BASE_RISK_WEIGHT * baseRisk +
@@ -759,6 +762,7 @@ const riskWheelSlice = createSlice({
       reducer(
         state,
         action: PayloadAction<{
+          aiCapability?: number
           participantIds: string[]
           competitionType: RiskWheelCompetitionType
           seed: number
@@ -766,6 +770,7 @@ const riskWheelSlice = createSlice({
         }>
       ) {
         const { participantIds, competitionType, seed, humanPlayerId } = action.payload
+        state.aiCapability = action.payload.aiCapability
 
         // Reset all fields explicitly to avoid Immer frozen-object issues
         state.phase = 'idle'
@@ -819,6 +824,7 @@ const riskWheelSlice = createSlice({
         state.phase = 'awaiting_spin'
       },
       prepare(payload: {
+        aiCapability?: number
         participantIds: string[]
         competitionType: RiskWheelCompetitionType
         /** Explicit seed for deterministic RNG. When omitted, a random seed is generated. */
@@ -924,6 +930,7 @@ const riskWheelSlice = createSlice({
         spinsRemaining: Math.max(0, MAX_SPINS_PER_TURN - state.currentSpinCount),
         initialPlayerCount: state.initialPlayerCount,
         decisionIndex,
+        aiCapability: state.aiCapability,
       })
       state.aiDecisionCallCount += 1
       state.aiDecisionCounts[currentId] = decisionIndex + 1
@@ -985,6 +992,7 @@ const riskWheelSlice = createSlice({
             spinsRemaining: Math.max(0, MAX_SPINS_PER_TURN - state.currentSpinCount),
             initialPlayerCount: state.initialPlayerCount,
             decisionIndex,
+            aiCapability: state.aiCapability,
           })
           state.aiDecisionCallCount += 1
           state.aiDecisionCounts[currentId] = decisionIndex + 1

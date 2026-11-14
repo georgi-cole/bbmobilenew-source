@@ -57,10 +57,8 @@ describe('socialModuleAvailability', () => {
       players: activeHuman,
     })
 
-    expect(outgoing.canOpen).toBe(false)
-    expect(getBlockedSocialModuleAnnouncementMessage(outgoing)).toMatch(
-      /called to the confessional/i
-    )
+    expect(outgoing.canOpen).toBe(true)
+    expect(getBlockedSocialModuleAnnouncementMessage(outgoing)).toBeNull()
     expect(incoming.canOpen).toBe(true)
     expect(getBlockedSocialModuleAnnouncementMessage(incoming)).toBeNull()
   })
@@ -74,14 +72,14 @@ describe('socialModuleAvailability', () => {
     expect(outgoing.canOpen).toBe(true)
   })
 
-  it('keeps outgoing actions locked during the actual eviction result presentation', () => {
+  it('keeps active players able to open Social during eviction results', () => {
     const availability = getSocialModuleAvailability({
       phase: 'eviction_results',
       players: activeHuman,
     })
 
-    expect(availability.canOpen).toBe(false)
-    expect(getBlockedSocialModuleAnnouncementMessage(availability)).toBeTruthy()
+    expect(availability.canOpen).toBe(true)
+    expect(getBlockedSocialModuleAnnouncementMessage(availability)).toBeNull()
   })
 
   it('keeps both social modules unavailable in Survival mode', () => {
