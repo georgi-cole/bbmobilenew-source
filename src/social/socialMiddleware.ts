@@ -48,6 +48,7 @@ import {
   updateRelationship,
   initializeRealitySimulation,
   applyRealityAmbientMood,
+  projectRealityRelationshipsIntoLegacy,
 } from './socialSlice'
 import {
   autoResolveExpiredIncomingInteractionsForClock,
@@ -690,7 +691,7 @@ function buildStrategicAllianceSnapshot(state: StateWithGame): StrategicAlliance
   }))
 }
 
-function buildStrategicRelationshipSnapshot(state: StateWithGame): RelationshipsMap {
+export function buildStrategicRelationshipSnapshot(state: StateWithGame): RelationshipsMap {
   const snapshot: RelationshipsMap = Object.fromEntries(
     Object.entries(state.social?.relationships ?? {}).map(([sourceId, targets]) => [
       sourceId,
@@ -702,6 +703,10 @@ function buildStrategicRelationshipSnapshot(state: StateWithGame): Relationships
       ),
     ])
   )
+  // A resumed season can still contain compatibility tags from an older build.
+  // Rebuild decisions from the canonical domain before the next ballot or power.
+  if (getEffectiveSocialMode(state) === 'drama' && state.social?.reality)
+    projectRealityRelationshipsIntoLegacy(state.social.reality, snapshot)
   const activeIds = new Set(
     (state.game?.players ?? [])
       .filter((player) => player.status !== 'evicted' && player.status !== 'jury')

@@ -11,6 +11,7 @@ import { reconcileConvergedAllianceRosters } from './allianceRosterConvergence'
 import { remember } from './memory'
 import { applyRealityRelationshipChange, getRealityRelationship } from './relationships'
 import { enforceNemesisAllianceConsistency, recordGroundedJealousy } from './relationshipAutonomy'
+import { getRealityBetrayalStatus } from './relationshipFacts'
 import {
   allianceKind,
   getCurrentPact,
@@ -450,6 +451,19 @@ export function removeRealityAllianceMember(
 
   rememberAllianceRoster(alliance)
   const formerMemberIds = [...alliance.memberIds]
+  const justifyingBetrayal =
+    input.kind === 'VOLUNTARY' || input.kind === 'DEFECTION'
+      ? [...state.events]
+          .reverse()
+          .find(
+            (entry) =>
+              entry.type === 'ALLIANCE_BETRAYAL' &&
+              entry.allianceId === alliance.id &&
+              entry.targetIds.includes(input.memberId) &&
+              entry.actorId &&
+              getRealityBetrayalStatus(state, input.memberId, entry.actorId) === 'UNRESOLVED'
+          )
+      : undefined
   const eventType =
     input.kind === 'EXPELLED'
       ? 'ALLIANCE_MEMBER_EXPELLED'
@@ -469,7 +483,7 @@ export function removeRealityAllianceMember(
     visibility: 'GROUP_VISIBLE',
     outcome: 'SUCCESS',
     reason: `${input.kind.toLowerCase()}:${alliance.id}:${input.sourceEventId ?? 'manual'}`,
-    tags: ['ALLIANCE', 'MEMBERSHIP', input.kind],
+    tags: ['ALLIANCE', 'MEMBERSHIP', input.kind, ...(justifyingBetrayal ? ['JUSTIFIED_EXIT'] : [])],
     relatedFactIds: [],
     relatedPromiseIds: [...alliance.sharedPromiseIds],
     relatedThreadIds: [],
@@ -490,8 +504,34 @@ export function removeRealityAllianceMember(
   delete alliance.operationalRoles[input.memberId]
   alliance.genuine = alliance.infiltratorIds.length === 0
 
-  if (input.kind !== 'ELIMINATED') {
+  if (input.kind === 'EXPELLED') {
+    applyRealityRelationshipChange(state, {
+      sourceId: input.memberId,
+      targetId: input.actorId,
+      eventId: event.id,
+      day: input.at.day,
+      phase: input.at.phase,
+      anchor: 'negative',
+      deltas: { trust: -8, loyalty: -8, resentment: 12, suspicion: 4 },
+    })
+    createRealityGrievance(state, {
+      id: `grievance:expulsion:${event.id}`,
+      holderId: input.memberId,
+      againstId: input.actorId,
+      causeEventId: event.id,
+      severity: 32,
+      at: input.at,
+    })
+  } else if (input.kind !== 'ELIMINATED' && !(justifyingBetrayal && input.kind === 'VOLUNTARY')) {
     for (const memberId of alliance.memberIds) {
+      const independentAgreement = Object.values(state.alliances).some(
+        (other) =>
+          other.id !== alliance.id &&
+          isCurrentAlliance(other) &&
+          other.memberIds.includes(memberId) &&
+          other.memberIds.includes(input.memberId)
+      )
+      const scale = justifyingBetrayal ? 0.25 : 1
       applyRealityRelationshipChange(state, {
         sourceId: memberId,
         targetId: input.memberId,
@@ -501,10 +541,14 @@ export function removeRealityAllianceMember(
         anchor: 'negative',
         deltas:
           input.kind === 'VOLUNTARY'
-            ? { trust: -2, loyalty: -3, familiarity: 2 }
-            : input.kind === 'DEFECTION'
-              ? { trust: -7, loyalty: -9, resentment: 5, suspicion: 5, reliability: -8 }
-              : { trust: -5, loyalty: -7, resentment: 4, suspicion: 4, reliability: -5 },
+            ? { trust: independentAgreement ? -1 : -2, loyalty: independentAgreement ? 0 : -3 }
+            : {
+                trust: -7 * scale,
+                loyalty: -9 * scale,
+                resentment: 5 * scale,
+                suspicion: 5 * scale,
+                reliability: -8 * scale,
+              },
       })
     }
   }
@@ -884,6 +928,68 @@ export function recordRealityAllianceBetrayal(
     affected.push(alliance)
   }
 
+  const witnesses = new Map<string, RealityAlliance>()
+  for (const alliance of affected)
+    for (const memberId of alliance.memberIds)
+      if (memberId !== input.actorId && memberId !== input.targetId && !witnesses.has(memberId))
+        witnesses.set(memberId, alliance)
+  for (const [witnessId, alliance] of witnesses) {
+    if (
+      state.events.some(
+        (entry) =>
+          entry.type === 'ALLIANCE_BETRAYAL_REACTION' &&
+          entry.actorId === witnessId &&
+          entry.reason.endsWith(`:${input.sourceEventId}`)
+      )
+    )
+      continue
+    const towardVictim = getRealityRelationship(state, witnessId, input.targetId)
+    const towardActor = getRealityRelationship(state, witnessId, input.actorId)
+    const support =
+      (towardVictim.trust + towardVictim.loyalty - towardActor.trust - towardActor.loyalty) / 160 -
+      towardActor.fear / 250
+    const stance = support > 0.18 ? 'SUPPORTS_TARGET' : support < -0.25 ? 'BACKS_ACTOR' : 'WARY'
+    const reaction = appendRealityEvent(state, {
+      ...input.at,
+      type: 'ALLIANCE_BETRAYAL_REACTION',
+      allianceId: alliance.id,
+      actorId: witnessId,
+      targetIds: [input.targetId, input.actorId],
+      participantIds: [...alliance.memberIds],
+      witnessIds: alliance.memberIds.filter((id) => id !== witnessId),
+      visibility: 'GROUP_VISIBLE',
+      outcome: 'SUCCESS',
+      reason: `${stance}:${input.sourceEventId}`,
+      tags: ['ALLIANCE', 'REACTION', stance],
+      relatedFactIds: [],
+      relatedPromiseIds: [],
+      relatedThreadIds: [],
+      publicEligible: false,
+      juryEligible: true,
+    })
+    applyRealityRelationshipChange(state, {
+      sourceId: witnessId,
+      targetId: input.actorId,
+      eventId: reaction.id,
+      day: input.at.day,
+      phase: input.at.phase,
+      deltas: {
+        trust: -baseSeverity * (stance === 'BACKS_ACTOR' ? 3 : 7 + Math.max(0, support) * 10),
+        reliability: -baseSeverity * 10,
+        suspicion: baseSeverity * 8,
+      },
+    })
+    if (stance === 'SUPPORTS_TARGET')
+      applyRealityRelationshipChange(state, {
+        sourceId: input.targetId,
+        targetId: witnessId,
+        eventId: reaction.id,
+        day: input.at.day,
+        phase: input.at.phase,
+        anchor: 'positive',
+        deltas: { warmth: 2, trust: 2, gratitude: 3 },
+      })
+  }
   if (affected.length > 0) refreshRealityAllianceOverlaps(state)
   return affected
 }

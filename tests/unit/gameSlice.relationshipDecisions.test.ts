@@ -491,8 +491,7 @@ describe('relationship-aware AI eviction decisions', () => {
       chooseAiEvictionVote(state, 'voter', ['ally', 'other'], seed)
     ).filter((vote) => vote === 'ally').length
 
-    expect(votesAgainstAlly).toBeGreaterThan(0)
-    expect(votesAgainstAlly).toBeLessThanOrEqual(22)
+    expect(votesAgainstAlly).toBe(0)
   })
 
   it('makes romance and bromance substantially more protective at eviction', () => {

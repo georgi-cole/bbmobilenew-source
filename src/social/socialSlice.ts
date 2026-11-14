@@ -1,5 +1,9 @@
 import { isCurrentAlliance } from './reality/allianceIdentity'
-import { isBetrayalBetween } from './relationshipSemantics'
+import {
+  getRealityBetrayalStatus,
+  getRealityFormerCommitmentTag,
+  hasRealityRomanticBond,
+} from './reality/relationshipFacts'
 import { createSlice } from '@reduxjs/toolkit'
 import { original, produce } from 'immer'
 import type { PayloadAction } from '@reduxjs/toolkit'
@@ -108,10 +112,14 @@ function clampBank(
 const REALITY_PROJECTED_TAGS = new Set([
   'alliance',
   'broken_alliance',
+  'former_group',
+  'ended_pact',
   'romance',
   'bromance',
   'rivalry',
   'betrayal',
+  'betrayed_them',
+  'repaired_betrayal',
   'safety_promise',
   'protection',
   'target',
@@ -141,8 +149,8 @@ type RealityActualVoteInput = {
 type RealityProjectionIndex = {
   formalAlliances: Map<string, Map<string, { current: boolean; ended: boolean }>>
   exitedSharedAlliances: RelationshipPairSet
-  activeRomances: RelationshipPairSet
   betrayals: RelationshipPairSet
+  betrayedOthers: RelationshipPairSet
   strainedRelationships: RelationshipPairSet
   safetyPromises: RelationshipPairSet
   allianceTargets: RelationshipPairSet
@@ -208,8 +216,8 @@ function createRealityProjectionIndex(
   const index: RealityProjectionIndex = {
     formalAlliances: new Map(),
     exitedSharedAlliances: new Map(),
-    activeRomances: new Map(),
     betrayals: new Map(),
+    betrayedOthers: new Map(),
     strainedRelationships: new Map(),
     safetyPromises: new Map(),
     allianceTargets: new Map(),
@@ -261,7 +269,7 @@ function createRealityProjectionIndex(
       if (event.actorId) {
         for (const targetId of event.targetIds) {
           if (hasRelationshipPair(projectedPairs, event.actorId, targetId))
-            addRelationshipPair(index.betrayals, event.actorId, targetId)
+            addRelationshipPair(index.betrayedOthers, event.actorId, targetId)
           if (hasRelationshipPair(projectedPairs, targetId, event.actorId))
             addRelationshipPair(index.betrayals, targetId, event.actorId)
         }
@@ -269,14 +277,11 @@ function createRealityProjectionIndex(
     }
   }
 
-  for (const romance of Object.values(reality.romances)) {
-    if (romance.status === 'ACTIVE') {
-      forEachProjectedPairInGroup(romance.participantIds, projectedPairs, (sourceId, targetId) => {
-        addRelationshipPair(index.activeRomances, sourceId, targetId)
-      })
-    }
-  }
   for (const grievance of Object.values(reality.grievances)) {
+    if (grievance.id.startsWith('grievance:alliance:')) {
+      addRelationshipPair(index.betrayals, grievance.holderId, grievance.againstId)
+      addRelationshipPair(index.betrayedOthers, grievance.againstId, grievance.holderId)
+    }
     if (
       grievance.status !== 'RESOLVED' &&
       grievance.severity >= 65 &&
@@ -356,31 +361,26 @@ function projectRealityTags(
             (alliance) => alliance.status === 'FRACTURED' || alliance.status === 'DISSOLVED'
           ) ?? false)))
   )
-    tags.push('broken_alliance')
-  if (
-    (projectionIndex
-      ? hasRelationshipPair(projectionIndex.activeRomances, sourceId, targetId)
-      : Object.values(reality.romances).some(
-          (romance) =>
-            romance.status === 'ACTIVE' &&
-            romance.participantIds.includes(sourceId) &&
-            romance.participantIds.includes(targetId)
-        )) ||
-    edge?.perceivedLabel === 'ROMANCE' ||
-    edge?.perceivedLabel === 'POWER_PAIR'
-  ) {
+    tags.push(getRealityFormerCommitmentTag(reality, sourceId, targetId) ?? 'ended_pact')
+  if (hasRealityRomanticBond(reality, sourceId, targetId)) {
     tags.push('romance')
   }
   if (edge?.perceivedLabel === 'RIVAL' || edge?.perceivedLabel === 'ENEMY') tags.push('rivalry')
   if ((edge?.suspicion ?? 0) >= 55) tags.push('suspicious')
   if ((edge?.reliability ?? 0) <= -35) tags.push('unreliable')
-  if (
-    projectionIndex
-      ? hasRelationshipPair(projectionIndex.betrayals, sourceId, targetId)
-      : reality.events.some((event) => isBetrayalBetween(event, sourceId, targetId))
-  ) {
-    tags.push('betrayal')
-  }
+  // The index caches who harmed whom, not whether that harm is still unresolved.
+  // Repair can change during a batch even when the event history stays fixed.
+  const received =
+    !projectionIndex || hasRelationshipPair(projectionIndex.betrayals, sourceId, targetId)
+      ? getRealityBetrayalStatus(reality, sourceId, targetId)
+      : 'NONE'
+  const caused =
+    !projectionIndex || hasRelationshipPair(projectionIndex.betrayedOthers, sourceId, targetId)
+      ? getRealityBetrayalStatus(reality, targetId, sourceId)
+      : 'NONE'
+  if (received === 'UNRESOLVED') tags.push('betrayal')
+  if (caused === 'UNRESOLVED') tags.push('betrayed_them')
+  if (received === 'REPAIRED' || caused === 'REPAIRED') tags.push('repaired_betrayal')
   if (
     projectionIndex
       ? hasRelationshipPair(projectionIndex.strainedRelationships, sourceId, targetId)
@@ -442,10 +442,15 @@ function projectRealityEdgeIntoLegacy(
   relationships: SocialState['relationships'],
   sourceId: string,
   targetId: string,
-  projectionIndex?: RealityProjectionIndex
+  projectionIndex?: RealityProjectionIndex,
+  includeReciprocal = true
 ): void {
   const edge = reality.relationships[sourceId]?.[targetId]
   if (sourceId === targetId) return
+  // Pair facts such as reconciliation and mutual romance can change when only
+  // one directed edge was touched. Keep the reverse compatibility read current.
+  if (!projectionIndex && includeReciprocal)
+    projectRealityEdgeIntoLegacy(reality, relationships, targetId, sourceId, undefined, false)
   relationships[sourceId] ??= {}
   const existing = relationships[sourceId][targetId]
   const affinity = edge ? projectRealityAffinity(edge) : (existing?.affinity ?? 0)
@@ -460,14 +465,43 @@ function projectRealityEdgeIntoLegacy(
     existing !== undefined &&
     existing.tags.length === projectedTags.length &&
     existing.tags.every((tag, index) => tag === projectedTags[index])
-  if (existing && Object.is(existing.affinity, affinity) && tagsUnchanged) return
+  const romance = Object.values(reality.romances).find(
+    (entry) =>
+      ['ACTIVE', 'STRAINED'].includes(entry.status) &&
+      entry.participantIds.includes(sourceId) &&
+      entry.participantIds.includes(targetId)
+  )
+  const decisionRead = edge
+    ? {
+        trust: edge.trust,
+        loyalty: edge.loyalty,
+        resentment: edge.resentment,
+        suspicion: edge.suspicion,
+        fear: edge.fear,
+        ...(romance
+          ? {
+              romanticSincerity: romance.genuineIntent[sourceId] ?? 0,
+              romanticStrategy: romance.strategicIntent[sourceId] ?? 0,
+            }
+          : {}),
+      }
+    : undefined
+  const readUnchanged = decisionRead
+    ? existing?.reality !== undefined &&
+      Object.keys(existing.reality).length === Object.keys(decisionRead).length &&
+      Object.entries(decisionRead).every(
+        ([key, value]) => existing.reality?.[key as keyof typeof decisionRead] === value
+      )
+    : existing?.reality === undefined
+  if (existing && Object.is(existing.affinity, affinity) && tagsUnchanged && readUnchanged) return
   relationships[sourceId][targetId] = {
     affinity,
     tags: existing && tagsUnchanged ? existing.tags : projectedTags,
+    ...(decisionRead ? { reality: readUnchanged ? existing?.reality : decisionRead } : {}),
   }
 }
 
-function projectRealityRelationshipsIntoLegacy(
+export function projectRealityRelationshipsIntoLegacy(
   reality: RealityDomainState,
   relationships: SocialState['relationships']
 ): void {
@@ -512,8 +546,10 @@ function projectRealityPairsIntoLegacy(
 ): void {
   if (!pairs.length) return
   const projectedPairs: RelationshipPairSet = new Map()
-  for (const { sourceId, targetId } of pairs)
+  for (const { sourceId, targetId } of pairs) {
     addRelationshipPair(projectedPairs, sourceId, targetId)
+    addRelationshipPair(projectedPairs, targetId, sourceId)
+  }
   const index = createRealityProjectionIndex(
     reality,
     Object.values(reality.alliances),

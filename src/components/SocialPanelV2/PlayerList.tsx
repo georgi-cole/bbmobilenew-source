@@ -9,10 +9,12 @@ import {
 import { projectRealityAffinity } from '../../social/reality/relationships'
 import { isBetrayalBetween } from '../../social/relationshipSemantics'
 import { canReadAllianceEvent } from '../../social/reality/allianceHistory'
+import { hasRealityRomanticBond } from '../../social/reality/relationshipFacts'
 import { getRealityRelationshipLabel, type RelationshipLabel } from './relationshipUtils'
 import {
   allianceDisplayLabel,
   getCurrentAlliancesBetween,
+  getCurrentPact,
 } from '../../social/reality/allianceIdentity'
 import PlayerCard from './PlayerCard'
 
@@ -198,7 +200,9 @@ export default function PlayerList({
               edge,
               view.alliance?.operational,
               currentDay,
-              view.isNemesis
+              view.isNemesis,
+              Boolean(getCurrentPact(reality, humanPlayerId, player.id)),
+              hasRealityRomanticBond(reality, humanPlayerId, player.id, false)
             )
             relationshipTags = [...view.visibleTags]
           } else if (playerLimitedRead) {

@@ -175,7 +175,8 @@ describe('canonical relationship presentation', () => {
       expect(view.alliance?.status).toBe(status)
       expect(view.alliance?.operational).toBe(false)
       expect(view.visibleTags.has('alliance')).toBe(status === 'FRACTURED')
-      expect(view.visibleTags.has('broken_alliance')).toBe(status === 'DISSOLVED')
+      expect(view.visibleTags.has('former_group')).toBe(status === 'DISSOLVED')
+      expect(view.visibleTags.has('broken_alliance')).toBe(false)
       expect(hasCanonicalLiveAlliance(reality, 'human', 'rune')).toBe(status === 'FRACTURED')
     }
   )
@@ -315,7 +316,7 @@ describe('canonical relationship presentation', () => {
     expect(pact.memberIds).toEqual([])
     expect(revealedView.alliance?.status).toBe('DISSOLVED')
     expect(revealedView.alliance?.operational).toBe(false)
-    expect(revealedView.visibleTags.has('broken_alliance')).toBe(true)
+    expect(revealedView.visibleTags.has('ended_pact')).toBe(true)
   })
 
   it('repairs older saved seasons with an active nemesis and an incorrectly genuine pact', () => {
@@ -368,7 +369,8 @@ describe('canonical relationship presentation', () => {
     })
 
     const view = pairView(reality)
-    expect(view.visibleTags.has('betrayal')).toBe(true)
+    expect(view.visibleTags.has('betrayed_them')).toBe(true)
+    expect(view.visibleTags.has('betrayal')).toBe(false)
 
     const witnessView = selectCanonicalRelationshipView({
       relationships: {},
@@ -380,6 +382,7 @@ describe('canonical relationship presentation', () => {
 
     const projected = socialReducer(undefined, replaceRealityDomain(reality))
     expect(projected.relationships.human?.witness?.tags).not.toContain('betrayal')
-    expect(projected.relationships.human?.rune?.tags).toContain('betrayal')
+    expect(projected.relationships.human?.rune?.tags).toContain('betrayed_them')
+    expect(projected.relationships.rune?.human?.tags).toContain('betrayal')
   })
 })

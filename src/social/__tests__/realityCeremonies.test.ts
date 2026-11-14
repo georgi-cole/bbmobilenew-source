@@ -622,7 +622,7 @@ describe('Reality alliance ceremony consequences', () => {
 })
 
 describe('Reality alliance exit projection', () => {
-  it('removes the live alliance tag and projects a broken membership after expulsion', () => {
+  it('removes the live alliance tag and projects neutral group history after expulsion', () => {
     const initial = socialReducer(undefined, { type: 'init' })
     const reality = createInitialRealityDomainState(initial.relationships)
     const alliance = createRealityAlliance(reality, {
@@ -656,7 +656,8 @@ describe('Reality alliance exit projection', () => {
     state = socialReducer(state, replaceRealityDomain(nextReality))
 
     expect(state.relationships.ava.kai.tags).not.toContain('alliance')
-    expect(state.relationships.ava.kai.tags).toContain('broken_alliance')
+    expect(state.relationships.ava.kai.tags).toContain('former_group')
+    expect(state.relationships.ava.kai.tags).not.toContain('betrayal')
   })
 })
 

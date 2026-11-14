@@ -118,7 +118,7 @@ export const allianceManagementMiddleware: Middleware = (api) => (next) => (acti
         }
         for (const [actionId, targetIds] of [
           ['proposeAlliance', gained],
-          ['break_alliance', lost],
+          ['alliance_membership_ended', lost],
         ] as const) {
           if (!targetIds.length) continue
           api.dispatch(
@@ -131,6 +131,10 @@ export const allianceManagementMiddleware: Middleware = (api) => (next) => (acti
                 cost: 0,
                 delta: 0,
                 outcome: 'success',
+                label:
+                  actionId === 'alliance_membership_ended'
+                    ? 'Alliance membership ended'
+                    : undefined,
                 newEnergy: state.social.energyBank[human.id] ?? 0,
                 timestamp: Date.now(),
                 week: state.game.week,
@@ -139,7 +143,7 @@ export const allianceManagementMiddleware: Middleware = (api) => (next) => (acti
                 narrative:
                   actionId === 'proposeAlliance'
                     ? 'An agreed alliance commitment is now active.'
-                    : 'The last alliance connection through the selected commitment has ended.',
+                    : 'Your shared alliance membership ended. See its history for who left or ended it.',
               },
             })
           )

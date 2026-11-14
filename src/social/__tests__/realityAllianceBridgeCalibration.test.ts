@@ -155,7 +155,7 @@ describe('Reality alliance strategic bridge calibration', () => {
     expect(metrics.strong.safetyProtectionMargin).toBeGreaterThan(
       metrics.weak.safetyProtectionMargin
     )
-    expect(metrics.strong.voteAgainstAllyRate).toBeGreaterThan(0)
+    expect(metrics.strong.voteAgainstAllyRate).toBe(0)
     expect(metrics.strong.voteAgainstAllyRate).toBeLessThan(metrics.weak.voteAgainstAllyRate)
     expect(metrics.weak.voteAgainstAllyRate).toBeLessThan(metrics.infiltrator.voteAgainstAllyRate)
     expect(metrics.infiltrator.voteAgainstAllyRate).toBeLessThan(1)

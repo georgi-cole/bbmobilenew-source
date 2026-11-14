@@ -2135,12 +2135,21 @@ function getKnownRomanticRivalPressure(
 
 export type { StrategicAllianceDecisionRead } from '../ai/competition/allianceMinigameStrategy'
 
+function clampStrategicAllianceUnit(value: number): number {
+  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0))
+}
+
 export function getStrategicAllianceDecisionRead(
-  state: Pick<GameState, 'strategicAlliances'>,
+  state: Pick<GameState, 'strategicAlliances' | 'strategicRelationships'>,
   actorId: string,
   targetId: string
 ): StrategicAllianceDecisionRead {
-  return getStrategicAllianceDecisionReadFromAlliances(state.strategicAlliances, actorId, targetId)
+  return getStrategicAllianceDecisionReadFromAlliances(
+    state.strategicAlliances,
+    actorId,
+    targetId,
+    state.strategicRelationships?.[actorId]?.[targetId]
+  )
 }
 
 function getAiIdentityMode(state: GameState): AiIdentityMode {
@@ -2286,29 +2295,28 @@ function getSafetyRelationshipBreakdown(
   if (tags.has('betrayal')) {
     score -= 140
     factors.betrayal = -140
-  } else {
-    if (tags.has('alliance')) {
-      const formalAllianceContribution =
-        state.strategicAlliances !== undefined && allianceRead.sharedAllianceCount > 0
-          ? 12 + Math.min(1.2, allianceRead.sharedProtection) * 70
-          : state.strategicAlliances !== undefined
-            ? 40
-            : 65
-      score += formalAllianceContribution
-      factors.alliance = formalAllianceContribution
-    }
-    if (tags.has('romance') || tags.has('bromance')) {
-      score += 45
-      factors.romance = 45
-    }
-    if (tags.has('protection') || tags.has('shield')) {
-      score += 35
-      factors.protection = 35
-    }
-    if (tags.has('safety_promise')) {
-      score += 100
-      factors.safetyPromise = 100
-    }
+  }
+  if (tags.has('alliance')) {
+    const formalAllianceContribution =
+      state.strategicAlliances !== undefined && allianceRead.sharedAllianceCount > 0
+        ? 12 + Math.min(1.2, allianceRead.sharedProtection) * 70
+        : state.strategicAlliances !== undefined
+          ? 40
+          : 65
+    score += formalAllianceContribution
+    factors.alliance = formalAllianceContribution
+  }
+  if (tags.has('romance') || tags.has('bromance')) {
+    score += 45
+    factors.romance = 45
+  }
+  if (tags.has('protection') || tags.has('shield')) {
+    score += 35
+    factors.protection = 35
+  }
+  if (tags.has('safety_promise')) {
+    score += 100
+    factors.safetyPromise = 100
   }
   if (tags.has('target') || tags.has('rivalry')) {
     const personalTargetPenalty = allianceRead.currentTargetPressure > 0 ? -18 : -45
@@ -2366,27 +2374,26 @@ function getNominationTargetBreakdown(
   if (tags.has('betrayal')) {
     score += 125
     factors.betrayal = 125
-  } else {
-    if (tags.has('alliance')) {
-      const formalProtection =
-        state.dramaSocialMode &&
-        state.strategicAlliances !== undefined &&
-        allianceRead.sharedAllianceCount > 0
-          ? -(12 + Math.min(1.2, allianceRead.sharedProtection) * 105)
-          : state.dramaSocialMode && state.strategicAlliances !== undefined
-            ? -65
-            : -110
-      score += formalProtection
-      factors.alliance = formalProtection
-    }
-    if (tags.has('romance') || tags.has('bromance')) {
-      score -= 80
-      factors.romance = -80
-    }
-    if (tags.has('protection') || tags.has('shield')) {
-      score -= 45
-      factors.protection = -45
-    }
+  }
+  if (tags.has('alliance')) {
+    const formalProtection =
+      state.dramaSocialMode &&
+      state.strategicAlliances !== undefined &&
+      allianceRead.sharedAllianceCount > 0
+        ? -(12 + Math.min(1.2, allianceRead.sharedProtection) * 105)
+        : state.dramaSocialMode && state.strategicAlliances !== undefined
+          ? -65
+          : -110
+    score += formalProtection
+    factors.alliance = formalProtection
+  }
+  if (tags.has('romance') || tags.has('bromance')) {
+    score -= 80
+    factors.romance = -80
+  }
+  if (tags.has('protection') || tags.has('shield')) {
+    score -= 45
+    factors.protection = -45
   }
   if (tags.has('target')) {
     const directTarget = allianceRead.currentTargetPressure > 0 ? 20 : 55
@@ -5083,15 +5090,19 @@ function hashString(s: string): number {
   return hash
 }
 
-/**
- * Relationship-aware AI voting logic. Allies are normally protected, while
- * threat, explicit targets, betrayal history, and rare backstabs can override.
- *
- * @param voterId     ID of the AI voter casting their vote
- * @param nomineeIds  IDs of eligible nominees (must have ≥1 entry)
- * @param gameSeed    Current game seed (keeps results varied across weeks)
- * @returns           The nominee ID that this AI voter chooses to evict
- */
+/** The same legal personal targets are used by conversations and actual ballots. */
+export function getAiEvictionVoteTargets(
+  state: GameState,
+  voterId: string | readonly string[],
+  nomineeIds: readonly string[] = state.nomineeIds
+): string[] {
+  const voters = typeof voterId === 'string' ? [voterId] : voterId
+  return nomineeIds.filter((nomineeId) =>
+    voters.every((id) => id !== nomineeId && canPlayerTargetPlayer(state, id, nomineeId))
+  )
+}
+
+/** Rank real motives and surviving commitments, with stable uncertainty within a decision. */
 export function chooseAiEvictionVote(
   state: GameState,
   voterId: string,
@@ -5176,26 +5187,67 @@ export function chooseAiEvictionVote(
       factors.protection = -20
     }
     const hasRomanticBond = tags.has('romance') || tags.has('bromance')
+    const feelings = relationship?.reality
+    const strain = feelings
+      ? Math.max(0, 35 - feelings.trust) / 85 +
+        feelings.resentment / 140 +
+        Math.max(0, feelings.suspicion - 25) / 180
+      : Math.max(0, 30 - affinity) / 100
+    const competitionPressure = Math.max(0, threat - 6) / 12
+    const strategicRomancePressure = hasRomanticBond
+      ? Math.max(0, (feelings?.romanticStrategy ?? 0) - (feelings?.romanticSincerity ?? 0)) * 0.7
+      : 0
+    const endgamePressure =
+      state.week >= 7 &&
+      state.players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+        .length <= 6
+        ? Math.max(0, betrayalChanceModifier(voterIdentity)) * 1.5
+        : 0
+    const motivePressure = clampStrategicAllianceUnit(
+      strain +
+        (tags.has('betrayal') ? 0.6 : 0) +
+        allianceRead.currentTargetPressure * 0.8 +
+        allianceRead.fallbackTargetPressure * 0.3 +
+        (hasRomanticBond
+          ? allianceRead.betrayalPressure * 0.25
+          : allianceRead.betrayalPressure * 1.2) +
+        competitionPressure +
+        strategicRomancePressure +
+        endgamePressure +
+        knownJealousy.contribution / 110
+    )
+    factors.loyaltyConflictPressure = motivePressure
+    factors.loyaltyConflictReasons =
+      [
+        ...(strain > 0.1 ? ['damaged trust'] : []),
+        ...(tags.has('betrayal') ? ['unresolved betrayal'] : []),
+        ...(allianceRead.currentTargetPressure > 0 ? ['competing alliance plan'] : []),
+        ...(competitionPressure > 0 ? ['competition threat'] : []),
+        ...(strategicRomancePressure > 0.1 ? ['strategic romance'] : []),
+        ...(endgamePressure > 0 ? ['endgame ambition'] : []),
+        ...(allianceRead.actorInfiltrator ? ['secondary allegiance'] : []),
+      ].join(', ') || 'no significant loyalty conflict'
     let backstabRoll: number | null = null
     let backstabChance: number | null = null
     if (hasRomanticBond) {
-      // Romance is a stronger public commitment than a standard alliance. It
-      // should usually surface at the vote, while still leaving a narrow path
-      // for an ambitious or betrayed player to cut the bond late in the game.
-      backstabChance = Math.max(
-        0,
-        Math.min(0.1, 0.01 + threat * 0.006 + betrayalChanceModifier(voterIdentity) * 0.35)
+      // Uncertainty can tip an existing conflict; it cannot invent a 250-point
+      // reversal in an otherwise healthy romance. Independent pacts still count.
+      backstabChance = Math.min(
+        0.35,
+        motivePressure * (0.18 + Math.max(0, betrayalChanceModifier(voterIdentity)))
       )
       backstabRoll = rng()
       factors.backstabChance = backstabChance
       factors.backstabRoll = backstabRoll
+      const romanceProtection =
+        -(125 + allianceRead.sharedProtection * 35 + allianceIdentityBias(voterIdentity)) *
+        (backstabRoll < backstabChance ? 1 - motivePressure * 0.65 : 1)
+      score += romanceProtection
+      factors.romanceProtection = romanceProtection
       if (backstabRoll < backstabChance) {
-        score += 115
-        factors.romanceBackstab = 115
-      } else {
-        const romanceProtection = -(135 + allianceIdentityBias(voterIdentity))
-        score += romanceProtection
-        factors.romanceProtection = romanceProtection
+        const contribution = motivePressure * (40 + motivePressure * 70)
+        score += contribution
+        factors.romanceBackstab = contribution
       }
     } else if (tags.has('alliance') || allianceRead.sharedAllianceCount > 0) {
       if (
@@ -5203,46 +5255,42 @@ export function chooseAiEvictionVote(
         state.strategicAlliances !== undefined &&
         allianceRead.sharedAllianceCount > 0
       ) {
-        backstabChance = Math.max(
-          0.01,
-          Math.min(
-            0.12,
-            0.01 +
-              threat * 0.006 +
-              betrayalChanceModifier(voterIdentity) * 0.35 +
-              allianceRead.betrayalPressure * 0.12
-          )
+        backstabChance = Math.min(
+          0.5,
+          motivePressure * (0.32 + Math.max(0, betrayalChanceModifier(voterIdentity)))
         )
         backstabRoll = rng()
         factors.backstabChance = backstabChance
         factors.backstabRoll = backstabRoll
         factors.realityAllianceBetrayalPressure = allianceRead.betrayalPressure
+        const allianceProtection =
+          (-(25 + Math.min(1.2, allianceRead.sharedProtection) * 95) -
+            allianceIdentityBias(voterIdentity) * Math.min(1, allianceRead.sharedProtection)) *
+          (backstabRoll < backstabChance ? 1 - motivePressure * 0.65 : 1)
+        score += allianceProtection
+        factors.allianceProtection = allianceProtection
         if (backstabRoll < backstabChance) {
-          const backstabContribution = 70 + (1 - Math.min(1, allianceRead.sharedProtection)) * 45
+          const backstabContribution = motivePressure * (40 + motivePressure * 70)
           score += backstabContribution
           factors.allianceBackstab = backstabContribution
-        } else {
-          const allianceProtection =
-            -(25 + Math.min(1.2, allianceRead.sharedProtection) * 95) -
-            allianceIdentityBias(voterIdentity) * Math.min(1, allianceRead.sharedProtection)
-          score += allianceProtection
-          factors.allianceProtection = allianceProtection
         }
       } else {
-        backstabChance = Math.max(
-          0,
-          Math.min(0.18, 0.04 + threat * 0.008 + betrayalChanceModifier(voterIdentity) * 0.5)
+        backstabChance = Math.min(
+          0.5,
+          motivePressure * (0.32 + Math.max(0, betrayalChanceModifier(voterIdentity)))
         )
         backstabRoll = rng()
         factors.backstabChance = backstabChance
         factors.backstabRoll = backstabRoll
+        const allianceProtection =
+          -(90 + allianceIdentityBias(voterIdentity)) *
+          (backstabRoll < backstabChance ? 1 - motivePressure * 0.65 : 1)
+        score += allianceProtection
+        factors.allianceProtection = allianceProtection
         if (backstabRoll < backstabChance) {
-          score += 95
-          factors.allianceBackstab = 95
-        } else {
-          const allianceProtection = -(90 + allianceIdentityBias(voterIdentity))
-          score += allianceProtection
-          factors.allianceProtection = allianceProtection
+          const contribution = motivePressure * (40 + motivePressure * 70)
+          score += contribution
+          factors.allianceBackstab = contribution
         }
       }
     }

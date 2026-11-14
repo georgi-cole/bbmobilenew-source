@@ -54,6 +54,7 @@ import type { RealityContext, RealityResponseKind, RealitySocialEvent } from './
 import { getCupidPartnerId } from '../../features/twists/cupidArrow'
 import {
   chooseAiEvictionVote,
+  getAiEvictionVoteTargets,
   getEligibleNominationTargets,
   getEligibleReplacementNominees,
   getNominationTargetScore,
@@ -1443,21 +1444,29 @@ export function buildAllianceConsultationPlan(
   }
 
   if (agenda === 'block_strategy' || agenda === 'eviction_vote') {
-    const nomineeIds = nominees
-      .filter((nominee) => !isAllianceProtectedGameUnit(state, alliance, nominee.id))
-      .map((nominee) => nominee.id)
+    const nomineeIds = nominees.map((nominee) => nominee.id)
     if (nomineeIds.length === 0) return null
+    const noncommittalAdvisors: string[] = []
     const preferences = advisors.flatMap((advisorId) => {
+      const legalNomineeIds = getAiEvictionVoteTargets(state.game, advisorId, nomineeIds)
+      if (legalNomineeIds.length === 0) {
+        noncommittalAdvisors.push(advisorId)
+        return []
+      }
       const targetId = chooseAiEvictionVote(
         state.game,
         advisorId,
-        nomineeIds,
-        (state.game.seed ?? 0) ^ state.game.week
+        legalNomineeIds,
+        state.game.seed ?? 0
       )
+      if (isAllianceProtectedGameUnit(state, alliance, targetId)) {
+        noncommittalAdvisors.push(advisorId)
+        return []
+      }
       const firstChoice = nomineeIds.find((id) => id === targetId)
       const recommendations = firstChoice ? [firstChoice] : []
       if (state.game.doubleEviction?.weekActive) {
-        const additionalChoices = nomineeIds
+        const additionalChoices = legalNomineeIds
           .filter((id) => id !== firstChoice)
           .map((id) => ({
             id,
@@ -1515,7 +1524,7 @@ export function buildAllianceConsultationPlan(
         ...read.fallbackTargetIds.map((id) => `fallback:${id}`),
       ],
       agenda,
-      summary: read.summary,
+      summary: `${read.summary}${noncommittalAdvisors.length ? ` ${noncommittalAdvisors.map((id) => playerName(state, id)).join(', ')} would not commit to the proposed group vote.` : ''}`,
       excusedAbsentIds,
       memberPlanBeliefs: isDoubleElimination
         ? buildConsultationSlateBeliefs(attendeeIds, actorId, read)

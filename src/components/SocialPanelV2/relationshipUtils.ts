@@ -59,13 +59,17 @@ export function getRealityRelationshipLabel(
   edge: DirectedRelationship | undefined,
   hasOperationalAlliance = false,
   currentDay?: number,
-  hasActiveNemesis = false
+  hasActiveNemesis = false,
+  hasPersonalPact?: boolean,
+  hasRomanticBond?: boolean
 ): RelationshipLabel {
   const label = getCanonicalRelationshipLabel(
     edge,
     hasOperationalAlliance,
     currentDay,
-    hasActiveNemesis
+    hasActiveNemesis,
+    hasPersonalPact,
+    hasRomanticBond
   )
 
   return { label, key: relationshipKeyForDisplayLabel(label) }

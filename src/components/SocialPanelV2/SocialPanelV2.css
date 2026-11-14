@@ -1716,6 +1716,14 @@
   padding-right: 1.9rem;
 }
 
+.sp2-focus__signal {
+  margin: 0.45rem 0;
+  color: inherit;
+  opacity: 0.88;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
 .sp2-focus__eyebrow {
   display: block;
   color: rgba(232, 211, 165, 0.78);

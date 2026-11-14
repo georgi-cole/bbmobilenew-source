@@ -9,6 +9,8 @@ import { getIntelLeadViews } from '../../social/intelligenceSystem'
 import { canReadAllianceEvent } from '../../social/reality/allianceHistory'
 import { formatPlayerFacingPhase } from '../../social/reality/presentation'
 import { isBetrayalBetween } from '../../social/relationshipSemantics'
+import { hasRealityRomanticBond } from '../../social/reality/relationshipFacts'
+import { getCurrentPact } from '../../social/reality/allianceIdentity'
 import {
   allianceKind,
   canHumanKnowFact,
@@ -329,7 +331,9 @@ export default function RealityLedger({
         selectedRelationship,
         selectedRelationshipView?.alliance?.operational,
         currentDay,
-        selectedRelationshipView?.isNemesis
+        selectedRelationshipView?.isNemesis,
+        Boolean(getCurrentPact(reality, humanId, selectedRelationship.toId)),
+        hasRealityRomanticBond(reality, humanId, selectedRelationship.toId, false)
       )
     : null
   const recentRelationshipShift = selectedRelationship?.lastMeaningfulInteraction
@@ -704,7 +708,9 @@ export default function RealityLedger({
                         edge,
                         relationshipView.alliance?.operational,
                         currentDay,
-                        relationshipView.isNemesis
+                        relationshipView.isNemesis,
+                        Boolean(getCurrentPact(reality, humanId, edge.toId)),
+                        hasRealityRomanticBond(reality, humanId, edge.toId, false)
                       )
                       return (
                         <button

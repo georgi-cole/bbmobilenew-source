@@ -48,7 +48,8 @@ function combineWeights(values: number[], cap = 1.25): number {
 export function getStrategicAllianceDecisionRead(
   alliances: readonly StrategicAllianceSnapshot[] | undefined,
   actorId: string,
-  targetId: string
+  targetId: string,
+  relationship?: RelationshipsMap[string][string] | null
 ): StrategicAllianceDecisionRead {
   const sharedWeights: number[] = []
   const targetWeights: number[] = []
@@ -85,6 +86,21 @@ export function getStrategicAllianceDecisionRead(
             memberWeight(alliance.memberPerceivedStatus[targetId]) *
             (infiltrator ? 0.12 : 1)
         )
+      } else if (alliance.status === 'FRACTURED') {
+        const feelings = relationship?.reality
+        const loyalPair =
+          !relationship?.tags.includes('betrayal') &&
+          (feelings
+            ? feelings.trust >= 20 && feelings.loyalty >= 25
+            : (relationship?.affinity ?? 0) >= 20)
+        if (loyalPair) {
+          const personalLoyalty = clampUnit(
+            feelings
+              ? Math.min(feelings.trust, feelings.loyalty) / 100
+              : (relationship?.affinity ?? 0) / 100
+          )
+          sharedWeights.push((0.15 + personalLoyalty * 0.4) * (infiltrator ? 0.12 : 1))
+        }
       }
     }
 
@@ -120,7 +136,12 @@ export function getMinigameTargetPriority(
 
   const relationship = context.relationships?.[actorId]?.[targetId]
   const tags = new Set(relationship?.tags ?? [])
-  const alliance = getStrategicAllianceDecisionRead(context.alliances, actorId, targetId)
+  const alliance = getStrategicAllianceDecisionRead(
+    context.alliances,
+    actorId,
+    targetId,
+    relationship
+  )
   let score = 0
 
   if (alliance.sharedAllianceCount > 0) {

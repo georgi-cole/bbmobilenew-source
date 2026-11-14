@@ -76,6 +76,8 @@ import type { PublicDirection } from '../../publicOpinion/types'
 import { getPublicRequestProgressStage } from '../../publicOpinion/publicRequestProgress'
 import { getRealityRelationshipLabel, getRelationshipLabel } from './relationshipUtils'
 import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
+import { hasRealityRomanticBond } from '../../social/reality/relationshipFacts'
+import { getObservedRelationshipSignals } from '../../social/reality/relationshipSignals'
 import { projectRealityAffinity } from '../../social/reality/relationships'
 import RealitySocialTutorialTour, {
   RealitySocialTutorialPrompt,
@@ -146,8 +148,12 @@ const RELATIONSHIP_TAG_LABELS: Record<string, string> = {
   rivalry: 'Rivalry',
   target: 'Targeted',
   betrayal: 'Betrayed',
+  betrayed_them: 'You betrayed them',
+  repaired_betrayal: 'Trust repaired',
   broken_promise: 'Broken promise',
   broken_alliance: 'Broken alliance',
+  former_group: 'Group membership ended',
+  ended_pact: 'Personal pact ended',
   strained_alliance: 'Strained alliance',
   new_alliance: 'New alliance',
   ex: 'Exes',
@@ -1973,7 +1979,9 @@ export default function SocialPanelV2() {
           focusedRealityEdge,
           focusedCanonical?.alliance?.operational,
           game.week,
-          focusedCanonical?.isNemesis
+          focusedCanonical?.isNemesis,
+          Boolean(getCurrentPact(socialState.reality, humanPlayer.id, focusedPlayer.id)),
+          hasRealityRomanticBond(socialState.reality, humanPlayer.id, focusedPlayer.id, false)
         )
       : focusedAffinity === undefined
         ? null
@@ -1984,6 +1992,16 @@ export default function SocialPanelV2() {
         : Array.from(new Set([...(focusedOutward?.tags ?? []), ...(focusedInward?.tags ?? [])]))
       ).filter((tag) => tag in RELATIONSHIP_TAG_LABELS)
     : []
+  const focusedSignals =
+    dramaMode && focusedPlayer && !selectedReunionGuest
+      ? getObservedRelationshipSignals({
+          state: socialState.reality,
+          viewerId: humanPlayer.id,
+          targetId: focusedPlayer.id,
+          day: game.week,
+          name: (id) => game.players.find((player) => player.id === id)?.name ?? id,
+        })
+      : []
   const focusedAlliances = focusedPlayer
     ? getCurrentAlliancesBetween(socialState.reality, humanPlayer.id, focusedPlayer.id)
     : []
@@ -2468,6 +2486,7 @@ export default function SocialPanelV2() {
                         ))}
                       </div>
                     )}
+                    {focusedSignals[0] && <p className="sp2-focus__signal">{focusedSignals[0]}</p>}
                     {focusedAffinity !== undefined && (
                       <div
                         className={['sp2-focus__meter', focusedMeterPulseClass]
@@ -2494,6 +2513,9 @@ export default function SocialPanelV2() {
                         open={Boolean(selectedPactHistoryEventId)}
                       >
                         <summary>Open full relationship read</summary>
+                        {focusedSignals.slice(1).map((signal) => (
+                          <p key={signal}>{signal}</p>
+                        ))}
                         {canShowSelectedPactEvent && selectedPactHistoryEvent && (
                           <div className="sp2-pact-history-event" role="status">
                             <small>
