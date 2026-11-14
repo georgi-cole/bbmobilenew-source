@@ -87,6 +87,9 @@ files are cleaned on the next inspection. Downloads are foreground operations: k
 the app open, and retry if the OS terminates an interrupted transfer; byte-level resume
 is not promised. Cancelling leaves Standard available and does not activate partial files.
 Settings refuses removal while a cinematic is active, preserving that scene's source.
+Billing refreshes retain cached permanent ownership when offline or billing is
+unavailable, without changing its last verification time. A successful online ownership
+query still reconciles purchases normally; the pack never grants a VIP entitlement.
 Purchases, save games and animation preferences are independent of pack installation.
 Deleting a pack must never remove a VIP entitlement or reset a season.
 
