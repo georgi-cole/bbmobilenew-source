@@ -62,6 +62,65 @@ function setupAcceptedMission() {
 }
 
 describe('secret mission v2 follow-up', () => {
+  it('starts a complete window when an offered mission is accepted late', () => {
+    const store = makeStore()
+    store.dispatch(triggerSecretMission(5))
+    store.dispatch(offerSecretMission(5))
+    const game = store.getState().game
+    store.dispatch(hydrateGame({ ...game, week: 7 }))
+    store.dispatch(acceptSecretMission())
+    const mission = store.getState().game.secretMission!
+    expect(mission.status).toBe('accepted')
+    expect(mission.startDay).toBe(7)
+    expect(mission.endDay).toBeGreaterThanOrEqual(10)
+    expect(mission.tasks.every((task) => task.startDay === 7)).toBe(true)
+  })
+
+  it('credits a repeated offer-stage egg once after acceptance', () => {
+    const store = setupAcceptedMission()
+    const task = store.getState().game.secretMission!.tasks[1]
+    store.dispatch(
+      syncMissionTask({
+        taskId: task.id,
+        updates: {
+          type: 'easter_egg_discovery',
+          current: 0,
+          target: 1,
+          completed: false,
+          discoveredEggIds: [],
+          optional: true,
+        },
+      })
+    )
+    const game = store.getState().game
+    store.dispatch(
+      hydrateGame({
+        ...game,
+        secretMission: {
+          ...game.secretMission!,
+          discoveredEasterEggIds: ['already-seen'],
+        },
+      })
+    )
+    store.dispatch(recordSecretMissionEasterEgg({ eggId: 'already-seen', day: 5 }))
+    store.dispatch(recordSecretMissionEasterEgg({ eggId: 'already-seen', day: 5 }))
+    expect(store.getState().game.secretMission!.tasks[1].current).toBe(1)
+  })
+
+  it('expires an unfinished mission when the human is evicted', () => {
+    const store = setupAcceptedMission()
+    const game = store.getState().game
+    store.dispatch(
+      hydrateGame({
+        ...game,
+        players: game.players.map((player) =>
+          player.isUser ? { ...player, status: 'evicted' as const } : player
+        ),
+      })
+    )
+    expect(store.getState().game.secretMission!.status).toBe('expired')
+  })
+
   it('counts an authoritative non-last result from the winner-only competition flow', () => {
     const store = setupAcceptedMission()
     const task = store.getState().game.secretMission!.tasks[0]
@@ -338,63 +397,67 @@ describe('secret mission v2 follow-up', () => {
     expect(store.getState().game.secretMission!.tasks[0].completed).toBe(true)
   })
 
-  it('recovers a historical zero-energy day from the recorded action balance', () => {
-    const store = setupAcceptedMission()
-    const task = store.getState().game.secretMission!.tasks[0]
-    const humanId = store.getState().game.players.find((player) => player.isUser)!.id
-    store.dispatch(
-      syncMissionTask({
-        taskId: task.id,
-        updates: {
-          type: 'social_energy_empty_streak',
-          current: 0,
-          target: 2,
-          completed: false,
-          currentStreak: 0,
-          maxStreak: 0,
-          startDay: 7,
-          activityDays: [],
-          auditLog: [],
-        },
-      })
-    )
-    store.dispatch(
-      hydrateGame({
-        ...store.getState().game,
-        week: 7,
-        phase: 'social_2',
-      })
-    )
-    store.dispatch({
-      type: 'social/recordSocialAction',
-      payload: {
-        entry: {
-          actorId: humanId,
-          actionId: 'rumor',
-          outcome: 'failure',
-          // Older saves did not preserve an explicit source for player moves.
+  it.each([undefined, 'weekend_day_1'])(
+    'recovers only ordinary zero-energy receipts (%s)',
+    (phase) => {
+      const store = setupAcceptedMission()
+      const task = store.getState().game.secretMission!.tasks[0]
+      const humanId = store.getState().game.players.find((player) => player.isUser)!.id
+      store.dispatch(
+        syncMissionTask({
+          taskId: task.id,
+          updates: {
+            type: 'social_energy_empty_streak',
+            current: 0,
+            target: 2,
+            completed: false,
+            currentStreak: 0,
+            maxStreak: 0,
+            startDay: 7,
+            activityDays: [],
+            auditLog: [],
+          },
+        })
+      )
+      store.dispatch(
+        hydrateGame({
+          ...store.getState().game,
           week: 7,
-          cost: 3,
-          newEnergy: 0,
+          phase: 'social_2',
+        })
+      )
+      store.dispatch({
+        type: 'social/recordSocialAction',
+        payload: {
+          entry: {
+            actorId: humanId,
+            actionId: 'rumor',
+            outcome: 'failure',
+            // Older saves did not preserve an explicit source for player moves.
+            week: 7,
+            phase,
+            cost: 3,
+            newEnergy: 0,
+          },
         },
-      },
-    })
-
-    store.dispatch(
-      hydrateGame({
-        ...store.getState().game,
-        week: 8,
-        phase: 'loh_results',
       })
-    )
 
-    const updated = store
-      .getState()
-      .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
-    expect(updated.current).toBe(1)
-    expect(updated.currentStreak).toBe(1)
-    expect(updated.activityDays).toContain('7')
-  })
+      store.dispatch(
+        hydrateGame({
+          ...store.getState().game,
+          week: 8,
+          phase: 'loh_results',
+        })
+      )
+
+      const updated = store
+        .getState()
+        .game.secretMission!.tasks.find((entry) => entry.id === task.id)!
+      expect(updated.current).toBe(phase ? 0 : 1)
+      expect(updated.currentStreak).toBe(phase ? 0 : 1)
+      expect(updated.activityDays?.includes('7') ?? false).toBe(!phase)
+    }
+  )
 
   it('repairs an incoming-response streak from completed days before the next settlement', () => {
     const store = setupAcceptedMission()

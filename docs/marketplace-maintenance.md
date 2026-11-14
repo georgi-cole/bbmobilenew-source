@@ -522,3 +522,5 @@ store listings or change configured prices.
   Music and credits stay bundled. The VIP cinematic benefit description now
   explains the optional mobile download; ownership, prices and gameplay rewards
   are unchanged. Online-only playback and base-app media removal are deferred.
+
+- 2026-11-14: Reviewed secret mission acceptance, deadline, legacy-save and energy tracking repairs. Existing reward boxes, Eyeolean power eligibility, prices, entitlements and paid-mode availability remain unchanged.

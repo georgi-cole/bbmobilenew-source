@@ -68,6 +68,7 @@ interface RootLike {
       week?: number
       cost?: number
       costs?: { energy?: number }
+      phase?: string
       newEnergy?: number
       balancesAfter?: { energy?: number }
     }>
@@ -79,6 +80,7 @@ interface RootLike {
       week?: number
       cost?: number
       costs?: { energy?: number }
+      phase?: string
       newEnergy?: number
       balancesAfter?: { energy?: number }
     }>
@@ -206,6 +208,7 @@ function getRecordedEnergySuccessDays(
           // already recorded player moves. Background/AI entries are always
           // marked system, so an absent source remains a valid human receipt.
           entry.source !== 'system' &&
+          !entry.phase?.startsWith('weekend_day_') &&
           typeof entry.week === 'number'
       )
       .map((entry) => String(entry.week))
@@ -217,6 +220,7 @@ function getRecordedEnergySuccessDays(
     if (
       entry.actorId === humanId &&
       entry.source !== 'system' &&
+      !entry.phase?.startsWith('weekend_day_') &&
       typeof entry.week === 'number' &&
       energyCost > 0 &&
       energyAfter === 0
@@ -445,8 +449,13 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
   // mission stays rewardPending until its box is claimed; otherwise advancing
   // to the next day could erase the reward before the player sees it.
   if (
-    game.secretMission.status === 'accepted' &&
-    (aliveCount < 5 || game.week > game.secretMission.endDay)
+    ['available', 'offered', 'accepted'].includes(game.secretMission.status) &&
+    (aliveCount < 5 ||
+      game.week > game.secretMission.endDay ||
+      game.players.some(
+        (player) =>
+          player.id === humanId && (player.status === 'evicted' || player.status === 'jury')
+      ))
   ) {
     store.dispatch(expireSecretMission())
     return result
@@ -655,7 +664,14 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
         // Social module, or an unrelated resource reset must not manufacture
         // a successful mission day.
         const spentEnergy = (task.activityDays ?? []).includes(String(completedDay))
-        const success = energy === 0 && spentEnergy
+        const success =
+          getRecordedEnergySuccessDays(
+            task,
+            getPersistentActionHistory(nextState.social),
+            humanId,
+            completedDay
+          ).includes(String(completedDay)) ||
+          (energy === 0 && spentEnergy)
         const currentStreak = success ? (task.currentStreak ?? 0) + 1 : 0
         const maxStreak = Math.max(task.maxStreak ?? 0, currentStreak)
         const uniqueDays = success
@@ -759,7 +775,7 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
       if (task.type !== 'target_nominated') continue
       // “Before Day N” excludes the reward day itself. This keeps the reward
       // strategically available before that day's nomination ceremony.
-      if (game.week >= (task.targetDay ?? game.secretMission.endDay)) continue
+      if (game.week > (task.targetDay ?? game.secretMission.endDay)) continue
       const markedTargetIds = task.targetPlayerIds?.length
         ? task.targetPlayerIds
         : task.targetPlayerId
@@ -825,7 +841,7 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
     updateTaskProgress(store.dispatch, task, {
       targetPlayerIds: nextTargetPlayerIds,
       targetPlayerId: nextTargetPlayerIds[0],
-      description: `Get one of these marked houseguests nominated before Day ${task.endDay ?? game.secretMission?.endDay ?? game.week}: ${nextTargetNames.join(' or ')}`,
+      description: `Get one of these marked houseguests nominated by the end of Day ${task.endDay ?? game.secretMission?.endDay ?? game.week}: ${nextTargetNames.join(' or ')}`,
       auditLog: appendAudit(
         task,
         `Replaced unavailable nomination target${replacementTargets.length === 1 ? '' : 's'} with ${replacementTargets.join(', ')}`
@@ -863,6 +879,7 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
               targetId?: string
               outcome?: 'success' | 'failure'
               source?: 'manual' | 'system'
+              phase?: string
             }
           }
         | undefined
@@ -871,7 +888,8 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
       return result
     }
     for (const task of tasks) {
-      if (task.type !== 'social_energy_empty_streak') continue
+      if (task.type !== 'social_energy_empty_streak' || entry.phase?.startsWith('weekend_day_'))
+        continue
       const activityDays = Array.from(new Set([...(task.activityDays ?? []), String(game.week)]))
       updateTaskProgress(store.dispatch, task, {
         activityDays,
