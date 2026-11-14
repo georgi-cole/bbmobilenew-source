@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
@@ -34,7 +35,20 @@ export default defineConfig(({ mode }) => ({
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
   },
   assetsInclude: ['**/*.wp2'],
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'check-vip-cinematic-pack',
+      apply: 'build',
+      buildStart() {
+        execFileSync(process.execPath, ['scripts/export-vip-cinematic-pack.mjs', '--check'], {
+          cwd: process.cwd(),
+          stdio: 'inherit',
+          windowsHide: true,
+        })
+      },
+    },
+  ],
   // Local device packages and report pages are not additional game entries.
   optimizeDeps: { entries: ['index.html'] },
   server: {

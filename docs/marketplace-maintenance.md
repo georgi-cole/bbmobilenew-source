@@ -508,3 +508,10 @@ store listings or change configured prices.
   Crystal Path hint/fracture and Vault history layout fixes preserve scoring.
   Premium Challenges and VIP still unlock all premium versions. Product prices,
   availability, benefits and entitlements are unchanged; registry rules updated.
+
+- 2026-11-14: Reviewed the optional VIP cinematic pack preparation. Ceremony
+  loaders can resolve a complete verified local image pack, while normal builds
+  continue to bundle their current media. The export includes future walking
+  frames and retains shared finale artwork, music and credits in the base game.
+  This pass adds no download offer or new entitlement and changes no price,
+  benefit, purchase flow, gameplay reward or marketplace copy.
