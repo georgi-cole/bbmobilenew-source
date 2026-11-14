@@ -14,6 +14,7 @@ import {
   getEyeoleanPowerSeasonProgress,
 } from '../../store/profilesSlice'
 import { initializeVip, purchaseStoreItem, restoreVip, selectVip } from '../../store/vipSlice'
+import { requestCinematicPack } from '../../cinematic/media/cinematicPackDownloads'
 import { setGameUX } from '../../store/settingsSlice'
 import {
   EXPANSION_PRODUCT_KEYS,
@@ -158,6 +159,10 @@ export default function Store() {
           dispatch(setGameUX({ dramaMode: true }))
         }
         setNotice(`${definition.title} is now permanently unlocked and active.`)
+        if (productKey === 'vip' && result.payload.isActive) {
+          setSelectedProductKey(null)
+          requestCinematicPack()
+        }
       } else if (purchaseStoreItem.rejected.match(result)) {
         trackProductEvent('store_purchase_failed', { product_key: productKey }, currentProfile?.id)
         setModalError(result.payload ?? 'The purchase could not be completed.')
@@ -238,6 +243,10 @@ export default function Store() {
       const ownedCount = STANDALONE_PRODUCT_KEYS.filter(
         (key) => result.payload.entitlements[key]
       ).length
+      if (result.payload.isActive) {
+        setSelectedProductKey(null)
+        requestCinematicPack()
+      }
       setNotice(
         !result.payload.billingAvailable
           ? 'The store is still unavailable. Check your connection and try again.'

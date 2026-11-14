@@ -36,6 +36,12 @@ import {
   type TranslationKey,
 } from '../../i18n'
 import './Settings.css'
+import {
+  cinematicPackDownloads,
+  requestCinematicPack,
+  supportsCinematicDownloads,
+  useCinematicPackDownload,
+} from '../../cinematic/media/cinematicPackDownloads'
 
 type LockedFeature = 'realityMode' | 'publicMode'
 
@@ -82,6 +88,9 @@ interface SettingSection {
 
 export default function Settings() {
   const dispatch = useAppDispatch()
+  const pack = useCinematicPackDownload()
+  const [packError, setPackError] = useState<string | null>(null)
+  const [confirmRemovePack, setConfirmRemovePack] = useState(false)
   const navigate = useNavigate()
   const settings = useAppSelector(selectSettings)
   const weekendGame = useAppSelector((state) => state.game)
@@ -408,6 +417,19 @@ export default function Settings() {
                     navigate('/store')
                     return
                   }
+                  if (
+                    item.id === 'animationMode' &&
+                    event.target.value === 'cinematic' &&
+                    supportsCinematicDownloads() &&
+                    pack.status !== 'ready'
+                  ) {
+                    requestCinematicPack()
+                    return
+                  }
+                  if (item.id === 'animationMode')
+                    cinematicPackDownloads.choose(
+                      event.target.value === 'cinematic' ? 'cinematic' : 'standard'
+                    )
                   item.onChange(dispatch, event.target.value)
                 }}
               >
@@ -484,6 +506,27 @@ export default function Settings() {
           <p className="settings-helper-text">Turn off and on to replay the guides.</p>
         </div>
         {orderedItems.slice(8).map(renderItem)}
+        {isVipActive && supportsCinematicDownloads() && (
+          <div className="settings-row settings-row--col">
+            <strong>Cinematic download</strong>
+            <p className="settings-helper-text">
+              {pack.status === 'ready'
+                ? 'Installed · Available offline'
+                : 'Optional VIP animations. Standard play, music and credits work offline.'}
+            </p>
+            <button
+              className="game-button game-button--ghost"
+              onClick={() =>
+                pack.status === 'ready' ? setConfirmRemovePack(true) : requestCinematicPack()
+              }
+            >
+              {pack.status === 'ready'
+                ? 'Remove cinematic download'
+                : 'Download cinematic animations'}
+            </button>
+            {packError && <p role="alert">{packError}</p>}
+          </div>
+        )}
         <button
           type="button"
           className="settings-row settings-row--legal"
@@ -518,6 +561,28 @@ export default function Settings() {
           navigate('/store')
         }}
         onCancel={() => setLockedFeature(null)}
+      />
+      <ConfirmExitModal
+        open={confirmRemovePack}
+        title="Remove cinematic download?"
+        description="This removes downloaded animations and switches to Standard. Your VIP purchase, saves, music and credits are kept. You can download the animations again later."
+        confirmLabel="Remove download"
+        cancelLabel="Keep download"
+        onCancel={() => setConfirmRemovePack(false)}
+        onConfirm={() => {
+          setConfirmRemovePack(false)
+          if (document.querySelector('[data-cinematic-active="true"]')) {
+            setPackError('Finish the current cinematic before removing its download.')
+            return
+          }
+          void cinematicPackDownloads
+            .remove()
+            .then(() => {
+              dispatch(setGameUX({ animationMode: 'standard' }))
+              setPackError(null)
+            })
+            .catch(() => setPackError('The download could not be removed. Please try again.'))
+        }}
       />
       <ConfirmExitModal
         open={publicModeNotice != null}

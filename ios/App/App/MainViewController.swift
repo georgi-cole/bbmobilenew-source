@@ -7,6 +7,7 @@ class MainViewController: CAPBridgeViewController {
 
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(GameDisplayPlugin())
+        bridge?.registerPluginInstance(CinematicPackPlugin())
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {

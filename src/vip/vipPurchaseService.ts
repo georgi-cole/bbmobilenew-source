@@ -12,7 +12,11 @@ import {
   type StoreProductDefinition,
   type StoreProductKey,
 } from './vipConfig'
-import { createEmptyStoreEntitlements, type StoreEntitlements } from './vipStorage'
+import {
+  createEmptyStoreEntitlements,
+  loadCachedVipEntitlement,
+  type StoreEntitlements,
+} from './vipStorage'
 import { getVipBillingProductId, isVipBillingProductId } from './vipUpgrade'
 import { TEMPORARY_STORE_UNLOCKS_ENABLED } from './effectiveEntitlements'
 import { IS_MOBILE_DEV_BUILD } from '../config/buildTarget'
@@ -32,7 +36,7 @@ export interface VipStoreSnapshot {
   isActive: boolean
   entitlements: StoreEntitlements
   products: Partial<Record<StoreProductKey, StoreProduct>>
-  verifiedAt: string
+  verifiedAt: string | null
 }
 
 function toStoreProduct(
@@ -235,15 +239,23 @@ export async function loadVipStoreSnapshot(options?: {
     }
   }
 
-  const { isBillingSupported } = await withNativeBilling(() => NativePurchases.isBillingSupported())
-  if (!isBillingSupported) {
+  const cachedSnapshot = (): VipStoreSnapshot => {
+    const cached = loadCachedVipEntitlement()
     return {
       billingAvailable: false,
-      isActive: false,
-      entitlements: createEmptyStoreEntitlements(),
+      isActive: cached.isActive,
+      entitlements: cached.entitlements,
       products: {},
-      verifiedAt,
+      verifiedAt: cached.lastVerifiedAt,
     }
+  }
+  // Store unavailability is not a verified revocation of a permanent purchase.
+  // Avoid querying billing offline and preserve the original verification time.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return cachedSnapshot()
+
+  const { isBillingSupported } = await withNativeBilling(() => NativePurchases.isBillingSupported())
+  if (!isBillingSupported) {
+    return cachedSnapshot()
   }
 
   await configureNativePurchaseLifecycle()

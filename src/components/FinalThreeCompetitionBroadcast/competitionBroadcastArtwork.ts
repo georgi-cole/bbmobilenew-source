@@ -1,6 +1,6 @@
 import { findArt, type CeremonyCharacterArt } from '../../cinematic/ceremonies/runtime.mjs'
 import type { Player } from '../../types'
-import { joinPublicAssetPath } from '../../utils/avatar'
+import { captureVipCinematicMediaResolver } from '../../cinematic/media/vipCinematicPack'
 import { FINAL_THREE_SET_ASSETS } from '../FinalThreeStage/finalThreeSetAssets'
 
 export interface CompetitionBroadcastArtwork {
@@ -16,11 +16,12 @@ export function resolveCompetitionBroadcastArtwork(
   catalog: CeremonyCharacterArt[]
 ): CompetitionBroadcastArtwork | null {
   if (players.length < 2 || players.length > 3) return null
+  const resolveMedia = captureVipCinematicMediaResolver()
   const contestants: Record<string, string> = {}
   for (const player of players) {
     const pose = findArt(player, catalog)?.poses.front
     if (!pose || contestants[player.id]) return null
-    contestants[player.id] = joinPublicAssetPath(pose.src)
+    contestants[player.id] = resolveMedia(pose.src)
   }
   return {
     background: FINAL_THREE_SET_ASSETS.background,

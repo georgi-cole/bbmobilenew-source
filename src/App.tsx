@@ -29,6 +29,7 @@ import {
 import { installGameDiagnostics } from './services/diagnostics/gameDiagnostics'
 import LiveOpsController from './components/LiveOpsController/LiveOpsController'
 import VipEntitlementSync from './components/VipEntitlementSync/VipEntitlementSync'
+import CinematicPackController from './components/CinematicPackController/CinematicPackController'
 import DepressionShockController from './components/DepressionShockController/DepressionShockController'
 import WeatherController from './weather/WeatherController'
 import WeatherBulletinOverlay from './weather/WeatherBulletinOverlay'
@@ -154,6 +155,7 @@ export default function App() {
         <AudioStateSync hash={hash} />
         <RouteLoopAudioSync hash={hash} />
         <VipEntitlementSync />
+        <CinematicPackController hash={hash} />
         <AudioGate />
         <RouterProvider router={router} />
       </I18nProvider>
