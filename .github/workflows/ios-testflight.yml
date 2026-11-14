@@ -31,6 +31,9 @@ jobs:
       - run: npm ci
       - run: npm run check:pr
       - run: node --test scripts/mobile-store-workflow.test.mjs
+      - run: node --test scripts/testflight-readiness.test.mjs
+      - run: node --test scripts/android-upload-certificate.test.mjs
+      - run: node scripts/complete-testflight.mjs --check-policy
 
   upload:
     name: Build, sign, and upload iOS app
@@ -213,6 +216,14 @@ jobs:
             --apiKey "$ASC_API_KEY_ID" \
             --apiIssuer "$ASC_API_ISSUER_ID"
 
+      - name: Complete compliance and verify internal TestFlight availability
+        timeout-minutes: 25
+        env:
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+        run: node scripts/complete-testflight.mjs
+
       - name: Record uploaded build details
         run: |
           MARKETING_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$RUNNER_TEMP/TheBigEye.xcarchive/Products/Applications/App.app/Info.plist")
@@ -221,7 +232,7 @@ jobs:
             echo "- Source commit: $GITHUB_SHA"
             echo "- Marketing version: $MARKETING_VERSION"
             echo "- Build number: $IOS_BUILD_NUMBER"
-            echo "- Uploaded to App Store Connect for TestFlight processing."
+            echo "- Processed and verified available to The Big Eye Internal testers."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove signing materials
@@ -244,11 +255,17 @@ jobs:
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_UPLOAD_CERTIFICATE_SHA1: '65:B5:34:95:6A:38:CF:CA:4D:8C:A2:1C:B0:E9:C6:7C:DA:A8:91:12'
     steps:
       - name: Check out the selected Android source
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
       - name: Restore the upload signing key
         env:
@@ -265,15 +282,13 @@ jobs:
           umask 077
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
           test -s "$ANDROID_KEYSTORE_PATH"
-          keytool -list -keystore "$ANDROID_KEYSTORE_PATH" \
-            -storepass:env ANDROID_KEYSTORE_PASSWORD -alias "$ANDROID_KEY_ALIAS" > /dev/null
+          keytool -J-Duser.language=en -list -v -keystore "$ANDROID_KEYSTORE_PATH" \
+            -storepass:env ANDROID_KEYSTORE_PASSWORD -alias "$ANDROID_KEY_ALIAS" \
+            > "$RUNNER_TEMP/android-upload-certificate.txt"
+          node scripts/verify-android-upload-certificate.mjs "$RUNNER_TEMP/android-upload-certificate.txt"
           # Jobs are serialized; a fresh UTC timestamp also advances on a rerun.
           echo "ANDROID_VERSION_CODE=$(date +%s)" >> "$GITHUB_ENV"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
