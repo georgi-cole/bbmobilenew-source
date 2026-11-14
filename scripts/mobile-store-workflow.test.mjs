@@ -72,6 +72,11 @@ test('Android signing uses the existing upload key and keeps its passwords out o
   )
   const commands = scripts(job)
   assert.ok(commands.includes('-storepass:env ANDROID_KEYSTORE_PASSWORD'))
+  assert.equal(
+    job.env.ANDROID_UPLOAD_CERTIFICATE_SHA1,
+    '65:B5:34:95:6A:38:CF:CA:4D:8C:A2:1C:B0:E9:C6:7C:DA:A8:91:12'
+  )
+  assert.ok(commands.includes('node scripts/verify-android-upload-certificate.mjs'))
   assert.ok(!commands.includes('-storepass "$ANDROID_KEYSTORE_PASSWORD"'))
   assert.ok(commands.includes('./gradlew bundleRelease'))
   assert.ok(commands.includes('jarsigner -verify'))

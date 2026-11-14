@@ -71,6 +71,14 @@ If the private-key password is the same, omit `ANDROID_KEY_PASSWORD`; the workfl
 uses the keystore password. Use the current Play upload key so Google accepts the
 bundle. Do not generate a replacement key for an already published app.
 
+The restored certificate is checked against Google Play's registered upload-key
+SHA-1 before building. The owner confirmed `65:B5:34:95:6A:38:CF:CA:4D:8C:A2:1C:B0:E9:C6:7C:DA:A8:91:12`
+on November 14, 2026. The previously configured `54:E6:AD:90:FB:01:E7:71:74:86:DA:EA:45:86:38:BB:A1:20:F5:07`
+certificate fails this check. When a key is deliberately reset in Play Console,
+update both the saved signing secrets and the expected public fingerprint.
+Correcting those encrypted repository secrets is a one-time setup; future builds
+use them without an interactive password prompt.
+
 The workflow restores the key into temporary storage, verifies its alias, signs
 through Gradle's environment configuration, verifies the bundle signature, and
 deletes the temporary key even on failure. Only the signed AAB becomes an artifact;
