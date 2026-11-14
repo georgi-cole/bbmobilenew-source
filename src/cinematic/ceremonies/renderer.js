@@ -43,6 +43,12 @@ import {
 } from './mode-films.js'
 import modeStyles from './mode-films.css?raw'
 import { captureVipCinematicMediaResolver } from '../media/vipCinematicPack'
+import {
+  upgradeWalkResources,
+  attachWalkSprites,
+  continueDoorwayTravel,
+  animateWalkSprites,
+} from './walk-cycles.js'
 
 export const SCENES = {
   replacement: { label: 'Replacement nomination', duration: 4500 },
@@ -139,26 +145,29 @@ export function sceneResources(id, cast, shockType = 'doubleEviction', details =
     (key) =>
       !(DECISION_CONFIG[id] && key === (id === 'final4' ? 'cinema_decisionA' : 'cinema_decisionB'))
   )
-  return {
-    ...Object.fromEntries(
-      needed.map((key) => {
-        if (premiumVfx[key]) return [key, premiumVfx[key]]
-        if (key === 'shockAtmosphere') return [key, announcementAtmosphere]
-        if (actors[key]) return [key, actors[key]]
-        const file = props[key] + '.webp',
-          asset = shared[file]
-        if (!asset) throw new Error('No reusable resource for ' + key)
-        return [key, { src: 'assets/ceremonies/shared/' + file, ...asset }]
-      })
-    ),
-    ...extra,
-    ...(details.authorityIntro
-      ? authorityResources(byPlayerId(cast), details.authorityIntro, shared)
-      : {}),
-    ...(details.closingBrand === true && DECISION_CONFIG[id]
-      ? { cinema_closingEye: FINAL_EXIT_BRAND_RESOURCE }
-      : {}),
-  }
+  return upgradeWalkResources(
+    {
+      ...Object.fromEntries(
+        needed.map((key) => {
+          if (premiumVfx[key]) return [key, premiumVfx[key]]
+          if (key === 'shockAtmosphere') return [key, announcementAtmosphere]
+          if (actors[key]) return [key, actors[key]]
+          const file = props[key] + '.webp',
+            asset = shared[file]
+          if (!asset) throw new Error('No reusable resource for ' + key)
+          return [key, { src: 'assets/ceremonies/shared/' + file, ...asset }]
+        })
+      ),
+      ...extra,
+      ...(details.authorityIntro
+        ? authorityResources(byPlayerId(cast), details.authorityIntro, shared)
+        : {}),
+      ...(details.closingBrand === true && DECISION_CONFIG[id]
+        ? { cinema_closingEye: FINAL_EXIT_BRAND_RESOURCE }
+        : {}),
+    },
+    Boolean(DECISION_CONFIG[id])
+  )
 }
 
 function fitCrown(crown, pose) {
@@ -775,7 +784,14 @@ export function createClip() {
       const resolveMedia = captureVipCinematicMediaResolver()
       const entries = await Promise.all(
         Object.entries(resources).map(async ([key, resource]) => {
-          const image = await loadImage(resource, aborter.signal, resolveMedia)
+          let image
+          try {
+            image = await loadImage(resource, aborter.signal, resolveMedia)
+          } catch (error) {
+            if (!resource.walkCycle || !resource.fallback || aborter.signal.aborted) throw error
+            resources[key] = resource.fallback
+            image = await loadImage(resource.fallback, aborter.signal, resolveMedia)
+          }
           image.dataset.resourceKey = key
           return [key, image]
         })
@@ -942,6 +958,7 @@ export function createClip() {
         )
       }
 
+      const walkSprites = decision ? attachWalkSprites(root, resources) : []
       const visualCues = []
       const a = (selector, stops) => {
         const targets =
@@ -988,6 +1005,13 @@ export function createClip() {
           root,
           (selector, stops) => {
             if (leadIn && selector === root) return
+            if (walkSprites.length)
+              stops = continueDoorwayTravel(
+                selector,
+                stops,
+                decisionTiming.exitAt,
+                root.classList.contains('paired-film')
+              )
             a(selector, leadIn ? stops.map(([ms, ...rest]) => [ms + leadIn, ...rest]) : stops)
           },
           decisionOptions
@@ -1043,6 +1067,8 @@ export function createClip() {
           [duration, 0.5],
         ])
       }
+      if (walkSprites.length)
+        animateWalkSprites(walkSprites, a, duration, decisionTiming.exitAt + leadIn)
       if (id === 'shock') animateShockTheme(root, shockType, a, duration)
       if (!royalPower && !coOutcome && sceneId !== id) animateModeLayers(sceneId, root, a, duration)
       if (id === 'safety')

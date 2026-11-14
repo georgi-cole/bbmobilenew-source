@@ -60,9 +60,9 @@ describe('ceremony sound ownership', () => {
   })
   it('keeps cues inside the film and syncs royal shield and exit timing', () => {
     expect(ceremonyCuePlan('allPower', 5600)).toContainEqual({ at: 1700, cue: 'shield' })
-    expect(
-      ceremonyCuePlan('tiebreak', 16000, null, { exitAt: 3200, zoomAt: 7800 }, 2200)
-    ).toContainEqual({ at: 9300, cue: 'door' })
+    expect(ceremonyCuePlan('tiebreak', 16000, null, { exitAt: 3200, zoomAt: 7800 }, 2200)).toEqual([
+      { at: 5400, cue: 'departureFoley' },
+    ])
     expect(ceremonyCuePlan('shock', 1000).every((c) => c.at >= 0 && c.at < 780)).toBe(true)
   })
 })

@@ -11,6 +11,7 @@ export const CEREMONY_CUES = {
   save: { file: 'save.wav', durationMs: 850, volume: 0.24 },
   impact: { file: 'impact.wav', durationMs: 800, volume: 0.28 },
   door: { file: 'door.wav', durationMs: 650, volume: 0.22 },
+  departureFoley: { file: 'departureFoley.wav', durationMs: 5000, volume: 1 },
 } as const
 type Cue = keyof typeof CEREMONY_CUES
 export type CeremonyCueEvent = { at: number; cue: Cue }
@@ -22,7 +23,9 @@ export function ceremonyCuePlan(
   decision?: { exitAt: number; zoomAt: number } | null,
   leadIn = 0
 ): CeremonyCueEvent[] {
-  const events: CeremonyCueEvent[] = [{ at: 0, cue: scene === 'shock' ? 'impact' : 'transition' }]
+  const events: CeremonyCueEvent[] = decision
+    ? []
+    : [{ at: 0, cue: scene === 'shock' ? 'impact' : 'transition' }]
   if (outcome) {
     if (outcome.decisionOnly) events.push({ at: 350, cue: 'suspense' })
     else
@@ -35,11 +38,9 @@ export function ceremonyCuePlan(
           })
       }
   } else if (decision) {
-    if (decision.exitAt || leadIn) events.push({ at: 350, cue: 'suspense' })
-    events.push(
-      { at: decision.exitAt + leadIn + 3900, cue: 'door' },
-      { at: decision.zoomAt + leadIn, cue: 'transition' }
-    )
+    // The recorded mix owns steps, room decay and the door latch. Extra accents
+    // would double the door and mask the quiet, receding footsteps.
+    events.push({ at: decision.exitAt + leadIn, cue: 'departureFoley' })
   } else if (scene === 'allPower' || scene === 'cupidPower') {
     events.push({ at: 350, cue: 'suspense' }, { at: 1700, cue: 'shield' })
   } else if (scene === 'safety' || scene === 'cupidSafety') events.push({ at: 1680, cue: 'shield' })

@@ -522,3 +522,10 @@ store listings or change configured prices.
   Music and credits stay bundled. The VIP cinematic benefit description now
   explains the optional mobile download; ownership, prices and gameplay rewards
   are unchanged. Online-only playback and base-app media removal are deferred.
+
+- 2026-11-14: Reviewed all 63 character departure cycles, empty-handed reusable
+  movement beyond Ali’s approved pilot, continuous doorway travel and recorded
+  departure Foley. Updated the optional VIP media inventory for the new atlases;
+  existing installations use the compatible bundled fallback until updated.
+  Animation, reduced-motion and SFX settings remain authoritative. Eye closing
+  choreography, offers, prices, rewards, entitlements and availability are unchanged.

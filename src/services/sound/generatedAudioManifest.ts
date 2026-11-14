@@ -559,6 +559,14 @@ export const GENERATED_AUDIO_ASSETS = [
     "loop": false
   },
   {
+    "key": "tv:ceremony_departureFoley",
+    "category": "tv",
+    "relativePath": "sounds/ceremonies/departureFoley.wav",
+    "preload": false,
+    "volume": 1,
+    "loop": false
+  },
+  {
     "key": "tv:ceremony_door",
     "category": "tv",
     "relativePath": "sounds/ceremonies/door.wav",
