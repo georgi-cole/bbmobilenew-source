@@ -1,7 +1,7 @@
-# Automatic TestFlight and signed Android builds
+# Automatic TestFlight and Google Play test builds
 
 Every push to main, including a merged pull request, starts the **Build TestFlight
-and signed Android apps** workflow. Each run checks out the triggering commit,
+and Google Play test apps** workflow. Each run checks out the triggering commit,
 passes `npm run check:pr`, then builds both platforms. Runs queue in order; a new
 merge does not cancel a signing/upload operation or replace an older pending run.
 
@@ -59,19 +59,69 @@ internal group and following its build-ID pages. This avoids the build-side
 write-only relationship and the filtered collection query rejected by Apple's
 server. Readiness still requires both confirmed membership and `IN_BETA_TESTING`.
 
-## Android: signed Google Play upload bundles
+## Android: automatic Google Play Internal Testing
 
-Each validated main build produces a signed `app-release.aab`. Download the
-`google-play-signed-<run>-<attempt>` artifact from the workflow run, then upload
-the AAB in Play Console. It is already signed: uploading does not ask for the
-keystore password. This does not automatically publish an Android release.
+Each validated main build produces a signed `app-release.aab`. With the one-time
+Google Play connection below configured, the same run uploads that exact bundle
+to `com.georgicole.thebigeye` on the **internal** testing track and verifies its
+version in a fresh Google Play edit. The signed artifact remains downloadable as
+`google-play-signed-<run>-<attempt>` for recovery.
 
-Cloud bundles default to ads off for internal testing, matching the TestFlight
-pipeline. Before using one for an ads-supported production release, set repository
-variable `ANDROID_ADMOB_MODE` to `live` and provide the existing real
+The uploader compares the version code and SHA-256 with the signed artifact,
+reuses an identical existing upload, and refuses to replace a newer internal
+build. Only a completed release containing the exact version counts as verified.
+Google may still need to finish processing before testers can install it. Tester
+lists and other tracks are not edited.
+
+Before Google credentials are configured, builds continue to produce the signed
+artifact. The workflow explicitly reports **built only, not uploaded**. Adding
+`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` activates automatic uploads on future main
+runs; there is no second feature flag or repeated manual upload step.
+
+### One-time Google connection
+
+1. Select your Google Cloud project and enable the
+   [Google Play Android Developer API](https://console.cloud.google.com/apis/library/androidpublisher.googleapis.com)
+   and [IAM Service Account Credentials API](https://console.cloud.google.com/apis/library/iamcredentials.googleapis.com).
+2. In **IAM & Admin > Service Accounts**, create or choose a dedicated account
+   such as `big-eye-play-upload`.
+3. Grant that service account **Service Account Token Creator** on **itself**
+   (`roles/iam.serviceAccountTokenCreator`). Google's authentication action needs
+   this to mint a short-lived OAuth access token from the key. Grant it on this
+   service account rather than across the project.
+4. In **Google Play Console > Users and permissions > Invite new users**, enter
+   the service-account email. Give it app-level access to **The Big Eye** only,
+   with **View app information (read-only)** and **Release apps to testing
+   tracks**. Production-release, financial, administrator and tester-list
+   permissions are not needed.
+5. In the service account's **Keys** tab, create a **JSON** key. Add its complete
+   contents as repository secret **GOOGLE_PLAY_SERVICE_ACCOUNT_JSON** under
+   [GitHub Settings > Secrets and variables > Actions](https://github.com/georgi-cole/bbmobilenew-source/settings/secrets/actions).
+   Do not commit the JSON or paste it into chat. The action uses it only after
+   signing and artifact retention, does not write a credentials file, and passes
+   a short-lived Android Publisher token to the uploader.
+6. Run **Build TestFlight and Google Play test apps** on **main**, or let the next
+   merge trigger it. Confirm the summary says **Verified Google Play internal
+   release**, rather than only **Signed Google Play bundle**. Existing internal
+   testers use their normal opt-in link; tester membership is not changed.
+
+Google's default edit commit can cancel an existing review. The uploader explicitly
+uses `changesInReviewBehavior=ERROR_IF_IN_REVIEW`, so it stops with the signed AAB
+retained if Google will not allow the update while a review is running. It does
+not silently cancel that review or fall back to an unverified draft.
+
+References: [Google API setup](https://developers.google.com/android-publisher/getting_started),
+[Play Console permissions](https://support.google.com/googleplay/android-developer/answer/9844686),
+[Google authentication action](https://github.com/google-github-actions/auth), and
+[edit commit behavior](https://developers.google.com/android-publisher/api-ref/rest/v3/edits/commit).
+
+### Existing Android build configuration
+
+Android cloud bundles default to ads off for internal testing. To test live ads,
+set repository variable `ANDROID_ADMOB_MODE` to `live` and provide the existing real
 `ANDROID_ADMOB_APP_ID`, `ANDROID_ADMOB_INTERSTITIAL_ID` and
 `ANDROID_ADMOB_REWARDED_ID` variables. The store validator rejects test mode and
-demo IDs for a live-ads build.
+demo IDs for a live-ads build. This is separate from the current iOS AdMob setup.
 
 Configure these repository secrets once:
 
@@ -116,5 +166,7 @@ on macOS/Linux). Keep the local properties file private.
 
 The workflow summary records the exact source commit, iOS build number and Android
 version code. Missing credentials fail early with the missing secret's name.
-A successful upload means Apple accepted the binary; allow its processing to
-finish before expecting it in TestFlight. No secret values appear in the summary.
+TestFlight readiness is verified after Apple processing. Android publishing reports
+success only after the exact completed internal version is read back from Google.
+A missing Google connection is reported separately from a failed upload or a
+successful signed build. No secret values appear in the summary.

@@ -1,4 +1,4 @@
-name: Build TestFlight and signed Android apps
+name: Build TestFlight and Google Play test apps
 
 on:
   push:
@@ -31,6 +31,7 @@ jobs:
       - run: npm ci
       - run: npm run check:pr
       - run: node --test scripts/mobile-store-workflow.test.mjs
+      - run: node --test scripts/google-play-internal.test.mjs
       - run: node --test scripts/testflight-readiness.test.mjs
       - run: node --test scripts/android-upload-certificate.test.mjs
       - run: node scripts/complete-testflight.mjs --check-policy
@@ -253,7 +254,7 @@ jobs:
           rm -f "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_API_KEY_ID:-unused}.p8"
 
   android:
-    name: Build the signed Google Play bundle
+    name: Build and publish Google Play Internal Testing
     if: github.ref == 'refs/heads/main'
     needs: quality
     runs-on: ubuntu-latest
@@ -353,6 +354,7 @@ jobs:
           grep -q 'jar verified.' "$RUNNER_TEMP/android-signature-verification.txt"
 
       - name: Save the Google Play upload bundle
+        id: android_bundle
         uses: actions/upload-artifact@v4
         with:
           name: google-play-signed-${{ github.run_id }}-${{ github.run_attempt }}
@@ -360,14 +362,46 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Check the Google Play connection
+        id: play_connection
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: node scripts/publish-google-play-internal.mjs --check-connection
+
+      - name: Authenticate for Google Play Internal Testing
+        id: google_play_auth
+        if: steps.play_connection.outputs.configured == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          credentials_json: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          service_account: ${{ steps.play_connection.outputs.service_account }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+          create_credentials_file: false
+          export_environment_variables: false
+
+      - name: Publish and verify the Google Play internal release
+        id: play_upload
+        if: steps.play_connection.outputs.configured == 'true'
+        env:
+          GOOGLE_PLAY_ACCESS_TOKEN: ${{ steps.google_play_auth.outputs.access_token }}
+        run: node scripts/publish-google-play-internal.mjs
+
       - name: Record signed Android build details
+        if: always() && steps.android_bundle.outcome == 'success'
         run: |
           {
             echo "## Signed Google Play bundle"
             echo "- Source commit: $GITHUB_SHA"
             echo "- Android version code: $ANDROID_VERSION_CODE"
-            echo "- Download the signed AAB from this run's artifacts and upload it in Play Console."
-            echo "- No signing-password entry is required when uploading this AAB."
+            if [ "${{ steps.play_upload.outcome }}" = "success" ]; then
+              echo "- The exact version was verified on Google Play Internal Testing."
+            elif [ "${{ steps.play_connection.outputs.configured }}" != "true" ]; then
+              echo "- Built only, not uploaded: add GOOGLE_PLAY_SERVICE_ACCOUNT_JSON once to enable automatic Internal Testing updates."
+            else
+              echo "- The signed AAB is available, but Google Play publishing failed. See the publishing step."
+            fi
+            echo "- The signed AAB remains available in this run's artifacts for manual recovery."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove the temporary upload signing key

@@ -141,3 +141,36 @@ test('both platforms validate production account and entitlement settings before
     assert.ok(job.steps.some((step) => step.run === 'npm run sync:' + platform))
   }
 })
+
+test('Google Play uploads use a scoped short-lived token after saving the signed artifact', () => {
+  const steps = workflow.jobs.android.steps
+  const artifact = steps.findIndex((step) => step.id === 'android_bundle')
+  const connection = steps.findIndex((step) => step.id === 'play_connection')
+  const auth = steps.findIndex((step) => step.id === 'google_play_auth')
+  const upload = steps.findIndex((step) => step.id === 'play_upload')
+  assert.ok(artifact < connection && connection < auth && auth < upload)
+  assert.equal(
+    steps[connection].env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,
+    '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}'
+  )
+  assert.equal(steps[auth].if, "steps.play_connection.outputs.configured == 'true'")
+  assert.match(steps[auth].uses, /^google-github-actions\/auth@[a-f0-9]{40}$/)
+  assert.equal(steps[auth].with.token_format, 'access_token')
+  assert.equal(
+    steps[auth].with.access_token_scopes,
+    'https://www.googleapis.com/auth/androidpublisher'
+  )
+  assert.equal(steps[auth].with.create_credentials_file, false)
+  assert.equal(steps[auth].with.export_environment_variables, false)
+  assert.equal(steps[upload].if, steps[auth].if)
+  assert.equal(steps[upload].run, 'node scripts/publish-google-play-internal.mjs')
+  assert.equal(
+    steps[upload].env.GOOGLE_PLAY_ACCESS_TOKEN,
+    '${{ steps.google_play_auth.outputs.access_token }}'
+  )
+  assert.ok(
+    workflow.jobs.quality.steps.some(
+      (step) => step.run === 'node --test scripts/google-play-internal.test.mjs'
+    )
+  )
+})

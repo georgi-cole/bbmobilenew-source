@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-15: Reviewed automatic Google Play Internal Testing delivery. Validated
+  main builds retain their signed AAB, use scoped Google authentication, and
+  verify the exact internal-track version without changing other tracks, tester
+  lists or an existing review. Missing credentials remain explicit. Existing
+  Android/iOS ad configuration, products, prices, rewards, entitlements, premium
+  content and marketplace copy are unchanged.
+
 - 2026-11-14: Reviewed the Reality social flow revision. Alliance vote requests
   now reuse action cards and nominee chips; the backup decision opens the existing
   Social module from the existing briefing slot without spending resources or
