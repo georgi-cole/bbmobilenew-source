@@ -4,7 +4,7 @@ import {
   type CeremonyCrownAnchor,
 } from '../../cinematic/ceremonies/runtime.mjs'
 import type { Player } from '../../types'
-import { joinPublicAssetPath } from '../../utils/avatar'
+import { captureVipCinematicMediaResolver } from '../../cinematic/media/vipCinematicPack'
 import { FINAL_THREE_SET_PUBLIC_ASSETS } from '../FinalThreeStage/finalThreeSetAssets'
 
 interface FinalDecisionArtwork {
@@ -32,6 +32,7 @@ export function resolveFinalDecisionArtwork(
   const firstPose = findArt(nominees[0], catalog)?.poses.front
   const secondPose = findArt(nominees[1], catalog)?.poses.front
   if (!holderPose || !firstPose || !secondPose) return null
+  const resolveMedia = captureVipCinematicMediaResolver()
 
   return {
     assets: Object.fromEntries(
@@ -45,7 +46,7 @@ export function resolveFinalDecisionArtwork(
         'nominee-b': secondPose.src,
         ...(presentation === 'classic' ? { crown: 'assets/ceremonies/shared/crown.webp' } : {}),
         mist: FINAL_THREE_SET_PUBLIC_ASSETS.mist,
-      }).map(([key, path]) => [key, joinPublicAssetPath(path)])
+      }).map(([key, path]) => [key, resolveMedia(path)])
     ),
     ...(presentation === 'classic' ? { holderCrownAnchor: holderPose.crown } : {}),
   }

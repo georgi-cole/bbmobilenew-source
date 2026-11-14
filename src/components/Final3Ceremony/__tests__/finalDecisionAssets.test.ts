@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import catalog from '../../../cinematic/ceremonies/cast.json'
 import { createInitialGameState } from '../../../store/gameSlice'
 import type { Player } from '../../../types'
 import { resolveFinalDecisionArtwork } from '../finalDecisionAssets'
+import { vipCinematicMediaLibrary } from '../../../cinematic/media/vipCinematicPack'
 
 function cast() {
   const players = createInitialGameState({ seed: 111 }).players
@@ -27,6 +28,35 @@ function cast() {
 }
 
 describe('final decision ceremony identity', () => {
+  it('resolves both classic and Vox cast images through one captured local pack source', () => {
+    const { holder, nominees } = cast()
+    const source = vipCinematicMediaLibrary.capture()
+    const capture = vi
+      .spyOn(vipCinematicMediaLibrary, 'capture')
+      .mockReturnValue((path) =>
+        path.startsWith('assets/ceremonies/characters/')
+          ? `file:///installed-vip/${path}`
+          : source(path)
+      )
+    try {
+      for (const presentation of ['classic', 'vox'] as const) {
+        const artwork = resolveFinalDecisionArtwork(
+          holder,
+          nominees,
+          catalog.characters,
+          presentation
+        )
+        expect(artwork?.assets.holder).toMatch(/^file:\/\/\/installed-vip\//)
+        expect(artwork?.assets['nominee-a']).toMatch(/^file:\/\/\/installed-vip\//)
+        expect(artwork?.assets['nominee-b']).toMatch(/^file:\/\/\/installed-vip\//)
+        expect(artwork?.assets.background).not.toContain('/installed-vip/')
+      }
+      expect(capture).toHaveBeenCalledTimes(2)
+    } finally {
+      capture.mockRestore()
+    }
+  })
+
   it('keeps the season-owned human look despite a stale avatar, and preserves nominee order', () => {
     const { holder, nominees } = cast()
     const artwork = resolveFinalDecisionArtwork(holder, nominees, catalog.characters)

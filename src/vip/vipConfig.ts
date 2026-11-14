@@ -337,7 +337,7 @@ export const VIP_BENEFIT_DETAILS = [
   {
     title: 'Cinematic ceremonies',
     detail:
-      'Exclusive ceremony films and themed shock reveals in Classic, Cupid’s Arrow and Vox Populi. Choose Standard or Cinematic in Animation settings. Survival keeps its fast standard presentation.',
+      'Exclusive ceremony films and themed shock reveals in Classic, Cupid’s Arrow and Vox Populi. On mobile, download the optional cinematic pack once to use it offline, or keep Standard. Switch styles or manage the download in Settings. Survival keeps its fast standard presentation.',
   },
 ]
 

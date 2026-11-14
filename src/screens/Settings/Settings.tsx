@@ -36,6 +36,13 @@ import {
   type TranslationKey,
 } from '../../i18n'
 import './Settings.css'
+import {
+  cinematicPackDownloads,
+  requestCinematicPack,
+  supportsCinematicDownloads,
+  useCinematicPackDownload,
+} from '../../cinematic/media/cinematicPackDownloads'
+import { VIP_CINEMATIC_PACK } from '../../cinematic/media/vipCinematicPack'
 
 type LockedFeature = 'realityMode' | 'publicMode'
 
@@ -82,6 +89,10 @@ interface SettingSection {
 
 export default function Settings() {
   const dispatch = useAppDispatch()
+  const pack = useCinematicPackDownload()
+  const [packError, setPackError] = useState<string | null>(null)
+  const [confirmRemovePack, setConfirmRemovePack] = useState(false)
+  const [removingPack, setRemovingPack] = useState(false)
   const navigate = useNavigate()
   const settings = useAppSelector(selectSettings)
   const weekendGame = useAppSelector((state) => state.game)
@@ -262,11 +273,11 @@ export default function Settings() {
             { value: 'cinematic', label: 'Cinematic', vipOnly: true },
           ],
           get: (s: SettingsState) =>
-            !isVipActive
+            !isVipActive ||
+            s.gameUX.animationMode === 'standard' ||
+            (supportsCinematicDownloads() && pack.status !== 'ready')
               ? 'standard'
-              : s.gameUX.animationMode === 'standard'
-                ? 'standard'
-                : 'cinematic',
+              : 'cinematic',
           onChange: (settingsDispatch: AppDispatch, val: string) =>
             settingsDispatch(setGameUX({ animationMode: val as 'standard' | 'cinematic' })),
         },
@@ -408,6 +419,29 @@ export default function Settings() {
                     navigate('/store')
                     return
                   }
+                  if (
+                    item.id === 'animationMode' &&
+                    event.target.value === 'cinematic' &&
+                    supportsCinematicDownloads() &&
+                    pack.status !== 'ready'
+                  ) {
+                    requestCinematicPack()
+                    return
+                  }
+                  if (item.id === 'animationMode') {
+                    cinematicPackDownloads.choose(
+                      event.target.value === 'cinematic' ? 'cinematic' : 'standard'
+                    )
+                    if (
+                      event.target.value === 'standard' &&
+                      value === 'cinematic' &&
+                      supportsCinematicDownloads() &&
+                      pack.status === 'ready'
+                    ) {
+                      setPackError(null)
+                      setConfirmRemovePack(true)
+                    }
+                  }
                   item.onChange(dispatch, event.target.value)
                 }}
               >
@@ -518,6 +552,40 @@ export default function Settings() {
           navigate('/store')
         }}
         onCancel={() => setLockedFeature(null)}
+      />
+      <ConfirmExitModal
+        open={confirmRemovePack}
+        title={removingPack ? 'Clearing the stage…' : 'Keep the cameras ready?'}
+        description={
+          packError ??
+          `You’re back in Standard. Keep the cinematic animations for a quick comeback, or remove them to free up ${(VIP_CINEMATIC_PACK.totalBytes / 1_000_000).toFixed(1)} MB.`
+        }
+        confirmLabel="Remove animations"
+        cancelLabel="Keep for later"
+        busy={removingPack}
+        onCancel={() => {
+          setConfirmRemovePack(false)
+          setPackError(null)
+        }}
+        onConfirm={() => {
+          if (document.querySelector('[data-cinematic-active="true"]')) {
+            setPackError('The cameras are still rolling. Let this scene finish first.')
+            return
+          }
+          setPackError(null)
+          setRemovingPack(true)
+          void cinematicPackDownloads
+            .remove()
+            .then(() => {
+              setConfirmRemovePack(false)
+            })
+            .catch(() =>
+              setPackError(
+                'Couldn’t remove the animations. Try again or keep them for later. You’re still in Standard.'
+              )
+            )
+            .finally(() => setRemovingPack(false))
+        }}
       />
       <ConfirmExitModal
         open={publicModeNotice != null}

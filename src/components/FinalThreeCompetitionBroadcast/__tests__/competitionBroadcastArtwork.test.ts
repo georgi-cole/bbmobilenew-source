@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import catalog from '../../../cinematic/ceremonies/cast.json'
 import { createInitialGameState } from '../../../store/gameSlice'
 import type { Player } from '../../../types'
 import { resolveCompetitionBroadcastArtwork } from '../competitionBroadcastArtwork'
+import { vipCinematicMediaLibrary } from '../../../cinematic/media/vipCinematicPack'
 
 function cast(): Player[] {
   const base = createInitialGameState({ seed: 111 }).players[0]
@@ -27,6 +28,22 @@ function cast(): Player[] {
 }
 
 describe('competition broadcast artwork identity', () => {
+  it('uses the captured local pack source for every competitor and keeps the shared set bundled', () => {
+    const capture = vi
+      .spyOn(vipCinematicMediaLibrary, 'capture')
+      .mockReturnValue((path) => `file:///installed-vip/${path}`)
+    try {
+      const artwork = resolveCompetitionBroadcastArtwork(cast(), catalog.characters)
+      for (const path of Object.values(artwork?.contestants ?? {})) {
+        expect(path).toMatch(/^file:\/\/\/installed-vip\//)
+      }
+      expect(artwork?.eye).not.toContain('/installed-vip/')
+      expect(capture).toHaveBeenCalledTimes(1)
+    } finally {
+      capture.mockRestore()
+    }
+  })
+
   it('keeps the selected season look and all competitors in their own normal outfit', () => {
     const result = resolveCompetitionBroadcastArtwork(cast(), catalog.characters)
     expect(result?.contestants).toMatchObject({

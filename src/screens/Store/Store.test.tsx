@@ -13,7 +13,12 @@ import Store from './Store'
 
 const purchaseStoreProductMock = vi.hoisted(() => vi.fn())
 const loadVipStoreSnapshotMock = vi.hoisted(() => vi.fn())
+const requestCinematicPackMock = vi.hoisted(() => vi.fn())
 const platform = vi.hoisted(() => ({ native: false }))
+
+vi.mock('../../cinematic/media/cinematicPackDownloads', () => ({
+  requestCinematicPack: requestCinematicPackMock,
+}))
 
 vi.mock('@capacitor/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@capacitor/core')>()
@@ -137,6 +142,7 @@ describe('Store product presentation', () => {
     platform.native = false
     purchaseStoreProductMock.mockReset()
     loadVipStoreSnapshotMock.mockReset()
+    requestCinematicPackMock.mockReset()
   })
 
   it('gives every catalogue product a deliberate custom icon', () => {
@@ -274,6 +280,36 @@ describe('Store product presentation', () => {
 
     expect(await screen.findByText('Purchase cancelled.')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(requestCinematicPackMock).not.toHaveBeenCalled()
+  })
+
+  it('offers cinematic scenes only after a VIP purchase has completed and closes the purchase dialog', async () => {
+    let finish!: (value: ReturnType<typeof snapshotFrom>) => void
+    purchaseStoreProductMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    renderStore()
+    fireEvent.click(screen.getByRole('button', { name: 'Explore VIP' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock for $19.99' }))
+    await waitFor(() => expect(purchaseStoreProductMock).toHaveBeenCalledOnce())
+    expect(requestCinematicPackMock).not.toHaveBeenCalled()
+    finish(snapshotFrom(makeVipState({ vip: true })))
+    await waitFor(() => expect(requestCinematicPackMock).toHaveBeenCalledOnce())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('offers cinematic scenes after restoring VIP without leaving a purchase dialog underneath', async () => {
+    loadVipStoreSnapshotMock.mockResolvedValue(snapshotFrom(makeVipState({ vip: true })))
+    renderStore()
+    fireEvent.click(screen.getByRole('button', { name: 'Explore VIP' }))
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore Purchases' })
+    )
+    await waitFor(() => expect(requestCinematicPackMock).toHaveBeenCalledOnce())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('reports a purchase failure and keeps the action available for retry', async () => {

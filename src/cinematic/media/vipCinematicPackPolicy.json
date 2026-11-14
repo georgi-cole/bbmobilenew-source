@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "packId": "vip-cinematics",
+  "rendererVersion": 1,
+  "assetRoot": "assets/ceremonies/",
+  "imageExtensions": [".webp", ".png", ".jpg", ".jpeg", ".avif"],
+  "bundledAssets": [
+    "assets/ceremonies/final-decision/background.webp",
+    "assets/ceremonies/final-decision/foreground.webp",
+    "assets/ceremonies/final-decision/monitor.webp",
+    "assets/ceremonies/final-decision/token.webp",
+    "assets/ceremonies/shared/crown.webp",
+    "assets/ceremonies/shared/winner-firework.webp",
+    "assets/ceremonies/shared/winner-stage.webp",
+    "assets/ceremonies/vfx/natural-mist-v2.webp"
+  ]
+}

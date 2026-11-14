@@ -42,6 +42,7 @@ import {
   animateModeLayers,
 } from './mode-films.js'
 import modeStyles from './mode-films.css?raw'
+import { captureVipCinematicMediaResolver } from '../media/vipCinematicPack'
 
 export const SCENES = {
   replacement: { label: 'Replacement nomination', duration: 4500 },
@@ -630,7 +631,7 @@ function animateLoh(root, a) {
   ])
 }
 
-function loadImage(resource, signal) {
+function loadImage(resource, signal, resolveMedia) {
   return new Promise((resolve, reject) => {
     const image = new Image()
     const abort = () => {
@@ -641,10 +642,7 @@ function loadImage(resource, signal) {
     image.decoding = 'async'
     image.alt = ''
     image.draggable = false
-    image.src = new URL(
-      import.meta.env.BASE_URL + resource.src.replace(/^\//, ''),
-      document.baseURI
-    ).href
+    image.src = resolveMedia(resource.src)
     if (resource.character) {
       image.dataset.character = resource.character
       image.dataset.pose = resource.pose
@@ -774,9 +772,10 @@ export function createClip() {
           replacementStyles,
         ].join('\n')
       )
+      const resolveMedia = captureVipCinematicMediaResolver()
       const entries = await Promise.all(
         Object.entries(resources).map(async ([key, resource]) => {
-          const image = await loadImage(resource, aborter.signal)
+          const image = await loadImage(resource, aborter.signal, resolveMedia)
           image.dataset.resourceKey = key
           return [key, image]
         })

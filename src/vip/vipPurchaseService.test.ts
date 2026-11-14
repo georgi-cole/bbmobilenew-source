@@ -91,6 +91,55 @@ describe('permanent purchases with manual native finishing', () => {
     native.restorePurchases.mockResolvedValue(undefined)
   })
 
+  it.each(['android', 'ios'])(
+    'keeps cached permanent ownership offline on %s without querying billing',
+    async (platform) => {
+      native.platform = platform
+      const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+      const cache = {
+        isActive: true,
+        entitlements: { noAds: true },
+        lastVerifiedAt: '2026-11-10T00:00:00.000Z',
+      }
+      localStorage.setItem('bbmobilenew:vip:v2', JSON.stringify(cache))
+      try {
+        const { loadVipStoreSnapshot } = await import('./vipPurchaseService')
+        const result = await loadVipStoreSnapshot({ restore: true })
+        expect(result).toMatchObject({
+          isActive: true,
+          billingAvailable: false,
+          entitlements: { noAds: true },
+          verifiedAt: cache.lastVerifiedAt,
+        })
+        expect(native.isBillingSupported).not.toHaveBeenCalled()
+        expect(native.getPurchases).not.toHaveBeenCalled()
+        expect(native.restorePurchases).not.toHaveBeenCalled()
+      } finally {
+        online.mockRestore()
+        localStorage.removeItem('bbmobilenew:vip:v2')
+      }
+    }
+  )
+
+  it('preserves cached VIP when billing is unavailable, but reconciles an online empty ownership result', async () => {
+    localStorage.setItem(
+      'bbmobilenew:vip:v2',
+      JSON.stringify({
+        isActive: true,
+        entitlements: {},
+        lastVerifiedAt: '2026-11-10T00:00:00.000Z',
+      })
+    )
+    native.isBillingSupported.mockResolvedValueOnce({ isBillingSupported: false })
+    try {
+      const { loadVipStoreSnapshot } = await import('./vipPurchaseService')
+      expect((await loadVipStoreSnapshot()).isActive).toBe(true)
+      expect((await loadVipStoreSnapshot()).isActive).toBe(false)
+    } finally {
+      localStorage.removeItem('bbmobilenew:vip:v2')
+    }
+  })
+
   it('acknowledges an Android purchase before querying and granting permanent ownership', async () => {
     native.platform = 'android'
     const purchase = transaction(noAdsProductId, {
