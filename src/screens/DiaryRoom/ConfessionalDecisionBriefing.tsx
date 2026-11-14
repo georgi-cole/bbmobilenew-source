@@ -21,6 +21,8 @@ import type {
   TieBreakerRecommendation,
 } from '../../social/tieBreakerStrategy'
 import type { Player } from '../../types'
+import { hasRealityRomanticBond } from '../../social/reality/relationshipFacts'
+import { getCurrentPact } from '../../social/reality/allianceIdentity'
 import './ConfessionalDecisionBriefing.css'
 
 interface Props {
@@ -90,7 +92,9 @@ function ReadSheet({
         edge,
         relationship.alliance?.operational,
         game.week,
-        relationship.isNemesis
+        relationship.isNemesis,
+        Boolean(getCurrentPact(social.reality, humanId, target.id)),
+        hasRealityRomanticBond(social.reality, humanId, target.id, false)
       )
     : affinity === undefined
       ? 'Still forming'

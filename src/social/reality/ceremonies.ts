@@ -12,6 +12,7 @@ import { reconcileNemesisWithVoluntarySafety } from './relationshipAutonomy'
 import { evaluateRelationshipViolation } from '../relationshipViolation'
 import { getActiveFacadeAgreement } from './facadeAgreements'
 import { getDecisionRelationshipTags } from './decisionRelationships'
+import { getRealityProtectionAlliances } from './relationshipFacts'
 import {
   adjustRealityAllianceCommitment,
   captureRealityReentryProfile,
@@ -905,12 +906,7 @@ export function scoreRealityNominationCandidate(
 ): number {
   const edge = getRealityRelationship(state, actorId, targetId)
   const reverse = getRealityRelationship(state, targetId, actorId)
-  const allianceProtection = Object.values(state.alliances).some(
-    (alliance) =>
-      alliance.status === 'ACTIVE' &&
-      alliance.memberIds.includes(actorId) &&
-      alliance.memberIds.includes(targetId)
-  )
+  const allianceProtection = getRealityProtectionAlliances(state, actorId, targetId).length > 0
   const promiseProtection = Object.values(state.promises).some(
     (promise) =>
       promise.promisorId === actorId &&
@@ -945,12 +941,7 @@ export function scoreRealitySafetyDecision(
 ): number {
   const edge = getRealityRelationship(state, holderId, nomineeId)
   const reciprocal = getRealityRelationship(state, nomineeId, holderId)
-  const alliance = Object.values(state.alliances).some(
-    (entry) =>
-      entry.status === 'ACTIVE' &&
-      entry.memberIds.includes(holderId) &&
-      entry.memberIds.includes(nomineeId)
-  )
+  const alliance = getRealityProtectionAlliances(state, holderId, nomineeId).length > 0
   const debt = Object.values(state.debts).some(
     (entry) =>
       entry.status === 'OPEN' && entry.debtorId === holderId && entry.creditorId === nomineeId

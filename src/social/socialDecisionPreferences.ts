@@ -241,6 +241,16 @@ export function getSocialExperienceRead(
   const read: SocialExperienceRead = { help: 0, grievance: 0, humiliation: 0, betrayal: 0 }
 
   for (const event of eventsByActor(input.recentActions ?? [], targetId)) {
+    // Earlier builds logged passive membership loss as if the human deliberately
+    // broke a pact. Ignore only that exact system receipt when reading old saves.
+    if (
+      event.actionId === 'alliance_membership_ended' ||
+      (event.actionId === 'break_alliance' &&
+        event.source === 'system' &&
+        event.narrative ===
+          'The last alliance connection through the selected commitment has ended.')
+    )
+      continue
     const directTarget = event.targetId === actorId || event.targetIds?.includes(actorId) === true
     const namedAsSubject = event.subjectId === actorId
     if (event.actorId !== targetId || (!directTarget && !namedAsSubject)) continue

@@ -213,7 +213,7 @@ export function allianceEventText(
     case 'ALLIANCE_MEMBER_RECRUITED':
       return `${target} joined ${name}.`
     case 'ALLIANCE_MEMBER_LEFT':
-      return `${target} left ${name}.`
+      return `${target} left ${name}${event.tags.includes('JUSTIFIED_EXIT') ? ' after being betrayed within the group' : ''}.`
     case 'ALLIANCE_MEMBER_DEFECTED':
       return `${target} defected from ${name}.`
     case 'ALLIANCE_MEMBER_EVICTED':
@@ -293,6 +293,15 @@ export function allianceEventText(
       return `${actor} went against ${name}'s plan.`
     case 'ALLIANCE_BETRAYAL':
       return `${actor} betrayed ${target === 'You' ? 'you' : target} in ${name}.`
+    case 'ALLIANCE_BETRAYAL_REACTION': {
+      const harmed = listedPerson(event.targetIds[0])
+      const betrayer = listedPerson(event.targetIds[1])
+      if (event.tags.includes('SUPPORTS_TARGET'))
+        return `${actor} backed ${harmed === 'You' ? 'you' : harmed} and questioned ${betrayer}'s decision.`
+      if (event.tags.includes('BACKS_ACTOR'))
+        return `${actor} defended ${betrayer}'s decision despite the broken group commitment.`
+      return `${actor} was uneasy about the betrayal and avoided taking sides.`
+    }
     case 'ALLIANCE_LEAKED':
       return `${actor} shared ${name}'s secrets with ${names(event.targetIds, listedPerson)}.`
     default:

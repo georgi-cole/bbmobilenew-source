@@ -1,4 +1,9 @@
 import type { RealityDomainState } from './types'
+import {
+  getRealityBetrayalStatus,
+  getRealityProtectionAlliances,
+  hasRealityRomanticBond,
+} from './relationshipFacts'
 
 /** Decision protection comes from operational pacts, not historical roster tags. */
 export function getDecisionRelationshipTags(
@@ -8,12 +13,9 @@ export function getDecisionRelationshipTags(
   suppliedTags: readonly string[] = []
 ): string[] {
   const tags = new Set(suppliedTags)
-  const livePacts = Object.values(state.alliances).filter(
-    (alliance) =>
-      (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
-      alliance.memberIds.includes(actorId) &&
-      alliance.memberIds.includes(targetId)
-  )
+  tags.delete('betrayal')
+  if (getRealityBetrayalStatus(state, actorId, targetId) === 'UNRESOLVED') tags.add('betrayal')
+  const livePacts = getRealityProtectionAlliances(state, actorId, targetId)
   for (const tag of ['alliance', 'primary_alliance', 'ride_or_die']) tags.delete(tag)
   if (livePacts.length > 0) {
     tags.add('alliance')
@@ -30,14 +32,6 @@ export function getDecisionRelationshipTags(
       tags.add('primary_alliance')
   }
   tags.delete('romance')
-  if (
-    Object.values(state.romances).some(
-      (romance) =>
-        romance.status === 'ACTIVE' &&
-        romance.participantIds.includes(actorId) &&
-        romance.participantIds.includes(targetId)
-    )
-  )
-    tags.add('romance')
+  if (hasRealityRomanticBond(state, actorId, targetId)) tags.add('romance')
   return [...tags]
 }

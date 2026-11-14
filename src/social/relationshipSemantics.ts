@@ -1,5 +1,10 @@
 import { isCurrentAlliance } from './reality/allianceIdentity'
 import { projectRealityAffinity } from './reality/relationships'
+import {
+  getRealityBetrayalStatus,
+  getRealityFormerCommitmentTag,
+  hasRealityRomanticBond,
+} from './reality/relationshipFacts'
 import type { RelationshipsMap } from './types'
 import type {
   DirectedRelationship,
@@ -89,7 +94,9 @@ export function getCanonicalRelationshipLabel(
   edge: DirectedRelationship | undefined,
   hasOperationalAlliance = false,
   currentDay?: number,
-  hasActiveNemesis = false
+  hasActiveNemesis = false,
+  hasPersonalPact?: boolean,
+  hasRomanticBond?: boolean
 ): string {
   const isEarlyRead =
     !edge ||
@@ -98,6 +105,15 @@ export function getCanonicalRelationshipLabel(
     edge.perceivedLabel === 'FRIENDLY'
 
   if (hasActiveNemesis) return 'Nemesis'
+  if (edge && ['ROMANCE', 'POWER_PAIR'].includes(edge.perceivedLabel)) {
+    if (hasRomanticBond === false) return 'Romantic interest'
+    if (
+      edge.perceivedLabel === 'POWER_PAIR' &&
+      hasRomanticBond !== undefined &&
+      hasPersonalPact === false
+    )
+      return 'Romance'
+  }
   if (hasOperationalAlliance && isEarlyRead) return 'Ally'
   if (isEarlyRead && currentDay !== undefined && currentDay > RELATIONSHIP_FORMING_GRACE_DAYS) {
     return getFirstImpressionLabel(edge)
@@ -249,7 +265,7 @@ export function selectCanonicalRelationshipView(input: {
   }
   if (formalAlliance?.status === 'DISSOLVED') {
     visibleTags.delete('alliance')
-    visibleTags.add('broken_alliance')
+    visibleTags.add(formalAlliance.kind === 'GROUP' ? 'former_group' : 'ended_pact')
   }
 
   return {
@@ -341,10 +357,22 @@ function readCanonicalRelationshipTags(input: {
     if (hasLiveAlliance) tags.add('alliance')
     // A hostile read or an ordinary grievance is not proof that trust was broken.
     tags.delete('betrayal')
-    if (
-      input.reality.events.some((event) => isBetrayalBetween(event, input.actorId, input.targetId))
-    ) {
-      tags.add('betrayal')
+    tags.delete('betrayed_them')
+    tags.delete('repaired_betrayal')
+    tags.delete('broken_alliance')
+    tags.delete('former_group')
+    tags.delete('ended_pact')
+    tags.delete('romance')
+    const received = getRealityBetrayalStatus(input.reality, input.actorId, input.targetId)
+    const caused = getRealityBetrayalStatus(input.reality, input.targetId, input.actorId)
+    if (received === 'UNRESOLVED') tags.add('betrayal')
+    if (caused === 'UNRESOLVED') tags.add('betrayed_them')
+    if (received === 'REPAIRED' || caused === 'REPAIRED') tags.add('repaired_betrayal')
+    if (hasRealityRomanticBond(input.reality, input.actorId, input.targetId, false))
+      tags.add('romance')
+    if (!hasLiveAlliance) {
+      const former = getRealityFormerCommitmentTag(input.reality, input.actorId, input.targetId)
+      if (former) tags.add(former)
     }
   }
 
@@ -366,34 +394,7 @@ function readCanonicalRelationshipTags(input: {
     }
   }
 
-  if (
-    input.reality &&
-    !hasLiveAlliance &&
-    input.reality.events.some(
-      (event) =>
-        [
-          'ALLIANCE_MEMBER_LEFT',
-          'ALLIANCE_MEMBER_DEFECTED',
-          'ALLIANCE_MEMBER_EXPELLED',
-          'ALLIANCE_MEMBER_EVICTED',
-          'ALLIANCE_REENTRY_RECONCILED',
-        ].includes(event.type) &&
-        event.participantIds.includes(input.actorId) &&
-        event.participantIds.includes(input.targetId) &&
-        (event.type !== 'ALLIANCE_REENTRY_RECONCILED' || event.outcome !== 'SUCCESS')
-    )
-  ) {
-    tags.add('broken_alliance')
-  }
-
-  if (
-    input.reality?.events.some(
-      (event) =>
-        event.type === 'ALLIANCE_BETRAYAL' &&
-        ((event.actorId === input.actorId && event.targetIds.includes(input.targetId)) ||
-          (event.actorId === input.targetId && event.targetIds.includes(input.actorId)))
-    )
-  ) {
+  if (tags.has('betrayal') || tags.has('betrayed_them')) {
     tags.add('strained')
   }
 

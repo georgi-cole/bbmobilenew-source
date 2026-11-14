@@ -320,7 +320,7 @@ describe('explicit alliance management', () => {
     expect(request.status).toBe('CONSENT')
     expect(currentAllianceCounts(state, 'u').pacts).toBe(4)
   })
-  it('creates a new group only after unanimous founding and then supersedes the selected ordinary pact', () => {
+  it('creates a new group only after unanimous founding while preserving the original personal pact', () => {
     const state = setup()
     const original = pact(state)
     upsertRealityPromise(state, {
@@ -350,7 +350,7 @@ describe('explicit alliance management', () => {
     respond(state, id, 'r')
     const created = state.alliances[state.allianceManagement.requests[id].resultAllianceId!]
     expect(created.id).not.toBe(original.id)
-    expect(original.status).toBe('DISSOLVED')
+    expect(isCurrentAlliance(original)).toBe(true)
     expect(created.memberIds).toEqual(['u', 'k', 'r'])
     expect(created.sharedPromiseIds).toEqual([])
     expect(state.promises.private.originatingAllianceId).toBe(original.id)

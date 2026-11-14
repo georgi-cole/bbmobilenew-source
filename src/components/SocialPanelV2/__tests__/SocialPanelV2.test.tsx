@@ -45,7 +45,12 @@ import SocialPanelV2 from '../SocialPanelV2'
 import type { RootState } from '../../../store/store'
 import { I18nProvider } from '../../../i18n/I18nProvider'
 import { createInitialRealityDomainState } from '../../../social/reality/state'
-import { createRealityAlliance } from '../../../social/reality/relationshipForms'
+import {
+  createRealityAlliance,
+  removeRealityAllianceMember,
+  signalRealityRomance,
+} from '../../../social/reality/relationshipForms'
+import { recordRealityCeremonyOutcome } from '../../../social/reality/ceremonies'
 import {
   allianceRequestDecisionActors,
   manageAlliance,
@@ -1113,6 +1118,67 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
       })
     )
     expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
+  })
+
+  it('shows a witnessed alliance reaction without calling a surviving romance broken', () => {
+    const store = makeStore({ phase: 'social_2', dramaMode: true })
+    const players = store.getState().game.players
+    const human = players.find((player) => player.isUser)!
+    const [partner, betrayer, outsider] = players.filter((player) => !player.isUser)
+    const day = store.getState().game.week
+    const at = { day, phase: 'social_1' }
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'witnessed-group',
+      kind: 'GROUP',
+      name: 'The Three',
+      founderIds: [human.id, partner.id, betrayer.id],
+      memberIds: [],
+      leaderId: betrayer.id,
+      purpose: 'Mutual protection',
+      at,
+    }).status = 'ACTIVE'
+    signalRealityRomance(reality, {
+      actorId: human.id,
+      targetId: partner.id,
+      acceptedByTarget: true,
+      settings: { enabled: true },
+      at,
+    })
+    Object.assign(reality.relationships[partner.id][human.id], { trust: 70, loyalty: 75 })
+    recordRealityCeremonyOutcome(reality, {
+      kind: 'NOMINATIONS_LOCKED',
+      actorId: betrayer.id,
+      targetIds: [human.id],
+      eligibleAlternativeIds: [outsider.id],
+      witnessIds: players.map((player) => player.id),
+      day,
+      phase: 'nomination_results',
+      publicEligible: false,
+    })
+    removeRealityAllianceMember(reality, {
+      allianceId: 'witnessed-group',
+      memberId: human.id,
+      actorId: human.id,
+      kind: 'VOLUNTARY',
+      at: { day, phase: 'social_2' },
+    })
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Player roster' })).getByRole('button', {
+        name: new RegExp(partner.name),
+      })
+    )
+    const signal = document.querySelector('.sp2-focus__signal')
+    expect(signal).toHaveTextContent(`${partner.name} backed you`)
+    const focusTags = document.querySelector('.sp2-focus__tags')!
+    expect(within(focusTags as HTMLElement).queryByText('Broken alliance')).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/Your romance continues; there is no separate personal protection pact/)
+    ).toBeInTheDocument()
   })
 
   it('shows Pact on the focused relationship read for a personal pact', () => {

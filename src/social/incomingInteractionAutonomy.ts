@@ -57,6 +57,7 @@ import { allianceKind, isCurrentAlliance } from './reality/allianceIdentity'
 import type { GameState, Player } from '../types'
 import {
   chooseAiEvictionVote,
+  getAiEvictionVoteTargets,
   getEligibleNominationTargets,
   getEligibleReplacementNominees,
   getNominationTargetScore,
@@ -984,17 +985,10 @@ function resolveAllianceInteractionPlan(
     actorCanVote &&
     playerCanVote
   ) {
-    const eligibleNomineeIds = game.nomineeIds.filter(
-      (nomineeId) => !isAllianceProtectedGameUnit(game, alliance, nomineeId)
-    )
+    const eligibleNomineeIds = getAiEvictionVoteTargets(game, actorId)
     if (eligibleNomineeIds.length === 0) return null
-    const subjectId = chooseAiEvictionVote(
-      game,
-      actorId,
-      eligibleNomineeIds,
-      (game.seed ?? 0) ^ game.week
-    )
-    if (!subjectId) return null
+    const subjectId = chooseAiEvictionVote(game, actorId, eligibleNomineeIds, game.seed ?? 0)
+    if (!subjectId || isAllianceProtectedGameUnit(game, alliance, subjectId)) return null
     return {
       type: 'deal_offer',
       scenarioKey: 'alliance_vote_pitch',

@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-14: Reviewed alliance and relationship consistency across Reality social
+  play, Classic, Cupid, Vox and Survival. Departures retain responsibility and
+  context, independent pacts survive group formation, and voting uses shared bond
+  facts with motive-driven uncertainty. Observed reactions and commitment scope
+  are shown without exposing private ballots. Existing VIP/Reality access, mode
+  contents, benefits, prices, ads and Premium Challenges coverage remain accurate;
+  the offer does not change.
 - 2026-11-13: Reviewed account/profile flow maintenance. Profile creation uses
   one three-profile device limit before and after sign-in; existing extra
   profiles and their saves remain available for management. Account-wide

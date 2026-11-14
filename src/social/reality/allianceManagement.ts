@@ -387,18 +387,10 @@ function finalize(
           : `${members} made it official: ${created.name ?? 'their alliance'} is born.`
     if (request.basePactId) {
       const base = state.alliances[request.basePactId]
-      created.predecessorIds = [base.id]
-      if (
-        kind === 'PACT' ||
-        !/final\s*(two|2)|endgame|ride.?or.?die|last\s*two/i.test(base.purpose)
-      ) {
-        endAlliance(
-          state,
-          base,
-          request.proposerId,
-          context.at,
-          kind === 'PACT' ? 'RECONCILED' : 'SUPERSEDED'
-        )
+      // Starting a wider group does not revoke an independently accepted pact.
+      if (kind === 'PACT') {
+        created.predecessorIds = [base.id]
+        endAlliance(state, base, request.proposerId, context.at, 'RECONCILED')
         base.supersededById = created.id
       }
     }

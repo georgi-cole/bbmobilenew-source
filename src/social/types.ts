@@ -12,6 +12,16 @@ export type SocialEnergyBank = Record<string, number>
 export interface RelationshipEntry {
   affinity: number
   tags: string[]
+  /** Actor-owned feelings for synchronous decisions; never the other player's private thoughts. */
+  reality?: {
+    trust: number
+    loyalty: number
+    resentment: number
+    suspicion: number
+    fear: number
+    romanticSincerity?: number
+    romanticStrategy?: number
+  }
   /** Relationship evidence an AI has personally learned, mirrored only into game decision snapshots. */
   knownRomanticRival?: {
     partnerId: string
