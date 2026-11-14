@@ -23,9 +23,11 @@ import type {
 import type { Player } from '../../types'
 import { hasRealityRomanticBond } from '../../social/reality/relationshipFacts'
 import { getCurrentPact } from '../../social/reality/allianceIdentity'
+import ConfessionalAllianceConsultation from './ConfessionalAllianceConsultation'
 import './ConfessionalDecisionBriefing.css'
 
 interface Props {
+  socialAccess?: boolean
   playerIds: readonly string[]
   selectedPlayerIds?: readonly string[]
   allianceAdvice?: readonly TieBreakerAllianceAdvice[]
@@ -322,14 +324,17 @@ function ReadSheet({
 export default function ConfessionalDecisionBriefing({
   playerIds,
   selectedPlayerIds = [],
+  socialAccess = false,
   ...advice
 }: Props) {
   const players = useAppSelector((state) => state.game.players)
+  const realityMode = useAppSelector((state) => getEffectiveSocialMode(state) === 'drama')
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const targets = [...new Set(playerIds)]
     .map((id) => players.find((player) => player.id === id && !player.isUser))
     .filter((player): player is Player => Boolean(player))
+  if (socialAccess && realityMode) return <ConfessionalAllianceConsultation />
   if (targets.length === 0) return null
 
   const initialPlayerId =

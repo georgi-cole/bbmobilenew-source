@@ -6,7 +6,11 @@ import settingsReducer from '../../store/settingsSlice'
 import vipReducer from '../../store/vipSlice'
 import socialReducer from '../socialSlice'
 import type { AppDispatch, RootState } from '../../store/store'
-import { getAllianceVoteSway, swayAllianceVote } from '../allianceVoteSway'
+import {
+  formatAllianceVoteReactions,
+  getAllianceVoteSway,
+  swayAllianceVote,
+} from '../allianceVoteSway'
 import { createRealityAlliance, removeRealityAllianceMember } from '../reality/relationshipForms'
 import { createInitialRealityDomainState } from '../reality/state'
 import { getRealityRelationship } from '../reality/relationships'
@@ -158,5 +162,49 @@ describe('alliance-wide vote sway', () => {
     ])
     state.social.energyBank.human = 0
     expect(getAllianceVoteSway(state, 'team', ['nominee-a']).eligible).toBe(false)
+  })
+})
+
+describe('group vote result wording', () => {
+  const nominees = [
+    { id: 'mimi', name: 'Mimi' },
+    { id: 'blue', name: 'Blue' },
+  ]
+  it('describes matching reactions once, instead of repeating the same sentence per ally', () => {
+    expect(
+      formatAllianceVoteReactions(
+        [
+          { voterId: 'kian', name: 'Kian', subjectId: 'mimi', reaction: 'ACCEPT' },
+          { voterId: 'nova', name: 'Nova', subjectId: 'mimi', reaction: 'ACCEPT' },
+        ],
+        nominees
+      )
+    ).toBe('Kian and Nova said they would back the plan.')
+  })
+  it('keeps differing responses distinct without revealing false loyalty', () => {
+    expect(
+      formatAllianceVoteReactions(
+        [
+          { voterId: 'kian', name: 'Kian', subjectId: 'mimi', reaction: 'LIE' },
+          { voterId: 'nova', name: 'Nova', subjectId: 'mimi', reaction: 'COUNTER' },
+        ],
+        nominees
+      )
+    ).toBe('Kian said they would back the plan. Nova wanted different terms.')
+  })
+  it('summarizes a shared double-elimination response once and explains partial support', () => {
+    expect(
+      formatAllianceVoteReactions(
+        [
+          { voterId: 'kian', name: 'Kian', subjectId: 'mimi', reaction: 'ACCEPT' },
+          { voterId: 'kian', name: 'Kian', subjectId: 'blue', reaction: 'ACCEPT' },
+          { voterId: 'nova', name: 'Nova', subjectId: 'mimi', reaction: 'ACCEPT' },
+          { voterId: 'nova', name: 'Nova', subjectId: 'blue', reaction: 'REJECT' },
+        ],
+        nominees
+      )
+    ).toBe(
+      'Kian said they would back the plan. Nova said they would target Mimi and opposed targeting Blue.'
+    )
   })
 })

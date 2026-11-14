@@ -1,6 +1,6 @@
 import { isMissionOpeningProtected, getMissionLeaderIds } from '../../bb/missionPowers'
 import { answerMissionPowerDecision, selectMissionBackup } from '../../store/missionPowerActions'
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useStore } from 'react-redux'
 import {
   getEligibleReplacementNominees,
@@ -39,7 +39,6 @@ import {
   getTieBreakerRecommendation,
 } from '../../social/tieBreakerStrategy'
 import ConfessionalDecisionBriefing from './ConfessionalDecisionBriefing'
-import ConfessionalAllianceConsultation from './ConfessionalAllianceConsultation'
 
 interface Props {
   decision: ActiveConfessionalDecision
@@ -394,7 +393,7 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
 }
 
 interface SingleUnitDecisionProps {
-  beforeChoices?: ReactNode
+  socialAccess?: boolean
   units: ConfessionalDecisionUnit[]
   presentation: RequiredConfessionalPresentation
   reviewPrefix: string
@@ -412,7 +411,7 @@ function SingleUnitDecision({
   danger = false,
   tagForUnit,
   onCommit,
-  beforeChoices,
+  socialAccess,
 }: SingleUnitDecisionProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [committing, setCommitting] = useState(false)
@@ -429,8 +428,8 @@ function SingleUnitDecision({
       <ConfessionalDecisionBriefing
         playerIds={units.flatMap((unit) => unit.memberIds)}
         selectedPlayerIds={selectedUnit?.memberIds ?? []}
+        socialAccess={socialAccess}
       />
-      {beforeChoices}
       <div className="rcd-grid" role="group" aria-label={presentation.title}>
         {units.map((unit) => (
           <DecisionUnitCard
@@ -726,9 +725,7 @@ function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 
 
   return (
     <SingleUnitDecision
-      beforeChoices={
-        !isDiamond && !isCoup1 && !isCoup2 ? <ConfessionalAllianceConsultation /> : undefined
-      }
+      socialAccess={!isDiamond && !isCoup1 && !isCoup2}
       units={units}
       presentation={presentation}
       reviewPrefix="Name as backup nominee:"

@@ -10,15 +10,16 @@ export default function ConfessionalAllianceConsultation() {
   const enabled = useAppSelector((state) => getEffectiveSocialMode(state) === 'drama')
   if (!enabled) return null
   return (
-    <>
+    <div className="rcd-decision-tools">
+      <span>Before you decide</span>
       <button
         type="button"
         className="rcd-read-trigger"
         onClick={() => dispatch(openSocialPanel())}
       >
-        Open Social before you decide
+        Open Social
       </button>
       {createPortal(<SocialPanelV2 />, document.body)}
-    </>
+    </div>
   )
 }

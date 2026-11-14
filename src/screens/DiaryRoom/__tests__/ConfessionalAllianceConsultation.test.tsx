@@ -4,7 +4,7 @@ import { Provider } from 'react-redux'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import socialReducer, { closeSocialPanel } from '../../../social/socialSlice'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
-import ConfessionalAllianceConsultation from '../ConfessionalAllianceConsultation'
+import ConfessionalDecisionBriefing from '../ConfessionalDecisionBriefing'
 
 vi.mock('../../../components/SocialPanelV2/SocialPanelV2', () => ({
   default: function SocialPanel() {
@@ -21,7 +21,15 @@ afterEach(cleanup)
 
 describe('Social access from the backup decision', () => {
   it('opens Social without paying or changing the pending nominee, then returns to the decision', () => {
-    const game = { dramaSocialMode: true, replacementNeeded: true, nomineeIds: ['outside'] }
+    const game = {
+      dramaSocialMode: true,
+      replacementNeeded: true,
+      nomineeIds: ['outside'],
+      players: [
+        { id: 'human', name: 'You', isUser: true, status: 'loh' },
+        { id: 'outside', name: 'Outside', status: 'nominated' },
+      ],
+    }
     const social = { ...socialReducer(undefined, { type: '@@test' }), energyBank: { human: 10 } }
     const store = configureStore({
       reducer: {
@@ -33,16 +41,18 @@ describe('Social access from the backup decision', () => {
     })
     render(
       <Provider store={store}>
-        <ConfessionalAllianceConsultation />
+        <ConfessionalDecisionBriefing playerIds={['outside']} socialAccess />
       </Provider>
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Open Social before you decide' }))
+    expect(screen.queryByRole('button', { name: 'Your read' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Open Social' })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Open Social' }))
     expect(screen.getByRole('dialog', { name: 'Social Phase' })).toBeVisible()
     expect(store.getState().game).toBe(game)
     expect(store.getState().social.energyBank.human).toBe(10)
     fireEvent.click(screen.getByRole('button', { name: 'Close Social' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(store.getState().game.replacementNeeded).toBe(true)
-    expect(screen.getByRole('button', { name: 'Open Social before you decide' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Open Social' })).toBeVisible()
   })
 })

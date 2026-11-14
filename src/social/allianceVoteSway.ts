@@ -7,6 +7,7 @@ import { validateSocialExecution } from './socialExecutionGuard'
 import { allianceKind, isCurrentAlliance } from './reality/allianceIdentity'
 import { executeHumanRealityAction } from './reality/humanFlow'
 import { replaceRealityDomain } from './socialSlice'
+import type { RealityResponseKind } from './reality/types'
 
 export const SWAY_ALLIANCE_VOTE: SocialActionDefinition = {
   id: 'sway_alliance_vote',
@@ -109,6 +110,64 @@ export function getAllianceVoteSway(
   return { groups, alliance, voters, nominees, maxTargets, costs, eligible: !reason, reason }
 }
 
+interface VoteReaction {
+  voterId: string
+  name: string
+  subjectId: string
+  reaction?: RealityResponseKind
+}
+
+function joinNames(names: readonly string[]) {
+  return names.length < 2
+    ? (names[0] ?? '')
+    : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+}
+
+/** Group matching public responses without exposing a private lie or inventing a ballot. */
+export function formatAllianceVoteReactions(
+  replies: readonly VoteReaction[],
+  nominees: readonly { id: string; name: string }[]
+) {
+  type VisibleReaction = Exclude<RealityResponseKind, 'LIE'> | 'NONE'
+  const full: Record<VisibleReaction, string> = {
+    ACCEPT: 'said they would back the plan',
+    COUNTER: 'wanted different terms',
+    QUESTION: 'asked for a stronger case',
+    REJECT: 'opposed the plan',
+    ESCALATE: 'pushed back against the plan',
+    WALK_AWAY: 'left without committing',
+    DE_ESCALATE: 'kept the discussion calm without committing',
+    NONE: 'made no commitment',
+  }
+  const groups = new Map<string, string[]>()
+  for (const voterId of new Set(replies.map((reply) => reply.voterId))) {
+    const responses = replies.filter((reply) => reply.voterId === voterId)
+    const byReaction = new Map<VisibleReaction, string[]>()
+    for (const response of responses) {
+      const reaction = response.reaction === 'LIE' ? 'ACCEPT' : (response.reaction ?? 'NONE')
+      const name =
+        nominees.find((nominee) => nominee.id === response.subjectId)?.name ?? 'that nominee'
+      byReaction.set(reaction, [...(byReaction.get(reaction) ?? []), name])
+    }
+    const wording =
+      byReaction.size === 1
+        ? full[[...byReaction.keys()][0]]
+        : [...byReaction]
+            .map(([reaction, names]) => {
+              const target = joinNames(names)
+              if (reaction === 'ACCEPT') return `said they would target ${target}`
+              if (reaction === 'COUNTER') return `wanted different terms for ${target}`
+              if (reaction === 'QUESTION') return `asked for a stronger case against ${target}`
+              if (reaction === 'REJECT' || reaction === 'ESCALATE')
+                return `opposed targeting ${target}`
+              return `made no commitment on ${target}`
+            })
+            .join(' and ')
+    groups.set(wording, [...(groups.get(wording) ?? []), responses[0].name])
+  }
+  return [...groups].map(([wording, names]) => `${joinNames(names)} ${wording}.`).join(' ')
+}
+
 /** One group gesture using the established pitch responses and ballot preferences. */
 export function swayAllianceVote(allianceId: string, subjectIds: string[]) {
   return (dispatch: AppDispatch, getState: () => RootState) => {
@@ -117,11 +176,12 @@ export function swayAllianceVote(allianceId: string, subjectIds: string[]) {
     const human = state.game.players.find((player) => player.isUser)
     if (!plan.eligible || !human || !plan.alliance) return { success: false, summary: plan.reason }
     const accepted = new Map<string, string[]>()
-    const replies: string[] = []
+    const replies: VoteReaction[] = []
     let performed = false
     for (const subjectId of subjectIds)
       for (const voter of plan.voters) {
         const beforeSequence = getState().social.reality.nextSequence
+        const previousReceiptId = getState().social.sessionLogs.at(-1)?.id
         const outcome = dispatch(
           executeHumanRealityAction({
             actorId: human.id,
@@ -132,7 +192,16 @@ export function swayAllianceVote(allianceId: string, subjectIds: string[]) {
           })
         )
         performed ||= outcome.success
-        replies.push(outcome.summary)
+        const receipt = getState().social.sessionLogs.at(-1)
+        replies.push({
+          voterId: voter.id,
+          name: voter.name,
+          subjectId,
+          reaction:
+            receipt?.id !== previousReceiptId && receipt?.targetId === voter.id
+              ? receipt.targetReactions?.[voter.id]
+              : undefined,
+        })
         const coordinated = getState().social.reality.events.some(
           (event) =>
             event.sequence >= beforeSequence &&
@@ -162,7 +231,7 @@ export function swayAllianceVote(allianceId: string, subjectIds: string[]) {
       .map((player) => player.name)
     return {
       success: performed,
-      summary: `You asked ${plan.alliance.name ?? 'your alliance'} to vote out ${names.join(' and ')}. ${replies.join(' ')}`,
+      summary: `You asked ${plan.alliance.name ?? 'your alliance'} to vote out ${names.join(' and ')}. ${formatAllianceVoteReactions(replies, plan.nominees)}`,
     }
   }
 }
