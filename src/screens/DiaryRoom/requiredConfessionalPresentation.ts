@@ -220,15 +220,15 @@ export function getRequiredConfessionalPresentation(
         key,
         eyebrow: dayLabel,
         title: game.specialVeto?.awaitingCoupReplacement1
-          ? 'Name the First Replacement'
+          ? 'Name the First Backup Nominee'
           : game.specialVeto?.awaitingCoupReplacement2
-            ? 'Name the Second Replacement'
-            : 'Name a Replacement Nominee',
+            ? 'Name the Second Backup Nominee'
+            : 'Name a Backup Nominee',
         prompt: 'Select the eligible hubmate who will take the open place on the block.',
-        consequence: 'The replacement will be revealed publicly when you return to the Hub.',
-        confirmLabel: 'Confirm replacement',
-        confirmation: 'Your replacement nominee is locked.',
-        stepLabel: 'Safety decision · Replacement',
+        consequence: 'The backup nominee will be revealed publicly when you return to the Hub.',
+        confirmLabel: 'Confirm backup nominee',
+        confirmation: 'Your backup nominee is locked.',
+        stepLabel: 'Safety decision · Backup nominee',
         tone: 'danger',
         returnCue: 'replacement_ceremony',
       }

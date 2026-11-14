@@ -39,6 +39,7 @@ import HousePulse from '../HousePulse/HousePulse'
 import { resolveWeatherDay } from '../../weather/weatherEngine'
 import RealityLedger from '../RealityLedger/RealityLedger'
 import AllianceRead from './AllianceRead'
+import AllianceVoteCampaign from './AllianceVoteCampaign'
 import {
   allianceEventText,
   canReadAllianceEvent,
@@ -2417,7 +2418,9 @@ export default function SocialPanelV2() {
                 setSelectedPactHistoryEventId(null)
                 clearCurrentOutcome()
               }}
-            />
+            >
+              <AllianceVoteCampaign alliance={selectedAlliance} />
+            </AllianceRead>
           ) : (
             <section
               className={`sp2-focus${focusedPlayer ? ' sp2-focus--active' : ''}`}

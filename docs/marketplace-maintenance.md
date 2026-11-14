@@ -44,6 +44,16 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-14: Reviewed the player-reported alliance, confessional, portrait,
+  finale platform, Mystic Chamber, Twin remaster rotation and competition retry
+  fixes. Both Twin remasters remain included with Premium Challenges and VIP;
+  removing their browser fullscreen control does not change access or contents.
+  Restored the existing opt-in rewarded retry for score-only results. The
+  TestFlight workflow now uses the documented iOS AdMob integration IDs instead
+  of forcibly disabling advertising, with repository-variable overrides. Adult
+  advertising consent, No Ads/VIP automatic-break suppression, reward limits,
+  prices, and product contents remain unchanged. Existing Store copy is accurate.
+
 - 2026-11-14: Reviewed automatic TestFlight delivery and signed Android upload
   bundles. Builds preserve production account services, disable development
   entitlements, and use existing signing identities. Store offers, products,

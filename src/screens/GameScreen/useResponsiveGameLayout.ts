@@ -523,6 +523,7 @@ export function useResponsiveGameLayout<TStage extends HTMLElement>(
     userCompactRoster: boolean
     inlineLogVisible: boolean
     freezeLayout?: boolean
+    presentationKey?: string
   }
 ) {
   const revisionRef = useRef(0)
@@ -534,6 +535,7 @@ export function useResponsiveGameLayout<TStage extends HTMLElement>(
     userCompactRoster,
     inlineLogVisible,
     freezeLayout = false,
+    presentationKey,
   } = options
   const [budget, setBudget] = useState<ResponsiveGameLayoutBudget>(() =>
     computeResponsiveGameLayout({
@@ -598,12 +600,23 @@ export function useResponsiveGameLayout<TStage extends HTMLElement>(
 
   useEffect(() => {
     let frameId = 0
+    let settledTimer: ReturnType<typeof setTimeout> | undefined
     const scheduleMeasurement = () => {
       window.cancelAnimationFrame(frameId)
       frameId = window.requestAnimationFrame(measure)
     }
+    const scheduleSettledMeasurement = () => {
+      scheduleMeasurement()
+      clearTimeout(settledTimer)
+      settledTimer = setTimeout(scheduleMeasurement, 350)
+    }
     measure()
+    scheduleSettledMeasurement()
     window.addEventListener('resize', scheduleMeasurement)
+    window.addEventListener('orientationchange', scheduleSettledMeasurement)
+    window.addEventListener('pageshow', scheduleMeasurement)
+    document.addEventListener('fullscreenchange', scheduleMeasurement)
+    screen.orientation?.addEventListener?.('change', scheduleSettledMeasurement)
     window.visualViewport?.addEventListener('resize', scheduleMeasurement)
     const observed = [stageRef.current, document.querySelector<HTMLElement>('.nav-bar')].filter(
       (el): el is HTMLElement => el instanceof HTMLElement
@@ -616,11 +629,16 @@ export function useResponsiveGameLayout<TStage extends HTMLElement>(
 
     return () => {
       window.cancelAnimationFrame(frameId)
+      clearTimeout(settledTimer)
       window.removeEventListener('resize', scheduleMeasurement)
+      window.removeEventListener('orientationchange', scheduleSettledMeasurement)
+      window.removeEventListener('pageshow', scheduleMeasurement)
+      document.removeEventListener('fullscreenchange', scheduleMeasurement)
+      screen.orientation?.removeEventListener?.('change', scheduleSettledMeasurement)
       window.visualViewport?.removeEventListener('resize', scheduleMeasurement)
       resizeObserver?.disconnect()
     }
-  }, [measure, stageRef])
+  }, [measure, stageRef, presentationKey])
 
   useEffect(() => {
     const root = document.documentElement

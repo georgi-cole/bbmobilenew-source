@@ -20,6 +20,7 @@ import {
   createRealityAlliance,
   refreshRealityAllianceOverlaps,
   refreshRealityAllianceDynamics,
+  refreshRealityAllianceLifecycle,
   removeRealityAllianceMember,
   renameRealityAlliance,
   strengthenRealityAlliancePair,
@@ -1136,6 +1137,21 @@ export function advanceAllianceRequests(
   const initialRequests = state.allianceManagement?.requests
   const initialReceipts = state.allianceManagement?.processedCommands
   normalizeAllianceManagement(state)
+  let matured = false
+  for (const alliance of Object.values(state.alliances)) {
+    const formedDay =
+      alliance.createdAt?.day ??
+      alliance.history?.find((event) => event.type === 'ALLIANCE_FORMED')?.day
+    if (
+      alliance.status === 'PROBATIONARY' &&
+      formedDay !== undefined &&
+      context.at.day - formedDay >= 2
+    ) {
+      alliance.status = 'ACTIVE'
+      refreshRealityAllianceLifecycle(alliance)
+      matured = true
+    }
+  }
   const normalizedRecordsChanged =
     initialRequests !== state.allianceManagement.requests ||
     initialReceipts !== state.allianceManagement.processedCommands
@@ -1260,7 +1276,7 @@ export function advanceAllianceRequests(
         )
     }
   }
-  return normalizedRecordsChanged || state.nextSequence !== initialSequence
+  return matured || normalizedRecordsChanged || state.nextSequence !== initialSequence
 }
 
 function propose(

@@ -472,9 +472,21 @@ export function removeRealityAllianceMember(
         : input.kind === 'ELIMINATED'
           ? 'ALLIANCE_MEMBER_EVICTED'
           : 'ALLIANCE_MEMBER_LEFT'
+  const departureReason = justifyingBetrayal
+    ? 'after being betrayed within the group'
+    : input.endReason === 'NEMESIS_REVEALED'
+      ? 'because the revealed nemesis conflict ended the pact'
+      : input.kind === 'DEFECTION'
+        ? 'to pursue a different alliance commitment'
+        : alliance.status === 'FRACTURED' || alliance.fractureRisk >= 0.65
+          ? 'because the group had become too fractured to rely on'
+          : (alliance.memberCommitment[input.memberId] ?? 0.5) <= 0.12
+            ? 'because they no longer wanted to commit to the group plan'
+            : 'because they chose to stop sharing the group commitment'
   const event = appendRealityEvent(state, {
     ...input.at,
     type: eventType,
+    allianceDepartureReason: departureReason,
     allianceId: alliance.id,
     actorId: input.actorId,
     targetIds: [input.memberId],
@@ -512,7 +524,7 @@ export function removeRealityAllianceMember(
       day: input.at.day,
       phase: input.at.phase,
       anchor: 'negative',
-      deltas: { trust: -8, loyalty: -8, resentment: 12, suspicion: 4 },
+      deltas: { trust: -20, loyalty: -22, resentment: 24, suspicion: 14, warmth: -12 },
     })
     createRealityGrievance(state, {
       id: `grievance:expulsion:${event.id}`,
@@ -541,13 +553,18 @@ export function removeRealityAllianceMember(
         anchor: 'negative',
         deltas:
           input.kind === 'VOLUNTARY'
-            ? { trust: independentAgreement ? -1 : -2, loyalty: independentAgreement ? 0 : -3 }
+            ? {
+                trust: independentAgreement ? -1 : -10,
+                loyalty: independentAgreement ? 0 : -14,
+                warmth: independentAgreement ? 0 : -6,
+                resentment: independentAgreement ? 0 : 10,
+              }
             : {
-                trust: -7 * scale,
-                loyalty: -9 * scale,
-                resentment: 5 * scale,
-                suspicion: 5 * scale,
-                reliability: -8 * scale,
+                trust: -20 * scale,
+                loyalty: -24 * scale,
+                resentment: 18 * scale,
+                suspicion: 18 * scale,
+                reliability: -24 * scale,
               },
       })
     }

@@ -714,6 +714,8 @@ export interface RealitySocialEvent extends RealityClock {
   allianceRequestId?: string
   /** Player-facing result of an alliance strategy huddle, saved with its history. */
   allianceConsultationSummary?: string
+  /** The member's departure motive, retained when the roster or relationships change. */
+  allianceDepartureReason?: string
   allianceCommitmentSnapshot?: { kind: string; status: RealityPromiseStatus }
   allianceRequestSnapshot?: {
     kind: RealityAllianceRequestKind

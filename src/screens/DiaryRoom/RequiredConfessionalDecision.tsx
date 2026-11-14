@@ -1,6 +1,6 @@
 import { isMissionOpeningProtected, getMissionLeaderIds } from '../../bb/missionPowers'
 import { answerMissionPowerDecision, selectMissionBackup } from '../../store/missionPowerActions'
-import { useState, type CSSProperties } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useStore } from 'react-redux'
 import {
   getEligibleReplacementNominees,
@@ -39,6 +39,7 @@ import {
   getTieBreakerRecommendation,
 } from '../../social/tieBreakerStrategy'
 import ConfessionalDecisionBriefing from './ConfessionalDecisionBriefing'
+import ConfessionalAllianceConsultation from './ConfessionalAllianceConsultation'
 
 interface Props {
   decision: ActiveConfessionalDecision
@@ -393,6 +394,7 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
 }
 
 interface SingleUnitDecisionProps {
+  beforeChoices?: ReactNode
   units: ConfessionalDecisionUnit[]
   presentation: RequiredConfessionalPresentation
   reviewPrefix: string
@@ -410,6 +412,7 @@ function SingleUnitDecision({
   danger = false,
   tagForUnit,
   onCommit,
+  beforeChoices,
 }: SingleUnitDecisionProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [committing, setCommitting] = useState(false)
@@ -427,6 +430,7 @@ function SingleUnitDecision({
         playerIds={units.flatMap((unit) => unit.memberIds)}
         selectedPlayerIds={selectedUnit?.memberIds ?? []}
       />
+      {beforeChoices}
       <div className="rcd-grid" role="group" aria-label={presentation.title}>
         {units.map((unit) => (
           <DecisionUnitCard
@@ -722,16 +726,19 @@ function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 
 
   return (
     <SingleUnitDecision
+      beforeChoices={
+        !isDiamond && !isCoup1 && !isCoup2 ? <ConfessionalAllianceConsultation /> : undefined
+      }
       units={units}
       presentation={presentation}
-      reviewPrefix="Name as replacement:"
+      reviewPrefix="Name as backup nominee:"
       emptyReview="Select a hubmate"
       danger
       onCommit={(unit) => {
         if (isDiamond) dispatch(submitDiamondReplacement(unit.id))
         else if (isCoup1 || isCoup2) dispatch(submitCoupReplacement(unit.id))
         else dispatch(setReplacementNominee(unit.id))
-        onDecisionCommitted(`Named ${unit.label} as the replacement nominee.`)
+        onDecisionCommitted(`Named ${unit.label} as the backup nominee.`)
       }}
     />
   )

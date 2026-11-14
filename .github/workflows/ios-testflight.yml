@@ -77,6 +77,10 @@ jobs:
 
       - name: Configure production iOS app
         env:
+          IOS_ADMOB_MODE: ${{ vars.IOS_ADMOB_MODE || 'live' }}
+          IOS_ADMOB_APP_ID: ${{ vars.IOS_ADMOB_APP_ID || 'ca-app-pub-9243398419153145~3393385791' }}
+          IOS_ADMOB_INTERSTITIAL_ID: ${{ vars.IOS_ADMOB_INTERSTITIAL_ID || 'ca-app-pub-9243398419153145/1852027238' }}
+          IOS_ADMOB_REWARDED_ID: ${{ vars.IOS_ADMOB_REWARDED_ID || 'ca-app-pub-9243398419153145/2733864063' }}
           VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
@@ -90,12 +94,15 @@ jobs:
           case "$VITE_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "VITE_SUPABASE_URL must be a Supabase HTTPS project URL." >&2; exit 1;; esac
           case "$VITE_SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*) ;; *) echo "VITE_SUPABASE_PUBLISHABLE_KEY must be a publishable key." >&2; exit 1;; esac
           cp .env.ios.example .env.ios
-          sed -i '' 's/^VITE_ADMOB_MODE=test$/VITE_ADMOB_MODE=off/' .env.ios
           cat >> .env.ios <<EOF
 
           VITE_APP_ENVIRONMENT=production
           VITE_BUILD_TARGET=release
           VITE_BUILD_ID=$VITE_BUILD_ID
+          VITE_ADMOB_MODE=$IOS_ADMOB_MODE
+          VITE_ADMOB_APP_ID=$IOS_ADMOB_APP_ID
+          VITE_ADMOB_INTERSTITIAL_ID=$IOS_ADMOB_INTERSTITIAL_ID
+          VITE_ADMOB_REWARDED_ID=$IOS_ADMOB_REWARDED_ID
           VITE_VIP_DEV_ENTITLEMENT=false
           VITE_SUPABASE_ENABLED=$VITE_SUPABASE_ENABLED
           VITE_SUPABASE_URL=$VITE_SUPABASE_URL

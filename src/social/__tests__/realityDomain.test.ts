@@ -117,7 +117,7 @@ describe('Reality domain migration and directed relationships', () => {
     expect(batched.reality.memoriesByOwner).toBe(initial.reality.memoriesByOwner)
   })
 
-  it('projects betrayal when only the harmed-to-actor direction is requested', () => {
+  it('updates both directed betrayal reads when only the harmed-to-actor direction is requested', () => {
     const domain = createInitialRealityDomainState()
     domain.relationships.lia = { ava: createDirectedRelationship('lia', 'ava') }
     domain.events.push({
@@ -148,7 +148,8 @@ describe('Reality domain migration and directed relationships', () => {
       })
     )
     expect(next.relationships.lia.ava.tags).toContain('betrayal')
-    expect(next.relationships.ava).toBeUndefined()
+    expect(next.relationships.ava.lia.tags).toContain('betrayed_them')
+    expect(next.relationships.ava.lia.tags).not.toContain('betrayal')
   })
   it('keeps unchanged legacy relationship records when a full Reality projection repeats', () => {
     const reality = createInitialRealityDomainState()

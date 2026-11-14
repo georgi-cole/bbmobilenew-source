@@ -1549,6 +1549,7 @@ export default function GameScreen() {
     userCompactRoster: settings.gameUX.compactRoster,
     inlineLogVisible: !refinedGameChrome || game.mode === 'survival' || settings.gameUX.houseFeed,
     freezeLayout: flowCoordination.activeFlow !== null,
+    presentationKey: pendingChallenge?.id ?? 'hub',
   })
   const gameTvLogRows = responsiveGameLayout.tvLogRows
   // An inline log beneath the Faux TV is the House Feed presentation. It owns

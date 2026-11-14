@@ -1788,13 +1788,17 @@
   --chamber-mood-glow: rgba(132, 79, 198, 0.24);
   --chamber-mood-top: #171022;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100%;
   box-sizing: border-box;
   display: grid;
   align-content: start;
   gap: 18px;
   padding: clamp(14px, 2.6vw, 28px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   color: var(--chamber-ink);
   background:
@@ -1822,6 +1826,8 @@
 
 .mystic-chamber__header {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -1850,6 +1856,8 @@
   justify-content: flex-end;
   gap: 14px;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .mystic-chamber__autoplay {

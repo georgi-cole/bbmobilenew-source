@@ -346,6 +346,7 @@ function readCanonicalRelationshipTags(input: {
   const hasDisclosedNemesis = isNemesisDisclosedTo(input.reality, input.actorId, input.targetId)
 
   if (input.reality) {
+    tags.delete('new_alliance')
     // Legacy projection includes the other person's private rivalry and
     // targeting tags. A player-limited read must not turn them into a spoiler.
     tags.delete('rivalry')

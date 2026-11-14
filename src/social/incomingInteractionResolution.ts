@@ -220,7 +220,10 @@ export function getContextualIncomingChoices(
     const labels =
       strategicVariants[hash(`${interaction.id}:${scenarioKey}`) % strategicVariants.length]
     return labels.map((label, index) => ({
-      label,
+      label:
+        index === 1 && interaction.payload?.strategyReasonRequested === true
+          ? 'Stay neutral'
+          : label,
       responseType: dealResponses[index] ?? 'dismiss',
       style: styleForResponse(dealResponses[index] ?? 'dismiss'),
     }))

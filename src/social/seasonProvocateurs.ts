@@ -97,7 +97,7 @@ export function registerProvocateurConflict(
     anchor: 'negative',
     meaningful: roleStartedConflict,
     deltas: roleStartedConflict
-      ? { warmth: -5, trust: -8, respect: -3, resentment: 18, suspicion: 6, perceivedThreat: 12 }
+      ? { warmth: -12, trust: -20, respect: -8, resentment: 28, suspicion: 16, perceivedThreat: 20 }
       : {},
   })
   const targetRelationship = applyRealityRelationshipChange(domain, {
@@ -109,7 +109,7 @@ export function registerProvocateurConflict(
     anchor: 'negative',
     meaningful: roleStartedConflict,
     deltas: roleStartedConflict
-      ? { warmth: -2, trust: -3, resentment: 8, suspicion: 3, perceivedThreat: 4 }
+      ? { warmth: -10, trust: -20, resentment: 26, suspicion: 16, perceivedThreat: 18 }
       : {},
   })
   for (const edge of [actorRelationship, targetRelationship]) {

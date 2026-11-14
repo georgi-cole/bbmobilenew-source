@@ -36,6 +36,31 @@ export function resolveRealityTargetResponse(input: {
   const suspicion = edge?.suspicion ?? 0
   const resentment = edge?.resentment ?? 0
   const threat = edge?.perceivedThreat ?? 0
+  // A direct vote request by an allied LOH usually lands. Competing commitments,
+  // distrust and infiltrator status still leave room for refusal or false loyalty.
+  if (
+    input.action.id === 'rally_votes_against' &&
+    input.context?.rolesByActor?.[input.actorId]?.some((role) => role.split('+').includes('loh'))
+  ) {
+    const group = Object.values(input.reality.alliances).find(
+      (alliance) =>
+        ['ACTIVE', 'PROBATIONARY'].includes(alliance.status) &&
+        alliance.memberIds.includes(input.actorId) &&
+        alliance.memberIds.includes(input.targetId)
+    )
+    if (group && !group.infiltratorIds.includes(input.targetId) && trust >= 0 && resentment < 35) {
+      const chance = Math.min(
+        0.94,
+        0.76 + Math.max(0, loyalty) / 600 + (group.memberCommitment[input.targetId] ?? 0.5) * 0.08
+      )
+      return {
+        kind: input.draw < chance ? 'ACCEPT' : 'COUNTER',
+        utility: chance,
+        reason: input.draw < chance ? 'allied_loh_vote_request' : 'ally_keeps_vote_open',
+        accepted: input.draw < chance,
+      }
+    }
+  }
   // Accept the concrete protection being offered; private loyalty is judged
   // separately when the LOH fulfils or breaks the promise.
   if (

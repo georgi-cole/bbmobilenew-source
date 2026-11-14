@@ -71,7 +71,7 @@ import type { HouseOfCardsPrizeType } from '../../features/houseOfCards/houseOfC
 import type { MemoryColorsCompetitionType } from '../../features/memoryColors/memoryColorsSlice'
 import reactComponents, { preloadReactMinigame } from '../../minigames/reactComponents'
 import { resetHostedMinigameState } from '../../minigames/resetHostedMinigameState'
-import { selectCompetitionLastPlaceIds } from './competitionRetryEligibility'
+import { completeRetryMetrics, selectCompetitionLastPlaceIds } from './competitionRetryEligibility'
 import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
 import './MinigameHost.css'
 
@@ -663,31 +663,43 @@ export default function MinigameHost({
   const handleReactComplete = useCallback(
     (completion?: ReactMinigameCompletion, fallbackValue = 1, fallbackTiebreakerMs?: number) => {
       const humanId = participants?.find((participant) => participant.isHuman)?.id
-      const lastPlaceIds = getReportedLastPlaceIds(completion)
+      const receipt =
+        competitionRetryEnabled &&
+        game.scoringAdapter !== 'authoritative' &&
+        !isPlacementRankingGame(game)
+          ? completeRetryMetrics(
+              completion,
+              participants,
+              humanId,
+              completion?.rawValue ?? fallbackValue
+            )
+          : completion
+      const lastPlaceIds = getReportedLastPlaceIds(receipt)
 
       // Feature-owned placement games can provide their final standings before
       // a season result has been applied. Keep the outcome inside the host when
       // the human is last so Reverse Time remains available.
-      if (competitionRetryEnabled && humanId && lastPlaceIds.includes(humanId) && completion) {
-        setFinalCompletion(completion)
-        setFinalValue(completion.rawValue ?? completion.rawResults?.[humanId] ?? fallbackValue)
-        setFinalTiebreakerMs(completion.tiebreakerMs ?? fallbackTiebreakerMs ?? null)
+      if (competitionRetryEnabled && humanId && lastPlaceIds.includes(humanId) && receipt) {
+        setFinalCompletion(receipt)
+        setFinalValue(receipt.rawValue ?? receipt.rawResults?.[humanId] ?? fallbackValue)
+        setFinalTiebreakerMs(receipt.tiebreakerMs ?? fallbackTiebreakerMs ?? null)
         setWasPartial(false)
         setPhase('results')
         void checkpointResult({
-          rawValue: completion.rawValue ?? completion.rawResults?.[humanId] ?? fallbackValue,
+          rawValue: receipt.rawValue ?? receipt.rawResults?.[humanId] ?? fallbackValue,
           partial: false,
-          completion,
+          completion: receipt,
         })
         return
       }
 
-      reportDoneOnce(completion?.rawValue ?? fallbackValue, false, completion, true)
+      reportDoneOnce(receipt?.rawValue ?? fallbackValue, false, receipt, true)
     },
     [
       checkpointResult,
       competitionRetryEnabled,
       getReportedLastPlaceIds,
+      game,
       participants,
       reportDoneOnce,
     ]
@@ -726,18 +738,24 @@ export default function MinigameHost({
 
   const showReactResult = useCallback(
     (value: number, tiebreakerMs?: number, completion?: ReactMinigameCompletion) => {
+      const receipt =
+        competitionRetryEnabled &&
+        game.scoringAdapter !== 'authoritative' &&
+        !isPlacementRankingGame(game)
+          ? completeRetryMetrics(completion, participants, competitionHumanId, value)
+          : completion
       setFinalValue(value)
-      setFinalTiebreakerMs(tiebreakerMs ?? completion?.tiebreakerMs ?? null)
-      setFinalCompletion(completion ?? null)
+      setFinalTiebreakerMs(tiebreakerMs ?? receipt?.tiebreakerMs ?? null)
+      setFinalCompletion(receipt ?? null)
       setWasPartial(false)
       setPhase('results')
       void checkpointResult({
         rawValue: value,
         partial: false,
-        ...(completion ? { completion } : {}),
+        ...(receipt ? { completion: receipt } : {}),
       })
     },
-    [checkpointResult]
+    [checkpointResult, competitionRetryEnabled, game, participants, competitionHumanId]
   )
 
   const leaderboard = useMemo(() => {

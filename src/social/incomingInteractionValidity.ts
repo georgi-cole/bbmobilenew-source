@@ -150,7 +150,12 @@ function violatesLohNominationPlanContext(
   interaction: IncomingInteraction,
   game: InteractionValidityGameState
 ): boolean {
-  if (getScenarioKey(interaction) !== 'alliance_power_nomination_huddle') return false
+  if (
+    !['alliance_power_nomination_huddle', 'background_nominate_human'].includes(
+      getScenarioKey(interaction) ?? ''
+    )
+  )
+    return false
   const snapshot = interaction.payload?.lohNominationPlanSnapshot
   if (!snapshot || typeof snapshot !== 'object') return false
 
@@ -633,6 +638,26 @@ export function isIncomingInteractionInvalidated(
   if (human && isEvictedOrGone(human)) return true
   if (human && interaction.fromId === human.id) return true
   if (activePlayers.length <= 2) return true
+
+  // A newly nominated person must react to the decision before an older warm
+  // check-in can be delivered as if the LOH had done nothing to them.
+  if (
+    human &&
+    isCurrentLoh(game, human.id) &&
+    isNominee(game, interaction.fromId) &&
+    ['nomination_results', 'pos_ceremony_results', 'social_2', 'live_vote'].includes(
+      game.phase ?? ''
+    ) &&
+    [
+      'generic_check_in',
+      'alliance_reassurance',
+      'relationship_friendship_check_in',
+      'relationship_romance_check_in',
+      'relationship_confidant_check_in',
+      'relationship_alliance_follow_up',
+    ].includes(getScenarioKey(interaction) ?? '')
+  )
+    return true
 
   const namedSubjectIds = [
     interaction.payload?.subjectId,

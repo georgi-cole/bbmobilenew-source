@@ -1586,6 +1586,8 @@
 
 .sp2-focus {
   position: relative;
+  align-self: start;
+  flex-shrink: 0;
   min-height: 7.35rem;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -1598,15 +1600,43 @@
 .sp2-focus::after {
   content: '';
   position: absolute;
-  inset: auto -2.8rem -4.6rem auto;
-  width: 10rem;
-  height: 10rem;
-  border: 1px solid rgba(225, 195, 111, 0.16);
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 1.2rem rgba(186, 145, 112, 0.045),
-    0 0 0 2.5rem rgba(105, 75, 100, 0.03);
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 100% 100%,
+    transparent 0 4.9rem,
+    rgba(225, 195, 111, 0.16) 4.94rem 5rem,
+    rgba(186, 145, 112, 0.045) 5rem 6.2rem,
+    rgba(105, 75, 100, 0.03) 6.2rem 7.5rem,
+    transparent 7.5rem
+  );
   pointer-events: none;
+}
+
+.sp2-alliance-vote-campaign {
+  display: grid;
+  gap: 0.45rem;
+  margin-block: 0.6rem;
+  padding-block: 0.6rem;
+  border-block: 1px solid rgba(221, 207, 191, 0.16);
+}
+
+.sp2-alliance-vote-campaign h3,
+.sp2-alliance-vote-campaign p {
+  margin: 0;
+}
+
+.sp2-alliance-vote-campaign select,
+.sp2-alliance-vote-campaign button {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0.45rem;
+  border: 1px solid rgba(221, 207, 191, 0.25);
+  border-radius: 10px;
+  background: #23162d;
+  color: #f5effa;
+  font: inherit;
 }
 
 .sp2-focus--active {
