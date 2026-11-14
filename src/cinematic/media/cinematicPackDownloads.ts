@@ -149,7 +149,7 @@ export function createCinematicPackDownloads(
             update({
               status: 'error',
               error:
-                "We couldn't bring the cinematic scenes to your device. Check your connection and free space, then try again. The show goes on in Standard, even offline.",
+                'The cameras aren’t quite ready. Make sure you have internet and a little room on your phone, then give us another take. Your season can carry on in Standard, even without internet.',
             })
           return false
         } finally {

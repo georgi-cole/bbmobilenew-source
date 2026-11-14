@@ -555,13 +555,13 @@ export default function Settings() {
       />
       <ConfirmExitModal
         open={confirmRemovePack}
-        title={removingPack ? 'Clearing the stage…' : 'Remove the cinematic scenes?'}
+        title={removingPack ? 'Packing up the cameras…' : 'Shall we send the cameras home?'}
         description={
           packError ??
-          `Your season is back in Standard. Remove the downloaded scenes to free up ${(VIP_CINEMATIC_PACK.totalBytes / 1_000_000).toFixed(1)} MB, or keep them ready for an instant return to Cinematic. You can download them again anytime.`
+          `The show goes on in Standard. Keep the cinematic scenes waiting in the wings for an instant comeback, or remove them to make room on your phone (${(VIP_CINEMATIC_PACK.totalBytes / 1_000_000).toFixed(1)} MB). If you miss the close-ups, you can always download them again.`
         }
-        confirmLabel="Remove scenes"
-        cancelLabel="Keep for later"
+        confirmLabel="Remove the scenes"
+        cancelLabel="Keep for my next episode"
         busy={removingPack}
         onCancel={() => {
           setConfirmRemovePack(false)
@@ -570,7 +570,7 @@ export default function Settings() {
         onConfirm={() => {
           if (document.querySelector('[data-cinematic-active="true"]')) {
             setPackError(
-              'The cameras are still rolling. Let the current scene finish before removing the cinematic scenes.'
+              'The cameras are still rolling. Let this scene have its moment before we pack things away.'
             )
             return
           }
@@ -583,7 +583,7 @@ export default function Settings() {
             })
             .catch(() =>
               setPackError(
-                "The scenes couldn't be removed just yet. Your season is still in Standard. Try again, or keep them for later."
+                'The crew needs another moment to pack up. We couldn’t remove the scenes just yet. Try again, or keep them for a later episode. Your show is already in Standard.'
               )
             )
             .finally(() => setRemovingPack(false))
