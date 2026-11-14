@@ -1,6 +1,10 @@
 import { Capacitor } from '@capacitor/core'
 import generatedManifest from './vipCinematicPackManifest.json'
 import { resolveCinematicMediaUrl } from './cinematicMedia'
+import {
+  requiresCinematicDownload,
+  setCinematicPackVerified,
+} from './cinematicPackAvailability.mjs'
 
 export interface VipCinematicPackManifest {
   schemaVersion: number
@@ -42,12 +46,15 @@ export function createVipCinematicMediaLibrary(
     bundledUrl?: CinematicMediaResolver
     convertFileSrc?: (uri: string) => string
     sha256?: (data: Uint8Array) => Promise<string>
+    bundledOptionalMedia?: () => boolean
+    onVerifiedChange?: (verified: boolean) => void
   } = {}
 ) {
   const bundledUrl = options.bundledUrl ?? resolveCinematicMediaUrl
   const convertFileSrc = options.convertFileSrc ?? Capacitor.convertFileSrc
   const sha256 = options.sha256 ?? digest
   let installed = new Map<string, string>()
+  const optionalPaths = new Set(manifest.files.map((file) => file.path))
   let generation = 0
 
   return {
@@ -72,6 +79,7 @@ export function createVipCinematicMediaLibrary(
       }
       generation += 1
       installed = verified
+      options.onVerifiedChange?.(true)
     },
     async activate(storage: InstalledVipCinematicPack, signal?: AbortSignal): Promise<void> {
       const attempt = ++generation
@@ -101,20 +109,33 @@ export function createVipCinematicMediaLibrary(
       }
       assertActive()
       installed = verified
+      options.onVerifiedChange?.(true)
     },
     /** Scenes capture their source once, preventing a pack change halfway through a ceremony. */
     capture(): CinematicMediaResolver {
       const snapshot = installed
-      return (assetPath) => snapshot.get(assetPath.replace(/^\/+/, '')) ?? bundledUrl(assetPath)
+      return (assetPath) => {
+        const path = assetPath.replace(/^\/+/, '')
+        const local = snapshot.get(path)
+        if (local) return local
+        if (options.bundledOptionalMedia?.() === false && optionalPaths.has(path)) {
+          throw new Error('Cinematic animations have not been downloaded.')
+        }
+        return bundledUrl(assetPath)
+      }
     },
     useBundled(): void {
       generation += 1
       installed = new Map()
+      options.onVerifiedChange?.(false)
     },
   }
 }
 
-// Until the download/storage UI is implemented, normal builds use their existing bundled media.
-export const vipCinematicMediaLibrary = createVipCinematicMediaLibrary(VIP_CINEMATIC_PACK)
+// Browser builds retain artwork; mobile builds require the complete verified local installation.
+export const vipCinematicMediaLibrary = createVipCinematicMediaLibrary(VIP_CINEMATIC_PACK, {
+  bundledOptionalMedia: () => !requiresCinematicDownload(),
+  onVerifiedChange: setCinematicPackVerified,
+})
 export const captureVipCinematicMediaResolver = (): CinematicMediaResolver =>
   vipCinematicMediaLibrary.capture()

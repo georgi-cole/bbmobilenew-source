@@ -523,6 +523,13 @@ store listings or change configured prices.
   explains the optional mobile download; ownership, prices and gameplay rewards
   are unchanged. Online-only playback and base-app media removal are deferred.
 
+- 2026-11-14: Reviewed the public-vote nomination cinematic: the committed
+  automatic nominee is established before the LOH insert, chosen nominees receive
+  separate light reveals, and the film closes on the complete block. This
+  maintains the existing VIP cinematic benefit and animation preferences. No
+  nomination ownership, offer, price, entitlement, reward, availability or
+  marketplace copy changes.
+
 - 2026-11-14: Reviewed all 63 character departure cycles, empty-handed reusable
   movement beyond Ali’s approved pilot, continuous doorway travel and recorded
   departure Foley. Updated the optional VIP media inventory for the new atlases;
@@ -532,9 +539,10 @@ store listings or change configured prices.
 
 - 2026-11-14: Reviewed secret mission acceptance, deadline, legacy-save and energy tracking repairs. Existing reward boxes, Eyeolean power eligibility, prices, entitlements and paid-mode availability remain unchanged.
 
-- 2026-11-14: Reviewed the public-vote nomination cinematic: the committed
-  automatic nominee is established before the LOH insert, chosen nominees receive
-  separate light reveals, and the film closes on the complete block. This
-  maintains the existing VIP cinematic benefit and animation preferences. No
-  nomination ownership, offer, price, entitlement, reward, availability or
-  marketplace copy changes.
+- 2026-11-14: Reviewed mobile base-app media exclusion. The existing optional VIP
+  image pack is now omitted from Android/iOS builds; Standard is used until a full
+  local installation is verified. Final decisions and competition results retain
+  their native continuation paths. Browser cinematics, music, credits and shared
+  finale artwork stay bundled. Ownership, prices, rewards and product copy do not
+  change. The 63 walking atlases from #1762 are included in the optional inventory;
+  transparency compression preserves their decoded pixels, frames and timing.

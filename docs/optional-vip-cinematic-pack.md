@@ -14,12 +14,21 @@ Standard selected and offer retry or keep; active scenes block removal. A declin
 offer is remembered on the device. Download failure never
 changes VIP ownership or saved seasons. The online-only option is deferred.
 
-Normal builds still bundle the current artwork while this delivery path is tested.
-Removing optional images from the base app and measuring smaller store builds remains
-a separate pass. Music, sounds, credits and shared finale artwork stay bundled.
+Mobile builds (capacitor, Android and iOS modes) now exclude every manifest-listed
+optional image from their generated output. Browser builds retain bundled cinematics.
+Source artwork remains in the repository for pack export and future walking frames.
+Music, sounds, credits and shared finale artwork stay bundled. The mobile build gate
+requires all optional images to be absent and every other public file byte-identical.
 
-The initial pack contains 404 images totalling 21,471,796 bytes. Eight shared finale
-images remain bundled under `assets/ceremonies`; the policy lists them explicitly.
+Mobile cinematic eligibility requires a complete verified local installation, including
+final decisions, competition broadcasts, Vox and the shared ceremony/exit bridge.
+Cold-start verification never blocks Standard. A ceremony that starts in Standard
+stays in Standard; downloading or verifying a pack does not insert a movie midway.
+The media resolver also refuses unavailable optional paths before requesting an image.
+
+The pack includes 404 ceremony images plus 63 eight-pose walking atlases. The manifest
+records its current encoded size. Eight shared finale images remain bundled under
+`assets/ceremonies`; the policy lists them explicitly.
 Music, sound effects, credits video, credits posters, character selection, ordinary
 portraits and gameplay code stay bundled. Removing a directory by its name would
 incorrectly remove shared finale artwork.
@@ -59,11 +68,16 @@ to their matching hosted pack; replacing a URL with incompatible content is unsa
 
 ## Exit walking frames
 
-The new eight-frame walks are being authored separately. No placeholder frames or
-new choreography are introduced here. All image files beneath each ceremony character
-directory are discovered recursively, including additional poses and nested walking
-frames, rather than assuming that each character always has exactly six images.
-Regenerate the pack manifest after merging the real artwork and its catalog metadata.
+The eight-pose walks from PR #1762 are included for all 63 ceremony identities. Each
+atlas retains its 3072 × 576 layout, eight 384 × 576 poses, original frame order and
+timing. The inventory discovers ceremony images recursively, including the separate
+`walks/` directory and any future nested poses; it does not assume six static images.
+Regenerate the pack manifest whenever artwork or catalog metadata changes.
+
+`scripts/optimize-walk-alpha.py` can recompress an atlas's transparency independently
+of its original colour bitstream. It writes a separate output directory and accepts
+only smaller files with byte-identical colour data and identical decoded RGBA pixels.
+It requires Pillow and Google's `cwebp`; it is not a runtime or production dependency.
 
 Frame order, duration, movement, feet alignment and sound synchronization belong to
 the app's character catalog and renderer. Keep the complete eight-frame sequence in
@@ -100,11 +114,12 @@ Deleting a pack must never remove a VIP entitlement or reset a season.
 
 ## Remaining pass
 
-1. After delivery paths and the finished walking frames are verified, exclude manifest-listed media from mobile
-   builds. Gate every premium entry (including final decisions and competition
-   broadcasts) on local readiness, preserving the original outcome callbacks. Compare
-   offline audio, credits, Skip, reduced motion, paired exits, interrupted installs,
-   updates and saved seasons on Android and iPhone, then measure actual store sizes.
+1. For future artwork or walking changes, regenerate the manifest, publish the new
+   immutable pack and repeat offline/native checks. The recursive inventory includes
+   new images in the optional pack and excludes them from mobile builds. Do not change
+   an older hosted revision.
+2. Measure signed iOS/Android store outputs and verify download/playback on physical
+   devices; Android debug APK measurements do not establish TestFlight download size.
 
 ## Possible online-only option
 
