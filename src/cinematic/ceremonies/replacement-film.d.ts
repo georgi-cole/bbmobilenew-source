@@ -9,6 +9,10 @@ export interface CeremonyPoseResource {
   feetY?: number
   character?: string
   pose?: string
+  walkCycle?: boolean
+  fallback?: CeremonyPoseResource
+  frames?: number
+  frameMs?: number
   crown?: { x: number; baseY: number; width: number; angle: number }
 }
 
