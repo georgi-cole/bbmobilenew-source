@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { selectCompetitionLastPlaceIds } from './competitionRetryEligibility'
+import { completeRetryMetrics, selectCompetitionLastPlaceIds } from './competitionRetryEligibility'
 
 const participants = [
   { id: 'human', precomputedScore: 10 },
@@ -8,6 +8,22 @@ const participants = [
 ]
 
 describe('competition retry last-place selection', () => {
+  it('detects a losing score-only React completion before committing the season result', () => {
+    const receipt = completeRetryMetrics(undefined, participants, 'human', 2)
+    expect(selectCompetitionLastPlaceIds(receipt, participants, false)).toEqual(['human'])
+    expect(receipt?.rawResults?.human).toBe(2)
+  })
+
+  it('preserves authoritative measurements already supplied by a metric game', () => {
+    const receipt = completeRetryMetrics(
+      { rawResults: { human: 35, winner: 30, lia: 10 } },
+      participants,
+      'human',
+      0
+    )
+    expect(selectCompetitionLastPlaceIds(receipt, participants, false)).toEqual(['lia'])
+    expect(receipt?.rawResults?.human).toBe(35)
+  })
   it('does not offer a retry for a complete metric receipt tied for first', () => {
     const tied = participants.map((p) => ({ ...p, precomputedScore: 30 }))
     expect(

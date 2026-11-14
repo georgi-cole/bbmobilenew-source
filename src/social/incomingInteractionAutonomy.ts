@@ -212,6 +212,7 @@ type InteractionScenarioKey =
   | 'alliance_safety_pitch'
   | 'alliance_vote_pitch'
   | 'alliance_power_nomination_huddle'
+  | 'background_nominate_human'
   | 'alliance_power_safety_huddle'
   | 'generic_gossip'
   | 'generic_check_in'
@@ -254,6 +255,7 @@ interface InteractionPlan {
 }
 
 const CRITICAL_EVENT_SCENARIOS = new Set<InteractionScenarioKey>([
+  'background_nominate_human',
   'nominee_hoh_plea',
   'nominee_veto_pitch',
   'safety_holder_consults_loh',
@@ -416,6 +418,9 @@ function describeCanonicalLohNominationPlan(
 ): string | null {
   const nominationPlan = plan.lohNominationPlanContext
   if (!nominationPlan) return null
+  if (plan.scenarioKey === 'background_nominate_human') {
+    return 'I am considering putting you on the opening block. That would put you at real risk. We have not agreed to a facade, and I will not treat silence or support for another target as your consent. Tell me why you think I should change the slate.'
+  }
   const copy = formatLohNominationPlanCopy(
     nominationPlan,
     (playerId) => getPlayerName(context, playerId, playerId),
@@ -871,6 +876,22 @@ function resolveAllianceInteractionPlan(
       candidates
     )
     const nominationPlan = getCurrentLohNominationPlanContext(game, actorId)
+    if (
+      nominationPlan?.initialNomineeIds.includes(playerId) &&
+      !getActiveFacadeAgreement(
+        context.reality,
+        actorId,
+        playerId,
+        context.week,
+        'INITIAL_NOMINATION'
+      )
+    ) {
+      return {
+        type: 'warning',
+        scenarioKey: 'background_nominate_human',
+        lohNominationPlanContext: nominationPlan,
+      }
+    }
     const canonicalTargetId = nominationPlan?.targetId
     if (canonicalTargetId) allianceMemberTargetPreferences[actorId] = canonicalTargetId
     const subjectId =
@@ -1341,6 +1362,7 @@ function resolveIncomingInteractionPlan(
   if (
     plan.allianceId ||
     plan.provocateurRole ||
+    plan.scenarioKey === 'background_nominate_human' ||
     canSendInteractionType(plan.type, constraints, signals)
   ) {
     return plan
@@ -1608,6 +1630,9 @@ export function shouldEnqueueInteraction(
 }
 
 const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
+  background_nominate_human: [
+    'I am considering putting you on the block. We have not agreed to a facade, and I want to hear your objection before I decide.',
+  ],
   week_start_ally_check_in: [
     'Just checking in, {player} — I want us on the same page this week.',
     'Fresh week, clean slate. I wanted to touch base with you early, {player}.',
@@ -2328,7 +2353,8 @@ function scheduleIncomingInteractionsForPhaseInternal(
       ? getPlayerName(context, plan.secondarySubjectId, plan.secondarySubjectId)
       : undefined
     const canonicalLohPlanText =
-      plan.scenarioKey === 'alliance_power_nomination_huddle'
+      plan.scenarioKey === 'alliance_power_nomination_huddle' ||
+      plan.scenarioKey === 'background_nominate_human'
         ? describeCanonicalLohNominationPlan(context, plan, playerId)
         : null
     const interactionText = (

@@ -1279,7 +1279,7 @@ const socialSlice = createSlice({
       state,
       action: PayloadAction<{
         interactionId: string
-        action: 'ask_plan' | 'need_time'
+        action: 'ask_plan' | 'need_time' | 'ask_reason'
         outcomeText: string
         deadline?: RealityDeadline
       }>
@@ -1288,10 +1288,12 @@ const socialSlice = createSlice({
       const entry = state.incomingInteractions.find(
         (interaction) => interaction.id === interactionId
       )
-      if (!entry || entry.resolved || entry.type !== 'alliance_proposal') return
+      if (!entry || entry.resolved) return
+      if (followUpAction !== 'ask_reason' && entry.type !== 'alliance_proposal') return
       if (
         (followUpAction === 'ask_plan' && entry.payload?.pactPlanRequested === true) ||
-        (followUpAction === 'need_time' && entry.payload?.pactTimeRequested === true)
+        (followUpAction === 'need_time' && entry.payload?.pactTimeRequested === true) ||
+        (followUpAction === 'ask_reason' && entry.payload?.strategyReasonRequested === true)
       ) {
         return
       }
@@ -1301,6 +1303,7 @@ const socialSlice = createSlice({
         ...entry.payload,
         ...(followUpAction === 'ask_plan' ? { pactPlanRequested: true } : {}),
         ...(followUpAction === 'need_time' ? { pactTimeRequested: true } : {}),
+        ...(followUpAction === 'ask_reason' ? { strategyReasonRequested: true } : {}),
       }
       if (deadline) {
         entry.deadline = deadline

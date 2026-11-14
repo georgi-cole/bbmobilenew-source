@@ -755,9 +755,9 @@
 .f3-broadcast__podium {
   position: absolute;
   z-index: 2;
-  left: 10%;
+  left: 22%;
   bottom: 0;
-  width: 80%;
+  width: 56%;
   height: auto;
   aspect-ratio: 8 / 3;
   object-fit: contain;

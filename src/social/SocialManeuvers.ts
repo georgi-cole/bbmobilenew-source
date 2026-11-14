@@ -836,7 +836,9 @@ function getContextualActionSummary({
       .map((id) => ({ id, affinity: relationships[targetId]?.[id]?.affinity ?? 0 }))
       .sort((left, right) => right.affinity - left.affinity)[0]
     return nominee
-      ? `${holderName} has not committed to a Safety choice. ${name(nominee.id)} is the nominee they seem closest to, but the ceremony will decide.`
+      ? nominee.id === actorId
+        ? `${holderName} has not committed to a Safety choice. You are the nominee they seem closest to, but the ceremony will decide.`
+        : `${holderName} has not committed to a Safety choice. ${name(nominee.id)} is the nominee they seem closest to, but the ceremony will decide.`
       : `${holderName} said they have not settled on a Safety choice.`
   }
   if (actionId === 'ask_use_safety') {

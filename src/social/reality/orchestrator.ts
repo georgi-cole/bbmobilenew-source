@@ -50,6 +50,7 @@ export interface RealityOpportunityCandidate {
   action: RealityActionContract
   targetIds: string[]
   subjectId?: string
+  allianceId?: string
   /** Exact acceptance when the participants have already agreed to the conversation. */
   acceptanceChanceOverride?: number
   /** Pair-specific repetition pressure for player-authored moves. */
@@ -191,7 +192,14 @@ function receivedRelationshipDeltas(
   const purposes = action.purposes
   if (purposes.includes('CONFLICT')) {
     if (response.kind === 'ESCALATE') {
-      return { warmth: -6, trust: -6, resentment: 10, suspicion: 3, perceivedThreat: 4 }
+      return {
+        warmth: -14,
+        trust: -18,
+        loyalty: -12,
+        resentment: 24,
+        suspicion: 12,
+        perceivedThreat: 12,
+      }
     }
     if (response.kind === 'WALK_AWAY') return { warmth: -1, suspicion: 1, familiarity: 1 }
     return { warmth: -1, resentment: 2, respect: 1, familiarity: 1 }
@@ -1122,6 +1130,7 @@ export function runRealityOpportunity(input: {
     event,
     action: selected.action,
     subjectId: selected.subjectId,
+    allianceId: selected.allianceId,
     actors: input.opportunity.actors,
     responses,
   })

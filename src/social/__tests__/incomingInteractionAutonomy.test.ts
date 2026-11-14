@@ -693,6 +693,12 @@ describe('incomingInteractionAutonomy thematic routing', () => {
       openingNomineeIds: ['remy', 'nova'],
       expectedText: 'If Safety changes the block, Lux would be my replacement option.',
     },
+    {
+      strategy: 'direct' as const,
+      targetId: 'lux',
+      openingNomineeIds: ['lux', 'user'],
+      expectedText: 'We have not agreed to a facade',
+    },
   ])(
     'uses the canonical $strategy nomination plan in an AI LOH alliance huddle',
     ({ strategy, targetId, openingNomineeIds, expectedText }) => {
@@ -757,6 +763,17 @@ describe('incomingInteractionAutonomy thematic routing', () => {
       const huddles = store.social.scheduledIncomingInteractions.filter(
         (entry) => entry.interaction.payload?.allianceGroupHuddle === true
       )
+      if (openingNomineeIds.includes('user')) {
+        const warning = store.social.scheduledIncomingInteractions.find(
+          (entry) =>
+            entry.interaction.fromId === 'echo' &&
+            entry.interaction.payload?.scenarioKey === 'background_nominate_human'
+        )?.interaction
+        expect(warning?.text).toContain(expectedText)
+        expect(warning?.text).toContain('putting you on the opening block')
+        expect(huddles).toHaveLength(0)
+        return
+      }
       const huddle = huddles.find((entry) => entry.interaction.fromId === 'echo')?.interaction
       expect(huddles).toHaveLength(1)
       expect(huddle?.payload?.scenarioKey).toBe('alliance_power_nomination_huddle')

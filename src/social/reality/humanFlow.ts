@@ -95,6 +95,7 @@ export interface HumanRealityActionInput {
   actionId: string
   consultationScope?: 'selected' | 'alliance'
   consultationAllianceId?: string
+  coordinationAllianceId?: string
   subjectId?: string
   /** Legacy caller quote. Execution reprices using the current game state. */
   costOverride?: { energy: number; influence: number; info: number }
@@ -1017,6 +1018,26 @@ function getAllianceConsultationAgenda(
   const beforeNominations = ['loh_results', 'social_1', 'nominations'].includes(state.game.phase)
   const voxDecides = state.game.voxPopuli?.status === 'active'
 
+  // A vacant seat takes precedence over any discussion of how to use Safety.
+  if (isLohReplacementPending(state.game)) {
+    const ownerId = state.game.coLohReplacementOwnerId ?? lohId
+    if (
+      ownerId &&
+      (attendeeSet.has(ownerId) || attendeeSet.has(getCupidPartnerId(state.game, ownerId) ?? ''))
+    )
+      return 'replacement'
+    return hasDisclosedLohPlan ? 'replacement_intel' : 'replacement_watch'
+  }
+  const safetyWindow = ['pos_results', 'pos_ceremony'].includes(state.game.phase)
+  if (
+    safetyWindow &&
+    nomineesExist &&
+    !state.game.povSavedId &&
+    safetyHolderId &&
+    state.game.nomineeIds.includes(safetyHolderId) &&
+    !voxDecides
+  )
+    return 'backup_plan'
   if (
     attendeeHasSafety &&
     ['pos_results', 'pos_ceremony'].includes(state.game.phase) &&
@@ -1025,15 +1046,12 @@ function getAllianceConsultationAgenda(
   ) {
     return 'safety'
   }
-  if (isLohReplacementPending(state.game)) {
-    if (attendeeHasLoh) return 'replacement'
-    return hasDisclosedLohPlan ? 'replacement_intel' : null
-  }
-
-  if (beforeNominations && attendeeHasLoh) {
+  if (safetyWindow && nomineesExist && !state.game.povSavedId && attendeeHasLoh && !voxDecides)
+    return 'safety_contingency'
+  if (beforeNominations && !nomineesExist && attendeeHasLoh) {
     return 'nominations'
   }
-  if (beforeNominations && hasDisclosedLohPlan) {
+  if (beforeNominations && !nomineesExist && hasDisclosedLohPlan) {
     return 'loh_intel'
   }
   if (
@@ -1075,7 +1093,13 @@ function getAllianceConsultationAgenda(
         !state.game.nomineeIds.includes(memberId) &&
         memberId !== lohId
     )
-    if (hasEligibleAllyVoter || attendeeHasSafety) return 'eviction_vote'
+    if (
+      hasEligibleAllyVoter ||
+      attendeeHasSafety ||
+      attendeeHasLoh ||
+      attendeeIds.some((id) => state.game.nomineeIds.includes(id))
+    )
+      return 'eviction_vote'
   }
   return null
 }
@@ -1101,10 +1125,11 @@ export function buildAllianceConsultationPlan(
   if (!agenda) return null
   const nominees = state.game.players.filter((player) => state.game.nomineeIds.includes(player.id))
 
-  if (agenda === 'replacement') {
-    const candidates = getEligibleReplacementNominees(state.game, state.game.lohId).filter(
-      (candidate) => !isAllianceProtectedGameUnit(state, alliance, candidate.id)
-    )
+  if (agenda === 'replacement' || agenda === 'backup_plan') {
+    const candidates = getEligibleReplacementNominees(
+      state.game,
+      state.game.coLohReplacementOwnerId ?? state.game.lohId
+    ).filter((candidate) => !isAllianceProtectedGameUnit(state, alliance, candidate.id))
     if (candidates.length === 0) return null
     const preferences = advisors
       .map((advisorId) => {
@@ -1123,7 +1148,7 @@ export function buildAllianceConsultationPlan(
       .filter((entry): entry is { advisorId: string; targetId: string; score: number } =>
         Boolean(entry)
       )
-    const read = summarizeAlliancePreferences(state, preferences, 'Replacement advice')
+    const read = summarizeAlliancePreferences(state, preferences, 'Backup nominee advice')
     const canonicalPlan = state.game.lohNominationPlan
     const lohAttending = Boolean(state.game.lohId && attendeeIds.includes(state.game.lohId))
     const disclosedReplacementId =
@@ -1138,20 +1163,41 @@ export function buildAllianceConsultationPlan(
     const disclosedCandidate = candidates.find(
       (candidate) => candidate.id === disclosedReplacementId
     )
-    const summary = disclosedCandidate
-      ? `${playerName(state, state.game.lohId)} shares ${disclosedCandidate.name} as the current replacement choice. The alliance's independent advice is: ${read.summary} The LOH makes the final selection.`
-      : `${read.summary} The replacement seat is open, and the LOH makes the final selection.`
+    const isForecast = agenda === 'backup_plan'
+    const timing = isForecast
+      ? `${playerName(state, state.game.posWinnerId)} won Safety while nominated and is expected to save themselves. Safety has not been used yet. Plan a backup nominee before settling the eviction vote.`
+      : 'Safety has opened a place on the block. The LOH must name a backup nominee before the eviction vote can be settled.'
+    const summary = `${timing} ${
+      disclosedCandidate
+        ? `${playerName(state, state.game.lohId)} shares ${disclosedCandidate.name} as the current backup choice. The alliance's independent advice is: ${read.summary}`
+        : read.summary
+    } The LOH makes the final selection.`
     const targetId = read.targetIds[0]
     return {
       allianceId: alliance.id,
       attendeeIds,
-      targetIds: targetId ? [targetId] : [],
-      fallbackTargetIds: [],
-      planIds: targetId ? [`replacement:${targetId}`] : [],
-      agenda: 'replacement',
+      targetIds: isForecast ? [] : targetId ? [targetId] : [],
+      fallbackTargetIds: isForecast && targetId ? [targetId] : [],
+      planIds: targetId ? [`${isForecast ? 'fallback' : 'replacement'}:${targetId}`] : [],
+      agenda,
       summary,
       excusedAbsentIds,
       memberPlanBeliefs: buildConsultationMemberPlanBeliefs(attendeeIds, actorId, read),
+    }
+  }
+
+  if (agenda === 'replacement_watch') {
+    return {
+      allianceId: alliance.id,
+      attendeeIds,
+      targetIds: [],
+      fallbackTargetIds: [],
+      planIds: [],
+      agenda,
+      excusedAbsentIds,
+      memberPlanBeliefs: {},
+      summary:
+        'Safety has opened a backup nomination. The LOH is outside this huddle and has not shared a choice with us. We can approach the LOH to protect our members; the eviction vote must wait for the final block.',
     }
   }
 
@@ -1284,15 +1330,16 @@ export function buildAllianceConsultationPlan(
       canonicalPlan &&
       canonicalPlan.status === 'planned' &&
       canonicalPlan.week === state.game.week &&
-      canonicalPlan.lohId === actorId &&
+      attendeeIds.includes(canonicalPlan.lohId) &&
       (canonicalPlan.isDoubleElimination === true) ===
         (state.game.doubleEviction?.weekActive === true)
     )
     const summary =
       planMatchesRules && canonicalPlan
-        ? `Your saved LOH plan: “${formatLohNominationPlanCopy(canonicalPlan, (id) =>
-            playerName(state, id)
-          )}” The alliance's independent nomination advice is: ${read.summary} That advice does not replace your planned slate.`
+        ? `${canonicalPlan.lohId === actorId ? 'Your saved LOH plan' : `${playerName(state, canonicalPlan.lohId)} shares their current LOH plan`}: "${formatLohNominationPlanCopy(
+            canonicalPlan,
+            (id) => playerName(state, id)
+          )}" The alliance's independent nomination advice is: ${read.summary} The LOH retains the final nomination decision.`
         : read.summary
     const priorAdviceSummary = advisors
       .map((advisorId) => {
@@ -1329,7 +1376,7 @@ export function buildAllianceConsultationPlan(
     }
   }
 
-  if (agenda === 'safety') {
+  if (agenda === 'safety' || agenda === 'safety_contingency') {
     const preferences = advisors
       .map((advisorId) => {
         const ranked = nominees
@@ -1436,8 +1483,8 @@ export function buildAllianceConsultationPlan(
       targetIds: [...alliance.currentTargetIds],
       fallbackTargetIds,
       planIds,
-      agenda: 'safety',
-      summary: `${read.summary} ${replacementRead.summary}`,
+      agenda,
+      summary: `${agenda === 'safety_contingency' ? `${playerName(state, state.game.posWinnerId)} holds Safety outside this huddle and has not disclosed a decision here. If they use it, the LOH will need a backup nominee. ` : ''}${read.summary} ${replacementRead.summary} Safety has not been used yet; the final block and eviction vote are still open.`,
       excusedAbsentIds,
       memberPlanBeliefs,
     }
@@ -1467,7 +1514,7 @@ export function buildAllianceConsultationPlan(
       const recommendations = firstChoice ? [firstChoice] : []
       if (state.game.doubleEviction?.weekActive) {
         const additionalChoices = legalNomineeIds
-          .filter((id) => id !== firstChoice)
+          .filter((id) => id !== firstChoice && !isAllianceProtectedGameUnit(state, alliance, id))
           .map((id) => ({
             id,
             score: getNominationTargetScore(
@@ -1524,7 +1571,15 @@ export function buildAllianceConsultationPlan(
         ...read.fallbackTargetIds.map((id) => `fallback:${id}`),
       ],
       agenda,
-      summary: `${read.summary}${noncommittalAdvisors.length ? ` ${noncommittalAdvisors.map((id) => playerName(state, id)).join(', ')} would not commit to the proposed group vote.` : ''}`,
+      summary: `${advisors
+        .filter((id) => nomineeIds.includes(id))
+        .map(
+          (id) =>
+            `${playerName(state, id)} is nominated and cannot cast an eviction vote; their advice is a survival appeal, not a vote promise.`
+        )
+        .join(
+          ' '
+        )} ${read.summary}${agenda === 'block_strategy' ? ' These are provisional targets: Safety and any backup nomination can still change the block.' : ''}${noncommittalAdvisors.length ? ` ${noncommittalAdvisors.map((id) => playerName(state, id)).join(', ')} would not commit to the proposed group vote.` : ''}`.trim(),
       excusedAbsentIds,
       memberPlanBeliefs: isDoubleElimination
         ? buildConsultationSlateBeliefs(attendeeIds, actorId, read)
@@ -2470,6 +2525,15 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
         deriveRealitySimulationSeed(state.game.seed ?? 0, state.game.gameId ?? '')
       )
     }
+    if (input.coordinationAllianceId) {
+      const group = state.social.reality.alliances[input.coordinationAllianceId]
+      if (
+        !isCurrentAlliance(group) ||
+        !group.memberIds.includes(input.actorId) ||
+        executionTargetIds.some((id) => !group.memberIds.includes(id))
+      )
+        return result(false, 'Choose a current alliance and its members.', energy)
+    }
     const context = buildContext(state)
     const orchestration = runRealityOpportunity({
       domain: state.social.reality,
@@ -2484,6 +2548,7 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
             action: contract,
             targetIds: direction === 'GROUP' ? [...executionTargetIds].sort() : executionTargetIds,
             subjectId: input.subjectId,
+            allianceId: input.coordinationAllianceId,
             // An arranged huddle and a voluntary pawn offer already have consent.
             acceptanceChanceOverride: consultationAlliance || pawnOffer ? 1 : undefined,
             repetitionByTarget:

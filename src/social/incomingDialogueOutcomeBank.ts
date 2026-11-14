@@ -394,7 +394,7 @@ const AUTOMATIC_NOMINEE_BEATS: BeatSet = {
 
 const ALLIANCE_NOMINATION_BEATS: BeatSet = {
   positive: [
-    '"I hear you. {subject} is the target we are recommending, but the LOH still owns the final slate."',
+    '"I hear you. {subject} is the target we are recommending. As LOH, I will weigh that before I set the final slate."',
     '"That gives me a clear alliance read. I will treat {subject} as our recommendation, not a guaranteed nominee."',
   ],
   neutral: [

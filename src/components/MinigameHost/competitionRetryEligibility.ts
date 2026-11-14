@@ -5,6 +5,32 @@ export interface RetryParticipant {
   precomputedScore: number
 }
 
+/** Metric games sometimes return only the human result. Keep the complete field
+ * used by the season ranking available before deciding whether to offer a retry. */
+export function completeRetryMetrics(
+  completion: ReactMinigameCompletion | undefined,
+  participants: RetryParticipant[] | undefined,
+  humanId: string | undefined,
+  value: number
+): ReactMinigameCompletion | undefined {
+  if (
+    !humanId ||
+    !participants?.some((player) => player.id === humanId) ||
+    !Number.isFinite(value) ||
+    !participants.every((player) => Number.isFinite(player.precomputedScore))
+  )
+    return completion
+  return {
+    ...completion,
+    rawValue: completion?.rawValue ?? value,
+    rawResults: {
+      ...Object.fromEntries(participants.map((player) => [player.id, player.precomputedScore])),
+      ...completion?.rawResults,
+      [humanId]: completion?.rawResults?.[humanId] ?? completion?.rawValue ?? value,
+    },
+  }
+}
+
 /** Resolve the complete last-place group without relying on rendered row order. */
 export function selectCompetitionLastPlaceIds(
   completion: ReactMinigameCompletion | undefined,

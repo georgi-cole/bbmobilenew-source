@@ -1422,6 +1422,49 @@ export function respondToIncomingInteraction(submission: IncomingReplySubmission
     let responseType = option?.responseType ?? submission.responseType
     if (!responseType) return
 
+    // A question is a follow-up, not a neutral final response or an alliance vote.
+    if (
+      isAllianceStrategyScenario(interaction.payload?.scenarioKey) &&
+      responseType === 'neutral' &&
+      /^Ask\b/i.test(responseLabel ?? '')
+    ) {
+      const fromName =
+        state.game.players.find((player) => player.id === interaction.fromId)?.name ?? 'Your ally'
+      const subjectId =
+        typeof interaction.payload?.subjectId === 'string' ? interaction.payload.subjectId : ''
+      const subject =
+        state.game.players.find((player) => player.id === subjectId)?.name ?? 'that player'
+      const scenario = interaction.payload?.scenarioKey
+      const targetPlayer = state.game.players.find((player) => player.id === subjectId)
+      const relationship = state.social.reality.relationships[interaction.fromId]?.[subjectId]
+      const powerWins = (targetPlayer?.stats?.lohWins ?? 0) + (targetPlayer?.stats?.posWins ?? 0)
+      const allianceId =
+        typeof interaction.payload?.allianceId === 'string' ? interaction.payload.allianceId : ''
+      const alliance = state.social.reality.alliances[allianceId]
+      const rationale =
+        (relationship?.resentment ?? 0) >= 25 || (relationship?.trust ?? 0) < -10
+          ? `My trust in ${subject} has broken down, and I do not want to leave them in a position to control our week.`
+          : powerWins > 0
+            ? `${subject} has ${powerWins} power win${powerWins === 1 ? '' : 's'}. Their ability to win control is a risk I want us to take seriously.`
+            : alliance && !alliance.memberIds.includes(subjectId)
+              ? `${subject} is outside our alliance. Focusing on them keeps the nomination pressure away from our own members.`
+              : `${subject} is my current preference, but I do not have stronger evidence to add to what I have already shared.`
+      const explanation =
+        scenario === 'alliance_power_nomination_huddle'
+          ? `${rationale} Safety may still change the slate. As LOH I will make the final nomination decision, but I am asking for your position first.`
+          : scenario === 'alliance_power_safety_huddle' || scenario === 'alliance_safety_pitch'
+            ? `This is a Safety contingency. We need to agree who we want protected and discuss a backup nominee if a place opens. The LOH makes the backup choice; an eviction target is not settled yet.`
+            : `${rationale} That is my recommendation; I still need to know whether you support it.`
+      dispatch(
+        recordIncomingInteractionFollowUp({
+          interactionId,
+          action: 'ask_reason',
+          outcomeText: `${fromName} replies: "${explanation}" You can still back the proposal, reject it, or stay neutral.`,
+        })
+      )
+      return
+    }
+
     const originActionId = interaction.payload?.originActionId
     const legacyAmbiguousConsent =
       choiceId === undefined &&

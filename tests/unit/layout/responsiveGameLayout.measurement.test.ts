@@ -15,6 +15,35 @@ afterEach(() => {
 })
 
 describe('presentation layout measurements', () => {
+  it('remeasures the portrait Hub after returning from a rotated minigame without a resize event', async () => {
+    const stageRef = { current: null }
+    const { result, rerender } = renderHook(
+      ({ presentationKey }) =>
+        useResponsiveGameLayout(stageRef, {
+          hasDock: true,
+          unifiedActionRail: true,
+          playerCount: 16,
+          userCompactRoster: false,
+          inlineLogVisible: false,
+          presentationKey,
+        }),
+      { initialProps: { presentationKey: 'hub' } }
+    )
+    act(() => {
+      vi.stubGlobal('innerWidth', 852)
+      vi.stubGlobal('innerHeight', 393)
+      rerender({ presentationKey: 'twin' })
+    })
+    await waitFor(() => expect(result.current.cssVars['--game-cabinet-max-height']).toBe('393px'))
+    act(() => {
+      vi.stubGlobal('innerWidth', 393)
+      vi.stubGlobal('innerHeight', 852)
+      rerender({ presentationKey: 'hub' })
+    })
+    await waitFor(() => expect(result.current.cssVars['--game-cabinet-max-height']).toBe('852px'))
+    expect(document.documentElement.style.getPropertyValue('--app-shell-max-width')).toBe('480px')
+  })
+
   it('accepts late safe-area changes while a presentation holds tile geometry', async () => {
     const { result } = renderHook(() =>
       useResponsiveGameLayout(

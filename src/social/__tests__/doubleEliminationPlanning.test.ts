@@ -106,7 +106,7 @@ describe('double-elimination social planning', () => {
         ...initialGame,
         players: cast,
         week: 4,
-        phase: 'pos_results',
+        phase: 'nomination_results',
         lohId: 'loh',
         posWinnerId: 'safety',
         nomineeIds: ['nominee-a', 'nominee-b', 'nominee-c'],

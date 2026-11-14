@@ -8,6 +8,7 @@ import type {
   RealityRelationshipIntentKind,
 } from './types'
 import { appendRealityEvent } from './events'
+import { applyRealityRelationshipChange } from './relationships'
 import { allianceKind, isCurrentAlliance } from './allianceIdentity'
 
 export interface RelationshipStoryBeat {
@@ -362,6 +363,24 @@ export function createRealityNemesisObjective(
     status: 'ACTIVE',
   }
   domain.relationshipAutonomy.nemeses[id] = objective
+  // The private feud changes the owner's actual feelings once. The target's
+  // relationship changes only when they observe the hostility or its reveal.
+  applyRealityRelationshipChange(domain, {
+    sourceId: input.ownerId,
+    targetId: input.targetId,
+    eventId: input.sourceEventId,
+    day: input.at.day,
+    phase: input.at.phase,
+    anchor: 'negative',
+    deltas: {
+      trust: -22,
+      warmth: -12,
+      loyalty: -20,
+      resentment: 26,
+      suspicion: 16,
+      perceivedThreat: 30,
+    },
+  })
   enforceNemesisAllianceConsistency(domain)
   const intent = advanceRelationshipAutonomy(domain, {
     ownerId: input.ownerId,

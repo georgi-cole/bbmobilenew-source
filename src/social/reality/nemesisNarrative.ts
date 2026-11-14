@@ -302,7 +302,14 @@ function createReveal(
     applyRealityRelationshipChange(domain, {
       sourceId: objective.targetId,
       targetId: objective.ownerId,
-      deltas: { trust: -12, warmth: -5, suspicion: 12, resentment: 6 },
+      deltas: {
+        trust: -30,
+        warmth: -18,
+        loyalty: -24,
+        suspicion: 26,
+        resentment: 28,
+        reliability: -22,
+      },
       anchor: 'negative',
       day: context.day,
       phase: context.phase,

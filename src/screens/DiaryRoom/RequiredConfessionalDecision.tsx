@@ -393,6 +393,7 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
 }
 
 interface SingleUnitDecisionProps {
+  socialAccess?: boolean
   units: ConfessionalDecisionUnit[]
   presentation: RequiredConfessionalPresentation
   reviewPrefix: string
@@ -410,6 +411,7 @@ function SingleUnitDecision({
   danger = false,
   tagForUnit,
   onCommit,
+  socialAccess,
 }: SingleUnitDecisionProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [committing, setCommitting] = useState(false)
@@ -426,6 +428,7 @@ function SingleUnitDecision({
       <ConfessionalDecisionBriefing
         playerIds={units.flatMap((unit) => unit.memberIds)}
         selectedPlayerIds={selectedUnit?.memberIds ?? []}
+        socialAccess={socialAccess}
       />
       <div className="rcd-grid" role="group" aria-label={presentation.title}>
         {units.map((unit) => (
@@ -722,16 +725,17 @@ function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 
 
   return (
     <SingleUnitDecision
+      socialAccess={!isDiamond && !isCoup1 && !isCoup2}
       units={units}
       presentation={presentation}
-      reviewPrefix="Name as replacement:"
+      reviewPrefix="Name as backup nominee:"
       emptyReview="Select a hubmate"
       danger
       onCommit={(unit) => {
         if (isDiamond) dispatch(submitDiamondReplacement(unit.id))
         else if (isCoup1 || isCoup2) dispatch(submitCoupReplacement(unit.id))
         else dispatch(setReplacementNominee(unit.id))
-        onDecisionCommitted(`Named ${unit.label} as the replacement nominee.`)
+        onDecisionCommitted(`Named ${unit.label} as the backup nominee.`)
       }}
     />
   )

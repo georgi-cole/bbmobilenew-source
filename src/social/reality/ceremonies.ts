@@ -432,12 +432,12 @@ function applyDecisionFallout(
     phase: event.phase,
     anchor: severe ? 'negative' : undefined,
     deltas: {
-      warmth: -8 * scale,
-      trust: -18 * scale,
-      loyalty: severe ? -20 : 0,
-      resentment: 20 * scale,
-      suspicion: 12 * scale,
-      reliability: severe ? -18 : 0,
+      warmth: -(severe ? 18 : 8) * scale,
+      trust: -(severe ? 34 : 18) * scale,
+      loyalty: severe ? -32 : 0,
+      resentment: (severe ? 34 : 20) * scale,
+      suspicion: (severe ? 24 : 12) * scale,
+      reliability: severe ? -32 : 0,
     },
   })
 }
