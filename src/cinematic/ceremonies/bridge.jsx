@@ -12,6 +12,7 @@ import { MotionConfig } from 'framer-motion'
 import CinematicSkipButton from '../../components/CinematicSkipButton/CinematicSkipButton'
 import { modeDetails, baseScene, expandPair } from './mode-routing.mjs'
 import './bridge.css'
+import { publicNominationPlan } from './public-nomination-film.js'
 import {
   shouldPlayCinematic,
   ceremonyCast,
@@ -196,6 +197,8 @@ export function PremiumBridge({
             details.coLohAssignments = props.current.cinematicCoLohAssignments
           if (baseScene(scene) === 'nominations')
             details.nomineeCount = new Set(state.game.nomineeIds ?? []).size
+          if (scene === 'nominations')
+            details.publicNomination = publicNominationPlan(scene, state.game, cast)
           if (scene === 'tiebreak')
             details.safetyHolderIds = expandPair(
               state.game,

@@ -42,6 +42,12 @@ import {
   animateModeLayers,
 } from './mode-films.js'
 import modeStyles from './mode-films.css?raw'
+import publicNominationStyles from './public-nomination-film.css?raw'
+import {
+  stagePublicNomination,
+  animatePublicNomination,
+  PUBLIC_NOMINATION_DURATION,
+} from './public-nomination-film.js'
 import { captureVipCinematicMediaResolver } from '../media/vipCinematicPack'
 import {
   upgradeWalkResources,
@@ -778,6 +784,7 @@ export function createClip() {
           decisionExitStyles,
           fittingStyles,
           modeStyles,
+          publicNominationStyles,
           replacementStyles,
         ].join('\n')
       )
@@ -929,9 +936,12 @@ export function createClip() {
         root.append(intro)
       }
       if (id === 'nominations') removeNominationOrdinalLabels(root)
+      if (sceneId === 'nominations' && !coOutcome)
+        stagePublicNomination(root, cast, details.publicNomination)
       stage.append(root)
       shadow.append(style, stage)
       const duration =
+        (root.classList.contains('nom-public') ? PUBLIC_NOMINATION_DURATION : null) ??
         coOutcome?.durationMs ??
         (royalPower ? 5600 : null) ??
         details.replacementOutcome?.durationMs ??
@@ -1037,7 +1047,8 @@ export function createClip() {
             [duration, 1, 'scale(1)'],
           ])
         }
-      } else if (root.classList.contains('nom-calibrated')) animateNominationFilm(root, a, duration)
+      } else if (root.classList.contains('nom-public')) animatePublicNomination(root, a, duration)
+      else if (root.classList.contains('nom-calibrated')) animateNominationFilm(root, a, duration)
       else if (root.classList.contains('nom-royal')) animateRoyalNomination(root, a)
       else if (id === 'nominations' && sceneId === id)
         animateScene(id, root, (selector, stops) =>
