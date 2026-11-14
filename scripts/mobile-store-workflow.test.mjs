@@ -81,6 +81,14 @@ test('Android artifacts contain the signed AAB without exporting signing materia
   assert.ok(gradle.includes('automaticVersionCode.toLong() > 2100000000L'))
 })
 
+test('Android SDK setup excludes the retired tools package from action defaults', () => {
+  const sdk = workflow.jobs.android.steps.find((step) =>
+    step.uses?.startsWith('android-actions/setup-android@')
+  )
+  assert.ok(sdk.with?.packages, 'override action defaults that include the retired tools package')
+  assert.ok(!sdk.with.packages.split(/\s+/).includes('tools'))
+})
+
 test('both platforms validate production account and entitlement settings before building', () => {
   for (const [name, platform] of [
     ['upload', 'ios'],
