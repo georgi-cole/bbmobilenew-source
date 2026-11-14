@@ -55,8 +55,14 @@ export function createAppleClient({
             .filter((code) => /^[A-Z0-9_.-]{1,160}$/.test(code ?? ''))
             .join(', ')
         : ''
+      const parameters = Array.isArray(errorBody.errors)
+        ? errorBody.errors
+            .map((entry) => entry.source?.parameter)
+            .filter((value) => /^[A-Za-z][A-Za-z0-9_[\].-]{0,79}$/.test(value ?? ''))
+            .join(', ')
+        : ''
       throw new Error(
-        `App Store Connect ${method} ${new URL(endpoint, origin).pathname} failed (HTTP ${response.status}${codes ? `; ${codes}` : ''}).`
+        `App Store Connect ${method} ${new URL(endpoint, origin).pathname} failed (HTTP ${response.status}${codes ? `; ${codes}` : ''}${parameters ? `; parameter=${parameters}` : ''}).`
       )
     }
     return response.status === 204 ? null : response.json()
@@ -150,25 +156,31 @@ export async function completeTestFlight({
     })
   }
   const groupsPath = `/v1/builds/${build.id}/relationships/betaGroups`
-  // The build relationship supports POST/DELETE, not GET. Read membership through
-  // Apple's documented betaGroups collection with exact app/build/group filters.
-  const membershipQuery = new URLSearchParams({
-    'filter[app]': policy.appId,
-    'filter[builds]': build.id,
-    'filter[id]': policy.internalGroupId,
-    limit: '1',
-  })
-  const readGroups = () => api('GET', `/v1/betaGroups?${membershipQuery}`)
-  let groups = await readGroups()
-  if (!groups.data.some((entry) => entry.id === policy.internalGroupId))
+  // Read IDs from the already validated internal group. This documented GET
+  // avoids both the write-only build relationship and unsupported filter combinations.
+  const membershipPath = `/v1/betaGroups/${policy.internalGroupId}/relationships/builds`
+  const isMember = async () => {
+    let endpoint = `${membershipPath}?limit=200`
+    const seen = new Set()
+    while (endpoint) {
+      if (seen.has(endpoint)) throw new Error('Apple returned a cyclic group-membership page.')
+      if (now() >= deadline) throw new Error('Timed out reading internal group membership.')
+      seen.add(endpoint)
+      const page = await api('GET', endpoint)
+      if (page.data.some((entry) => entry.type === 'builds' && entry.id === build.id)) return true
+      if (!page.links?.next) return false
+      const next = new URL(page.links.next, new URL(endpoint, origin))
+      if (next.origin !== origin || next.pathname !== membershipPath)
+        throw new Error('Apple returned an unexpected group-membership page.')
+      endpoint = next.pathname + next.search
+    }
+    return false
+  }
+  if (!(await isMember()))
     await api('POST', groupsPath, { data: [{ type: 'betaGroups', id: policy.internalGroupId }] })
   while (true) {
     const detail = (await api('GET', `/v1/builds/${build.id}/buildBetaDetail`)).data
-    groups = await readGroups()
-    if (
-      detail.attributes.internalBuildState === 'IN_BETA_TESTING' &&
-      groups.data.some((entry) => entry.id === policy.internalGroupId)
-    )
+    if (detail.attributes.internalBuildState === 'IN_BETA_TESTING' && (await isMember()))
       return { buildId: build.id, buildNumber, internalBuildState: 'IN_BETA_TESTING' }
     if (['EXPIRED', 'INVALID', 'FAILED'].includes(detail.attributes.internalBuildState))
       throw new Error('The build cannot be distributed for internal testing.')
