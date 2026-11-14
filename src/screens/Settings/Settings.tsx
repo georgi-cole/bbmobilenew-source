@@ -555,13 +555,13 @@ export default function Settings() {
       />
       <ConfirmExitModal
         open={confirmRemovePack}
-        title={removingPack ? 'Packing up the cameras…' : 'Shall we send the cameras home?'}
+        title={removingPack ? 'Clearing the stage…' : 'Keep the cameras ready?'}
         description={
           packError ??
-          `The show goes on in Standard. Keep the cinematic scenes waiting in the wings for an instant comeback, or remove them to make room on your phone (${(VIP_CINEMATIC_PACK.totalBytes / 1_000_000).toFixed(1)} MB). If you miss the close-ups, you can always download them again.`
+          `You’re back in Standard. Keep the cinematic animations for a quick comeback, or remove them to free up ${(VIP_CINEMATIC_PACK.totalBytes / 1_000_000).toFixed(1)} MB.`
         }
-        confirmLabel="Remove the scenes"
-        cancelLabel="Keep for my next episode"
+        confirmLabel="Remove animations"
+        cancelLabel="Keep for later"
         busy={removingPack}
         onCancel={() => {
           setConfirmRemovePack(false)
@@ -569,9 +569,7 @@ export default function Settings() {
         }}
         onConfirm={() => {
           if (document.querySelector('[data-cinematic-active="true"]')) {
-            setPackError(
-              'The cameras are still rolling. Let this scene have its moment before we pack things away.'
-            )
+            setPackError('The cameras are still rolling. Let this scene finish first.')
             return
           }
           setPackError(null)
@@ -583,7 +581,7 @@ export default function Settings() {
             })
             .catch(() =>
               setPackError(
-                'The crew needs another moment to pack up. We couldn’t remove the scenes just yet. Try again, or keep them for a later episode. Your show is already in Standard.'
+                'Couldn’t remove the animations. Try again or keep them for later. You’re still in Standard.'
               )
             )
             .finally(() => setRemovingPack(false))

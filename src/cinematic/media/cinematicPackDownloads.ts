@@ -149,7 +149,7 @@ export function createCinematicPackDownloads(
             update({
               status: 'error',
               error:
-                'The cameras aren’t quite ready. Make sure you have internet and a little room on your phone, then give us another take. Your season can carry on in Standard, even without internet.',
+                'The download stopped. Check your internet and free space, then try again. Your show can carry on in Standard.',
             })
           return false
         } finally {

@@ -65,7 +65,7 @@ export default function CinematicPackController({ hash }: { hash: string }) {
       >
         <div className="confirm-modal__card">
           <h2 className="confirm-modal__title">
-            {state.status === 'verifying' ? 'Almost time for your close-up…' : 'Quiet on set…'}
+            {state.status === 'verifying' ? 'Almost showtime…' : 'Your close-up is coming…'}
           </h2>
           <progress
             aria-label="Cinematic download progress"
@@ -73,9 +73,8 @@ export default function CinematicPackController({ hash }: { hash: string }) {
             value={state.bytes}
           />
           <p className="confirm-modal__desc">
-            {Math.floor((state.bytes / VIP_CINEMATIC_PACK.totalBytes) * 100)}% · We’re getting the
-            house ready for its close-up. Keep the app open a little longer, or carry on in Standard
-            and come back when you’re ready.
+            {Math.floor((state.bytes / VIP_CINEMATIC_PACK.totalBytes) * 100)}% · Keep the app open
+            while your animations download.
           </p>
           <button
             className="game-button game-button--ghost"
@@ -83,7 +82,7 @@ export default function CinematicPackController({ hash }: { hash: string }) {
               void cinematicPackDownloads.cancel().then(keepStandard)
             }}
           >
-            Take me back to the show
+            Cancel download
           </button>
         </div>
       </div>,
@@ -94,25 +93,25 @@ export default function CinematicPackController({ hash }: { hash: string }) {
       open
       title={
         state.status === 'error'
-          ? 'A little hold-up backstage'
+          ? 'Not quite showtime…'
           : state.status === 'ready'
-            ? 'The cameras are ready.'
-            : 'Give every goodbye its moment.'
+            ? 'The cameras are ready!'
+            : 'Ready for your close-up?'
       }
       description={
         state.error ??
         (state.status === 'ready'
-          ? 'Your next big moment is waiting for its close-up. Your scenes are already here, so we can roll whenever you’re ready—even without internet.'
-          : `The house falls silent. All eyes turn to the door. A goodbye like this deserves its close-up. Want the full scene? One download (${(VIP_CINEMATIC_PACK.totalBytes / 1_000_000).toFixed(1)} MB) brings Cinematic to your season, ready even without internet. If now isn’t the moment, choose Cinematic later in Settings → Animation style.`)
+          ? 'Your cinematic animations are already here. Turn them on for your next big moment—no download needed.'
+          : `Give exits and ceremonies the TV treatment. Download ${(VIP_CINEMATIC_PACK.totalBytes / 1_000_000).toFixed(1)} MB to turn on cinematic animations. They work offline too.`)
       }
       confirmLabel={
         state.status === 'ready'
-          ? 'Let the cameras roll'
+          ? 'Turn on Cinematic'
           : state.status === 'error'
-            ? 'Give it another take'
-            : 'Yes, bring on the drama'
+            ? 'Try download again'
+            : 'Download & turn on'
       }
-      cancelLabel="Maybe later"
+      cancelLabel="Stay with Standard"
       onConfirm={() => {
         void enable()
       }}
