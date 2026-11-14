@@ -51,8 +51,8 @@ describe('isVisibleOnTv', () => {
     expect(isVisibleOnTv({ channels: ['tv'] })).toBe(true)
   })
 
-  it('returns true when channels includes "mainLog"', () => {
-    expect(isVisibleOnTv({ channels: ['mainLog'] })).toBe(true)
+  it('keeps an explicit mainLog destination off the TV viewport', () => {
+    expect(isVisibleOnTv({ channels: ['mainLog'] })).toBe(false)
   })
 
   it('returns false when channels is ["dr"] only', () => {

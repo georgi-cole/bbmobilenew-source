@@ -51,6 +51,12 @@ store listings or change configured prices.
   Android/iOS ad configuration, products, prices, rewards, entitlements, premium
   content and marketplace copy are unchanged.
 
+- 2026-11-15: Reviewed Faux TV delivery and recovery across Classic, Vox, Cupid
+  and Surveyeval, including Safety shock streams, ambient weather, vote receipts
+  and mode-specific recaps. The changes preserve event outcomes, powers, rewards,
+  paid access, ads, product contents, prices and benefits. Existing Store copy
+  and Premium Challenges/VIP coverage remain accurate; the offer is unchanged.
+
 - 2026-11-14: Reviewed the Reality social flow revision. Alliance vote requests
   now reuse action cards and nominee chips; the backup decision opens the existing
   Social module from the existing briefing slot without spending resources or

@@ -1,4 +1,20 @@
 import type { Phase, PresentationEventClaim, TvEvent } from '../types'
+import { isVisibleOnTv } from '../services/activityService'
+
+/** Completion, rather than a media-start claim, owns durable stream progress. */
+export function isPendingDetoxEvent(
+  event: TvEvent,
+  context: { gameId: string; phase: Phase; week: number }
+): boolean {
+  return (
+    event.meta?.sequence === 'detox_safety' &&
+    event.meta.broadcastConsumed !== true &&
+    event.meta.phase === context.phase &&
+    event.meta.week === context.week &&
+    (event.meta.gameId == null || event.meta.gameId === context.gameId) &&
+    isVisibleOnTv(event)
+  )
+}
 
 /** Quiet moments on the channel still belong to the show, not its machinery. */
 const PHASE_BROADCAST_COPY: Record<Phase, string> = {

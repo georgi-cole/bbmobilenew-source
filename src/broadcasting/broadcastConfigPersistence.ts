@@ -8,6 +8,20 @@ export interface PersistedBroadcastConfig {
   customMessages: CustomBroadcastMessage[]
 }
 
+/** The ballot receipt must never replay the separate Democracia activation. */
+export function normalizeBroadcastOverrides(
+  overrides: Record<string, BroadcastOverride>
+): Record<string, BroadcastOverride> {
+  return Object.fromEntries(
+    Object.entries(overrides).map(([id, override]) => [
+      id,
+      id === 'loh.democracia-vote-start' || id === 'card.democracia-vote'
+        ? { ...override, level: 'minor', major: null, forceOnTv: false }
+        : override,
+    ])
+  )
+}
+
 function emptyConfig(): PersistedBroadcastConfig {
   return { version: 2, overrides: {}, customMessages: [] }
 }
@@ -46,7 +60,9 @@ export function loadBroadcastConfig(): PersistedBroadcastConfig {
     if (parsed.version !== 2) return emptyConfig()
     return {
       version: 2,
-      overrides: parsed.overrides && typeof parsed.overrides === 'object' ? parsed.overrides : {},
+      overrides: normalizeBroadcastOverrides(
+        parsed.overrides && typeof parsed.overrides === 'object' ? parsed.overrides : {}
+      ),
       customMessages: Array.isArray(parsed.customMessages)
         ? migrateCustomKeys(parsed.customMessages)
         : [],
@@ -64,7 +80,11 @@ export function saveBroadcastConfig(
   try {
     localStorage.setItem(
       BROADCAST_CONFIG_STORAGE_KEY,
-      JSON.stringify({ version: 2, overrides, customMessages } satisfies PersistedBroadcastConfig)
+      JSON.stringify({
+        version: 2,
+        overrides: normalizeBroadcastOverrides(overrides),
+        customMessages,
+      } satisfies PersistedBroadcastConfig)
     )
     return true
   } catch {

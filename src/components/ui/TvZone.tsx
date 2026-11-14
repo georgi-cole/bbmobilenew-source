@@ -90,11 +90,13 @@ import {
   hasPresentationEventClaim,
   getPhaseBroadcastCopy,
   isUnrevealedVoteOutcome,
+  isPendingDetoxEvent,
   selectCurrentBroadcastEvents,
   selectFauxTvFrame,
 } from '../../broadcasting/fauxTvPresentation'
 import { getTvPresentationBroadcastLevel } from './tvZoneBroadcastGuards'
 import { getPhaseCardTemplate } from '../../broadcasting/broadcastTemplateCatalog'
+import { getBroadcastEditorialMetadata } from '../../broadcasting/broadcastEditorialPolicy'
 import {
   getBroadcastAnnouncementPresentation,
   isBroadcastPlayThroughAnnouncementKey,
@@ -215,10 +217,6 @@ function buildAnnouncement(
         ? eventSubtitle
         : (registryOverride?.text ?? registryTemplate?.text ?? meta.subtitle)),
   }
-}
-
-function isDetoxSequenceEvent(event: TvEvent | undefined): event is TvEvent {
-  return event?.meta?.sequence === 'detox_safety'
 }
 
 /**
@@ -550,8 +548,14 @@ export default function TvZone(props: TvZoneProps) {
       event.meta?.week !== gameState.week
     )
       return null
-    return event
-  }, [gameState.lastPlainBroadcastEventId, gameState.phase, gameState.tvFeed, gameState.week])
+    return isBroadcastRelevant(event) ? event : null
+  }, [
+    gameState.lastPlainBroadcastEventId,
+    gameState.phase,
+    gameState.tvFeed,
+    gameState.week,
+    isBroadcastRelevant,
+  ])
   const mainLogMaxVisible = props.mainLogMaxVisible ?? 2
   const houseFeedEnabled = props.houseFeedEnabled ?? false
   const occupancyChip = props.occupancyChip ?? null
@@ -572,8 +576,17 @@ export default function TvZone(props: TvZoneProps) {
   const announcementPrerollEvent = useMemo(() => {
     const prerollId = latestEvent?.meta?.announcementPrerollEventId
     if (typeof prerollId !== 'string') return null
-    return tvVisibleFeed.find((event) => event.id === prerollId) ?? null
-  }, [latestEvent, tvVisibleFeed])
+    return (
+      tvVisibleFeed.find(
+        (event) =>
+          event.id === prerollId &&
+          event.meta?.broadcastConsumed !== true &&
+          event.meta?.phase === gameState.phase &&
+          event.meta?.week === gameState.week &&
+          isBroadcastRelevant(event)
+      ) ?? null
+    )
+  }, [latestEvent, tvVisibleFeed, gameState.phase, gameState.week, isBroadcastRelevant])
   const publicSaveRevealActive = Boolean(props.publicSaveReveal)
   const voteResultsRevealActive = Boolean(props.voteResultsReveal)
   const [voteResultsAudioDurationMs, setVoteResultsAudioDurationMs] = useState<number | null>(null)
@@ -621,8 +634,6 @@ export default function TvZone(props: TvZoneProps) {
   // Save feedback dialog — shows a mobile-friendly confirmation after save.
   const [saveFeedbackOpen, setSaveFeedbackOpen] = useState(false)
   const [saveFeedbackIsError, setSaveFeedbackIsError] = useState(false)
-  const [detoxMessageQueue, setDetoxMessageQueue] = useState<TvEvent[]>([])
-  const [detoxMessageIndex, setDetoxMessageIndex] = useState(0)
   const [dismissedPriorityEventIds, setDismissedPriorityEventIds] = useState<Set<string>>(
     () => new Set(dismissedCriticalBroadcastEventIds)
   )
@@ -637,7 +648,6 @@ export default function TvZone(props: TvZoneProps) {
   const cupidOutlinePulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const detoxMessageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const detoxSequenceLatestIdRef = useRef<string | null>(null)
   const shockSequenceLatestIdRef = useRef<string | null>(null)
   const seenShockEventIdsRef = useRef(new Set<string>())
   // Tracks the previous phase to detect phase transitions.
@@ -697,7 +707,15 @@ export default function TvZone(props: TvZoneProps) {
     }
   }, [voteResultsRevealActive])
 
-  const activeDetoxEvent = detoxMessageQueue[detoxMessageIndex]
+  // A stream beat is a normal queued event. Completing it advances the durable
+  // cursor, so route changes and saves cannot skip or restart completed beats.
+  const activeDetoxEvent =
+    !queuedBroadcastIsCard &&
+    queuedBroadcastEvent &&
+    isPendingDetoxEvent(queuedBroadcastEvent, gameState)
+      ? queuedBroadcastEvent
+      : undefined
+  const activeDetoxEventId = activeDetoxEvent?.id
   // A critical broadcast is a single viewing experience: once the player has
   // dismissed its major card, do not immediately replay the identical copy as
   // the ordinary "Now" message beneath it. It remains available in the log.
@@ -710,7 +728,9 @@ export default function TvZone(props: TvZoneProps) {
           (!props.competitionStarting || getTvPresentationBroadcastLevel(event) !== 'minor') &&
           event.meta?.phase === gameState.phase &&
           event.meta?.week === gameState.week &&
-          (event.meta?.broadcastManaged !== true || event.meta?.forceOnTv === true) &&
+          (event.meta?.broadcastManaged !== true ||
+            event.meta?.forceOnTv === true ||
+            getBroadcastEditorialMetadata(event)?.presentationMode === 'ambient') &&
           !(event.meta?.broadcastPriority === 'critical' && dismissedPriorityEventIds.has(event.id))
       ) ?? null,
     [
@@ -748,6 +768,7 @@ export default function TvZone(props: TvZoneProps) {
         .find(
           (event) =>
             event.meta?.broadcastPriority === 'critical' &&
+            event.meta?.broadcastConsumed !== true &&
             event.meta?.broadcastManaged !== true &&
             event.meta?.phase === gameState.phase &&
             event.meta?.week === gameState.week &&
@@ -976,7 +997,6 @@ export default function TvZone(props: TvZoneProps) {
         !isBroadcastRelevant(event)
       )
         return []
-      if (event.meta?.broadcastManaged === true && event.meta?.forceOnTv !== true) return []
       const key = extractMajorKey(event)
       if (!key || !isBroadcastShockAnnouncementKey(key)) return []
       // Phase-card branches used to emit a second legacy major event beside
@@ -1016,7 +1036,17 @@ export default function TvZone(props: TvZoneProps) {
     return null
   }, [gameState.phase, gameState.players, gameState.seasonFinale])
 
-  const queuedShockAnnouncement = shockAnnouncementQueue[0] ?? null
+  const queuedShockAnnouncement =
+    shockAnnouncementQueue.find((candidate) => {
+      const event = tvVisibleFeed.find((item) => item.id === candidate.eventId)
+      return (
+        event &&
+        event.meta?.broadcastConsumed !== true &&
+        event.meta?.phase === gameState.phase &&
+        event.meta?.week === gameState.week &&
+        isBroadcastRelevant(event)
+      )
+    }) ?? null
   const managedEventAnnouncement =
     (queuedBroadcastIsCard && eventAnnouncementSource?.id === queuedBroadcastEvent?.id) ||
     eventAnnouncementSource?.id === seasonStartExpansionEvent?.id
@@ -1171,12 +1201,10 @@ export default function TvZone(props: TvZoneProps) {
   })
   const hideViewportMessage = !fauxTvFrame.visible
   const viewportDisplayText = fauxTvFrame.text ?? undefined
-  const baseViewportMessageKey = getViewportMessageKey(displayedEvent)
+  const baseViewportMessageKey = getViewportMessageKey(displayedEvent ?? undefined)
   const viewportMessageKey = viewportMessageOverride
     ? `override-${viewportMessageOverride}`
-    : detoxMessageActive
-      ? `${baseViewportMessageKey}-${detoxMessageIndex}`
-      : baseViewportMessageKey
+    : baseViewportMessageKey
   let mainTvMessage: string | undefined
   if (viewportMessageOverride) {
     mainTvMessage = viewportMessageOverride
@@ -1194,55 +1222,18 @@ export default function TvZone(props: TvZoneProps) {
   }
 
   useEffect(() => {
-    const latestVisibleId = tvVisibleFeed[0]?.id ?? null
-    const previousLatestId = detoxSequenceLatestIdRef.current
-    detoxSequenceLatestIdRef.current = latestVisibleId
-
-    if (latestVisibleId === previousLatestId) return
-
-    const previousIndex = tvVisibleFeed.findIndex((event) => event.id === previousLatestId)
-    const newEventCount =
-      previousLatestId === null ? tvVisibleFeed.length : previousIndex === -1 ? 1 : previousIndex
-    const newEvents = tvVisibleFeed.slice(0, newEventCount)
-    const detoxEvents = newEvents.filter(
-      (event) =>
-        isDetoxSequenceEvent(event) &&
-        event.meta?.phase === gameState.phase &&
-        event.meta?.week === gameState.week &&
-        event.meta?.broadcastConsumed !== true &&
-        !hasPresentationEventClaim(
-          reduxStore.getState().game.presentationEventClaims,
-          createPresentationEventClaim(gameState.gameId, event)
-        )
-    )
-    if (detoxEvents.length === 0) return
-
-    startTransition(() => {
-      setDetoxMessageQueue(detoxEvents.reverse())
-      setDetoxMessageIndex(0)
-    })
-  }, [gameState.gameId, gameState.phase, gameState.week, reduxStore, tvVisibleFeed])
-
-  useEffect(() => {
     if (detoxMessageTimerRef.current !== null) {
       clearTimeout(detoxMessageTimerRef.current)
       detoxMessageTimerRef.current = null
     }
-    if (detoxMessageQueue.length === 0) return
+    if (!activeDetoxEventId) return
     if (broadcastPresentationCovered || showInlineAnnouncement || winnerBroadcast) return
-    const current = detoxMessageQueue[detoxMessageIndex]
-    if (current)
-      dispatch(claimPresentationEvent(createPresentationEventClaim(gameState.gameId, current)))
-
     detoxMessageTimerRef.current = setTimeout(() => {
-      startTransition(() => {
-        if (detoxMessageIndex < detoxMessageQueue.length - 1) {
-          setDetoxMessageIndex((index) => index + 1)
-        } else {
-          setDetoxMessageQueue([])
-          setDetoxMessageIndex(0)
-        }
-      })
+      const game = reduxStore.getState().game
+      const event = game.tvFeed.find((item) => item.id === activeDetoxEventId)
+      if (game.gameId === gameState.gameId && event && isPendingDetoxEvent(event, game)) {
+        dispatch(consumeBroadcastEvent(event.id))
+      }
       detoxMessageTimerRef.current = null
     }, DETOX_MESSAGE_HOLD_MS)
 
@@ -1253,10 +1244,12 @@ export default function TvZone(props: TvZoneProps) {
       }
     }
   }, [
-    detoxMessageIndex,
-    detoxMessageQueue,
+    activeDetoxEventId,
     dispatch,
     gameState.gameId,
+    gameState.phase,
+    gameState.week,
+    reduxStore,
     broadcastPresentationCovered,
     showInlineAnnouncement,
     winnerBroadcast,
@@ -1288,7 +1281,10 @@ export default function TvZone(props: TvZoneProps) {
     }
     if (queuedShockAnnouncement) {
       setDismissedEventId(queuedShockAnnouncement.eventId)
-      setShockAnnouncementQueue((queue) => queue.slice(1))
+      dispatch(consumeBroadcastEvent(queuedShockAnnouncement.eventId))
+      setShockAnnouncementQueue((queue) =>
+        queue.filter((item) => item.eventId !== queuedShockAnnouncement.eventId)
+      )
     } else if (managedEventAnnouncement && currentAnnouncement === managedEventAnnouncement) {
       const eventId = eventAnnouncementSource?.id
       if (eventId) {
@@ -1565,6 +1561,10 @@ export default function TvZone(props: TvZoneProps) {
     const handlePlay = (event: Event) => {
       // A full-screen sequence owns Play; don't also consume an older TV card.
       if (props.playOwnedExternally) return
+      if (activeDetoxEventId && !activeAnnouncement) {
+        event.preventDefault()
+        return
+      }
       if (props.competitionStarting || hasPendingChallenge) {
         event.preventDefault()
         return
@@ -1654,6 +1654,7 @@ export default function TvZone(props: TvZoneProps) {
     window.addEventListener('ui:playPressed', handlePlay, { capture: true })
     return () => window.removeEventListener('ui:playPressed', handlePlay, { capture: true })
   }, [
+    activeDetoxEventId,
     activeAnnouncement,
     dispatch,
     handleDismiss,

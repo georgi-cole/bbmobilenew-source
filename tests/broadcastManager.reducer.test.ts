@@ -16,7 +16,7 @@ import gameReducer, {
 } from '../src/store/gameSlice'
 
 describe('broadcast manager reducers', () => {
-  it('never lets an undeclared source force itself onto faux TV or become a shock', () => {
+  it('honors an explicit producer delivery instruction without requiring a catalog entry', () => {
     let state = gameReducer(undefined, { type: 'init' })
     state = { ...state, tvFeed: [], broadcastQueue: [] }
 
@@ -31,12 +31,11 @@ describe('broadcast manager reducers', () => {
     )
 
     expect(state.tvFeed[0]).toMatchObject({
-      major: undefined,
-      meta: { broadcastLevel: 'minor', broadcastManaged: true },
+      major: 'legacy_shock',
+      meta: { broadcastLevel: 'critical', broadcastManaged: true, forceOnTv: true },
     })
     expect(state.tvFeed[0].meta?.broadcastTemplateId).toMatch(/^observed\./)
-    expect(state.tvFeed[0].meta?.forceOnTv).toBeUndefined()
-    expect(state.broadcastQueue).toEqual([])
+    expect(state.broadcastQueue).toEqual([state.tvFeed[0].id])
   })
 
   it('adopts the legacy Vox intro so manager copy edits update resumed campaigns', () => {
@@ -67,17 +66,29 @@ describe('broadcast manager reducers', () => {
 
   it('persists an unchecked faux-TV override and removes even a critical message from the queue', () => {
     let state = gameReducer(undefined, { type: 'init' })
-    const intro = state.tvFeed.find((event) => event.meta?.broadcastTemplateId === 'season.welcome')
+    state = gameReducer(
+      state,
+      addTvEvent({
+        text: 'A current critical broadcast.',
+        type: 'game',
+        meta: {
+          broadcastTemplateId: 'custom.critical',
+          broadcastLevel: 'critical',
+          forceOnTv: true,
+        },
+      })
+    )
+    const intro = state.tvFeed[0]
 
     state = gameReducer(
       state,
       setBroadcastOverride({
-        id: 'season.welcome',
+        id: 'custom.critical',
         changes: { level: 'critical', forceOnTv: false },
       })
     )
 
-    expect(state.broadcastOverrides?.['season.welcome']).toMatchObject({
+    expect(state.broadcastOverrides?.['custom.critical']).toMatchObject({
       level: 'critical',
       forceOnTv: false,
     })
@@ -212,7 +223,7 @@ describe('broadcast manager reducers', () => {
     expect(state.phase).toBe('season_start')
     expect(state.week).toBe(1)
     expect(state.tvFeed.some((event) => event.meta?.broadcastTemplateId === 'season.welcome')).toBe(
-      true
+      false
     )
     expect(
       state.tvFeed.some((event) => event.meta?.broadcastTemplateId === 'season.public-mode-rule')
@@ -224,7 +235,7 @@ describe('broadcast manager reducers', () => {
     expect(state.week).toBe(1)
     expect(
       state.tvFeed.filter((event) => event.meta?.broadcastTemplateId === 'season.welcome')
-    ).toHaveLength(1)
+    ).toHaveLength(0)
     expect(state.tvFeed[0]).toMatchObject({
       text: 'Day 1 has begun. Get ready.',
       meta: { phase: 'week_start', broadcastTemplateId: 'week.day-start' },
@@ -540,7 +551,11 @@ describe('broadcast manager reducers', () => {
     const queueCopy = state.broadcastQueue ?? []
     const queuedTexts = queueCopy.map((id) => state.tvFeed.find((event) => event.id === id)?.text)
     expect(queuedTexts[0]).toBe('Opening first.')
-    expect(queuedTexts.some((text) => text?.startsWith('Welcome to The Big Eye house!'))).toBe(true)
+    // The staged onboarding controller supplies the welcome after reset; the
+    // reducer must not revive its retired predecessor beside that welcome.
+    expect(state.tvFeed.some((event) => event.meta?.broadcastTemplateId === 'season.welcome')).toBe(
+      false
+    )
 
     const firstId = queueCopy[0]
     state = gameReducer(state, consumeBroadcastEvent(firstId))
