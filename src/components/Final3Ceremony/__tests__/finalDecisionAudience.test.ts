@@ -132,6 +132,23 @@ afterEach(() => {
 
 describe('Vox Final Three audience broadcast', () => {
   it.each([
+    { shares: [50.041, 49.959], labels: ['50.04%', '49.96%'] },
+    { shares: [50.004, 49.996], labels: ['50.004%', '49.996%'] },
+  ])(
+    'distinguishes close final vote shares $shares with minimal decimals',
+    ({ shares, labels }) => {
+      const { root, controller } = mount({
+        result: { evicteeId: 'human', percentages: { human: shares[0], aria: shares[1] } },
+      })
+      reach(controller, 'vote-results')
+      vi.advanceTimersByTime(2440)
+      expect([...root.querySelectorAll('.fd-vote-value')].map((node) => node.textContent)).toEqual(
+        labels
+      )
+    }
+  )
+
+  it.each([
     { viewerId: 'dex', evicteeId: 'aria', role: 'immune' },
     { viewerId: 'human', evicteeId: 'aria', role: 'nominee' },
     { viewerId: 'human', evicteeId: 'human', role: 'nominee' },

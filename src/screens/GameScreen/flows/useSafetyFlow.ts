@@ -38,6 +38,7 @@ interface UseSafetyFlowOptions {
   dispatch: AppDispatch
   sequenceHandled?: boolean
   sequenceActive?: boolean
+  saveHandledBySequence?: boolean
 }
 
 /**
@@ -55,6 +56,7 @@ export function useSafetyFlow({
   dispatch,
   sequenceHandled = false,
   sequenceActive = false,
+  saveHandledBySequence = false,
 }: UseSafetyFlowOptions) {
   const store = useStore<RootState>()
   const presentationState = store.getState()
@@ -241,10 +243,26 @@ export function useSafetyFlow({
   // matching ceremony is scheduled and until it finishes.
   const committedSaveId = game.povSavedId ?? null
   const committedSaveKey = committedSaveId ? getSaveCeremonyKey(committedSaveId) : null
-  const awaitingSaveCeremony =
-    !sequenceHandled && committedSaveKey !== null && consumedSaveCeremonyKey !== committedSaveKey
   useEffect(() => {
-    if (sequenceHandled) return
+    if (!saveHandledBySequence || !committedSaveKey || consumedSaveCeremonyKey === committedSaveKey)
+      return
+    presentedSaveIdRef.current = committedSaveId
+    setConsumedSaveCeremonyKey(committedSaveKey)
+  }, [
+    saveHandledBySequence,
+    committedSaveId,
+    committedSaveKey,
+    consumedSaveCeremonyKey,
+    setConsumedSaveCeremonyKey,
+  ])
+  const awaitingSaveCeremony =
+    game.phase === 'pos_ceremony_results' &&
+    !sequenceHandled &&
+    !saveHandledBySequence &&
+    committedSaveKey !== null &&
+    consumedSaveCeremonyKey !== committedSaveKey
+  useEffect(() => {
+    if (sequenceHandled || saveHandledBySequence || game.phase !== 'pos_ceremony_results') return
     const savedId = committedSaveId
     const ceremonyKey = committedSaveKey
     if (!savedId || !ceremonyKey) {
@@ -323,6 +341,7 @@ export function useSafetyFlow({
     pendingSaveCeremony,
     setConsumedSaveCeremonyKey,
     sequenceHandled,
+    saveHandledBySequence,
   ])
 
   // Hide the save modal while the save ceremony is playing.

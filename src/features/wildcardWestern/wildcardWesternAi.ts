@@ -34,6 +34,7 @@ export function precomputeAiDuelPlan(
   question: WildcardQuestion,
   seed: number,
   duelNumber: number,
+  capability = 1,
 ): AiDuelPlan {
   const rng = (() => {
     let s = (seed + duelNumber * 7919 + playerId.charCodeAt(0) * 997) >>> 0;
@@ -84,7 +85,7 @@ export function precomputeAiDuelPlan(
   }
 
   const willBuzz = rng() < buzzProbability;
-  const buzzDelayMs = Math.floor(minDelay + rng() * (maxDelay - minDelay));
+  const buzzDelayMs = Math.floor(Math.max(50, (minDelay + rng() * (maxDelay - minDelay)) / capability));
 
   if (!willBuzz) {
     return {
@@ -99,7 +100,7 @@ export function precomputeAiDuelPlan(
   const willAnswer = rng() < 0.95;
   let chosenAnswerIndex: 0 | 1 | 2;
 
-  if (rng() < accuracy) {
+  if (rng() < 1 - (1 - accuracy) / capability) {
     chosenAnswerIndex = question.correctIndex;
   } else {
     const wrongIndices = [0, 1, 2].filter((i) => i !== question.correctIndex) as (0 | 1 | 2)[];

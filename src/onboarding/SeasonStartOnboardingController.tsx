@@ -7,7 +7,6 @@ import {
   isServiceConfigurationEvent,
 } from '../services/activityService'
 import SeasonTutorialTour from './SeasonTutorialTour'
-import SeasonCastOpeningCinematic from '../components/SeasonCastOpeningCinematic/SeasonCastOpeningCinematic'
 import { selectCurrentQueuedBroadcast } from './seasonOnboardingQueue'
 import { hasHandledSeasonTutorial, markSeasonTutorialHandled } from './seasonTutorialPreference'
 import {
@@ -45,7 +44,6 @@ export default function SeasonStartOnboardingController() {
   const dispatch = useAppDispatch()
   const gameId = useAppSelector((state) => state.game.gameId)
   const season = useAppSelector((state) => state.game.season)
-  const players = useAppSelector((state) => state.game.players)
   const week = useAppSelector((state) => state.game.week)
   const phase = useAppSelector((state) => state.game.phase)
   const mode = useAppSelector((state) => state.game.mode)
@@ -64,15 +62,10 @@ export default function SeasonStartOnboardingController() {
   const [promptOpen, setPromptOpen] = useState(false)
   const [tourOpen, setTourOpen] = useState(false)
   const [handoffToFirstCompetition, setHandoffToFirstCompetition] = useState(false)
-  const [openingCinematicState, setOpeningCinematicState] = useState<
-    'pending' | 'playing' | 'complete'
-  >('pending')
   const welcomeTimerRef = useRef<number | null>(null)
 
   const eligibleSeasonStart =
     gameScreenMounted && phase === 'season_start' && week === 1 && mode !== 'survival'
-
-  const openingCast = useMemo(() => players.filter((player) => !player.lateEntrant), [players])
 
   const queuedEvent = useMemo(
     () => selectCurrentQueuedBroadcast(broadcastQueue, tvFeed, phase, week),
@@ -135,7 +128,6 @@ export default function SeasonStartOnboardingController() {
     setPromptOpen(false)
     setTourOpen(false)
     setHandoffToFirstCompetition(false)
-    setOpeningCinematicState('pending')
   }, [activeProfileId, gameId, isGuest])
 
   useEffect(
@@ -238,34 +230,13 @@ export default function SeasonStartOnboardingController() {
     }
   }, [addOpeningWelcome, broadcastQueue.length, eligibleSeasonStart, welcomeExists])
 
-  const finishOpeningCinematic = useCallback(() => {
-    setOpeningCinematicState('complete')
-  }, [])
-
-  // The cast film now owns the bridge between the welcome and the first hub
-  // message. It starts only after the welcome card has been acknowledged, then
-  // materializes the familiar "settled into the hub" line when the film ends.
+  // The rotating hub-settling line is the deliberate bridge between the
+  // polished welcome and the Day 1 card. It is queued only after the welcome
+  // has been acknowledged, never behind an old managed startup item.
   useEffect(() => {
     if (!eligibleSeasonStart || !welcomeExists || flavorExists || queuedEvent) return
-
-    if (openingCinematicState === 'pending') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOpeningCinematicState(openingCast.length > 0 ? 'playing' : 'complete')
-      return
-    }
-
-    if (openingCinematicState === 'complete') {
-      addOpeningFlavor()
-    }
-  }, [
-    addOpeningFlavor,
-    eligibleSeasonStart,
-    flavorExists,
-    openingCast.length,
-    openingCinematicState,
-    queuedEvent,
-    welcomeExists,
-  ])
+    addOpeningFlavor()
+  }, [addOpeningFlavor, eligibleSeasonStart, flavorExists, queuedEvent, welcomeExists])
 
   useEffect(() => {
     if (eligibleSeasonStart) return
@@ -309,15 +280,6 @@ export default function SeasonStartOnboardingController() {
         return
       }
 
-      if (queuedEvent?.meta?.seasonOnboardingWelcome === true) {
-        // Arm the film from the same explicit Play gesture that dismisses the
-        // welcome. Besides matching the intended UX, this gives Mobile Safari
-        // the strongest possible user-gesture context for the soundtrack.
-        event.preventDefault()
-        setOpeningCinematicState(openingCast.length > 0 ? 'playing' : 'complete')
-        return
-      }
-
       // Every current season-opening card must consume this press. Otherwise
       // the last plain TV card also advances the game, bypassing the tutorial.
       if (queuedEvent) {
@@ -332,11 +294,7 @@ export default function SeasonStartOnboardingController() {
       }
       if (!flavorExists) {
         event.preventDefault()
-        if (openingCinematicState === 'complete') {
-          addOpeningFlavor()
-        } else if (openingCinematicState === 'pending') {
-          setOpeningCinematicState(openingCast.length > 0 ? 'playing' : 'complete')
-        }
+        addOpeningFlavor()
         return
       }
       if (!tutorialHandled) {
@@ -359,8 +317,6 @@ export default function SeasonStartOnboardingController() {
     dispatch,
     eligibleSeasonStart,
     flavorExists,
-    openingCast.length,
-    openingCinematicState,
     queuedEvent,
     tourOpen,
     tutorialHandled,
@@ -383,14 +339,6 @@ export default function SeasonStartOnboardingController() {
 
   return (
     <>
-      {openingCinematicState === 'playing' && eligibleSeasonStart && openingCast.length > 0 && (
-        <SeasonCastOpeningCinematic
-          players={openingCast}
-          season={season}
-          gameId={gameId}
-          onComplete={finishOpeningCinematic}
-        />
-      )}
       {promptOpen &&
         !tourOpen &&
         createPortal(

@@ -14,6 +14,7 @@ import { grantSecretMissionResourceCache } from '../social/socialSlice'
 
 interface RootLike {
   game: {
+    gameId?: string
     phase: string
     week: number
     lohId: string | null
@@ -27,6 +28,11 @@ interface RootLike {
       status: 'completed' | 'quit' | 'skipped' | 'interrupted'
       gameKey: string
       week: number
+      gameId?: string
+      originPhase?: string
+      attemptNumber?: number
+      prizeType?: string
+      winnerOverride?: { configuredWinnerId: string; measuredWinnerId: string }
       participants: string[]
       humanId?: string
       winnerId?: string
@@ -81,6 +87,7 @@ interface RootLike {
       createdWeek: number
       requiresResponse: boolean
       resolved: boolean
+      resolutionOrigin?: 'player' | 'deadline' | 'invalidation'
       resolvedWith?: string
       createdDay?: number
       payload?: { deliveredWeek?: unknown; deliveredDay?: unknown }
@@ -141,7 +148,9 @@ function getIncomingResponseStreak(
   for (let day = startDay; day <= completedDay; day += 1) {
     const dayInteractions = (interactions ?? []).filter(
       (interaction) =>
-        getInteractionDeliveryDay(interaction) === day && interaction.requiresResponse
+        getInteractionDeliveryDay(interaction) === day &&
+        interaction.requiresResponse &&
+        interaction.resolutionOrigin !== 'invalidation'
     )
     // A player cannot answer a request that was never delivered. Treat a quiet
     // day as compliant, while still failing days with an ignored or dismissed
@@ -280,6 +289,90 @@ function appendCompetitionRun(task: MissionTask, runId: string): string[] {
   return Array.from(new Set([...(task.creditedCompetitionRunIds ?? []), runId])).slice(-24)
 }
 
+/** A durable result is evidence even when its original delivery action was missed. */
+function creditRecordedCompetition(
+  store: {
+    getState: () => unknown
+    dispatch: (action: ReturnType<typeof syncMissionTask>) => unknown
+  },
+  humanId: string
+) {
+  const state = store.getState() as RootLike
+  const competition = state.game.lastCompetitionResolution
+  if (
+    !competition ||
+    competition.status !== 'completed' ||
+    !competition.runId ||
+    !competition.participants.includes(humanId) ||
+    !Number.isFinite(competition.week) ||
+    competition.week > state.game.week ||
+    (competition.gameId && state.game.gameId && competition.gameId !== state.game.gameId)
+  )
+    return
+
+  const participantCount = new Set(competition.participants).size
+  const placementIndex = competition.placements?.indexOf(humanId) ?? -1
+  const placement =
+    placementIndex >= 0 ? placementIndex + 1 : competition.winnerId === humanId ? 1 : null
+  const definitelyNotLast =
+    (competition.lastPlaceId != null &&
+      competition.participants.includes(competition.lastPlaceId) &&
+      competition.lastPlaceId !== humanId) ||
+    (competition.placements?.length === participantCount &&
+      placement != null &&
+      placement < participantCount)
+
+  for (const taskId of getAcceptedTasks(state).map((task) => task.id)) {
+    // Nested progress dispatches can update another task or complete the mission.
+    // Always use the current task rather than a pre-dispatch counter snapshot.
+    const current = store.getState() as RootLike
+    const task = getAcceptedTasks(current).find((candidate) => candidate.id === taskId)
+    if (!task || task.completed || hasCreditedCompetitionRun(task, competition.runId)) continue
+    const startDay =
+      task.startDay ??
+      current.game.secretMission?.startDay ??
+      current.game.secretMission?.triggeredDay ??
+      current.game.week
+    const endDay = task.endDay ?? current.game.secretMission?.endDay ?? current.game.week
+    if (competition.week < startDay || competition.week > endDay) continue
+
+    if (
+      task.type === 'competition_placement' &&
+      typeof task.placementThreshold === 'number' &&
+      placement != null &&
+      placement <= task.placementThreshold
+    ) {
+      updateTaskProgress(store.dispatch, task, {
+        current: task.target,
+        completed: true,
+        creditedCompetitionRunIds: appendCompetitionRun(task, competition.runId),
+        lastProgressDay: competition.week,
+        firstSatisfiedDay: task.firstSatisfiedDay ?? competition.week,
+        auditLog: appendAudit(task, `Finished ${placement}/${participantCount}`),
+      })
+    }
+    if (task.type === 'avoid_last_place' && definitelyNotLast) {
+      const nextCurrent = Math.min(task.target, task.current + 1)
+      updateTaskProgress(store.dispatch, task, {
+        current: nextCurrent,
+        completed: nextCurrent >= task.target,
+        creditedCompetitionRunIds: appendCompetitionRun(task, competition.runId),
+        lastProgressDay: competition.week,
+        firstSatisfiedDay:
+          nextCurrent >= task.target
+            ? (task.firstSatisfiedDay ?? competition.week)
+            : task.firstSatisfiedDay,
+        auditLog: appendAudit(
+          task,
+          placement != null
+            ? `Avoided last place (${placement}/${participantCount})`
+            : `Avoided last place (last finisher: ${competition.lastPlaceId})`
+        ),
+      })
+    }
+  }
+}
+
 export const secretMissionMiddleware: Middleware = (store) => (next) => (action) => {
   const prevState = store.getState() as RootLike
 
@@ -392,6 +485,13 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
   }
 
   if (!humanId) return result
+
+  creditRecordedCompetition(store, humanId)
+  nextState = store.getState() as RootLike
+  game = nextState.game
+  tasks = getAcceptedTasks(nextState)
+
+  if (!game.secretMission) return result
 
   // A player may already have used the human-facing Rally Votes Against action
   // before a saved mission's AI-only Vote Rally requirement is repaired. Credit
@@ -814,62 +914,6 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
       })
     }
     return result
-  }
-
-  if (actionType === 'game/applyMinigameWinner' || actionType === 'game/completeMinigame') {
-    const competition = game.lastCompetitionResolution
-    if (
-      !competition ||
-      competition.status !== 'completed' ||
-      !competition.participants.includes(humanId)
-    ) {
-      return result
-    }
-
-    const placementIndex = competition.placements?.indexOf(humanId) ?? -1
-    const placement = placementIndex >= 0 ? placementIndex + 1 : null
-    const participantCount = competition.participants.length
-    const definitelyNotLast = competition.lastPlaceId != null && competition.lastPlaceId !== humanId
-
-    for (const task of tasks) {
-      if (hasCreditedCompetitionRun(task, competition.runId)) continue
-
-      if (
-        task.type === 'competition_placement' &&
-        typeof task.placementThreshold === 'number' &&
-        placement != null &&
-        placement <= task.placementThreshold
-      ) {
-        updateTaskProgress(store.dispatch, task, {
-          current: task.target,
-          completed: true,
-          creditedCompetitionRunIds: appendCompetitionRun(task, competition.runId),
-          lastProgressDay: game.week,
-          firstSatisfiedDay: task.firstSatisfiedDay ?? game.week,
-          auditLog: appendAudit(task, `Finished ${placement}/${participantCount}`),
-        })
-      }
-
-      if (task.type === 'avoid_last_place' && definitelyNotLast) {
-        const nextCurrent = Math.min(task.target, task.current + 1)
-        updateTaskProgress(store.dispatch, task, {
-          current: nextCurrent,
-          completed: nextCurrent >= task.target,
-          creditedCompetitionRunIds: appendCompetitionRun(task, competition.runId),
-          lastProgressDay: game.week,
-          firstSatisfiedDay:
-            nextCurrent >= task.target
-              ? (task.firstSatisfiedDay ?? game.week)
-              : task.firstSatisfiedDay,
-          auditLog: appendAudit(
-            task,
-            placement != null
-              ? `Avoided last place (${placement}/${participantCount})`
-              : `Avoided last place (last finisher: ${competition.lastPlaceId})`
-          ),
-        })
-      }
-    }
   }
 
   return result

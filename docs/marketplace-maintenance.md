@@ -1,7 +1,7 @@
 # Marketplace maintenance
 
 Premium Challenges and VIP both unlock every premium minigame version. VIP also
-includes every released standalone product and VIP themes. This covers enhanced
+includes every released standalone product. This covers enhanced
 presentations, alternate premium rules, and replacement remasters.
 
 ## What stays synchronized
@@ -43,6 +43,90 @@ reference when updating their descriptions; repository checks do not publish
 store listings or change configured prices.
 
 ## Review log
+
+- 2026-11-13: Reviewed account/profile flow maintenance. Profile creation uses
+  one three-profile device limit before and after sign-in; existing extra
+  profiles and their saves remain available for management. Account-wide
+  linking, sync retries, deletion reconciliation, and account-only management
+  navigation do not change wallet balances, Eyeolean inventory, purchases,
+  entitlements, ads, prices, rewards, or premium benefits. VIP and Premium
+  Challenges still unlock every premium minigame version; offer copy is accurate.
+
+- 2026-11-13: Reviewed the cumulative TestFlight follow-up fixes. Retired the
+  selectable player themes from Settings and Advanced Settings, normalized saved
+  selections to Midnight, and removed the theme benefit from VIP and Store copy.
+  Reviewed shared minigame safe areas, Famous Figures standings and mission
+  receipts, Social scrolling, broadcast wording, vote-reveal log timing, and
+  adaptive public-vote precision. VIP and Premium Challenges still unlock every
+  premium minigame version. All other benefits, purchase access, prices, ads,
+  scoring and rewards are unchanged.
+  Also reviewed Android billing serialization and reconnect recovery, one-time
+  purchase-only restoration, production account build validation, and fresh
+  profile season-pill visibility. Checkout is never automatically repeated;
+  permanent acknowledgment and durable consumable delivery retain their rules.
+  Classic and premium Quick Tap overlays also remain inside the hosted safe
+  viewport; standalone launches retain their existing page portal. Variant
+  access, game rules, scores and rewards are unchanged.
+
+- 2026-11-13: Reviewed the Android startup investigation candidate. Foreground
+  launcher-icon rotation is paused for both remote-switch values, retaining the
+  currently enabled alias on launch and resume. This tests a possible cause of
+  repeated splash-screen exits reported before and after build 5; the cause and
+  device outcome remain unconfirmed. Paid access, purchases, ads, offers, prices
+  and rewards are unchanged.
+
+- 2026-11-13: Reviewed Safety/replacement cinematic sequencing. Committed saves
+  play before backup nominations and consumed saves cannot replay through the
+  standalone ceremony. VIP cinematic access, paired/special-power rules,
+  purchases, offers and rewards remain unchanged.
+
+- 2026-11-13: Reviewed the shared shock cinematic art-plane alignment and
+  pre-merge TestFlight candidate upload path. Premium cinematic eligibility,
+  VIP and Premium Challenges benefits, purchases, prices and rewards are
+  unchanged. Candidate uploads use the existing production iOS configuration.
+
+- 2026-11-13: Reviewed TestFlight Package 9 season competition AI calibration.
+  Active Classic, Vox and Cupid launches capture bounded skill or local decision
+  capability once, including premium variants and Battle Back. Surveyeval, Lab,
+  legacy active attempts, fair chance draws, social decisions, prices, rewards,
+  products and entitlements retain their existing policy. VIP and Premium
+  Challenges still unlock every premium minigame version. Offer copy remains
+  accurate; no promised win-rate or score increase is added. Also reviewed
+  complete legacy score receipts for retry eligibility; purchase/ad gates stay intact.
+  Serpentine now accepts contact presses, buffered corners and early swipes, with
+  larger controls, food guidance and goal progress. The 1000-point target, speed,
+  food distribution, AI simulation, scoring and rewards remain unchanged.
+
+- 2026-11-13: Reviewed TestFlight Package 8 Social fallback audio and HomeHub
+  utility spacing. Social reuses the existing Confessional loop only when no
+  phase music owns playback; explicit local/remote assignments remain in force.
+  Corner stacks use equal 4px gaps at desktop and narrow sizes. Standard/VIP
+  access, products, prices, benefits, rewards, and marketplace copy are unchanged.
+
+- 2026-11-12: Reviewed Social catalogue ordering, Group Chat discovery and
+  selection resets, subject-picker navigation, and focused-player swipes.
+  Existing execution eligibility, group prices, resource costs, paid access,
+  products, benefits, and marketplace copy remain unchanged.
+
+- 2026-11-12: Reviewed shared minigame eye positioning and Hub Says swipe paging.
+  These input and accessibility changes preserve rules, scoring, exits, paid
+  access, marketplace products, benefits, prices, and rewards.
+
+- 2026-11-12: Reviewed chocolate roster targeting and animation completion,
+  weekend energy, mission reward, and Confessional presentation start claims.
+  These repairs change no grants, wallet balances, rewards, products, access,
+  prices, premium benefits, or marketplace copy.
+
+- 2026-11-12: Reviewed Faux TV delivery scope, unread broadcast pinning,
+  competition-rules handoff, and durable shock-intro claims. These repairs
+  preserve the existing Standard and VIP presentations, game results, paid
+  access, products, prices, rewards, benefits, and marketplace copy.
+
+- 2026-11-12: Reviewed competition result receipt identity, last-place retry
+  eligibility, and Risk Wheel terminal handling. These changes align campaign
+  results with completed game outcomes and preserve existing retry behavior.
+  They do not change products, paid access, entitlements, prices, benefits, or
+  marketplace catalog copy.
 
 - 2026-11-11: Reviewed the Deck of Light tool revision in both presentations.
   Bright Pair awards 120 points. Bonus Bet requires two never-revealed cards,
@@ -400,3 +484,15 @@ store listings or change configured prices.
   Extras and uses the compact power-button style. The minigame change covers the
   phone status area during play. No product, entitlement, reward, or premium
   minigame access changes.
+
+- 2026-11-12: Reviewed TestFlight mission request retirement, LOH pact protection
+  acknowledgements, and Social access during voting. Existing VIP/Classic/Vox
+  access and promise fulfilment apply; offers, prices, rewards, entitlements and
+  marketplace copy are unchanged.
+
+- 2026-11-12: Reviewed TestFlight minigame maintenance: Verdict Board has at
+  most five boards and three wrong qualifying guesses; Deck of Light offers
+  three sampled tools per attempt and removes Bright Pair scoring for human/AI.
+  Crystal Path hint/fracture and Vault history layout fixes preserve scoring.
+  Premium Challenges and VIP still unlock all premium versions. Product prices,
+  availability, benefits and entitlements are unchanged; registry rules updated.

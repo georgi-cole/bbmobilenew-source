@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 /**
  * WildcardWesternComp.tsx – Main React component for Wildcard Western.
  */
@@ -234,6 +235,7 @@ export default function WildcardWesternComp({
   standalone = false,
   strategicContext,
 }: WildcardWesternCompProps) {
+  const aiCapability = useSeasonAiCapability()
   const dispatch = useDispatch<AppDispatch>();
   const state = useSelector((root: RootState) => root.wildcardWestern);
   const humanPlayerId = participants.find((p) => p.isHuman)?.id ?? null;
@@ -493,7 +495,7 @@ export default function WildcardWesternComp({
       if (isHuman(playerId)) return;
 
       const personality = getAiPersonality(playerId, seed);
-      const plan = precomputeAiDuelPlan(playerId, personality, question, seed, state.duelNumber);
+      const plan = precomputeAiDuelPlan(playerId, personality, question, seed, state.duelNumber, aiCapability);
 
       if (plan.willBuzz) {
         scheduleTimeout(() => {
@@ -506,7 +508,7 @@ export default function WildcardWesternComp({
 
     if (!isHuman(p1)) scheduleAiBuzz(p1);
     if (!isHuman(p2)) scheduleAiBuzz(p2);
-  }, [dispatch, isHuman, scheduleTimeout, seed, state.currentPair, state.currentQuestionId, state.duelNumber, state.phase]);
+  }, [aiCapability, dispatch, isHuman, scheduleTimeout, seed, state.currentPair, state.currentQuestionId, state.duelNumber, state.phase]);
 
   // AI answer logic
   useEffect(() => {
@@ -518,7 +520,7 @@ export default function WildcardWesternComp({
     if (!question) return;
 
     const personality = getAiPersonality(state.buzzedBy, seed);
-    const plan = precomputeAiDuelPlan(state.buzzedBy, personality, question, seed, state.duelNumber);
+    const plan = precomputeAiDuelPlan(state.buzzedBy, personality, question, seed, state.duelNumber, aiCapability);
 
     if (plan.willAnswer) {
       scheduleTimeout(() => {
@@ -527,7 +529,7 @@ export default function WildcardWesternComp({
         }
       }, AI_ANSWER_DELAY_MS);
     }
-  }, [dispatch, isHuman, scheduleTimeout, seed, state.buzzedBy, state.currentQuestionId, state.duelNumber, state.phase]);
+  }, [aiCapability, dispatch, isHuman, scheduleTimeout, seed, state.buzzedBy, state.currentQuestionId, state.duelNumber, state.phase]);
 
   // AI elimination choice
   useEffect(() => {
@@ -676,6 +678,7 @@ export default function WildcardWesternComp({
               question,
               seed,
               state.duelNumber,
+              aiCapability,
             ),
           }))
           .filter(({ plan }) => plan.willBuzz)
@@ -716,6 +719,7 @@ export default function WildcardWesternComp({
           question,
           seed,
           state.duelNumber,
+          aiCapability,
         );
 
         if (plan.willAnswer) {
@@ -760,25 +764,7 @@ export default function WildcardWesternComp({
         dispatch(playerChooseNextPair({ pair }));
       }, SPECTATOR_SKIP_STEP_DELAY_MS);
     }
-  }, [
-    dispatch,
-    isHumanEliminated,
-    isHuman,
-    playContinue,
-    scheduleTimeout,
-    seed,
-    spectatorMode,
-    standalone,
-    state.aliveIds,
-    state.buzzedBy,
-    state.controllerId,
-    state.currentPair,
-    state.currentQuestionId,
-    state.duelNumber,
-    state.eliminationChooserId,
-    state.phase,
-    strategicContext,
-  ]);
+  }, [dispatch, isHumanEliminated, isHuman, playContinue, scheduleTimeout, seed, spectatorMode, standalone, state.aliveIds, state.buzzedBy, state.controllerId, state.currentPair, state.currentQuestionId, state.duelNumber, state.eliminationChooserId, state.phase, strategicContext, aiCapability]);
 
   // Render
   const currentQuestion = WILDCARD_QUESTIONS.find((q) => q.id === state.currentQuestionId);

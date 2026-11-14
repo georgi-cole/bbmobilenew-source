@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from 'react-redux'
 import type { RootState } from '../../store/store'
 import type { ReplacementPresentation } from './replacementPresentation'
+import { replacementFilmScene } from './replacementSequence'
 import type { ClipController } from './renderer'
 import { ceremonyCast, ceremonyQueue } from './runtime.mjs'
 import {
@@ -86,9 +87,10 @@ export default function ReplacementDecisionSequence({
         void Promise.all([import('./renderer.js'), import('./cast.json')])
           .then(async ([renderer, catalog]) => {
             if (cancelled) return
+            const scene = replacementFilmScene(outcome)
             const cast = ceremonyCast(
-              'replacement',
-              { replacementOutcome: outcome },
+              scene,
+              { replacementOutcome: outcome, targetIds: outcome.savedIds },
               store.getState().game,
               catalog.default.characters
             )
@@ -97,9 +99,12 @@ export default function ReplacementDecisionSequence({
               return
             }
             controller = renderer.createClip()
-            const prepared = await controller.prepare('replacement', cast, 'generic', {
-              replacementOutcome: outcome,
-            })
+            const prepared = await controller.prepare(
+              scene,
+              cast,
+              'generic',
+              scene === 'replacement' ? { replacementOutcome: outcome } : {}
+            )
             if (cancelled || !prepared || !target.current) return
             clearTimeout(watchdog)
             const old = clip.current

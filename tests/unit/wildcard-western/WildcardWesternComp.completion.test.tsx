@@ -133,17 +133,19 @@ describe('WildcardWesternComp completion flow', () => {
     vi.useRealTimers();
   });
 
-  it('resolves hosted LOH runs through the outcome thunk before notifying completion', async () => {
+  it('leaves hosted LOH awards to the host and reports the complete placement receipt', async () => {
+    vi.useFakeTimers();
     const { onComplete } = renderComponent({
       gamePhase: 'loh_comp',
       wildcardWesternState: makeWildcardWesternState({ outcomeResolved: false }),
     });
 
     await act(async () => {
-      await Promise.resolve();
+      vi.advanceTimersByTime(3000);
     });
-    expect(resolveWildcardWesternOutcomeMock).toHaveBeenCalledTimes(1);
-    expect(onComplete).not.toHaveBeenCalled();
+    expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledOnce();
+    expect(onComplete).toHaveBeenCalledWith({ authoritativeWinnerId: 'p0', authoritativeLastPlaceId: 'p1' });
   });
 
   it('reports hosted completion only after outcomeResolved is already true', async () => {
@@ -157,7 +159,7 @@ describe('WildcardWesternComp completion flow', () => {
       vi.advanceTimersByTime(3000);
     });
 
-    expect(onComplete).toHaveBeenCalledWith({ authoritativeWinnerId: 'p0' });
+    expect(onComplete).toHaveBeenCalledWith({ authoritativeWinnerId: 'p0', authoritativeLastPlaceId: 'p1' });
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled();
   });
@@ -289,7 +291,7 @@ describe('WildcardWesternComp completion flow', () => {
       await Promise.resolve();
     });
 
-    expect(resolveWildcardWesternOutcomeMock).toHaveBeenCalled();
+    expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled();
     expect(store.getState().wildcardWestern.phase).toBe('gameOver');
     expect(store.getState().wildcardWestern.winnerId).toBe('p1');
   });

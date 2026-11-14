@@ -57,7 +57,7 @@ describe('Capitalization component', () => {
     vi.restoreAllMocks();
   });
 
-  it('plays through nine skipped questions and reports an authoritative winner', () => {
+  it('plays through skipped questions, continues as spectator after elimination, and reports a winner', () => {
     const onFinish = vi.fn();
     render(<Capitalization seed={44} participants={participants} onFinish={onFinish} />);
 
@@ -68,8 +68,15 @@ describe('Capitalization component', () => {
         vi.advanceTimersByTime(2700);
       });
 
-      expect(screen.getByLabelText('Capital city answer')).not.toBeDisabled();
-      fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+      const answer = screen.queryByLabelText('Capital city answer');
+      if (answer) {
+        expect(answer).not.toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+      } else if (!screen.queryByText(`Question ${question} complete`)) {
+        // An eliminated human remains a spectator; the actual AI owner resolves
+        // this question instead of rendering an editable answer field.
+        act(() => { vi.advanceTimersByTime(650); });
+      }
       expect(screen.getByText(`Question ${question} complete`)).toBeInTheDocument();
       expect(screen.queryByLabelText('Live standings')).not.toBeInTheDocument();
 
@@ -154,7 +161,7 @@ describe('Capitalization component', () => {
         expect(
           screen.getByText(/all contestants remain in play/i),
         ).toBeInTheDocument();
-        expect(screen.getAllByText('In play', { exact: false })).toHaveLength(3);
+        expect(screen.getAllByText(/^In play/)).toHaveLength(3);
         expect(screen.queryByText(/Out Q\d+/)).not.toBeInTheDocument();
         expect(screen.queryByText(/^Eliminated$/)).not.toBeInTheDocument();
       }

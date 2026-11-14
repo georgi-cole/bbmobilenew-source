@@ -27,6 +27,7 @@ export interface TriviaStanding {
 }
 
 export interface NumberTriviaAiPerformanceContext {
+  aiCapability?: number;
   precomputedScore: number;
   roundNumber: number;
   question: NumberTriviaQuestion;
@@ -140,7 +141,7 @@ export function simulateNumberTriviaAiPerformance(
   const skillOffset = clamp((context.precomputedScore - 60) / 450, -0.08, 0.08);
   const fatiguePenalty = Math.max(0, context.roundNumber - 3) * 0.015;
   const baseAccuracy = (profile.accuracyRange[0] + profile.accuracyRange[1]) / 2;
-  const accuracy = clamp(baseAccuracy + skillOffset - fatiguePenalty, 0.05, 0.985);
+  const accuracy = clamp(1 - (1 - (baseAccuracy + skillOffset - fatiguePenalty)) / (context.aiCapability ?? 1), 0.05, 0.985);
   const normalizedSkill = clamp((context.precomputedScore - 30) / 70, 0, 1);
   const responseSpeedMultiplier = 1.1 - normalizedSkill * 0.25;
   const baseDelayMs =

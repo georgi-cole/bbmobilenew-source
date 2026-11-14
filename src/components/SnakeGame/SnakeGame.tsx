@@ -1,3 +1,5 @@
+import { useSeasonAiRuntime } from '../../ai/competition/SeasonAiContext'
+import { runtimeCompetitionProfile } from '../../ai/competition/seasonAiDifficulty'
 /**
  * SnakeGame — native React minigame component.
  *
@@ -173,6 +175,8 @@ export default function SnakeGame({
   participants = [],
 }: Props) {
   const dispatch = useAppDispatch()
+  const hostedAi = useSeasonAiRuntime()
+  const seasonAi = session?.aiRuntime ?? hostedAi
   const storePlayers = useAppSelector((s) => s.game.players)
   const resolvedPlayers = players.length > 0 ? players : storePlayers
   const humanId =
@@ -204,7 +208,7 @@ export default function SnakeGame({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const snakeRef = useRef<Vec2[]>([{ x: 10, y: 10 }])
   const dirRef = useRef<Vec2>({ x: 1, y: 0 })
-  const nextDirRef = useRef<Vec2>({ x: 1, y: 0 })
+  const turnQueueRef = useRef<Vec2[]>([])
   const foodRef = useRef<Vec2>({ x: 5, y: 5 })
   /** Type of the currently active food item. */
   const foodTypeRef = useRef<FoodType>('standard')
@@ -385,7 +389,7 @@ export default function SnakeGame({
   const tick = useCallback(() => {
     if (gameOverRef.current) return
 
-    dirRef.current = nextDirRef.current
+    dirRef.current = turnQueueRef.current.shift() ?? dirRef.current
     const head = snakeRef.current[0]
     const newHead: Vec2 = {
       x: head.x + dirRef.current.x,
@@ -491,7 +495,9 @@ export default function SnakeGame({
             resolvedAiResults[id] = simulateSnakeAiScore({
               sessionSeed: session.seed,
               playerId: id,
-              profile: p?.competitionProfile ?? getDefaultCompetitionProfile(),
+              profile:
+                runtimeCompetitionProfile(seasonAi, id, p?.competitionProfile) ??
+                getDefaultCompetitionProfile(),
             })
           }
         } else {
@@ -505,7 +511,9 @@ export default function SnakeGame({
             resolvedAiResults[id] = simulateSnakeAiScore({
               sessionSeed: session.seed,
               playerId: id,
-              profile: p?.competitionProfile ?? getDefaultCompetitionProfile(),
+              profile:
+                runtimeCompetitionProfile(seasonAi, id, p?.competitionProfile) ??
+                getDefaultCompetitionProfile(),
             })
           }
         }
@@ -547,7 +555,9 @@ export default function SnakeGame({
               : simulateSnakeAiScore({
                   sessionSeed: seed,
                   playerId: id,
-                  profile: p?.competitionProfile ?? getDefaultCompetitionProfile(),
+                  profile:
+                    runtimeCompetitionProfile(seasonAi, id, p?.competitionProfile) ??
+                    getDefaultCompetitionProfile(),
                 })
 
             return {
@@ -568,12 +578,13 @@ export default function SnakeGame({
     }, 1200)
   }, [
     session,
+    beginLeaderboardReveal,
     humanId,
     resolvedPlayers,
+    seasonAi,
     participantName,
-    onFinish,
-    beginLeaderboardReveal,
     participantIds,
+    onFinish,
     seed,
   ])
 
@@ -593,7 +604,7 @@ export default function SnakeGame({
     }
     snakeRef.current = [{ x: 10, y: 10 }]
     dirRef.current = { x: 1, y: 0 }
-    nextDirRef.current = { x: 1, y: 0 }
+    turnQueueRef.current = []
     foodEatenRef.current = 0
     currentScoreRef.current = 0
     goalReachedRef.current = false
@@ -649,9 +660,18 @@ export default function SnakeGame({
   // ── Direction handling ─────────────────────────────────────────────────────
 
   const setDirection = useCallback((dir: Vec2) => {
-    // Prevent 180° reversal
-    if (dir.x === -dirRef.current.x && dir.y === -dirRef.current.y) return
-    nextDirRef.current = dir
+    if (gamePhaseRef.current !== 'playing') return false
+    const queue = turnQueueRef.current
+    const previous = queue[queue.length - 1] ?? dirRef.current
+    // Preserve two rapid corner inputs, without allowing a reversal or stale backlog.
+    if (
+      queue.length >= 2 ||
+      (dir.x === previous.x && dir.y === previous.y) ||
+      (dir.x === -previous.x && dir.y === -previous.y)
+    )
+      return false
+    queue.push(dir)
+    return true
   }, [])
 
   const handleKeyDown = useCallback(
@@ -702,19 +722,19 @@ export default function SnakeGame({
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
   }, [])
 
-  const handleTouchEnd = useCallback(
+  const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
       if (gamePhaseRef.current !== 'playing') return
-      if (!touchStartRef.current || !e.changedTouches[0]) return
+      if (!touchStartRef.current || !e.touches[0]) return
       e.preventDefault()
 
-      const dx = e.changedTouches[0].clientX - touchStartRef.current.x
-      const dy = e.changedTouches[0].clientY - touchStartRef.current.y
-      touchStartRef.current = null
+      const dx = e.touches[0].clientX - touchStartRef.current.x
+      const dy = e.touches[0].clientY - touchStartRef.current.y
 
-      const MIN_SWIPE = 30
+      const MIN_SWIPE = 14
       if (Math.abs(dx) < MIN_SWIPE && Math.abs(dy) < MIN_SWIPE) return
 
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
       if (Math.abs(dx) > Math.abs(dy)) {
         setDirection(dx > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 })
       } else {
@@ -729,11 +749,14 @@ export default function SnakeGame({
   // ── D-pad button handler ───────────────────────────────────────────────────
 
   const handleDPad = useCallback(
-    (dir: Vec2) => () => {
-      if (gamePhaseRef.current !== 'playing') return
-      setDirection(dir)
-      if (navigator.vibrate) navigator.vibrate(10)
-    },
+    (dir: Vec2) =>
+      (event: React.PointerEvent<HTMLButtonElement> | React.MouseEvent<HTMLButtonElement>) => {
+        if ('pointerType' in event) {
+          if (!event.isPrimary || event.button !== 0) return
+          event.preventDefault()
+        } else if (event.detail !== 0) return // Pointer presses are already handled on contact.
+        if (setDirection(dir) && navigator.vibrate) navigator.vibrate(10)
+      },
     [setDirection]
   )
 
@@ -801,8 +824,14 @@ export default function SnakeGame({
           <div className="snake-lcd-bezel">
             {/* Keep score and time outside the playable grid. */}
             <div className="snake-status-line" aria-live="off">
-              {currentScore} PTS&nbsp;&nbsp;{formatTime(elapsedMs)}
+              {currentScore} / {TARGET_SCORE} PTS&nbsp;&nbsp;{formatTime(elapsedMs)}
             </div>
+            <progress
+              className="snake-goal-progress"
+              aria-label="Goal progress"
+              max={TARGET_SCORE}
+              value={currentScore}
+            />
             <div
               className={[
                 'snake-lcd-container',
@@ -818,7 +847,10 @@ export default function SnakeGame({
                 width={CANVAS_PX}
                 height={CANVAS_PX}
                 onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={() => {
+                  touchStartRef.current = null
+                }}
                 onTouchCancel={() => {
                   touchStartRef.current = null
                 }}
@@ -834,8 +866,8 @@ export default function SnakeGame({
                   <p className="snake-overlay-title" aria-label="Serpentine">
                     SERPENTINE
                   </p>
-                  <p className="snake-overlay-hint">Reach 1000 pts to win!</p>
-                  <p className="snake-overlay-hint">Arrow keys or D-pad</p>
+                  <p className="snake-overlay-hint">Race to 1000 · fastest finish wins</p>
+                  <p className="snake-overlay-hint">Press arrows or swipe the board</p>
                   <button type="button" className="snake-btn snake-btn--start" onClick={startGame}>
                     START
                   </button>
@@ -863,6 +895,11 @@ export default function SnakeGame({
             </div>
           </div>
 
+          <div className="snake-food-guide" aria-label="Food guide">
+            <span>Fruit +25</span>
+            <span>Heart +75</span>
+            <span>Bug −20</span>
+          </div>
           {/* D-pad */}
           <div className="snake-dpad" role="group" aria-label="Direction controls">
             <div className="snake-dpad-row">
@@ -870,6 +907,7 @@ export default function SnakeGame({
                 type="button"
                 className="snake-dpad-btn snake-dpad-up"
                 aria-label="Up"
+                onPointerDown={handleDPad({ x: 0, y: -1 })}
                 onClick={handleDPad({ x: 0, y: -1 })}
               />
             </div>
@@ -878,13 +916,17 @@ export default function SnakeGame({
                 type="button"
                 className="snake-dpad-btn snake-dpad-left"
                 aria-label="Left"
+                onPointerDown={handleDPad({ x: -1, y: 0 })}
                 onClick={handleDPad({ x: -1, y: 0 })}
               />
-              <div className="snake-dpad-center" aria-hidden="true" />
+              <div className="snake-dpad-center" aria-hidden="true">
+                TURN
+              </div>
               <button
                 type="button"
                 className="snake-dpad-btn snake-dpad-right"
                 aria-label="Right"
+                onPointerDown={handleDPad({ x: 1, y: 0 })}
                 onClick={handleDPad({ x: 1, y: 0 })}
               />
             </div>
@@ -893,6 +935,7 @@ export default function SnakeGame({
                 type="button"
                 className="snake-dpad-btn snake-dpad-down"
                 aria-label="Down"
+                onPointerDown={handleDPad({ x: 0, y: 1 })}
                 onClick={handleDPad({ x: 0, y: 1 })}
               />
             </div>

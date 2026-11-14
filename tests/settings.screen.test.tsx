@@ -109,16 +109,16 @@ describe('Settings screen', () => {
       (element) => element.getAttribute('aria-label') ?? element.id
     )
     expect(controls.filter((name) => name !== 'setting-language')).toEqual([
-      'Toggle House Feed',
+      'Toggle Hub Feed',
       'Toggle Public Mode',
       'Toggle Reality Mode',
-      'setting-realityModePreset',
+      'Reality style',
       'Toggle Romance storylines',
       'Toggle Weekends',
-      'setting-theme-preset',
       'Toggle Compact mode',
-      'Toggle Replay tutorials',
       'Toggle Animations',
+      'Toggle Replay tutorials',
+      'Animation style',
       'Toggle Reduce Motion',
       'Toggle High Contrast',
       'Toggle Haptic Feedback',
@@ -360,25 +360,19 @@ describe('Settings screen', () => {
     expect(screen.queryByLabelText(/toggle tribunal house/i)).toBeNull()
   })
 
-  it('keeps VIP themes locked for standard users', () => {
-    const { store } = renderSettings()
-    const theme = screen.getByLabelText(/^theme$/i)
-
-    expect(screen.getByRole('option', { name: /neon.*vip/i })).toBeTruthy()
-    fireEvent.change(theme, { target: { value: 'neon' } })
-
-    expect(store.getState().settings.display.themePreset).toBe('midnight')
-    expect(
-      screen.getByText(/vip themes is available as a permanent one-time purchase/i)
-    ).toBeTruthy()
+  it.each([false, true])('omits retired theme choices with VIP active=%s', (vipActive) => {
+    renderSettings(['/settings'], vipActive)
+    expect(screen.queryByLabelText(/^theme$/i)).toBeNull()
+    expect(screen.queryByRole('option', { name: /neon|sunset|ocean|surveyeval/i })).toBeNull()
   })
 
-  it('allows a VIP owner to select a VIP theme', () => {
-    const { store } = renderSettings(['/settings'], true)
-    fireEvent.change(screen.getByLabelText(/^theme$/i), { target: { value: 'neon' } })
-
-    expect(store.getState().settings.display.themePreset).toBe('neon')
-    expect(screen.queryByRole('dialog')).toBeNull()
+  it('omits retired themes from Advanced Settings while keeping accessibility controls', () => {
+    renderSettingsAdmin()
+    fireEvent.click(screen.getByRole('tab', { name: /display/i }))
+    expect(
+      screen.queryByRole('button', { name: /midnight|neon|sunset|ocean|surveyeval/i })
+    ).toBeNull()
+    expect(screen.getByLabelText(/reduce motion/i)).toBeTruthy()
   })
 
   it('shows the renamed brand and twist copy in the UI', async () => {

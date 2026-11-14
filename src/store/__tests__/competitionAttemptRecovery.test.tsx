@@ -16,7 +16,11 @@ import socialReducer from '../../social/socialSlice'
 import { store as baseline, type RootState } from '../store'
 import { createSavedSeasonSnapshot } from '../saveStatePersistence'
 import { getGame, getPoolByFilter } from '../../minigames/registry'
-import { createAbandonedChallengeResult } from '../challengeResults'
+import {
+  createAbandonedChallengeResult,
+  isCurrentChallengeResolution,
+  recoverCommittedChallengeResult,
+} from '../challengeResults'
 import { createInitialVoxPopuliState } from '../../features/twists/voxPopuli'
 import { createCupidArrowPairs } from '../../features/twists/cupidArrow'
 import { createSurvivorModeState } from '../../modes/survivorRun'
@@ -138,6 +142,44 @@ function winningResult(state: RootState): CompetitionResult {
 }
 
 describe('durable competition attempts', () => {
+  it('matches recovered awards to the exact current run and attempt', () => {
+    const state = fixture('classic', 'loh_comp')
+    const challenge = state.challenge.pending!
+    challenge.attempt = { number: 1, status: 'playing' }
+    const winnerId = challenge.participants[1]
+    state.game.phase = 'loh_results'
+    state.game.lohId = winnerId
+
+    expect(isCurrentChallengeResolution(challenge, state.game)).toBe(false)
+    expect(recoverCommittedChallengeResult(challenge, state.game)).toBeNull()
+
+    state.game.lastCompetitionResolution = {
+      runId: `${challenge.id}:old`,
+      gameKey: challenge.game.key,
+      week: challenge.origin!.week,
+      gameId: challenge.origin!.gameId,
+      originPhase: challenge.origin!.phase,
+      attemptNumber: 0,
+      prizeType: 'LOH',
+      participants: [...challenge.participants],
+      status: 'completed',
+      winnerId,
+      humanScore: 30,
+    }
+    expect(isCurrentChallengeResolution(challenge, state.game)).toBe(false)
+    expect(recoverCommittedChallengeResult(challenge, state.game)).toBeNull()
+
+    state.game.lastCompetitionResolution = {
+      ...state.game.lastCompetitionResolution,
+      runId: challenge.id,
+      attemptNumber: 1,
+    }
+    expect(isCurrentChallengeResolution(challenge, state.game)).toBe(true)
+    expect(
+      recoverCommittedChallengeResult(challenge, state.game)?.completion?.authoritativeWinnerId
+    ).toBe(winnerId)
+  })
+
   it.each(['rules', 'demo', 'countdown'] as const)(
     'does not consume a pregame %s screen or infer a penalty for a legacy save',
     (phase) => {

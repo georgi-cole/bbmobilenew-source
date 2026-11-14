@@ -1,3 +1,6 @@
+import { SeasonAiContext } from '../../ai/competition/SeasonAiContext'
+import type { SeasonAiRuntime } from '../../ai/competition/seasonAiDifficulty'
+import type { CompetitionSkillProfile } from '../../ai/competition/types'
 // MODULE: src/components/MinigameHost/MinigameHost.tsx
 // Full-screen host for minigames (legacy and React-implemented).
 //
@@ -20,6 +23,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { MinigamePortalContext } from './minigamePortal'
 import { isPlacementRankingGame, type GameRegistryEntry } from '../../minigames/registry'
 import { resolvePremiumGameForAccess } from '../../minigames/premiumGameAccess'
 import {
@@ -67,6 +71,7 @@ import type { HouseOfCardsPrizeType } from '../../features/houseOfCards/houseOfC
 import type { MemoryColorsCompetitionType } from '../../features/memoryColors/memoryColorsSlice'
 import reactComponents, { preloadReactMinigame } from '../../minigames/reactComponents'
 import { resetHostedMinigameState } from '../../minigames/resetHostedMinigameState'
+import { selectCompetitionLastPlaceIds } from './competitionRetryEligibility'
 import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
 import './MinigameHost.css'
 
@@ -145,9 +150,11 @@ export interface MinigameParticipant {
   precomputedScore: number
   /** Previous personal-record value for this game, using the game's native metric. */
   previousPR: number | null
+  competitionProfile?: CompetitionSkillProfile
 }
 
 interface Props {
+  aiRuntime?: SeasonAiRuntime
   game: GameRegistryEntry
   /** Options forwarded to the legacy module (e.g. seed, timeLimit). */
   gameOptions?: Record<string, unknown>
@@ -194,6 +201,7 @@ function fmtOrdinal(value: number): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function MinigameHost({
+  aiRuntime,
   game,
   gameOptions = {},
   onDone,
@@ -205,6 +213,18 @@ export default function MinigameHost({
   participants,
   competitionRetry,
 }: Props) {
+  const [gamePortalTarget] = useState(() => {
+    const target = document.createElement('div')
+    target.className = 'minigame-host-portal-target'
+    return target
+  })
+  const attachGamePortal = useCallback(
+    (container: HTMLDivElement | null) => {
+      if (container) container.appendChild(gamePortalTarget)
+      else gamePortalTarget.remove()
+    },
+    [gamePortalTarget]
+  )
   const sessionId = typeof gameOptions.sessionId === 'string' ? gameOptions.sessionId : game.key
   const savedChallenge = useSyncExternalStore(store.subscribe, () => {
     const pending = store.getState().challenge.pending
@@ -587,12 +607,37 @@ export default function MinigameHost({
 
   const handleComplete = useCallback(
     (result: LegacyRawResult) => {
+      // Legacy score games report only the human metric. Their other metrics
+      // were already simulated at launch; preserve that complete score receipt
+      // for retry eligibility instead of inferring placements from row order.
+      const completion: ReactMinigameCompletion | undefined =
+        participants?.some((participant) => participant.id === competitionHumanId) &&
+        participants.every((participant) => Number.isFinite(participant.precomputedScore)) &&
+        Number.isFinite(result.value) &&
+        game.scoringAdapter !== 'authoritative' &&
+        !isPlacementRankingGame(game)
+          ? {
+              rawResults: Object.fromEntries(
+                participants.map((participant) => [
+                  participant.id,
+                  participant.id === competitionHumanId
+                    ? result.value
+                    : participant.precomputedScore,
+                ])
+              ),
+            }
+          : undefined
       setFinalValue(result.value)
+      setFinalCompletion(completion ?? null)
       setWasPartial(false)
       setPhase('results')
-      void checkpointResult({ rawValue: result.value, partial: false })
+      void checkpointResult({
+        rawValue: result.value,
+        partial: false,
+        ...(completion ? { completion } : {}),
+      })
     },
-    [checkpointResult]
+    [checkpointResult, participants, competitionHumanId, game]
   )
 
   const handleQuit = useCallback(
@@ -605,35 +650,20 @@ export default function MinigameHost({
     [checkpointResult]
   )
 
-  const getReportedLastPlaceId = useCallback(
-    (completion?: ReactMinigameCompletion) => {
-      if (completion?.authoritativeLastPlaceIds?.length)
-        return completion.authoritativeLastPlaceIds[0]
-      if (completion?.authoritativeLastPlaceId) return completion.authoritativeLastPlaceId
-      if (!completion?.rawResults || !participants?.length) return null
-
-      const ranked = [...participants]
-        .map((participant) => ({
-          id: participant.id,
-          score: completion.rawResults?.[participant.id] ?? participant.precomputedScore,
-        }))
-        .sort((a, b) =>
-          game.scoringAdapter === 'lowerBetter' ? a.score - b.score : b.score - a.score
-        )
-      return ranked[ranked.length - 1]?.id ?? null
-    },
+  const getReportedLastPlaceIds = useCallback(
+    (completion?: ReactMinigameCompletion) =>
+      selectCompetitionLastPlaceIds(
+        completion,
+        participants,
+        game.scoringAdapter === 'lowerBetter'
+      ),
     [game.scoringAdapter, participants]
   )
 
   const handleReactComplete = useCallback(
     (completion?: ReactMinigameCompletion, fallbackValue = 1, fallbackTiebreakerMs?: number) => {
       const humanId = participants?.find((participant) => participant.isHuman)?.id
-      const lastPlaceId = getReportedLastPlaceId(completion)
-      const lastPlaceIds = completion?.authoritativeLastPlaceIds?.length
-        ? completion.authoritativeLastPlaceIds
-        : lastPlaceId
-          ? [lastPlaceId]
-          : []
+      const lastPlaceIds = getReportedLastPlaceIds(completion)
 
       // Feature-owned placement games can provide their final standings before
       // a season result has been applied. Keep the outcome inside the host when
@@ -657,7 +687,7 @@ export default function MinigameHost({
     [
       checkpointResult,
       competitionRetryEnabled,
-      getReportedLastPlaceId,
+      getReportedLastPlaceIds,
       participants,
       reportDoneOnce,
     ]
@@ -757,8 +787,15 @@ export default function MinigameHost({
     wasPartial,
   ])
 
-  const humanLastPlaceEntry = leaderboard?.[leaderboard.length - 1] ?? null
-  const showCompetitionRetry = competitionRetryEnabled && !!humanLastPlaceEntry?.isHuman
+  const humanParticipant = participants?.find((participant) => participant.isHuman)
+  const lastPlaceEligible =
+    wasPartial ||
+    Boolean(
+      finalCompletion &&
+      humanParticipant &&
+      getReportedLastPlaceIds(finalCompletion).includes(humanParticipant.id)
+    )
+  const showCompetitionRetry = competitionRetryEnabled && lastPlaceEligible
   const activeCompetitionRetry = showCompetitionRetry && competitionRetry ? competitionRetry : null
   const showOrganicLastPlace = showCompetitionRetry && !wasPartial
   const showTimeMachineResults = wasPartial || showOrganicLastPlace
@@ -1035,7 +1072,8 @@ export default function MinigameHost({
       if (import.meta.env.DEV) {
         console.log('HOUSE_OF_CARDS_NEW_SESSION', {
           source: 'MinigameHost',
-          challengeSeedIgnored: isLabPreview ? undefined : seed,
+          attemptSeed: seed,
+          attemptNumber: attempt,
           labSeed: isLabPreview ? seed : undefined,
           participantIds,
           prizeType: gameOptions?.prizeType ?? 'LOH',
@@ -1046,7 +1084,8 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as HouseOfCardsPrizeType) ?? 'LOH'}
-          seed={isLabPreview ? seed : undefined}
+          seed={seed}
+          attemptNumber={attempt}
           premiumPresentation={usePremiumPresentation}
           previewStage={
             import.meta.env.DEV && gameOptions?.previewStage === 'final' ? 'final' : undefined
@@ -1240,360 +1279,369 @@ export default function MinigameHost({
 
   if (!isOwner) return null
 
-  // AppShell's main content begins below the safe-area status row. Mounting
-  // there leaves that row showing the previous screen during a minigame.
-  // The shell itself spans the full handset while retaining the phone-width
-  // preview boundary on desktop.
+  // Cover the full shell, then keep every game inside one measured safe-area
+  // viewport. This includes games with fixed-position controls and result cards.
   const appShell =
     typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.app-shell')
   const host = (
-    <div
-      className={[
-        'minigame-host',
-        launchedGame.reactComponentKey === 'NumberTrivia' ||
-        launchedGame.reactComponentKey === 'SnakeGame' ||
-        launchedGame.reactComponentKey === 'BlackjackTournament' ||
-        launchedGame.reactComponentKey === 'MysticChamber' ||
-        launchedGame.reactComponentKey === 'ChainOfGreed'
-          ? 'minigame-host--scrollable-game'
-          : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${launchedGame.title} minigame`}
-    >
-      {(savingCheckpoint || checkpointError) && (
-        <div
-          className={`minigame-host-checkpoint${checkpointError ? ' minigame-host-checkpoint--error' : ''}`}
-          role={checkpointError ? 'alert' : 'status'}
-          aria-live="polite"
-        >
-          <span>
-            {checkpointError ? 'Could not save this competition yet.' : 'Saving competition…'}
-          </span>
-          {checkpointError && retryCheckpointRef.current && (
-            <button type="button" onClick={() => retryCheckpointRef.current?.()}>
-              Retry save
-            </button>
-          )}
-        </div>
-      )}
-
-      {phase !== 'results' &&
-        phase !== 'demo' &&
-        utilityView !== 'rules' &&
-        utilityView !== 'exit' && (
-          <MinigameUtilityDock
-            phase={phase}
-            menuOpen={utilityView === 'menu'}
-            onToggleMenu={() => setUtilityView((current) => (current === 'menu' ? null : 'menu'))}
-            onCloseMenu={() => setUtilityView(null)}
-            onOpenRules={() => setUtilityView('rules')}
-            onRequestExit={() => setUtilityView('exit')}
-            exitAvailable={!hasFinishedSavedAttempt}
-          />
+    <div className="minigame-stage">
+      <div
+        className={[
+          'minigame-host',
+          launchedGame.reactComponentKey === 'NumberTrivia' ||
+          launchedGame.reactComponentKey === 'SnakeGame' ||
+          launchedGame.reactComponentKey === 'BlackjackTournament' ||
+          launchedGame.reactComponentKey === 'MysticChamber' ||
+          launchedGame.reactComponentKey === 'ChainOfGreed'
+            ? 'minigame-host--scrollable-game'
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${launchedGame.title} minigame`}
+      >
+        {(savingCheckpoint || checkpointError) && (
+          <div
+            className={`minigame-host-checkpoint${checkpointError ? ' minigame-host-checkpoint--error' : ''}`}
+            role={checkpointError ? 'alert' : 'status'}
+            aria-live="polite"
+          >
+            <span>
+              {checkpointError ? 'Could not save this competition yet.' : 'Saving competition…'}
+            </span>
+            {checkpointError && retryCheckpointRef.current && (
+              <button type="button" onClick={() => retryCheckpointRef.current?.()}>
+                Retry save
+              </button>
+            )}
+          </div>
         )}
 
-      {phase === 'rules' && (
-        <MinigameRules
-          game={rulesGame}
-          onConfirm={handleRulesConfirm}
-          onSkip={skipRules ? handleRulesConfirm : undefined}
-        />
-      )}
-
-      {phase === 'demo' && (
-        <div
-          className="minigame-host-demo"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${launchedGame.title} example turn`}
-        >
-          <div className="minigame-host-demo__card">
-            <p className="minigame-host-demo__kicker">Demo</p>
-            <h2>Try it yourself</h2>
-            <p className="minigame-host-demo__copy">Follow the glow and make one choice.</p>
-            <MinigameTurnDemo
-              gameKey={rulesGame.key}
-              title={rulesGame.title}
-              guided={!demoTried}
-              onInteraction={() => setDemoTried(true)}
+        {phase !== 'results' &&
+          phase !== 'demo' &&
+          utilityView !== 'rules' &&
+          utilityView !== 'exit' && (
+            <MinigameUtilityDock
+              phase={phase}
+              menuOpen={utilityView === 'menu'}
+              onToggleMenu={() => setUtilityView((current) => (current === 'menu' ? null : 'menu'))}
+              onCloseMenu={() => setUtilityView(null)}
+              onOpenRules={() => setUtilityView('rules')}
+              onRequestExit={() => setUtilityView('exit')}
+              exitAvailable={!hasFinishedSavedAttempt}
             />
-            <button
-              className="minigame-host-demo__start"
-              onClick={handleDemoConfirm}
-              disabled={!demoTried}
-              autoFocus
-            >
-              {demoTried ? 'Got it' : 'Try it yourself first'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {phase === 'countdown' && (
-        <div className="minigame-host-ready">
-          <span className="minigame-host-ready-label">Get Ready</span>
-          <span className="minigame-host-ready-game">{launchedGame.title}</span>
-          {countdown > 0 ? (
-            <span className="minigame-host-ready-count" key={countdown}>
-              {countdown}
-            </span>
-          ) : (
-            <span className="minigame-host-ready-go">GO!</span>
           )}
-        </div>
-      )}
 
-      {phase === 'playing' && (
-        <div
-          className={[
-            'minigame-host-playing',
-            launchedGame.reactComponentKey === 'NumberTrivia'
-              ? 'minigame-host-playing--number-trivia'
-              : '',
-            launchedGame.reactComponentKey === 'SnakeGame' ? 'minigame-host-playing--snake' : '',
-            launchedGame.reactComponentKey === 'BlackjackTournament'
-              ? 'minigame-host-playing--blackjack'
-              : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          key={`${sessionId}:${attempt}`}
-        >
-          <CompetitionResultContext.Provider value={checkpointResult}>
-            <Suspense
-              fallback={
-                <div className="minigame-host-loading" role="status" aria-live="polite">
-                  Preparing {launchedGame.title}…
-                </div>
-              }
-            >
-              {renderActiveGame()}
-            </Suspense>
-          </CompetitionResultContext.Provider>
-        </div>
-      )}
-
-      {utilityView === 'rules' &&
-        phase !== 'results' &&
-        (quickTapVipEnabled ? (
-          createPortal(
-            <div style={{ position: 'fixed', inset: 0, zIndex: 9800 }}>
-              <MinigameRules
-                game={rulesGame}
-                mode="reference"
-                confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
-                onConfirm={() => setUtilityView(null)}
-              />
-            </div>,
-            document.body
-          )
-        ) : (
+        {phase === 'rules' && (
           <MinigameRules
             game={rulesGame}
-            mode="reference"
-            confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
-            onConfirm={() => setUtilityView(null)}
+            onConfirm={handleRulesConfirm}
+            onSkip={skipRules ? handleRulesConfirm : undefined}
           />
-        ))}
-
-      {utilityView === 'exit' &&
-        phase !== 'results' &&
-        createPortal(
-          <div
-            className={`minigame-exit-confirm-overlay${
-              launchedGame.reactComponentKey === 'GatesOfTheEye'
-                ? ' minigame-exit-confirm-overlay--obsidian'
-                : ''
-            }`}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Leave competition confirmation"
-          >
-            <div className="minigame-exit-confirm">
-              <p className="minigame-exit-confirm__eyebrow">Emergency exit</p>
-              <h2 className="minigame-exit-confirm__title">Leave this competition?</h2>
-              <p className="minigame-exit-confirm__copy">
-                Your score will be recorded as 0. The remaining results will be simulated so the
-                season can continue and a winner can still be selected.
-              </p>
-              <div className="minigame-exit-confirm__actions">
-                <button
-                  type="button"
-                  className="minigame-exit-confirm__button minigame-exit-confirm__button--keep"
-                  onClick={() => setUtilityView(null)}
-                  autoFocus
-                >
-                  Keep playing
-                </button>
-                <button
-                  type="button"
-                  className="minigame-exit-confirm__button minigame-exit-confirm__button--exit"
-                  onClick={handleConfirmEarlyExit}
-                >
-                  Exit with 0
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
         )}
 
-      {phase === 'results' && (
-        <div
-          className={`minigame-host-results ${showTimeMachineResults ? 'minigame-host-results--timeline' : ''}`}
-        >
-          {showTimeMachineResults && (
-            <div className="minigame-host-results-rift" aria-hidden="true" />
-          )}
-          {showTimeMachineResults && (
-            <button
-              type="button"
-              className="minigame-host-results-close"
-              aria-label="Close results"
-              disabled={savingCheckpoint || checkpointError}
-              onClick={() => {
-                if (showCompetitionRetry) competitionRetry?.onContinueWithoutRetry?.()
-                handleContinue()
-              }}
-            >
-              ×
-            </button>
-          )}
-          {showTimeMachineResults && (
-            <p className="minigame-host-results-kicker">
-              {showOrganicLastPlace ? 'Alternative universe' : 'Temporal rupture'}
-            </p>
-          )}
-          <h2 className="minigame-host-results-title">
-            {showOrganicLastPlace ? 'Is this real?' : wasPartial ? 'Exited early' : '🏁 Finished!'}
-          </h2>
-          {showTimeMachineResults && (
-            <div className="minigame-host-results-divider" aria-hidden="true">
-              <span />
-            </div>
-          )}
-
-          {leaderboard ? (
-            <>
-              {showTimeMachineResults && (
-                <p className="minigame-host-results-alternate-timeline">
-                  {showOrganicLastPlace
-                    ? "A time shift seems to have opened an alternative universe, because somehow you finished last. You're definitely not a loser, so this must be a temporal rift. Use the time machine to set things straight."
-                    : 'You slipped out of the timeline. While you were gone, the competition resolved in an alternate universe.'}
-                </p>
-              )}
-              <p
-                className={`minigame-host-results-winner ${showTimeMachineResults ? 'minigame-host-results-winner--timeline' : ''}`}
-              >
-                {showTimeMachineResults && (
-                  <span className="minigame-host-results-trophy" aria-hidden="true">
-                    🏆
-                  </span>
-                )}
-                <span>
-                  {leaderboard[0]?.name ?? 'Unknown'} wins
-                  {leaderboard[0]?.isHuman ? " — that's you!" : '!'}
-                </span>
-              </p>
-              <ol className="minigame-host-leaderboard">
-                {leaderboard.map((entry, i) => (
-                  <li
-                    key={entry.id}
-                    className={[
-                      'minigame-host-leaderboard-entry',
-                      entry.isHuman ? 'minigame-host-leaderboard-entry--you' : '',
-                      i === 0 ? 'minigame-host-leaderboard-entry--winner' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                  >
-                    <span className="minigame-host-leaderboard-rank" aria-hidden="true">
-                      {MEDALS[i] ?? `${i + 1}.`}
-                    </span>
-                    <span className="minigame-host-leaderboard-name">
-                      {entry.name}
-                      {entry.isHuman && (
-                        <span className="minigame-host-leaderboard-you"> (You)</span>
-                      )}
-                    </span>
-                    <span className="minigame-host-leaderboard-score">
-                      {rankingOnly ? (
-                        <>
-                          {game.metricLabel}: <strong>{fmtOrdinal(i + 1)}</strong>
-                        </>
-                      ) : (
-                        <>
-                          {game.metricLabel}: <strong>{fmtScore(entry.score)}</strong>
-                        </>
-                      )}
-                      {!rankingOnly && entry.isPR && (
-                        <span className="minigame-host-leaderboard-pr" title="Personal Record!">
-                          {' '}
-                          🏅 PR
-                        </span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </>
-          ) : (
-            <p className="minigame-host-results-score">
-              {game.metricLabel}: <strong>{fmtScore(finalValue ?? 0)}</strong>
-              {wasPartial && ' (partial)'}
-            </p>
-          )}
-
-          <div className="minigame-host-results-actions">
-            {activeCompetitionRetry && (
-              <div
-                className="minigame-host-results-retry"
-                role="group"
-                aria-label="Competition retry"
-              >
-                <button
-                  className="minigame-host-results-btn minigame-host-results-btn--retry"
-                  onClick={() => activeCompetitionRetry.onWatch(handleRetryRestart)}
-                  disabled={activeCompetitionRetry.pending || savingCheckpoint || checkpointError}
-                  autoFocus
-                >
-                  {activeCompetitionRetry.pending ? (
-                    'Opening Ad…'
-                  ) : (
-                    <>
-                      <span className="minigame-host-results-rewind" aria-hidden="true">
-                        ◀◀
-                      </span>
-                      Reverse time
-                    </>
-                  )}
-                </button>
-                <p className="minigame-host-results-retry-copy">
-                  Watch a short ad to retry before this result is locked in.
-                </p>
-              </div>
-            )}
-
-            {(!showTimeMachineResults || !showCompetitionRetry) && (
+        {phase === 'demo' && (
+          <div
+            className="minigame-host-demo"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${launchedGame.title} example turn`}
+          >
+            <div className="minigame-host-demo__card">
+              <p className="minigame-host-demo__kicker">Demo</p>
+              <h2>Try it yourself</h2>
+              <p className="minigame-host-demo__copy">Follow the glow and make one choice.</p>
+              <MinigameTurnDemo
+                gameKey={rulesGame.key}
+                title={rulesGame.title}
+                guided={!demoTried}
+                onInteraction={() => setDemoTried(true)}
+              />
               <button
-                className="minigame-host-results-btn"
+                className="minigame-host-demo__start"
+                onClick={handleDemoConfirm}
+                disabled={!demoTried}
+                autoFocus
+              >
+                {demoTried ? 'Got it' : 'Try it yourself first'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {phase === 'countdown' && (
+          <div className="minigame-host-ready">
+            <span className="minigame-host-ready-label">Get Ready</span>
+            <span className="minigame-host-ready-game">{launchedGame.title}</span>
+            {countdown > 0 ? (
+              <span className="minigame-host-ready-count" key={countdown}>
+                {countdown}
+              </span>
+            ) : (
+              <span className="minigame-host-ready-go">GO!</span>
+            )}
+          </div>
+        )}
+
+        {phase === 'playing' && (
+          <div
+            ref={attachGamePortal}
+            className={[
+              'minigame-host-playing',
+              launchedGame.reactComponentKey === 'NumberTrivia'
+                ? 'minigame-host-playing--number-trivia'
+                : '',
+              launchedGame.reactComponentKey === 'SnakeGame' ? 'minigame-host-playing--snake' : '',
+              launchedGame.reactComponentKey === 'BlackjackTournament'
+                ? 'minigame-host-playing--blackjack'
+                : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            key={`${sessionId}:${attempt}`}
+          >
+            <MinigamePortalContext.Provider value={gamePortalTarget}>
+              <CompetitionResultContext.Provider value={checkpointResult}>
+                <SeasonAiContext.Provider value={aiRuntime}>
+                  <Suspense
+                    fallback={
+                      <div className="minigame-host-loading" role="status" aria-live="polite">
+                        Preparing {launchedGame.title}…
+                      </div>
+                    }
+                  >
+                    {renderActiveGame()}
+                  </Suspense>
+                </SeasonAiContext.Provider>
+              </CompetitionResultContext.Provider>
+            </MinigamePortalContext.Provider>
+          </div>
+        )}
+
+        {utilityView === 'rules' &&
+          phase !== 'results' &&
+          (quickTapVipEnabled ? (
+            createPortal(
+              <div style={{ position: 'fixed', inset: 0, zIndex: 9800 }}>
+                <MinigameRules
+                  game={rulesGame}
+                  mode="reference"
+                  confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
+                  onConfirm={() => setUtilityView(null)}
+                />
+              </div>,
+              document.body
+            )
+          ) : (
+            <MinigameRules
+              game={rulesGame}
+              mode="reference"
+              confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
+              onConfirm={() => setUtilityView(null)}
+            />
+          ))}
+
+        {utilityView === 'exit' &&
+          phase !== 'results' &&
+          createPortal(
+            <div
+              className={`minigame-exit-confirm-overlay${
+                launchedGame.reactComponentKey === 'GatesOfTheEye'
+                  ? ' minigame-exit-confirm-overlay--obsidian'
+                  : ''
+              }`}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Leave competition confirmation"
+            >
+              <div className="minigame-exit-confirm">
+                <p className="minigame-exit-confirm__eyebrow">Emergency exit</p>
+                <h2 className="minigame-exit-confirm__title">Leave this competition?</h2>
+                <p className="minigame-exit-confirm__copy">
+                  Your score will be recorded as 0. The remaining results will be simulated so the
+                  season can continue and a winner can still be selected.
+                </p>
+                <div className="minigame-exit-confirm__actions">
+                  <button
+                    type="button"
+                    className="minigame-exit-confirm__button minigame-exit-confirm__button--keep"
+                    onClick={() => setUtilityView(null)}
+                    autoFocus
+                  >
+                    Keep playing
+                  </button>
+                  <button
+                    type="button"
+                    className="minigame-exit-confirm__button minigame-exit-confirm__button--exit"
+                    onClick={handleConfirmEarlyExit}
+                  >
+                    Exit with 0
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+
+        {phase === 'results' && (
+          <div
+            className={`minigame-host-results ${showTimeMachineResults ? 'minigame-host-results--timeline' : ''}`}
+          >
+            {showTimeMachineResults && (
+              <div className="minigame-host-results-rift" aria-hidden="true" />
+            )}
+            {showTimeMachineResults && (
+              <button
+                type="button"
+                className="minigame-host-results-close"
+                aria-label="Close results"
                 disabled={savingCheckpoint || checkpointError}
                 onClick={() => {
                   if (showCompetitionRetry) competitionRetry?.onContinueWithoutRetry?.()
                   handleContinue()
                 }}
-                {...(!showCompetitionRetry ? { autoFocus: true } : {})}
               >
-                {showCompetitionRetry ? 'No Thanks — Continue ▶' : 'Continue ▶'}
+                ×
               </button>
             )}
+            {showTimeMachineResults && (
+              <p className="minigame-host-results-kicker">
+                {showOrganicLastPlace ? 'Alternative universe' : 'Temporal rupture'}
+              </p>
+            )}
+            <h2 className="minigame-host-results-title">
+              {showOrganicLastPlace
+                ? 'Is this real?'
+                : wasPartial
+                  ? 'Exited early'
+                  : '🏁 Finished!'}
+            </h2>
+            {showTimeMachineResults && (
+              <div className="minigame-host-results-divider" aria-hidden="true">
+                <span />
+              </div>
+            )}
+
+            {leaderboard ? (
+              <>
+                {showTimeMachineResults && (
+                  <p className="minigame-host-results-alternate-timeline">
+                    {showOrganicLastPlace
+                      ? "A time shift seems to have opened an alternative universe, because somehow you finished last. You're definitely not a loser, so this must be a temporal rift. Use the time machine to set things straight."
+                      : 'You slipped out of the timeline. While you were gone, the competition resolved in an alternate universe.'}
+                  </p>
+                )}
+                <p
+                  className={`minigame-host-results-winner ${showTimeMachineResults ? 'minigame-host-results-winner--timeline' : ''}`}
+                >
+                  {showTimeMachineResults && (
+                    <span className="minigame-host-results-trophy" aria-hidden="true">
+                      🏆
+                    </span>
+                  )}
+                  <span>
+                    {leaderboard[0]?.name ?? 'Unknown'} wins
+                    {leaderboard[0]?.isHuman ? " — that's you!" : '!'}
+                  </span>
+                </p>
+                <ol className="minigame-host-leaderboard">
+                  {leaderboard.map((entry, i) => (
+                    <li
+                      key={entry.id}
+                      className={[
+                        'minigame-host-leaderboard-entry',
+                        entry.isHuman ? 'minigame-host-leaderboard-entry--you' : '',
+                        i === 0 ? 'minigame-host-leaderboard-entry--winner' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                    >
+                      <span className="minigame-host-leaderboard-rank" aria-hidden="true">
+                        {MEDALS[i] ?? `${i + 1}.`}
+                      </span>
+                      <span className="minigame-host-leaderboard-name">
+                        {entry.name}
+                        {entry.isHuman && (
+                          <span className="minigame-host-leaderboard-you"> (You)</span>
+                        )}
+                      </span>
+                      <span className="minigame-host-leaderboard-score">
+                        {rankingOnly ? (
+                          <>
+                            {game.metricLabel}: <strong>{fmtOrdinal(i + 1)}</strong>
+                          </>
+                        ) : (
+                          <>
+                            {game.metricLabel}: <strong>{fmtScore(entry.score)}</strong>
+                          </>
+                        )}
+                        {!rankingOnly && entry.isPR && (
+                          <span className="minigame-host-leaderboard-pr" title="Personal Record!">
+                            {' '}
+                            🏅 PR
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            ) : (
+              <p className="minigame-host-results-score">
+                {game.metricLabel}: <strong>{fmtScore(finalValue ?? 0)}</strong>
+                {wasPartial && ' (partial)'}
+              </p>
+            )}
+
+            <div className="minigame-host-results-actions">
+              {activeCompetitionRetry && (
+                <div
+                  className="minigame-host-results-retry"
+                  role="group"
+                  aria-label="Competition retry"
+                >
+                  <button
+                    className="minigame-host-results-btn minigame-host-results-btn--retry"
+                    onClick={() => activeCompetitionRetry.onWatch(handleRetryRestart)}
+                    disabled={activeCompetitionRetry.pending || savingCheckpoint || checkpointError}
+                    autoFocus
+                  >
+                    {activeCompetitionRetry.pending ? (
+                      'Opening Ad…'
+                    ) : (
+                      <>
+                        <span className="minigame-host-results-rewind" aria-hidden="true">
+                          ◀◀
+                        </span>
+                        Reverse time
+                      </>
+                    )}
+                  </button>
+                  <p className="minigame-host-results-retry-copy">
+                    Watch a short ad to retry before this result is locked in.
+                  </p>
+                </div>
+              )}
+
+              {(!showTimeMachineResults || !showCompetitionRetry) && (
+                <button
+                  className="minigame-host-results-btn"
+                  disabled={savingCheckpoint || checkpointError}
+                  onClick={() => {
+                    if (showCompetitionRetry) competitionRetry?.onContinueWithoutRetry?.()
+                    handleContinue()
+                  }}
+                  {...(!showCompetitionRetry ? { autoFocus: true } : {})}
+                >
+                  {showCompetitionRetry ? 'No Thanks — Continue ▶' : 'Continue ▶'}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 

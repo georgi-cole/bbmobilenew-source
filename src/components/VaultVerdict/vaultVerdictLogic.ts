@@ -920,6 +920,7 @@ export function signVerdict(contestant: VaultContestantState, finishTimeMs: numb
 }
 
 function shouldAiAcceptOffer(options: {
+  capability?: number;
   contestant: VaultContestantState;
   offer: number;
   expectedValue: number;
@@ -940,7 +941,7 @@ function shouldAiAcceptOffer(options: {
   if (personality === 'greedy') threshold += 0.2;
   if (personality === 'show-off' && luckyRound) threshold += 0.13;
   if (personality === 'panic' && hitTopThisRound) threshold -= 0.18;
-  if (personality === 'chaotic') threshold += rng() * 0.38 - 0.18;
+  if (personality === 'chaotic') threshold += (rng() * 0.38 - 0.18) / (options.capability ?? 1);
   if (topStillHidden >= 3) threshold += 0.07;
   if (round >= 6) threshold -= 0.08;
   return offerRatio >= clamp(threshold, 0.45, 1.26) || (round >= 7 && offerRatio >= 0.94 && rng() < 0.48);
@@ -998,6 +999,7 @@ export function simulateAiContestant(
   contestant: VaultContestantState,
   seed: number,
   totalContestants: number,
+  capability = 1,
 ): VaultContestantState {
   const rng = mulberry32(mixSeed(seed, `${contestant.contestantId}:ai`));
   let state = choosePersonalVault(contestant, pick(rng, contestant.vaults).vaultId);
@@ -1073,7 +1075,7 @@ export function simulateAiContestant(
     }
 
     const latestOffer = state.offerHistory[state.offerHistory.length - 1]!;
-    const accepted = shouldAiAcceptOffer({
+    const accepted = shouldAiAcceptOffer({ capability,
       contestant: state,
       offer: latestOffer.offer,
       expectedValue: latestOffer.expectedValue,

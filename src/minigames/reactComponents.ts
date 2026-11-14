@@ -70,6 +70,7 @@ export interface GenericMinigameProps {
     avatar?: string
     precomputedScore: number
     previousPR: number | null
+    competitionProfile?: import('../ai/competition/types').CompetitionSkillProfile
   }>
   /** Relationship state used by games with social target selection. */
   relationships?: RelationshipsMap

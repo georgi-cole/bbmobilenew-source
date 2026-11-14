@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 /**
  * FamousFiguresComp — React UI for the "Famous Figures" competition.
  *
@@ -31,7 +32,9 @@ import type {
   FamousFiguresState,
   FamousFiguresPrizeType,
 } from '../../features/famousFigures/famousFiguresSlice'
+import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import { resolveFamousFiguresOutcome } from '../../features/famousFigures/thunks'
+import { explainFamousFiguresTies, rankFamousFigures } from '../../features/famousFigures/standings'
 import { mulberry32 } from '../../store/rng'
 import { getDicebear, resolveAvatar } from '../../utils/avatar'
 import { isAcceptedGuess, normalizeForMatching } from '../../games/famous-figures/fuzzy'
@@ -138,12 +141,32 @@ type PendingAiTimeout = {
   round: number
 }
 
+function buildFamousFiguresCompletion(
+  state: FamousFiguresState,
+  participantIds: string[]
+): ReactMinigameCompletion {
+  const authoritativeRankedIds = rankFamousFigures(
+    participantIds,
+    state.playerScores,
+    state.playerRoundScores,
+    state.tieBreakOrder
+  )
+  return {
+    authoritativeWinnerId: state.winnerId,
+    authoritativeLastPlaceId: authoritativeRankedIds.at(-1) ?? null,
+    authoritativeRankedIds,
+    authoritativeTiedGroups: [],
+    rawResults: state.playerScores,
+    lastPlaceType: 'scored',
+  }
+}
+
 interface Props {
   participantIds: string[]
   participants?: ParticipantProp[]
   prizeType: FamousFiguresPrizeType
   seed: number
-  onComplete?: () => void
+  onComplete?: (completion?: ReactMinigameCompletion) => void
   /**
    * When true (default), skip the winner animation on match completion and
    * show the final scoreboard immediately instead. The `onComplete` callback
@@ -173,6 +196,7 @@ export default function FamousFiguresComp({
   revealPauseMs = DEFAULT_REVEAL_PAUSE_MS,
   avoidRecentFigures = true,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   // Guard: the reveal pause must always be positive to prevent visual jank.
   const safeRevealPauseMs = revealPauseMs > 0 ? revealPauseMs : DEFAULT_REVEAL_PAUSE_MS
   const dispatch = useAppDispatch()
@@ -276,6 +300,7 @@ export default function FamousFiguresComp({
   useEffect(() => {
     dispatch(
       startFamousFigures({
+        aiCapability,
         participantIds,
         competitionType: prizeType,
         seed: effectiveSeed,
@@ -391,7 +416,13 @@ export default function FamousFiguresComp({
     const submissions: Record<string, boolean> = {}
     for (const aiId of aiIds) {
       const aiFigIdx = getPlayerFigureIndex(ff, aiId, round)
-      const aiResult = buildAiSubmissionsForRound([aiId], aiFigIdx, ff.hintsRevealed, rng)
+      const aiResult = buildAiSubmissionsForRound(
+        [aiId],
+        aiFigIdx,
+        ff.hintsRevealed,
+        rng,
+        aiCapability
+      )
       submissions[aiId] = aiResult[aiId] ?? false
     }
     dispatch(setAiSubmissionsForRound({ round, submissions }))
@@ -435,7 +466,13 @@ export default function FamousFiguresComp({
       const aiFigIdx = getPlayerFigureIndex(ff, aiId, round)
       const aiFigure = FAMOUS_FIGURES[aiFigIdx]
       if (!aiFigure) continue
-      const plan = getFamousFiguresAiPlan(effectiveSeed, round, aiId, aiFigure.difficulty)
+      const plan = getFamousFiguresAiPlan(
+        effectiveSeed,
+        round,
+        aiId,
+        aiFigure.difficulty,
+        aiCapability
+      )
       if (visibleClue < plan.clueNumber) continue
       aiSubmissionKeysRef.current.add(key)
       const t = setTimeout(() => {
@@ -480,13 +517,13 @@ export default function FamousFiguresComp({
     if (completeFiredRef.current) return
     completeFiredRef.current = true
 
-    dispatch(resolveFamousFiguresOutcome())
+    if (!onComplete) dispatch(resolveFamousFiguresOutcome())
 
     const t = setTimeout(() => {
-      onComplete?.()
+      onComplete?.(buildFamousFiguresCompletion(ff, participantIds))
     }, WINNER_SCREEN_DURATION_MS)
     return () => clearTimeout(t)
-  }, [ff.status, dispatch, onComplete])
+  }, [ff, ff.status, dispatch, onComplete, participantIds])
 
   // ── Reset input state when human advances to next figure ─────────────────
   // Fires on cursor advance (human played ahead) AND on global nextRound.
@@ -800,9 +837,9 @@ export default function FamousFiguresComp({
             result={{
               rawValue: ff.playerScores[humanId ?? ''] ?? 0,
               partial: false,
-              completion: { authoritativeWinnerId: winnerId, rawResults: ff.playerScores },
+              completion: buildFamousFiguresCompletion(ff, participantIds),
             }}
-            onContinue={() => onComplete?.()}
+            onContinue={() => onComplete?.(buildFamousFiguresCompletion(ff, participantIds))}
             continueLabel="Continue ›"
             continueButtonClassName="ff-continue-btn"
             placementsNode={renderScoreboard(
@@ -833,9 +870,9 @@ export default function FamousFiguresComp({
           result={{
             rawValue: ff.playerScores[humanId ?? ''] ?? 0,
             partial: false,
-            completion: { authoritativeWinnerId: winnerId, rawResults: ff.playerScores },
+            completion: buildFamousFiguresCompletion(ff, participantIds),
           }}
-          onContinue={() => onComplete?.()}
+          onContinue={() => onComplete?.(buildFamousFiguresCompletion(ff, participantIds))}
           continueLabel="Continue ›"
           continueButtonClassName="ff-continue-btn"
         >
@@ -1075,9 +1112,18 @@ function renderScoreboard(
   displayName: (id: string) => string,
   playerAvatar: (id: string) => string
 ) {
-  const sorted = [...participantIds].sort(
-    (a, b) => (ff.playerScores[b] ?? 0) - (ff.playerScores[a] ?? 0)
+  const sorted = rankFamousFigures(
+    participantIds,
+    ff.playerScores,
+    ff.playerRoundScores,
+    ff.tieBreakOrder
   )
+  const tieExplanations =
+    ff.status === 'complete'
+      ? explainFamousFiguresTies(sorted, ff.playerScores, ff.playerRoundScores, (id) =>
+          id === humanId ? 'you' : displayName(id)
+        )
+      : []
 
   return (
     <div className="ff-scoreboard" aria-label="Scoreboard">
@@ -1101,7 +1147,7 @@ function renderScoreboard(
           </tr>
         </thead>
         <tbody>
-          {sorted.map((id) => {
+          {sorted.map((id, placement) => {
             const isHuman = id === humanId
             const name = displayName(id)
             const total = ff.playerScores[id] ?? 0
@@ -1114,6 +1160,11 @@ function renderScoreboard(
             return (
               <tr key={id}>
                 <th scope="row" className="ff-scoreboard-player">
+                  {ff.status === 'complete' && (
+                    <span className="ff-scoreboard-rank" aria-label={`Place ${placement + 1}`}>
+                      {placement + 1}.
+                    </span>
+                  )}
                   <span className="ff-scoreboard-avatar-wrap">
                     <img
                       className="ff-scoreboard-avatar"
@@ -1162,6 +1213,11 @@ function renderScoreboard(
           })}
         </tbody>
       </table>
+      {tieExplanations.map((explanation) => (
+        <p className="ff-tie-break" role="note" key={explanation}>
+          {explanation}
+        </p>
+      ))}
     </div>
   )
 }

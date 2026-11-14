@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { seededPickN, mulberry32 } from '../../store/rng'
@@ -70,6 +71,7 @@ export default function NumberTrivia({
   participants,
   seed = 0,
 }: GenericMinigameProps) {
+  const aiCapability = useSeasonAiCapability()
   const resolvedParticipants = useMemo<ResolvedParticipant[]>(() => {
     if (participants && participants.length > 0) {
       return participants.map((participant) => ({
@@ -244,6 +246,7 @@ export default function NumberTrivia({
           entry.participantId,
           simulateNumberTriviaAiPerformance(
             {
+              aiCapability,
               precomputedScore: participant?.precomputedScore ?? 50,
               roundNumber: effectiveRoundNumber,
               question: effectiveQuestion,
@@ -323,7 +326,7 @@ export default function NumberTrivia({
       setScoreboard(nextScoreboard)
       return nextScoreboard
     },
-    [chosenQuestions, humanId, standings, resolvedParticipants, roundIndex, seed]
+    [roundIndex, chosenQuestions, standings, humanId, resolvedParticipants, aiCapability, seed]
   )
 
   const resolveDuel = useCallback(
@@ -358,6 +361,7 @@ export default function NumberTrivia({
           participantId,
           simulateNumberTriviaAiPerformance(
             {
+              aiCapability,
               precomputedScore: participant?.precomputedScore ?? 50,
               roundNumber: NUMBER_TRIVIA_TOTAL_ROUNDS + duelNumber,
               question: effectiveQuestion,
@@ -436,7 +440,16 @@ export default function NumberTrivia({
       setScoreboard(nextScoreboard)
       return nextScoreboard
     },
-    [chosenQuestions, duelIndex, duelLives, humanId, resolvedParticipants, seed, standings]
+    [
+      aiCapability,
+      chosenQuestions,
+      duelIndex,
+      duelLives,
+      humanId,
+      resolvedParticipants,
+      seed,
+      standings,
+    ]
   )
 
   const submitAnswer = useCallback(() => {

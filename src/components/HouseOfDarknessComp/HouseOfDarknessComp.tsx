@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import {
   useCallback,
   useEffect,
@@ -242,6 +243,7 @@ export default function HouseOfDarknessComp({
   alliances,
   onFinish,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const resolvedIds = useMemo(() => {
     if (participantIds.length > 0) return participantIds
     const participantList = participants?.map((participant) => participant.id) ?? []
@@ -263,8 +265,8 @@ export default function HouseOfDarknessComp({
   }, [nameFor, participants, resolvedIds])
   const [sessionSeed] = useState(() => seed ?? cryptoSeed())
   const aiProfiles = useMemo(
-    () => createHouseOfCardsAiProfiles(resolvedIds, humanId, sessionSeed),
-    [humanId, resolvedIds, sessionSeed]
+    () => createHouseOfCardsAiProfiles(resolvedIds, humanId, sessionSeed, aiCapability),
+    [humanId, resolvedIds, sessionSeed, aiCapability]
   )
 
   const [phase, setPhase] = useState<Phase>('mode_select')

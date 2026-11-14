@@ -235,7 +235,7 @@ export function resolveHybridAiScores({
     const triangular = (posRng() + posRng()) * 0.5;
     // Profile nudge — tiny: high skill biases toward the "better" end of the bucket
     const skill = computeProfileSkill(participant.profile, model);
-    const nudge = (skill - 0.5) * PROFILE_NUDGE_SCALE;
+    const nudge = (skill - 0.5) * PROFILE_NUDGE_SCALE * dirSign;
     const pos = clamp(triangular + nudge, 0, 1);
 
     // ── Convert to raw score ─────────────────────────────────────────────────

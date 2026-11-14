@@ -1,4 +1,5 @@
 import { baseScene } from './mode-routing.mjs'
+import { formatVotePercentage, getVotePercentagePrecision } from '../../utils/votePercentages.mjs'
 
 export const MODE_SCENES = {
   cupidLoh: { label: 'Cupid · shared LOH', duration: 3200 },
@@ -189,6 +190,9 @@ export function makeVoxFilm(scene, images, cast, details) {
         ]
       : [{ id: cast.a.playerId, name: cast.a.name }]
   const field = root.querySelector('.vox-contestants')
+  const percentagePrecision = result
+    ? getVotePercentagePrecision(entries.map((entry) => Number(entry.value)))
+    : 1
   field.style.setProperty('--contestants', entries.length)
   for (const [index, entry] of entries.entries()) {
     const card = document.createElement('div')
@@ -201,8 +205,11 @@ export function makeVoxFilm(scene, images, cast, details) {
     name.textContent = entry.name
     const count = document.createElement('span')
     count.className = result ? 'vox-count vox-percent' : 'vox-count'
-    count.textContent = result ? '0.0%' : 'COMPETITION WINNER'
-    if (result) count.dataset.finalValue = String(Number(entry.value))
+    count.textContent = result ? formatVotePercentage(0, percentagePrecision) : 'COMPETITION WINNER'
+    if (result) {
+      count.dataset.finalValue = String(Number(entry.value))
+      count.dataset.percentagePrecision = String(percentagePrecision)
+    }
     if (immunity) {
       card.classList.add(index === 0 ? 'vox-immunity-winner' : 'vox-last-place-nominee')
       const light = document.createElement('div')
@@ -401,7 +408,10 @@ export function animateVoxFilm(scene, root, a, duration, later) {
       const progress = index / 50
       const eased = progress * progress * (3 - 2 * progress)
       for (const count of counts)
-        count.textContent = `${(Number(count.dataset.finalValue) * eased).toFixed(1)}%`
+        count.textContent = formatVotePercentage(
+          Number(count.dataset.finalValue) * eased,
+          Number(count.dataset.percentagePrecision)
+        )
       if (index < 50) later(() => step(index + 1), 40)
     }
     later(() => step(0), 2400)

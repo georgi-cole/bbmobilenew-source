@@ -5,11 +5,14 @@ import { resolve } from 'node:path'
 const mocks = vi.hoisted(() => ({
   getPlatform: vi.fn(),
   applyLaunchRotation: vi.fn(),
+  registerPlugin: vi.fn(),
 }))
 
 vi.mock('@capacitor/core', () => ({
   Capacitor: { getPlatform: mocks.getPlatform },
-  registerPlugin: () => ({ applyLaunchRotation: mocks.applyLaunchRotation }),
+  registerPlugin: mocks.registerPlugin.mockReturnValue({
+    applyLaunchRotation: mocks.applyLaunchRotation,
+  }),
 }))
 
 import {
@@ -19,12 +22,13 @@ import {
 
 let fakeNow = 2_000_000
 
-describe('story icon rotation bridge', () => {
+describe('paused foreground story icon rotation', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     fakeNow += 10_000
     vi.setSystemTime(fakeNow)
-    vi.clearAllMocks()
+    mocks.getPlatform.mockClear()
+    mocks.applyLaunchRotation.mockClear()
     resetStoryIconRotationForNextActivation()
     mocks.getPlatform.mockReturnValue('android')
     mocks.applyLaunchRotation.mockResolvedValue({ stage: 2 })
@@ -51,20 +55,25 @@ describe('story icon rotation bridge', () => {
     expect(mocks.applyLaunchRotation).not.toHaveBeenCalled()
   })
 
-  it('forwards the remote enable switch to the native plugin', async () => {
-    await expect(applyStoryIconRotation(false)).resolves.toBe(2)
-    expect(mocks.applyLaunchRotation).toHaveBeenCalledWith({ enabled: false })
+  it.each([true, false])(
+    'leaves Android aliases unchanged with remote switch %s',
+    async (enabled) => {
+      await expect(applyStoryIconRotation(enabled)).resolves.toBeNull()
+      expect(mocks.applyLaunchRotation).not.toHaveBeenCalled()
+    }
+  )
+
+  it('keeps the existing alias through repeated launches and foreground activations', async () => {
+    for (const enabled of [true, false, true, true]) {
+      await expect(applyStoryIconRotation(enabled)).resolves.toBeNull()
+      resetStoryIconRotationForNextActivation()
+      vi.advanceTimersByTime(10_000)
+    }
+    expect(mocks.applyLaunchRotation).not.toHaveBeenCalled()
   })
 
-  it('advances at most once per foreground activation', async () => {
-    await applyStoryIconRotation(true)
-    await applyStoryIconRotation(true)
-    expect(mocks.applyLaunchRotation).toHaveBeenCalledTimes(1)
-
-    resetStoryIconRotationForNextActivation()
-    vi.advanceTimersByTime(5000)
-    await applyStoryIconRotation(true)
-    expect(mocks.applyLaunchRotation).toHaveBeenCalledTimes(2)
+  it('does not register a native launcher bridge during module initialization', () => {
+    expect(mocks.registerPlugin).not.toHaveBeenCalled()
   })
 
   it('keeps the selected eight-image source order and all bundled artwork', () => {

@@ -99,9 +99,18 @@ export function migrateSocialState(raw: SocialState): SocialState {
       ? input.intelligenceDeliveries.slice(-120)
       : [],
     incomingInteractions: Array.isArray(input.incomingInteractions)
-      ? input.incomingInteractions.map((interaction) =>
-          normalizeIncomingInteractionContract(interaction)
-        )
+      ? input.incomingInteractions.map((interaction) => {
+          const normalized = normalizeIncomingInteractionContract(interaction)
+          const linkedId = normalized.payload?.realityInteractionId
+          if (
+            !normalized.resolutionOrigin &&
+            normalized.resolved &&
+            typeof linkedId === 'string' &&
+            input.reality?.interactions?.[linkedId]?.status === 'INVALIDATED'
+          )
+            return { ...normalized, resolutionOrigin: 'invalidation' as const }
+          return normalized
+        })
       : [],
     incomingInteractionLogs:
       incomingInteractionLogLimit > 0 && Array.isArray(input.incomingInteractionLogs)

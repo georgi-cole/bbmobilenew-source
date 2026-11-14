@@ -636,6 +636,14 @@ describe('HomeHub', () => {
     expect(screen.getByRole('button', { name: 'Hubmates' })).toBeInTheDocument()
   })
 
+  it('opens account sign-in directly from Profile without an intermediary screen', async () => {
+    renderHomeHub()
+    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    await waitForMenuReady()
+    fireEvent.click(screen.getByRole('button', { name: 'Profile' }))
+    expect(mockNavigate).toHaveBeenCalledWith('/profile/account', { state: { entryFrom: '/' } })
+  })
+
   it('promotes Market to a menu button and keeps Hall of Fame in the utility-chip slot', async () => {
     renderHomeHub()
     fireEvent.click(screen.getByTestId('kolequant-splash'))

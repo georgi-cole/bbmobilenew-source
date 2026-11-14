@@ -732,6 +732,7 @@ export default function TiltLabyrinthComp({
     participants?.forEach((p, idx) => {
       if (p.isHuman) return
       const profile =
+        p.competitionProfile ??
         gamePlayers.find((player) => player.id === p.id)?.competitionProfile ??
         getDefaultCompetitionProfile()
       const aiRng = makeRng((seed ^ Math.imul(idx + 1, 0x9e3779b9)) >>> 0)
@@ -840,9 +841,9 @@ export default function TiltLabyrinthComp({
           adjustedTimeMs,
         })
       )
-      if (!labPreview) dispatch(resolveTiltLabyrinthOutcome())
+      if (!labPreview && !onComplete) dispatch(resolveTiltLabyrinthOutcome())
     },
-    [dispatch, labPreview]
+    [dispatch, labPreview, onComplete]
   )
 
   // â”€â”€ Game loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1234,6 +1235,9 @@ export default function TiltLabyrinthComp({
             rawResults: labState.finalScores,
             authoritativeWinnerId: labState.winnerId,
             authoritativeLastPlaceId: labState.lastPlaceId,
+            authoritativeRankedIds: leaderboard.map((entry) => entry.id),
+            authoritativeTiedGroups: [],
+            lastPlaceType: 'scored',
           },
         }}
         onContinue={() =>

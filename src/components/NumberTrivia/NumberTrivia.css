@@ -3,8 +3,10 @@
   inset: 0;
   box-sizing: border-box;
   overflow: hidden;
-  padding: calc(env(safe-area-inset-top, 0px) + 72px) max(16px, env(safe-area-inset-right, 0px))
-    calc(env(safe-area-inset-bottom, 0px) + 20px) max(16px, env(safe-area-inset-left, 0px));
+  padding: calc(var(--minigame-safe-top, env(safe-area-inset-top, 0px)) + 72px)
+    max(16px, var(--minigame-safe-right, env(safe-area-inset-right, 0px)))
+    calc(var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)) + 20px)
+    max(16px, var(--minigame-safe-left, env(safe-area-inset-left, 0px)));
   color: #f4efff;
   background:
     radial-gradient(ellipse at 50% -12%, rgba(147, 91, 255, 0.3), transparent 48%),
@@ -520,8 +522,8 @@
 
 @media (max-width: 420px) {
   .number-trivia {
-    padding-right: max(10px, env(safe-area-inset-right, 0px));
-    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, var(--minigame-safe-right, env(safe-area-inset-right, 0px)));
+    padding-left: max(10px, var(--minigame-safe-left, env(safe-area-inset-left, 0px)));
   }
 
   .number-trivia__header {

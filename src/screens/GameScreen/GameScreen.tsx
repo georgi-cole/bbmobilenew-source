@@ -1,3 +1,5 @@
+import { runtimeCompetitionProfile } from '../../ai/competition/seasonAiDifficulty'
+import { SeasonAiContext } from '../../ai/competition/SeasonAiContext'
 import { useVipPresentation } from '../../cinematic/ceremonies/presentation'
 import { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
@@ -156,6 +158,7 @@ import {
 import { shouldAutomaticallyAdvanceAfterConfessionalVote } from './confessionalReturnResume'
 import { useCompetitionFlow } from './flows/useCompetitionFlow'
 import { coordinateGameFlows } from './flows/gameFlowCoordinator'
+import { selectCompetitionStarting } from '../../broadcasting/fauxTvPresentation'
 import { useEndgameFlow } from './flows/useEndgameFlow'
 import { useEvictionFlow } from './flows/useEvictionFlow'
 import { useLohFlow } from './flows/useLohFlow'
@@ -586,7 +589,7 @@ export default function GameScreen() {
     navigate('/', { replace: true })
   }, [clearEliminatedRun, dispatch, navigate])
   const confessionalTvAnnouncement =
-    confessionalPrompt.triggered && confessionalPrompt.visible
+    activeConfessionalDecisionKey && confessionalPrompt.triggered && confessionalPrompt.visible
       ? {
           key: 'confessional_required',
           title: 'Confessional Required',
@@ -698,6 +701,17 @@ export default function GameScreen() {
     spectatorReactEnabled,
     spectatorMode: settings.gameUX.spectatorMode,
     dispatch,
+  })
+  const competitionStarting = selectCompetitionStarting({
+    phase: game.phase,
+    hasPendingChallenge: pendingChallenge != null,
+    humanIsOutgoingHoh,
+    pendingWinnerCeremony: pendingWinnerCeremony != null,
+    democraciaOverridesLoh:
+      game.phase === 'loh_comp' &&
+      game.democracia?.active === true &&
+      game.democracia.activatedDay === game.week,
+    participantCount: game.phase === 'loh_comp' ? hohCompParticipants.length : aliveIds.length,
   })
   const showAdvanceHohCeremony = advanceHohCeremonyEligible && pendingWinnerCeremony == null
 
@@ -884,6 +898,7 @@ export default function GameScreen() {
     dispatch,
     sequenceHandled: replacementSequence.handled,
     sequenceActive: replacementSequence.active,
+    saveHandledBySequence: replacementSequence.presentedSaveIds.includes(game.povSavedId ?? ''),
   })
   const {
     finalPowerBattleIntroActive,
@@ -1433,7 +1448,7 @@ export default function GameScreen() {
           showTravelingDots,
           spectatorLegacyActive,
         ],
-        blocksControls: [showPressurePlank],
+        blocksControls: [showPressurePlank, competitionStarting],
       },
       twist: {
         awaitingDecision: [
@@ -1717,6 +1732,7 @@ export default function GameScreen() {
               spectatorF3Active ||
               voxFinalThreeCeremony.active
             }
+            competitionStarting={competitionStarting}
             viewportMessageOverride={
               showBattleBackOverlay
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'
@@ -2211,6 +2227,7 @@ export default function GameScreen() {
                 }
               },
             }}
+            aiRuntime={pendingChallenge.aiRuntime}
             participants={pendingChallenge.participants.map((id): MinigameParticipant => {
               const player = game.players.find((p) => p.id === id)
               const aiScore = pendingChallenge.aiScores[id] ?? 0
@@ -2219,6 +2236,14 @@ export default function GameScreen() {
                 name: player?.name ?? id,
                 isHuman: !!player?.isUser,
                 avatar: player?.avatar,
+                competitionProfile: pendingChallenge.aiRuntime
+                  ? runtimeCompetitionProfile(
+                      pendingChallenge.aiRuntime,
+                      id,
+                      player?.competitionProfile,
+                      pendingChallenge.game.key
+                    )
+                  : undefined,
                 precomputedScore: aiScore,
                 previousPR: player?.stats?.gamePRs?.[pendingChallenge.game.key] ?? null,
               }
@@ -2541,16 +2566,18 @@ export default function GameScreen() {
             className="game-screen__battle-back-minigame"
             aria-label="Back 2 the Game competition"
           >
-            <Capitalization
-              key={`${battleBackCandidateIds.join('-')}-bb-cap-${battleBackAttemptIndex}`}
-              context="battleBack"
-              participantIds={battleBackCandidateIds}
-              participants={battleBackCapitalizationParticipants}
-              seed={battleBackAttemptSeed}
-              onFinish={(_value, _tiebreakerMs, completion) => {
-                handleBattleBackComplete(completion?.authoritativeWinnerId ?? null)
-              }}
-            />
+            <SeasonAiContext.Provider value={game.battleBack?.aiRuntime}>
+              <Capitalization
+                key={`${battleBackCandidateIds.join('-')}-bb-cap-${battleBackAttemptIndex}`}
+                context="battleBack"
+                participantIds={battleBackCandidateIds}
+                participants={battleBackCapitalizationParticipants}
+                seed={battleBackAttemptSeed}
+                onFinish={(_value, _tiebreakerMs, completion) => {
+                  handleBattleBackComplete(completion?.authoritativeWinnerId ?? null)
+                }}
+              />
+            </SeasonAiContext.Provider>
           </div>
         )}
         {showBattleBackOverlay && !useBattleBackMinigame && (

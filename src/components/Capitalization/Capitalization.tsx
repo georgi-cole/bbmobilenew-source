@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
@@ -105,6 +106,7 @@ export default function Capitalization({
   seed,
   context = 'loh',
 }: CapitalizationProps) {
+  const aiCapability = useSeasonAiCapability()
   const { t } = useI18n()
   const resolvedParticipants = useMemo(
     () => resolveParticipants(participantIds, participants),
@@ -249,6 +251,7 @@ export default function Capitalization({
         if (participant.isHuman || !activeIds.has(participant.id)) return
         performanceByParticipantId[participant.id] = simulateCapitalizationAiPerformance(
           {
+            aiCapability,
             participant,
             question: currentQuestion,
           },
@@ -289,7 +292,16 @@ export default function Capitalization({
       )
       setPhase(checkpoint ? 'scoreboard' : 'answerReview')
     },
-    [context, currentQuestion, humanId, phase, resolvedParticipants, runSeed, standings]
+    [
+      aiCapability,
+      context,
+      currentQuestion,
+      humanId,
+      phase,
+      resolvedParticipants,
+      runSeed,
+      standings,
+    ]
   )
 
   const submitAnswer = useCallback(() => {

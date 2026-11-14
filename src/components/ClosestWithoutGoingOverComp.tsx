@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../ai/competition/SeasonAiContext'
 /**
  * ClosestWithoutGoingOverComp – "Don't Go Over" competition screen.
  *
@@ -86,6 +87,7 @@ export default function ClosestWithoutGoingOverComp({
   seed,
   onComplete,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const dispatch = useAppDispatch();
   const cwgo = useAppSelector((s: RootState) => (s as RootState & { cwgo: CwgoState }).cwgo);
   const players = useAppSelector(
@@ -129,7 +131,7 @@ export default function ClosestWithoutGoingOverComp({
   // Start competition on mount
   useEffect(() => {
     dispatch(
-      startCwgoCompetition({
+      startCwgoCompetition({ aiCapability,
         participantIds,
         prizeType,
         seed,

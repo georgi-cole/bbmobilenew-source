@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { runtimeCompetitionProfile } from '../../../ai/competition/seasonAiDifficulty'
 import { useSelector, useStore } from 'react-redux'
 import {
   advance,
@@ -473,7 +474,13 @@ export function useTwistFlow({
               seed: battleBackAttemptSeed,
               playerId: player.id,
               participantIndex: index,
-              profile: player.competitionProfile ?? getDefaultCompetitionProfile(),
+              profile:
+                runtimeCompetitionProfile(
+                  game.battleBack?.aiRuntime,
+                  player.id,
+                  player.competitionProfile,
+                  'capitalization'
+                ) ?? getDefaultCompetitionProfile(),
               seasonState: getCompetitionSeasonState(
                 game.competitionSeasonStateByPlayerId,
                 player.id
@@ -485,6 +492,7 @@ export function useTwistFlow({
       battleBackAttemptSeed,
       battleBackCandidates,
       capitalizationAiModel,
+      game.battleBack?.aiRuntime,
       game.competitionSeasonStateByPlayerId,
     ]
   )
@@ -498,7 +506,12 @@ export function useTwistFlow({
     return simulateBattleBackCompetition(
       battleBackCandidates.map((player) => ({
         id: player.id,
-        profile: player.competitionProfile ?? getDefaultCompetitionProfile(),
+        profile:
+          runtimeCompetitionProfile(
+            game.battleBack?.aiRuntime,
+            player.id,
+            player.competitionProfile
+          ) ?? getDefaultCompetitionProfile(),
         seasonState: getCompetitionSeasonState(game.competitionSeasonStateByPlayerId, player.id),
       })),
       battleBackAttemptSeed
@@ -506,6 +519,7 @@ export function useTwistFlow({
   }, [
     battleBackAttemptSeed,
     battleBackCandidates,
+    game.battleBack?.aiRuntime,
     game.competitionSeasonStateByPlayerId,
     showBattleBackOverlay,
     useBattleBackMinigame,

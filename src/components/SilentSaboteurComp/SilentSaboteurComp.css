@@ -1823,7 +1823,7 @@ body.no-animations .ss-social-map {
   width: 100%;
   margin-top: auto;
   padding-top: 0.85rem;
-  padding-bottom: max(0.15rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.15rem, var(--minigame-safe-bottom, env(safe-area-inset-bottom)));
   background: linear-gradient(
     180deg,
     rgba(23, 25, 42, 0) 0%,
@@ -1888,7 +1888,7 @@ body.no-animations .ss-final2-finalist--saboteur {
   }
 
   .ss-action-footer {
-    padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+    padding-bottom: max(0.6rem, var(--minigame-safe-bottom, env(safe-area-inset-bottom)));
   }
 }
 

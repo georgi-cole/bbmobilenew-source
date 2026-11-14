@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 /**
  * ColorMatchComp — React minigame component for Color Match.
  *
@@ -128,6 +129,7 @@ export default function ColorMatchComp({
   participantIds = [],
   participants,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   // Only use an explicitly non-zero prop seed (dev/test pages).
   // In normal hosted play MinigameHost omits the seed prop so ColorMatchComp
   // always generates a fresh crypto-random sequence per session — ensuring the
@@ -170,11 +172,11 @@ export default function ColorMatchComp({
           .map((participant) => [
             participant.id,
             Array.from({ length: MAX_ROUNDS }, (_, roundIndex) =>
-              simulateColorMatchAiRoundScore(participant, roundIndex + 1, sessionSeed)
+              simulateColorMatchAiRoundScore(participant, roundIndex + 1, sessionSeed, aiCapability)
             ),
           ])
       ) as Record<string, number[]>,
-    [resolvedParticipants, sessionSeed]
+    [aiCapability, resolvedParticipants, sessionSeed]
   )
   const participantsById = useMemo(
     () =>

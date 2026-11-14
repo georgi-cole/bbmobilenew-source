@@ -477,6 +477,7 @@ export function rankPlayersByRoundPerformance(players: ChainOfGreedPlayerState[]
 }
 
 export function decideAiAction(options: {
+  aiCapability?: number
   player: ChainOfGreedPlayerState
   chain: ChainOfGreedChainState
   remainingTurns: number
@@ -595,8 +596,8 @@ export function decideAiAction(options: {
     player.personality.caution * 0.2 +
     volatilitySwing +
     pressureBias
-  const higherScore = odds.higher + bias
-  const lowerScore = odds.lower - bias
+  const higherScore = odds.higher + bias / (options.aiCapability ?? 1)
+  const lowerScore = odds.lower - bias / (options.aiCapability ?? 1)
   if (odds.equal > Math.max(higherScore, lowerScore)) return 'equal'
   return higherScore >= lowerScore ? 'higher' : 'lower'
 }

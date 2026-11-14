@@ -149,6 +149,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      VITE_BUILD_TARGET: release
+      VITE_VIP_DEV_ENTITLEMENT: 'false'
+      VITE_ADMOB_MODE: 'off'
+      VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_ENABLED }}
+      VITE_PLAYER_SIGN_IN_ENABLED: ${{ vars.VITE_PLAYER_SIGN_IN_ENABLED }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -161,6 +170,10 @@ jobs:
           java-version: 21
           cache: gradle
       - run: npm ci
+      - name: Configure Android account services
+        run: cp .env.android.example .env.android
+      - name: Test store account build validation
+        run: node --test scripts/validate-store-release-env.test.mjs
       - run: npm run sync:android
       - name: Lint and compile the Android app
         working-directory: android
@@ -173,6 +186,15 @@ jobs:
     runs-on: macos-15
     permissions:
       contents: read
+    env:
+      VITE_BUILD_TARGET: release
+      VITE_VIP_DEV_ENTITLEMENT: 'false'
+      VITE_ADMOB_MODE: 'off'
+      VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_ENABLED }}
+      VITE_PLAYER_SIGN_IN_ENABLED: ${{ vars.VITE_PLAYER_SIGN_IN_ENABLED }}
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
@@ -183,6 +205,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Configure iOS account services
+        run: cp .env.ios.example .env.ios
       - run: npm run sync:ios
       - name: Compile the iOS app without signing
         run: >-

@@ -8,8 +8,10 @@
   flex-direction: column;
   gap: 9px;
   overflow: hidden;
-  padding: max(12px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px))
-    max(12px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+  padding: max(12px, var(--minigame-safe-top, env(safe-area-inset-top, 0px)))
+    max(14px, var(--minigame-safe-right, env(safe-area-inset-right, 0px)))
+    max(12px, var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)))
+    max(14px, var(--minigame-safe-left, env(safe-area-inset-left, 0px)));
   background: #08090d;
   color: #fff6df;
   font-family: Inter, system-ui, sans-serif;
@@ -591,7 +593,8 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: max(22px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
+  padding: max(22px, var(--minigame-safe-top, env(safe-area-inset-top))) 20px
+    max(22px, var(--minigame-safe-bottom, env(safe-area-inset-bottom)));
   background: radial-gradient(ellipse at 50% 35%, #6b552048, transparent 65%), #07090dec;
   /* The nearly opaque curtain already separates the round results. Avoid a
      full-screen backdrop raster/filter when the next round is being prepared. */
@@ -966,8 +969,8 @@
 @media (max-height: 700px) {
   .qtr-vip {
     gap: 6px;
-    padding-top: max(8px, env(safe-area-inset-top));
-    padding-bottom: max(7px, env(safe-area-inset-bottom));
+    padding-top: max(8px, var(--minigame-safe-top, env(safe-area-inset-top)));
+    padding-bottom: max(7px, var(--minigame-safe-bottom, env(safe-area-inset-bottom)));
   }
   .qtr-vip__header {
     flex-basis: 36px;

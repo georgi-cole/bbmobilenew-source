@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   HOUSE_OF_CARDS_BONUS_BET_PENALTY,
   HOUSE_OF_CARDS_BONUS_BET_REWARD,
-  HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS,
   buildPortraitPairBoard,
-  buildHouseOfCardsBoard,
   chooseHouseOfCardsAiPair,
-  chooseHouseOfCardsBrightPairSymbol,
+  getHouseOfCardsAttemptToolOffer,
+  HOUSE_OF_CARDS_TOOL_POOL,
   resolveHouseOfCardsRoundScore,
   getHouseOfCardsScoringMistakes,
   isHouseOfCardsBlindBetPair,
@@ -38,11 +37,39 @@ describe('Deck of Light gameplay edge cases', () => {
     expect(board.some((card) => card.portraitBadge?.startsWith('Variant'))).toBe(true)
   })
 
-  it('keeps the Bright Pair objective tied to a real pair and seeded across replays', () => {
-    const board = buildHouseOfCardsBoard(424242, 8)
-    const symbol = chooseHouseOfCardsBrightPairSymbol(424242, 3, board)
-    expect(symbol).toBe(chooseHouseOfCardsBrightPairSymbol(424242, 3, board))
-    expect(board.filter((card) => card.symbol === symbol)).toHaveLength(2)
+  it('offers three unique deterministic tools to humans and AI for the entire attempt', () => {
+    const seen = new Set<string>()
+    for (let seed = 0; seed < 100; seed++) {
+      const attemptNumber = seed % 4
+      const offer = getHouseOfCardsAttemptToolOffer(seed, attemptNumber)
+      expect(offer).toEqual(getHouseOfCardsAttemptToolOffer(seed, attemptNumber))
+      expect(new Set(offer).size).toBe(3)
+      offer.forEach((tool) => {
+        expect(HOUSE_OF_CARDS_TOOL_POOL).toContain(tool)
+        seen.add(tool)
+      })
+      for (const round of [1, 2, 3, 4])
+        for (const sessionAbility of [25, 85]) {
+          const params = {
+            playerId: 'rival',
+            round,
+            tournamentSeed: seed,
+            attemptNumber,
+            sessionAbility,
+            pairCount: 4,
+            isBehind: false,
+          }
+          expect(offer).toContain(chooseHouseOfCardsAiTool(params))
+          expect(offer).toContain(
+            simulateHouseOfCardsAiRound({
+              ...params,
+              tool: HOUSE_OF_CARDS_TOOL_POOL.find((tool) => !offer.includes(tool)),
+            }).tool
+          )
+        }
+    }
+    expect(seen.size).toBe(5)
+    expect(HOUSE_OF_CARDS_TOOL_POOL).toHaveLength(5)
   })
 
   it('caps scores for unfinished AI simulations and applies a single Shield penalty reduction', () => {
@@ -109,7 +136,9 @@ describe('Deck of Light gameplay edge cases', () => {
         playerId: 'shield-player',
         round,
         pairCount: 4 + round,
-        tournamentSeed: 79,
+        tournamentSeed: Array.from({ length: 100 }, (_, n) => n).find((n) =>
+          getHouseOfCardsAttemptToolOffer(n).includes('shield')
+        )!,
         sessionAbility: 60,
         tool: 'shield',
       })
@@ -146,7 +175,9 @@ describe('Deck of Light gameplay edge cases', () => {
         playerId: 'new-tool',
         round: 3,
         pairCount: 8,
-        tournamentSeed: 711,
+        tournamentSeed: Array.from({ length: 100 }, (_, seed) => seed).find((seed) =>
+          getHouseOfCardsAttemptToolOffer(seed).includes(tool)
+        )!,
         sessionAbility: 61,
         tool,
       }
@@ -176,7 +207,7 @@ describe('Deck of Light gameplay edge cases', () => {
     expect(first.completedPairs).toBeGreaterThanOrEqual(0)
     expect(first.completedPairs).toBeLessThanOrEqual(params.pairCount)
     expect(first.scoringMistakes).toBeLessThanOrEqual(first.mistakes)
-    expect([0, HOUSE_OF_CARDS_BRIGHT_PAIR_BONUS]).toContain(first.brightPairBonus)
+    expect(first).not.toHaveProperty('brightPairBonus')
     expect([0, -HOUSE_OF_CARDS_BONUS_BET_PENALTY, HOUSE_OF_CARDS_BONUS_BET_REWARD]).toContain(
       first.toolDelta
     )
@@ -189,7 +220,6 @@ describe('Deck of Light gameplay edge cases', () => {
         timeMs: first.timeMs,
         bestStreak: first.bestStreak,
         toolBonus: first.toolDelta,
-        brightPairBonus: first.brightPairBonus,
       })
     )
   })

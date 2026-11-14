@@ -5,7 +5,10 @@
   inset: 0;
   background: linear-gradient(180deg, #2d1b0e 0%, #1a0f08 100%);
   color: #f4e4c1;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -706,7 +709,10 @@
   overflow: visible;
   background: #2d1b0e;
   cursor: pointer;
-  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition:
+    transform 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
   padding: 0;
   display: flex;
   align-items: center;
@@ -714,9 +720,19 @@
   flex-shrink: 0;
 }
 
-.ww-avatar-btn--lg { width: 76px; height: 76px; }
-.ww-avatar-btn--md { width: 64px; height: 64px; }
-.ww-avatar-btn--sm { width: 36px; height: 36px; border-width: 2px; }
+.ww-avatar-btn--lg {
+  width: 76px;
+  height: 76px;
+}
+.ww-avatar-btn--md {
+  width: 64px;
+  height: 64px;
+}
+.ww-avatar-btn--sm {
+  width: 36px;
+  height: 36px;
+  border-width: 2px;
+}
 
 .ww-avatar-btn:hover:not(:disabled):not(.ww-avatar-btn--eliminated):not(.ww-avatar-btn--static) {
   transform: scale(1.1);
@@ -725,9 +741,13 @@
 }
 
 .ww-avatar-btn--selected,
-.ww-avatar-btn--selected:hover:not(:disabled):not(.ww-avatar-btn--eliminated):not(.ww-avatar-btn--static) {
+.ww-avatar-btn--selected:hover:not(:disabled):not(.ww-avatar-btn--eliminated):not(
+    .ww-avatar-btn--static
+  ) {
   border-color: #d4a017;
-  box-shadow: 0 0 0 3px #d4a017, 0 0 14px rgba(212, 160, 23, 0.65);
+  box-shadow:
+    0 0 0 3px #d4a017,
+    0 0 14px rgba(212, 160, 23, 0.65);
 }
 
 .ww-avatar-btn--static {
@@ -736,13 +756,24 @@
 
 .ww-avatar-btn--duelist {
   border-color: #f4e4c1;
-  box-shadow: 0 0 0 3px rgba(244, 228, 193, 0.8), 0 0 18px rgba(212, 160, 23, 0.5);
+  box-shadow:
+    0 0 0 3px rgba(244, 228, 193, 0.8),
+    0 0 18px rgba(212, 160, 23, 0.5);
   animation: ww-duelist-pulse 2s ease-in-out infinite;
 }
 
 @keyframes ww-duelist-pulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(244, 228, 193, 0.8), 0 0 12px rgba(212, 160, 23, 0.4); }
-  50%       { box-shadow: 0 0 0 5px #d4a017, 0 0 22px rgba(212, 160, 23, 0.75); }
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px rgba(244, 228, 193, 0.8),
+      0 0 12px rgba(212, 160, 23, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px #d4a017,
+      0 0 22px rgba(212, 160, 23, 0.75);
+  }
 }
 
 .ww-avatar-btn--eliminated {
@@ -993,9 +1024,18 @@
     padding: 0.25rem;
   }
 
-  .ww-avatar-btn--lg { width: 68px; height: 68px; }
-  .ww-avatar-btn--md { width: 58px; height: 58px; }
-  .ww-avatar-btn--sm { width: 28px; height: 28px; }
+  .ww-avatar-btn--lg {
+    width: 68px;
+    height: 68px;
+  }
+  .ww-avatar-btn--md {
+    width: 58px;
+    height: 58px;
+  }
+  .ww-avatar-btn--sm {
+    width: 28px;
+    height: 28px;
+  }
 
   .ww-avatar-x {
     font-size: 1.35rem;
@@ -1030,7 +1070,7 @@
   }
 
   .ww-status-bar {
-    padding: 0.42rem 0.65rem max(0.42rem, env(safe-area-inset-bottom));
+    padding: 0.42rem 0.65rem max(0.42rem, var(--minigame-safe-bottom, env(safe-area-inset-bottom)));
     gap: 0.25rem;
   }
 

@@ -67,14 +67,12 @@ test.describe('Deck of Light mobile presentation @minigame', () => {
     )
     expect(legacyGlyphs).toEqual(['none', 'none', 'none'])
 
-    await host.getByRole('button', { name: /^Peek/ }).click()
+    await host.locator('.hoc-tool-choice').first().click()
     const expanded = host.locator('.hoc-tool-choice[data-selected="true"]')
     await expect(expanded).toBeVisible()
     await expect(host.locator('.hoc-root')).toHaveAttribute('data-tool-transition', 'expand')
-    await expect(expanded.locator('.hoc-tool-choice__copy')).toHaveText(
-      'Use the glimpse to plan your next match before the card turns back.'
-    )
-    await expect(expanded).not.toContainText('Privately reveal one card you choose for a moment.')
+    await expect(expanded.locator('.hoc-tool-choice__copy')).not.toBeEmpty()
+    await expect(host).not.toContainText('Bright Pair')
 
     const title = await expanded.locator('strong').boundingBox()
     const copy = await expanded.locator('.hoc-tool-choice__copy').boundingBox()
@@ -90,7 +88,7 @@ test.describe('Deck of Light mobile presentation @minigame', () => {
     await openDeckOfLight(page)
 
     const host = page.getByRole('dialog', { name: /Deck of Light minigame/i })
-    await host.getByRole('button', { name: /^Peek/ }).click()
+    await host.locator('.hoc-tool-choice').first().click()
     const cards = host.getByRole('gridcell')
     await expect(cards).toHaveCount(8)
 

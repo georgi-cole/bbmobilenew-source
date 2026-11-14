@@ -1,5 +1,11 @@
 import { useLayoutEffect, useMemo, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
+import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
+import {
+  CHOCOLATE_TIMING,
+  chocolateCompletionMs,
+  DEPRESSION_ROSTER_TARGET,
+} from './presentationTargets'
 
 export type DepressionShockCinematicKind = 'thunder' | 'chocolate' | 'sunlight'
 
@@ -21,11 +27,19 @@ const TIMINGS: Record<DepressionShockCinematicKind, { impact: number; complete: 
 function isVisible(element: HTMLElement, rect: DOMRect): boolean {
   const style = window.getComputedStyle(element)
   return (
-    rect.width > 8 && rect.height > 8 && style.visibility !== 'hidden' && style.display !== 'none'
+    rect.width > 8 &&
+    rect.height > 8 &&
+    style.visibility !== 'hidden' &&
+    style.display !== 'none' &&
+    rect.bottom > 0 &&
+    rect.top < window.innerHeight &&
+    rect.right > 0 &&
+    rect.left < window.innerWidth
   )
 }
 
 export default function DepressionShockRosterCinematic({ kind, onImpact, onComplete }: Props) {
+  const reducedMotion = usePresentationReducedMotion()
   const [source, setSource] = useState<Point>({ x: window.innerWidth / 2, y: 120 })
   const [targets, setTargets] = useState<Target[]>([])
   const timing = TIMINGS[kind]
@@ -48,11 +62,7 @@ export default function DepressionShockRosterCinematic({ kind, onImpact, onCompl
         ? { x: sourceRect.left + sourceRect.width / 2, y: sourceRect.top + sourceRect.height / 2 }
         : null
 
-    const elements = [
-      ...document.querySelectorAll<HTMLElement>(
-        '[data-hubmate-roster="true"] [data-depression-target="true"]'
-      ),
-    ]
+    const elements = [...document.querySelectorAll<HTMLElement>(DEPRESSION_ROSTER_TARGET)]
     const measured = elements
       .map((element) => ({ element, rect: element.getBoundingClientRect() }))
       .filter(({ element, rect }) => isVisible(element, rect))
@@ -75,20 +85,41 @@ export default function DepressionShockRosterCinematic({ kind, onImpact, onCompl
     })
 
     document.body.dataset.depressionCinematic = kind
-    const impactTimer = window.setTimeout(() => onImpact?.(), timing.impact)
-    const completeTimer = window.setTimeout(() => onComplete?.(), timing.complete)
+    document.body.style.setProperty('--chocolate-flight-ms', `${CHOCOLATE_TIMING.flight}ms`)
+    document.body.style.setProperty('--chocolate-stagger-ms', `${CHOCOLATE_TIMING.stagger}ms`)
+    document.body.style.setProperty(
+      '--chocolate-relief-delay-ms',
+      `${CHOCOLATE_TIMING.reliefDelay}ms`
+    )
+    document.body.style.setProperty('--chocolate-relief-ms', `${CHOCOLATE_TIMING.reliefDuration}ms`)
+    const impactTimer = window.setTimeout(() => onImpact?.(), reducedMotion ? 0 : timing.impact)
+    const completeTimer = window.setTimeout(
+      () => onComplete?.(),
+      reducedMotion
+        ? 200
+        : kind === 'chocolate'
+          ? chocolateCompletionMs(measuredTargets.length)
+          : timing.complete
+    )
     return () => {
       window.clearTimeout(impactTimer)
       window.clearTimeout(completeTimer)
       window.cancelAnimationFrame(measurementFrame)
       delete document.body.dataset.depressionCinematic
+      for (const property of [
+        '--chocolate-flight-ms',
+        '--chocolate-stagger-ms',
+        '--chocolate-relief-delay-ms',
+        '--chocolate-relief-ms',
+      ])
+        document.body.style.removeProperty(property)
       measured.forEach(({ element }) => element.style.removeProperty('--depression-target-index'))
     }
-  }, [kind, onComplete, onImpact, timing.complete, timing.impact])
+  }, [kind, onComplete, onImpact, reducedMotion, timing.complete, timing.impact])
 
   const particles = useMemo(
     () =>
-      targets.map((target) => {
+      (reducedMotion ? [] : targets).map((target) => {
         const dx = target.x - source.x
         const dy = target.y - source.y
         const style = {
@@ -96,7 +127,7 @@ export default function DepressionShockRosterCinematic({ kind, onImpact, onCompl
           '--start-y': `${source.y}px`,
           '--travel-x': `${dx}px`,
           '--travel-y': `${dy}px`,
-          '--target-delay': `${target.index * (kind === 'chocolate' ? 62 : 42)}ms`,
+          '--target-delay': `${target.index * (kind === 'chocolate' ? CHOCOLATE_TIMING.stagger : 42)}ms`,
           '--target-width': `${target.width}px`,
           '--target-height': `${target.height}px`,
           '--target-x': `${target.x}px`,
@@ -114,7 +145,7 @@ export default function DepressionShockRosterCinematic({ kind, onImpact, onCompl
           </span>
         )
       }),
-    [kind, source.x, source.y, targets]
+    [kind, reducedMotion, source.x, source.y, targets]
   )
 
   return createPortal(

@@ -6,7 +6,7 @@ export async function openProfileCreationForm(page: Page): Promise<void> {
     .getByRole('navigation', { name: 'Main menu' })
     .getByRole('button', { name: 'Profile', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
+  await page.getByRole('button', { name: 'Play without signing in', exact: true }).click()
   await page.getByRole('button', { name: 'Choose this look', exact: true }).click()
   const reveal = page.getByRole('dialog', { name: /^Look \d+$/ })
   const continueButton = reveal.getByRole('button', { name: 'Continue', exact: true })

@@ -62,6 +62,7 @@ export interface CapitalizationAiRngContext {
 }
 
 export interface CapitalizationAiPerformanceContext {
+  aiCapability?: number
   participant: CapitalizationParticipant
   question: CapitalizationQuestion
 }
@@ -176,7 +177,8 @@ export function simulateCapitalizationAiPerformance(
     4: 0.9,
     5: 0.97,
   }
-  const correctChance = correctChanceByDifficulty[context.question.difficulty]
+  const correctChance =
+    1 - (1 - correctChanceByDifficulty[context.question.difficulty]) / (context.aiCapability ?? 1)
   const recalledAnswer = rng() < correctChance
 
   // Hints are a fallback for a failed recall, not an unrelated random event.

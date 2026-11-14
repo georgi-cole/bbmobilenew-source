@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 /**
  * BlackjackTournamentComp — "Blackjack Tournament" last-player-standing competition.
  *
@@ -235,6 +236,7 @@ export default function BlackjackTournamentComp({
   strategicContext,
   onComplete,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const dispatch = useAppDispatch()
   const bt = useAppSelector((s: RootState) => s.blackjackTournament)
   const avatarForId = useCallback(
@@ -337,6 +339,7 @@ export default function BlackjackTournamentComp({
 
     dispatch(
       initBlackjackTournament({
+        aiCapability,
         participantIds: pIds,
         competitionType: pt,
         seed: s,
@@ -475,7 +478,7 @@ export default function BlackjackTournamentComp({
 
     // AI active player: auto-decide after a short delay.
     const rngVal = aiDecisionRng(bt.seed, bt.duelIndex, activeId, decisionIndex)
-    const shouldHit = aiShouldHitDuel(computeTotal(activeCards), rngVal, opponentBust)
+    const shouldHit = aiShouldHitDuel(computeTotal(activeCards), rngVal, opponentBust, aiCapability)
 
     const delay = bt.isSpectating ? SPECTATOR_ADVANCE_MS : applySpeed(TIMER_AI_ACTION_MS)
     aiActionTimerRef.current = window.setTimeout(() => {
@@ -498,6 +501,7 @@ export default function BlackjackTournamentComp({
     dispatch,
     isHuman,
     applySpeed,
+    aiCapability,
   ])
 
   // ── 5. Duel result phase: hold then advance; reset speed multiplier ────────

@@ -4,6 +4,7 @@ import { IS_MOBILE_DEV_BUILD } from '../config/buildTarget'
 import { assertAdultServicesAllowed } from '../safety/playerSafety'
 import { initializeDurablePersistence } from '../store/durablePersistence'
 import { configureNativePurchaseLifecycle } from './nativePurchaseLifecycle'
+import { withNativeBilling } from './nativeBillingQueue'
 import { SURVIVAL_RUN_PRODUCT } from './vipConfig'
 import {
   getSurvivalRunBalance,
@@ -138,7 +139,9 @@ function deliverTransaction(transaction: Transaction, platform: 'android' | 'ios
 
     try {
       if (platform === 'android') {
-        await NativePurchases.consumePurchase({ purchaseToken: transaction.purchaseToken! })
+        await withNativeBilling(() =>
+          NativePurchases.consumePurchase({ purchaseToken: transaction.purchaseToken! })
+        )
       } else {
         await NativePurchases.finishTransaction({ transactionId: transaction.transactionId })
       }
@@ -158,7 +161,12 @@ async function recoverPendingTransactions(platform: 'android' | 'ios'): Promise<
   // returns current owned tokens; iOS must use only the unfinished queue.
   const transactions =
     platform === 'android'
-      ? (await NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP })).purchases
+      ? (
+          await withNativeBilling(
+            () => NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP }),
+            { retryDisconnected: true }
+          )
+        ).purchases
       : (await NativePurchases.getUnfinishedTransactions()).transactions
   const pending = transactions.filter(
     (transaction) => transaction.productIdentifier === SURVIVAL_RUN_PRODUCT.productId
@@ -219,16 +227,22 @@ export function refreshSurvivalRuns(): Promise<void> {
       publish({ billingAvailable: false, product: null })
       return
     }
-    const { isBillingSupported } = await NativePurchases.isBillingSupported()
+    const { isBillingSupported } = await withNativeBilling(() =>
+      NativePurchases.isBillingSupported()
+    )
     if (!isBillingSupported) {
       publish({ billingAvailable: false, product: null })
       return
     }
     await recoverPendingTransactions(platform)
-    const { products } = await NativePurchases.getProducts({
-      productIdentifiers: [SURVIVAL_RUN_PRODUCT.productId],
-      productType: PURCHASE_TYPE.INAPP,
-    })
+    const { products } = await withNativeBilling(
+      () =>
+        NativePurchases.getProducts({
+          productIdentifiers: [SURVIVAL_RUN_PRODUCT.productId],
+          productType: PURCHASE_TYPE.INAPP,
+        }),
+      { retryDisconnected: true }
+    )
     const product = products.find(
       (candidate) => candidate.identifier === SURVIVAL_RUN_PRODUCT.productId
     )
@@ -269,14 +283,16 @@ export async function purchaseSurvivalRun(): Promise<boolean> {
     if (!snapshot.billingAvailable || !snapshot.product)
       throw new Error('Survival runs are not available from the store right now. Please try again.')
     await prepareSurvivalRunLedger()
-    const transaction = await NativePurchases.purchaseProduct({
-      productIdentifier: SURVIVAL_RUN_PRODUCT.productId,
-      productType: PURCHASE_TYPE.INAPP,
-      quantity: 1,
-      // Android consumes only AFTER durable delivery, not inside the purchase call.
-      isConsumable: false,
-      autoAcknowledgePurchases: false,
-    })
+    const transaction = await withNativeBilling(() =>
+      NativePurchases.purchaseProduct({
+        productIdentifier: SURVIVAL_RUN_PRODUCT.productId,
+        productType: PURCHASE_TYPE.INAPP,
+        quantity: 1,
+        // Android consumes only AFTER durable delivery, not inside the purchase call.
+        isConsumable: false,
+        autoAcknowledgePurchases: false,
+      })
+    )
     if (!isCompletedSurvivalRunTransaction(transaction, platform))
       throw new Error(
         'Your payment is pending. Your recovery will appear after the store confirms it.'

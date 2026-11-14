@@ -287,7 +287,7 @@ export function loadSettings(): SettingsState {
       audio: normalizeAudio(parsed.audio),
       localization: normalizeLocalization(parsed.localization),
       social: normalizeSocial(parsed.social),
-      display: { ...DEFAULT_SETTINGS.display, ...parsed.display },
+      display: { ...DEFAULT_SETTINGS.display, ...parsed.display, themePreset: 'midnight' },
       gameUX: mergedGameUX,
       sim: mergedSim,
       visual: { ...DEFAULT_SETTINGS.visual, ...parsed.visual },
@@ -358,6 +358,8 @@ const settingsSlice = createSlice({
     },
     setDisplay(state, action: PayloadAction<Partial<SettingsState['display']>>) {
       Object.assign(state.display, action.payload)
+      // Retired themes in saved or imported settings return to the standard presentation.
+      state.display.themePreset = 'midnight'
     },
     setGameUX(state, action: PayloadAction<Partial<SettingsState['gameUX']>>) {
       Object.assign(state.gameUX, action.payload)
@@ -382,7 +384,11 @@ const settingsSlice = createSlice({
         audio: normalizeAudio(action.payload.audio),
         localization: normalizeLocalization(action.payload.localization),
         social: normalizeSocial(action.payload.social),
-        display: { ...DEFAULT_SETTINGS.display, ...action.payload.display },
+        display: {
+          ...DEFAULT_SETTINGS.display,
+          ...action.payload.display,
+          themePreset: 'midnight',
+        },
         gameUX: normalizeGameUX(action.payload.gameUX),
         sim: { ...DEFAULT_SETTINGS.sim, ...action.payload.sim },
         visual: { ...DEFAULT_SETTINGS.visual, ...action.payload.visual },

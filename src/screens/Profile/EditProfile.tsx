@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { useAppSelector, useAppDispatch } from '../../store/hooks'
 import {
   selectCurrentProfile,
+  MAX_PROFILES,
   createProfile,
   updateProfile,
   deleteProfile,
@@ -58,6 +59,7 @@ export default function EditProfile() {
   const routeLocation = useLocation()
   const dispatch = useAppDispatch()
   const profile = useAppSelector(selectCurrentProfile)
+  const profileCount = useAppSelector((state) => state.profiles.profiles.length)
   const currentRunPhotoId = useAppSelector(
     (state) =>
       state.game?.seasonContestant?.photoId ??
@@ -95,13 +97,25 @@ export default function EditProfile() {
   const emailForm = useProfileEmailForm(creatingProfile ? null : (profile?.id ?? null))
   const mounted = useRef(false)
   const currentProfileId = useRef(profile?.id ?? null)
+  const currentProfileCount = useRef(profileCount)
   useLayoutEffect(() => {
     mounted.current = true
     currentProfileId.current = profile?.id ?? null
+    currentProfileCount.current = profileCount
     return () => {
       mounted.current = false
     }
-  }, [profile?.id])
+  }, [profile?.id, profileCount])
+
+  useEffect(() => {
+    if (creatingProfile && profileCount >= MAX_PROFILES)
+      navigate('/profile-picker', {
+        replace: true,
+        state: routeState?.fromPlayerAccount
+          ? { from: '/profile/account', manageOnly: true }
+          : { from: returnTo },
+      })
+  }, [creatingProfile, profileCount, navigate, routeState?.fromPlayerAccount, returnTo])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -161,9 +175,13 @@ export default function EditProfile() {
   async function handleSave() {
     if (saving || !emailForm.validate()) return
     const profileIdAtSave = profile?.id ?? null
-    const canCommit = () => mounted.current && currentProfileId.current === profileIdAtSave
+    const canCommit = () =>
+      mounted.current &&
+      currentProfileId.current === profileIdAtSave &&
+      (!creatingProfile || currentProfileCount.current < MAX_PROFILES)
 
     if (creatingProfile) {
+      if (currentProfileCount.current >= MAX_PROFILES) return
       const parsedAge = Number(bio.age)
       const canCreate =
         Boolean(name.trim()) &&
@@ -479,6 +497,9 @@ export default function EditProfile() {
                   initialLookId: creationSelection.lookId,
                   adoptGuestRun: routeState?.adoptGuestRun === true,
                   ...(routeState?.fromPlayerAccount && { fromPlayerAccount: true }),
+                  ...(routeState?.playerAccountId && {
+                    playerAccountId: routeState.playerAccountId,
+                  }),
                 },
               })
             } else {

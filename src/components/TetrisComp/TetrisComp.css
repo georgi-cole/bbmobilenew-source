@@ -438,7 +438,8 @@
   .tetris-root {
     height: 100%;
     min-height: 0;
-    padding: 0.25rem 0.35rem max(0.3rem, env(safe-area-inset-bottom, 0px));
+    padding: 0.25rem 0.35rem
+      max(0.3rem, var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)));
     overflow: hidden;
     justify-content: stretch;
   }

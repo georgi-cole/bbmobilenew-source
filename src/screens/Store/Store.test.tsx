@@ -13,6 +13,19 @@ import Store from './Store'
 
 const purchaseStoreProductMock = vi.hoisted(() => vi.fn())
 const loadVipStoreSnapshotMock = vi.hoisted(() => vi.fn())
+const platform = vi.hoisted(() => ({ native: false }))
+
+vi.mock('@capacitor/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@capacitor/core')>()
+  return {
+    ...actual,
+    Capacitor: {
+      ...actual.Capacitor,
+      isNativePlatform: () => platform.native,
+      getPlatform: () => (platform.native ? 'android' : 'web'),
+    },
+  }
+})
 
 vi.mock('../../vip/useSurvivalRuns', () => ({
   useSurvivalRuns: () => ({
@@ -121,6 +134,7 @@ function openDramaMode() {
 
 describe('Store product presentation', () => {
   beforeEach(() => {
+    platform.native = false
     purchaseStoreProductMock.mockReset()
     loadVipStoreSnapshotMock.mockReset()
   })
@@ -287,6 +301,22 @@ describe('Store product presentation', () => {
       await screen.findByRole('heading', { name: 'Reality Mode is unlocked' })
     ).toBeInTheDocument()
     expect(loadVipStoreSnapshotMock).toHaveBeenCalledWith({ restore: true })
+  })
+
+  it('lets an Android player reconnect after startup billing fails', async () => {
+    platform.native = true
+    loadVipStoreSnapshotMock.mockResolvedValue(snapshotFrom(makeVipState()))
+    const store = renderStore({
+      ...makeVipState({ billingAvailable: false }),
+      status: 'error',
+      error: 'SERVICE_DISCONNECTED',
+    })
+    const reconnect = screen.getByRole('button', { name: 'Reconnect to Store' })
+    expect(reconnect).toBeEnabled()
+    fireEvent.click(reconnect)
+    await waitFor(() => expect(store.getState().vip.billingAvailable).toBe(true))
+    expect(screen.getByText('Store connected. Available purchases are ready.')).toBeInTheDocument()
+    platform.native = false
   })
 
   it('shows a disabled unavailable state when platform pricing is absent', () => {

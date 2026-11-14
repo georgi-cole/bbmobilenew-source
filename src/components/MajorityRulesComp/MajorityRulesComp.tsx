@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
@@ -449,6 +450,7 @@ export default function MajorityRulesComp({
   premiumPresentation = false,
   onComplete,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const dispatch = useAppDispatch()
   const game = useAppSelector((state: RootState) => state.majorityRules)
   const gamePlayers = useAppSelector((state: RootState) => state.game.players)
@@ -571,8 +573,8 @@ export default function MajorityRulesComp({
   }, [game.phase, game.vipExperience, humanIsEliminated, motionEnabled, spectatorMode])
 
   useEffect(() => {
-    dispatch(initMajorityRules(initialConfig))
-  }, [dispatch, initialConfig])
+    dispatch(initMajorityRules({ ...initialConfig, aiCapability }))
+  }, [dispatch, initialConfig, aiCapability])
 
   useEffect(() => {
     if (game.phase !== 'intro' || game.vipExperience === premiumPresentation) return

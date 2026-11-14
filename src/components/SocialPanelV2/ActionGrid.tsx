@@ -332,6 +332,7 @@ export default function ActionGrid({
         isVisiblePregnancyPrerequisite(action)
     )
     .filter((action) => {
+      if (action.id === 'group_chat') return selectedId === 'group_chat' || !selectedTargetIds?.size
       if (!explicitlyNoTargetSelected) return true
       const actionMode = resolveActionTargetMode(
         action,
@@ -409,6 +410,39 @@ export default function ActionGrid({
     return ''
   }
 
+  function renderAction(action: SocialActionDefinition) {
+    const contextualAction = contextualizeAction(action)
+    const costs = getActionCosts(action)
+    const contextEligibility = getContextEligibility(action)
+    const contextReason =
+      action.id === 'try_for_baby' && !contextEligibility.eligible ? contextEligibility.reason : ''
+    const availabilityReason = contextReason || getAvailabilityReason(costs)
+    const premiumLocked = isRealityPreview(action)
+    const isDisabled = !premiumLocked && (disabledIds.has(action.id) || Boolean(contextReason))
+    const isAvailable = actorEnergy !== undefined && isActionAffordable(costs)
+    return (
+      <ActionCard
+        key={action.id}
+        action={contextualAction}
+        description={
+          action.id === 'reassure' && hasPawnOffer
+            ? 'Confirm their offer to go on the block as a pawn.'
+            : undefined
+        }
+        costs={costs}
+        selected={selectedId === action.id}
+        disabled={isDisabled}
+        premiumLocked={premiumLocked}
+        availabilityReason={availabilityReason}
+        available={actorEnergy !== undefined ? isAvailable : undefined}
+        onClick={onActionClick}
+        onPremiumLockedClick={handlePremiumLockedAction}
+        onPreview={onPreview}
+        costOverride={costs}
+      />
+    )
+  }
+
   return (
     <>
       <div
@@ -418,41 +452,7 @@ export default function ActionGrid({
         aria-label="Action grid"
         onKeyDown={handleKeyDown}
       >
-        {visibleActions.map((action) => {
-          const contextualAction = contextualizeAction(action)
-          const costs = getActionCosts(action)
-          const contextEligibility = getContextEligibility(action)
-          const contextReason =
-            action.id === 'try_for_baby' && !contextEligibility.eligible
-              ? contextEligibility.reason
-              : ''
-          const availabilityReason = contextReason || getAvailabilityReason(costs)
-          const premiumLocked = isRealityPreview(action)
-          const isDisabled =
-            !premiumLocked && (disabledIds.has(action.id) || Boolean(contextReason))
-          const isAvailable = actorEnergy !== undefined && isActionAffordable(costs)
-          return (
-            <ActionCard
-              key={action.id}
-              action={contextualAction}
-              description={
-                action.id === 'reassure' && hasPawnOffer
-                  ? 'Confirm their offer to go on the block as a pawn.'
-                  : undefined
-              }
-              costs={costs}
-              selected={selectedId === action.id}
-              disabled={isDisabled}
-              premiumLocked={premiumLocked}
-              availabilityReason={availabilityReason}
-              available={actorEnergy !== undefined ? isAvailable : undefined}
-              onClick={onActionClick}
-              onPremiumLockedClick={handlePremiumLockedAction}
-              onPreview={onPreview}
-              costOverride={costs}
-            />
-          )
-        })}
+        {visibleActions.filter((action) => action.id !== 'ask_player_opinion').map(renderAction)}
         {visibleSupplementalActions.map(
           ({ action, costs, disabled = false, availabilityReason }) => {
             const resolvedCosts = costs ?? getActionCosts(action)
@@ -470,6 +470,7 @@ export default function ActionGrid({
             )
           }
         )}
+        {visibleActions.filter((action) => action.id === 'ask_player_opinion').map(renderAction)}
       </div>
       <ConfirmExitModal
         open={realityModePromptOpen}

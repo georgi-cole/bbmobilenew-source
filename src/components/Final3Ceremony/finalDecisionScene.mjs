@@ -1,3 +1,4 @@
+import { formatVotePercentage, getVotePercentagePrecision } from '../../utils/votePercentages.mjs'
 import './finalDecisionScene.css'
 import { paginateCeremonyCaption } from './finalDecisionCaptions.mjs'
 
@@ -1013,6 +1014,7 @@ function mountFinalDecision(root, config) {
   }
   function renderAudienceTallies(approval = false) {
     const values = approval ? audienceResult.approvalTiebreak.scores : audienceResult.percentages
+    const precision = getVotePercentagePrecision(nominees.map((person) => values[person.id]))
     const label = approval ? 'Approval tiebreak' : 'Vote to eliminate'
     const summary =
       label +
@@ -1022,7 +1024,7 @@ function mountFinalDecision(root, config) {
           (person) =>
             person.name +
             ': ' +
-            values[person.id].toFixed(1) +
+            values[person.id].toFixed(precision) +
             (approval ? ' approval' : ' percent')
         )
         .join('. ') +
@@ -1041,7 +1043,7 @@ function mountFinalDecision(root, config) {
           const finalLabel =
             person.name +
             ': ' +
-            values[person.id].toFixed(1) +
+            values[person.id].toFixed(precision) +
             (approval ? ' approval' : ' percent')
           tally.setAttribute(
             'aria-label',
@@ -1057,10 +1059,20 @@ function mountFinalDecision(root, config) {
             'strong',
             'fd-vote-value',
             number,
-            approval || reduced ? values[person.id].toFixed(1) + (approval ? '' : '%') : '0.0%'
+            approval || reduced
+              ? values[person.id].toFixed(precision) + (approval ? '' : '%')
+              : formatVotePercentage(0, precision)
           )
           const gleam = node('i', 'fd-vote-gleam', number)
-          entries.push({ tally, value, glow, gleam, finalLabel, target: values[person.id] })
+          entries.push({
+            tally,
+            value,
+            glow,
+            gleam,
+            finalLabel,
+            target: values[person.id],
+            precision,
+          })
         })
         if (!approval) audienceCount = { grid, entries, summary, settled: false }
       },
@@ -1071,8 +1083,8 @@ function mountFinalDecision(root, config) {
     if (!audienceCount || audienceCount.settled || disposed || stage !== 'vote-results') return
     audienceCount.settled = true
     audienceCount.grid.dataset.countState = 'settled'
-    audienceCount.entries.forEach(({ tally, value, glow, finalLabel, target }) => {
-      value.textContent = target.toFixed(1) + '%'
+    audienceCount.entries.forEach(({ tally, value, glow, finalLabel, target, precision }) => {
+      value.textContent = formatVotePercentage(target, precision)
       tally.setAttribute('aria-label', finalLabel)
       animate(
         glow,
@@ -1127,8 +1139,8 @@ function mountFinalDecision(root, config) {
       }
       const progress = index / 55
       const eased = progress * progress * (3 - 2 * progress)
-      audienceCount.entries.forEach(({ value, target }) => {
-        value.textContent = (target * eased).toFixed(1) + '%'
+      audienceCount.entries.forEach(({ value, target, precision }) => {
+        value.textContent = formatVotePercentage(target * eased, precision)
       })
       schedule(40, () => step(index + 1))
     }

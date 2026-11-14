@@ -9,7 +9,8 @@
   width: min(100%, 760px);
   min-height: min(720px, 100dvh);
   margin: 0 auto;
-  padding: max(18px, env(safe-area-inset-top)) 14px max(20px, env(safe-area-inset-bottom));
+  padding: max(18px, var(--minigame-safe-top, env(safe-area-inset-top))) 14px
+    max(20px, var(--minigame-safe-bottom, env(safe-area-inset-bottom)));
   overflow: hidden;
   color: #fff;
   background:
@@ -543,7 +544,7 @@
     padding-inline: 10px;
   }
   .memory-lane__question-stage {
-    min-height: calc(100dvh - 102px - env(safe-area-inset-top));
+    min-height: calc(100dvh - 102px - var(--minigame-safe-top, env(safe-area-inset-top)));
     padding: 18px 11px 14px;
     border-radius: 22px;
   }

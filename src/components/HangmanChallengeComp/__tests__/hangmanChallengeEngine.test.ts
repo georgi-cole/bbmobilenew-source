@@ -1,3 +1,4 @@
+import { getVerdictBoardRules } from '../verdictRules'
 import { describe, expect, it } from 'vitest'
 import {
   FAILURE_PENALTY,
@@ -65,16 +66,16 @@ describe('hangmanChallengeEngine V2', () => {
     expect(solved.roundScore).toBe(103)
   })
 
-  it('keeps the tournament to at most six qualifying rounds while always reaching a final two', () => {
+  it('keeps the tournament to at most five total boards while always reaching a final two', () => {
     expect(buildEliminationPlan(4)).toEqual([1, 1])
-    expect(buildEliminationPlan(10)).toEqual([2, 2, 1, 1, 1, 1])
-    expect(buildEliminationPlan(16)).toEqual([3, 3, 2, 2, 2, 2])
+    expect(buildEliminationPlan(10)).toEqual([2, 2, 2, 2])
+    expect(buildEliminationPlan(16)).toEqual([4, 4, 3, 3])
 
     const plan = buildEliminationPlan(18)
     let remaining = 18
     for (const eliminated of plan) remaining -= eliminated
 
-    expect(plan.length).toBeLessThanOrEqual(6)
+    expect(plan.length + 1).toBeLessThanOrEqual(5)
     expect(remaining).toBe(2)
   })
 
@@ -105,4 +106,24 @@ describe('hangmanChallengeEngine V2', () => {
     expect(ai.result.budgetRemaining).toBeGreaterThanOrEqual(0)
     expect(ai.result.wrongGuesses).toBeLessThanOrEqual(10)
   })
+})
+
+it('shares accurate host rules and never simulates a solved board after the third wrong guess', () => {
+  const rules = getVerdictBoardRules().join(' ')
+  expect(rules).toContain('50 Eyeoleans')
+  expect(rules).toContain('3 wrong full-word guesses')
+  expect(rules).toContain('5 boards')
+  const word = pickTournamentWords(77, 3).qualifying[1]
+  for (let seed = 0; seed < 200; seed++) {
+    const { result } = simulateAiRound({
+      participantId: 'ai',
+      participantName: 'AI',
+      word,
+      budget: STARTING_BUDGET,
+      cumulativeScore: 0,
+      seed,
+      roundIndex: 1,
+    })
+    expect(result.wrongGuesses).toBeLessThanOrEqual(result.solved ? 2 : 3)
+  }
 })

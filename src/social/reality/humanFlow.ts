@@ -268,6 +268,16 @@ function buildContext(state: RootState): RealityContext {
     powerHolderIds: [state.game.lohId, state.game.posWinnerId].filter((id): id is string =>
       Boolean(id)
     ),
+    nominationLeaderId:
+      mode.gameMode === 'CLASSIC' &&
+      mode.audienceMode !== 'PUBLIC' &&
+      state.game.voxPopuli?.status !== 'active' &&
+      !state.game.publicModeEnabled &&
+      (['loh_results', 'social_1'].includes(state.game.phase) ||
+        (state.game.phase === 'nominations' && state.game.awaitingNominations)) &&
+      !state.game.nomineeIds?.length
+        ? (state.game.lohId ?? undefined)
+        : undefined,
     romanceEnabled: state.settings.gameUX.romanceStorylines,
   }
 }
@@ -1872,6 +1882,8 @@ function formatRealityResponse(
     return `${name} asked for different terms before making a commitment.`
   if (response?.kind === 'QUESTION' || response?.kind === 'LIE')
     return `${name} stayed guarded and left you without a clear answer.`
+  if (response?.reason === 'loh_pact_protection_acknowledged')
+    return `${name} accepts your offer of protection.`
   if (compatibility.contextualSummary) return compatibility.contextualSummary
   const outcome = response?.accepted ? 'success' : 'failure'
   const variants =

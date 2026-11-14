@@ -1,16 +1,16 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import CrystalPathShatteredGame from '../src/minigames/crystalPathShattered/CrystalPathShatteredGame';
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { Provider } from 'react-redux'
+import { configureStore } from '@reduxjs/toolkit'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import CrystalPathShatteredGame from '../src/minigames/crystalPathShattered/CrystalPathShatteredGame'
 import {
   CATASTROPHE_STEP_MS,
   SAFE_STEP_MS,
   WRONG_STEP_MS,
   createRowStream,
-} from '../src/minigames/crystalPathShattered/shatteredLogic';
-import gameReducer from '../src/store/gameSlice';
-import { mulberry32 } from '../src/store/rng';
+} from '../src/minigames/crystalPathShattered/shatteredLogic'
+import gameReducer from '../src/store/gameSlice'
+import { mulberry32 } from '../src/store/rng'
 
 vi.mock('../src/hooks/useGlassBridgeAudio', () => ({
   useGlassBridgeAudio: () => ({
@@ -19,20 +19,20 @@ vi.mock('../src/hooks/useGlassBridgeAudio', () => ({
     playWinner: vi.fn(),
     playNewTurn: vi.fn(),
   }),
-}));
+}))
 
 function makeStore() {
-  return configureStore({ reducer: { game: gameReducer } });
+  return configureStore({ reducer: { game: gameReducer } })
 }
 
 describe('Crystal Path: Infinity async flow', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-  });
+    vi.useFakeTimers()
+  })
 
   afterEach(() => {
-    vi.useRealTimers();
-  });
+    vi.useRealTimers()
+  })
 
   it('adds the Infinity Protocol environment only for the premium presentation', () => {
     const { container } = render(
@@ -46,17 +46,19 @@ describe('Crystal Path: Infinity async flow', () => {
           seed={12345}
           premium
         />
-      </Provider>,
-    );
+      </Provider>
+    )
 
-    expect(screen.getByLabelText('Crystal Path: Infinity').className).toContain('cps-shell--premium');
-    expect(container.querySelector('.cps-infinity-void')).not.toBeNull();
-    expect(screen.getByText('∞ Infinity Protocol')).toBeTruthy();
-  });
+    expect(screen.getByLabelText('Crystal Path: Infinity').className).toContain(
+      'cps-shell--premium'
+    )
+    expect(container.querySelector('.cps-infinity-void')).not.toBeNull()
+    expect(screen.getByText('∞ Infinity Protocol')).toBeTruthy()
+  })
 
   it('starts with the human and keeps that run active after a safe step', async () => {
-    const seed = 12345;
-    const [firstRow, secondRow] = createRowStream(mulberry32(seed)).take(2);
+    const seed = 12345
+    const [firstRow, secondRow] = createRowStream(mulberry32(seed)).take(2)
 
     render(
       <Provider store={makeStore()}>
@@ -68,31 +70,29 @@ describe('Crystal Path: Infinity async flow', () => {
           ]}
           seed={seed}
         />
-      </Provider>,
-    );
+      </Provider>
+    )
 
-    expect(screen.getAllByText('You').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('You').length).toBeGreaterThan(0)
 
-    fireEvent.click(
-      screen.getByRole('button', { name: `Row 1 ${firstRow.safeSide} tile` }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: `Row 1 ${firstRow.safeSide} tile` }))
 
     await act(async () => {
-      vi.advanceTimersByTime(SAFE_STEP_MS + 20);
-    });
+      vi.advanceTimersByTime(SAFE_STEP_MS + 20)
+    })
 
-    expect(screen.getAllByText('You').length).toBeGreaterThan(0);
-    expect(screen.getByText('Row 2')).toBeTruthy();
-    expect(screen.queryByText('AI One keeps climbing…')).toBeNull();
+    expect(screen.getAllByText('You').length).toBeGreaterThan(0)
+    expect(screen.getByText('Row 2')).toBeTruthy()
+    expect(screen.queryByText('AI One keeps climbing…')).toBeNull()
     expect(
-      screen.getByRole('button', { name: `Row 2 ${secondRow.safeSide} tile` }),
-    ).not.toHaveAttribute('disabled');
-  });
+      screen.getByRole('button', { name: `Row 2 ${secondRow.safeSide} tile` })
+    ).not.toHaveAttribute('disabled')
+  })
 
   it('keeps the chosen row active during a non-lethal wrong-step crack, then advances', async () => {
-    const seed = 12345;
-    const [firstRow, secondRow] = createRowStream(mulberry32(seed)).take(2);
-    const wrongSide = firstRow.safeSide === 'left' ? 'right' : 'left';
+    const seed = 12345
+    const [firstRow, secondRow] = createRowStream(mulberry32(seed)).take(2)
+    const wrongSide = firstRow.safeSide === 'left' ? 'right' : 'left'
 
     render(
       <Provider store={makeStore()}>
@@ -104,36 +104,38 @@ describe('Crystal Path: Infinity async flow', () => {
           ]}
           seed={seed}
         />
-      </Provider>,
-    );
+      </Provider>
+    )
 
-    const wrongTile = screen.getByRole('button', { name: `Row 1 ${wrongSide} tile` });
-    const firstRowSafeTile = screen.getByRole('button', { name: `Row 1 ${firstRow.safeSide} tile` });
-    const secondRowSafeTile = screen.getByRole('button', { name: `Row 2 ${secondRow.safeSide} tile` });
+    const wrongTile = screen.getByRole('button', { name: `Row 1 ${wrongSide} tile` })
+    const firstRowSafeTile = screen.getByRole('button', { name: `Row 1 ${firstRow.safeSide} tile` })
+    const secondRowSafeTile = screen.getByRole('button', {
+      name: `Row 2 ${secondRow.safeSide} tile`,
+    })
 
-    fireEvent.click(wrongTile);
+    fireEvent.click(wrongTile)
 
-    expect(wrongTile.className).toContain('is-wrong');
-    expect(wrongTile.className).toContain('is-cracked');
-    expect(firstRowSafeTile.closest('.cps-row')?.className).toContain('is-current');
-    expect(secondRowSafeTile.closest('.cps-row')?.className).not.toContain('is-current');
-    expect(secondRowSafeTile).toHaveAttribute('disabled');
+    expect(wrongTile.className).toContain('is-wrong')
+    expect(wrongTile.className).toContain('is-cracked')
+    expect(firstRowSafeTile.closest('.cps-row')?.className).toContain('is-current')
+    expect(secondRowSafeTile.closest('.cps-row')?.className).not.toContain('is-current')
+    expect(secondRowSafeTile).toHaveAttribute('disabled')
 
     await act(async () => {
-      vi.advanceTimersByTime(WRONG_STEP_MS + 20);
-    });
+      vi.advanceTimersByTime(WRONG_STEP_MS + 20)
+    })
 
-    expect(screen.getByText('290')).toBeTruthy();
-    expect(screen.getByText('Row 2')).toBeTruthy();
-    expect(firstRowSafeTile.closest('.cps-row')?.className).toContain('is-past');
-    expect(secondRowSafeTile.closest('.cps-row')?.className).toContain('is-current');
-    expect(secondRowSafeTile).not.toHaveAttribute('disabled');
-  });
+    expect(screen.getByText('290')).toBeTruthy()
+    expect(screen.getByText('Row 2')).toBeTruthy()
+    expect(firstRowSafeTile.closest('.cps-row')?.className).toContain('is-past')
+    expect(secondRowSafeTile.closest('.cps-row')?.className).toContain('is-current')
+    expect(secondRowSafeTile).not.toHaveAttribute('disabled')
+  })
 
   it('marks a wrong tile as cracking immediately and leaves it cracked after resolution', async () => {
-    const seed = 12345;
-    const [firstRow] = createRowStream(mulberry32(seed)).take(1);
-    const wrongSide = firstRow.safeSide === 'left' ? 'right' : 'left';
+    const seed = 12345
+    const [firstRow] = createRowStream(mulberry32(seed)).take(1)
+    const wrongSide = firstRow.safeSide === 'left' ? 'right' : 'left'
 
     render(
       <Provider store={makeStore()}>
@@ -145,26 +147,26 @@ describe('Crystal Path: Infinity async flow', () => {
           ]}
           seed={seed}
         />
-      </Provider>,
-    );
+      </Provider>
+    )
 
-    const wrongTile = screen.getByRole('button', { name: `Row 1 ${wrongSide} tile` });
-    fireEvent.click(wrongTile);
+    const wrongTile = screen.getByRole('button', { name: `Row 1 ${wrongSide} tile` })
+    fireEvent.click(wrongTile)
 
-    expect(wrongTile.className).toContain('is-wrong');
-    expect(wrongTile.className).toContain('is-cracked');
+    expect(wrongTile.className).toContain('is-wrong')
+    expect(wrongTile.className).toContain('is-cracked')
 
     await act(async () => {
-      vi.advanceTimersByTime(WRONG_STEP_MS + 20);
-    });
+      vi.advanceTimersByTime(WRONG_STEP_MS + 20)
+    })
 
-    expect(wrongTile.className).not.toContain('is-wrong');
-    expect(wrongTile.className).toContain('is-cracked');
-  });
+    expect(wrongTile.className).not.toContain('is-wrong')
+    expect(wrongTile.className).toContain('is-cracked')
+  })
 
   it('adds the catastrophe shell state when the human is eliminated on a wrong tile', async () => {
-    const seed = 12345;
-    const rows = createRowStream(mulberry32(seed)).take(24);
+    const seed = 12345
+    const rows = createRowStream(mulberry32(seed)).take(24)
 
     render(
       <Provider store={makeStore()}>
@@ -176,34 +178,34 @@ describe('Crystal Path: Infinity async flow', () => {
           ]}
           seed={seed}
         />
-      </Provider>,
-    );
+      </Provider>
+    )
 
     for (const row of rows.slice(0, -1)) {
-      const wrongSide = row.safeSide === 'left' ? 'right' : 'left';
+      const wrongSide = row.safeSide === 'left' ? 'right' : 'left'
       fireEvent.click(
-        screen.getByRole('button', { name: `Row ${row.index + 1} ${wrongSide} tile` }),
-      );
+        screen.getByRole('button', { name: `Row ${row.index + 1} ${wrongSide} tile` })
+      )
 
       await act(async () => {
-        vi.advanceTimersByTime(CATASTROPHE_STEP_MS + 20);
-      });
+        vi.advanceTimersByTime(CATASTROPHE_STEP_MS + 20)
+      })
     }
 
-    const finalRow = rows.at(-1);
-    if (!finalRow) throw new Error('expected lethal row');
-    const lethalSide = finalRow.safeSide === 'left' ? 'right' : 'left';
+    const finalRow = rows.at(-1)
+    if (!finalRow) throw new Error('expected lethal row')
+    const lethalSide = finalRow.safeSide === 'left' ? 'right' : 'left'
 
     fireEvent.click(
-      screen.getByRole('button', { name: `Row ${finalRow.index + 1} ${lethalSide} tile` }),
-    );
+      screen.getByRole('button', { name: `Row ${finalRow.index + 1} ${lethalSide} tile` })
+    )
 
-    expect(screen.getByLabelText('Crystal Path: Infinity').className).toContain('is-catastrophe');
-  }, 10_000);
+    expect(screen.getByLabelText('Crystal Path: Infinity').className).toContain('is-catastrophe')
+  }, 10_000)
 
   it('shows the results as soon as the human run ends instead of switching to AI turns', async () => {
-    const seed = 12345;
-    const rows = createRowStream(mulberry32(seed)).take(40);
+    const seed = 12345
+    const rows = createRowStream(mulberry32(seed)).take(40)
 
     render(
       <Provider store={makeStore()}>
@@ -215,24 +217,66 @@ describe('Crystal Path: Infinity async flow', () => {
           ]}
           seed={seed}
         />
-      </Provider>,
-    );
+      </Provider>
+    )
 
     for (const row of rows) {
-      const wrongSide = row.safeSide === 'left' ? 'right' : 'left';
+      const wrongSide = row.safeSide === 'left' ? 'right' : 'left'
       fireEvent.click(
-        screen.getByRole('button', { name: `Row ${row.index + 1} ${wrongSide} tile` }),
-      );
+        screen.getByRole('button', { name: `Row ${row.index + 1} ${wrongSide} tile` })
+      )
 
       await act(async () => {
-        vi.advanceTimersByTime(CATASTROPHE_STEP_MS + 20);
-      });
+        vi.advanceTimersByTime(CATASTROPHE_STEP_MS + 20)
+      })
 
-      if (screen.queryByLabelText('Crystal Path: Infinity — complete')) break;
+      if (screen.queryByLabelText('Crystal Path: Infinity — complete')) break
     }
 
-    expect(screen.getByLabelText('Crystal Path: Infinity — complete')).toBeTruthy();
-    expect(screen.getByLabelText('Final standings')).toBeTruthy();
-    expect(screen.queryByText('AI One keeps climbing…')).toBeNull();
-  }, 10_000);
-});
+    expect(screen.getByLabelText('Crystal Path: Infinity — complete')).toBeTruthy()
+    expect(screen.getByLabelText('Final standings')).toBeTruthy()
+    expect(screen.queryByText('AI One keeps climbing…')).toBeNull()
+  }, 10_000)
+})
+
+it.each([false, true])(
+  'shows an unambiguous single-use hint and fractures only the wrong tile (premium=%s)',
+  async (premium) => {
+    vi.useFakeTimers()
+    try {
+      const seed = 12345
+      const firstRow = createRowStream(mulberry32(seed)).take(1)[0]
+      const { container } = render(
+        <Provider store={makeStore()}>
+          <CrystalPathShatteredGame
+            participantIds={['human', 'ai']}
+            participants={[
+              { id: 'human', name: 'Human', isHuman: true },
+              { id: 'ai', name: 'AI', isHuman: false },
+            ]}
+            seed={seed}
+            premium={premium}
+          />
+        </Provider>
+      )
+      const hint = screen.getByRole('button', { name: /hint/i })
+      fireEvent.click(hint)
+      const hinted = screen.getByRole('button', { name: /Row 1 .*hinted safe tile/ })
+      expect(hinted).toHaveClass('is-hinted')
+      expect(hinted.querySelector('.cps-hint-marker')).not.toBeNull()
+      const afterOneHint = hint.textContent
+      fireEvent.click(hint)
+      expect(hint.textContent).toBe(afterOneHint)
+      expect(container.querySelector('.cps-hint-status')?.textContent).toContain(firstRow.safeSide)
+      const wrongSide = firstRow.safeSide === 'left' ? 'right' : 'left'
+      fireEvent.click(screen.getByRole('button', { name: `Row 1 ${wrongSide} tile` }))
+      expect(container.querySelectorAll('.cps-tile.is-wrong .cps-fracture')).toHaveLength(1)
+      expect(container.querySelector('.cps-hint-marker')).toBeNull()
+      await act(async () => {
+        vi.advanceTimersByTime(WRONG_STEP_MS + 20)
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  }
+)

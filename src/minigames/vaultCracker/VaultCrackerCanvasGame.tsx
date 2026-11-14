@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useCompetitionResultCheckpoint } from '../competitionResultContext'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppDispatch } from '../../store/hooks';
@@ -93,6 +94,7 @@ export default function VaultCrackerCanvasGame({
   onFinish,
   autoStart = false,
 }: Props) {
+  const aiCapability = useSeasonAiCapability()
   const dispatch = useAppDispatch();
   const isCompetitionMode = participantIds.length > 0;
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -114,12 +116,12 @@ export default function VaultCrackerCanvasGame({
   const humanId = humanParticipant?.id ?? null;
 
   const { aiSolveProfiles, aiScores } = useMemo(() => {
-    const profiles = computeAllAiSolveProfiles(sessionSeed, participantIds, humanId);
+    const profiles = computeAllAiSolveProfiles(sessionSeed, participantIds, humanId, undefined, aiCapability);
     return {
       aiSolveProfiles: profiles,
       aiScores: Object.fromEntries(Object.entries(profiles).map(([id, profile]) => [id, profile.score])),
     };
-  }, [humanId, participantIds, sessionSeed]);
+  }, [aiCapability, humanId, participantIds, sessionSeed]);
 
   const clearResolveTimeout = useCallback(() => {
     if (resolveTimeoutRef.current !== null) {

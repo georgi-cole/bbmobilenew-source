@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useStore } from 'react-redux'
+import { hasPresentationEventClaim } from '../../broadcasting/fauxTvPresentation'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   endFinaleReunionDebugPreview,
@@ -25,6 +26,7 @@ import {
   continueSurvivorAfterAd,
   revealSurvivorReplacement,
   setHasSeenConfessionalSpotlight,
+  claimPresentationEvent,
   resetGame,
 } from '../../store/gameSlice'
 import {
@@ -381,14 +383,36 @@ export default function FloatingActionBar({
     }
     if (completedWeekendSocialSpotlightKey === key) return undefined
 
+    const claim = { gameId: game.gameId, runId: key, eventId: `weekend-energy:${key}` }
+    const grant = weekend?.wallet.energy ?? 0
+    if (
+      hasPresentationEventClaim(reduxStore.getState().game.presentationEventClaims, claim) ||
+      grant < 30
+    ) {
+      const frame = window.requestAnimationFrame(() => {
+        setCompletedWeekendSocialSpotlightKey(key)
+        setWeekendSocialBadgeFill(null)
+        setShowWeekendSocialSpotlight(false)
+      })
+      return () => window.cancelAnimationFrame(frame)
+    }
     const startedAt = performance.now()
     let frameId = 0
     let previousCount = -1
     const animateBadge = (now: number) => {
-      if (previousCount === -1) setShowWeekendSocialSpotlight(true)
+      if (previousCount === -1) {
+        dispatch(claimPresentationEvent(claim))
+        setShowWeekendSocialSpotlight(true)
+      }
       const progress = Math.min((now - startedAt) / 1200, 1)
       const easedProgress = 1 - (1 - progress) ** 3
-      const count = Math.round(easedProgress * 30)
+      if (reduxStore.getState().game.weekendInterlude?.wallet.energy !== grant) {
+        setCompletedWeekendSocialSpotlightKey(key)
+        setWeekendSocialBadgeFill(null)
+        setShowWeekendSocialSpotlight(false)
+        return
+      }
+      const count = Math.round(easedProgress * grant)
       if (count !== previousCount) {
         previousCount = count
         setWeekendSocialBadgeFill({ key, count })
@@ -409,6 +433,10 @@ export default function FloatingActionBar({
     weekend?.stage,
     weekendSocialSpotlightKey,
     completedWeekendSocialSpotlightKey,
+    dispatch,
+    game.gameId,
+    reduxStore,
+    weekend?.wallet.energy,
   ])
 
   const completeWeekendSocialSpotlight = useCallback(() => {
@@ -463,8 +491,6 @@ export default function FloatingActionBar({
             ? !confessionalPromptActivated
             : survivorReplacementPending || (canAdvance && !isWaiting)
   const confessionalPersistentFlash = hasPendingConfessionalDecision && confessionalPromptActivated
-  const confessionalSpotlightEligible =
-    hasPendingConfessionalDecision && confessionalPromptActivated && !hasSeenConfessionalSpotlight
 
   useEffect(() => {
     if (secretMissionRewardPendingKey === null) {
@@ -474,9 +500,15 @@ export default function FloatingActionBar({
     }
     if (previousSecretMissionRewardPendingKeyRef.current === secretMissionRewardPendingKey) return
     previousSecretMissionRewardPendingKeyRef.current = secretMissionRewardPendingKey
-    const showTimer = window.setTimeout(() => setShowSecretMissionRewardSpotlight(true), 0)
-    return () => window.clearTimeout(showTimer)
-  }, [secretMissionRewardPendingKey])
+    const claim = {
+      gameId: game.gameId,
+      runId: secretMissionRewardPendingKey,
+      eventId: `mission-reward:${secretMissionRewardPendingKey}`,
+    }
+    if (hasPresentationEventClaim(reduxStore.getState().game.presentationEventClaims, claim)) return
+    dispatch(claimPresentationEvent(claim))
+    startTransition(() => setShowSecretMissionRewardSpotlight(true))
+  }, [dispatch, game.gameId, reduxStore, secretMissionRewardPendingKey])
 
   const completeConfessionalSpotlight = useCallback(() => {
     setShowConfessionalSpotlight(false)
@@ -668,6 +700,14 @@ export default function FloatingActionBar({
       setTriggeredConfessionalDecisionKey(activeConfessionalDecisionKey)
       setConfessionalFlashTick((tick) => tick + 1)
       if (!hasSeenConfessionalSpotlight) {
+        dispatch(setHasSeenConfessionalSpotlight(true))
+        dispatch(
+          claimPresentationEvent({
+            gameId: game.gameId,
+            runId: 'tutorial',
+            eventId: 'confessional-tutorial',
+          })
+        )
         setShowConfessionalSpotlight(true)
       }
       dispatchPlayPressedEvent()
@@ -706,6 +746,7 @@ export default function FloatingActionBar({
     dispatchPlayPressedEvent,
     democraciaVoteRecorded,
     game.democracia?.resultDisplay,
+    game.gameId,
     hasReunionGuests,
     finaleInlinePlayActive,
     finaleOverlayActive,
@@ -740,7 +781,7 @@ export default function FloatingActionBar({
       })
       return
     }
-    if (confessionalSpotlightEligible) {
+    if (showConfessionalSpotlight) {
       completeConfessionalSpotlight()
     }
     setShowSecretMissionRewardSpotlight(false)
@@ -748,7 +789,7 @@ export default function FloatingActionBar({
     navigate('/diary-room')
   }, [
     completeConfessionalSpotlight,
-    confessionalSpotlightEligible,
+    showConfessionalSpotlight,
     dispatch,
     isSurvivorMode,
     location.hash,
@@ -1147,8 +1188,8 @@ export default function FloatingActionBar({
               ? weekendSocialSpotlightKey &&
                 completedWeekendSocialSpotlightKey !== weekendSocialSpotlightKey
                 ? weekendSocialBadgeFill?.key === weekendSocialSpotlightKey
-                  ? weekendSocialBadgeFill.count
-                  : 0
+                  ? Math.min(weekend?.wallet.energy ?? 0, weekendSocialBadgeFill.count)
+                  : weekend?.wallet.energy
                 : weekend?.wallet.energy
               : (humanEnergy ?? undefined)
             : undefined
@@ -1184,10 +1225,7 @@ export default function FloatingActionBar({
         onComplete={completeWeekendSocialSpotlight}
       />
       <ConfessionalSpotlightOverlay
-        active={
-          (showConfessionalSpotlight && confessionalSpotlightEligible) ||
-          showSecretMissionRewardSpotlight
-        }
+        active={showConfessionalSpotlight || showSecretMissionRewardSpotlight}
         targetRef={confessionalIconRef}
         onComplete={() => {
           setShowSecretMissionRewardSpotlight(false)

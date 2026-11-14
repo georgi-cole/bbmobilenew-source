@@ -1,3 +1,4 @@
+import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CompetitionResultContext,
@@ -127,6 +128,7 @@ function getBoxExchangePreview(actor: ChamberPlayer, target: ChamberPlayer): str
 }
 
 export default function MysticChamber(props: GenericMinigameProps) {
+  const aiCapability = useSeasonAiCapability()
   const checkpoint = useContext(CompetitionResultContext)
   const [sessionSeed] = useState(() =>
     typeof props.seed === 'number' && props.seed !== 0 ? props.seed : cryptoSeed()
@@ -237,7 +239,8 @@ export default function MysticChamber(props: GenericMinigameProps) {
         state,
         props.relationships,
         rngRef.current,
-        props.alliances
+        props.alliances,
+        aiCapability
       )
       startAction(choice.action, choice.targetId)
     }, AI_CHOICE_DELAY_MS)
@@ -250,6 +253,7 @@ export default function MysticChamber(props: GenericMinigameProps) {
     state,
     startAction,
     view,
+    aiCapability,
   ])
 
   useEffect(() => {
@@ -369,7 +373,8 @@ export default function MysticChamber(props: GenericMinigameProps) {
         simulatedState,
         props.relationships,
         rngRef.current,
-        props.alliances
+        props.alliances,
+        aiCapability
       )
       simulatedState = resolveChamberAction(
         simulatedState,
@@ -392,7 +397,7 @@ export default function MysticChamber(props: GenericMinigameProps) {
     setSelectedTargetId(null)
     setHistoryOpen(false)
     setView('finished')
-  }, [props.alliances, props.relationships, state])
+  }, [aiCapability, props.alliances, props.relationships, state])
 
   useEffect(() => {
     if (!autoplay || view !== 'result' || state.lastEvent?.actorId === humanPlayer?.id)

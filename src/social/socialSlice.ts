@@ -1227,6 +1227,7 @@ const socialSlice = createSlice({
       )
       if (!entry || entry.resolved) return
       entry.resolved = true
+      entry.resolutionOrigin = 'player'
       entry.read = true
       entry.resolvedAt = resolvedAt ?? Date.now()
       entry.resolvedWeek = resolvedWeek
@@ -1275,6 +1276,7 @@ const socialSlice = createSlice({
       state,
       action: PayloadAction<{
         interactionId: string
+        resolutionOrigin?: 'player' | 'deadline' | 'invalidation'
         resolvedAt?: number
         resolvedWeek?: number
       }>
@@ -1284,6 +1286,7 @@ const socialSlice = createSlice({
       )
       if (!entry || entry.resolved) return
       entry.resolved = true
+      entry.resolutionOrigin = action.payload.resolutionOrigin ?? 'player'
       entry.read = true
       entry.resolvedAt = action.payload.resolvedAt ?? Date.now()
       entry.resolvedWeek = action.payload.resolvedWeek
@@ -1322,11 +1325,12 @@ const socialSlice = createSlice({
       state.incomingInteractions.forEach((interaction) => {
         if (!interaction.resolved && ids.has(interaction.id)) {
           interaction.resolved = true
+          interaction.resolutionOrigin = scheduledStatus === 'EXPIRED' ? 'deadline' : 'invalidation'
           interaction.read = true
           interaction.resolvedAt = resolvedTimestamp
           interaction.resolvedWeek = resolvedWeek
           interaction.resolvedWith = 'dismiss'
-          closeLinkedIncomingInteraction(state, interaction, 'INVALIDATED')
+          closeLinkedIncomingInteraction(state, interaction, scheduledStatus)
           const historicalLead = retiredIntelHistory?.[interaction.id]
           if (historicalLead) {
             interaction.text = historicalLead.text
@@ -1365,6 +1369,7 @@ const socialSlice = createSlice({
       for (const interaction of state.incomingInteractions) {
         if (!interaction.resolved) {
           interaction.resolved = true
+          interaction.resolutionOrigin = 'invalidation'
           interaction.read = true
           interaction.resolvedAt = now
           interaction.resolvedWeek = week
@@ -1391,6 +1396,7 @@ const socialSlice = createSlice({
         if (isIncomingInteractionOverdue(interaction, { day: week, phase: 'week_start' })) {
           closeLinkedIncomingInteraction(state, interaction, 'EXPIRED')
           interaction.resolved = true
+          interaction.resolutionOrigin = 'deadline'
           interaction.read = true
           interaction.resolvedAt = resolvedTimestamp
           interaction.resolvedWeek = week
@@ -1422,6 +1428,7 @@ const socialSlice = createSlice({
         if (ids.has(interaction.id) && !interaction.resolved) {
           closeLinkedIncomingInteraction(state, interaction, 'EXPIRED')
           interaction.resolved = true
+          interaction.resolutionOrigin = 'deadline'
           interaction.read = true
           interaction.resolvedAt = resolvedTimestamp
           interaction.resolvedWeek = action.payload.day

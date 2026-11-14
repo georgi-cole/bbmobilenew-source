@@ -1403,6 +1403,7 @@ export function respondToIncomingInteraction(submission: IncomingReplySubmission
     if (invalidated) {
       dispatch(
         dismissIncomingInteraction({
+          resolutionOrigin: 'invalidation',
           interactionId,
           resolvedAt,
           resolvedWeek: currentWeek,
@@ -1603,6 +1604,7 @@ export function autoResolveExpiredIncomingInteractionsForClock(
       ) {
         dispatch(
           dismissIncomingInteraction({
+            resolutionOrigin: 'invalidation',
             interactionId: interaction.id,
             resolvedAt,
             resolvedWeek: day,

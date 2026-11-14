@@ -83,8 +83,8 @@ html[data-depression-shock='day2'] [data-houseguest-roster] img {
     transparent 70%
   );
   filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.55));
-  animation: depression-chocolate-flight 860ms var(--target-delay) cubic-bezier(0.18, 0.72, 0.18, 1)
-    both;
+  animation: depression-chocolate-flight var(--chocolate-flight-ms, 860ms) var(--target-delay)
+    cubic-bezier(0.18, 0.72, 0.18, 1) both;
 }
 .depression-cinematic__impact {
   position: absolute;
@@ -133,8 +133,12 @@ html[data-depression-shock='day2']
   [data-houseguest-roster='true']
   [data-depression-target='true']
   img {
-  animation: depression-avatar-chocolate-relief 3050ms
-    calc(680ms + var(--depression-target-index) * 62ms) cubic-bezier(0.2, 0.72, 0.22, 1) both;
+  animation: depression-avatar-chocolate-relief var(--chocolate-relief-ms, 3050ms)
+    calc(
+      var(--chocolate-relief-delay-ms, 680ms) + var(--depression-target-index) *
+        var(--chocolate-stagger-ms, 62ms)
+    )
+    cubic-bezier(0.2, 0.72, 0.22, 1) both;
 }
 .depression-cinematic__sun-wave {
   width: 44px;

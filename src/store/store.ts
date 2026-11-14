@@ -477,6 +477,9 @@ store.subscribeImmediate(() => {
   if (resumableStateChanged) {
     const weekendPreviewWasActive = prevGame.weekendInterlude?.debug === true
     const finalePhaseChanged = current.game.seasonFinale?.phase !== prevFinalePhase
+    const broadcastCheckpointChanged =
+      current.game.activeBroadcastEventId !== prevGame.activeBroadcastEventId ||
+      current.game.presentationEventClaims !== prevGame.presentationEventClaims
     prevGame = current.game
     prevFinale = current.finale
     prevFinalePhase = current.game.seasonFinale?.phase
@@ -497,10 +500,9 @@ store.subscribeImmediate(() => {
       hasMeaningfulGameProgress(current.game)
     ) {
       scheduleCurrentRunSnapshot(activeProfileId, current)
-      // Finale transitions are user-visible checkpoints. Flush these immediately
-      // so a reload between the transition and the trailing autosave cannot lose
-      // awards or restore an earlier finale phase.
-      if (finalePhaseChanged) {
+      // Persist visible checkpoints immediately so navigation or reload cannot
+      // restore an earlier finale phase or replay a broadcast that already started.
+      if (finalePhaseChanged || broadcastCheckpointChanged) {
         runSnapshotAutosave.flush()
         void flushSavePersistence()
       }
