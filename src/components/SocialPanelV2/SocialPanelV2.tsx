@@ -2810,13 +2810,11 @@ export default function SocialPanelV2() {
             {isAllianceSway && (
               <div
                 ref={subjectPickerRef}
-                className="sp2-subject-picker"
+                className="sp2-subject-picker sp2-subject-picker--vote"
                 aria-label="Choose elimination targets"
               >
                 <span className="sp2-subject-picker__label">
-                  {swayPlan.maxTargets === 2
-                    ? 'Choose up to two nominees to vote out:'
-                    : 'Choose who to vote out:'}
+                  {swayPlan.maxTargets === 2 ? 'Choose up to two nominees:' : 'Choose a nominee:'}
                 </span>
                 <div className="sp2-subject-picker__chips" role="group" aria-label="Nominees">
                   {swayPlan.nominees.map((candidate) => (

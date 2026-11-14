@@ -729,6 +729,36 @@
   scrollbar-width: thin;
 }
 
+.sp2-subject-picker--vote {
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  background: transparent;
+  border-top: 0;
+}
+
+.sp2-subject-picker--vote .sp2-subject-picker__label {
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.sp2-subject-picker--vote .sp2-subject-picker__chips {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.sp2-subject-picker--vote .sp2-subject-chip {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sp2-subject-picker--vote .sp2-subject-chip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sp2-subject-picker__empty {
   color: rgba(255, 255, 255, 0.4);
   font-size: 0.72rem;

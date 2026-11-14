@@ -17,7 +17,11 @@ export default function ConfessionalAllianceConsultation() {
         className="rcd-read-trigger"
         onClick={() => dispatch(openSocialPanel())}
       >
-        Open Social
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z" />
+          <circle cx="12" cy="12" r="2.7" />
+        </svg>
+        <span>Open Social</span>
       </button>
       {createPortal(<SocialPanelV2 />, document.body)}
     </div>
