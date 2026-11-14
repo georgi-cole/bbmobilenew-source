@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-14: Reviewed automatic TestFlight delivery and signed Android upload
+  bundles. Builds preserve production account services, disable development
+  entitlements, and use existing signing identities. Store offers, products,
+  prices, access rules and Premium Challenges coverage do not change.
+
 - 2026-11-14: Reviewed alliance and relationship consistency across Reality social
   play, Classic, Cupid, Vox and Survival. Departures retain responsibility and
   context, independent pacts survive group formation, and voting uses shared bond
