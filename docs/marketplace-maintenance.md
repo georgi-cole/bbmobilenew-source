@@ -531,3 +531,10 @@ store listings or change configured prices.
   choreography, offers, prices, rewards, entitlements and availability are unchanged.
 
 - 2026-11-14: Reviewed secret mission acceptance, deadline, legacy-save and energy tracking repairs. Existing reward boxes, Eyeolean power eligibility, prices, entitlements and paid-mode availability remain unchanged.
+
+- 2026-11-14: Reviewed the public-vote nomination cinematic: the committed
+  automatic nominee is established before the LOH insert, chosen nominees receive
+  separate light reveals, and the film closes on the complete block. This
+  maintains the existing VIP cinematic benefit and animation preferences. No
+  nomination ownership, offer, price, entitlement, reward, availability or
+  marketplace copy changes.

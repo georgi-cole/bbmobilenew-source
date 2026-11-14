@@ -1,0 +1,46 @@
+.nom-public .public-nom-camera {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 43%;
+}
+.nom-public .nom-warning {
+  display: none;
+}
+.nom-public .public-nom-beam {
+  position: absolute;
+  z-index: 2;
+  top: 5%;
+  left: -22%;
+  width: 144%;
+  height: 57%;
+  background: radial-gradient(ellipse at 50% 100%, #efd0a52b, transparent 65%);
+  pointer-events: none;
+}
+.nom-public .nom-aura {
+  background: radial-gradient(ellipse, #caa66a57, transparent 68%);
+}
+.nom-public .nom-decision-caption strong {
+  font:
+    400 clamp(19px, 5cqw, 27px)/1.2 Georgia,
+    serif;
+  letter-spacing: 0.04em;
+}
+.nom-public .nom-decision-caption {
+  bottom: 15%;
+}
+.nom-public .c-caption {
+  bottom: 14%;
+}
+.nom-public .c-caption strong {
+  font:
+    400 clamp(21px, 5.8cqw, 30px)/1.2 Georgia,
+    serif;
+}
+.nom-public .c-caption span,
+.nom-public .c-caption em {
+  display: none;
+}
+.nom-public .nom-label {
+  top: 64%;
+  font-size: clamp(10px, 2.8cqw, 13px);
+}
