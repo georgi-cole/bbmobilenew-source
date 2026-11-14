@@ -1,6 +1,8 @@
-name: Upload iOS build to TestFlight
+name: Build TestFlight and signed Android apps
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -9,18 +11,57 @@ permissions:
 concurrency:
   group: ios-testflight-upload
   cancel-in-progress: false
+  queue: max
 
 jobs:
+  quality:
+    name: Validate the selected store source
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/testflight-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check:pr
+      - run: node --test scripts/mobile-store-workflow.test.mjs
+
   upload:
     name: Build, sign, and upload iOS app
-    # Candidate uploads let the owner test stacked fixes before merging them.
-    # These jobs still require an explicit workflow dispatch by a repository writer.
+    needs: quality
+    # Automatic main builds and explicitly selected TestFlight candidates share validation.
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/testflight-')
     runs-on: macos-26
     timeout-minutes: 60
+    env:
+      IOS_BUILD_NUMBER: ${{ github.run_id }}.${{ github.run_attempt }}
     steps:
       - name: Check out selected TestFlight source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Check Apple signing and upload credentials
+        env:
+          IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+        run: |
+          for name in IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD IOS_PROVISIONING_PROFILE_BASE64 ASC_API_ISSUER_ID ASC_API_KEY_ID ASC_API_KEY_P8_BASE64; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret: $name. See docs/AUTOMATIC_MOBILE_BUILDS.md."
+              exit 1
+            fi
+          done
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -120,7 +161,7 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/TheBigEye.xcarchive" \
-            CURRENT_PROJECT_VERSION="$GITHUB_RUN_ID" \
+            CURRENT_PROJECT_VERSION="$IOS_BUILD_NUMBER" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
@@ -179,7 +220,7 @@ jobs:
             echo "## TestFlight upload"
             echo "- Source commit: $GITHUB_SHA"
             echo "- Marketing version: $MARKETING_VERSION"
-            echo "- Build number: $GITHUB_RUN_ID"
+            echo "- Build number: $IOS_BUILD_NUMBER"
             echo "- Uploaded to App Store Connect for TestFlight processing."
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -192,3 +233,119 @@ jobs:
             security delete-keychain "$IOS_KEYCHAIN_PATH" || true
           fi
           rm -f "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_API_KEY_ID:-unused}.p8"
+
+  android:
+    name: Build the signed Google Play bundle
+    if: github.ref == 'refs/heads/main'
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
+    steps:
+      - name: Check out the selected Android source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Restore the upload signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/android-upload-key.jks"
+          echo "ANDROID_KEYSTORE_PATH=$ANDROID_KEYSTORE_PATH" >> "$GITHUB_ENV"
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret: $name. See docs/AUTOMATIC_MOBILE_BUILDS.md."
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          test -s "$ANDROID_KEYSTORE_PATH"
+          keytool -list -keystore "$ANDROID_KEYSTORE_PATH" \
+            -storepass:env ANDROID_KEYSTORE_PASSWORD -alias "$ANDROID_KEY_ALIAS" > /dev/null
+          # Jobs are serialized; a fresh UTC timestamp also advances on a rerun.
+          echo "ANDROID_VERSION_CODE=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+
+      - name: Configure production Android services
+        env:
+          ANDROID_ADMOB_MODE: ${{ vars.ANDROID_ADMOB_MODE || 'off' }}
+          ANDROID_ADMOB_APP_ID: ${{ vars.ANDROID_ADMOB_APP_ID }}
+          ANDROID_ADMOB_INTERSTITIAL_ID: ${{ vars.ANDROID_ADMOB_INTERSTITIAL_ID }}
+          ANDROID_ADMOB_REWARDED_ID: ${{ vars.ANDROID_ADMOB_REWARDED_ID }}
+          VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_ENABLED }}
+          VITE_PLAYER_SIGN_IN_ENABLED: ${{ vars.VITE_PLAYER_SIGN_IN_ENABLED }}
+        run: |
+          cp .env.android.example .env.android
+          cat >> .env.android <<EOF
+
+          VITE_APP_ENVIRONMENT=production
+          VITE_BUILD_TARGET=release
+          VITE_BUILD_ID=$GITHUB_SHA
+          VITE_VIP_DEV_ENTITLEMENT=false
+          VITE_ADMOB_MODE=$ANDROID_ADMOB_MODE
+          VITE_ADMOB_APP_ID=$ANDROID_ADMOB_APP_ID
+          VITE_ADMOB_INTERSTITIAL_ID=$ANDROID_ADMOB_INTERSTITIAL_ID
+          VITE_ADMOB_REWARDED_ID=$ANDROID_ADMOB_REWARDED_ID
+          VITE_SUPABASE_ENABLED=$VITE_SUPABASE_ENABLED
+          VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+          VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+          VITE_PLAYER_ACCOUNTS_ENABLED=$VITE_PLAYER_ACCOUNTS_ENABLED
+          VITE_PLAYER_SIGN_IN_ENABLED=$VITE_PLAYER_SIGN_IN_ENABLED
+          EOF
+          npm run verify:store-env:android
+
+      - name: Build and synchronize the production Android bundle
+        run: npm run sync:android
+
+      - name: Sign the release bundle with the existing upload key
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Verify the signed bundle
+        run: |
+          jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab \
+            > "$RUNNER_TEMP/android-signature-verification.txt"
+          cat "$RUNNER_TEMP/android-signature-verification.txt"
+          grep -q 'jar verified.' "$RUNNER_TEMP/android-signature-verification.txt"
+
+      - name: Save the Google Play upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-play-signed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Record signed Android build details
+        run: |
+          {
+            echo "## Signed Google Play bundle"
+            echo "- Source commit: $GITHUB_SHA"
+            echo "- Android version code: $ANDROID_VERSION_CODE"
+            echo "- Download the signed AAB from this run's artifacts and upload it in Play Console."
+            echo "- No signing-password entry is required when uploading this AAB."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the temporary upload signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/android-upload-key.jks"

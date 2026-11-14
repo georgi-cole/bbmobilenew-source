@@ -26,6 +26,13 @@ def releaseBuildRequested = gradle.startParameter.taskNames.any { taskName ->
     taskName.toLowerCase().contains('release')
 }
 
+def automaticVersionCode = System.getenv('ANDROID_VERSION_CODE') ?:
+    (releaseBuildRequested ? System.currentTimeMillis().intdiv(1000L).toString() : null)
+if (automaticVersionCode && (!automaticVersionCode.isInteger() ||
+        automaticVersionCode.toLong() < 1 || automaticVersionCode.toLong() > 2100000000L)) {
+    throw new GradleException('ANDROID_VERSION_CODE must be an integer between 1 and 2100000000.')
+}
+
 android {
     namespace = "com.georgicole.thebigeye"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -33,7 +40,7 @@ android {
         applicationId "com.georgicole.thebigeye"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
+        versionCode (automaticVersionCode ? automaticVersionCode.toInteger() : 8)
         versionName "1.0.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
