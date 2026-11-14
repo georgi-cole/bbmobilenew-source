@@ -93,6 +93,9 @@ jobs:
               tests/unit/cinematicPackDownloads.test.ts
               tests/unit/cinematicPackPrompts.test.tsx
               src/components/Final3Ceremony/__tests__/Final3Cinematic.test.tsx
+              tests/ceremonyWalkAssets.test.ts
+              src/cinematic/ceremonies/walk-cycles.test.ts
+              src/cinematic/ceremonies/ceremony-audio.test.ts
               src/components/FinalThreeCompetitionBroadcast/__tests__/FinalThreeCompetitionBroadcast.test.tsx &&
               node --test scripts/mobile-cinematic-assets.test.mjs scripts/vip-cinematic-pack.test.mjs
             fetch_depth: 1

@@ -537,4 +537,5 @@ store listings or change configured prices.
   local installation is verified. Final decisions and competition results retain
   their native continuation paths. Browser cinematics, music, credits and shared
   finale artwork stay bundled. Ownership, prices, rewards and product copy do not
-  change; new exit walking frames are still pending their separate merge.
+  change. The 63 walking atlases from #1762 are included in the optional inventory;
+  transparency compression preserves their decoded pixels, frames and timing.

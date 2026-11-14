@@ -204,13 +204,13 @@ describe('VIP cinematic download prompts', () => {
     expect(store.getState().settings.gameUX.animationMode).toBe('cinematic')
     expect(testBackend.download).not.toHaveBeenCalled()
   })
-  it('offers a download when a previously selected Cinematic pack is no longer installed', async () => {
+  it('reoffers a download when a previously selected Cinematic revision is missing after an update', async () => {
     manager.choose('cinematic')
     const { store } = mount(true, true, 'cinematic')
     await waitFor(() => expect(manager.getSnapshot().status).toBe('available'))
     expect(screen.getByLabelText('Animation style')).toHaveValue('standard')
-    fireEvent.change(screen.getByLabelText('Animation style'), { target: { value: 'cinematic' } })
     await screen.findByRole('button', { name: 'Download & turn on' })
+    expect(testBackend.download).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Stay with Standard' }))
     expect(store.getState().settings.gameUX.animationMode).toBe('standard')
   })
