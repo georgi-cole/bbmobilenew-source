@@ -47,8 +47,18 @@ export function createAppleClient({
       signal: AbortSignal.timeout(30000),
       redirect: 'error',
     })
-    if (!response.ok)
-      throw new Error(`App Store Connect ${method} failed (HTTP ${response.status}).`)
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}))
+      const codes = Array.isArray(errorBody.errors)
+        ? errorBody.errors
+            .map((entry) => entry.code)
+            .filter((code) => /^[A-Z0-9_.-]{1,160}$/.test(code ?? ''))
+            .join(', ')
+        : ''
+      throw new Error(
+        `App Store Connect ${method} ${new URL(endpoint, origin).pathname} failed (HTTP ${response.status}${codes ? `; ${codes}` : ''}).`
+      )
+    }
     return response.status === 204 ? null : response.json()
   }
 }
@@ -140,12 +150,21 @@ export async function completeTestFlight({
     })
   }
   const groupsPath = `/v1/builds/${build.id}/relationships/betaGroups`
-  let groups = await api('GET', `${groupsPath}?limit=200`)
+  // The build relationship supports POST/DELETE, not GET. Read membership through
+  // Apple's documented betaGroups collection with exact app/build/group filters.
+  const membershipQuery = new URLSearchParams({
+    'filter[app]': policy.appId,
+    'filter[builds]': build.id,
+    'filter[id]': policy.internalGroupId,
+    limit: '1',
+  })
+  const readGroups = () => api('GET', `/v1/betaGroups?${membershipQuery}`)
+  let groups = await readGroups()
   if (!groups.data.some((entry) => entry.id === policy.internalGroupId))
     await api('POST', groupsPath, { data: [{ type: 'betaGroups', id: policy.internalGroupId }] })
   while (true) {
     const detail = (await api('GET', `/v1/builds/${build.id}/buildBetaDetail`)).data
-    groups = await api('GET', `${groupsPath}?limit=200`)
+    groups = await readGroups()
     if (
       detail.attributes.internalBuildState === 'IN_BETA_TESTING' &&
       groups.data.some((entry) => entry.id === policy.internalGroupId)

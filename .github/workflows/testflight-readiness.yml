@@ -1,0 +1,43 @@
+name: Complete an uploaded TestFlight build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: Existing uploaded iOS build number to complete (no rebuild)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight-readiness-${{ inputs.build_number }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  complete:
+    name: Validate and complete existing TestFlight build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check:pr
+      - run: node --test scripts/mobile-store-workflow.test.mjs scripts/testflight-readiness.test.mjs scripts/android-upload-certificate.test.mjs
+      - name: Complete compliance and verify internal TestFlight availability
+        env:
+          IOS_BUILD_NUMBER: ${{ inputs.build_number }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+        run: node scripts/complete-testflight.mjs

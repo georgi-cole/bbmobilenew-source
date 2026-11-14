@@ -55,8 +55,17 @@ function fixture({
       }
     if (endpoint.startsWith('/v1/builds?')) return { data: target ? [target] : [] }
     if (method === 'PATCH') return { data: target }
-    if (endpoint.includes('/relationships/betaGroups')) {
-      if (method === 'POST') grouped = true
+    if (method === 'GET' && endpoint.includes('/relationships/betaGroups'))
+      throw new Error('Apple does not support GET on this build relationship.')
+    if (method === 'POST' && endpoint.endsWith('/relationships/betaGroups')) {
+      grouped = true
+      return null
+    }
+    if (method === 'GET' && endpoint.startsWith('/v1/betaGroups?')) {
+      const query = new URL(endpoint, 'https://example.test').searchParams
+      assert.equal(query.get('filter[app]'), 'app')
+      assert.equal(query.get('filter[builds]'), 'current')
+      assert.equal(query.get('filter[id]'), 'internal')
       return { data: grouped ? [{ type: 'betaGroups', id: 'internal' }] : [] }
     }
     if (endpoint.endsWith('/buildBetaDetail'))
@@ -122,6 +131,11 @@ test('copies the approved answer, adds the existing internal group, and verifies
   assert.equal(lookup.searchParams.get('filter[version]'), '123.1')
   assert.equal(lookup.searchParams.get('filter[app]'), 'app')
   assert.equal(lookup.searchParams.get('filter[preReleaseVersion.platform]'), 'IOS')
+  assert.ok(
+    !calls.some(
+      (entry) => entry.method === 'GET' && entry.endpoint.includes('/relationships/betaGroups')
+    )
+  )
 })
 
 test('already completed builds are verified without changing compliance or group membership', async () => {
@@ -244,4 +258,29 @@ test('Apple authentication uses a valid short-lived ES256 JWT, refreshes it, and
     captured[1].options.headers.Authorization
   )
   await assert.rejects(api('GET', 'https://example.test'), /Unexpected Apple API endpoint/)
+})
+
+test('API errors identify the endpoint and Apple error code without logging credentials or response details', async () => {
+  const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+  const api = createAppleClient({
+    issuerId: 'issuer',
+    keyId: 'key',
+    privateKeyBase64: Buffer.from(privateKey.export({ type: 'pkcs8', format: 'pem' })).toString(
+      'base64'
+    ),
+    fetchImpl: async () => ({
+      ok: false,
+      status: 403,
+      json: async () => ({
+        errors: [{ code: 'FORBIDDEN_ERROR', detail: 'private-response-detail' }],
+      }),
+    }),
+  })
+  await assert.rejects(api('GET', '/v1/betaGroups?filter[builds]=current'), (error) => {
+    assert.match(error.message, /GET \/v1\/betaGroups failed \(HTTP 403; FORBIDDEN_ERROR\)/)
+    assert.ok(!error.message.includes('private-response-detail'))
+    assert.ok(!error.message.includes('PRIVATE KEY'))
+    assert.ok(!error.message.includes('Bearer'))
+    return true
+  })
 })
