@@ -270,13 +270,6 @@ export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
     component: 'tests/crystalPathShattered.asyncFlow.test.tsx',
     host: 'tests/integration/minigame.crystalPathShattered.integration.test.ts',
   },
-  rescueTheKing: {
-    input: 'pointer/touch board movement',
-    scoring: 'higher',
-    tie: 'Higher rescue score; then lower supplied tiebreaker.',
-    logic: 'tests/unit/rescue-the-king/logic.test.ts',
-    risk: 'Browser smoke is currently the only real-component host evidence.',
-  },
   trapAuction: {
     input: 'pointer/touch bid and target controls',
     scoring: 'custom',

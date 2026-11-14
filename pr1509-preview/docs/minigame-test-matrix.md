@@ -51,7 +51,6 @@ Except for `gridOfLuck` (explicitly 2?4), the registry currently omits game-spec
 | `castleRescue`           | Find Your Twin             | platform controls     | higher      |               150 s | rescue score, lower tiebreaker                                       |
 | `glass_bridge_brutal`    | The Crystal Path           | path choice           | elimination | dynamic; 160 s base | survival and deterministic finish order                              |
 | `crystal_path_shattered` | Crystal Path: Infinity     | path choice           | elimination |               160 s | authoritative survival/order                                         |
-| `rescueTheKing`          | Rescue the King            | board movement        | higher      |               180 s | rescue score, lower tiebreaker                                       |
 | `trapAuction`            | Trap Auction               | bid/target            | custom      |               owned | authoritative auction tie rule                                       |
 | `gridOfLuck`             | Grid of Luck               | grid choice           | placement   |               owned | seeded authoritative winner; 2?4 players                             |
 | `bigSpender`             | Big Spender: Broke or Boom | spend/bank            | placement   |               owned | authoritative equal-balance policy                                   |
@@ -91,7 +90,6 @@ Except for `gridOfLuck` (explicitly 2?4), the registry currently omits game-spec
 | `castleRescue`           | ranking/rules/timeout      | continue component       | ?                           | B configured | long canvas lifecycle                   |
 | `glass_bridge_brutal`    | logic/parallel             | GlassBridgeComp          | host seed                   | B configured | short viewport/final-minute concurrency |
 | `crystal_path_shattered` | logic                      | async flow               | integration                 | B configured | delayed timer after unmount             |
-| `rescueTheKing`          | rescue logic               | ?                        | ?                           | B configured | browser is only real-component evidence |
 | `trapAuction`            | logic/rules                | trapAuction.component    | ?                           | B configured | bid/store idempotency                   |
 | `gridOfLuck`             | logic/rules                | gridOfLuck.component     | host + integration          | B configured | low                                     |
 | `bigSpender`             | bigSpenderLogic            | ?                        | ?                           | B configured | component/store/host coverage           |

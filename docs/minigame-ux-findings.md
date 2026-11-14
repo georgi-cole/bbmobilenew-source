@@ -68,17 +68,17 @@ The six configured projects are desktop Chromium at 1366×768, Pixel 7 mobile Ch
 - **Recommended action:** Add registry metadata or per-game drivers for start, one meaningful input, terminal/partial completion, and Continue. Keep component-specific behavior explicit rather than hiding it behind a universal click loop.
 - **Acceptance criterion:** Every game proves one accepted input, visible feedback, one valid terminal or documented partial result, exactly one completion callback, and a usable post-result exit through the real host.
 
-### UX-O03 — Four games depend on the blocked browser path for meaningful hosted UI confidence
+### UX-O03 — Three games depend on the blocked browser path for meaningful hosted UI confidence
 
 - **Severity:** High.
-- **Minigame/screen:** Pressure Plank, Rescue the King, Big Spender, and Battery Low.
+- **Minigame/screen:** Pressure Plank, Big Spender, and Battery Low.
 - **Viewport/browser:** All supported web viewports; none executed.
 - **Reproduction:** Review their rows in `docs/minigame-test-matrix.md`. They have logic evidence but no focused real-component and no dedicated host/integration evidence in the quality catalog.
 - **Expected player experience:** Each real component mounts through MinigameHost, accepts the intended touch/pointer input, reaches a result, stores it once, and returns control.
-- **Observed experience:** Their only cataloged end-user host route is the configured but unexecuted browser smoke. For Rescue the King, the catalog explicitly identifies browser smoke as the only real-component host evidence.
+- **Observed experience:** Their only cataloged end-user host route is the configured but unexecuted browser smoke.
 - **Evidence:** `tests/helpers/minigameQualityMatrix.ts` and `docs/minigame-test-matrix.md`.
 - **Recommended action:** Add focused real-component host tests before release, then exercise the same path in Playwright.
-- **Acceptance criterion:** For each of the four games, a real-component host test and one desktop browser journey assert valid participants, result schema, winner ownership, idempotent completion, dismissal, and cleared overlay/pending state.
+- **Acceptance criterion:** For each of the three games, a real-component host test and one desktop browser journey assert valid participants, result schema, winner ownership, idempotent completion, dismissal, and cleared overlay/pending state.
 
 ### UX-O04 — Mobile, accessibility, and interruption risks are mostly untested
 
@@ -160,7 +160,6 @@ All Browser entries below mean **configured, not executed**. Existing evidence p
 | `castleRescue`           | Find Your Twin             | Long canvas lifecycle and small-screen controls                             | Mobile control containment, unmount cleanup, terminal Continue                     |
 | `glass_bridge_brutal`    | The Crystal Path           | Short viewport and final-minute concurrent movers                           | Pixel/320×568 staged-release run with readable status and result                   |
 | `crystal_path_shattered` | Crystal Path: Infinity     | Delayed timers after unmount                                                | Route-away/unmount case proves no late result overwrite                            |
-| `rescueTheKing`          | Rescue the King            | No focused component or host protection                                     | Real-component host test plus desktop/Pixel board interaction                      |
 | `trapAuction`            | Trap Auction               | Repeated bid and store idempotency                                          | Double-submit case, one debit/result, clear disabled reason                        |
 | `mysticChamber`          | Mystic Chamber             | Six-round result and target-confirmation controls need full roster coverage | Complete the seeded 2- and 5-player runs; keep decision controls visible on mobile |
 | `bigSpender`             | Big Spender: Broke or Boom | No focused component/host test; debit clarity                               | Real host with double-tap protection and exact visible balance                     |
@@ -170,7 +169,7 @@ All Browser entries below mean **configured, not executed**. Existing evidence p
 ## Prioritized actionable work
 
 1. **Release blocker:** repair Playwright browser installation, execute all 32 desktop host/partial-exit cases, and retain the first real artifact set.
-2. **Before release:** add registry-driven or per-game primary-input/normal-terminal drivers; add dedicated host coverage for Pressure Plank, Rescue the King, Big Spender, and Battery Low.
+2. **Before release:** add registry-driven or per-game primary-input/normal-terminal drivers; add dedicated host coverage for Pressure Plank, Big Spender, and Battery Low.
 3. **Before release:** execute high-risk touch/timed games on Pixel 7 and iPhone 13; add 320×568 stress, touch-size, primary-control containment, and focus assertions.
 4. **Soon:** declare participant bounds for every registry entry and add min/max host validation.
 5. **Soon:** cover reduced motion, visibility/background, resize/orientation, mixed keyboard/pointer input, blocked audio, and unmount/route-change cleanup.

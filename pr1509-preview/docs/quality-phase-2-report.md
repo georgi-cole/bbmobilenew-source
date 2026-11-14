@@ -176,7 +176,6 @@ The executable source of this catalog is `tests/helpers/minigameQualityMatrix.ts
 | `castleRescue`           | Ranking/rules/timeout + continue component              | Configured, not executed | Long canvas lifecycle/unmount           |
 | `glass_bridge_brutal`    | Logic/concurrency + component + seeded host             | Configured, not executed | Short viewport/final-minute concurrency |
 | `crystal_path_shattered` | Logic + async component + integration                   | Configured, not executed | Delayed timer after unmount             |
-| `rescueTheKing`          | Rescue logic                                            | Configured, not executed | No focused component/host evidence      |
 | `trapAuction`            | Logic/rules + component                                 | Configured, not executed | Bid/store idempotence                   |
 | `gridOfLuck`             | Logic/rules + component + host/integration              | Configured, not executed | Low residual risk; browser proof        |
 | `bigSpender`             | Logic + newly registered seeded AI                      | Configured, not executed | Component/store/host coverage           |
@@ -297,7 +296,7 @@ ESLint now ignores nested `.worktrees`, coverage, distribution output, Playwrigh
 
 Formatting is not green. Generated reports, native build/cache output, generated Capacitor assets and two asset-pack prose files carrying a `.css` extension are now ignored. The exact check still reports extensive pre-existing source/documentation drift. All Phase 2-owned CI, E2E, matrix and report files pass focused Prettier checks. A broad rewrite would intermingle large formatting churn with user-owned gameplay work, so the remaining baseline needs an isolated mechanical change or a rigorously implemented changed-file gate. Until the exact CI command passes, format remains a release-process failure.
 
-The seven provisional full-suite failures were timeouts in Crystal Path, Quick Tap, Memory Match, Snake, Capitalization and Rescue the King under high parallel load. The same affected five-file cluster passed all 96 tests with four workers in 80.20 seconds. Vitest is now bounded to four workers without increasing ordinary test timeouts or adding retries, and the complete 4,466-test suite passes twice. Those seven failures are resolved as infrastructure contention.
+Provisional full-suite timeouts under high parallel load were resolved by bounding Vitest to four workers. The affected five-file cluster passed all 96 tests with four workers in 80.20 seconds, and the complete 4,466-test suite passed twice. Vitest was not given longer ordinary test timeouts or retries.
 
 ## CI findings and changes
 
