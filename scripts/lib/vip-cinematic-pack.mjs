@@ -78,4 +78,14 @@ export async function exportVipCinematicPack(root, outputDirectory, manifest) {
     path.join(outputDirectory, 'manifest.json'),
     serializeVipCinematicPackManifest(manifest)
   )
+  // A single transfer, with image boundaries and hashes pinned by the app's manifest.
+  // No compression or executable content: each original image follows the previous one.
+  await writeFile(
+    path.join(outputDirectory, 'vip-cinematics.pack'),
+    Buffer.concat(
+      await Promise.all(
+        manifest.files.map((file) => readFile(path.join(outputDirectory, 'files', file.path)))
+      )
+    )
+  )
 }

@@ -19,6 +19,13 @@ export interface InstalledVipCinematicPack {
   getUri: (assetPath: string) => Promise<string>
 }
 
+export interface VerifiedCinematicFile {
+  path: string
+  bytes: number
+  sha256: string
+  uri: string
+}
+
 export type CinematicMediaResolver = (assetPath: string) => string
 
 export const VIP_CINEMATIC_PACK: VipCinematicPackManifest = generatedManifest
@@ -44,6 +51,28 @@ export function createVipCinematicMediaLibrary(
   let generation = 0
 
   return {
+    /** Native storage verifies bytes on download and every cold start; accept only the pinned inventory. */
+    activateVerified(revision: string, files: readonly VerifiedCinematicFile[]): void {
+      if (revision !== manifest.revision || files.length !== manifest.files.length) {
+        throw new Error('The cinematic installation is incomplete or incompatible.')
+      }
+      const proof = new Map(files.map((file) => [file.path, file]))
+      const verified = new Map<string, string>()
+      for (const file of manifest.files) {
+        const local = proof.get(file.path)
+        if (
+          !local ||
+          local.bytes !== file.bytes ||
+          local.sha256 !== file.sha256 ||
+          !['file:', 'content:'].includes(new URL(local.uri).protocol)
+        ) {
+          throw new Error('The cinematic installation failed verification.')
+        }
+        verified.set(file.path, convertFileSrc(local.uri))
+      }
+      generation += 1
+      installed = verified
+    },
     async activate(storage: InstalledVipCinematicPack, signal?: AbortSignal): Promise<void> {
       const attempt = ++generation
       const assertActive = () => {

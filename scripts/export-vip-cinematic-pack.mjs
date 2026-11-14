@@ -8,7 +8,10 @@ import {
 } from './lib/vip-cinematic-pack.mjs'
 
 const args = process.argv.slice(2)
-if (args.some((arg) => !['--check', '--write-manifest'].includes(arg)) || args.length > 1) {
+if (
+  args.some((arg) => !['--check', '--write-manifest', '--download'].includes(arg)) ||
+  args.length > 1
+) {
   throw new Error(
     'Use no arguments to export, --write-manifest to regenerate, or --check to validate.'
   )
@@ -26,7 +29,10 @@ if (args.includes('--write-manifest')) {
     )
   }
   if (!args.includes('--check')) {
-    const parent = path.join(repositoryRoot, 'renders/vip-cinematics')
+    const parent = path.join(
+      repositoryRoot,
+      args.includes('--download') ? 'renders/vip-cinematics-download' : 'renders/vip-cinematics'
+    )
     await mkdir(parent, { recursive: true })
     const destination = path.join(parent, manifest.revision)
     await exportVipCinematicPack(repositoryRoot, destination, manifest)

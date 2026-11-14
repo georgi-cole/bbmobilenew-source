@@ -1,11 +1,17 @@
 # Optional VIP cinematic pack
 
-## First pass
+## Implemented
 
-This pass defines and exports the optional media, verifies complete local installations,
-and routes ceremony images through one local media library. Normal builds still bundle
-all current artwork and retain their existing playback. No download prompt, remote
-hosting, persistent storage adapter or smaller store build is enabled yet.
+The app exports optional media, downloads one immutable media file on Android and
+iPhone, verifies complete local installations, and routes ceremony images through a
+local media library. After VIP purchase/restore, players can download and enable
+cinematics or keep Standard. Settings offers the same prompt later and can remove
+the download. A declined offer is remembered on the device. Download failure never
+changes VIP ownership or saved seasons. The online-only option is deferred.
+
+Normal builds still bundle the current artwork while this delivery path is tested.
+Removing optional images from the base app and measuring smaller store builds remains
+a separate pass. Music, sounds, credits and shared finale artwork stay bundled.
 
 The initial pack contains 404 images totalling 21,471,796 bytes. Eight shared finale
 images remain bundled under `assets/ceremonies`; the policy lists them explicitly.
@@ -19,13 +25,26 @@ incorrectly remove shared finale artwork.
 node scripts/export-vip-cinematic-pack.mjs --write-manifest
 node scripts/export-vip-cinematic-pack.mjs --check
 node scripts/export-vip-cinematic-pack.mjs
+node scripts/export-vip-cinematic-pack.mjs --download
 ```
 
 Regenerate the checked-in manifest when artwork or character metadata changes.
 Production Vite builds reject a stale manifest. Export writes a new ignored directory
 at `renders/vip-cinematics/<revision>/`, containing `manifest.json` and `files/assets/...`.
 It copies the original image bytes and verifies the copies; it does not re-encode them.
-Existing export directories are never overwritten. Uploading or hosting is a later pass.
+Existing export directories are never overwritten. `--download` exports to the separate
+`renders/vip-cinematics-download/<revision>/` directory. Both exports include a
+`vip-cinematics.pack` file: the original images concatenated in manifest order, with
+no archive paths supplied by a server and no re-encoding. The pinned sizes define
+file boundaries; native clients reject missing/extra bytes and verify every SHA-256.
+
+The current pack is hosted as an immutable prerelease asset in the existing public
+repository, at `releases/download/vip-cinematics-<revision>/vip-cinematics.pack`.
+This resource prerelease is not an app store submission and is not marked latest.
+Keep old revision assets available; never replace an asset in place. Prepare and
+verify a new archive before publishing a future revision. Clients accept only the
+expected HTTPS release URL for the app's pinned manifest. Downloads can be retried
+if the host is unavailable; Standard play does not depend on the host.
 
 The manifest records every image path, encoded size and SHA-256. Its revision covers
 the image inventory, semantic character catalog and renderer contract version. Bump
@@ -58,23 +77,22 @@ Cancelled, incomplete, corrupt or incompatible attempts preserve the previous so
 Scene preparation captures one source so later activation does not retime a running
 ceremony. Only manifest-listed optional media can override bundled URLs.
 
-The native download/storage adapter is still to be implemented. It must use persistent
-private app storage (not a purgeable browser cache), exclude downloadable media from
-device backups, stage new versions without deleting the active version, and reverify
-local files on startup before activation. Retain old files while a scene uses them.
+The native adapter stores media in Android's `getNoBackupFilesDir()` and iOS
+Application Support, excluded from backups. It checks free space before downloading,
+stages and verifies files before making the revision available, and re-verifies local
+files on cold start without network or billing requests. The TypeScript library checks
+the native verification receipt against the complete pinned inventory before activation.
+Inspection is asynchronous and does not delay standard gameplay. Interrupted staging
+files are cleaned on the next inspection. Downloads are foreground operations: keep
+the app open, and retry if the OS terminates an interrupted transfer; byte-level resume
+is not promised. Cancelling leaves Standard available and does not activate partial files.
+Settings refuses removal while a cinematic is active, preserving that scene's source.
 Purchases, save games and animation preferences are independent of pack installation.
 Deleting a pack must never remove a VIP entitlement or reset a season.
 
-## Next passes
+## Remaining pass
 
-1. Add native downloads, persistent installation records, progress, cancellation/retry
-   and space checks. Host immutable compatible pack versions. Keep Standard available
-   offline throughout; keep downloaded cinematics local and usable without contacting
-   billing or hosting at every scene.
-2. After VIP purchase or restore, offer Download and enable or Keep Standard. Remember
-   a decline. Settings can request the same download later, switch installed styles
-   immediately or remove the pack. Activate changes at the next ceremony boundary.
-3. Only after those paths are verified, exclude manifest-listed media from mobile
+1. After delivery paths and the finished walking frames are verified, exclude manifest-listed media from mobile
    builds. Gate every premium entry (including final decisions and competition
    broadcasts) on local readiness, preserving the original outcome callbacks. Compare
    offline audio, credits, Skip, reduced motion, paired exits, interrupted installs,
@@ -104,6 +122,6 @@ npx vitest run tests/unit/vipCinematicPack.test.ts
 node scripts/export-vip-cinematic-pack.mjs --check
 ```
 
-The download and native storage flows require later device verification. Resolver
-tests demonstrate local-only loading and all-or-nothing verification; they do not
-claim that an unimplemented native downloader has been exercised on a phone.
+Native download, cancellation and cold-start offline behavior require Android/iPhone
+verification in addition to these focused tests. No physical iPhone verification is
+implied by browser tests or a successful simulator compile.

@@ -42,7 +42,13 @@ test('exports future walking frames intact and leaves shared artwork, audio and 
   assert.deepEqual(await createVipCinematicPackManifest(root), manifest)
   const output = path.join(root, 'export')
   await exportVipCinematicPack(root, output, manifest)
+  const archive = await readFile(path.join(output, 'vip-cinematics.pack'))
+  assert.equal(archive.length, manifest.totalBytes)
+  let offset = 0
   for (const frame of frames) {
+    const original = await readFile(path.join(root, 'public', frame))
+    assert.deepEqual(archive.subarray(offset, offset + original.length), original)
+    offset += original.length
     assert.deepEqual(
       await readFile(path.join(output, 'files', frame)),
       await readFile(path.join(root, 'public', frame))

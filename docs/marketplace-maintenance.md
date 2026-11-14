@@ -515,3 +515,10 @@ store listings or change configured prices.
   frames and retains shared finale artwork, music and credits in the base game.
   This pass adds no download offer or new entitlement and changes no price,
   benefit, purchase flow, gameplay reward or marketplace copy.
+
+- 2026-11-14: Reviewed optional cinematic downloads after VIP purchase/restore
+  and in Settings. Standard remains available offline; a verified download is
+  retained for offline cinematics, with progress, cancellation/retry and removal.
+  Music and credits stay bundled. The VIP cinematic benefit description now
+  explains the optional mobile download; ownership, prices and gameplay rewards
+  are unchanged. Online-only playback and base-app media removal are deferred.
