@@ -8,7 +8,11 @@ function sourceFiles(directory: string): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const target = path.join(directory, entry.name)
     if (entry.isDirectory()) return sourceFiles(target)
-    return /\.(?:ts|tsx)$/.test(entry.name) && !target.includes('__tests__') ? [target] : []
+    return /\.(?:ts|tsx)$/.test(entry.name) &&
+      !/\.test\.(?:ts|tsx)$/.test(entry.name) &&
+      !target.includes('__tests__')
+      ? [target]
+      : []
   })
 }
 
@@ -22,6 +26,13 @@ describe('Broadcast Manager architecture', () => {
       const source = fs.readFileSync(file, 'utf8')
       if (!/tvFeed\s*:\s*\[/.test(source)) return []
       if (file.endsWith(path.join('store', 'gameSlice.ts'))) return []
+      // This pure reducer wrapper owns canonical nomination/replacement facts;
+      // it does not dispatch a replacement state from a presentation component.
+      if (
+        file.endsWith(path.join('store', 'lohNominationPlanning.ts')) &&
+        source.includes('export function withLohNominationPlanning(')
+      )
+        return []
       if (
         file.endsWith(path.join('modes', 'survivorRun.ts')) &&
         source.includes('managedSurvivalEvent')

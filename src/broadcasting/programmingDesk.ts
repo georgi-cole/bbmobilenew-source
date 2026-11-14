@@ -7,6 +7,12 @@ export const RESUME_RECAP_CATEGORY = 'programming_resume_recap'
 export const BIG_EYE_PROGRAMMING_CATEGORY = 'big_eye_programming'
 export const RESUME_RECAP_MIN_ABSENCE_MS = 6 * 60 * 60 * 1000
 
+type ResumeGame = Pick<
+  GameState,
+  'phase' | 'week' | 'players' | 'tvFeed' | 'nomineeIds' | 'lohId' | 'posWinnerId'
+> &
+  Partial<Pick<GameState, 'mode' | 'voxPopuli' | 'cupidArrow' | 'coLohIds'>>
+
 const NOMINATION_RECAP_PHASES = new Set([
   'nomination_results',
   'pre_veto_public_save',
@@ -94,13 +100,21 @@ export interface ResumeRecapCandidate extends FauxTvEditorialCandidate {
   facts: string[]
 }
 
-function buildResumeFacts(
-  game: Pick<
-    GameState,
-    'phase' | 'week' | 'players' | 'tvFeed' | 'nomineeIds' | 'lohId' | 'posWinnerId'
-  >
-): string[] {
+function buildResumeFacts(game: ResumeGame): string[] {
   const facts: string[] = []
+  const activeName = (id: string | null | undefined) =>
+    game.players.find(
+      (player) => player.id === id && player.status !== 'evicted' && player.status !== 'jury'
+    )?.name
+  const roleNames = (holderId: string) => {
+    const pair =
+      game.cupidArrow?.status === 'active'
+        ? game.cupidArrow.pairs.find((candidate) => candidate.memberIds.includes(holderId))
+        : undefined
+    return (pair?.memberIds ?? [holderId])
+      .map(activeName)
+      .filter((name): name is string => Boolean(name))
+  }
 
   if (NOMINATION_RECAP_PHASES.has(game.phase) && game.nomineeIds.length > 0) {
     const nominees = game.nomineeIds
@@ -109,12 +123,23 @@ function buildResumeFacts(
     if (nominees.length > 0) facts.push(`On the block: ${joinNames(nominees)}.`)
   }
 
-  const lohName = getName(game, game.lohId)
-  if (lohName) facts.push(`${lohName} holds LOH.`)
+  if (game.voxPopuli?.status === 'active') {
+    const immuneName = activeName(game.voxPopuli.immunityWinnerId)
+    if (immuneName)
+      facts.push(`${immuneName} ${immuneName.toLowerCase() === 'you' ? 'have' : 'has'} immunity.`)
+  } else if (game.mode !== 'survival' && game.lohId) {
+    const holders = game.coLohIds?.length
+      ? game.coLohIds.map(activeName).filter((name): name is string => Boolean(name))
+      : roleNames(game.lohId)
+    if (holders.length)
+      facts.push(
+        `${joinNames(holders)} ${holders.length > 1 ? 'hold LOH together' : holders[0].toLowerCase() === 'you' ? 'hold LOH' : 'holds LOH'}.`
+      )
+  }
 
-  const posName = getName(game, game.posWinnerId)
-  if (posName && SAFETY_RECAP_PHASES.has(game.phase)) {
-    facts.push(`${posName} won the Power of Safety.`)
+  if (game.posWinnerId && SAFETY_RECAP_PHASES.has(game.phase)) {
+    const holders = roleNames(game.posWinnerId)
+    if (holders.length) facts.push(`${joinNames(holders)} won the Power of Safety.`)
   }
 
   const evictee = latestEvictee(game)
@@ -132,10 +157,7 @@ function buildResumeFacts(
  * deliberately outside the accepted input surface.
  */
 export function buildResumeRecapFromGame(
-  game: Pick<
-    GameState,
-    'phase' | 'week' | 'players' | 'tvFeed' | 'nomineeIds' | 'lohId' | 'posWinnerId'
-  >,
+  game: ResumeGame,
   lastPlayedAt: number | undefined,
   now = Date.now(),
   resumeKey = String(lastPlayedAt ?? '')

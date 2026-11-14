@@ -106,6 +106,9 @@ export function isVisibleOnTv(ev: ActivityVisibilityEvent): boolean {
   // Keep this ahead of Force to TV so an old persisted override cannot revive
   // the duplicate "about to begin" screen.
   if (isLegacySeasonWelcomeEvent(ev)) return false
+  // An unchecked authoring control is a delivery decision, including for
+  // major cards and persisted events reached through compatibility fallbacks.
+  if (ev.meta?.broadcastTvDisabled === true) return false
   // Broadcast Manager's "Force to TV" remains an explicit authoring
   // instruction for all current content. The legacy startup templates above
   // are the sole retired exception.
@@ -115,7 +118,7 @@ export function isVisibleOnTv(ev: ActivityVisibilityEvent): boolean {
   if (isBattleBackReturnResultEvent(ev)) return false
   if (ev.meta?.suppressTv === true) return false
   if (!ev.channels) return true
-  return ev.channels.includes('tv') || ev.channels.includes('mainLog')
+  return ev.channels.includes('tv')
 }
 
 /**

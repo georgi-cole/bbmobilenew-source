@@ -63,6 +63,7 @@ import type {
 import {
   addPresentationEventClaim,
   hasPresentationEventClaim,
+  isPendingDetoxEvent,
   pinBroadcastQueueHead,
 } from '../broadcasting/fauxTvPresentation'
 import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
@@ -212,8 +213,13 @@ import {
   matchBroadcastTemplate,
   renderBroadcastTemplate,
 } from '../broadcasting/broadcastTemplateCatalog'
-import { loadBroadcastConfig } from '../broadcasting/broadcastConfigPersistence'
+import {
+  loadBroadcastConfig,
+  normalizeBroadcastOverrides,
+} from '../broadcasting/broadcastConfigPersistence'
 import { isRecognizedBroadcastMajorKey } from '../broadcasting/broadcastPresentationRegistry'
+import { getBroadcastEditorialMetadata } from '../broadcasting/broadcastEditorialPolicy'
+import { isVisibleOnTv } from '../services/activityService'
 import { loadDepressionShockState } from '../features/twists/depressionShock'
 import {
   BELLA_ID,
@@ -959,6 +965,7 @@ export function createInitialGameState(options?: {
       ...(item.major ? { major: item.major } : {}),
       ...(item.level === 'critical' ? { broadcastPriority: 'critical' } : {}),
       ...(item.forceOnTv ? { forceOnTv: true } : {}),
+      ...(!item.forceOnTv ? { broadcastTvDisabled: true } : {}),
       ...(item.level !== 'minor' ? { announcementSubtitle: item.text } : {}),
       ...(item.level !== 'minor' && item.title ? { announcementTitle: item.title } : {}),
     },
@@ -1194,16 +1201,52 @@ function buildTvMeta(
 }
 
 /**
- * A reducer transition can occasionally be resumed after an overlay or an
- * automatic callback. Do not add the same broadcast line twice on the same
- * in-game day; distinct wording and every other event remain intact.
+ * Repeated producers share an explicit story identity. Unkeyed process copy
+ * is deduplicated only within the same occurrence context and destination.
  */
-function findDuplicateDayBroadcast(state: GameState, text: string): TvEvent | undefined {
-  const normalizedText = text.replace(/\s+/g, ' ').trim()
-  return state.tvFeed.find(
-    (event) =>
-      event.meta?.week === state.week && event.text.replace(/\s+/g, ' ').trim() === normalizedText
-  )
+function findDuplicateBroadcast(
+  state: GameState,
+  incoming: Omit<TvEvent, 'id' | 'timestamp'>
+): TvEvent | undefined {
+  const normalizedText = incoming.text.replace(/\s+/g, ' ').trim()
+  const storyKey = getBroadcastEditorialMetadata(incoming)?.storyKey
+  const channels = (event: Pick<TvEvent, 'channels'>) =>
+    [...(event.channels ?? [])].sort().join('|')
+  return state.tvFeed.find((event) => {
+    if (event.meta?.gameId != null && event.meta.gameId !== state.gameId) return false
+    if (storyKey) return getBroadcastEditorialMetadata(event)?.storyKey === storyKey
+    // Compatibility for the controller's one-shot repair of already
+    // acknowledged shock news. A new destination does not create a new story.
+    if (
+      incoming.meta?.depressionShockQueued === true &&
+      event.meta?.broadcastConsumed === true &&
+      event.type === incoming.type &&
+      event.source === incoming.source &&
+      event.meta.week === (incoming.meta.week ?? state.week) &&
+      event.text.replace(/\s+/g, ' ').trim() === normalizedText
+    )
+      return true
+    if (
+      event.type !== incoming.type ||
+      event.source !== incoming.source ||
+      channels(event) !== channels(incoming)
+    )
+      return false
+    if (
+      event.meta?.week !== (incoming.meta?.week ?? state.week) ||
+      event.meta?.phase !== incoming.meta?.phase
+    )
+      return false
+    // Repeated manual actions are distinct occurrences unless the producer
+    // supplied an explicit story identity.
+    if (incoming.source === 'manual') return false
+    return (
+      event.meta?.customBroadcastId === incoming.meta?.customBroadcastId &&
+      event.meta?.broadcastTemplateId === incoming.meta?.broadcastTemplateId &&
+      event.meta?.sequence === incoming.meta?.sequence &&
+      event.text.replace(/\s+/g, ' ').trim() === normalizedText
+    )
+  })
 }
 
 function managedBroadcastOrder(state: GameState, event: TvEvent): number {
@@ -1235,15 +1278,21 @@ function managedBroadcastPriority(event: TvEvent): number {
 }
 
 function enqueueManagedBroadcast(state: GameState, event: TvEvent) {
-  const shouldShow = event.meta?.forceOnTv === true
+  const shouldShow = event.meta?.forceOnTv === true && isVisibleOnTv(event)
   if (!shouldShow || event.meta?.broadcastConsumed === true) return
+  // A transition can emit several destination-phase items before committing
+  // state.phase. Keep that whole batch instead of dropping each predecessor.
+  const deliveryPhase = event.meta?.phase ?? state.phase
+  const deliveryWeek = event.meta?.week ?? state.week
   const activeEventsById = new Map(
     state.tvFeed
       .filter(
         (candidate) =>
           candidate.meta?.broadcastConsumed !== true &&
-          candidate.meta?.phase === state.phase &&
-          candidate.meta?.week === state.week
+          candidate.meta?.forceOnTv === true &&
+          isVisibleOnTv(candidate) &&
+          candidate.meta?.phase === deliveryPhase &&
+          candidate.meta?.week === deliveryWeek
       )
       .map((candidate) => [candidate.id, candidate] as const)
   )
@@ -1274,27 +1323,29 @@ function rebuildManagedBroadcastQueue(state: GameState, phase: Phase) {
     state.lastPlainBroadcastEventId = null
   }
 
-  const eligible = state.tvFeed.filter((event) => {
-    if (event.meta?.phase !== phase || event.meta?.week !== state.week) return false
-    if (event.meta?.broadcastManaged !== true || event.meta?.broadcastConsumed === true)
-      return false
-    if (event.meta?.forceOnTv !== true) return false
-    const templateId = event.meta?.broadcastTemplateId
-    if (typeof templateId === 'string' && state.broadcastOverrides?.[templateId]?.disabled)
-      return false
-    const customId = event.meta?.customBroadcastId
-    if (typeof customId === 'string') {
-      const custom = state.customBroadcasts?.find((message) => message.id === customId)
-      if (!custom?.enabled) return false
-    }
-    return true
-  })
+  const eligible = state.tvFeed
+    .filter((event) => {
+      if (event.meta?.phase !== phase || event.meta?.week !== state.week) return false
+      if (event.meta?.broadcastManaged !== true || event.meta?.broadcastConsumed === true)
+        return false
+      if (event.meta?.forceOnTv !== true) return false
+      if (!isVisibleOnTv(event)) return false
+      const templateId = event.meta?.broadcastTemplateId
+      if (typeof templateId === 'string' && state.broadcastOverrides?.[templateId]?.disabled)
+        return false
+      const customId = event.meta?.customBroadcastId
+      if (typeof customId === 'string') {
+        const custom = state.customBroadcasts?.find((message) => message.id === customId)
+        if (!custom?.enabled) return false
+      }
+      return true
+    })
+    .reverse()
   eligible.sort(
     (left, right) =>
       managedBroadcastPriority(left) - managedBroadcastPriority(right) ||
       managedBroadcastOrder(state, left) - managedBroadcastOrder(state, right) ||
-      left.timestamp - right.timestamp ||
-      left.id.localeCompare(right.id)
+      left.timestamp - right.timestamp
   )
   const eligibleIds = eligible.map((event) => event.id)
   const activeEvent = state.activeBroadcastEventId
@@ -1338,9 +1389,17 @@ function refreshManagedBroadcastDefinition(state: GameState, event: TvEvent) {
     template?.level ??
     (event.meta?.broadcastLevel as BroadcastLevel | undefined) ??
     'minor'
-  const forceOnTv = custom
-    ? custom.forceOnTv !== false
-    : (override?.forceOnTv ?? template?.forceOnTv ?? event.meta?.forceOnTv === true)
+  const producerForce = event.meta?.broadcastProducerForceOnTv
+  const runtimeForce = event.meta?.broadcastRuntimeForceOnTv
+  const forceOnTv =
+    typeof runtimeForce === 'boolean'
+      ? runtimeForce
+      : custom
+        ? custom.forceOnTv !== false
+        : (override?.forceOnTv ??
+          (typeof producerForce === 'boolean' ? producerForce : undefined) ??
+          template?.forceOnTv ??
+          event.meta?.forceOnTv === true)
   const configuredMajor =
     custom?.major ??
     (override?.major === null
@@ -1357,17 +1416,20 @@ function refreshManagedBroadcastDefinition(state: GameState, event: TvEvent) {
         ? (configuredMajor ?? 'custom_major')
         : undefined
 
-  if (custom) {
+  if (custom && event.meta?.broadcastRuntimeCopy !== true) {
     event.text = custom.text
     event.type = custom.type
   } else if (template) {
     // Runtime consequences can borrow a template's presentation at a different
     // boundary. Refreshing the phase must not replace their actual result copy
     // with that template's generic rules.
-    if (event.meta?.broadcastRuntimeDelivery !== true || override?.text) {
+    if (
+      event.meta?.broadcastRuntimeCopy !== true &&
+      (event.meta?.broadcastRuntimeDelivery !== true || override?.text)
+    ) {
       event.text = renderBroadcastTemplate(override?.text ?? template.text, variables)
     }
-    event.type = override?.type ?? template.type
+    if (event.meta?.broadcastRuntimeCopy !== true) event.type = override?.type ?? template.type
   }
   event.major = major
   const meta: NonNullable<TvEvent['meta']> = {
@@ -1378,6 +1440,14 @@ function refreshManagedBroadcastDefinition(state: GameState, event: TvEvent) {
   else delete meta.major
   if (forceOnTv) meta.forceOnTv = true
   else delete meta.forceOnTv
+  if (forceOnTv) delete meta.broadcastTvDisabled
+  else if (
+    runtimeForce === false ||
+    custom?.forceOnTv === false ||
+    override?.forceOnTv === false ||
+    producerForce === false
+  )
+    meta.broadcastTvDisabled = true
   if (level === 'critical') meta.broadcastPriority = 'critical'
   else delete meta.broadcastPriority
   if (level !== 'minor') {
@@ -1399,7 +1469,8 @@ function pushEvent(
   state: GameState,
   text: string,
   type: TvEvent['type'],
-  meta?: TvEvent['meta']
+  meta?: TvEvent['meta'],
+  activity?: Pick<TvEvent, 'channels' | 'source'>
 ): TvEvent | undefined {
   const legacyVoxIntro =
     (meta?.phase ?? _activeBroadcastPhase ?? state.phase) === 'season_start' &&
@@ -1443,9 +1514,18 @@ function pushEvent(
   // It must work for live/observed events too, not only catalogued templates:
   // Broadcast Manager and season-start flows both rely on this to promote an
   // otherwise ordinary log line onto the faux TV.
+  const isDetoxStream = meta?.sequence === 'detox_safety'
+  const producerForce =
+    meta?.forceOnTv ??
+    (activity?.channels && !activity.channels.includes('tv')
+      ? false
+      : isDetoxStream
+        ? true
+        : undefined)
   const forceOnTv =
-    meta?.forceOnTv === true ||
-    (override?.forceOnTv ?? (isDeclaredSource ? (template?.forceOnTv ?? true) : false))
+    override?.forceOnTv ??
+    producerForce ??
+    (isDeclaredSource ? (template?.forceOnTv ?? true) : false)
   const finalMajor =
     finalLevel === 'critical'
       ? (selectedMajor ?? 'custom_critical')
@@ -1481,6 +1561,10 @@ function pushEvent(
     broadcastOrder,
     broadcastLevel: finalLevel,
     broadcastManaged: true,
+    ...(typeof producerForce === 'boolean' ? { broadcastProducerForceOnTv: producerForce } : {}),
+    ...(!forceOnTv && (override?.forceOnTv === false || producerForce === false)
+      ? { broadcastTvDisabled: true }
+      : {}),
     ...(template?.editorial && meta?.editorial == null ? { editorial: template.editorial } : {}),
     ...(forceOnTv ? { forceOnTv: true } : {}),
     ...(finalLevel !== 'minor' && override?.title ? { announcementTitle: override.title } : {}),
@@ -1492,7 +1576,14 @@ function pushEvent(
   if (finalLevel === 'critical') finalMeta.broadcastPriority = 'critical'
   else if (override?.level) delete finalMeta.broadcastPriority
 
-  const duplicate = findDuplicateDayBroadcast(state, finalText)
+  const incoming = {
+    text: finalText,
+    type: finalType,
+    major: finalMajor,
+    meta: buildTvMeta(state, finalMeta),
+    ...activity,
+  }
+  const duplicate = findDuplicateBroadcast(state, incoming)
   if (duplicate) {
     if (meta?.requeueDuplicateBroadcast === true) {
       duplicate.text = finalText
@@ -1511,11 +1602,8 @@ function pushEvent(
   const ts = Date.now()
   const event: TvEvent = {
     id: `${state.phase}-w${state.week}-${ts}-${++_pushEventCounter}`,
-    text: finalText,
-    type: finalType,
+    ...incoming,
     timestamp: ts,
-    major: finalMajor,
-    meta: buildTvMeta(state, finalMeta),
   }
   state.tvFeed = [event, ...state.tvFeed].slice(0, MAX_GAME_HISTORY_EVENTS)
   enqueueManagedBroadcast(state, event)
@@ -5689,14 +5777,16 @@ const gameSlice = createSlice({
       state.lohSafetyAdvice = action.payload
     },
     addTvEvent(state, action: PayloadAction<Omit<TvEvent, 'id' | 'timestamp'>>) {
-      const event = pushEvent(state, action.payload.text, action.payload.type, {
-        ...(action.payload.meta ?? {}),
-        ...(action.payload.major ? { major: action.payload.major } : {}),
-      })
-      if (event) {
-        event.channels = action.payload.channels
-        event.source = action.payload.source
-      }
+      pushEvent(
+        state,
+        action.payload.text,
+        action.payload.type,
+        {
+          ...(action.payload.meta ?? {}),
+          ...(action.payload.major ? { major: action.payload.major } : {}),
+        },
+        { channels: action.payload.channels, source: action.payload.source }
+      )
     },
     setHumanPregnancyRole(state, action: PayloadAction<HumanPregnancyRoleChoice>) {
       state.pregnancyStory = {
@@ -5782,37 +5872,53 @@ const gameSlice = createSlice({
       event.text = action.payload.text
       event.type = action.payload.type
       const meta = { ...(event.meta ?? {}) }
+      // A live correction belongs to this occurrence. Routine phase refreshes
+      // must not restore its previously captured names or instructions.
+      meta.broadcastRuntimeCopy = true
+      const template =
+        typeof meta.broadcastTemplateId === 'string'
+          ? getBroadcastTemplate(meta.broadcastTemplateId)
+          : undefined
+      if (template) {
+        const updated = matchBroadcastTemplate(action.payload.text, state.phase, template.id)
+        const slotCount = template.text.match(/\{[^}]+\}/g)?.length ?? 0
+        if (updated?.variables.length === slotCount) meta.broadcastVariables = updated.variables
+      }
       if (action.payload.phase) meta.phase = action.payload.phase
 
-      if (action.payload.major) {
-        event.major = action.payload.major
-        meta.major = action.payload.major
-      } else {
-        delete event.major
-        delete meta.major
+      if (action.payload.major !== undefined) {
+        if (action.payload.major) {
+          event.major = action.payload.major
+          meta.major = action.payload.major
+        } else {
+          delete event.major
+          delete meta.major
+        }
       }
 
       if (action.payload.broadcastPriority === 'critical') {
         meta.broadcastPriority = 'critical'
-      } else {
+      } else if (action.payload.broadcastPriority === null) {
         delete meta.broadcastPriority
       }
-      meta.broadcastLevel =
-        action.payload.broadcastPriority === 'critical'
-          ? 'critical'
-          : action.payload.major
-            ? 'major'
-            : 'minor'
+      if (action.payload.major !== undefined || action.payload.broadcastPriority !== undefined) {
+        meta.broadcastLevel =
+          meta.broadcastPriority === 'critical' ? 'critical' : meta.major ? 'major' : 'minor'
+      }
       meta.broadcastManaged = true
       if (action.payload.forceOnTv) {
         meta.forceOnTv = true
+        meta.broadcastRuntimeForceOnTv = true
+        delete meta.broadcastTvDisabled
         // A live log entry can be promoted from Broadcast Manager after it was
         // already consumed by an older presentation rule. Force to TV means
         // show this current event now, not only on a future season.
         delete meta.broadcastConsumed
         if (state.lastPlainBroadcastEventId === event.id) state.lastPlainBroadcastEventId = null
-      } else {
+      } else if (action.payload.forceOnTv === false) {
         delete meta.forceOnTv
+        meta.broadcastRuntimeForceOnTv = false
+        meta.broadcastTvDisabled = true
       }
       if (meta.broadcastLevel !== 'minor') {
         meta.announcementSubtitle = action.payload.text
@@ -5823,7 +5929,7 @@ const gameSlice = createSlice({
         delete meta.announcementSubtitle
       }
       event.meta = meta
-      enqueueManagedBroadcast(state, event)
+      rebuildManagedBroadcastQueue(state, state.phase)
     },
     /** Remove one broadcast event from the current run. */
     removeTvEvent(state, action: PayloadAction<string>) {
@@ -5841,12 +5947,21 @@ const gameSlice = createSlice({
         ...(state.broadcastOverrides[action.payload.id] ?? {}),
         ...action.payload.changes,
       }
+      state.broadcastOverrides = normalizeBroadcastOverrides(state.broadcastOverrides)
       state.tvFeed.forEach((event) => {
         const isLegacyVoxIntro =
           action.payload.id === 'season.vox-populi-intro' &&
           event.meta?.phase === 'season_start' &&
           (event.meta?.major ?? event.major) === 'vox_populi'
         if (event.meta?.broadcastTemplateId === action.payload.id || isLegacyVoxIntro) {
+          if (event.meta && action.payload.changes.forceOnTv !== undefined)
+            delete event.meta.broadcastRuntimeForceOnTv
+          if (
+            event.meta &&
+            (action.payload.changes.text !== undefined || action.payload.changes.type !== undefined)
+          ) {
+            delete event.meta.broadcastRuntimeCopy
+          }
           if (
             action.payload.changes.forceOnTv === true &&
             event.meta?.phase === state.phase &&
@@ -5866,6 +5981,10 @@ const gameSlice = createSlice({
       delete state.broadcastOverrides[action.payload]
       state.tvFeed.forEach((event) => {
         if (event.meta?.broadcastTemplateId === action.payload) {
+          if (event.meta) {
+            delete event.meta.broadcastRuntimeCopy
+            delete event.meta.broadcastRuntimeForceOnTv
+          }
           refreshManagedBroadcastDefinition(state, event)
         }
       })
@@ -5883,12 +6002,32 @@ const gameSlice = createSlice({
         customMessages: CustomBroadcastMessage[]
       }>
     ) {
-      state.broadcastOverrides = action.payload.overrides
+      const previousOverrides = state.broadcastOverrides
+      const previousCustoms = state.customBroadcasts
+      state.broadcastOverrides = normalizeBroadcastOverrides(action.payload.overrides)
       state.customBroadcasts = action.payload.customMessages
       beginPhaseBroadcastSequence(state, state.phase)
       finishPhaseBroadcastSequence(state)
       for (const event of state.tvFeed) {
         if (event.meta?.phase === state.phase && event.meta?.week === state.week) {
+          const templateId = event.meta.broadcastTemplateId
+          const customId = event.meta.customBroadcastId
+          const oldSource =
+            typeof customId === 'string'
+              ? previousCustoms?.find((item) => item.id === customId)
+              : typeof templateId === 'string'
+                ? previousOverrides?.[templateId]
+                : undefined
+          const newSource =
+            typeof customId === 'string'
+              ? state.customBroadcasts?.find((item) => item.id === customId)
+              : typeof templateId === 'string'
+                ? state.broadcastOverrides?.[templateId]
+                : undefined
+          if (oldSource?.text !== newSource?.text || oldSource?.type !== newSource?.type)
+            delete event.meta.broadcastRuntimeCopy
+          if (oldSource?.forceOnTv !== newSource?.forceOnTv)
+            delete event.meta.broadcastRuntimeForceOnTv
           refreshManagedBroadcastDefinition(state, event)
         }
       }
@@ -5975,6 +6114,20 @@ const gameSlice = createSlice({
 
       for (const event of state.tvFeed) {
         if (event.meta?.phase === action.payload.phase && event.meta?.week === state.week) {
+          // Older saves emitted these beats without the managed delivery flag.
+          // A claim means a beat started; only consumption means it finished.
+          if (
+            isPendingDetoxEvent(event, state) &&
+            event.meta.broadcastProducerForceOnTv === undefined &&
+            event.meta.broadcastTvDisabled !== true
+          ) {
+            event.meta = {
+              ...event.meta,
+              broadcastManaged: true,
+              broadcastProducerForceOnTv: true,
+              forceOnTv: true,
+            }
+          }
           refreshManagedBroadcastDefinition(state, event)
         }
       }
@@ -6061,7 +6214,17 @@ const gameSlice = createSlice({
     updateCustomBroadcast(state, action: PayloadAction<CustomBroadcastMessage>) {
       state.customBroadcasts ??= []
       const index = state.customBroadcasts.findIndex((message) => message.id === action.payload.id)
+      const previous = state.customBroadcasts[index]
       if (index !== -1) state.customBroadcasts[index] = action.payload
+      for (const event of state.tvFeed) {
+        if (event.meta?.customBroadcastId !== action.payload.id) continue
+        if (previous?.text !== action.payload.text || previous?.type !== action.payload.type)
+          delete event.meta.broadcastRuntimeCopy
+        if (previous?.forceOnTv !== action.payload.forceOnTv)
+          delete event.meta.broadcastRuntimeForceOnTv
+        refreshManagedBroadcastDefinition(state, event)
+      }
+      rebuildManagedBroadcastQueue(state, state.phase)
     },
     reorderCustomBroadcasts(state, action: PayloadAction<{ phase: Phase; orderedIds: string[] }>) {
       const orderById = new Map(
@@ -10794,6 +10957,9 @@ const gameSlice = createSlice({
 
     /** Advance to the next phase, computing outcomes deterministically via RNG. */
     advance(state) {
+      // Timed, required narration has the same progression contract as a card.
+      // This also covers callers outside the central Play button.
+      if (state.tvFeed.some((event) => isPendingDetoxEvent(event, state))) return
       // Guard: if any human-decision flag is set, advance() must not proceed.
       // This protects against programmatic dispatches (debug tools, fastForward)
       // bypassing mandatory decision steps and leaving state inconsistent.
