@@ -53,10 +53,11 @@ checks without archiving, signing or uploading another binary:
 gh workflow run testflight-readiness.yml --ref main -f build_number=EXISTING_BUILD_NUMBER
 ```
 
-Membership is read through Apple's documented `GET /v1/betaGroups` collection,
-filtered by app, build and group. The build relationship is used only for adding
-the group; Apple does not provide its GET counterpart. Readiness still requires
-both confirmed group membership and `IN_BETA_TESTING`.
+Membership is read through Apple's documented
+`GET /v1/betaGroups/{id}/relationships/builds`, using the already validated
+internal group and following its build-ID pages. This avoids the build-side
+write-only relationship and the filtered collection query rejected by Apple's
+server. Readiness still requires both confirmed membership and `IN_BETA_TESTING`.
 
 ## Android: signed Google Play upload bundles
 

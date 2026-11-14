@@ -62,12 +62,10 @@ function fixture({
       return null
     }
     if (method === 'GET' && endpoint.startsWith('/v1/betaGroups?')) {
-      const query = new URL(endpoint, 'https://example.test').searchParams
-      assert.equal(query.get('filter[app]'), 'app')
-      assert.equal(query.get('filter[builds]'), 'current')
-      assert.equal(query.get('filter[id]'), 'internal')
-      return { data: grouped ? [{ type: 'betaGroups', id: 'internal' }] : [] }
+      throw new Error('Apple rejected this beta-group filter combination.')
     }
+    if (method === 'GET' && endpoint.startsWith('/v1/betaGroups/internal/relationships/builds?'))
+      return { data: grouped ? [{ type: 'builds', id: 'current' }] : [] }
     if (endpoint.endsWith('/buildBetaDetail'))
       return {
         data: {
@@ -145,6 +143,42 @@ test('already completed builds are verified without changing compliance or group
   })
   await completeTestFlight(options)
   assert.ok(calls.every((entry) => entry.method === 'GET'))
+})
+
+test('finds existing membership beyond the first page without reassigning a group', async () => {
+  const { calls, options } = fixture({
+    target: build({ usesNonExemptEncryption: false }),
+    installed: true,
+  })
+  const original = options.api
+  const pages = []
+  options.api = async (method, endpoint, body) => {
+    if (endpoint.startsWith('/v1/betaGroups/internal/relationships/builds?')) {
+      pages.push(endpoint)
+      return endpoint.includes('cursor=next')
+        ? { data: [{ type: 'builds', id: 'current' }] }
+        : { data: [{ type: 'builds', id: 'old' }], links: { next: '?cursor=next' } }
+    }
+    return original(method, endpoint, body)
+  }
+  await completeTestFlight(options)
+  assert.ok(pages.some((endpoint) => endpoint.endsWith('?cursor=next')))
+  assert.ok(calls.every((entry) => entry.method === 'GET'))
+})
+
+test('rejects cross-origin and cyclic pagination before following another page', async () => {
+  for (const next of ['https://example.test/v1/other', '?limit=200']) {
+    const { options } = fixture()
+    const original = options.api
+    options.api = (method, endpoint, body) =>
+      endpoint.startsWith('/v1/betaGroups/internal/relationships/builds?')
+        ? Promise.resolve({ data: [], links: { next } })
+        : original(method, endpoint, body)
+    await assert.rejects(
+      completeTestFlight(options),
+      /unexpected group-membership page|cyclic group-membership page/
+    )
+  }
 })
 
 test('a non-exempt approved baseline carries its existing declaration, never inventing an exemption', async () => {
@@ -272,12 +306,21 @@ test('API errors identify the endpoint and Apple error code without logging cred
       ok: false,
       status: 403,
       json: async () => ({
-        errors: [{ code: 'FORBIDDEN_ERROR', detail: 'private-response-detail' }],
+        errors: [
+          {
+            code: 'FORBIDDEN_ERROR',
+            source: { parameter: 'filter[unsupported]' },
+            detail: 'private-response-detail',
+          },
+        ],
       }),
     }),
   })
   await assert.rejects(api('GET', '/v1/betaGroups?filter[builds]=current'), (error) => {
-    assert.match(error.message, /GET \/v1\/betaGroups failed \(HTTP 403; FORBIDDEN_ERROR\)/)
+    assert.match(
+      error.message,
+      /GET \/v1\/betaGroups failed \(HTTP 403; FORBIDDEN_ERROR; parameter=filter\[unsupported\]\)/
+    )
     assert.ok(!error.message.includes('private-response-detail'))
     assert.ok(!error.message.includes('PRIVATE KEY'))
     assert.ok(!error.message.includes('Bearer'))
