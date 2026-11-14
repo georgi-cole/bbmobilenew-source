@@ -7,6 +7,9 @@ const workflow = yaml.load(
   readFileSync(new URL('../.github/workflows/ios-testflight.yml', import.meta.url), 'utf8')
 )
 const gradle = readFileSync(new URL('../android/app/build.gradle', import.meta.url), 'utf8')
+const recovery = yaml.load(
+  readFileSync(new URL('../.github/workflows/testflight-readiness.yml', import.meta.url), 'utf8')
+)
 const scripts = (job) => job.steps.map((step) => step.run ?? '').join('\n')
 
 test('every main update starts a build, while manual candidate builds remain available', () => {
@@ -60,6 +63,25 @@ test('iOS upload completion includes compliance and verified internal availabili
       (step) => step.run === 'node scripts/complete-testflight.mjs --check-policy'
     )
   )
+})
+
+test('readiness recovery uses an existing exact build from validated main without rebuilding or signing', () => {
+  assert.deepEqual(Object.keys(recovery.on), ['workflow_dispatch'])
+  assert.equal(recovery.on.workflow_dispatch.inputs.build_number.required, true)
+  assert.equal(recovery.permissions.contents, 'read')
+  const job = recovery.jobs.complete
+  assert.equal(job.if, "github.ref == 'refs/heads/main'")
+  assert.ok(job.steps.some((step) => step.run === 'npm run check:pr'))
+  assert.equal(
+    job.steps.find((step) => step.uses?.startsWith('actions/checkout@')).with.ref,
+    '${{ github.sha }}'
+  )
+  const ready = job.steps.find((step) => step.run === 'node scripts/complete-testflight.mjs')
+  assert.equal(ready.env.IOS_BUILD_NUMBER, '${{ inputs.build_number }}')
+  assert.ok(!scripts(job).includes('xcodebuild'))
+  assert.ok(!scripts(job).includes('altool'))
+  assert.ok(!scripts(job).includes('gradlew'))
+  assert.notEqual(recovery.concurrency.group, workflow.concurrency.group)
 })
 
 test('Android signing uses the existing upload key and keeps its passwords out of arguments', () => {

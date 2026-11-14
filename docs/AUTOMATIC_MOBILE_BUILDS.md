@@ -44,6 +44,20 @@ Manual runs remain available on main and `release/testflight-*` candidate branch
 Candidate branch runs upload iOS only. This workflow does not submit an App Store
 release or send builds for external beta review.
 
+If Apple processing or a post-upload availability check fails after the upload
+succeeded, run **Complete an uploaded TestFlight build** on main with the exact
+existing build number. It validates main and runs the same compliance and group
+checks without archiving, signing or uploading another binary:
+
+```sh
+gh workflow run testflight-readiness.yml --ref main -f build_number=EXISTING_BUILD_NUMBER
+```
+
+Membership is read through Apple's documented `GET /v1/betaGroups` collection,
+filtered by app, build and group. The build relationship is used only for adding
+the group; Apple does not provide its GET counterpart. Readiness still requires
+both confirmed group membership and `IN_BETA_TESTING`.
+
 ## Android: signed Google Play upload bundles
 
 Each validated main build produces a signed `app-release.aab`. Download the
