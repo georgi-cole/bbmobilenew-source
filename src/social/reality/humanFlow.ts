@@ -95,6 +95,7 @@ export interface HumanRealityActionInput {
   actionId: string
   consultationScope?: 'selected' | 'alliance'
   consultationAllianceId?: string
+  coordinationAllianceId?: string
   subjectId?: string
   /** Legacy caller quote. Execution reprices using the current game state. */
   costOverride?: { energy: number; influence: number; info: number }
@@ -2524,6 +2525,15 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
         deriveRealitySimulationSeed(state.game.seed ?? 0, state.game.gameId ?? '')
       )
     }
+    if (input.coordinationAllianceId) {
+      const group = state.social.reality.alliances[input.coordinationAllianceId]
+      if (
+        !isCurrentAlliance(group) ||
+        !group.memberIds.includes(input.actorId) ||
+        executionTargetIds.some((id) => !group.memberIds.includes(id))
+      )
+        return result(false, 'Choose a current alliance and its members.', energy)
+    }
     const context = buildContext(state)
     const orchestration = runRealityOpportunity({
       domain: state.social.reality,
@@ -2538,6 +2548,7 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
             action: contract,
             targetIds: direction === 'GROUP' ? [...executionTargetIds].sort() : executionTargetIds,
             subjectId: input.subjectId,
+            allianceId: input.coordinationAllianceId,
             // An arranged huddle and a voluntary pawn offer already have consent.
             acceptanceChanceOverride: consultationAlliance || pawnOffer ? 1 : undefined,
             repetitionByTarget:

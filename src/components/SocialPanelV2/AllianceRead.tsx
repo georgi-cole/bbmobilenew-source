@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
 import type { Player } from '../../types'
 import { formatPlayerFacingPhase } from '../../social/reality/presentation'
 import {
@@ -20,7 +19,6 @@ interface Props {
   selectedMemberId: string | null
   focusEventId?: string
   onSelectMember: (id: string) => void
-  children?: ReactNode
 }
 
 const HISTORY_PAGE_SIZE = 25
@@ -75,7 +73,6 @@ export default function AllianceRead({
   selectedMemberId,
   focusEventId,
   onSelectMember,
-  children,
 }: Props) {
   const [manualDetails, setManualDetails] = useState<{ key: string; open: boolean } | null>(null)
   const [historyPage, setHistoryPage] = useState<{
@@ -229,7 +226,6 @@ export default function AllianceRead({
           </div>
         )}
         <p className="sp2-alliance-read__roster">{memberIds.map(playerName).join(' · ')}</p>
-        {children}
         {pending.map((request) => (
           <p className="sp2-alliance-read__pending" key={request.id} role="status">
             {request.kind === 'ADMIT'

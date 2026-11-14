@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-14: Reviewed the Reality social flow revision. Alliance vote requests
+  now reuse action cards and nominee chips; the backup decision opens the existing
+  Social module without spending resources or committing a nominee. Group vote
+  requests use the existing per-recipient pitch costs and responses, with up to
+  two selected targets in double elimination. VIP access, prices, entitlements,
+  product contents, benefits and Store copy remain unchanged.
+
 - 2026-11-14: Reviewed the player-reported alliance, confessional, portrait,
   finale platform, Mystic Chamber, Twin remaster rotation and competition retry
   fixes. Both Twin remasters remain included with Premium Challenges and VIP;

@@ -50,6 +50,7 @@ export interface RealityOpportunityCandidate {
   action: RealityActionContract
   targetIds: string[]
   subjectId?: string
+  allianceId?: string
   /** Exact acceptance when the participants have already agreed to the conversation. */
   acceptanceChanceOverride?: number
   /** Pair-specific repetition pressure for player-authored moves. */
@@ -1129,6 +1130,7 @@ export function runRealityOpportunity(input: {
     event,
     action: selected.action,
     subjectId: selected.subjectId,
+    allianceId: selected.allianceId,
     actors: input.opportunity.actors,
     responses,
   })

@@ -39,7 +39,11 @@ import HousePulse from '../HousePulse/HousePulse'
 import { resolveWeatherDay } from '../../weather/weatherEngine'
 import RealityLedger from '../RealityLedger/RealityLedger'
 import AllianceRead from './AllianceRead'
-import AllianceVoteCampaign from './AllianceVoteCampaign'
+import {
+  SWAY_ALLIANCE_VOTE,
+  getAllianceVoteSway,
+  swayAllianceVote,
+} from '../../social/allianceVoteSway'
 import {
   allianceEventText,
   canReadAllianceEvent,
@@ -400,6 +404,7 @@ export default function SocialPanelV2() {
   >(null)
   const [selectedPactHistoryEventId, setSelectedPactHistoryEventId] = useState<string | null>(null)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
+  const [swaySubjectIds, setSwaySubjectIds] = useState<string[]>([])
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null)
   const [activeReceiptId, setActiveReceiptId] = useState<string | null>(null)
   const [pregnancyCelebration, setPregnancyCelebration] = useState(false)
@@ -590,6 +595,7 @@ export default function SocialPanelV2() {
     setActiveReceiptId(null)
     setMultiSelectActive(false)
     setSelectedAllianceId(null)
+    setSwaySubjectIds([])
     setSelectedAllianceHistoryEventId(null)
     setSelectedPactHistoryEventId(null)
     setAllianceSelectionPulse(false)
@@ -611,6 +617,7 @@ export default function SocialPanelV2() {
       allianceSelectionPulseTimerRef.current = null
     }
     setSelectedAllianceId(id)
+    setSwaySubjectIds([])
     setSelectedAllianceHistoryEventId(null)
     setSelectedPactHistoryEventId(null)
     if (
@@ -989,11 +996,20 @@ export default function SocialPanelV2() {
     dispatch(closeSocialPanel())
   }
 
+  const isAllianceSway = selectedActionId === SWAY_ALLIANCE_VOTE.id
+  const swayPlan = getAllianceVoteSway(
+    { game, settings, vip, social: socialState } as RootState,
+    selectedAllianceId,
+    swaySubjectIds
+  )
+
   const selectedAllianceAction = selectedActionId
     ? (allianceQuickActions.find((entry) => entry.action.id === selectedActionId) ?? null)
     : null
   const selectedAction = selectedActionId
-    ? (SocialManeuvers.getActionById(selectedActionId) ?? selectedAllianceAction?.action ?? null)
+    ? (SocialManeuvers.getActionById(selectedActionId) ??
+      selectedAllianceAction?.action ??
+      (isAllianceSway ? SWAY_ALLIANCE_VOTE : null))
     : null
   const targetMode = selectedAction ? resolveActionTargetMode(selectedAction, dramaMode) : 'primary'
   const isBatchCompatible =
@@ -1007,7 +1023,8 @@ export default function SocialPanelV2() {
   const isAllianceConsultation = selectedActionId === 'consult_alliance'
   const isAllianceInvitation = selectedActionId?.startsWith('alliance:invite:') === true
   const showAlliancePicker =
-    dramaMode && (moveFilter === 'alliances' || isAllianceInvitation || isAllianceConsultation)
+    dramaMode &&
+    (moveFilter === 'alliances' || isAllianceInvitation || isAllianceConsultation || isAllianceSway)
   const consultationTargetCandidates = [
     ...(primaryTargetId && (selectedTargets.size === 0 || selectedTargets.has(primaryTargetId))
       ? [primaryTargetId]
@@ -1047,7 +1064,7 @@ export default function SocialPanelV2() {
   // targeted for group controls, while non-members can be selected for invites.
   // A consultation is the one alliance action that intentionally clears the
   // person selection and uses the chosen group's representative instead.
-  const showPlayerRoster = !isAllianceConsultation
+  const showPlayerRoster = !isAllianceConsultation && !isAllianceSway
   const selectedConsultationAlliance =
     eligibleConsultationAlliances.find((alliance) => alliance.id === selectedAllianceId) ?? null
   const consultationRepresentativeId = selectedConsultationAlliance
@@ -1110,6 +1127,7 @@ export default function SocialPanelV2() {
   const targetCount = usesMultipleTargets ? selectedTargetCount : 1
 
   const totalCosts = useMemo(() => {
+    if (isAllianceSway) return swayPlan.costs
     const baseCosts = selectedAction
       ? selectedAllianceAction
         ? normalizeActionCosts(selectedAction, selectedTargetCount, dramaMode)
@@ -1139,6 +1157,8 @@ export default function SocialPanelV2() {
     return baseCosts
   }, [
     dramaMode,
+    isAllianceSway,
+    swayPlan.costs,
     effectivePrimaryTargetId,
     humanPlayer?.id,
     selectedAction,
@@ -1164,12 +1184,14 @@ export default function SocialPanelV2() {
   const hasExecutableSelection =
     Boolean(selectedActionId) &&
     Boolean(selectedAction) &&
+    (!isAllianceSway || swayPlan.eligible) &&
     hasRequiredTargets &&
     (!needsSubject || selectedSubjectId !== null) &&
     (!isAllianceInvitation || invitationGroups.some((group) => group.id === selectedAllianceId)) &&
     (!selectedAllianceAction?.namePrompt || allianceNameDraft.trim().length >= 2)
 
   const executionEligibility = useMemo(() => {
+    if (isAllianceSway) return { eligible: swayPlan.eligible, reason: swayPlan.reason }
     if (!selectedAction || !humanPlayer) {
       return { eligible: false, reason: '' }
     }
@@ -1242,6 +1264,9 @@ export default function SocialPanelV2() {
       }
     )
   }, [
+    isAllianceSway,
+    swayPlan.eligible,
+    swayPlan.reason,
     effectivePrimaryTargetId,
     game,
     hasExecutableSelection,
@@ -1382,6 +1407,7 @@ export default function SocialPanelV2() {
       }
 
       const nextAction =
+        (actionId === SWAY_ALLIANCE_VOTE.id ? SWAY_ALLIANCE_VOTE : null) ??
         SocialManeuvers.getActionById(actionId) ??
         allianceQuickActions.find((entry) => entry.action.id === actionId)?.action
       const nextAllianceAction = allianceQuickActions.find((entry) => entry.action.id === actionId)
@@ -1427,6 +1453,19 @@ export default function SocialPanelV2() {
         setSelectedTargets(new Set([primaryTargetId]))
         setMultiSelectActive(false)
       }
+      if (actionId === SWAY_ALLIANCE_VOTE.id) {
+        setMoveFilter('alliances')
+        setPrimaryTargetId(null)
+        setSelectedTargets(new Set())
+        setSwaySubjectIds([])
+        setSelectedAllianceId(
+          swayPlan.groups.some((group) => group.id === selectedAllianceId)
+            ? selectedAllianceId
+            : swayPlan.groups.length === 1
+              ? swayPlan.groups[0].id
+              : null
+        )
+      }
       if (actionId === 'consult_alliance' || actionId.startsWith('alliance:invite:')) {
         setMoveFilter('alliances')
         if (actionId === 'consult_alliance') {
@@ -1452,6 +1491,7 @@ export default function SocialPanelV2() {
     },
     [
       allianceQuickActions,
+      swayPlan.groups,
       dramaMode,
       invitationGroups,
       primaryTargetId,
@@ -1607,6 +1647,12 @@ export default function SocialPanelV2() {
     }
 
     try {
+      if (isAllianceSway && selectedAllianceId) {
+        const outcome = dispatch(swayAllianceVote(selectedAllianceId, swaySubjectIds))
+        setFeedbackMsg(outcome.summary)
+        releaseGuard()
+        return
+      }
       if (targetIds.length === 0) {
         setFeedbackMsg('Select a player to continue.')
         releaseGuard()
@@ -1803,6 +1849,9 @@ export default function SocialPanelV2() {
   }, [
     dispatch,
     appStore,
+    isAllianceSway,
+    selectedAllianceId,
+    swaySubjectIds,
     clearCurrentOutcome,
     dramaMode,
     effectivePrimaryTargetId,
@@ -1853,7 +1902,7 @@ export default function SocialPanelV2() {
   const subjectPickerRef = useRef<HTMLDivElement>(null)
   const reducedPresentationMotion = usePresentationReducedMotion()
   useEffect(() => {
-    if (!needsSubject || !open) return
+    if ((!needsSubject && !isAllianceSway) || !open) return
     const frame = window.requestAnimationFrame(() =>
       subjectPickerRef.current?.scrollIntoView?.({
         block: 'nearest',
@@ -1861,7 +1910,14 @@ export default function SocialPanelV2() {
       })
     )
     return () => window.cancelAnimationFrame(frame)
-  }, [selectedActionId, effectivePrimaryTargetId, needsSubject, open, reducedPresentationMotion])
+  }, [
+    selectedActionId,
+    effectivePrimaryTargetId,
+    needsSubject,
+    isAllianceSway,
+    open,
+    reducedPresentationMotion,
+  ])
   const moveFocusedPlayer = (direction: -1 | 1) => {
     if (!primaryTargetId || usesMultipleTargets || selectedAllianceId) return
     const candidates = rosterPlayers.filter(
@@ -2050,7 +2106,9 @@ export default function SocialPanelV2() {
     refreshContextualGuides((revision) => revision + 1)
   }
 
-  const executeCopy = selectedAllianceAction?.executeLabel ?? 'Execute'
+  const executeCopy = isAllianceSway
+    ? 'Sway the vote'
+    : (selectedAllianceAction?.executeLabel ?? 'Execute')
   const footerFeedback =
     feedbackMsg ??
     (selectedActionId && !selectedReunionGuestId ? executionEligibility.reason : null)
@@ -2418,9 +2476,7 @@ export default function SocialPanelV2() {
                 setSelectedPactHistoryEventId(null)
                 clearCurrentOutcome()
               }}
-            >
-              <AllianceVoteCampaign alliance={selectedAlliance} />
-            </AllianceRead>
+            />
           ) : (
             <section
               className={`sp2-focus${focusedPlayer ? ' sp2-focus--active' : ''}`}
@@ -2665,8 +2721,8 @@ export default function SocialPanelV2() {
                   : undefined
               }
               categoryFilter={selectedReunionGuest ? 'connect' : moveFilter}
-              supplementalActions={
-                selectedReunionGuest
+              supplementalActions={[
+                ...(selectedReunionGuest
                   ? reunionActionCards
                   : moveFilter === 'alliances' || moveFilter === 'all'
                     ? allianceQuickActions
@@ -2721,8 +2777,17 @@ export default function SocialPanelV2() {
                               : {}),
                           }
                         })
-                    : undefined
-              }
+                    : []),
+                ...(!selectedReunionGuest && swayPlan.groups.length > 0
+                  ? [
+                      {
+                        action: SWAY_ALLIANCE_VOTE,
+                        costs: swayPlan.costs,
+                        allowWithoutTarget: true,
+                      },
+                    ]
+                  : []),
+              ]}
             />
             {!selectedReunionGuest && selectedAllianceAction?.namePrompt && (
               <div className="sp2-alliance-name-field">
@@ -2740,6 +2805,44 @@ export default function SocialPanelV2() {
                   aria-describedby="sp2-alliance-name-hint"
                 />
                 <span id="sp2-alliance-name-hint">{selectedAllianceAction.namePrompt.hint}</span>
+              </div>
+            )}
+            {isAllianceSway && (
+              <div
+                ref={subjectPickerRef}
+                className="sp2-subject-picker"
+                aria-label="Choose elimination targets"
+              >
+                <span className="sp2-subject-picker__label">
+                  {swayPlan.maxTargets === 2
+                    ? 'Choose up to two nominees to vote out:'
+                    : 'Choose who to vote out:'}
+                </span>
+                <div className="sp2-subject-picker__chips" role="group" aria-label="Nominees">
+                  {swayPlan.nominees.map((candidate) => (
+                    <button
+                      key={candidate.id}
+                      type="button"
+                      className={`sp2-subject-chip${swaySubjectIds.includes(candidate.id) ? ' sp2-subject-chip--selected' : ''}`}
+                      aria-pressed={swaySubjectIds.includes(candidate.id)}
+                      onClick={() => {
+                        setSwaySubjectIds((previous) =>
+                          previous.includes(candidate.id)
+                            ? previous.filter((id) => id !== candidate.id)
+                            : swayPlan.maxTargets === 1
+                              ? [candidate.id]
+                              : previous.length < swayPlan.maxTargets
+                                ? [...previous, candidate.id]
+                                : previous
+                        )
+                        clearCurrentOutcome()
+                      }}
+                    >
+                      <PlayerAvatar player={candidate} size="sm" showRelationshipOutline={false} />
+                      <span className="sp2-subject-chip__name">{candidate.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             {needsSubject && effectivePrimaryTargetId && (

@@ -6,20 +6,6 @@
   padding: 4px 0 2px;
 }
 
-.rcd-alliance-consultation {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding: 12px;
-  border: 1px solid rgba(217, 198, 158, 0.22);
-  border-radius: 16px;
-}
-
-.rcd-alliance-consultation p {
-  margin: 0;
-  line-height: 1.45;
-}
-
 .rcd-decision-tools > span {
   color: #a89eaf;
   font-size: 12px;
