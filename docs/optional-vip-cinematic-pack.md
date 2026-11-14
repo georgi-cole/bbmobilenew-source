@@ -14,9 +14,17 @@ Standard selected and offer retry or keep; active scenes block removal. A declin
 offer is remembered on the device. Download failure never
 changes VIP ownership or saved seasons. The online-only option is deferred.
 
-Normal builds still bundle the current artwork while this delivery path is tested.
-Removing optional images from the base app and measuring smaller store builds remains
-a separate pass. Music, sounds, credits and shared finale artwork stay bundled.
+Mobile builds (capacitor, Android and iOS modes) now exclude every manifest-listed
+optional image from their generated output. Browser builds retain bundled cinematics.
+Source artwork remains in the repository for pack export and future walking frames.
+Music, sounds, credits and shared finale artwork stay bundled. The mobile build gate
+requires all optional images to be absent and every other public file byte-identical.
+
+Mobile cinematic eligibility requires a complete verified local installation, including
+final decisions, competition broadcasts, Vox and the shared ceremony/exit bridge.
+Cold-start verification never blocks Standard. A ceremony that starts in Standard
+stays in Standard; downloading or verifying a pack does not insert a movie midway.
+The media resolver also refuses unavailable optional paths before requesting an image.
 
 The initial pack contains 404 images totalling 21,471,796 bytes. Eight shared finale
 images remain bundled under `assets/ceremonies`; the policy lists them explicitly.
@@ -100,11 +108,12 @@ Deleting a pack must never remove a VIP entitlement or reset a season.
 
 ## Remaining pass
 
-1. After delivery paths and the finished walking frames are verified, exclude manifest-listed media from mobile
-   builds. Gate every premium entry (including final decisions and competition
-   broadcasts) on local readiness, preserving the original outcome callbacks. Compare
-   offline audio, credits, Skip, reduced motion, paired exits, interrupted installs,
-   updates and saved seasons on Android and iPhone, then measure actual store sizes.
+1. Merge the finished walking frames and their timing/catalog changes, regenerate the
+   manifest, publish the new immutable pack and repeat offline/native checks. The
+   recursive inventory automatically includes these new images in the optional pack
+   and excludes them from mobile builds. Do not change an older hosted revision.
+2. Measure signed iOS/Android store outputs and verify download/playback on physical
+   devices; Android debug APK measurements do not establish TestFlight download size.
 
 ## Possible online-only option
 

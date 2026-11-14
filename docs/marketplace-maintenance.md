@@ -531,3 +531,10 @@ store listings or change configured prices.
   choreography, offers, prices, rewards, entitlements and availability are unchanged.
 
 - 2026-11-14: Reviewed secret mission acceptance, deadline, legacy-save and energy tracking repairs. Existing reward boxes, Eyeolean power eligibility, prices, entitlements and paid-mode availability remain unchanged.
+
+- 2026-11-14: Reviewed mobile base-app media exclusion. The existing optional VIP
+  image pack is now omitted from Android/iOS builds; Standard is used until a full
+  local installation is verified. Final decisions and competition results retain
+  their native continuation paths. Browser cinematics, music, credits and shared
+  finale artwork stay bundled. Ownership, prices, rewards and product copy do not
+  change; new exit walking frames are still pending their separate merge.

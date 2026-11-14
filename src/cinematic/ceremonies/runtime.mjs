@@ -7,11 +7,13 @@ import {
   modeActors,
   hasLeadershipRole,
 } from './mode-routing.mjs'
+import { isCinematicMediaAvailable } from '../media/cinematicPackAvailability.mjs'
 export { adaptCeremonyScene, baseScene } from './mode-routing.mjs'
 export { hasLeadershipRole } from './mode-routing.mjs'
 export function shouldPlayCinematic(state, vip) {
   return Boolean(
     vip &&
+    isCinematicMediaAvailable() &&
     !['survival', 'survivor'].includes(state.game?.mode) &&
     state.settings.gameUX.animations &&
     state.settings.gameUX.animationMode !== 'standard' &&
