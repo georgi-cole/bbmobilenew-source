@@ -335,28 +335,28 @@ interface SocialActionTaskBlueprint {
 const SOCIAL_ACTION_TASK_BLUEPRINTS: readonly SocialActionTaskBlueprint[] = [
   {
     description: ({ endDay }) =>
-      `Complete this social set before Day ${endDay}: compliment, whisper, and group chat`,
+      `Complete this social set by the end of Day ${endDay}: compliment, whisper, and group chat`,
     target: 3,
     requiredActionIds: ['compliment', 'whisper', 'group_chat'],
     requireDistinctActionIds: true,
   },
   {
     description: ({ endDay }) =>
-      `Complete this social set before Day ${endDay}: reassure, clear the air, and confront`,
+      `Complete this social set by the end of Day ${endDay}: reassure, clear the air, and confront`,
     target: 3,
     requiredActionIds: ['reassure', 'apologize', 'confront'],
     requireDistinctActionIds: true,
   },
   {
     description: ({ endDay }) =>
-      `Build your social position before Day ${endDay}: reassure, compliment, and whisper`,
+      `Build your social position by the end of Day ${endDay}: reassure, compliment, and whisper`,
     target: 3,
     requiredActionIds: ['reassure', 'compliment', 'whisper'],
     requireDistinctActionIds: true,
   },
   {
     description: ({ endDay }) =>
-      `Work the room before Day ${endDay}: group chat, apologize, and reassure`,
+      `Work the room by the end of Day ${endDay}: group chat, apologize, and reassure`,
     target: 3,
     requiredActionIds: ['group_chat', 'apologize', 'reassure'],
     requireDistinctActionIds: true,
@@ -386,6 +386,25 @@ function pickTargetCandidates(context: MissionBuildContext, rng: () => number): 
  */
 export function repairLegacyMissionTasks(tasks: readonly MissionTask[]): MissionTask[] {
   return tasks.map((task) => {
+    if (
+      !task.completed &&
+      (task.type === 'confessional_visits' || task.type === 'conversation_turns')
+    ) {
+      return {
+        ...task,
+        type: 'social_action_count',
+        description: 'Complete this social set: compliment, whisper, and group chat',
+        target: 3,
+        current: 0,
+        requiredActionIds: ['compliment', 'whisper', 'group_chat'],
+        requireDistinctActionIds: true,
+        completedActionIds: [],
+        auditLog: [
+          ...(task.auditLog ?? []),
+          'Migrated unavailable legacy chat objective to social actions',
+        ],
+      }
+    }
     const wasPreviouslyWaived = task.auditLog?.includes(
       'Waived unavailable AI-only Vote Rally requirement'
     )
@@ -405,7 +424,7 @@ export function repairLegacyMissionTasks(tasks: readonly MissionTask[]): Mission
 
     return {
       ...task,
-      description: `Complete this social set before Day ${task.endDay ?? task.targetDay}: rumor, rally votes against, and favour request`,
+      description: `Complete this social set by the end of Day ${task.endDay ?? task.targetDay}: rumor, rally votes against, and favour request`,
       requiredActionIds,
       completedActionIds,
       target,
@@ -444,7 +463,7 @@ function buildRequirementTask(
       return {
         id: `competition_placement_${context.templateId}`,
         type,
-        description: `Finish in the top ${placementThreshold} of a competition before Day ${endDay}`,
+        description: `Finish in the top ${placementThreshold} of a competition by the end of Day ${endDay}`,
         target: 1,
         startDay,
         endDay,
@@ -456,7 +475,7 @@ function buildRequirementTask(
       return {
         id: `avoid_last_place_${context.templateId}`,
         type,
-        description: `Avoid last place in 2 competitions before Day ${endDay}`,
+        description: `Avoid last place in 2 competitions by the end of Day ${endDay}`,
         target: 2,
         startDay,
         endDay,
@@ -467,7 +486,7 @@ function buildRequirementTask(
       return {
         id: `public_approval_gain_${context.templateId}`,
         type,
-        description: `Improve your public rating by ${requiredDelta} percentage points before Day ${endDay}`,
+        description: `Improve your public rating by ${requiredDelta} percentage points by the end of Day ${endDay}`,
         target: requiredDelta,
         startDay,
         endDay,
@@ -542,7 +561,7 @@ function buildRequirementTask(
         type,
         // The reward becomes available at the start of endDay, so a target
         // nomination on that day is too late to satisfy this objective.
-        description: `Get one of these two marked houseguests nominated before Day ${endDay}: ${targetLabels.join(' or ')}`,
+        description: `Get one of these two marked houseguests nominated by the end of Day ${endDay}: ${targetLabels.join(' or ')}`,
         target: 1,
         startDay,
         endDay,
@@ -558,7 +577,7 @@ function buildRequirementTask(
       return {
         id: `vox_ballot_cast_${context.templateId}`,
         type,
-        description: `At the next secret nomination ballot, mark two eligible houseguests before Day ${endDay}; your ballot counts when submitted, regardless of who the house nominates`,
+        description: `At the next secret nomination ballot, mark two eligible houseguests by the end of Day ${endDay}; your ballot counts when submitted, regardless of who the house nominates`,
         target: 1,
         startDay,
         endDay,

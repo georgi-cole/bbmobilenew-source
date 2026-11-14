@@ -13402,7 +13402,31 @@ const gameSlice = createSlice({
     acceptSecretMission(state) {
       const sm = state.secretMission
       if (!sm || sm.status !== 'offered') return
-      const nextMission = buildSecretMissionTasksForTemplate(state, sm.templateId, sm.triggeredDay)
+      const remainingDays =
+        state.players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+          .length - 5
+      const fittingTemplate =
+        MISSION_TEMPLATES.find(
+          (candidate) => candidate.id === sm.templateId && candidate.daySpan <= remainingDays
+        ) ?? MISSION_TEMPLATES.find((candidate) => candidate.daySpan <= remainingDays)
+      if (state.week > sm.endDay || !fittingTemplate) {
+        sm.status = 'expired'
+        state.secretMissionLastResolvedDay = state.week
+        return
+      }
+      const acceptanceDay = Math.max(state.week, sm.triggeredDay)
+      const nextMission = buildSecretMissionTasksForTemplate(
+        state,
+        fittingTemplate.id,
+        acceptanceDay
+      )
+      const template = MISSION_TEMPLATES.find(
+        (candidate) => candidate.id === nextMission.templateId
+      )!
+      sm.startDay = acceptanceDay
+      sm.endDay = acceptanceDay + template.daySpan
+      sm.survivalWindowEndDay = sm.endDay
+      sm.targetDeadlineDay = sm.endDay
       sm.status = 'accepted'
       sm.templateId = nextMission.templateId
       sm.tasks = nextMission.tasks
@@ -13555,7 +13579,6 @@ const gameSlice = createSlice({
       const sm = state.secretMission
       if (!sm) return
       const discovered = new Set(sm.discoveredEasterEggIds ?? [])
-      if (discovered.has(action.payload.eggId)) return
       discovered.add(action.payload.eggId)
       sm.discoveredEasterEggIds = [...discovered]
 
