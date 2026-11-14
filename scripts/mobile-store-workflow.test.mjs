@@ -48,6 +48,20 @@ test('iOS retries receive a distinct build number used by the native archive', (
   assert.ok(scripts(job).includes('altool --upload-app'))
 })
 
+test('iOS upload completion includes compliance and verified internal availability', () => {
+  const steps = workflow.jobs.upload.steps
+  const upload = steps.findIndex((step) => step.name === 'Upload the build to App Store Connect')
+  const ready = steps.findIndex((step) => step.run === 'node scripts/complete-testflight.mjs')
+  const cleanup = steps.findIndex((step) => step.name === 'Remove signing materials')
+  assert.ok(ready > upload && ready < cleanup)
+  assert.equal(steps[ready].env.ASC_API_KEY_P8_BASE64, '${{ secrets.ASC_API_KEY_P8_BASE64 }}')
+  assert.ok(
+    workflow.jobs.quality.steps.some(
+      (step) => step.run === 'node scripts/complete-testflight.mjs --check-policy'
+    )
+  )
+})
+
 test('Android signing uses the existing upload key and keeps its passwords out of arguments', () => {
   const job = workflow.jobs.android
   assert.equal(job.env.ANDROID_KEYSTORE_PASSWORD, '${{ secrets.ANDROID_KEYSTORE_PASSWORD }}')

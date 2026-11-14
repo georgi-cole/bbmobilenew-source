@@ -31,6 +31,8 @@ jobs:
       - run: npm ci
       - run: npm run check:pr
       - run: node --test scripts/mobile-store-workflow.test.mjs
+      - run: node --test scripts/testflight-readiness.test.mjs
+      - run: node scripts/complete-testflight.mjs --check-policy
 
   upload:
     name: Build, sign, and upload iOS app
@@ -213,6 +215,14 @@ jobs:
             --apiKey "$ASC_API_KEY_ID" \
             --apiIssuer "$ASC_API_ISSUER_ID"
 
+      - name: Complete compliance and verify internal TestFlight availability
+        timeout-minutes: 25
+        env:
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+        run: node scripts/complete-testflight.mjs
+
       - name: Record uploaded build details
         run: |
           MARKETING_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$RUNNER_TEMP/TheBigEye.xcarchive/Products/Applications/App.app/Info.plist")
@@ -221,7 +231,7 @@ jobs:
             echo "- Source commit: $GITHUB_SHA"
             echo "- Marketing version: $MARKETING_VERSION"
             echo "- Build number: $IOS_BUILD_NUMBER"
-            echo "- Uploaded to App Store Connect for TestFlight processing."
+            echo "- Processed and verified available to The Big Eye Internal testers."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove signing materials

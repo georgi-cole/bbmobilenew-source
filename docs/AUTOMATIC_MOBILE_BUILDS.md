@@ -22,9 +22,23 @@ Actions**:
 - `ASC_API_KEY_P8_BASE64`
 
 The existing production Supabase/account repository variables must remain set.
-Apple still processes uploaded builds. In App Store Connect, enable automatic
-distribution for your internal TestFlight group so processed builds reach it.
-Device installation follows the tester's TestFlight automatic-update setting.
+After upload, the workflow waits up to 20 minutes for the exact uploaded build,
+copies the completed encryption answer from the user-approved build
+`43605234080.1`, assigns **The Big Eye Internal**, and verifies Apple's internal
+state is `IN_BETA_TESTING`. Upload alone is no longer reported as ready to test.
+The existing group uses manual distribution for Xcode builds; the API assignment
+handles that automatically without creating another group. Device installation
+still follows the tester's TestFlight automatic-update setting.
+
+The policy in `scripts/testflight-readiness-policy.json` refers to the completed
+test-build declaration (standard encryption, France excluded). It does not claim
+SQLCipher is absent or classify new encryption. It copies Apple's recorded answer
+and any linked declaration, and refuses to overwrite a different completed answer.
+Changes to the reviewed SQLite dependencies or native configuration stop the
+automation for a fresh review. After a user approves a new encryption declaration,
+update the baseline build and reviewed input hashes in that policy. Keep the
+France exclusion for these test builds; production-country decisions remain
+separate. No encryption exemption is hardcoded in the app's Info.plist.
 
 Manual runs remain available on main and `release/testflight-*` candidate branches.
 Candidate branch runs upload iOS only. This workflow does not submit an App Store
