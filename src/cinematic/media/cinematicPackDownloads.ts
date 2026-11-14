@@ -93,8 +93,12 @@ export function createCinematicPackDownloads(
       try {
         const result = await backend.inspect({ manifest })
         if (result.installed) activate(result)
-        else update({ status: 'available' })
+        else {
+          library.useBundled()
+          update({ status: 'available' })
+        }
       } catch {
+        library.useBundled()
         update({ status: 'available', error: null })
       }
     })()

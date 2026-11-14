@@ -23,7 +23,7 @@ export default function CinematicPackController({ hash }: { hash: string }) {
     supported &&
     vip &&
     state.status === 'available' &&
-    state.choice == null &&
+    state.choice !== 'standard' &&
     !open &&
     !/^#\/game(?:[/?]|$)/.test(hash)
 

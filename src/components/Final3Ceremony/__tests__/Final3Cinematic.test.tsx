@@ -236,6 +236,7 @@ afterEach(async () => {
   cleanup()
   vi.useRealTimers()
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
   document.body.classList.remove('reduce-motion')
   await act(async () => {
     await Promise.resolve()
@@ -243,6 +244,22 @@ afterEach(async () => {
 })
 
 describe('human Final LOH cinematic integration', () => {
+  it('keeps the native final decision playable when mobile cinematic images are not downloaded', async () => {
+    vi.stubEnv('VITE_CINEMATIC_PACK_EXTERNAL', 'true')
+    const { store } = fixture()
+    render(
+      <Provider store={store}>
+        <Final3Ceremony />
+      </Provider>
+    )
+    expect(screen.getByRole('dialog', { name: 'The Finale plea chat' })).toBeInTheDocument()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(movie.prepare).not.toHaveBeenCalled()
+    expect(movie.mount).not.toHaveBeenCalled()
+    expect(soundtrack.create).not.toHaveBeenCalled()
+  })
   it('uses the shared cinematic Skip for presentation beats and removes it during the required decision', async () => {
     const { config, store } = await openMovie()
     act(() => config.onCheckpoint({ stage: 'establish' } as FinalDecisionCheckpoint))

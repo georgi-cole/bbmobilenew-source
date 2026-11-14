@@ -239,10 +239,25 @@ afterEach(async () => {
   vi.clearAllTimers()
   vi.useRealTimers()
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
   document.body.classList.remove('no-animations', 'reduce-motion')
 })
 
 describe('Final Three competition broadcast', () => {
+  it('keeps the actual result and continuation when the mobile cinematic pack is absent', async () => {
+    vi.stubEnv('VITE_CINEMATIC_PACK_EXTERNAL', 'true')
+    const subject = fixture({ part: 2 })
+    const { onDone } = await mountBroadcast(subject)
+    expect(media.prepare).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-winner-id]')).toHaveAttribute(
+      'data-winner-id',
+      subject.expectedWinnerId
+    )
+    await elapse(90_000)
+    expect(onDone).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
   it.each<FinalThreeCompetitionPart>([1, 2, 3])(
     'autostarts Part %s and keeps its real winner hidden until the verdict',
     async (part) => {

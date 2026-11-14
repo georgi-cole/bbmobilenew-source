@@ -3,6 +3,8 @@ import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { excludeMobileCinematicAssets } from './scripts/lib/mobile-cinematic-assets.mjs'
+import cinematicPack from './src/cinematic/media/vipCinematicPackManifest.json'
 
 const { version: appVersion } = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8')
@@ -33,6 +35,9 @@ export default defineConfig(({ mode }) => ({
   base: mobileModes.has(mode) ? './' : process.env.VITE_BASE_PATH || '/bbmobilenew/',
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+    'import.meta.env.VITE_CINEMATIC_PACK_EXTERNAL': JSON.stringify(
+      mobileModes.has(mode) ? 'true' : 'false'
+    ),
   },
   assetsInclude: ['**/*.wp2'],
   plugins: [
@@ -46,6 +51,17 @@ export default defineConfig(({ mode }) => ({
           stdio: 'inherit',
           windowsHide: true,
         })
+      },
+      async writeBundle(options) {
+        if (!mobileModes.has(mode)) return
+        const result = await excludeMobileCinematicAssets(
+          process.cwd(),
+          resolve(options.dir ?? 'dist'),
+          cinematicPack
+        )
+        console.log(
+          `Mobile media: excluded ${result.excludedFiles} cinematic images (${result.excludedBytes} bytes); verified ${result.retainedFiles} bundled public files.`
+        )
       },
     },
   ],
