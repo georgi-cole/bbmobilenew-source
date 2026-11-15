@@ -1028,11 +1028,12 @@ async function playDontGoOverTurn(host: Locator, random: SeededRandom): Promise<
   )
   if (startDuel) return clickWithShortTimeout(startDuel)
 
-  const guess = await firstVisibleEnabled(host.locator('input[type="number"]'))
+  const guess = await firstVisibleEnabled(host.getByRole('textbox', { name: 'Your guess' }))
   if (guess) {
     // A low, valid guess keeps the player in the duel long enough to exercise
     // the reveal and life-loss decisions without relying on question content.
-    await guess.fill(String(random.int(0, 3)))
+    await host.getByRole('button', { name: 'Clear answer', exact: true }).click()
+    await guess.pressSequentially(String(random.int(0, 3)))
     const lockGuess = await firstVisibleEnabled(
       host.getByRole('button', { name: /^Lock in (?:duel )?guess$/i })
     )
@@ -1227,11 +1228,12 @@ async function playNumberTriviaTurn(host: Locator, random: SeededRandom): Promis
   )
   if (advance) return clickWithShortTimeout(advance)
 
-  const answer = await firstVisibleEnabled(host.getByRole('spinbutton', { name: 'Answer input' }))
+  const answer = await firstVisibleEnabled(host.getByRole('textbox', { name: 'Answer input' }))
   if (answer) {
-    await answer.fill(String(random.int(1, 9_999)))
+    await answer.press('Escape')
+    await answer.pressSequentially(String(random.int(1, 9_999)))
     const submit = await firstVisibleEnabled(
-      host.getByRole('button', { name: 'Submit', exact: true })
+      host.getByRole('button', { name: 'Lock in answer', exact: true })
     )
     if (submit) return clickWithShortTimeout(submit)
   }

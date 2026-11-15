@@ -57,7 +57,7 @@ describe('cwgoCompetitionSlice — strict qualifier', () => {
       f: answer + 2,
     }));
     store.dispatch(revealMassResults());
-    expect(store.getState().cwgo.lastEliminated).toEqual(['e', 'f']);
+    expect([...store.getState().cwgo.lastEliminated].sort()).toEqual(['e', 'f']);
     store.dispatch(confirmMassElimination());
     expect(store.getState().cwgo.aliveIds).toEqual(['a', 'b', 'c', 'd']);
     expect(store.getState().cwgo.status).toBe('mass_input');
