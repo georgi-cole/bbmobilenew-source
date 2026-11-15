@@ -37,18 +37,24 @@ describe('Deck of Light gameplay edge cases', () => {
     expect(board.some((card) => card.portraitBadge?.startsWith('Variant'))).toBe(true)
   })
 
-  it('offers three unique deterministic tools to humans and AI for the entire attempt', () => {
+  it('offers three shared deterministic tools per round, with fresh choices across the attempt', () => {
     const seen = new Set<string>()
     for (let seed = 0; seed < 100; seed++) {
       const attemptNumber = seed % 4
-      const offer = getHouseOfCardsAttemptToolOffer(seed, attemptNumber)
-      expect(offer).toEqual(getHouseOfCardsAttemptToolOffer(seed, attemptNumber))
-      expect(new Set(offer).size).toBe(3)
-      offer.forEach((tool) => {
-        expect(HOUSE_OF_CARDS_TOOL_POOL).toContain(tool)
-        seen.add(tool)
+      const roundOffers = [1, 2, 3, 4].map((round) => {
+        const offer = getHouseOfCardsAttemptToolOffer(seed, attemptNumber, round)
+        expect(offer).toEqual(getHouseOfCardsAttemptToolOffer(seed, attemptNumber, round))
+        expect(new Set(offer).size).toBe(3)
+        offer.forEach((tool) => {
+          expect(HOUSE_OF_CARDS_TOOL_POOL).toContain(tool)
+          seen.add(tool)
+        })
+        return offer
       })
-      for (const round of [1, 2, 3, 4])
+      expect(new Set(roundOffers.map((offer) => [...offer].sort().join(','))).size).toBe(4)
+      expect(new Set(roundOffers.flat()).size).toBe(5)
+      for (const round of [1, 2, 3, 4]) {
+        const offer = roundOffers[round - 1]!
         for (const sessionAbility of [25, 85]) {
           const params = {
             playerId: 'rival',
@@ -67,6 +73,7 @@ describe('Deck of Light gameplay edge cases', () => {
             }).tool
           )
         }
+      }
     }
     expect(seen.size).toBe(5)
     expect(HOUSE_OF_CARDS_TOOL_POOL).toHaveLength(5)
@@ -137,7 +144,7 @@ describe('Deck of Light gameplay edge cases', () => {
         round,
         pairCount: 4 + round,
         tournamentSeed: Array.from({ length: 100 }, (_, n) => n).find((n) =>
-          getHouseOfCardsAttemptToolOffer(n).includes('shield')
+          getHouseOfCardsAttemptToolOffer(n, 0, round).includes('shield')
         )!,
         sessionAbility: 60,
         tool: 'shield',
@@ -176,7 +183,7 @@ describe('Deck of Light gameplay edge cases', () => {
         round: 3,
         pairCount: 8,
         tournamentSeed: Array.from({ length: 100 }, (_, seed) => seed).find((seed) =>
-          getHouseOfCardsAttemptToolOffer(seed).includes(tool)
+          getHouseOfCardsAttemptToolOffer(seed, 0, 3).includes(tool)
         )!,
         sessionAbility: 61,
         tool,

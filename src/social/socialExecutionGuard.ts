@@ -8,6 +8,7 @@ import { isActionAllowedForRealityPreset } from './socialActionManager'
 import type { PregnancyStoryState } from './reality/pregnancy'
 import { hasRealityActionCooldown } from './reality/actionContract'
 import { getSocialRulesPhase } from './reality/clock'
+import { isProtectedSocialAlly } from './allianceTargetContinuity'
 
 interface SocialExecutionState {
   game?: {
@@ -79,6 +80,27 @@ export function validateSocialExecution(
   state: SocialExecutionState,
   selection: SocialExecutionSelection
 ) {
+  const actor = state.game?.players?.find((player) => player.id === selection.actorId)
+  if (
+    actor &&
+    !actor.isUser &&
+    selection.subjectId &&
+    [
+      'pitch_target',
+      'suggest_replacement',
+      'rally_votes_against',
+      'rumor',
+      'plant_lie',
+      'warn_about_player',
+    ].includes(selection.action.id) &&
+    isProtectedSocialAlly(
+      state.social?.reality,
+      state.social?.relationships,
+      actor.id,
+      selection.subjectId
+    )
+  )
+    return { eligible: false, reason: 'This hubmate is protected by your current alliance.' }
   if (state.game?.weekendInterlude?.active && selection.action.id === 'ask_nemesis_reason') {
     return { eligible: false, reason: 'This conversation must happen during regular Social time.' }
   }
@@ -114,7 +136,6 @@ export function validateSocialExecution(
     ? `weekend_day_${state.game.weekendInterlude.weekendDay}`
     : state.game?.phase
   const players = state.game?.players ?? []
-  const actor = players.find((player) => player.id === selection.actorId)
   const selections = primaryBatch ? targetIds.map((targetId) => [targetId]) : [targetIds]
   for (const selectedTargets of selections) {
     const eligibility = evaluateSocialActionEligibility({

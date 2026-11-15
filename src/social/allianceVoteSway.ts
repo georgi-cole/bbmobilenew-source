@@ -33,7 +33,6 @@ export function getAllianceVoteSway(
     game.lohId === human.id &&
     !['evicted', 'jury'].includes(human.status) &&
     getEffectiveSocialMode(state) === 'drama' &&
-    !game.publicModeEnabled &&
     game.voxPopuli?.status !== 'active' &&
     ['pos_ceremony_results', 'social_2'].includes(game.phase) &&
     !game.replacementNeeded &&

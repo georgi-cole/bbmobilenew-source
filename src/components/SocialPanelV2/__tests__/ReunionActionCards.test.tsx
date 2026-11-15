@@ -4,6 +4,7 @@ import { Provider } from 'react-redux'
 import { describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '../../../i18n/I18nProvider'
 import { SOCIAL_ACTIONS } from '../../../social/socialActions'
+import { getReunionActionCosts } from '../../../social/reunionSocialActions'
 import gameReducer, { createInitialGameState, hydrateGame } from '../../../store/gameSlice'
 import settingsReducer from '../../../store/settingsSlice'
 import socialReducer from '../../../social/socialSlice'
@@ -29,7 +30,7 @@ describe('reunion action cards', () => {
     const onActionClick = vi.fn()
     const supplementalActions = ['compliment', 'apologize'].flatMap((id) => {
       const action = SOCIAL_ACTIONS.find((candidate) => candidate.id === id)
-      return action ? [{ action, costs: { energy: 0, influence: 0, info: 0 } }] : []
+      return action ? [{ action, costs: getReunionActionCosts(id)! }] : []
     })
 
     render(
@@ -37,7 +38,7 @@ describe('reunion action cards', () => {
         <I18nProvider>
           <ActionGrid
             actorId={store.getState().game.players.find((player) => player.isUser)!.id}
-            actorEnergy={0}
+            actorEnergy={3}
             actorInfluence={0}
             actorInfo={0}
             selectedTargetIds={new Set([guest.id])}
@@ -58,7 +59,8 @@ describe('reunion action cards', () => {
     expect(screen.getAllByRole('button', { name: /Clear the Air/i })).toHaveLength(1)
     expect(compliment).toHaveAttribute('data-action-id', 'compliment')
     expect(clearAir).toHaveAttribute('data-action-id', 'apologize')
-    expect(within(compliment).getByLabelText('Energy cost: 0')).toBeInTheDocument()
+    expect(within(compliment).getByLabelText('Energy cost: 1')).toBeInTheDocument()
+    expect(within(clearAir).getByLabelText('Energy cost: 2')).toBeInTheDocument()
 
     fireEvent.click(clearAir)
     expect(onActionClick).toHaveBeenCalledWith('apologize')

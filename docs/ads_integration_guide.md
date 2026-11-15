@@ -10,13 +10,18 @@ platforms. No custom Swift/Java advertising bridge is needed.
    The `.local` file is ignored by Git. Keep `VITE_ADMOB_MODE=test` while testing.
    Google demo app/ad unit IDs are selected automatically in this mode, even when
    your real IDs are configured. With no mode configured, advertising is off.
+   The bridge passes these explicit IDs with `isTesting: false`: plugin 8.2.1's
+   iOS `isTesting` override substitutes the Android demo interstitial ID. Google's
+   explicit demo units still serve test creatives; this avoids that substitution
+   without changing live configuration.
 2. Use Xcode 26.2 or newer on a Mac (required by the plugin’s Google Mobile Ads
    13.11.0 dependency). Run `npm run sync:ios`, then `npx cap open ios`. Use
    `npm run sync:android` and `npx cap open android` for Android. These platform
    sync commands configure the native app ID as well as copying the web build.
    Use platform-specific sync commands for advertising builds.
 3. On the device, open **Settings → Advertising privacy**, enter your real age, and enable
-   **Optional advertising** for an adult player. Visit an existing reward prompt.
+   **Optional advertising** for an adult player. Select **Check advertising setup**
+   to complete the Google privacy choice before visiting an existing reward prompt.
    Test completion, early dismissal, no connection, and several repeated rewards.
    Confirm No Ads/VIP suppress automatic breaks while rewards remain opt-in.
 4. Use a regular iOS/Android build for SDK testing. The separate `mobile-dev`
@@ -65,6 +70,12 @@ invalidates pending rewards. Changing runs also clears pending rewards.
 
 The native bridge permits only one full-screen request at a time, handles load
 and presentation failures, and waits for dismissal before releasing its slot.
+Advertising privacy shows whether local permission, build availability, Google
+privacy setup, or a recent load/presentation failure is preventing a request.
+Checking setup never loads an ad or grants a reward; a successful setup check
+does not guarantee live ad inventory. A failed request remains retryable and
+does not consume a reward allowance. Reverse Time can open these settings and
+return directly to the paused competition result.
 Rewards require the SDK's earned result, not an ad click or dismissal. Daily
 reward allowances are recorded after successful completion. Crystal Path's
 turn clock pauses while its hint ad is pending.

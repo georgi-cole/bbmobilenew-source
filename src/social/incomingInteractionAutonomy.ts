@@ -10,6 +10,8 @@
  */
 
 import { normalizeAffinity } from './affinityUtils'
+import { getPendingAutomaticNomineeId } from './automaticNomination'
+import { isProtectedSocialAlly } from './allianceTargetContinuity'
 import { createDraft, finishDraft } from 'immer'
 import { socialConfig } from './socialConfig'
 import {
@@ -631,9 +633,10 @@ function buildActorConstraints(
     context.phase === 'pos_results' ||
     context.phase === 'pos_ceremony' ||
     context.phase === 'pos_ceremony_results'
-  const actorIsNominee = context.nomineeIds
-    ? nomineeIds.includes(actor.id)
-    : actor.status.includes('nominated')
+  const automaticId = getPendingAutomaticNomineeId(context.gameState)
+  const actorIsNominee =
+    automaticId === actor.id ||
+    (context.nomineeIds ? nomineeIds.includes(actor.id) : actor.status.includes('nominated'))
   const actorIsCurrentHoh =
     !context.voxPopuliActive &&
     (context.lohId !== undefined ? context.lohId === actor.id : actor.status.includes('loh'))
@@ -657,7 +660,7 @@ function buildActorConstraints(
     : playerEntry?.status.includes('nominated') === true
   const playerCanVote = !context.voxPopuliActive && !playerIsNominee && !playerIsHoh
   const playerFinishedLastLohComp = context.lastHohCompFinisherId === playerId
-  const actorWasAutoNominee = context.autoNomineeId === actor.id
+  const actorWasAutoNominee = (automaticId ?? context.autoNomineeId) === actor.id
   const actorWasSaved = context.povSavedId === actor.id
   const actorWasReplacementNominee = (context.replacementNomineeIds ?? []).includes(actor.id)
   const actorIsPendingEvictee = context.pendingEvictionId === actor.id
@@ -1909,7 +1912,8 @@ function selectInteractionSubject(
       candidate.id !== actorId &&
       candidate.id !== playerId &&
       candidate.status !== 'evicted' &&
-      candidate.status !== 'jury'
+      candidate.status !== 'jury' &&
+      !isProtectedSocialAlly(context.reality, context.relationships, actorId, candidate.id)
   )
   return candidates.sort((left, right) => {
     const leftAffinity = normalizeAffinity(context.relationships[actorId]?.[left.id]?.affinity ?? 0)

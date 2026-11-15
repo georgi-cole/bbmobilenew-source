@@ -1125,6 +1125,69 @@ export default function DiaryRoom() {
     [secretMission]
   )
 
+  // Mission announcements belong to this visit's conversation. Remember the
+  // already delivered state so revisiting never pins or replays old rewards.
+  const rewardDeliveryScope = `${gameState.gameId}:${playerId}:${rewardMissionKey}`
+  const rewardDeliveryRef = useRef({
+    scope: rewardDeliveryScope,
+    privateCount: secretMission?.privateRewardMessages?.length ?? 0,
+    claimed: secretMission?.status === 'rewardClaimed',
+    revealed: Boolean(secretMission?.allianceReveal),
+    paid: Boolean(missionPayout),
+  })
+  useEffect(() => {
+    const previous = rewardDeliveryRef.current
+    const current = {
+      scope: rewardDeliveryScope,
+      privateCount: secretMission?.privateRewardMessages?.length ?? 0,
+      claimed: secretMission?.status === 'rewardClaimed',
+      revealed: Boolean(secretMission?.allianceReveal),
+      paid: Boolean(missionPayout),
+    }
+    rewardDeliveryRef.current = current
+    if (confessionalLocked || previous.scope !== current.scope) return
+    const lines = (secretMission?.privateRewardMessages ?? [])
+      .slice(previous.privateCount)
+      .map((line) =>
+        line
+          .replace(/^Big Eye:\s*/i, '')
+          .replace(
+            / Visit the Confessional for the rules and tradeoffs before its opportunity passes\.$/,
+            ''
+          )
+      )
+    if (!previous.claimed && current.claimed && secretMission?.rewardSet && secretMission.reward)
+      lines.push(missionPowerDetail(secretMission.reward))
+    if (!previous.paid && missionPayout)
+      lines.push(
+        `Your arsenal received +${missionPayout.energy} Social Energy, +${missionPayout.influence} Influence and +${missionPayout.info} Information. Your resource caps still apply.`
+      )
+    const reveal = secretMission?.allianceReveal
+    if (!previous.revealed && reveal)
+      lines.push(
+        `I confirm ${reveal.name}: ${reveal.memberIds.map((id) => playerNameById.get(id) ?? id).join(', ')}. Confirmed on Day ${reveal.day}.`
+      )
+    if (!lines.length) return
+    const additions: ChatMessage[] = lines.filter(Boolean).map((text) => ({
+      id: crypto.randomUUID(),
+      role: 'bb',
+      text,
+      timestamp: Date.now(),
+    }))
+    setMessages((previousMessages) => {
+      const updated = [...previousMessages, ...additions]
+      saveChat(playerId, updated)
+      return updated
+    })
+  }, [
+    confessionalLocked,
+    missionPayout,
+    playerId,
+    playerNameById,
+    rewardDeliveryScope,
+    secretMission,
+  ])
+
   // ── Secret mission: inject reward-pending message on mount (PR 2) ─────────
   // When the player returns with a completed mission, Big Eye acknowledges the
   // success and prompts box selection. Also re-runs on lock changes so any
@@ -2196,47 +2259,6 @@ export default function DiaryRoom() {
                           )}
                       </div>
                     )}
-                  {secretMission?.rewardSet &&
-                    secretMission.status === 'rewardClaimed' &&
-                    secretMission.reward && (
-                      <div
-                        className="diary-room__reward-claimed"
-                        aria-label="Mission reward details"
-                      >
-                        <strong>
-                          {isMissionPower(secretMission.reward.type)
-                            ? MISSION_POWER_LABELS[secretMission.reward.type]
-                            : secretMission.reward.type}
-                        </strong>
-                        <p>Big Eye: {missionPowerDetail(secretMission.reward)}</p>
-                        {missionPayout && (
-                          <p>
-                            Your arsenal received +{missionPayout.energy} Social Energy, +
-                            {missionPayout.influence} Influence and +{missionPayout.info}{' '}
-                            Information. Your resource caps still apply.
-                          </p>
-                        )}
-                        {secretMission.allianceReveal && (
-                          <p>
-                            Big Eye confirms {secretMission.allianceReveal.name}:{' '}
-                            {secretMission.allianceReveal.memberIds
-                              .map((id) => playerNameById.get(id) ?? id)
-                              .join(', ')}
-                            . Confirmed on Day {secretMission.allianceReveal.day}.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  {secretMission?.privateRewardMessages?.length ? (
-                    <div
-                      className="diary-room__reward-claimed"
-                      aria-label="Private Big Eye power messages"
-                    >
-                      {secretMission.privateRewardMessages.map((message, index) => (
-                        <p key={`${secretMission.triggeredDay}:${index}`}>{message}</p>
-                      ))}
-                    </div>
-                  ) : null}
                   <ChatBubbles
                     key={`${gameState.gameId}:${playerId}`}
                     msgs={messages}

@@ -44,6 +44,17 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-15: Reviewed the 23-report TestFlight regression batch. Hosted premium
+  minigames retain reachable controls/results, Twin remasters retain concurrent
+  movement/jump input, and Deck of Light offers vary fairly by round for human
+  and AI players. VIP and Premium Challenges continue to unlock all premium
+  versions. Reverse Time remains an opt-in rewarded retry and requires a real
+  native reward completion; advertising readiness and consent failures now have
+  visible recovery paths. Consent, No Ads/VIP automatic-break suppression,
+  reward limits, products, prices, entitlements and Store benefits are unchanged.
+  Social consistency, reunion action costs and cinematic playback maintenance
+  do not change the marketplace offer; existing copy remains accurate.
+
 - 2026-11-15: Reviewed the Number Trivia broadcast-stage refresh and built-in
   numeric keypads for Number Trivia and Don't Go Over. The question bank,
   qualifier eliminations, tied finalist cutoff, three-life duel, AI, scoring,

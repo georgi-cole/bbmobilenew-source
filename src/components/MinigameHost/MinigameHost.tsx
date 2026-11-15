@@ -174,6 +174,8 @@ interface Props {
   competitionRetry?: {
     enabled: boolean
     pending?: boolean
+    message?: string | null
+    onConfigureAds?: () => void
     onWatch: (onReward: () => void) => void
     onContinueWithoutRetry?: () => void
   }
@@ -1310,7 +1312,10 @@ export default function MinigameHost({
           launchedGame.reactComponentKey === 'SnakeGame' ||
           launchedGame.reactComponentKey === 'BlackjackTournament' ||
           launchedGame.reactComponentKey === 'MysticChamber' ||
-          launchedGame.reactComponentKey === 'ChainOfGreed'
+          launchedGame.reactComponentKey === 'ChainOfGreed' ||
+          launchedGame.reactComponentKey === 'GatesOfTheEye' ||
+          launchedGame.reactComponentKey === 'RiskWheel' ||
+          launchedGame.reactComponentKey === 'ColorMatch'
             ? 'minigame-host--scrollable-game'
             : '',
         ]
@@ -1637,9 +1642,19 @@ export default function MinigameHost({
                       </>
                     )}
                   </button>
-                  <p className="minigame-host-results-retry-copy">
-                    Watch a short ad to retry before this result is locked in.
+                  <p className="minigame-host-results-retry-copy" role="status">
+                    {activeCompetitionRetry.message ??
+                      'Watch a short ad to retry before this result is locked in.'}
                   </p>
+                  {activeCompetitionRetry.message && activeCompetitionRetry.onConfigureAds && (
+                    <button
+                      type="button"
+                      className="minigame-host-results-ad-settings"
+                      onClick={activeCompetitionRetry.onConfigureAds}
+                    >
+                      Advertising settings
+                    </button>
+                  )}
                 </div>
               )}
 

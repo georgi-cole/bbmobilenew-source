@@ -221,6 +221,8 @@ describe('Credits', () => {
     const video = screen.getByTestId('credits-background-video')
 
     act(() => vi.advanceTimersByTime(1_800))
+    expect(screen.getByTestId('credits-background-video')).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(6_200))
 
     expect(view.queryByTestId('credits-background-video')).toBeNull()
     expect(video).not.toHaveAttribute('src')
@@ -242,6 +244,33 @@ describe('Credits', () => {
     expect(screen.getByTestId('credits-background-video')).not.toHaveAttribute('autoplay')
     expect(screen.getByTestId('credits-background-video')).not.toHaveAttribute('src')
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+  })
+
+  it('keeps the video attached when a pending play is interrupted', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(
+      new DOMException('A newer playback request interrupted this one', 'AbortError')
+    )
+    renderCredits()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(screen.getByTestId('credits-background-video')).toHaveAttribute('src')
+  })
+
+  it('offers a real gesture when autoplay is blocked, then plays the same video', async () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, 'play')
+      .mockRejectedValueOnce(new DOMException('A gesture is required', 'NotAllowedError'))
+      .mockResolvedValue()
+    renderCredits()
+    const video = screen.getByTestId('credits-background-video')
+    fireEvent.click(await screen.findByRole('button', { name: 'Play credits' }))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(play).toHaveBeenCalledTimes(2)
+    expect(screen.getByTestId('credits-background-video')).toBe(video)
+    expect(screen.queryByRole('button', { name: 'Play credits' })).toBeNull()
   })
 
   it('keeps runtime-loaded credit cards above the video', async () => {

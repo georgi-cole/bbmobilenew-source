@@ -6,6 +6,7 @@ import {
   canShowAd,
   clearRewardHandler,
   initAdBridge,
+  getAdAvailabilityMessage,
   showInterstitial,
   showRewarded,
 } from '../adsService'
@@ -68,6 +69,19 @@ describe('adsService bridge guards', () => {
     window.GameAds = { showInterstitial: bridge, showRewarded: bridge }
     expect(showInterstitial('live_vote_auto', makeState(), vi.fn())).toBe(false)
     expect(bridge).not.toHaveBeenCalled()
+  })
+
+  it('explains why rewards are unavailable without changing the advertising choice', () => {
+    setOptionalPlayerFeature('ads', false)
+    expect(getAdAvailabilityMessage()).toContain('Optional advertising is off')
+    expect(getAdAvailabilityMessage()).toContain('Settings → Advertising privacy')
+    setOptionalPlayerFeature('ads', true)
+    expect(getAdAvailabilityMessage()).toContain('not available in this build')
+    window.GameAds = { showInterstitial: vi.fn(), showRewarded: vi.fn() }
+    expect(getAdAvailabilityMessage()).toBeNull()
+    declarePlayerAge(15)
+    expect(getAdAvailabilityMessage()).toContain('under 18')
+    expect(canShowAd('competition_retry', makeState())).toBe(false)
   })
 
   it('does not record usage for interstitials when the native bridge is missing', () => {

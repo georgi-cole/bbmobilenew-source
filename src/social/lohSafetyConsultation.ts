@@ -2,6 +2,7 @@ import type { GameState } from '../types'
 import { getCupidPartnerId, expandCupidIds } from '../features/twists/cupidArrow'
 import { isLohAmbushPlan } from '../store/lohNominationPlanning'
 import { getLohEliminationPriorityIds } from './lohNominationPlanCopy'
+import { getCurrentLohEliminationPriorityIds } from './lohEliminationPriority'
 
 type SafetyConsultationGame = Partial<
   Pick<
@@ -19,7 +20,7 @@ type SafetyConsultationGame = Partial<
   >
 > & {
   phase?: string
-  lohSocialPlan?: { currentTargetId?: string | null } | null
+  lohSocialPlan?: { week?: number; lohId?: string; currentTargetId?: string | null } | null
   players?: readonly { id: string; name?: string; status: string }[]
   nomineeIds?: readonly string[]
 }
@@ -48,11 +49,8 @@ export function formatLohSafetyConsultation(
     (plan.isDoubleElimination === true) === (game.doubleEviction?.weekActive === true)
       ? plan
       : null
-  const targetId =
-    canonical && nominees.includes(canonical.targetId)
-      ? canonical.targetId
-      : game.lohSocialPlan?.currentTargetId
-  const currentTargetId = targetId && nominees.includes(targetId) ? targetId : nominees[0]
+  const currentTargetId =
+    getCurrentLohEliminationPriorityIds(game, game.lohId ?? '', nominees)[0] ?? nominees[0]
   if (
     isLohAmbushPlan(canonical) &&
     canonical.status === 'initial_block_set' &&

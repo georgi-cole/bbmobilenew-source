@@ -14,6 +14,7 @@ import {
 } from '../../safety/playerSafety'
 import { resolveAdMobConfig, type AdMobConfig } from './admobConfig'
 import type { AdPlacement } from './adsService'
+import { getAdAvailabilityMessage, setAdRequestFailure } from './adAvailability'
 
 let busy = false
 let initialized = false
@@ -31,7 +32,12 @@ async function authorize(config: AdMobConfig): Promise<boolean> {
       consent = await AdMob.showConsentForm()
     }
     consentReady = consent.canRequestAds
-    if (!consentReady) return false
+    if (!consentReady) {
+      setAdRequestFailure(
+        'Advertising permission is not ready. Open Advertising privacy choices and try again.'
+      )
+      return false
+    }
   }
   if (!canUseOptionalFeature('ads') || generation !== privacyGeneration) return false
   if (!initialized) {
@@ -52,11 +58,17 @@ async function present(
   const generation = privacyGeneration
   const listeners: PluginListenerHandle[] = []
   let earned = false
+  let stage = 'privacy'
   try {
+    setAdRequestFailure(null)
     if (!(await authorize(config)) || !isAllowed()) return false
+    stage = 'loading'
     const options = {
       adId: rewarded ? config.rewardedId : config.interstitialId,
-      isTesting: config.mode === 'test',
+      // Test mode already selects Google's platform-specific demo unit IDs.
+      // The plugin's isTesting override substitutes an Android interstitial ID
+      // on iOS in 8.2.1, so always preserve the explicit ID selected above.
+      isTesting: false,
       npa: true,
     }
     if (rewarded) await AdMob.prepareRewardVideoAd(options)
@@ -70,6 +82,11 @@ async function present(
     const closed = new Promise<boolean>((resolve) => {
       finish = resolve
     })
+    stage = 'presentation'
+    const failedToShow = () => {
+      setAdRequestFailure('The ad could not open. Please try again.')
+      finish(false)
+    }
     if (rewarded) {
       listeners.push(
         await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
@@ -77,28 +94,26 @@ async function present(
         })
       )
       listeners.push(await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => finish(earned)))
-      listeners.push(
-        await AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => finish(false))
-      )
-      void AdMob.showRewardVideoAd({ adId: options.adId }).then(
-        () => {
-          earned = true
-        },
-        () => finish(false)
-      )
+      listeners.push(await AdMob.addListener(RewardAdPluginEvents.FailedToShow, failedToShow))
+      void AdMob.showRewardVideoAd({ adId: options.adId }).then(() => {
+        earned = true
+      }, failedToShow)
     } else {
       listeners.push(
         await AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => finish(true))
       )
-      listeners.push(
-        await AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, () => finish(false))
-      )
-      void AdMob.showInterstitial({ adId: options.adId }).catch(() => finish(false))
+      listeners.push(await AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, failedToShow))
+      void AdMob.showInterstitial({ adId: options.adId }).catch(failedToShow)
     }
     const completed = await closed
     return completed && canUseOptionalFeature('ads') && generation === privacyGeneration
   } catch (error) {
-    console.warn(`[ads] ${placement} unavailable`, error)
+    setAdRequestFailure(
+      stage === 'privacy'
+        ? 'Advertising privacy choices could not load. Check your connection and try again.'
+        : 'No ad is available right now. Check your connection and try again.'
+    )
+    console.warn(`[ads] ${placement} ${stage} unavailable`, error)
     return false
   } finally {
     await Promise.allSettled(listeners.map((listener) => listener.remove()))
@@ -113,6 +128,7 @@ export function installAdMobBridge(isPlacementAllowed?: (placement: AdPlacement)
   if (!config) return
   subscribePlayerSafety(() => {
     privacyGeneration += 1
+    setAdRequestFailure(null)
     if (!canUseOptionalFeature('ads')) consentReady = false
   })
   window.GameAds = {
@@ -137,6 +153,28 @@ export function installAdMobBridge(isPlacementAllowed?: (placement: AdPlacement)
 /** A pending ad from an old season must not appear over a newly started run. */
 export function invalidateAdMobRequests(): void {
   privacyGeneration += 1
+}
+
+/** The adult explicitly checks setup before returning to a reward prompt. */
+export async function checkAdMobAvailability(): Promise<string | null> {
+  if (!canUseOptionalFeature('ads') || !window.GameAds) return getAdAvailabilityMessage()
+  if (busy) return 'An ad request is already in progress. Please try again when it finishes.'
+  const config = resolveAdMobConfig(Capacitor.getPlatform(), import.meta.env)
+  if (!config) return getAdAvailabilityMessage()
+  busy = true
+  try {
+    setAdRequestFailure(null)
+    await authorize(config)
+    return getAdAvailabilityMessage()
+  } catch (error) {
+    console.warn('[ads] advertising setup unavailable', error)
+    setAdRequestFailure(
+      'Advertising privacy choices could not load. Check your connection and try again.'
+    )
+    return getAdAvailabilityMessage()
+  } finally {
+    busy = false
+  }
 }
 
 export function hasAdMobPrivacyOptions(): boolean {

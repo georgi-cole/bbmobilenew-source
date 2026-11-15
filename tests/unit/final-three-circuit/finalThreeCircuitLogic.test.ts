@@ -120,6 +120,21 @@ describe('Sequence Builder sliding puzzles', () => {
 })
 
 describe('Warden Escape rules', () => {
+  it('reserves the exit for the player in both pursuit directions and on the second step', () => {
+    const board: WardenBoard = {
+      size: 5,
+      start: 24,
+      exit: 13,
+      wardenStart: 12,
+      walls: new Set(),
+      guardSteps: 2,
+      moveBudget: 20,
+    }
+    expect(moveWardenOneStep(board, 12, 24)).toBe(12)
+    expect(moveWardenOneStep({ ...board, exit: 17, walls: new Set([13]) }, 12, 24)).toBe(12)
+    expect(moveWardenTowardPlayer({ ...board, exit: 14 }, 12, 24)).toBe(13)
+  })
+
   it.each(['safe', 'standard', 'risky'] as const)('keeps the %s prison board solvable', (tier) => {
     const board = buildWardenBoard(tier)
     expect(board.guardSteps).toBe(2)

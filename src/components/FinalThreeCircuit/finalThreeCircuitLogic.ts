@@ -365,12 +365,15 @@ export function moveWardenOneStep(
   if (playerColumn !== wardenColumn) {
     const nextColumn = wardenColumn + (playerColumn > wardenColumn ? 1 : -1)
     const horizontalCell = wardenRow * board.size + nextColumn
+    // The exit belongs to the player. A pursuit step into it makes the guard wait.
+    if (horizontalCell === board.exit) return wardenCell
     if (!board.walls.has(horizontalCell)) return horizontalCell
   }
 
   if (playerRow !== wardenRow) {
     const nextRow = wardenRow + (playerRow > wardenRow ? 1 : -1)
     const verticalCell = nextRow * board.size + wardenColumn
+    if (verticalCell === board.exit) return wardenCell
     if (!board.walls.has(verticalCell)) return verticalCell
   }
 

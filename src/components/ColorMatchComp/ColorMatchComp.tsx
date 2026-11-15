@@ -16,6 +16,7 @@ import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
  */
 
 import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
+import type { ReactMinigameCompletion } from '../../minigames/competitionResult'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { mulberry32 } from '../../store/rng'
 import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
@@ -99,17 +100,7 @@ const NAMED_COLORS: Array<{ name: string; rgb: RGB }> = [
 ]
 
 interface Props {
-  onFinish?: (
-    value: number,
-    tiebreakerMs?: number,
-    completion?: {
-      authoritativeWinnerId?: string | null
-      authoritativeLastPlaceId?: string | null
-      rawValue?: number
-      rawResults?: Record<string, number>
-      tiebreakerMs?: number
-    }
-  ) => void
+  onFinish?: (value: number, tiebreakerMs?: number, completion?: ReactMinigameCompletion) => void
   seed?: number
   autoStart?: boolean
   participantIds?: string[]
@@ -125,7 +116,6 @@ interface Props {
 export default function ColorMatchComp({
   onFinish,
   seed = 0,
-  autoStart = false,
   participantIds = [],
   participants,
 }: Props) {
@@ -228,6 +218,7 @@ export default function ColorMatchComp({
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const winnerPlayedRef = useRef(false)
+  const resultReportedRef = useRef(false)
   const mixingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const roundStartTimeRef = useRef<number>(Date.now())
   const totalElapsedMsRef = useRef<number>(0)
@@ -434,43 +425,31 @@ export default function ColorMatchComp({
     if (phase !== 'results' || winnerPlayedRef.current) return
     winnerPlayedRef.current = true
     playWinner()
+  }, [phase, playWinner])
+
+  const handleResultsContinue = useCallback(() => {
+    if (phase !== 'results' || resultReportedRef.current || !onFinish) return
+    resultReportedRef.current = true
     const tiebreakerMs = totalElapsedMsRef.current
-    const timeoutId = setTimeout(
-      () => {
-        if (!onFinish) return
-        if (competitionMode) {
-          const ranked = rankColorMatchCompetitionStandings(competitionStandings)
-          const rawResults = buildColorMatchCompetitionRawResults(ranked)
-          const winner = ranked[0]
-          const humanOrWinnerScore =
-            rawResults[humanId ?? ''] ?? rawResults[winner?.participantId ?? ''] ?? 0
-          onFinish(humanOrWinnerScore, tiebreakerMs, {
-            authoritativeWinnerId: winner?.participantId ?? null,
-            authoritativeLastPlaceId: ranked[ranked.length - 1]?.participantId ?? null,
-            rawValue: humanOrWinnerScore,
-            rawResults,
-          })
-          return
-        }
-        const total = results.reduce((sum, r) => sum + r.score, 0)
-        const rawAverage = Math.round(total / results.length)
-        const finalScore = applyHintPenalty(rawAverage, hintsUsedTotal)
-        onFinish(finalScore, tiebreakerMs)
-      },
-      autoStart ? 0 : 2000
-    )
-    return () => clearTimeout(timeoutId)
-  }, [
-    autoStart,
-    competitionMode,
-    competitionStandings,
-    hintsUsedTotal,
-    humanId,
-    onFinish,
-    phase,
-    playWinner,
-    results,
-  ])
+    if (competitionMode) {
+      const ranked = rankColorMatchCompetitionStandings(competitionStandings)
+      const rawResults = buildColorMatchCompetitionRawResults(ranked)
+      const winner = ranked[0]
+      const humanOrWinnerScore =
+        rawResults[humanId ?? ''] ?? rawResults[winner?.participantId ?? ''] ?? 0
+      onFinish(humanOrWinnerScore, tiebreakerMs, {
+        authoritativeWinnerId: winner?.participantId ?? null,
+        authoritativeLastPlaceId: ranked.at(-1)?.participantId ?? null,
+        authoritativeRankedIds: ranked.map((standing) => standing.participantId),
+        rawValue: humanOrWinnerScore,
+        rawResults,
+      })
+      return
+    }
+    const total = results.reduce((sum, result) => sum + result.score, 0)
+    const rawAverage = Math.round(total / Math.max(1, results.length))
+    onFinish(applyHintPenalty(rawAverage, hintsUsedTotal), tiebreakerMs)
+  }, [competitionMode, competitionStandings, hintsUsedTotal, humanId, onFinish, phase, results])
 
   useEffect(() => {
     if (!competitionMode || phase !== 'playing' || humanStillActive) return
@@ -773,6 +752,14 @@ export default function ColorMatchComp({
                 </li>
               ))}
             </ol>
+            <button
+              className="cm__btn cm__btn--next cm__results-continue"
+              type="button"
+              onClick={handleResultsContinue}
+              autoFocus
+            >
+              Continue
+            </button>
           </div>
         </div>
       )
@@ -844,6 +831,14 @@ export default function ColorMatchComp({
               </li>
             ))}
           </ol>
+          <button
+            className="cm__btn cm__btn--next cm__results-continue"
+            type="button"
+            onClick={handleResultsContinue}
+            autoFocus
+          >
+            Continue
+          </button>
         </div>
       </div>
     )

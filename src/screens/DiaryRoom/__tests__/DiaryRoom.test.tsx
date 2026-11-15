@@ -27,7 +27,8 @@ import profilesReducer, {
 import type { RootState } from '../../../store/store'
 import * as bigBrother from '../../../services/bigBrother'
 import { markVoxNominationRevealIntroSeen } from '../../../features/voxNominationRevealStorage'
-import { getSecretMissionBoxRewards } from '../../../bb/secretMission'
+import { createSecretMissionState, getSecretMissionBoxRewards } from '../../../bb/secretMission'
+import { recordMissionAllianceReveal } from '../../../store/missionPowerActions'
 import {
   loadEvictionVoteBreakdownUnlock,
   saveEvictionVoteBreakdownUnlock,
@@ -882,6 +883,66 @@ describe('DiaryRoom', () => {
     expect(screen.getByRole('button', { name: /open mystery box 2/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /open mystery box 3/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /open mystery box 4/i })).toBeTruthy()
+  })
+
+  it('delivers new mission reward announcements chronologically in chat and never replays them on a new visit', () => {
+    const { store, unmount } = renderDiaryRoom(['/game', '/diary-room'], {
+      setupStore: (store) => {
+        const game = (store.getState() as RootState).game
+        store.dispatch(
+          hydrateGame({
+            ...game,
+            week: 5,
+            season: 2,
+            secretMission: {
+              ...createSecretMissionState(3),
+              rewardVersion: 2,
+              status: 'rewardPending',
+              rewardSet: {
+                version: 2,
+                id: 'chat-reward',
+                availableDay: 5,
+                claimUntilDay: 6,
+                boxes: ['allianceReveal', 'coLoh', 'pickBackup', 'vetoSafety'],
+              },
+            },
+          })
+        )
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /open mystery box 1/i }))
+    const partners = (store.getState() as RootState).game.players
+      .filter((player) => !player.isUser)
+      .slice(0, 2)
+    act(() => {
+      store.dispatch(
+        recordMissionAllianceReveal({
+          missionId: 'chat-reward',
+          allianceId: 'private-pact',
+          name: 'Quiet Alliance',
+          memberIds: partners.map((player) => player.id),
+          day: 5,
+        })
+      )
+    })
+    const chat = screen.getByLabelText('Confessional chat')
+    const reveal = chat.querySelectorAll('.diary-room__bubble--bb')
+    expect(reveal.length).toBeGreaterThan(1)
+    expect(chat.textContent!.indexOf('Your box contains Alliance Revealed')).toBeLessThan(
+      chat.textContent!.indexOf('I confirm Quiet Alliance')
+    )
+    expect(chat).toHaveTextContent(partners[0].name)
+    expect(screen.queryByLabelText('Mission reward details')).toBeNull()
+    expect(screen.queryByLabelText('Private Big Eye power messages')).toBeNull()
+    expect(chat).not.toHaveTextContent('Visit the Confessional')
+
+    const completedGame = (store.getState() as RootState).game
+    unmount()
+    renderDiaryRoom(['/game', '/diary-room'], {
+      setupStore: (nextStore) => nextStore.dispatch(hydrateGame(completedGame)),
+    })
+    expect(screen.getByLabelText('Confessional chat')).not.toHaveTextContent('Quiet Alliance')
+    expect(screen.queryByLabelText('Mission reward details')).toBeNull()
   })
 
   it('lets the player claim the box assigned to immunity from the confessional', () => {

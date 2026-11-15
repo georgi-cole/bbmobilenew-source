@@ -1,22 +1,22 @@
-import { render, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import DemocraciaResultsReveal from '../DemocraciaResultsReveal';
-import type { Player } from '../../../../types';
+import { render, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import DemocraciaResultsReveal from '../DemocraciaResultsReveal'
+import type { Player } from '../../../../types'
 
 type LayoutScenario = {
-  safeAreaWidth: number;
-  safeAreaHeight: number;
-  contentWidth: number;
-  contentHeight: number;
-};
+  safeAreaWidth: number
+  safeAreaHeight: number
+  contentWidth: number
+  contentHeight: number
+}
 
-const originalResizeObserver = globalThis.ResizeObserver;
-const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
-const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
-const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
-const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
+const originalResizeObserver = globalThis.ResizeObserver
+const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')
+const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')
+const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth')
+const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight')
 
-let layoutScenario: LayoutScenario;
+let layoutScenario: LayoutScenario
 
 class ResizeObserverMock {
   observe() {}
@@ -31,7 +31,7 @@ function makePlayer(id: string, name: string): Player {
     avatar: '🧑',
     isUser: false,
     status: 'active' as const,
-  };
+  }
 }
 
 describe('DemocraciaResultsReveal', () => {
@@ -41,80 +41,80 @@ describe('DemocraciaResultsReveal', () => {
       safeAreaHeight: 180,
       contentWidth: 320,
       contentHeight: 360,
-    };
+    }
 
-    globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+    globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver
 
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
       configurable: true,
       get() {
         if (this.classList?.contains('democracia-results__safe-area')) {
-          return layoutScenario.safeAreaWidth;
+          return layoutScenario.safeAreaWidth
         }
 
-        return originalClientWidth?.get?.call(this) ?? 0;
+        return originalClientWidth?.get?.call(this) ?? 0
       },
-    });
+    })
 
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
       configurable: true,
       get() {
         if (this.classList?.contains('democracia-results__safe-area')) {
-          return layoutScenario.safeAreaHeight;
+          return layoutScenario.safeAreaHeight
         }
 
-        return originalClientHeight?.get?.call(this) ?? 0;
+        return originalClientHeight?.get?.call(this) ?? 0
       },
-    });
+    })
 
     Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
       configurable: true,
       get() {
         if (this.classList?.contains('democracia-results__content')) {
-          return layoutScenario.contentWidth;
+          return layoutScenario.contentWidth
         }
 
-        return originalScrollWidth?.get?.call(this) ?? 0;
+        return originalScrollWidth?.get?.call(this) ?? 0
       },
-    });
+    })
 
     Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
       configurable: true,
       get() {
         if (this.classList?.contains('democracia-results__content')) {
-          return layoutScenario.contentHeight;
+          return layoutScenario.contentHeight
         }
 
-        return originalScrollHeight?.get?.call(this) ?? 0;
+        return originalScrollHeight?.get?.call(this) ?? 0
       },
-    });
-  });
+    })
+  })
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.restoreAllMocks()
 
     Object.defineProperty(globalThis, 'ResizeObserver', {
       configurable: true,
       writable: true,
       value: originalResizeObserver,
-    });
+    })
 
     if (originalClientWidth) {
-      Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth)
     }
 
     if (originalClientHeight) {
-      Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight);
+      Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight)
     }
 
     if (originalScrollWidth) {
-      Object.defineProperty(HTMLElement.prototype, 'scrollWidth', originalScrollWidth);
+      Object.defineProperty(HTMLElement.prototype, 'scrollWidth', originalScrollWidth)
     }
 
     if (originalScrollHeight) {
-      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', originalScrollHeight);
+      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', originalScrollHeight)
     }
-  });
+  })
 
   it('scales the content to stay inside the faux-tv viewport bounds', async () => {
     const { container } = render(
@@ -126,20 +126,20 @@ describe('DemocraciaResultsReveal', () => {
           { player: makePlayer('p1', 'Ash'), voteCount: 3 },
           { player: makePlayer('p2', 'Remy'), voteCount: 3 },
         ]}
-      />,
-    );
+      />
+    )
 
-    const content = container.querySelector('.democracia-results__content');
+    const content = container.querySelector('.democracia-results__content')
 
     await waitFor(() => {
-      expect(content).toHaveStyle({ transform: 'scale(0.5)' });
-    });
-  });
+      expect(content).toHaveStyle({ transform: 'translate(-50%, -50%) scale(0.5)' })
+    })
+  })
 
   it('excludes the safe-area padding when calculating the usable TV viewport', async () => {
-    const originalGetComputedStyle = window.getComputedStyle.bind(window);
+    const originalGetComputedStyle = window.getComputedStyle.bind(window)
     vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
-      const styles = originalGetComputedStyle(element);
+      const styles = originalGetComputedStyle(element)
 
       if ((element as HTMLElement).classList?.contains('democracia-results__safe-area')) {
         Object.defineProperties(styles, {
@@ -147,11 +147,11 @@ describe('DemocraciaResultsReveal', () => {
           paddingRight: { configurable: true, value: '10px' },
           paddingTop: { configurable: true, value: '10px' },
           paddingBottom: { configurable: true, value: '10px' },
-        });
+        })
       }
 
-      return styles;
-    });
+      return styles
+    })
 
     const { container } = render(
       <DemocraciaResultsReveal
@@ -162,15 +162,15 @@ describe('DemocraciaResultsReveal', () => {
           { player: makePlayer('p1', 'Ash'), voteCount: 3 },
           { player: makePlayer('p2', 'Remy'), voteCount: 3 },
         ]}
-      />,
-    );
+      />
+    )
 
-    const content = container.querySelector('.democracia-results__content');
+    const content = container.querySelector('.democracia-results__content')
 
     await waitFor(() => {
-      expect(content).toHaveStyle({ transform: 'scale(0.4444)' });
-    });
-  });
+      expect(content).toHaveStyle({ transform: 'translate(-50%, -50%) scale(0.4444)' })
+    })
+  })
 
   it('keeps the content at full scale when the viewport has enough room', async () => {
     layoutScenario = {
@@ -178,23 +178,21 @@ describe('DemocraciaResultsReveal', () => {
       safeAreaHeight: 420,
       contentWidth: 320,
       contentHeight: 260,
-    };
+    }
 
     const { container } = render(
       <DemocraciaResultsReveal
         mode="winner"
         title="DEMOCRACIA WINNER"
         subtitle="Remy wins the vote with 10 votes."
-        participants={[
-          { player: makePlayer('p2', 'Remy'), voteCount: 10 },
-        ]}
-      />,
-    );
+        participants={[{ player: makePlayer('p2', 'Remy'), voteCount: 10 }]}
+      />
+    )
 
-    const content = container.querySelector('.democracia-results__content');
+    const content = container.querySelector('.democracia-results__content')
 
     await waitFor(() => {
-      expect(content).toHaveStyle({ transform: 'scale(1)' });
-    });
-  });
-});
+      expect(content).toHaveStyle({ transform: 'translate(-50%, -50%) scale(1)' })
+    })
+  })
+})

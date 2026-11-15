@@ -6,26 +6,28 @@
  *  8. UI regression: accuracy % is hidden by default and revealed only when a hint is purchased.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import ColorMatchComp from '../src/components/ColorMatchComp/ColorMatchComp';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
+import ColorMatchComp from '../src/components/ColorMatchComp/ColorMatchComp'
 
 // Silence CSS imports which jsdom cannot process
-vi.mock('../src/components/ColorMatchComp/ColorMatchComp.css', () => ({}));
+vi.mock('../src/components/ColorMatchComp/ColorMatchComp.css', () => ({}))
 
 // Suppress SoundManager noise in tests
 vi.mock('../src/hooks/useSound', () => ({
   default: () => ({ play: vi.fn() }),
-}));
+}))
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Render the component and advance past the mixing animation. */
 function renderAndPlay(onFinish = vi.fn()) {
-  const result = render(<ColorMatchComp seed={42} autoStart={false} onFinish={onFinish} />);
+  const result = render(<ColorMatchComp seed={42} autoStart={false} onFinish={onFinish} />)
   // Advance only past the mixing animation timeout (without draining the round timer interval)
-  act(() => { vi.advanceTimersByTime(1600); });
-  return result;
+  act(() => {
+    vi.advanceTimersByTime(1600)
+  })
+  return result
 }
 
 function renderCompetitionAndPlay() {
@@ -33,106 +35,201 @@ function renderCompetitionAndPlay() {
     { id: 'human', name: 'Human', isHuman: true, precomputedScore: 92, previousPR: null },
     { id: 'ai-1', name: 'AI One', isHuman: false, precomputedScore: 70, previousPR: null },
     { id: 'ai-2', name: 'AI Two', isHuman: false, precomputedScore: 68, previousPR: null },
-  ];
+  ]
   const result = render(
-    <ColorMatchComp seed={42} autoStart={false} participants={participants} onFinish={vi.fn()} />,
-  );
-  act(() => { vi.advanceTimersByTime(1600); });
-  return result;
+    <ColorMatchComp seed={42} autoStart={false} participants={participants} onFinish={vi.fn()} />
+  )
+  act(() => {
+    vi.advanceTimersByTime(1600)
+  })
+  return result
 }
 
 /** Click "Buy Hint" then confirm in the modal. */
 function purchaseHint() {
-  const buyBtns = screen.getAllByRole('button', { name: /buy hint/i });
+  const buyBtns = screen.getAllByRole('button', { name: /buy hint/i })
   // First "Buy Hint" button in the action row (not the modal confirm)
-  fireEvent.click(buyBtns[0]);
+  fireEvent.click(buyBtns[0])
   // Modal should appear — confirm the purchase
-  const modal = screen.getByRole('dialog');
-  const confirmBtn = Array.from(modal.querySelectorAll('button')).find(
-    (b) => /buy hint/i.test(b.textContent ?? ''),
-  );
-  expect(confirmBtn).toBeDefined();
-  fireEvent.click(confirmBtn!);
+  const modal = screen.getByRole('dialog')
+  const confirmBtn = Array.from(modal.querySelectorAll('button')).find((b) =>
+    /buy hint/i.test(b.textContent ?? '')
+  )
+  expect(confirmBtn).toBeDefined()
+  fireEvent.click(confirmBtn!)
 }
 
 // ── 7. Hint panel rendering ───────────────────────────────────────────────────
 
 describe('Color Match hint panel', () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
 
   it('is absent before any hint is purchased', () => {
-    renderAndPlay();
-    expect(screen.queryByTestId('hint-panel')).not.toBeInTheDocument();
-  });
+    renderAndPlay()
+    expect(screen.queryByTestId('hint-panel')).not.toBeInTheDocument()
+  })
 
   it('appears after clicking Buy Hint and confirming', () => {
-    renderAndPlay();
-    purchaseHint();
-    expect(screen.getByTestId('hint-panel')).toBeInTheDocument();
-  });
-});
+    renderAndPlay()
+    purchaseHint()
+    expect(screen.getByTestId('hint-panel')).toBeInTheDocument()
+  })
+})
 
 // ── 8. Accuracy display gating ────────────────────────────────────────────────
 
 describe('Color Match accuracy display', () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
 
   it('shows "?" and "buy hint to reveal" before any hint is purchased', () => {
-    renderAndPlay();
-    expect(screen.getByText('?')).toBeInTheDocument();
-    expect(screen.getByText(/buy hint to reveal/i)).toBeInTheDocument();
-  });
+    renderAndPlay()
+    expect(screen.getByText('?')).toBeInTheDocument()
+    expect(screen.getByText(/buy hint to reveal/i)).toBeInTheDocument()
+  })
 
   it('reveals the accuracy % after a hint is purchased', () => {
-    const { container } = renderAndPlay();
-    purchaseHint();
+    const { container } = renderAndPlay()
+    purchaseHint()
 
     // The hidden "?" label should be gone
-    expect(screen.queryByText(/buy hint to reveal/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/buy hint to reveal/i)).not.toBeInTheDocument()
     // The accuracy meter now shows a numeric % value
-    const meter = container.querySelector('.cm__accuracy-meter');
-    expect(meter?.textContent).toMatch(/\d+%/);
-  });
+    const meter = container.querySelector('.cm__accuracy-meter')
+    expect(meter?.textContent).toMatch(/\d+%/)
+  })
 
   it('does not reveal accuracy after submitting without a hint', () => {
-    renderAndPlay();
+    renderAndPlay()
     // Submit without buying a hint
-    fireEvent.click(screen.getByRole('button', { name: /submit match/i }));
+    fireEvent.click(screen.getByRole('button', { name: /submit match/i }))
     // Phase transitions to feedback; accuracy meter should still show "?"
-    expect(screen.getByText(/buy hint to reveal/i)).toBeInTheDocument();
-  });
-});
+    expect(screen.getByText(/buy hint to reveal/i)).toBeInTheDocument()
+  })
+})
 
 describe('Color Match round standings', () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
 
   it('only shows the standings panel during the between-round feedback state', () => {
-    renderCompetitionAndPlay();
+    renderCompetitionAndPlay()
 
-    fireEvent.click(screen.getByRole('button', { name: /submit match/i }));
-    expect(screen.getByText(/round 1 standings/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /submit match/i }))
+    expect(screen.getByText(/round 1 standings/i)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /continue watching|next round/i }));
-    act(() => { vi.advanceTimersByTime(1600); });
+    fireEvent.click(screen.getByRole('button', { name: /continue watching|next round/i }))
+    act(() => {
+      vi.advanceTimersByTime(1600)
+    })
 
-    expect(screen.queryByText(/round 1 standings/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/resolving the rest of the round/i)).toBeInTheDocument();
-  });
+    expect(screen.queryByText(/round 1 standings/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/resolving the rest of the round/i)).toBeInTheDocument()
+  })
 
   it('keeps the user, leader, and eliminated score visible in the compact summary', () => {
-    const { container } = renderCompetitionAndPlay();
+    const { container } = renderCompetitionAndPlay()
 
-    fireEvent.click(screen.getByRole('button', { name: /submit match/i }));
+    fireEvent.click(screen.getByRole('button', { name: /submit match/i }))
 
-    const prioritySummary = container.querySelector('.cm__round-standings-priority');
-    expect(prioritySummary?.querySelectorAll(':scope > div')).toHaveLength(3);
-    expect(prioritySummary?.textContent).toContain('You');
-    expect(prioritySummary?.textContent).toContain('Top');
-    expect(prioritySummary?.textContent).toContain('Eliminated');
-    expect(prioritySummary?.textContent?.match(/\d+(?:[.,]\d+)?%/g)?.length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByText('Show all round scores')).toBeInTheDocument();
-  });
-});
+    const prioritySummary = container.querySelector('.cm__round-standings-priority')
+    expect(prioritySummary?.querySelectorAll(':scope > div')).toHaveLength(3)
+    expect(prioritySummary?.textContent).toContain('You')
+    expect(prioritySummary?.textContent).toContain('Top')
+    expect(prioritySummary?.textContent).toContain('Eliminated')
+    expect(prioritySummary?.textContent?.match(/\d+(?:[.,]\d+)?%/g)?.length).toBeGreaterThanOrEqual(
+      3
+    )
+    expect(screen.getByText('Show all round scores')).toBeInTheDocument()
+  })
+})
+
+describe('Color Match result continuation', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('keeps Continue available after a hosted callback changes and reports the full result once', () => {
+    const participants = [
+      { id: 'human', name: 'Human', isHuman: true, precomputedScore: 0, previousPR: null },
+      { id: 'ai-1', name: 'AI One', isHuman: false, precomputedScore: 95, previousPR: null },
+      { id: 'ai-2', name: 'AI Two', isHuman: false, precomputedScore: 90, previousPR: null },
+    ]
+    const firstFinish = vi.fn()
+    const latestFinish = vi.fn()
+    const { rerender } = render(
+      <ColorMatchComp
+        seed={42}
+        autoStart={false}
+        participants={participants}
+        onFinish={firstFinish}
+      />
+    )
+    act(() => {
+      vi.advanceTimersByTime(1600)
+    })
+    fireEvent.click(screen.getByRole('button', { name: /submit match/i }))
+    fireEvent.click(screen.getByRole('button', { name: /skip to results/i }))
+    rerender(
+      <ColorMatchComp
+        seed={42}
+        autoStart={false}
+        participants={participants}
+        onFinish={latestFinish}
+      />
+    )
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    expect(firstFinish).not.toHaveBeenCalled()
+    expect(latestFinish).not.toHaveBeenCalled()
+    fireEvent.click(continueButton)
+    fireEvent.click(continueButton)
+    expect(latestFinish).toHaveBeenCalledTimes(1)
+    expect(latestFinish).toHaveBeenCalledWith(
+      expect.any(Number),
+      expect.any(Number),
+      expect.objectContaining({
+        authoritativeLastPlaceId: 'human',
+        authoritativeRankedIds: expect.arrayContaining(['human', 'ai-1', 'ai-2']),
+        rawResults: expect.objectContaining({ human: expect.any(Number) }),
+      })
+    )
+  })
+
+  it('provides Continue for a solo final result', () => {
+    const onFinish = vi.fn()
+    renderAndPlay(onFinish)
+    for (let round = 0; round < 5; round += 1) {
+      fireEvent.click(screen.getByRole('button', { name: /submit match/i }))
+      fireEvent.click(
+        screen.getByRole('button', { name: /next round|continue watching|see results/i })
+      )
+      if (round < 4)
+        act(() => {
+          vi.advanceTimersByTime(1600)
+        })
+    }
+    expect(onFinish).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onFinish).toHaveBeenCalledOnce()
+  })
+})

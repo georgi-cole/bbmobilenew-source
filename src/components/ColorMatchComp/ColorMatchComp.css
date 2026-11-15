@@ -1005,15 +1005,23 @@
 
 .cm__card--results {
   display: grid;
-  grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
   align-items: stretch;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
   border: 1px solid rgba(190, 157, 255, 0.2);
   border-radius: 24px;
   background: linear-gradient(145deg, rgba(33, 24, 52, 0.96), rgba(13, 12, 23, 0.98));
   box-shadow:
     0 24px 56px rgba(0, 0, 0, 0.34),
     inset 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.cm__results-continue {
+  width: 100%;
+  margin: 0;
+  min-height: 48px;
 }
 
 .cm__header--results {

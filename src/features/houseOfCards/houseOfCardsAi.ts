@@ -112,7 +112,7 @@ export function chooseHouseOfCardsAiTool({
     { tool: 'keep-open' as const, value: 64 + pairCount * 4 + (100 - ability) * 0.3 },
     { tool: 'replay' as const, value: 40 + pairCount * 4 + recentMistakes * 5 },
   ].map((entry) => ({ ...entry, value: entry.value + (rng() - 0.5) * 12 }))
-  const offered = getHouseOfCardsAttemptToolOffer(tournamentSeed, attemptNumber)
+  const offered = getHouseOfCardsAttemptToolOffer(tournamentSeed, attemptNumber, round)
   const available = toolValues.filter((entry) => offered.includes(entry.tool))
   available.sort((a, b) => b.value - a.value)
   const pool =
@@ -138,7 +138,7 @@ export function simulateHouseOfCardsAiRound(params: {
   isBehind?: boolean
 }): HouseOfCardsRoundPerformance {
   const { playerId, round, pairCount, tournamentSeed, sessionAbility } = params
-  const offered = getHouseOfCardsAttemptToolOffer(tournamentSeed, params.attemptNumber)
+  const offered = getHouseOfCardsAttemptToolOffer(tournamentSeed, params.attemptNumber, round)
   const tool =
     params.tool && offered.includes(params.tool)
       ? params.tool

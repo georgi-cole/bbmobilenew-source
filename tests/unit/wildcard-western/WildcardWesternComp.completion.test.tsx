@@ -1,32 +1,33 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { act } from 'react';
-import { configureStore } from '@reduxjs/toolkit';
-import { Provider } from 'react-redux';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import WildcardWesternComp from '../../../src/components/WildcardWesternComp/WildcardWesternComp';
+import { fireEvent, render, screen } from '@testing-library/react'
+import { act } from 'react'
+import { configureStore } from '@reduxjs/toolkit'
+import { Provider } from 'react-redux'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import WildcardWesternComp from '../../../src/components/WildcardWesternComp/WildcardWesternComp'
 import wildcardWesternReducer, {
   initWildcardWestern,
   resetWildcardWestern,
   type WildcardWesternState,
-} from '../../../src/features/wildcardWestern/wildcardWesternSlice';
-import { WILDCARD_QUESTIONS } from '../../../src/features/wildcardWestern/wildcardWesternQuestions';
+} from '../../../src/features/wildcardWestern/wildcardWesternSlice'
+import { WILDCARD_QUESTIONS } from '../../../src/features/wildcardWestern/wildcardWesternQuestions'
+import * as imageDb from '../../../src/utils/imageDb'
 
 const { resolveWildcardWesternOutcomeMock } = vi.hoisted(() => ({
   resolveWildcardWesternOutcomeMock: vi.fn(() => ({ type: 'wildcardWestern/resolveMock' })),
-}));
+}))
 
 vi.mock('../../../src/features/wildcardWestern/thunks', () => ({
   resolveWildcardWesternOutcome: resolveWildcardWesternOutcomeMock,
-}));
+}))
 
 const PARTICIPANTS = [
   { id: 'p0', name: 'Dex', isHuman: true, precomputedScore: 0, previousPR: null },
   { id: 'p1', name: 'AI-1', isHuman: false, precomputedScore: 0, previousPR: null },
   { id: 'p2', name: 'AI-2', isHuman: false, precomputedScore: 0, previousPR: null },
-];
+]
 
 function makeWildcardWesternState(
-  overrides: Partial<WildcardWesternState> = {},
+  overrides: Partial<WildcardWesternState> = {}
 ): WildcardWesternState {
   return {
     phase: 'gameOver',
@@ -54,7 +55,7 @@ function makeWildcardWesternState(
     winnerId: 'p0',
     outcomeResolved: false,
     ...overrides,
-  };
+  }
 }
 
 function renderComponent({
@@ -62,16 +63,16 @@ function renderComponent({
   wildcardWesternState,
   onComplete = vi.fn(),
 }: {
-  gamePhase: string;
-  wildcardWesternState: WildcardWesternState;
-  onComplete?: ReturnType<typeof vi.fn>;
+  gamePhase: string
+  wildcardWesternState: WildcardWesternState
+  onComplete?: ReturnType<typeof vi.fn>
 }) {
   const store = configureStore({
     reducer: {
       wildcardWestern: (state: WildcardWesternState = wildcardWesternState) => state,
       game: (state = { phase: gamePhase }) => state,
     },
-  });
+  })
 
   const view = render(
     <Provider store={store}>
@@ -80,10 +81,10 @@ function renderComponent({
         participants={PARTICIPANTS}
         onComplete={onComplete}
       />
-    </Provider>,
-  );
+    </Provider>
+  )
 
-  return { ...view, onComplete, store };
+  return { ...view, onComplete, store }
 }
 
 function renderWithLiveWildcardReducer({
@@ -91,25 +92,25 @@ function renderWithLiveWildcardReducer({
   wildcardWesternState,
   onComplete = vi.fn(),
 }: {
-  gamePhase: string;
-  wildcardWesternState: WildcardWesternState;
-  onComplete?: ReturnType<typeof vi.fn>;
+  gamePhase: string
+  wildcardWesternState: WildcardWesternState
+  onComplete?: ReturnType<typeof vi.fn>
 }) {
   const store = configureStore({
     reducer: {
       wildcardWestern: (state: WildcardWesternState | undefined, action) => {
-        if (state === undefined) return wildcardWesternState;
+        if (state === undefined) return wildcardWesternState
         if (action.type === initWildcardWestern.type || action.type === resetWildcardWestern.type) {
-          return state;
+          return state
         }
         if (action.type === 'wildcardWestern/resolveMock') {
-          return { ...state, outcomeResolved: true };
+          return { ...state, outcomeResolved: true }
         }
-        return wildcardWesternReducer(state, action);
+        return wildcardWesternReducer(state, action)
       },
       game: (state = { phase: gamePhase }) => state,
     },
-  });
+  })
 
   const view = render(
     <Provider store={store}>
@@ -118,64 +119,125 @@ function renderWithLiveWildcardReducer({
         participants={PARTICIPANTS}
         onComplete={onComplete}
       />
-    </Provider>,
-  );
+    </Provider>
+  )
 
-  return { ...view, onComplete, store };
+  return { ...view, onComplete, store }
 }
 
 describe('WildcardWesternComp completion flow', () => {
+  it('loads the human profile photo for the cards and status row', async () => {
+    const state = makeWildcardWesternState()
+    const store = configureStore({
+      reducer: {
+        wildcardWestern: (current = state) => current,
+        game: (current = { phase: 'loh_comp' }) => current,
+      },
+    })
+    const photo = 'data:image/png;base64,cG9ydHJhaXQ='
+    const loadPhoto = vi.spyOn(imageDb, 'imageIdToDataUrl').mockResolvedValue(photo)
+    try {
+      await act(async () => {
+        render(
+          <Provider store={store}>
+            <WildcardWesternComp
+              participantIds={PARTICIPANTS.map((player) => player.id)}
+              participants={PARTICIPANTS.map((player) =>
+                player.isHuman ? { ...player, avatar: 'profile-photo:korina' } : player
+              )}
+            />
+          </Provider>
+        )
+      })
+      expect(loadPhoto).toHaveBeenCalledWith('korina')
+      for (const image of screen.getAllByRole('img', { name: 'Dex' }))
+        expect(image).toHaveAttribute('src', photo)
+    } finally {
+      loadPhoto.mockRestore()
+    }
+  })
+
+  it('renders the supplied human portrait instead of replacing it with the guest avatar', () => {
+    const state = makeWildcardWesternState()
+    const store = configureStore({
+      reducer: {
+        wildcardWestern: (current = state) => current,
+        game: (current = { phase: 'loh_comp' }) => current,
+      },
+    })
+    const avatar = 'https://cdn.example.com/korina.webp'
+    render(
+      <Provider store={store}>
+        <WildcardWesternComp
+          participantIds={PARTICIPANTS.map((player) => player.id)}
+          participants={PARTICIPANTS.map((player) =>
+            player.isHuman ? { ...player, avatar } : player
+          )}
+        />
+      </Provider>
+    )
+    expect(screen.getAllByRole('img', { name: 'Dex' }).length).toBeGreaterThan(0)
+    for (const image of screen.getAllByRole('img', { name: 'Dex' }))
+      expect(image).toHaveAttribute('src', avatar)
+  })
+
   beforeEach(() => {
-    resolveWildcardWesternOutcomeMock.mockClear();
-  });
+    resolveWildcardWesternOutcomeMock.mockClear()
+  })
 
   afterEach(() => {
-    vi.useRealTimers();
-  });
+    vi.useRealTimers()
+  })
 
   it('leaves hosted LOH awards to the host and reports the complete placement receipt', async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers()
     const { onComplete } = renderComponent({
       gamePhase: 'loh_comp',
       wildcardWesternState: makeWildcardWesternState({ outcomeResolved: false }),
-    });
+    })
 
     await act(async () => {
-      vi.advanceTimersByTime(3000);
-    });
-    expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled();
-    expect(onComplete).toHaveBeenCalledOnce();
-    expect(onComplete).toHaveBeenCalledWith({ authoritativeWinnerId: 'p0', authoritativeLastPlaceId: 'p1' });
-  });
+      vi.advanceTimersByTime(3000)
+    })
+    expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled()
+    expect(onComplete).toHaveBeenCalledOnce()
+    expect(onComplete).toHaveBeenCalledWith({
+      authoritativeWinnerId: 'p0',
+      authoritativeLastPlaceId: 'p1',
+    })
+  })
 
   it('reports hosted completion only after outcomeResolved is already true', async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers()
     const { onComplete } = renderComponent({
       gamePhase: 'loh_comp',
       wildcardWesternState: makeWildcardWesternState({ outcomeResolved: true }),
-    });
+    })
 
     act(() => {
-      vi.advanceTimersByTime(3000);
-    });
+      vi.advanceTimersByTime(3000)
+    })
 
-    expect(onComplete).toHaveBeenCalledWith({ authoritativeWinnerId: 'p0', authoritativeLastPlaceId: 'p1' });
-    expect(onComplete).toHaveBeenCalledTimes(1);
-    expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled();
-  });
+    expect(onComplete).toHaveBeenCalledWith({
+      authoritativeWinnerId: 'p0',
+      authoritativeLastPlaceId: 'p1',
+    })
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled()
+  })
 
   it('does not report hosted completion more than once after a re-render', async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers()
     const { onComplete, rerender, store } = renderComponent({
       gamePhase: 'loh_comp',
       wildcardWesternState: makeWildcardWesternState({ outcomeResolved: true }),
-    });
+    })
 
     act(() => {
-      vi.advanceTimersByTime(3000);
-    });
+      vi.advanceTimersByTime(3000)
+    })
 
-    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledTimes(1)
 
     rerender(
       <Provider store={store}>
@@ -184,20 +246,20 @@ describe('WildcardWesternComp completion flow', () => {
           participants={PARTICIPANTS}
           onComplete={onComplete}
         />
-      </Provider>,
-    );
+      </Provider>
+    )
 
     act(() => {
-      vi.advanceTimersByTime(3000);
-    });
+      vi.advanceTimersByTime(3000)
+    })
 
-    expect(onComplete).toHaveBeenCalledTimes(1);
-    expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled();
-  });
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled()
+  })
 
   it('shows spectator choices for an eliminated human and auto-advances after continue watching', () => {
-    vi.useFakeTimers();
-    const question = WILDCARD_QUESTIONS[0];
+    vi.useFakeTimers()
+    const question = WILDCARD_QUESTIONS[0]
     const { store } = renderWithLiveWildcardReducer({
       gamePhase: 'loh_comp',
       wildcardWesternState: makeWildcardWesternState({
@@ -215,24 +277,24 @@ describe('WildcardWesternComp completion flow', () => {
         controllerId: 'p1',
         eliminationChooserId: null,
       }),
-    });
+    })
 
-    const dialog = screen.getByRole('dialog', { name: /you have been eliminated/i });
-    expect(dialog).toBeTruthy();
-    expect(dialog).toBe(document.activeElement);
-    fireEvent.click(screen.getByRole('button', { name: /continue watching/i }));
+    const dialog = screen.getByRole('dialog', { name: /you have been eliminated/i })
+    expect(dialog).toBeTruthy()
+    expect(dialog).toBe(document.activeElement)
+    fireEvent.click(screen.getByRole('button', { name: /continue watching/i }))
 
     act(() => {
-      vi.advanceTimersByTime(1600);
-    });
+      vi.advanceTimersByTime(1600)
+    })
 
-    expect(store.getState().wildcardWestern.phase).toBe('chooseNextPair');
-    expect(screen.queryByRole('dialog', { name: /you have been eliminated/i })).toBeNull();
-  });
+    expect(store.getState().wildcardWestern.phase).toBe('chooseNextPair')
+    expect(screen.queryByRole('dialog', { name: /you have been eliminated/i })).toBeNull()
+  })
 
   it('treats escape on the spectator modal as continue watching', () => {
-    vi.useFakeTimers();
-    const question = WILDCARD_QUESTIONS[0];
+    vi.useFakeTimers()
+    const question = WILDCARD_QUESTIONS[0]
     const { store } = renderWithLiveWildcardReducer({
       gamePhase: 'loh_comp',
       wildcardWesternState: makeWildcardWesternState({
@@ -250,21 +312,21 @@ describe('WildcardWesternComp completion flow', () => {
         controllerId: 'p1',
         eliminationChooserId: null,
       }),
-    });
+    })
 
-    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' })
 
     act(() => {
-      vi.advanceTimersByTime(1600);
-    });
+      vi.advanceTimersByTime(1600)
+    })
 
-    expect(store.getState().wildcardWestern.phase).toBe('chooseNextPair');
-    expect(screen.queryByRole('dialog', { name: /you have been eliminated/i })).toBeNull();
-  });
+    expect(store.getState().wildcardWestern.phase).toBe('chooseNextPair')
+    expect(screen.queryByRole('dialog', { name: /you have been eliminated/i })).toBeNull()
+  })
 
   it('fast-forwards to the endgame after skip to results', async () => {
-    vi.useFakeTimers();
-    const question = WILDCARD_QUESTIONS[0];
+    vi.useFakeTimers()
+    const question = WILDCARD_QUESTIONS[0]
     const { store } = renderWithLiveWildcardReducer({
       gamePhase: 'loh_comp',
       wildcardWesternState: makeWildcardWesternState({
@@ -282,17 +344,17 @@ describe('WildcardWesternComp completion flow', () => {
         controllerId: 'p1',
         eliminationChooserId: null,
       }),
-    });
+    })
 
-    fireEvent.click(screen.getByRole('button', { name: /skip to results/i }));
+    fireEvent.click(screen.getByRole('button', { name: /skip to results/i }))
 
     await act(async () => {
-      vi.runAllTimers();
-      await Promise.resolve();
-    });
+      vi.runAllTimers()
+      await Promise.resolve()
+    })
 
-    expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled();
-    expect(store.getState().wildcardWestern.phase).toBe('gameOver');
-    expect(store.getState().wildcardWestern.winnerId).toBe('p1');
-  });
-});
+    expect(resolveWildcardWesternOutcomeMock).not.toHaveBeenCalled()
+    expect(store.getState().wildcardWestern.phase).toBe('gameOver')
+    expect(store.getState().wildcardWestern.winnerId).toBe('p1')
+  })
+})

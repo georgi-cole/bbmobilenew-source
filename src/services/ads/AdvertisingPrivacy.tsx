@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useSyncExternalStore, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import {
   ageBandForAge,
@@ -6,7 +6,12 @@ import {
   setOptionalPlayerFeature,
 } from '../../safety/playerSafety'
 import { usePlayerSafety } from '../../safety/usePlayerSafety'
-import { hasAdMobPrivacyOptions, openAdMobPrivacyOptions } from './admobBridge'
+import {
+  checkAdMobAvailability,
+  hasAdMobPrivacyOptions,
+  openAdMobPrivacyOptions,
+} from './admobBridge'
+import { getAdAvailabilityMessage, subscribeAdAvailability } from './adAvailability'
 import '../../safety/PlayerSafetyScreen.css'
 
 export default function AdvertisingPrivacy() {
@@ -14,9 +19,15 @@ export default function AdvertisingPrivacy() {
   const location = useLocation()
   const openedFromSettings =
     (location.state as { fromSettings?: boolean } | null)?.fromSettings === true
+  const returnToCompetition = (location.state as { returnTo?: string } | null)?.returnTo === '/game'
   const record = usePlayerSafety()
   const [age, setAge] = useState('')
   const [notice, setNotice] = useState('')
+  const [checking, setChecking] = useState(false)
+  const availabilityMessage = useSyncExternalStore(
+    subscribeAdAvailability,
+    getAdAvailabilityMessage
+  )
   function submitAge(event: FormEvent) {
     event.preventDefault()
     if (!declarePlayerAge(age)) setNotice('Your choice could not be saved. Please try again.')
@@ -54,7 +65,10 @@ export default function AdvertisingPrivacy() {
               <input
                 type="checkbox"
                 checked={record.optionalFeatures.ads}
-                onChange={(event) => setOptionalPlayerFeature('ads', event.target.checked)}
+                onChange={(event) => {
+                  setNotice('')
+                  setOptionalPlayerFeature('ads', event.target.checked)
+                }}
               />
               <span>
                 <strong>Optional advertising</strong>
@@ -65,6 +79,30 @@ export default function AdvertisingPrivacy() {
                 </small>
               </span>
             </label>
+            <p role="status">
+              {availabilityMessage ??
+                'Advertising is enabled. Ad rewards are subject to availability.'}
+            </p>
+            {record.optionalFeatures.ads && (
+              <button
+                type="button"
+                className="player-safety__secondary"
+                disabled={checking}
+                onClick={() => {
+                  setChecking(true)
+                  setNotice('')
+                  void checkAdMobAvailability()
+                    .then((message) => {
+                      setNotice(
+                        message ?? 'Advertising setup is ready. You can return to your reward.'
+                      )
+                    })
+                    .finally(() => setChecking(false))
+                }}
+              >
+                {checking ? 'Checking advertising…' : 'Check advertising setup'}
+              </button>
+            )}
             {hasAdMobPrivacyOptions() && (
               <button
                 type="button"
@@ -97,11 +135,12 @@ export default function AdvertisingPrivacy() {
             type="button"
             className="player-safety__secondary"
             onClick={() => {
-              if (openedFromSettings) navigate(-1)
+              if (returnToCompetition) navigate('/game', { replace: true })
+              else if (openedFromSettings) navigate(-1)
               else navigate('/settings', { replace: true })
             }}
           >
-            Back to settings
+            {returnToCompetition ? 'Back to competition' : 'Back to settings'}
           </button>
         </div>
       </section>

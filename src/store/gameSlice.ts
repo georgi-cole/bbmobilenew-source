@@ -72,6 +72,7 @@ import type { IncomingInteraction, SocialActionLogEntry } from '../social/types'
 import { chooseFinalThreeEvictee } from '../social/finalThreeDecision'
 import { isRemovedMinigameKey, removeObsoleteGameData } from './removedMinigameCleanup'
 import type { LohNominationPlan } from './lohNominationPlanning'
+import { getCurrentLohEliminationPriorityIds } from '../social/lohEliminationPriority'
 import { mulberry32, seededPick, seededPickN } from './rng'
 import {
   getCompetitionPerceptionRead,
@@ -2601,9 +2602,12 @@ export function chooseStrategicEliminationCandidates(
   const plan =
     state.lohNominationPlan?.week === state.week &&
     state.lohNominationPlan.lohId === decisionMakerId &&
+    (state.lohNominationPlan.isDoubleElimination === true) ===
+      (state.doubleEviction?.weekActive === true) &&
     !['failed', 'compromised'].includes(state.lohNominationPlan.status)
       ? state.lohNominationPlan
       : null
+  const priorities = getCurrentLohEliminationPriorityIds(state, decisionMakerId, candidateIds)
   const scored = candidates.map((candidate) => {
     const nomination = getNominationTargetBreakdown(state, decisionMakerId, candidate)
     const relationship = getStrategicRelationship(state, decisionMakerId, candidate.id)
@@ -2638,12 +2642,9 @@ export function chooseStrategicEliminationCandidates(
     // Preserve the LOH's stated priorities as meaningful evidence, not a forced
     // outcome. A promise, alliance decision, or current threat can still outweigh it.
     let currentPlanContribution = 0
+    const priorityIndex = priorities.indexOf(candidate.id)
+    if (priorityIndex >= 0) currentPlanContribution = priorityIndex === 0 ? 48 : 34
     if (plan) {
-      const priorities = plan.eliminationPriorityIds?.length
-        ? plan.eliminationPriorityIds
-        : [plan.targetId]
-      const priorityIndex = priorities.indexOf(candidate.id)
-      if (priorityIndex >= 0) currentPlanContribution = priorityIndex === 0 ? 48 : 34
       if (plan.preferredSurvivorId === candidate.id) currentPlanContribution -= 58
       const replacementTargetId =
         plan.replacementTargetOverrideId ?? plan.replacementTargetId ?? plan.backupTargetId
@@ -2670,6 +2671,14 @@ export function chooseStrategicEliminationCandidates(
       clusterEnd += 1
     }
     const closeCandidates = scoreOrdered.slice(index, clusterEnd).sort((left, right) => {
+      // A marginal score change cannot silently overturn the LOH's current
+      // intent. Stronger protection or threat still wins outside this cluster.
+      const priorityFor = (candidateId: string) => {
+        const priority = priorities.indexOf(candidateId)
+        return priority < 0 ? priorities.length : priority
+      }
+      const priorityDifference = priorityFor(left.id) - priorityFor(right.id)
+      if (priorityDifference !== 0) return priorityDifference
       const rankFor = (candidateId: string) =>
         mulberry32(
           (gameSeed ^
@@ -7731,7 +7740,7 @@ const gameSlice = createSlice({
 
     /**
      * Human player casts their Democracia vote.
-     * Validates: voter is eligible, target is a candidate, no self-vote.
+     * Validates voter eligibility and candidacy. Candidates may elect themselves.
      * Clears awaitingHumanVote when accepted.
      */
     submitDemocraciaVote(state, action: PayloadAction<string>) {
@@ -7740,8 +7749,8 @@ const gameSlice = createSlice({
       const targetId = action.payload
       const humanPlayer = state.players.find((p) => p.isUser)
       if (!humanPlayer) return
-      if (targetId === humanPlayer.id) return // no self-vote
-      if (!canPlayerTargetPlayer(state, humanPlayer.id, targetId)) return
+      if (targetId !== humanPlayer.id && !canPlayerTargetPlayer(state, humanPlayer.id, targetId))
+        return
       if (!dem.candidateIds.includes(targetId)) return // must be a candidate
       if (!dem.eligibleVoterIds.includes(humanPlayer.id)) return // must be eligible voter
       dem.votesByVoterId[humanPlayer.id] = targetId

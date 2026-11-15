@@ -343,7 +343,11 @@ describe('Deck of Light — four preliminaries and a finale', () => {
       'Next round'
     )
     fireEvent.click(screen.getByRole('button', { name: 'Next round' }))
-    fireEvent.click(screen.getByRole('button', { name: /^Peek/ }))
+    const roundTwoOffer = getHouseOfCardsAttemptToolOffer(42, 0, 2)
+    expect(roundTwoOffer).not.toEqual(getHouseOfCardsAttemptToolOffer(42, 0, 1))
+    fireEvent.click(
+      screen.getByRole('group', { name: 'Choose one tool for this round' }).querySelector('button')!
+    )
     expect(screen.getByText('Round 2/5')).toBeInTheDocument()
     expect(screen.getAllByRole('gridcell')).toHaveLength(12)
   })

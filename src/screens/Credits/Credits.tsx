@@ -38,7 +38,7 @@ import './Credits.css'
 const EXIT_FADE_MS = 420
 // Bound video startup and stalls so Credits always has a timely live fallback.
 // Non-autoplay embeds keep the poster and never attach or decode the video.
-const VIDEO_READY_TIMEOUT_MS = 1_800
+const VIDEO_READY_TIMEOUT_MS = 8_000
 const VIDEO_STALL_TIMEOUT_MS = 1_800
 const DURATION_SECONDS = CINEMATIC_CONFIG.durationInFrames / CINEMATIC_CONFIG.fps
 
@@ -62,6 +62,7 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
   const videoReadyTimeoutRef = useRef<number | null>(null)
   const videoStallTimeoutRef = useRef<number | null>(null)
   const videoFailureHandledRef = useRef(false)
+  const videoHasPlayedRef = useRef(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const exitStartedRef = useRef(false)
   const exitDeliveredRef = useRef(false)
@@ -71,6 +72,7 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isForeground, setIsForeground] = useState(() => !document.hidden)
   const [videoReady, setVideoReady] = useState(false)
+  const [awaitingPlayGesture, setAwaitingPlayGesture] = useState(false)
   const [renderFailed, setRenderFailed] = useState(!useVideo)
   const [creditCards, setCreditCards] = useState<readonly CreditCard[]>(CINEMATIC_CREDITS)
   const [contentState, setContentState] = useState<CreditsContentLoadResult>(() => ({
@@ -99,6 +101,7 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
     videoFailureHandledRef.current = true
     clearVideoTimeouts()
     elapsedRef.current = videoRef.current?.currentTime || elapsedRef.current
+    setAwaitingPlayGesture(false)
     releaseCinematicVideoElement(videoRef.current)
     setVideoReady(false)
     setIsPlaying(false)
@@ -165,12 +168,30 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
     if (videoStallTimeoutRef.current != null) {
       window.clearTimeout(videoStallTimeoutRef.current)
     }
-    videoStallTimeoutRef.current = window.setTimeout(fallbackToStaticScene, VIDEO_STALL_TIMEOUT_MS)
+    videoStallTimeoutRef.current = window.setTimeout(
+      fallbackToStaticScene,
+      videoHasPlayedRef.current ? VIDEO_STALL_TIMEOUT_MS : VIDEO_READY_TIMEOUT_MS
+    )
     void video.play().catch((error) => {
+      // A pending play can be aborted by a newer play/seek or by foreground
+      // ownership changes. Those do not establish a decoder failure.
+      if (
+        !video.isConnected ||
+        !video.getAttribute('src') ||
+        document.hidden ||
+        exitStartedRef.current
+      )
+        return
+      if (error?.name === 'AbortError') return
+      if (error?.name === 'NotAllowedError') {
+        clearVideoTimeouts()
+        setAwaitingPlayGesture(true)
+        return
+      }
       fallbackToStaticScene()
       console.warn('[Credits] Background video playback was blocked.', error)
     })
-  }, [fallbackToStaticScene, isOwner, useVideo, renderFailed])
+  }, [clearVideoTimeouts, fallbackToStaticScene, isOwner, useVideo, renderFailed])
 
   useEffect(() => {
     if (
@@ -178,6 +199,7 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
       !isOwner ||
       !useVideo ||
       renderFailed ||
+      awaitingPlayGesture ||
       videoReady ||
       isExiting ||
       !isForeground
@@ -201,6 +223,7 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
     }
   }, [
     autoPlay,
+    awaitingPlayGesture,
     isExiting,
     isForeground,
     isOwner,
@@ -339,6 +362,8 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
       window.clearTimeout(videoStallTimeoutRef.current)
       videoStallTimeoutRef.current = null
     }
+    videoHasPlayedRef.current = true
+    setAwaitingPlayGesture(false)
     setIsPlaying(true)
     // Mobile video commonly emits `waiting` once immediately after starting.
     // That pauses the soundtrack to keep it aligned. Resume the soundtrack
@@ -351,7 +376,10 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
     if (videoStallTimeoutRef.current != null) {
       window.clearTimeout(videoStallTimeoutRef.current)
     }
-    videoStallTimeoutRef.current = window.setTimeout(fallbackToStaticScene, VIDEO_STALL_TIMEOUT_MS)
+    videoStallTimeoutRef.current = window.setTimeout(
+      fallbackToStaticScene,
+      videoHasPlayedRef.current ? VIDEO_STALL_TIMEOUT_MS : VIDEO_READY_TIMEOUT_MS
+    )
   }, [fallbackToStaticScene])
 
   const handleRenderFailure = useCallback(() => {
@@ -434,6 +462,19 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
         <span>Skip</span>
         <span aria-hidden="true">×</span>
       </button>
+
+      {awaitingPlayGesture && !renderFailed && (
+        <button
+          type="button"
+          className="credits-play"
+          onClick={() => {
+            setAwaitingPlayGesture(false)
+            startVisualPlayback()
+          }}
+        >
+          Play credits
+        </button>
+      )}
 
       <div
         className={`credits-end-guard${isExiting ? ' is-visible' : ''}`}
