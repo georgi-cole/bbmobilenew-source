@@ -1,7 +1,9 @@
 import { closeDebugPanelIfOpen, expect, test } from './support/test'
 
 for (const width of [320, 390]) {
-  test(`Color Match results offer a reachable Continue at ${width}px`, async ({ page }) => {
+  test(`Color Match results offer a reachable Continue at ${width}px @core-journey @smoke`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: width === 320 ? 568 : 844 })
     await page.goto(
       './#/minigame-lab?game=colorMatch&seed=424242&players=8&skipRules=1&skipCountdown=1&showLab=1'
@@ -30,7 +32,7 @@ for (const width of [320, 390]) {
   })
 
   for (const game of ['gatesOfTheEye', 'riskWheel']) {
-    test(`${game} bottom controls remain reachable with phone safe insets at ${width}px`, async ({
+    test(`${game} bottom controls remain reachable with phone safe insets at ${width}px @core-journey @smoke`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: width === 320 ? 568 : 844 })
