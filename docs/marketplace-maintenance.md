@@ -44,6 +44,16 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-15: Reviewed removal of the separate local advertising opt-in switch.
+  Standard adult play now uses existing automatic ad placements without that
+  extra gate, including installs whose legacy ads flag is false. Google UMP
+  privacy choices and canRequestAds remain mandatory before live requests;
+  undeclared-age and under-18 players remain blocked. No Ads/VIP still suppress
+  automatic breaks, and rewarded ads still require a voluntary Watch action and
+  real completion. Products, prices, reward amounts, limits, entitlements, and
+  Store benefits are unchanged; existing No Ads copy remains accurate. Updated
+  Settings, both published privacy policies, and device-test guidance.
+
 - 2026-11-15: Reviewed the 23-report TestFlight regression batch. Hosted premium
   minigames retain reachable controls/results, Twin remasters retain concurrent
   movement/jump input, and Deck of Light offers vary fairly by round for human

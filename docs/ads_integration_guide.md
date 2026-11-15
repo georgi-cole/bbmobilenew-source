@@ -19,8 +19,8 @@ platforms. No custom Swift/Java advertising bridge is needed.
    `npm run sync:android` and `npx cap open android` for Android. These platform
    sync commands configure the native app ID as well as copying the web build.
    Use platform-specific sync commands for advertising builds.
-3. On the device, open **Settings → Advertising privacy**, enter your real age, and enable
-   **Optional advertising** for an adult player. Select **Check advertising setup**
+3. On the device, open **Settings → Advertising privacy**, enter your real age.
+   Adult players do not need a separate advertising opt-in switch. Select **Check advertising setup**
    to complete the Google privacy choice before visiting an existing reward prompt.
    Test completion, early dismissal, no connection, and several repeated rewards.
    Confirm No Ads/VIP suppress automatic breaks while rewards remain opt-in.
@@ -62,11 +62,13 @@ ads; iOS IDs cannot be reused there.
   `npm run prepare:store:ios` / `npm run prepare:store:android` reject test mode
   and Google demo IDs. A test build is not a monetizing release.
 
-AdMob SDK initialization is deferred until an adult permits advertising. Both
-native platforms delay app measurement initialization. Google privacy choices
-are available in **Settings → Advertising privacy** for live builds, including when
-the local advertising toggle is off. Withdrawal blocks further requests and
-invalidates pending rewards. Changing runs also clears pending rewards.
+AdMob SDK initialization is deferred until an adult reaches an ad placement and
+Google UMP permits ad requests. Both native platforms delay app measurement
+initialization. Google privacy choices are available in **Settings → Advertising
+privacy** for live builds. There is no separate local advertising switch; legacy
+`optionalFeatures.ads` values do not gate ads. Opening Google privacy choices
+invalidates pending requests, and the next request rechecks UMP. Under-18 players
+remain blocked. Changing runs also clears pending rewards.
 
 The native bridge permits only one full-screen request at a time, handles load
 and presentation failures, and waits for dismissal before releasing its slot.

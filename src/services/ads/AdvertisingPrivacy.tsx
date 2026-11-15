@@ -1,10 +1,6 @@
 import { useState, useSyncExternalStore, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import {
-  ageBandForAge,
-  declarePlayerAge,
-  setOptionalPlayerFeature,
-} from '../../safety/playerSafety'
+import { ageBandForAge, declarePlayerAge } from '../../safety/playerSafety'
 import { usePlayerSafety } from '../../safety/usePlayerSafety'
 import {
   checkAdMobAvailability,
@@ -61,48 +57,37 @@ export default function AdvertisingPrivacy() {
           </form>
         ) : record.ageBand === 'adult' ? (
           <>
-            <label className="player-safety__check">
-              <input
-                type="checkbox"
-                checked={record.optionalFeatures.ads}
-                onChange={(event) => {
-                  setNotice('')
-                  setOptionalPlayerFeature('ads', event.target.checked)
-                }}
-              />
-              <span>
-                <strong>Optional advertising</strong>
-                <small>
-                  Allow Google AdMob ads in supported mobile builds. Google may receive device
-                  information, your IP address, and ad interactions. You can switch this off at any
-                  time.
-                </small>
-              </span>
-            </label>
+            <p>
+              Standard play includes automatic ad breaks. No Ads and VIP remove those breaks.
+              Rewarded ads are optional: choose Watch Ad when you want a reward.
+            </p>
+            <p>
+              Google may receive device information, your IP address, and ad interactions. Manage
+              Google's privacy choices below. Ads are subject to availability and privacy
+              requirements.
+            </p>
             <p role="status">
               {availabilityMessage ??
-                'Advertising is enabled. Ad rewards are subject to availability.'}
+                'Ad rewards are subject to availability. Google privacy setup is checked before live ads.'}
             </p>
-            {record.optionalFeatures.ads && (
-              <button
-                type="button"
-                className="player-safety__secondary"
-                disabled={checking}
-                onClick={() => {
-                  setChecking(true)
-                  setNotice('')
-                  void checkAdMobAvailability()
-                    .then((message) => {
-                      setNotice(
-                        message ?? 'Advertising setup is ready. You can return to your reward.'
-                      )
-                    })
-                    .finally(() => setChecking(false))
-                }}
-              >
-                {checking ? 'Checking advertising…' : 'Check advertising setup'}
-              </button>
-            )}
+            <button
+              type="button"
+              className="player-safety__secondary"
+              disabled={checking}
+              onClick={() => {
+                setChecking(true)
+                setNotice('')
+                void checkAdMobAvailability()
+                  .then((message) => {
+                    setNotice(
+                      message ?? 'Advertising setup is ready. You can return to your reward.'
+                    )
+                  })
+                  .finally(() => setChecking(false))
+              }}
+            >
+              {checking ? 'Checking advertising…' : 'Check advertising setup'}
+            </button>
             {hasAdMobPrivacyOptions() && (
               <button
                 type="button"
