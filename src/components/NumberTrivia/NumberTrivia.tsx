@@ -20,9 +20,12 @@ import {
   type TriviaRoundPerformance,
   type TriviaStanding,
 } from './numberTriviaUtils'
+import NumericKeypad from '../NumericKeypad/NumericKeypad'
+import { resolveAvatar } from '../../utils/avatar'
 import './NumberTrivia.css'
+import { NumberTriviaResults, TriviaPortrait } from './NumberTriviaResults'
 
-interface ScoreboardState {
+export interface ScoreboardState {
   phase: 'qualifier' | 'duel'
   roundNumber: number
   duelNumber?: number
@@ -40,6 +43,7 @@ interface ResolvedParticipant {
   name: string
   isHuman: boolean
   precomputedScore: number
+  avatar?: string
 }
 
 function buildFallbackParticipants(): ResolvedParticipant[] {
@@ -79,6 +83,12 @@ export default function NumberTrivia({
         name: participant.name,
         isHuman: participant.isHuman,
         precomputedScore: participant.precomputedScore,
+        avatar: resolveAvatar({
+          id: participant.id,
+          name: participant.name,
+          avatar: participant.avatar ?? '',
+          isUser: participant.isHuman,
+        }),
       }))
     }
     if (participantIds && participantIds.length > 0) {
@@ -124,6 +134,7 @@ export default function NumberTrivia({
     Math.ceil(NUMBER_TRIVIA_READING_BUFFER_MS / 1000)
   )
   const [answeringOpen, setAnsweringOpen] = useState(false)
+  const [showStandings, setShowStandings] = useState(false)
   const gameContentRef = useRef<HTMLElement>(null)
   const roundStartedAtRef = useRef(0)
 
@@ -456,7 +467,7 @@ export default function NumberTrivia({
     if (!currentQuestion || !humanStillActive || scoreboard || !answeringOpen) return
     const trimmedAnswerInput = answerInput.trim()
     const guess = Number(trimmedAnswerInput)
-    if (trimmedAnswerInput === '' || !Number.isInteger(guess)) {
+    if (trimmedAnswerInput === '' || !Number.isSafeInteger(guess)) {
       setInputError('Please enter a whole number.')
       return
     }
@@ -469,7 +480,7 @@ export default function NumberTrivia({
     setClosestDistance(bestDistance)
 
     if (guess === currentQuestion.answer) {
-      setHint('✓ Correct!')
+      setHint('Correct!')
       const performance = {
         guessed: true,
         attempts: nextAttempts,
@@ -539,6 +550,7 @@ export default function NumberTrivia({
       return
     }
     setAnswerInput('')
+    setShowStandings(false)
     setRoundAttempts(0)
     setClosestDistance(undefined)
     setInputError(null)
@@ -595,6 +607,7 @@ export default function NumberTrivia({
 
   const fastForwardToResults = useCallback(() => {
     if (!scoreboard) return
+    setShowStandings(false)
     let simulatedStandings = scoreboard.standings
     let finalScoreboard = scoreboard
     if (scoreboard.phase === 'qualifier') {
@@ -640,283 +653,196 @@ export default function NumberTrivia({
     setScoreboard(finalScoreboard)
   }, [resolveDuel, resolveRound, resolvedParticipants.length, scoreboard])
 
-  const winner =
-    scoreboard?.standings[0] ?? standings.slice().sort(compareTriviaStandings)[0] ?? null
-  const rootClassName = scoreboard
-    ? 'number-trivia number-trivia--scoreboard'
-    : 'number-trivia number-trivia--playing'
-  const stageEyebrow = scoreboard
-    ? scoreboard.final
-      ? 'Tournament complete'
-      : scoreboard.phase === 'duel'
-        ? `Final duel ${scoreboard.duelNumber} complete`
-        : `Round ${scoreboard.roundNumber} complete`
-    : phase === 'duel'
+  const displayPhase = scoreboard?.phase ?? phase
+  const currentStage = scoreboard?.final
+    ? 'Champion crowned'
+    : displayPhase === 'duel'
       ? `Three-life final · Duel ${duelIndex + 1}`
-      : `Round ${Math.min(currentRoundNumber, NUMBER_TRIVIA_TOTAL_ROUNDS)} of ${NUMBER_TRIVIA_TOTAL_ROUNDS}`
-  const stageSubtitle = scoreboard
-    ? scoreboard.final
-      ? 'The final standings are ready.'
-      : scoreboard.phase === 'duel'
-        ? 'One finalist has lost a life. Continue when you are ready.'
-        : scoreboard.roundNumber === NUMBER_TRIVIA_TOTAL_ROUNDS
-          ? 'The highest two scores—and ties at the cutoff—advance to the final.'
-          : 'Review the standings, then continue to the next question.'
-    : phase === 'duel'
-      ? 'The weakest answer loses one life. Last finalist standing wins.'
-      : 'Use the hints to find the number before attempts run out.'
+      : `Qualifier ${currentRoundNumber} / ${NUMBER_TRIVIA_TOTAL_ROUNDS}`
+  const editAnswer = (key: string) => {
+    if (!answeringOpen || scoreboard) return
+    setInputError(null)
+    setAnswerInput((value) =>
+      key === 'delete' ? value.slice(0, -1) : key === 'clear' ? '' : (value + key).slice(0, 12)
+    )
+  }
 
   return (
-    <div className={rootClassName} data-testid="number-trivia-root">
+    <div
+      className={`number-trivia ${scoreboard ? 'number-trivia--scoreboard' : 'number-trivia--playing'}`}
+      data-testid="number-trivia-root"
+    >
+      <div className="number-trivia__lights" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </div>
+      <div className="number-trivia__floor" aria-hidden="true" />
       <div className="number-trivia__shell">
         <header className="number-trivia__header">
-          <p className="number-trivia__eyebrow">{stageEyebrow}</p>
-          <h2 className="number-trivia__title">Number Trivia</h2>
-          <p className="number-trivia__subtitle">{stageSubtitle}</p>
+          <div>
+            <p className="number-trivia__eyebrow">The Big Eye presents</p>
+            <h2 className="number-trivia__title">
+              NUMBER <span>TRIVIA</span>
+            </h2>
+          </div>
+          <span className="number-trivia__on-air">
+            <i /> ON AIR
+          </span>
         </header>
-
         <section className="number-trivia__summary" aria-label="Tournament summary">
-          <div className="number-trivia__summary-item">
-            <span className="number-trivia__summary-label">
-              {phase === 'duel' ? 'Finalists left' : 'Players left'}
-            </span>
-            <strong>{activeStandings.length}</strong>
-          </div>
-          <div className="number-trivia__summary-item">
-            <span className="number-trivia__summary-label">
-              {phase === 'duel' ? 'Your lives' : 'Your points'}
-            </span>
-            <strong>
-              {phase === 'duel'
-                ? (duelLives[humanId] ?? scoreboard?.lives[humanId] ?? 0)
-                : (humanStanding?.cumulativeScore ?? 0)}
-            </strong>
-          </div>
-          <div className="number-trivia__summary-item">
-            <span className="number-trivia__summary-label">Round</span>
-            <strong>
-              {scoreboard?.roundNumber ?? currentRoundNumber} /{' '}
-              {phase === 'duel'
-                ? NUMBER_TRIVIA_TOTAL_ROUNDS + duelIndex + 1
-                : NUMBER_TRIVIA_TOTAL_ROUNDS}
-            </strong>
-          </div>
+          <span className="number-trivia__stage-label">{currentStage}</span>
+          <span>
+            {activeStandings.length} {displayPhase === 'duel' ? 'finalists' : 'in play'}
+          </span>
+          <strong>
+            {displayPhase === 'duel'
+              ? `${duelLives[humanId] ?? 0} lives`
+              : `${humanStanding?.cumulativeScore ?? 0} pts`}
+          </strong>
         </section>
-
-        <main
-          className={`number-trivia__content ${scoreboard ? 'number-trivia__content--results' : 'number-trivia__content--playing'}`}
-          ref={gameContentRef}
-          aria-live="off"
-        >
+        <main className="number-trivia__content" ref={gameContentRef}>
           {!scoreboard && currentQuestion && (
-            <section className="number-trivia__round">
+            <section className="number-trivia__round" key={`${phase}-${currentQuestion.prompt}`}>
               <div
-                className="number-trivia__question-card number-trivia__gameplay-card"
-                aria-label="Gameplay panel"
+                className="number-trivia__contestants"
+                aria-label={displayPhase === 'duel' ? 'Finalists' : 'Contestants still in play'}
               >
-                <p className="number-trivia__question-label">Question</p>
+                {activeStandings.map((entry) => (
+                  <div
+                    key={entry.participantId}
+                    className={`number-trivia__contestant ${entry.isHuman ? 'number-trivia__contestant--human' : ''}`}
+                  >
+                    <TriviaPortrait
+                      name={entry.participantName}
+                      avatar={
+                        resolvedParticipants.find((p) => p.id === entry.participantId)?.avatar
+                      }
+                    />
+                    <span>{entry.isHuman ? 'You' : entry.participantName}</span>
+                    {displayPhase === 'duel' && (
+                      <span
+                        className="number-trivia__mini-lives"
+                        aria-label={`${duelLives[entry.participantId]} lives`}
+                      >
+                        {'●'.repeat(duelLives[entry.participantId] ?? 0)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="number-trivia__gameplay-card" aria-label="Gameplay panel">
+                <div className="number-trivia__question-heading">
+                  <p className="number-trivia__question-label">Question</p>
+                  <span>
+                    {displayPhase === 'duel' ? 'ONE LIFE ON THE LINE' : 'FIND THE EXACT NUMBER'}
+                  </span>
+                </div>
                 <p className="number-trivia__question-text">{currentQuestion.prompt}</p>
-
-                <div
-                  className={`number-trivia__reading-buffer ${humanStillActive && !answeringOpen ? '' : 'number-trivia__reading-buffer--reserved'}`}
-                  role="status"
-                  aria-label="Reading time"
-                  aria-hidden={!humanStillActive || answeringOpen}
-                >
-                  <span>Read first</span>
-                  <strong>{readingSeconds}s</strong>
-                  <span>Answering is locked for everyone</span>
+                <div className="number-trivia__status" role="status" aria-live="polite">
+                  {!answeringOpen ? (
+                    <div className="number-trivia__reading-buffer" aria-label="Reading time">
+                      <strong key={readingSeconds}>{readingSeconds}s</strong>
+                      <span>
+                        Read first<span>Everyone's clock is paused</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <strong className="number-trivia__hint" key={roundAttempts}>
+                        {hint}
+                      </strong>
+                      <span>{NUMBER_TRIVIA_MAX_ATTEMPTS - roundAttempts} attempts left</span>
+                    </>
+                  )}
                 </div>
-
-                <div className="number-trivia__status-card number-trivia__status-card--embedded">
-                  <p className="number-trivia__status-text">{hint}</p>
-                  <p className="number-trivia__status-meta">
-                    {humanStillActive
-                      ? answeringOpen
-                        ? `${NUMBER_TRIVIA_MAX_ATTEMPTS - roundAttempts} attempts remaining · response clock running`
-                        : 'Shared reading buffer · response clock paused'
-                      : 'Spectator mode — remaining players are being simulated.'}
-                  </p>
-                </div>
-
                 {humanStillActive && (
-                  <>
+                  <div className="number-trivia__answer-console">
                     <label className="number-trivia__input-label" htmlFor="number-trivia-answer">
-                      Enter your answer
+                      Your answer
                     </label>
-                    <div className="number-trivia__controls">
+                    <div className="number-trivia__answer-display">
                       <input
                         id="number-trivia-answer"
                         className="number-trivia__input"
-                        inputMode="numeric"
-                        pattern="[0-9-]*"
-                        type="number"
+                        type="text"
+                        inputMode="none"
+                        readOnly
+                        autoComplete="off"
                         value={answerInput}
+                        placeholder="—"
                         disabled={!answeringOpen}
-                        onChange={(event) => setAnswerInput(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') submitAnswer()
-                        }}
                         aria-label="Answer input"
+                        aria-describedby="number-trivia-input-help"
+                        aria-invalid={Boolean(inputError)}
+                        onKeyDown={(event) => {
+                          if (/^[0-9]$/.test(event.key)) {
+                            event.preventDefault()
+                            editAnswer(event.key)
+                          } else if (event.key === 'Backspace' || event.key === 'Delete') {
+                            event.preventDefault()
+                            editAnswer('delete')
+                          } else if (event.key === 'Enter') {
+                            event.preventDefault()
+                            submitAnswer()
+                          } else if (event.key === 'Escape') {
+                            event.preventDefault()
+                            editAnswer('clear')
+                          }
+                        }}
                       />
+                      <span className="number-trivia__display-mark" aria-hidden="true">
+                        #
+                      </span>
+                    </div>
+                    <p id="number-trivia-input-help" className="number-trivia__input-help">
+                      Use the number pad below
+                    </p>
+                    <NumericKeypad
+                      className="number-trivia__keypad"
+                      onKey={editAnswer}
+                      disabled={!answeringOpen}
+                    />
+                    <div className="number-trivia__controls">
                       <button
-                        className="number-trivia__button number-trivia__button--primary"
                         type="button"
-                        onClick={submitAnswer}
-                        disabled={!answeringOpen}
-                      >
-                        Submit
-                      </button>
-                      <button
                         className="number-trivia__button number-trivia__button--secondary"
-                        type="button"
                         onClick={skipQuestion}
                         disabled={!answeringOpen}
                       >
                         Skip
                       </button>
+                      <button
+                        type="button"
+                        className="number-trivia__button number-trivia__button--primary"
+                        onClick={submitAnswer}
+                        disabled={!answeringOpen || answerInput === ''}
+                      >
+                        Lock in answer <span aria-hidden="true">→</span>
+                      </button>
                     </div>
-                    <p
-                      className={`number-trivia__error ${inputError ? '' : 'number-trivia__error--reserved'}`}
-                      role={inputError ? 'alert' : undefined}
-                      aria-hidden={!inputError}
-                    >
-                      {inputError ?? '\u00a0'}
-                    </p>
-                  </>
-                )}
-
-                {!humanStillActive && (
-                  <div className="number-trivia__spectator-card">
-                    <p>
-                      You were eliminated in round {humanStanding?.eliminatedRound}. Watch the rest
-                      of the field finish the tournament.
-                    </p>
+                    {inputError && (
+                      <p className="number-trivia__error" role="alert">
+                        {inputError}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
             </section>
           )}
-
           {scoreboard && (
-            <section
-              className="number-trivia__scoreboard"
-              aria-label={
-                scoreboard.final
-                  ? 'Final scoreboard'
-                  : scoreboard.phase === 'duel'
-                    ? `Duel ${scoreboard.duelNumber} scoreboard`
-                    : `Round ${scoreboard.roundNumber} scoreboard`
-              }
-            >
-              <div className="number-trivia__question-card number-trivia__question-card--compact">
-                <p className="number-trivia__question-label">
-                  {scoreboard.final
-                    ? 'Final scoreboard'
-                    : scoreboard.phase === 'duel'
-                      ? `Duel ${scoreboard.duelNumber} scoreboard`
-                      : `Round ${scoreboard.roundNumber} scoreboard`}
-                </p>
-                <p className="number-trivia__question-text">Correct answer: {scoreboard.answer}</p>
-                {scoreboard.phase === 'duel' && scoreboard.lifeLostId ? (
-                  <p className="number-trivia__scoreboard-callout">
-                    {scoreboard.standings.find(
-                      (entry) => entry.participantId === scoreboard.lifeLostId
-                    )?.participantName ?? scoreboard.lifeLostId}{' '}
-                    loses one life — {scoreboard.lives[scoreboard.lifeLostId] ?? 0} remaining.
-                  </p>
-                ) : scoreboard.roundNumber === NUMBER_TRIVIA_TOTAL_ROUNDS ? (
-                  <p className="number-trivia__scoreboard-callout">
-                    Finalists:{' '}
-                    {scoreboard.finalistIds
-                      .map(
-                        (id) =>
-                          scoreboard.standings.find((entry) => entry.participantId === id)
-                            ?.participantName ?? id
-                      )
-                      .join(', ')}
-                  </p>
-                ) : scoreboard.eliminatedIds.length > 0 ? (
-                  <p className="number-trivia__scoreboard-callout">
-                    Eliminated this round:{' '}
-                    {scoreboard.eliminatedIds
-                      .map(
-                        (id) =>
-                          scoreboard.standings.find((entry) => entry.participantId === id)
-                            ?.participantName ?? id
-                      )
-                      .join(', ')}
-                  </p>
-                ) : (
-                  <p className="number-trivia__scoreboard-callout">No eliminations this round.</p>
-                )}
-              </div>
-
-              <div className="number-trivia__table-wrap">
-                <table className="number-trivia__table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Player</th>
-                      <th scope="col">Total</th>
-                      <th scope="col">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {scoreboard.standings.map((entry, index) => {
-                      const isEliminated =
-                        entry.eliminatedRound !== null &&
-                        entry.eliminatedRound <= scoreboard.roundNumber
-                      return (
-                        <tr
-                          key={entry.participantId}
-                          className={[
-                            entry.isHuman ? 'number-trivia__row--human' : '',
-                            isEliminated ? 'number-trivia__row--eliminated' : '',
-                            index === 0 ? 'number-trivia__row--leader' : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' ')}
-                        >
-                          <td className="number-trivia__player-cell">
-                            <span className="number-trivia__rank">#{index + 1}</span>
-                            {entry.participantName}
-                            {entry.isHuman && entry.participantName !== 'You' ? ' (You)' : ''}
-                          </td>
-                          <td>{entry.cumulativeScore}</td>
-                          <td>
-                            {scoreboard.phase === 'duel'
-                              ? scoreboard.final && index === 0
-                                ? 'Winner'
-                                : (scoreboard.lives[entry.participantId] ?? 0) <= 0
-                                  ? 'Out of lives'
-                                  : `${'♥'.repeat(scoreboard.lives[entry.participantId] ?? 0)} ${scoreboard.lives[entry.participantId] ?? 0} left`
-                              : isEliminated
-                                ? `Eliminated R${entry.eliminatedRound}`
-                                : scoreboard.roundNumber === NUMBER_TRIVIA_TOTAL_ROUNDS
-                                  ? 'Finalist'
-                                  : 'Advances'}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+            <NumberTriviaResults
+              key={`${scoreboard.phase}-${scoreboard.roundNumber}`}
+              scoreboard={scoreboard}
+              participants={resolvedParticipants}
+              showStandings={showStandings}
+              onToggleStandings={() => setShowStandings((value) => !value)}
+            />
           )}
         </main>
-
         {scoreboard && (
           <footer className="number-trivia__footer" aria-label="Game actions">
-            <p className="number-trivia__footer-text">
-              {scoreboard.final
-                ? `🏆 ${winner?.participantName ?? 'Winner'} takes Number Trivia.`
-                : scoreboard.phase === 'duel'
-                  ? 'Accuracy decides first; response time breaks ties.'
-                  : scoreboard.roundNumber === NUMBER_TRIVIA_TOTAL_ROUNDS
-                    ? `The finalists begin with ${NUMBER_TRIVIA_DUEL_STARTING_LIVES} lives each.`
-                    : 'Review the standings before continuing.'}
-            </p>
             {!scoreboard.final && humanStanding?.eliminatedRound !== null ? (
               <div
                 className="number-trivia__spectator-actions"
@@ -945,12 +871,13 @@ export default function NumberTrivia({
                 onClick={continueFromScoreboard}
               >
                 {scoreboard.phase === 'qualifier' &&
-                scoreboard.roundNumber === NUMBER_TRIVIA_TOTAL_ROUNDS
+                scoreboard.roundNumber === NUMBER_TRIVIA_TOTAL_ROUNDS &&
+                !scoreboard.final
                   ? 'Start three-life final'
-                  : 'Continue'}
+                  : 'Continue'}{' '}
+                <span aria-hidden="true">→</span>
               </button>
             )}
-            <span aria-hidden="true" />
           </footer>
         )}
       </div>

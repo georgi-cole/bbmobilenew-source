@@ -2031,3 +2031,41 @@
     font-size: 0.72rem;
   }
 }
+
+/* Keep the question anchored while the in-game pad replaces the phone keyboard. */
+.cwgo--mass_input .cwgo-participants {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  max-height: 58px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.cwgo--mass_input .cwgo-participants > * {
+  flex-shrink: 0;
+}
+.cwgo--mass_input .cwgo-mass-input,
+.cwgo--duel_input .cwgo__phase {
+  justify-content: flex-start;
+  overflow-y: auto;
+}
+.cwgo-mass-input__human-card {
+  flex-shrink: 0;
+}
+.cwgo .numeric-keypad {
+  margin-top: 10px;
+}
+.cwgo-mass-input__input[readonly] {
+  caret-color: transparent;
+}
+@media (max-height: 740px) {
+  .cwgo--mass_input .cwgo-participants,
+  .cwgo--mass_input .cwgo-mass-input__subtitle,
+  .cwgo--mass_input .cwgo-mass-input__you-row,
+  .cwgo--duel_input .cwgo-mass-input__you-row {
+    display: none;
+  }
+  .cwgo--mass_input .cwgo-mass-input__human-card,
+  .cwgo--duel_input .cwgo-mass-input__human-card {
+    padding: 8px;
+  }
+}

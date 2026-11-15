@@ -41,6 +41,7 @@ import type { CwgoResult } from '../features/cwgo/cwgoHelpers';
 import { difficultyLabel } from '../features/cwgo/cwgoHelpers';
 import { resolveAvatar, getDicebear } from '../utils/avatar';
 import type { ReactMinigameCompletion } from './MinigameHost/MinigameHost';
+import NumericKeypad from './NumericKeypad/NumericKeypad';
 import './ClosestWithoutGoingOverComp.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -101,6 +102,28 @@ export default function ClosestWithoutGoingOverComp({
 
   const [humanGuess, setHumanGuess] = useState('');
   const [inputError, setInputError] = useState('');
+  const editGuess = (key: string) => {
+    setInputError('');
+    setHumanGuess((value) => {
+      if (key === 'delete') return value.slice(0, -1);
+      if (key === 'clear') return '';
+      if (key === '.' && value.includes('.')) return value;
+      return (value + key).slice(0, 16);
+    });
+  };
+  const handleGuessKey = (event: React.KeyboardEvent<HTMLInputElement>, submit: () => void) => {
+    if (/^[0-9]$/.test(event.key) || (event.key === '.' && question?.scale)) {
+      event.preventDefault();
+      editGuess(event.key);
+    } else if (event.key === 'Backspace' || event.key === 'Delete') {
+      event.preventDefault();
+      editGuess('delete');
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      submit();
+    }
+  };
+
   const [duelSelection, setDuelSelection] = useState<string[]>([]);
   // Sequential reveal stages for the duel: guesses → answer → outcome
   const [duelRevealStage, setDuelRevealStage] = useState<'guesses' | 'answer' | 'outcome'>('guesses');
@@ -529,17 +552,18 @@ export default function ClosestWithoutGoingOverComp({
                         </div>
                         <div className="cwgo-mass-input__input-row">
                           <input
-                            type="number"
-                            min={0}
-                            step={question?.scale ? 'any' : 1}
+                            type="text"
+                            inputMode="none"
+                            readOnly
+                            aria-label="Your guess"
                             className="cwgo-mass-input__input"
                             value={humanGuess}
                             onChange={(e) => setHumanGuess(e.target.value)}
                             placeholder={cwgoInputPlaceholder(question)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleMassSubmit()}
-                            autoFocus
+                            onKeyDown={(e) => handleGuessKey(e, handleMassSubmit)}
                           />
                         </div>
+                        <NumericKeypad onKey={editGuess} decimal={Boolean(question?.scale)} />
                         <p className="cwgo-error-slot" aria-live="polite">
                           {inputError || ' '}
                         </p>
@@ -736,17 +760,18 @@ export default function ClosestWithoutGoingOverComp({
                         </div>
                         <div className="cwgo-mass-input__input-row">
                           <input
-                            type="number"
-                            min={0}
-                            step={question?.scale ? 'any' : 1}
+                            type="text"
+                            inputMode="none"
+                            readOnly
+                            aria-label="Your guess"
                             className="cwgo-mass-input__input"
                             value={humanGuess}
                             onChange={(e) => setHumanGuess(e.target.value)}
                             placeholder={cwgoInputPlaceholder(question)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleDuelSubmit()}
-                            autoFocus
+                            onKeyDown={(e) => handleGuessKey(e, handleDuelSubmit)}
                           />
                         </div>
+                        <NumericKeypad onKey={editGuess} decimal={Boolean(question?.scale)} />
                         <p className="cwgo-error-slot" aria-live="polite">
                           {inputError || ' '}
                         </p>

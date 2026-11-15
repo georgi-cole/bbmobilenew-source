@@ -241,18 +241,20 @@ describe('NumberTrivia helpers', () => {
 
 describe('NumberTrivia component', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-  });
+    vi.useFakeTimers()
+  })
 
   afterEach(() => {
-    vi.runOnlyPendingTimers();
-    vi.useRealTimers();
-  });
+    act(() => {
+      vi.runOnlyPendingTimers()
+    })
+    vi.useRealTimers()
+  })
 
   function finishReadingBuffer() {
     act(() => {
-      vi.advanceTimersByTime(NUMBER_TRIVIA_READING_BUFFER_MS);
-    });
+      vi.advanceTimersByTime(NUMBER_TRIVIA_READING_BUFFER_MS)
+    })
   }
 
   it('keeps the question and answer input together in the gameplay panel', () => {
@@ -261,40 +263,66 @@ describe('NumberTrivia component', () => {
         participants={participants}
         participantIds={participants.map((participant) => participant.id)}
         seed={7}
-      />,
-    );
+      />
+    )
 
-    const gameplayPanel = screen.getByLabelText('Gameplay panel');
-    expect(within(gameplayPanel).getByText('Question')).toBeInTheDocument();
-    expect(within(gameplayPanel).getByLabelText('Reading time')).toHaveTextContent('3s');
-    expect(within(gameplayPanel).getByRole('spinbutton', { name: 'Answer input' })).toBeDisabled();
-    finishReadingBuffer();
-    expect(within(gameplayPanel).getByRole('spinbutton', { name: 'Answer input' })).toBeEnabled();
-    expect(screen.queryByLabelText('Round 1 scoreboard')).toBeNull();
-  });
+    const gameplayPanel = screen.getByLabelText('Gameplay panel')
+    expect(within(gameplayPanel).getByText('Question')).toBeInTheDocument()
+    expect(within(gameplayPanel).getByLabelText('Reading time')).toHaveTextContent('3s')
+    expect(within(gameplayPanel).getByRole('textbox', { name: 'Answer input' })).toBeDisabled()
+    finishReadingBuffer()
+    expect(within(gameplayPanel).getByRole('textbox', { name: 'Answer input' })).toBeEnabled()
+    expect(screen.queryByLabelText('Round 1 scoreboard')).toBeNull()
+  })
 
-  it('rejects non-integer input instead of truncating it', () => {
-    render(
-      <NumberTrivia
-        participants={participants}
-        participantIds={participants.map((participant) => participant.id)}
-        seed={7}
-      />,
-    );
+  it('edits an answer on the built-in pad without opening a native keyboard', () => {
+    render(<NumberTrivia participants={participants} seed={7} />)
+    const input = screen.getByRole('textbox', { name: 'Answer input' })
+    expect(input).toHaveAttribute('readonly')
+    expect(input).toHaveAttribute('inputmode', 'none')
+    expect(screen.getByRole('button', { name: '1', exact: true })).toBeDisabled()
+    finishReadingBuffer()
+    expect(screen.getByRole('button', { name: 'Lock in answer' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: '1', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: '2', exact: true }))
+    expect(input).toHaveValue('12')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete last digit' }))
+    expect(input).toHaveValue('1')
+    fireEvent.click(screen.getByRole('button', { name: 'Clear answer' }))
+    expect(input).toHaveValue('')
+    fireEvent.keyDown(input, { key: 'e' })
+    fireEvent.keyDown(input, { key: '.' })
+    expect(input).toHaveValue('')
+    expect(screen.queryByLabelText('Round 1 scoreboard')).toBeNull()
+  })
 
-    finishReadingBuffer();
-
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Answer input' }), {
-      target: { value: '1.5' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
-
-    expect(screen.getByText('Please enter a whole number.')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Round 1 scoreboard')).toBeNull();
-  });
+  it('preserves exact-answer scoring and the reading buffer with keypad entry', () => {
+    render(<NumberTrivia participants={participants} seed={7} />)
+    const prompt = document.querySelector('.number-trivia__question-text')?.textContent
+    const answer = NUMBER_TRIVIA_QUESTIONS.find((question) => question.prompt === prompt)!.answer
+    finishReadingBuffer()
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    for (const digit of String(answer))
+      fireEvent.click(screen.getByRole('button', { name: digit, exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Lock in answer' }))
+    expect(screen.getByLabelText('Round 1 scoreboard')).toBeInTheDocument()
+    act(() => {
+      vi.advanceTimersByTime(1100)
+    })
+    const expected = computeNumberTriviaRoundScore({
+      guessed: true,
+      attempts: 1,
+      timeMs: 1000,
+      closestDistance: 0,
+    })
+    expect(screen.getByText(`+${expected}`)).toBeInTheDocument()
+    expect(screen.getByText('Exact answer found')).toBeInTheDocument()
+  })
 
   it('uses round five as a qualifier and finishes through the three-life duel', () => {
-    const onFinish = vi.fn();
+    const onFinish = vi.fn()
 
     render(
       <NumberTrivia
@@ -302,53 +330,53 @@ describe('NumberTrivia component', () => {
         participants={participants}
         participantIds={participants.map((participant) => participant.id)}
         seed={7}
-      />,
-    );
+      />
+    )
 
     for (let round = 1; round <= 5; round += 1) {
-      const skipButton = screen.queryByRole('button', { name: 'Skip' });
+      const skipButton = screen.queryByRole('button', { name: 'Skip' })
       if (skipButton) {
-        finishReadingBuffer();
-        fireEvent.click(skipButton);
+        finishReadingBuffer()
+        fireEvent.click(skipButton)
       }
 
-      const scoreboardLabel = `Round ${round} scoreboard`;
-      expect(screen.getByLabelText(scoreboardLabel)).toBeInTheDocument();
-      expect(screen.queryByLabelText('Gameplay panel')).toBeNull();
+      const scoreboardLabel = `Round ${round} scoreboard`
+      expect(screen.getByLabelText(scoreboardLabel)).toBeInTheDocument()
+      expect(screen.queryByLabelText('Gameplay panel')).toBeNull()
       if (round < 5) {
-        const continueButton = screen.queryByRole('button', { name: 'Continue' });
-        if (continueButton) fireEvent.click(continueButton);
-        else fireEvent.click(screen.getByRole('button', { name: 'Keep watching' }));
+        const continueButton = screen.queryByRole('button', { name: 'Continue' })
+        if (continueButton) fireEvent.click(continueButton)
+        else fireEvent.click(screen.getByRole('button', { name: 'Keep watching' }))
       }
     }
 
-    expect(screen.queryByLabelText('Final scoreboard')).toBeNull();
-    const startFinalButton = screen.queryByRole('button', { name: 'Start three-life final' });
-    if (startFinalButton) fireEvent.click(startFinalButton);
-    else fireEvent.click(screen.getByRole('button', { name: 'Keep watching' }));
+    expect(screen.queryByLabelText('Final scoreboard')).toBeNull()
+    const startFinalButton = screen.queryByRole('button', { name: 'Start three-life final' })
+    if (startFinalButton) fireEvent.click(startFinalButton)
+    else fireEvent.click(screen.getByRole('button', { name: 'Keep watching' }))
 
-    let safety = 0;
+    let safety = 0
     while (!screen.queryByLabelText('Final scoreboard') && safety < 20) {
-      const duelSkipButton = screen.queryByRole('button', { name: 'Skip' });
+      const duelSkipButton = screen.queryByRole('button', { name: 'Skip' })
       if (duelSkipButton) {
-        finishReadingBuffer();
-        fireEvent.click(duelSkipButton);
+        finishReadingBuffer()
+        fireEvent.click(duelSkipButton)
       } else {
-        const continueButton = screen.queryByRole('button', { name: 'Continue' });
-        if (continueButton) fireEvent.click(continueButton);
-        else fireEvent.click(screen.getByRole('button', { name: 'Keep watching' }));
+        const continueButton = screen.queryByRole('button', { name: 'Continue' })
+        if (continueButton) fireEvent.click(continueButton)
+        else fireEvent.click(screen.getByRole('button', { name: 'Keep watching' }))
       }
-      safety += 1;
+      safety += 1
     }
 
-    expect(safety).toBeLessThan(20);
-    expect(screen.getByLabelText('Final scoreboard')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(safety).toBeLessThan(20)
+    expect(screen.getByLabelText('Final scoreboard')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
 
-    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(onFinish).toHaveBeenCalledTimes(1)
     expect(onFinish.mock.calls[0][2]).toMatchObject({
       authoritativeWinnerId: expect.any(String),
       rawResults: expect.any(Object),
-    });
-  });
-});
+    })
+  })
+})

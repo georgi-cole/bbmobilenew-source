@@ -44,6 +44,14 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-15: Reviewed the Number Trivia broadcast-stage refresh and built-in
+  numeric keypads for Number Trivia and Don't Go Over. The question bank,
+  qualifier eliminations, tied finalist cutoff, three-life duel, AI, scoring,
+  rewards and result checkpoints retain their existing rules. The presentation
+  and input repair are available with the existing games; no new premium edition,
+  entitlement, product contents, price or Store benefit is introduced. Existing
+  marketplace copy remains accurate.
+
 - 2026-11-15: Reviewed automatic Google Play Internal Testing delivery. Validated
   main builds retain their signed AAB, use scoped Google authentication, and
   verify the exact internal-track version without changing other tracks, tester
