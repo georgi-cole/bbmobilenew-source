@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AdvertisingPrivacy from '../AdvertisingPrivacy'
 import { canUseOptionalFeature } from '../../../safety/playerSafety'
+import { installSafetyFixture } from '../../../safety/__tests__/safetyFixture'
 import { configureStore } from '@reduxjs/toolkit'
 import { Provider } from 'react-redux'
 import { createMemoryRouter, Link, MemoryRouter, RouterProvider } from 'react-router'
@@ -19,16 +20,18 @@ function renderPrivacy() {
   )
 }
 
-const privacy = vi.hoisted(() => ({ open: vi.fn() }))
+const privacy = vi.hoisted(() => ({ open: vi.fn(), check: vi.fn() }))
 vi.mock('../admobBridge', () => ({
+  checkAdMobAvailability: privacy.check,
   hasAdMobPrivacyOptions: () => true,
   openAdMobPrivacyOptions: privacy.open,
 }))
 describe('advertising privacy controls', () => {
   beforeEach(() => {
-    localStorage.clear()
+    installSafetyFixture()
     vi.clearAllMocks()
     privacy.open.mockResolvedValue(undefined)
+    privacy.check.mockResolvedValue(null)
   })
   afterEach(cleanup)
 
@@ -55,6 +58,40 @@ describe('advertising privacy controls', () => {
     expect(screen.queryByText('Advertising privacy choices')).toBeNull()
     expect(canUseOptionalFeature('ads')).toBe(false)
     expect(privacy.open).not.toHaveBeenCalled()
+    expect(screen.queryByText('Check advertising setup')).toBeNull()
+  })
+
+  it('explains disabled advertising and lets an adult check setup without watching an ad', async () => {
+    renderPrivacy()
+    fireEvent.change(screen.getByLabelText('Your age'), { target: { value: '28' } })
+    fireEvent.click(screen.getByText('Continue'))
+    expect(screen.getByText(/Optional advertising is off/)).toBeInTheDocument()
+    expect(screen.queryByText('Check advertising setup')).toBeNull()
+    fireEvent.click(screen.getByRole('checkbox'))
+    privacy.check.mockResolvedValueOnce('Advertising permission is not ready. Please try again.')
+    fireEvent.click(screen.getByText('Check advertising setup'))
+    expect(privacy.check).toHaveBeenCalledOnce()
+    expect(
+      await screen.findByText('Advertising permission is not ready. Please try again.')
+    ).toBeInTheDocument()
+  })
+
+  it('returns a retry setup visit directly to the paused competition', async () => {
+    const router = createMemoryRouter(
+      [
+        { path: '/game', element: <h1>Competition checkpoint</h1> },
+        { path: '/player-privacy', element: <AdvertisingPrivacy /> },
+      ],
+      {
+        initialEntries: [{ pathname: '/player-privacy', state: { returnTo: '/game' } }],
+      }
+    )
+    render(<RouterProvider router={router} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Back to competition' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Competition checkpoint' })
+    ).toBeInTheDocument()
+    expect(router.state.historyAction).toBe('REPLACE')
   })
 
   it('returns through Settings to the original screen without a privacy loop', async () => {

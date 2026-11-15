@@ -1255,6 +1255,10 @@ describe('SocialPanelV2 – subject picker', () => {
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(lohPlayer.name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Pitch Target/i }))
     expect(screen.getByLabelText('Choose subject')).toBeDefined()
+    expect(screen.queryByText('Choose who to ask about:')).toBeNull()
+    expect(
+      within(screen.getByLabelText('Choose subject')).getAllByRole('button').length
+    ).toBeGreaterThan(0)
   })
 
   it('execute button is disabled for primaryPlusSubject action without a subject', () => {

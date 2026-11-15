@@ -88,7 +88,7 @@ export default function DemocraciaResultsReveal({
   const badgeLabel = mode === 'winner' ? 'Winner' : mode === 'tie' ? 'Tie' : 'Revote'
 
   const contentStyle: CSSProperties = {
-    transform: `scale(${contentScale})`,
+    transform: `translate(-50%, -50%) scale(${contentScale})`,
   }
 
   return (

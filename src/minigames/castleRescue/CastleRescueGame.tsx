@@ -2232,7 +2232,12 @@ export default function CastleRescueGame({
       if (canvasHasFocus) e.preventDefault()
     }
     const onUp = (e: KeyboardEvent) => keysRef.current.delete(e.code)
-    const onPointerReleased = () => releaseAllMovementInputs()
+    const onPointerReleased = (event: PointerEvent) => {
+      const code = activeTouchPointersRef.current.get(event.pointerId)
+      if (!code) return
+      activeTouchPointersRef.current.delete(event.pointerId)
+      if (![...activeTouchPointersRef.current.values()].includes(code)) keysRef.current.delete(code)
+    }
     const onBlur = () => releaseAllMovementInputs()
     const onVisibilityChange = () => {
       if (document.visibilityState !== 'visible') releaseAllMovementInputs()
@@ -2703,13 +2708,16 @@ function TouchBtn({
       onDragStart={(e) => e.preventDefault()}
       onPointerDown={(e) => {
         e.preventDefault()
-        e.currentTarget.setPointerCapture(e.pointerId)
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId)
+        } catch {
+          // Window pointer release/cancel handlers still release this finger.
+        }
         onPress(code, e.pointerId)
       }}
       onPointerUp={(e) => onRelease(code, e.pointerId)}
       onPointerCancel={(e) => onRelease(code, e.pointerId)}
       onLostPointerCapture={(e) => onRelease(code, e.pointerId)}
-      onPointerLeave={(e) => onRelease(code, e.pointerId)}
     >
       {label}
     </button>

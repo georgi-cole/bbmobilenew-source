@@ -1,5 +1,6 @@
 import { executeAllianceManagementCommand } from './allianceManagementActions'
 import { getCurrentPact } from './reality/allianceIdentity'
+import { getPendingAutomaticNomineeId, type AutomaticNominationGame } from './automaticNomination'
 import type { AppDispatch, RootState } from '../store/store'
 /**
  * SocialManeuvers — core API for executing social actions during a phase.
@@ -106,7 +107,7 @@ interface ManeuverPlayer {
   }
 }
 
-interface ManeuverGameState {
+interface ManeuverGameState extends AutomaticNominationGame {
   players: ManeuverPlayer[]
   week?: number
   phase?: string
@@ -201,7 +202,7 @@ export type LohPlanDisclosureOutcome = 'truthful' | 'vague' | 'false'
  * answer, or a credible decoy when the LOH is setting an ambush.
  */
 export function resolveLohPlanDisclosure(input: {
-  game?: {
+  game?: AutomaticNominationGame & {
     players?: ManeuverPlayer[]
     phase?: string
     nomineeIds?: string[]
@@ -242,6 +243,8 @@ export function resolveLohPlanDisclosure(input: {
     tags.has('protection')
   const trust = relationship?.affinity ?? 0
   const replacementPending = game ? isLohReplacementPending(game) : false
+  const automaticId = getPendingAutomaticNomineeId(game)
+  if (actualTargetId === automaticId) return { outcome: 'vague', statedTargetId: null }
   const decoys = (game?.players ?? [])
     .filter(
       (player) =>
@@ -249,6 +252,7 @@ export function resolveLohPlanDisclosure(input: {
         player.id !== actualTargetId &&
         player.id !== askerId &&
         player.id !== lohId &&
+        player.id !== automaticId &&
         (!replacementPending ||
           (!game?.nomineeIds?.includes(player.id) &&
             player.id !== game?.posWinnerId &&
@@ -594,10 +598,10 @@ function getAllianceBetrayalChance(affinity: number): number {
 
 function getLohTargetPlan(
   game:
-    | {
+    | (AutomaticNominationGame & {
         players?: Array<{ id: string; name?: string; status: string }>
         nomineeIds?: string[]
-      }
+      })
     | undefined,
   relationships: SocialState['relationships'],
   lohId: string
@@ -608,8 +612,13 @@ function getLohTargetPlan(
   currentTargetId: string | null
   backupTargetId: string | null
 } | null {
+  const automaticId = getPendingAutomaticNomineeId(game)
   const players = (game?.players ?? []).filter(
-    (player) => player.id !== lohId && player.status !== 'evicted' && player.status !== 'jury'
+    (player) =>
+      player.id !== lohId &&
+      player.id !== automaticId &&
+      player.status !== 'evicted' &&
+      player.status !== 'jury'
   )
   if (players.length === 0) return null
   const score = (playerId: string) => relationships[lohId]?.[playerId]?.affinity ?? 0
@@ -1306,7 +1315,8 @@ export function executeAction(
   const rootState = _store.getState() as {
     social: SocialState
     settings?: { gameUX?: { dramaMode?: boolean; realityModePreset?: string } }
-    game?: {
+    game?: AutomaticNominationGame & {
+      doubleEviction?: GameState['doubleEviction']
       week?: number
       phase?: string
       lohId?: string | null
@@ -1338,9 +1348,20 @@ export function executeAction(
       ? getLohTargetPlan(rootState.game, state.social.relationships, targetId)
       : null
   const savedLohPlan = rootState.game?.lohSocialPlan
+  const pendingAutomaticId = getPendingAutomaticNomineeId(rootState.game)
   const existingLohPlan =
     savedLohPlan && savedLohPlan.week === rootState.game?.week && savedLohPlan.lohId === targetId
-      ? savedLohPlan
+      ? {
+          ...savedLohPlan,
+          currentTargetId:
+            pendingAutomaticId && savedLohPlan.currentTargetId === pendingAutomaticId
+              ? (inferredLohTargetPlan?.currentTargetId ?? null)
+              : savedLohPlan.currentTargetId,
+          backupTargetId:
+            pendingAutomaticId && savedLohPlan.backupTargetId === pendingAutomaticId
+              ? (inferredLohTargetPlan?.backupTargetId ?? null)
+              : savedLohPlan.backupTargetId,
+        }
       : null
   // The persisted social plan is the ceremony's canonical truth source and is
   // reconciled by lohNominationPlanning as the block changes. Never replace it

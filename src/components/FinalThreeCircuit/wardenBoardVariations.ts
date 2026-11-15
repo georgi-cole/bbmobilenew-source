@@ -69,7 +69,7 @@ const CURATED_LAYOUTS: Record<RiskTier, WardenLayoutConfig[]> = {
     {
       size: 6,
       start: 34,
-      exit: 8,
+      exit: 15,
       wardenStart: 1,
       walls: [2, 3, 4, 5, 13, 14, 18, 19, 21, 28, 30],
       guardSteps: 2,
@@ -78,7 +78,7 @@ const CURATED_LAYOUTS: Record<RiskTier, WardenLayoutConfig[]> = {
     {
       size: 6,
       start: 35,
-      exit: 2,
+      exit: 0,
       wardenStart: 7,
       walls: [8, 9, 11, 13, 14, 15, 17, 20, 21, 25, 28],
       guardSteps: 2,
@@ -87,7 +87,7 @@ const CURATED_LAYOUTS: Record<RiskTier, WardenLayoutConfig[]> = {
     {
       size: 6,
       start: 22,
-      exit: 8,
+      exit: 2,
       wardenStart: 6,
       walls: [1, 3, 5, 14, 15, 16, 18, 21, 26, 29, 30],
       guardSteps: 2,
@@ -364,7 +364,7 @@ export function getSolvableWardenVariations(tier: RiskTier): WardenBoard[] {
 
 export function getWardenVariationIndex(seed: number, tier: RiskTier): number {
   const count = Math.max(1, getSolvableWardenVariations(tier).length)
-  return ((seed ^ hash(`warden-layout:${tier}:v4`)) >>> 0) % count
+  return ((seed ^ hash(`warden-layout:${tier}:v5`)) >>> 0) % count
 }
 
 export function buildVariedWardenBoard(tier: RiskTier, seed: number): WardenBoard {

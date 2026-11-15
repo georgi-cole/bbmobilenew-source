@@ -109,7 +109,7 @@ describe('native AdMob integration', () => {
     mock.handlers.get('closed')!()
     expect(await result).toBe(true)
     expect(mock.prepare).toHaveBeenCalledWith(
-      expect.objectContaining({ adId: 'ca-app-pub-3940256099942544/1712485313', isTesting: true })
+      expect.objectContaining({ adId: 'ca-app-pub-3940256099942544/1712485313', isTesting: false })
     )
   })
 
@@ -120,6 +120,21 @@ describe('native AdMob integration', () => {
     await install()
     expect(await window.GameAds!.showRewarded('competition_retry')).toBe(false)
     expect(mock.show).not.toHaveBeenCalled()
+  })
+
+  it('preserves the explicit iOS demo interstitial ID without the plugin Android override', async () => {
+    await install()
+    const result = window.GameAds!.showInterstitial('live_vote_auto')
+    await vi.waitFor(() => expect(mock.show).toHaveBeenCalledOnce())
+    expect(mock.prepare).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adId: 'ca-app-pub-3940256099942544/4411468910',
+        isTesting: false,
+      })
+    )
+    expect(mock.show).toHaveBeenCalledWith({ adId: 'ca-app-pub-3940256099942544/4411468910' })
+    mock.handlers.get('closed')!()
+    expect(await result).toBe(true)
   })
 
   it('rechecks eligibility after loading so a new No Ads purchase suppresses a pending break', async () => {
@@ -159,6 +174,58 @@ describe('native AdMob integration', () => {
     expect(mock.form).toHaveBeenCalledOnce()
     expect(mock.initialize).not.toHaveBeenCalled()
     expect(mock.prepare).not.toHaveBeenCalled()
+    const { getAdAvailabilityMessage } = await import('../adAvailability')
+    expect(getAdAvailabilityMessage()).toContain('Advertising permission is not ready')
+  })
+
+  it('checks consent setup explicitly without loading or playing an ad', async () => {
+    vi.stubEnv('VITE_ADMOB_MODE', 'live')
+    vi.stubEnv('VITE_ADMOB_INTERSTITIAL_ID', 'ca-app-pub-9243398419153145/1852027238')
+    vi.stubEnv('VITE_ADMOB_REWARDED_ID', 'ca-app-pub-9243398419153145/2733864063')
+    const { installAdMobBridge, checkAdMobAvailability } = await import('../admobBridge')
+    installAdMobBridge()
+    expect(await checkAdMobAvailability()).toBeNull()
+    expect(mock.consent).toHaveBeenCalledOnce()
+    expect(mock.initialize).toHaveBeenCalledOnce()
+    expect(mock.prepare).not.toHaveBeenCalled()
+    expect(mock.show).not.toHaveBeenCalled()
+    setOptionalPlayerFeature('ads', false)
+    expect(await checkAdMobAvailability()).toContain('Optional advertising is off')
+    expect(mock.consent).toHaveBeenCalledOnce()
+  })
+
+  it.each(['rewarded', 'interstitial'] as const)(
+    'explains a failed %s load and permits a later successful request',
+    async (kind) => {
+      mock.prepare.mockRejectedValueOnce(new Error('No fill'))
+      await install()
+      const request = () =>
+        kind === 'rewarded'
+          ? window.GameAds!.showRewarded('competition_retry')
+          : window.GameAds!.showInterstitial('live_vote_auto')
+      expect(await request()).toBe(false)
+      const { getAdAvailabilityMessage } = await import('../adAvailability')
+      expect(getAdAvailabilityMessage()).toContain('No ad is available right now')
+      const retry = request()
+      await vi.waitFor(() => expect(mock.show).toHaveBeenCalledOnce())
+      expect(getAdAvailabilityMessage()).toBeNull()
+      if (kind === 'rewarded') mock.handlers.get('earned')!()
+      mock.handlers.get('closed')!()
+      expect(await retry).toBe(true)
+    }
+  )
+
+  it('reports failed privacy setup and releases its slot for another attempt', async () => {
+    vi.stubEnv('VITE_ADMOB_MODE', 'live')
+    vi.stubEnv('VITE_ADMOB_INTERSTITIAL_ID', 'ca-app-pub-9243398419153145/1852027238')
+    vi.stubEnv('VITE_ADMOB_REWARDED_ID', 'ca-app-pub-9243398419153145/2733864063')
+    mock.consent.mockRejectedValueOnce(new Error('Consent unavailable'))
+    const { installAdMobBridge, checkAdMobAvailability } = await import('../admobBridge')
+    installAdMobBridge()
+    expect(await checkAdMobAvailability()).toContain('privacy choices could not load')
+    expect(mock.initialize).not.toHaveBeenCalled()
+    expect(await checkAdMobAvailability()).toBeNull()
+    expect(mock.initialize).toHaveBeenCalledOnce()
   })
 
   it('uses demo units in test mode even when live IDs exist, and rejects incomplete live config', () => {

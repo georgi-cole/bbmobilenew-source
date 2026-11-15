@@ -246,10 +246,6 @@ export default function HouseOfCardsComp({
   useCoveredGameScreen(false)
   const dispatch = useAppDispatch()
   const [sessionSeed] = useState(() => seed ?? cryptoSeed())
-  const offeredTools = useMemo(
-    () => getHouseOfCardsAttemptToolOffer(sessionSeed, attemptNumber),
-    [sessionSeed, attemptNumber]
-  )
   const humanId = useMemo(
     () => participants?.find((participant) => participant.isHuman)?.id ?? participantIds[0] ?? null,
     [participantIds, participants]
@@ -273,6 +269,10 @@ export default function HouseOfCardsComp({
 
   const [phase, setPhase] = useState<TournamentPhase>('tool_select')
   const [round, setRound] = useState(1)
+  const offeredTools = useMemo(
+    () => getHouseOfCardsAttemptToolOffer(sessionSeed, attemptNumber, round),
+    [sessionSeed, attemptNumber, round]
+  )
   const [activeIds, setActiveIds] = useState<string[]>(participantIds)
   const [cumulativeScores, setCumulativeScores] = useState<Record<string, number>>(() =>
     Object.fromEntries(participantIds.map((id) => [id, 0]))

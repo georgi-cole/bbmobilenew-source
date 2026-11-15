@@ -88,6 +88,8 @@ const DEFAULT_CHAMBER_PARTICIPANTS = [
 const AI_CHOICE_DELAY_MS = 450
 const AI_AUTO_ADVANCE_DELAY_MS = 850
 const AI_POWER_ACTIVATION_DELAY_MS = 650
+const AI_MANUAL_CHOICE_DELAY_MS = 1600
+const AI_MANUAL_ACTIVATION_DELAY_MS = 2400
 const POWER_ACTIVATION_DELAY_MS = 1800
 const BOX_OPENING_DELAY_MS = 2600
 const BOX_REVEAL_DELAY_MS = 1800
@@ -234,16 +236,19 @@ export default function MysticChamber(props: GenericMinigameProps) {
       return () => window.clearTimeout(timer)
     }
     if (actor.isHuman) return undefined
-    const timer = window.setTimeout(() => {
-      const choice = chooseChamberAiAction(
-        state,
-        props.relationships,
-        rngRef.current,
-        props.alliances,
-        aiCapability
-      )
-      startAction(choice.action, choice.targetId)
-    }, AI_CHOICE_DELAY_MS)
+    const timer = window.setTimeout(
+      () => {
+        const choice = chooseChamberAiAction(
+          state,
+          props.relationships,
+          rngRef.current,
+          props.alliances,
+          aiCapability
+        )
+        startAction(choice.action, choice.targetId)
+      },
+      autoplay ? AI_CHOICE_DELAY_MS : AI_MANUAL_CHOICE_DELAY_MS
+    )
     return () => window.clearTimeout(timer)
   }, [
     actor.eliminated,
@@ -254,6 +259,7 @@ export default function MysticChamber(props: GenericMinigameProps) {
     startAction,
     view,
     aiCapability,
+    autoplay,
   ])
 
   useEffect(() => {
@@ -261,15 +267,18 @@ export default function MysticChamber(props: GenericMinigameProps) {
     const isBoxImpact = Boolean(state.pendingBox)
     const isOpeningBox = pendingAction?.action === 'forbidden' && !isBoxImpact
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-    const delay = reducedMotion
-      ? 80
-      : isBoxImpact
-        ? BOX_IMPACT_DELAY_MS
-        : isOpeningBox
-          ? BOX_OPENING_DELAY_MS
-          : actor.isHuman
-            ? POWER_ACTIVATION_DELAY_MS
-            : AI_POWER_ACTIVATION_DELAY_MS
+    const delay =
+      reducedMotion && (actor.isHuman || autoplay)
+        ? 80
+        : isBoxImpact
+          ? BOX_IMPACT_DELAY_MS
+          : isOpeningBox
+            ? BOX_OPENING_DELAY_MS
+            : actor.isHuman
+              ? POWER_ACTIVATION_DELAY_MS
+              : autoplay
+                ? AI_POWER_ACTIVATION_DELAY_MS
+                : AI_MANUAL_ACTIVATION_DELAY_MS
     const timer = window.setTimeout(() => {
       if (isBoxImpact) {
         if (!pendingBoxTargetId) {
@@ -321,6 +330,7 @@ export default function MysticChamber(props: GenericMinigameProps) {
     return () => window.clearTimeout(timer)
   }, [
     actor.isHuman,
+    autoplay,
     pendingAction,
     pendingBoxTargetId,
     props.alliances,

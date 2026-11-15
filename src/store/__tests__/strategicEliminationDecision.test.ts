@@ -3,9 +3,12 @@ import gameReducer, {
   advance,
   chooseStrategicEliminationCandidates,
   createInitialGameState,
+  getNominationTargetScore,
   submitDoubleEvictionTieBreak,
 } from '../gameSlice'
 import type { GameState, Player } from '../../types'
+import { getCurrentLohEliminationPriorityIds } from '../../social/lohEliminationPriority'
+import { formatLohSafetyConsultation } from '../../social/lohSafetyConsultation'
 
 function prepareDecisionState(): {
   state: GameState
@@ -76,6 +79,119 @@ describe('shared strategic elimination decisions', () => {
     expect(
       decision.rankedCandidates.find((candidate) => candidate.id === target.id)?.factors
     ).toMatchObject({ promiseProtection: -92 })
+  })
+
+  it.each(['legacy', 'executed', 'failed', 'compromised'] as const)(
+    'keeps the hold-Safety target meaningful with a %s nomination plan',
+    (planStatus) => {
+      const { state, decider, target, neutral, protectedPlayer } = prepareDecisionState()
+      state.lohId = decider.id
+      state.phase = 'pos_results'
+      state.posWinnerId = protectedPlayer.id
+      state.nomineeIds = [neutral.id, target.id]
+      state.lohSocialPlan = {
+        week: state.week,
+        lohId: decider.id,
+        currentTargetId: target.id,
+        backupTargetId: null,
+        askCountsByPlayerId: {},
+      }
+      if (planStatus !== 'legacy') {
+        state.lohNominationPlan = {
+          week: state.week,
+          lohId: decider.id,
+          targetId: planStatus === 'executed' ? target.id : state.posWinnerId,
+          backupTargetId: null,
+          pawnIds: [neutral.id],
+          initialNomineeIds: [...state.nomineeIds],
+          strategy: 'backdoor',
+          status: planStatus,
+          selectionBasis: 'strategy',
+          targetScore: 1,
+          backdoorChance: 1,
+        }
+      }
+      decider.aiGameIdentity = undefined
+      target.aiGameIdentity = undefined
+      neutral.aiGameIdentity = undefined
+      state.strategicRelationships![decider.id][target.id] = { affinity: 0, tags: [] }
+      state.strategicRelationships![decider.id][neutral.id] = { affinity: 0, tags: [] }
+      // Give the other nominee a three-point lead after the saved target's
+      // preference. A seed must not reverse the freshly stated hold-Safety plan.
+      state.strategicRelationships![decider.id][neutral.id].affinity =
+        getNominationTargetScore(state, decider.id, neutral) -
+        getNominationTargetScore(state, decider.id, target) -
+        51
+
+      expect(formatLohSafetyConsultation(state, state.posWinnerId)).toContain(
+        `${target.name} as the target`
+      )
+      for (const seed of [1, 2, 17, 28, 1001, 9001]) {
+        const decision = chooseStrategicEliminationCandidates(
+          state,
+          decider.id,
+          [...state.nomineeIds],
+          1,
+          'ordinary_tie',
+          seed
+        )
+        expect(decision.selectedIds).toEqual([target.id])
+        const targetScore = decision.rankedCandidates.find((entry) => entry.id === target.id)!
+        const neutralScore = decision.rankedCandidates.find((entry) => entry.id === neutral.id)!
+        expect(targetScore.factors.currentPlanContribution).toBe(48)
+        expect(neutralScore.total - targetScore.total).toBeCloseTo(3)
+      }
+    }
+  )
+
+  it('lets a substantial new betrayal outweigh the saved LOH target', () => {
+    const { state, decider, target, neutral } = prepareDecisionState()
+    state.lohId = decider.id
+    state.lohSocialPlan = {
+      week: state.week,
+      lohId: decider.id,
+      currentTargetId: target.id,
+      backupTargetId: null,
+      askCountsByPlayerId: {},
+    }
+    state.strategicRelationships![decider.id][target.id] = { affinity: 0, tags: [] }
+    state.strategicRelationships![decider.id][neutral.id] = {
+      affinity: -30,
+      tags: ['betrayal'],
+    }
+
+    const decision = chooseStrategicEliminationCandidates(
+      state,
+      decider.id,
+      [target.id, neutral.id],
+      1,
+      'ordinary_tie',
+      1
+    )
+
+    expect(decision.selectedIds).toEqual([neutral.id])
+  })
+
+  it('ignores stale LOH targets, listener cover stories, and targets outside the live choice', () => {
+    const { state, decider, target, neutral } = prepareDecisionState()
+    state.lohId = decider.id
+    state.lohSocialPlan = {
+      week: state.week,
+      lohId: decider.id,
+      currentTargetId: target.id,
+      backupTargetId: null,
+      askCountsByPlayerId: {},
+      disclosedTargetByPlayerId: { [neutral.id]: neutral.id },
+      disclosureOutcomeByPlayerId: { [neutral.id]: 'false' },
+    }
+
+    expect(getCurrentLohEliminationPriorityIds(state, decider.id, [target.id, neutral.id])).toEqual(
+      [target.id]
+    )
+    expect(getCurrentLohEliminationPriorityIds(state, decider.id, [neutral.id])).toEqual([])
+    expect(getCurrentLohEliminationPriorityIds(state, neutral.id, [target.id])).toEqual([])
+    state.lohSocialPlan.week -= 1
+    expect(getCurrentLohEliminationPriorityIds(state, decider.id, [target.id])).toEqual([])
   })
 
   it('includes learned jealousy weight and its evidence in the decision record', () => {

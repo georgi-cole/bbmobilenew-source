@@ -3,6 +3,8 @@ import { isBellaHeirImmune } from '../features/twists/bellasWill'
 import { isSameCupidPair } from '../features/twists/cupidArrow'
 import { canPlayerTargetPlayer, getCanonicalVoterId } from '../store/criticalGameRules'
 import type { GameState } from '../types'
+import { getPendingAutomaticNomineeId } from './automaticNomination'
+import { isProtectedSocialAlly } from './allianceTargetContinuity'
 import {
   compareIncomingClock,
   getScheduledIncomingInteractionClock,
@@ -294,7 +296,9 @@ function isNominee(game: InteractionValidityGameState, playerId: string): boolea
   // Status is a presentation/history field and can legitimately lag the live
   // block (for example, a former nominee who won Safety). Strategic dialogue
   // must only use the canonical ceremony result.
-  return (game.nomineeIds ?? []).includes(playerId)
+  return (
+    (game.nomineeIds ?? []).includes(playerId) || getPendingAutomaticNomineeId(game) === playerId
+  )
 }
 
 function sharesOffice(
@@ -664,6 +668,25 @@ export function isIncomingInteractionInvalidated(
     interaction.payload?.secondarySubjectId,
   ].filter((id): id is string => typeof id === 'string')
   if (!arePlayersEligibleForCurrentUse(namedSubjectIds, game.players ?? [])) return true
+  const originActionId = interaction.payload?.originActionId
+  if (
+    reality &&
+    typeof interaction.payload?.subjectId === 'string' &&
+    ([
+      'pitch_target',
+      'suggest_replacement',
+      'rally_votes_against',
+      'rumor',
+      'plant_lie',
+      'warn_about_player',
+    ].includes(String(originActionId)) ||
+      (!originActionId &&
+        ['generic_gossip', 'week_start_enemy_gossip', 'direct_nomination_pitch'].includes(
+          getScenarioKey(interaction) ?? ''
+        ))) &&
+    isProtectedSocialAlly(reality, undefined, interaction.fromId, interaction.payload.subjectId)
+  )
+    return true
 
   const intelFactId = interaction.payload?.intelFactId
   const intelFact = typeof intelFactId === 'string' ? reality?.facts[intelFactId] : undefined

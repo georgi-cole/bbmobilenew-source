@@ -45,6 +45,11 @@ import {
   swayAllianceVote,
 } from '../../social/allianceVoteSway'
 import {
+  REUNION_ACTION_IDS,
+  getReunionActionCosts,
+  performReunionSocialAction,
+} from '../../social/reunionSocialActions'
+import {
   allianceEventText,
   canReadAllianceEvent,
   isFormerAllianceMember,
@@ -110,8 +115,6 @@ const MOVE_FILTERS = [
   { id: 'drama', label: 'Drama' },
   { id: 'alliances', label: 'Alliances' },
 ] as const
-const REUNION_ACTION_IDS = ['compliment', 'apologize'] as const
-const REUNION_ACTION_COSTS = { energy: 0, influence: 0, info: 0 }
 
 interface AllianceQuickAction {
   action: SocialActionDefinition
@@ -276,7 +279,13 @@ export default function SocialPanelV2() {
       REUNION_ACTION_IDS.flatMap((actionId) => {
         const action = socialActions.find((candidate) => candidate.id === actionId)
         return action
-          ? [{ action, costs: REUNION_ACTION_COSTS, disabled: action.enabled === false }]
+          ? [
+              {
+                action,
+                costs: getReunionActionCosts(actionId)!,
+                disabled: action.enabled === false,
+              },
+            ]
           : []
       }),
     [socialActions]
@@ -1127,6 +1136,7 @@ export default function SocialPanelV2() {
   const targetCount = usesMultipleTargets ? selectedTargetCount : 1
 
   const totalCosts = useMemo(() => {
+    if (selectedReunionGuestId) return getReunionActionCosts(selectedActionId)
     if (isAllianceSway) return swayPlan.costs
     const baseCosts = selectedAction
       ? selectedAllianceAction
@@ -1170,6 +1180,8 @@ export default function SocialPanelV2() {
     isAllianceConsultation,
     usesMultipleTargets,
     selectedSubjectId,
+    selectedReunionGuestId,
+    selectedActionId,
   ])
 
   const energy = weekendActive
@@ -1294,7 +1306,8 @@ export default function SocialPanelV2() {
   ])
 
   const canExecute = selectedReunionGuestId
-    ? REUNION_ACTION_IDS.includes(selectedActionId as (typeof REUNION_ACTION_IDS)[number])
+    ? REUNION_ACTION_IDS.includes(selectedActionId as (typeof REUNION_ACTION_IDS)[number]) &&
+      energy >= (getReunionActionCosts(selectedActionId)?.energy ?? Infinity)
     : hasExecutableSelection && (executionEligibility.eligible || !executionEligibility.reason)
 
   const hiddenContextualActionIds = useMemo(() => {
@@ -1595,6 +1608,10 @@ export default function SocialPanelV2() {
       REUNION_ACTION_IDS.includes(selectedActionId as (typeof REUNION_ACTION_IDS)[number])
     ) {
       clearCurrentOutcome()
+      if (!dispatch(performReunionSocialAction(selectedReunionGuestId, selectedActionId!))) {
+        setFeedbackMsg('Not enough Social Energy, or the reunion has ended. Nothing was spent.')
+        return
+      }
       const targetName =
         game.players.find((player) => player.id === selectedReunionGuestId)?.name ??
         'Your former Hubmate'
@@ -2813,9 +2830,6 @@ export default function SocialPanelV2() {
                 className="sp2-subject-picker sp2-subject-picker--vote"
                 aria-label="Choose elimination targets"
               >
-                <span className="sp2-subject-picker__label">
-                  {swayPlan.maxTargets === 2 ? 'Choose up to two nominees:' : 'Choose a nominee:'}
-                </span>
                 <div className="sp2-subject-picker__chips" role="group" aria-label="Nominees">
                   {swayPlan.nominees.map((candidate) => (
                     <button
@@ -2849,7 +2863,6 @@ export default function SocialPanelV2() {
                 className="sp2-subject-picker"
                 aria-label="Choose subject"
               >
-                <span className="sp2-subject-picker__label">Choose who to ask about:</span>
                 {subjectCandidates.length === 0 ? (
                   <span className="sp2-subject-picker__empty">No eligible targets</span>
                 ) : (

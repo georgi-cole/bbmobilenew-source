@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import CastleRescueGame from '../CastleRescueGame'
 import {
@@ -24,6 +24,42 @@ beforeAll(() => {
 })
 
 describe('Find Your Twin production editions', () => {
+  it.each(['classic', 'benny-lenny'] as const)(
+    'keeps the movement finger held when the jump finger releases in %s',
+    (variant) => {
+      render(<CastleRescueGame autoStart={false} variant={variant} />)
+      const originalAdd = Set.prototype.add
+      let heldKeys: Set<string> | undefined
+      const spy = vi.spyOn(Set.prototype, 'add').mockImplementation(function (
+        this: Set<string>,
+        key: string
+      ) {
+        const result = originalAdd.call(this, key)
+        if (key === 'ArrowRight') heldKeys = result
+        return result
+      })
+      const pointer = (button: HTMLElement, type: string, pointerId: number) => {
+        const event = new Event(type, { bubbles: true, cancelable: true })
+        Object.assign(event, { pointerId, pointerType: 'touch', button: 0 })
+        fireEvent(button, event)
+      }
+      try {
+        const right = screen.getByRole('button', { name: 'Move right' })
+        const jump = screen.getByRole('button', { name: 'Jump' })
+        pointer(right, 'pointerdown', 1)
+        pointer(jump, 'pointerdown', 2)
+        expect(heldKeys?.has('Space')).toBe(true)
+        pointer(jump, 'pointerup', 2)
+        expect(heldKeys?.has('Space')).toBe(false)
+        expect(heldKeys?.has('ArrowRight')).toBe(true)
+        pointer(right, 'pointercancel', 1)
+        expect(heldKeys?.has('ArrowRight')).toBe(false)
+      } finally {
+        spy.mockRestore()
+      }
+    }
+  )
+
   it('marks the canonical game as the original edition', () => {
     const { container } = render(<CastleRescueGame autoStart={false} />)
     expect(container.querySelector('canvas')).toHaveAttribute('data-game-edition', 'original')

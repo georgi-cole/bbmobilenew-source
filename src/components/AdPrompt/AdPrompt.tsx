@@ -9,27 +9,31 @@
  * This component is purely presentational — the caller handles the actual
  * ad request and reward logic.
  */
-import type { ReactNode } from 'react';
-import { SOCIAL_ENERGY_RECHARGE_REWARD } from '../../services/ads/adsService';
-import './AdPrompt.css';
+import { useSyncExternalStore, type ReactNode } from 'react'
+import {
+  getAdAvailabilityMessage,
+  subscribeAdAvailability,
+} from '../../services/ads/adAvailability'
+import { SOCIAL_ENERGY_RECHARGE_REWARD } from '../../services/ads/adsService'
+import './AdPrompt.css'
 
 interface AdPromptProps {
   /** Modal heading (e.g. "Recharge Your Energy"). */
-  title: string;
+  title: string
   /** Body text explaining the offer (e.g. "Watch a short ad to get +3 energy."). */
-  description: string;
+  description: string
   /** Icon / emoji to display above the title. */
-  icon?: ReactNode;
+  icon?: ReactNode
   /** Label on the primary "watch ad" button. Defaults to "Watch Ad". */
-  watchLabel?: string;
+  watchLabel?: string
   /** Label on the dismiss button. Defaults to "No Thanks". */
-  skipLabel?: string;
+  skipLabel?: string
   /** Called when the user taps the "Watch Ad" button. */
-  onWatch: () => void;
+  onWatch: () => void
   /** Called when the user taps "No Thanks" or otherwise dismisses. */
-  onSkip: () => void;
+  onSkip: () => void
   /** When true, the "Watch Ad" button is disabled (e.g. ad already requested). */
-  pending?: boolean;
+  pending?: boolean
 }
 
 export default function AdPrompt({
@@ -42,22 +46,35 @@ export default function AdPrompt({
   onSkip,
   pending = false,
 }: AdPromptProps) {
+  const availabilityMessage = useSyncExternalStore(
+    subscribeAdAvailability,
+    getAdAvailabilityMessage
+  )
   // Keep the reward copy aligned with the canonical placement value even while
   // older GameScreen call sites still contain the former +3 literal.
-  const isSocialEnergyRecharge = title === 'Out of Energy!' && /social energy/i.test(description);
+  const isSocialEnergyRecharge = title === 'Out of Energy!' && /social energy/i.test(description)
   const resolvedDescription = isSocialEnergyRecharge
     ? description.replace(/\+3(?=\s+social energy)/i, `+${SOCIAL_ENERGY_RECHARGE_REWARD}`)
-    : description;
+    : description
   const resolvedWatchLabel = isSocialEnergyRecharge
     ? watchLabel.replace(/\+3(?=\s+Energy)/i, `+${SOCIAL_ENERGY_RECHARGE_REWARD}`)
-    : watchLabel;
+    : watchLabel
 
   return (
     <div className="ad-prompt__backdrop" role="dialog" aria-modal="true" aria-label={title}>
       <div className="ad-prompt__card">
-        {icon && <div className="ad-prompt__icon" aria-hidden="true">{icon}</div>}
+        {icon && (
+          <div className="ad-prompt__icon" aria-hidden="true">
+            {icon}
+          </div>
+        )}
         <h2 className="ad-prompt__title">{title}</h2>
         <p className="ad-prompt__description">{resolvedDescription}</p>
+        {availabilityMessage && (
+          <p className="ad-prompt__description" role="status">
+            {availabilityMessage}
+          </p>
+        )}
         <div className="ad-prompt__actions">
           <button
             type="button"
@@ -78,5 +95,5 @@ export default function AdPrompt({
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -14,6 +14,7 @@ import {
   updateRelationship,
 } from '../socialSlice'
 import { ALLIANCE_TAG } from '../socialAlliance'
+import { getPendingAutomaticNomineeId } from '../automaticNomination'
 import { allianceKind, isCurrentAlliance } from './allianceIdentity'
 import { getEffectiveSocialMode } from '../socialMode'
 import { resolveActionTargetMode } from '../socialActions'
@@ -1740,6 +1741,11 @@ export function buildLohConsultationSummary(
   const disclosedTargetId =
     plan.disclosedTargetByPlayerId?.[input.actorId] ?? plan.backupTargetId ?? plan.currentTargetId
   const disclosureOutcome = plan.disclosureOutcomeByPlayerId?.[input.actorId]
+  if (disclosedTargetId === getPendingAutomaticNomineeId(state.game) && disclosedTargetId) {
+    return disclosedTargetId === input.actorId
+      ? 'You already have the automatic nomination from finishing last. I cannot choose you for my opening nomination.'
+      : `${facingName(disclosedTargetId)} already has the automatic nomination from finishing last. I cannot choose them for my opening nomination.`
+  }
 
   if (
     nominationPlan &&

@@ -1,7 +1,15 @@
 import { runtimeCompetitionProfile } from '../../ai/competition/seasonAiDifficulty'
 import { SeasonAiContext } from '../../ai/competition/SeasonAiContext'
 import { useVipPresentation } from '../../cinematic/ceremonies/presentation'
-import { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  useSyncExternalStore,
+} from 'react'
 import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
 import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
@@ -122,8 +130,9 @@ import { selectSettings } from '../../store/settingsSlice'
 import { selectHasPublicModeAccess, selectIsVipActive } from '../../store/vipSlice'
 import type { RootState } from '../../store/store'
 
-import { selectAdsState, clearLastCompLastPlace, recordAdShown } from '../../store/adsSlice'
+import { selectAdsState, clearLastCompLastPlace } from '../../store/adsSlice'
 import AdPrompt from '../../components/AdPrompt/AdPrompt'
+import { requestRewardedPrompt } from './rewardedPromptRequest'
 import type { Announcement } from '../../components/ui/TvAnnouncementOverlay/TvAnnouncementOverlay'
 import {
   getBlockedSocialModuleAnnouncementMessage,
@@ -131,6 +140,10 @@ import {
 } from '../../social/socialModuleAvailability'
 import { isPublicModeEnabled, isSocialModeEnabled } from '../../modes/gameModes'
 import { showRewarded, canShowAd } from '../../services/ads/adsService'
+import {
+  getAdAvailabilityMessage,
+  subscribeAdAvailability,
+} from '../../services/ads/adAvailability'
 import { useAutomaticAdBreak } from './useAutomaticAdBreak'
 import {
   AUDIENCE_INSIGHT_PROMPT_DESCRIPTION,
@@ -330,6 +343,11 @@ export default function GameScreen() {
   const audienceChipSeenWeeksRef = useRef(new Set<number>())
   // Tracks whether a rewarded ad request has been sent (prevents double-tap).
   const [adPending, setAdPending] = useState(false)
+  const [competitionRetryMessage, setCompetitionRetryMessage] = useState<string | null>(null)
+  const adAvailabilityMessage = useSyncExternalStore(
+    subscribeAdAvailability,
+    getAdAvailabilityMessage
+  )
   const [audienceInsightAnnouncement, setAudienceInsightAnnouncement] =
     useState<Announcement | null>(null)
   const [socialModuleUnavailableAnnouncement, setSocialModuleUnavailableAnnouncement] =
@@ -1156,9 +1174,10 @@ export default function GameScreen() {
     if (!pendingChallenge) return false
     const prizeType = pendingChallenge.prizeType ?? (game.phase === 'pos_comp' ? 'POS' : 'LOH')
     if (prizeType !== 'LOH' && prizeType !== 'POS') return false
-    const state = store.getState()
-    return canShowAd('competition_retry', state, { isFinal3Week })
-  }, [pendingChallenge, game.phase, isFinal3Week, store])
+    // Keep the offer visible when advertising needs setup; the request itself
+    // still requires the player's consent and a completed rewarded ad.
+    return !isFinal3Week
+  }, [pendingChallenge, game.phase, isFinal3Week])
   const [lastAudienceInsightPromptDate, setLastAudienceInsightPromptDate] = usePersistedPromptDate(
     'public_meter_audience_insight'
   )
@@ -2198,33 +2217,50 @@ export default function GameScreen() {
             competitionRetry={{
               enabled: competitionRetryInResultsEnabled,
               pending: adPending,
+              message: competitionRetryMessage ?? adAvailabilityMessage,
+              onConfigureAds: () => navigate('/player-privacy', { state: { returnTo: '/game' } }),
               onWatch: (onReward) => {
                 if (adPending) return
-                setAdPending(true)
                 const state = storeRef.current.getState()
-                // The browser/dev build has no native rewarded-ad bridge yet.
-                // Keep the retry usable now; the native path below will gate the
-                // same reward behind a completed ad once the bridge is connected.
-                if (!window.GameAds?.showRewarded) {
-                  onReward()
-                  setAdPending(false)
+                if (!canShowAd('competition_retry', state, { isFinal3Week })) {
+                  setCompetitionRetryMessage(
+                    getAdAvailabilityMessage() ?? 'Ad rewards are unavailable right now.'
+                  )
                   return
                 }
+                setCompetitionRetryMessage(null)
+                setAdPending(true)
+                let rewarded = false
                 const requested = showRewarded(
                   'competition_retry',
                   state,
                   dispatch,
                   () => {
+                    rewarded = true
                     if (import.meta.env.DEV) {
                       console.log('[ads] competition_retry reward granted in minigame results')
                     }
                     onReward()
                     setAdPending(false)
                   },
-                  { isFinal3Week }
+                  {
+                    isFinal3Week,
+                    onDismissed: () => {
+                      setAdPending(false)
+                      if (!rewarded)
+                        setCompetitionRetryMessage(
+                          getAdAvailabilityMessage() ??
+                            'The ad did not complete. You can try again or continue with this result.'
+                        )
+                    },
+                  }
                 )
                 if (!requested) {
                   setAdPending(false)
+                  setCompetitionRetryMessage(
+                    getAdAvailabilityMessage() ??
+                      'An ad is unavailable right now. You can try again or continue with this result.'
+                  )
                 }
               },
             }}
@@ -2656,19 +2692,13 @@ export default function GameScreen() {
             skipLabel="Continue"
             onWatch={() => {
               if (adPending) return
-              setAdPending(true)
-              const state = storeRef.current.getState()
-              if (!window.GameAds?.showRewarded) {
-                dispatch(recordAdShown('eviction_vote_breakdown'))
-                unlockVoteBreakdown()
-                return
-              }
-              const requested = showRewarded('eviction_vote_breakdown', state, dispatch, () =>
-                unlockVoteBreakdown()
-              )
-              if (!requested) {
-                unlockVoteBreakdown()
-              }
+              requestRewardedPrompt({
+                placement: 'eviction_vote_breakdown',
+                state: storeRef.current.getState(),
+                dispatch,
+                onReward: unlockVoteBreakdown,
+                setPending: setAdPending,
+              })
             }}
             onSkip={handleVoteBreakdownSkip}
             pending={adPending}
@@ -2684,20 +2714,13 @@ export default function GameScreen() {
             skipLabel="Keep the Ballots Secret"
             onWatch={() => {
               if (adPending) return
-              setAdPending(true)
-              const state = storeRef.current.getState()
-              if (!window.GameAds?.showRewarded) {
-                dispatch(recordAdShown('vox_nomination_breakdown'))
-                unlockVoxNominationReveal()
-                return
-              }
-              const requested = showRewarded(
-                'vox_nomination_breakdown',
-                state,
+              requestRewardedPrompt({
+                placement: 'vox_nomination_breakdown',
+                state: storeRef.current.getState(),
                 dispatch,
-                unlockVoxNominationReveal
-              )
-              if (!requested) unlockVoxNominationReveal()
+                onReward: unlockVoxNominationReveal,
+                setPending: setAdPending,
+              })
             }}
             onSkip={declineVoxNominationReveal}
             pending={adPending}
@@ -2715,20 +2738,13 @@ export default function GameScreen() {
               skipLabel="Not Yet"
               onWatch={() => {
                 if (adPending) return
-                setAdPending(true)
-                const state = storeRef.current.getState()
-                if (!window.GameAds?.showRewarded) {
-                  dispatch(recordAdShown('vox_audience_preview'))
-                  unlockVoxAudiencePreview()
-                  return
-                }
-                const requested = showRewarded(
-                  'vox_audience_preview',
-                  state,
+                requestRewardedPrompt({
+                  placement: 'vox_audience_preview',
+                  state: storeRef.current.getState(),
                   dispatch,
-                  unlockVoxAudiencePreview
-                )
-                if (!requested) unlockVoxAudiencePreview()
+                  onReward: unlockVoxAudiencePreview,
+                  setPending: setAdPending,
+                })
               }}
               onSkip={() => {
                 setShowVoxAudiencePreviewPrompt(false)
@@ -2794,15 +2810,13 @@ export default function GameScreen() {
             watchLabel="Watch Ad for +6 Energy"
             onWatch={() => {
               if (adPending) return
-              setAdPending(true)
-              const state = storeRef.current.getState()
-              const requested = showRewarded('social_energy_recharge', state, dispatch, () => {
-                setShowEnergyRechargePrompt(false)
-                setAdPending(false)
+              requestRewardedPrompt({
+                placement: 'social_energy_recharge',
+                state: storeRef.current.getState(),
+                dispatch,
+                onReward: () => setShowEnergyRechargePrompt(false),
+                setPending: setAdPending,
               })
-              if (!requested) {
-                setAdPending(false)
-              }
             }}
             onSkip={() => setShowEnergyRechargePrompt(false)}
             pending={adPending}
@@ -2818,13 +2832,11 @@ export default function GameScreen() {
             watchLabel="Watch Ad for Audience Insight"
             onWatch={() => {
               if (adPending) return
-              setAdPending(true)
-              const state = storeRef.current.getState()
-              const requested = showRewarded(
-                'public_meter_audience_insight',
-                state,
+              requestRewardedPrompt({
+                placement: 'public_meter_audience_insight',
+                state: storeRef.current.getState(),
                 dispatch,
-                () => {
+                onReward: () => {
                   const latestState = storeRef.current.getState()
                   const profile = latestState.publicOpinion?.profiles?.[humanPlayer.id]
                   if (profile) {
@@ -2845,12 +2857,9 @@ export default function GameScreen() {
                     })
                   }
                   setShowAudienceInsightPrompt(false)
-                  setAdPending(false)
-                }
-              )
-              if (!requested) {
-                setAdPending(false)
-              }
+                },
+                setPending: setAdPending,
+              })
             }}
             onSkip={() => setShowAudienceInsightPrompt(false)}
             pending={adPending}
@@ -2866,27 +2875,14 @@ export default function GameScreen() {
             skipLabel="Continue"
             onWatch={() => {
               if (adPending) return
-              setAdPending(true)
-              const restartBattleBack = () => {
-                handleBattleBackRetryGranted()
-                setAdPending(false)
-              }
-              const state = storeRef.current.getState()
-              if (!window.GameAds?.showRewarded) {
-                dispatch(recordAdShown('competition_retry'))
-                restartBattleBack()
-                return
-              }
-              const requested = showRewarded(
-                'competition_retry',
-                state,
+              requestRewardedPrompt({
+                placement: 'competition_retry',
+                state: storeRef.current.getState(),
                 dispatch,
-                () => restartBattleBack(),
-                { isFinal3Week }
-              )
-              if (!requested) {
-                setAdPending(false)
-              }
+                onReward: handleBattleBackRetryGranted,
+                setPending: setAdPending,
+                isFinal3Week,
+              })
             }}
             onSkip={handleBattleBackRetryDeclined}
             pending={adPending}

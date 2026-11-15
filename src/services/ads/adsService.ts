@@ -16,6 +16,7 @@ import { hasEffectiveStoreEntitlement } from '../../vip/effectiveEntitlements'
 import { IS_MOBILE_DEV_BUILD } from '../../config/buildTarget'
 import { setEnergyBankEntry } from '../../social/socialSlice'
 import { canUseOptionalFeature, subscribePlayerSafety } from '../../safety/playerSafety'
+export { getAdAvailabilityMessage } from './adAvailability'
 
 export const SOCIAL_ENERGY_RECHARGE_REWARD = 6
 

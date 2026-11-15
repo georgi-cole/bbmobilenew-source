@@ -2950,6 +2950,7 @@
   }
 
   .sp2-focus {
+    align-self: stretch;
     max-height: none;
     overflow: visible;
   }

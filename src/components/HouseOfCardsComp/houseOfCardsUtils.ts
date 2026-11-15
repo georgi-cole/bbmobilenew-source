@@ -268,10 +268,11 @@ export const HOUSE_OF_CARDS_TOOL_POOL: readonly HouseOfCardsRoundToolId[] = [
   'replay',
 ]
 
-/** A separate random stream keeps the offer stable across rounds and reloads. */
+/** Each round rotates a seeded pool: fresh choices, shared by every player and stable on reload. */
 export function getHouseOfCardsAttemptToolOffer(
   sessionSeed: number,
-  attemptNumber = 0
+  attemptNumber = 0,
+  round = 1
 ): HouseOfCardsRoundToolId[] {
   const rng = mulberry32(
     (sessionSeed ^ Math.imul(attemptNumber + 1, 0x27d4eb2d) ^ 0x635a21ef) >>> 0
@@ -281,5 +282,6 @@ export function getHouseOfCardsAttemptToolOffer(
     const swap = Math.floor(rng() * (index + 1))
     ;[pool[index], pool[swap]] = [pool[swap]!, pool[index]!]
   }
-  return pool.slice(0, 3)
+  const offset = Math.max(0, Math.floor(round) - 1) % pool.length
+  return Array.from({ length: 3 }, (_unused, index) => pool[(offset + index) % pool.length]!)
 }

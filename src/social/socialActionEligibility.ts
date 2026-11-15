@@ -164,7 +164,7 @@ export function evaluateSocialActionEligibility({
   if (
     actorId &&
     reality &&
-    ['proposeAlliance', 'ally'].includes(action.id) &&
+    ['proposeAlliance', 'ally', 'ride_or_die'].includes(action.id) &&
     targets.some((id) => getCurrentPact(reality, actorId, id))
   )
     return unavailable('You already share a personal pact')

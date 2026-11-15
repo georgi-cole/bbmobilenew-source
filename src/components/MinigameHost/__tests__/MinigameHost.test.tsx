@@ -260,6 +260,37 @@ describe('MinigameHost competition retry', () => {
     expect(screen.getByRole('button', { name: 'Continue ▶' })).toBeInTheDocument()
   })
 
+  it('retains the result and explains advertising setup instead of hiding Reverse Time', () => {
+    const onDone = vi.fn()
+    const onConfigureAds = vi.fn()
+    const onWatch = vi.fn()
+    render(
+      <MinigameHost
+        game={baseGame}
+        onDone={onDone}
+        skipRules
+        skipCountdown
+        participants={makeParticipants(0, 50)}
+        competitionRetry={{
+          enabled: true,
+          message: 'Optional advertising is off.',
+          onConfigureAds,
+          onWatch,
+        }}
+      />
+    )
+    act(() => {
+      vi.runAllTimers()
+    })
+    exitMinigame()
+    expect(screen.getByRole('button', { name: 'Reverse time' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Optional advertising is off.')
+    fireEvent.click(screen.getByRole('button', { name: 'Advertising settings' }))
+    expect(onConfigureAds).toHaveBeenCalledOnce()
+    expect(onWatch).not.toHaveBeenCalled()
+    expect(onDone).not.toHaveBeenCalled()
+  })
+
   it('uses the alternative-universe treatment when the human organically finishes last', () => {
     render(
       <MinigameHost
