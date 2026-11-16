@@ -196,7 +196,7 @@ function advanceToFinalDuel(state: MajorityRulesState) {
   const finalists = getFinalists(state)
   if (!finalists) return
   state.threeWayDuel = null
-  state.finalDuel = initializeDiceDuel(finalists)
+  state.finalDuel = initializeDiceDuel(finalists, state.seed)
   state.phase = 'final_duel_pick'
   ensureAiFinalDuelPicks(state)
 }
@@ -226,7 +226,7 @@ function ensureAiThreeWayDuelPicks(state: MajorityRulesState) {
 function seedOpeningFinalDuel(state: MajorityRulesState) {
   const finalists = getFinalists(state)
   if (!finalists) return
-  state.finalDuel = initializeDiceDuel(finalists)
+  state.finalDuel = initializeDiceDuel(finalists, state.seed)
 }
 
 function prepareOpeningPhase(state: MajorityRulesState) {

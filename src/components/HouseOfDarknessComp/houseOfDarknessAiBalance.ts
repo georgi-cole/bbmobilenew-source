@@ -1,9 +1,15 @@
 import { mulberry32 } from '../../store/rng'
 import {
   simulateHouseOfCardsAiRound,
+  type HouseOfCardsAiMemoryProfile,
   type HouseOfCardsRoundPerformance,
 } from '../../features/houseOfCards/houseOfCardsAi'
-import type { HouseOfDarknessCharmId } from './houseOfDarknessUtils'
+import {
+  applyHouseOfDarknessMistakes,
+  recoverHouseOfDarknessHealth,
+  type DamageResolution,
+  type HouseOfDarknessCharmId,
+} from './houseOfDarknessUtils'
 import {
   orderMinigameTargets,
   type MinigameStrategicContext,
@@ -26,10 +32,104 @@ export function simulateHouseOfDarknessAiMemory(params: {
   recentMistakes?: number
 }): HouseOfCardsRoundPerformance {
   const { charm, ...simulation } = params
+  const normalizedAbility = clamp(params.sessionAbility / 100, 0, 1)
+  const memoryProfile: HouseOfCardsAiMemoryProfile = {
+    memoryStoreChance: clamp(0.93 + normalizedAbility * 0.07, 0.93, 0.99),
+    memoryAccessChance: 1,
+    recallChance: clamp(0.86 + normalizedAbility * 0.14, 0.86, 0.98),
+    misrememberChance: clamp(0.04 - normalizedAbility * 0.03, 0.01, 0.04),
+  }
   return simulateHouseOfCardsAiRound({
     ...simulation,
     tool: charm === 'peek' ? 'peek' : 'shield',
+    peekReveals: charm === 'peek' ? 1 : 0,
+    forceTool: true,
+    memoryProfile,
   })
+}
+
+/** A surviving simulation only clears the board after every pair is matched. */
+export function didHouseOfDarknessAiCompleteBoard(params: {
+  completedPairs: number
+  pairCount: number
+  lethalMistakeIndex: number | null
+}): boolean {
+  return params.completedPairs >= params.pairCount && params.lethalMistakeIndex === null
+}
+
+export interface HouseOfDarknessAiBoardOutcome {
+  performance: HouseOfCardsRoundPerformance
+  damageResolution: DamageResolution
+  completedBoard: boolean
+  mistakesTaken: number
+  elapsedMs: number
+  endingHealth: number
+  alive: boolean
+}
+
+/** Resolve the same complete-board and survival rules used for a human round. */
+export function simulateHouseOfDarknessAiBoard(params: {
+  playerId: string
+  round: number
+  pairCount: number
+  tournamentSeed: number
+  sessionAbility: number
+  health: number
+  charm: HouseOfDarknessCharmId
+  recentMistakes?: number
+  curseCharges?: number
+  omenDamageBonus?: number
+  firstMistakeBonus?: number
+  recoveryBonus?: number
+}): HouseOfDarknessAiBoardOutcome {
+  const performance = simulateHouseOfDarknessAiMemory(params)
+  const damageResolution = applyHouseOfDarknessMistakes({
+    health: params.health,
+    sessionSeed: params.tournamentSeed,
+    playerId: params.playerId,
+    round: params.round,
+    mistakeStartIndex: 0,
+    mistakeCount: performance.mistakes,
+    damageBonus: (params.omenDamageBonus ?? 0) + (params.charm === 'bargain' ? 3 : 0),
+    firstMistakeBonus: params.firstMistakeBonus,
+    curseCharges: params.charm === 'cleanse' ? 0 : params.curseCharges,
+    shieldBlocks: params.charm === 'shield' ? 2 : 0,
+    lastChanceAvailable: params.charm === 'last-chance',
+  })
+  const completedBoard = didHouseOfDarknessAiCompleteBoard({
+    completedPairs: performance.completedPairs,
+    pairCount: params.pairCount,
+    lethalMistakeIndex: damageResolution.lethalMistakeIndex,
+  })
+  const mistakesTaken =
+    damageResolution.lethalMistakeIndex === null
+      ? performance.mistakes
+      : damageResolution.lethalMistakeIndex + 1
+  const elapsedMs =
+    damageResolution.lethalMistakeIndex === null
+      ? performance.timeMs
+      : Math.max(
+          1,
+          Math.round((performance.timeMs * mistakesTaken) / Math.max(1, performance.mistakes))
+        )
+  const endingHealth = recoverHouseOfDarknessHealth(
+    damageResolution.health,
+    damageResolution.damage,
+    completedBoard,
+    (params.charm === 'heal' ? 8 : params.charm === 'bargain' ? 14 : 0) +
+      (params.recoveryBonus ?? 0),
+    !damageResolution.lastChanceUsed
+  )
+
+  return {
+    performance,
+    damageResolution,
+    completedBoard,
+    mistakesTaken,
+    elapsedMs,
+    endingHealth,
+    alive: completedBoard && endingHealth > 0,
+  }
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -37,20 +137,20 @@ function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 /**
- * Adapts the original Deck of Cards AI profile for an accumulating survival run.
- * Even elite profiles begin inside a human performance band, then memory decays
- * steadily with round fatigue and slips further as lifespan pressure accumulates.
+ * Adapt the original Deck of Cards AI profile for a longer survival run.
+ * Board size and damage already add difficulty, so fatigue and health pressure
+ * stay modest instead of stacking a steep skill penalty on every round.
  */
 export function getHouseOfDarknessAiAbility({
   baseAbility,
   round,
   health,
 }: HouseOfDarknessAiAbilityParams): number {
-  const compressedAbility = 43 + (baseAbility - 55) * 0.3
-  const fatiguePenalty = Math.min(34, Math.max(0, round - 1) * 2.6)
-  const pressurePenalty = health < 75 ? Math.min(8, (75 - health) * 0.14) : 0
+  const compressedAbility = 55 + (baseAbility - 55) * 0.9
+  const fatiguePenalty = Math.min(3, Math.max(0, round - 1) * 0.6)
+  const pressurePenalty = health < 75 ? Math.min(3, (75 - health) * 0.04) : 0
 
-  return Math.round(clamp(compressedAbility - fatiguePenalty - pressurePenalty, 18, 56))
+  return Math.round(clamp(compressedAbility - fatiguePenalty - pressurePenalty, 18, 85))
 }
 export interface HouseOfDarknessAiCharmContext {
   playerId: string
@@ -192,7 +292,7 @@ export function chooseHouseOfDarknessAiCharm(
   const nearBest = scores.filter(
     (entry) => entry.value >= best.value - Math.max(2.5, Math.abs(best.value) * 0.22)
   )
-  const exploratory = rng() >= 0.8
+  const exploratory = rng() >= 0.95
   const pool = exploratory ? scores : nearBest
   const chosen = pool[Math.floor(rng() * pool.length)] ?? best
   const targetId = chosen.charm === 'curse' && averageTarget ? averageTarget.id : undefined

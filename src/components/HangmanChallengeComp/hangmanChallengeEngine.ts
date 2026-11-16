@@ -884,3 +884,65 @@ export function simulateAiRound(params: {
     purchases,
   }
 }
+
+export interface FinalAiGuessDecision {
+  skill: number
+  minimumVisibleLetters: number
+  buzzDelayMs: number
+  willBuzz: boolean
+  correct: boolean
+  confidence: number
+}
+
+/**
+ * Models the finale AI from information a player can see: board progress,
+ * word difficulty, and its season capability. The hidden answer is not an input.
+ */
+export function simulateFinalAiGuess(input: {
+  seed: number
+  playerId: string
+  revealCycle: number
+  visibleLetters: number
+  totalLetters: number
+  difficulty: WordDifficulty
+  aiCapability?: number
+  attemptedWords?: number
+}): FinalAiGuessDecision {
+  const capability = clamp(
+    Number.isFinite(input.aiCapability) ? Number(input.aiCapability) : 1,
+    0,
+    1
+  )
+  const baseSkill = 0.45 + (hashString(input.playerId) % 40) / 100
+  const skill = clamp(baseSkill * capability, 0.2, 1)
+  const difficulty = clamp(input.difficulty, 1, 5)
+  const totalLetters = Math.max(1, Math.floor(input.totalLetters))
+  const visibleLetters = clamp(Math.floor(input.visibleLetters), 0, totalLetters)
+  const progress = visibleLetters / totalLetters
+  const attempts = Math.max(0, Math.floor(input.attemptedWords ?? 0))
+  const readinessRatio = clamp(
+    0.34 + (1 - skill) * 0.28 + (difficulty - 1) * 0.015 + attempts * 0.025,
+    0.34,
+    0.82
+  )
+  const minimumVisibleLetters = Math.min(
+    totalLetters,
+    Math.max(3, Math.ceil(totalLetters * readinessRatio))
+  )
+  const confidence = clamp(progress + skill * 0.2 - (difficulty - 1) * 0.025, 0.1, 0.96)
+  const random = mulberry32(
+    (input.seed ^ hashString(`final-ai:${input.playerId}:${input.revealCycle}`)) >>> 0
+  )
+  const jitter = random()
+  const buzzChance = clamp(0.15 + Math.max(0, confidence - 0.35) * 0.55, 0, 0.7)
+  const solveChance = clamp(0.28 + confidence * 0.58, 0, 0.86)
+
+  return {
+    skill,
+    minimumVisibleLetters,
+    buzzDelayMs: Math.min(4200, 2400 + Math.round((1 - skill) * 900) + Math.floor(jitter * 900)),
+    willBuzz: visibleLetters >= minimumVisibleLetters && random() < buzzChance,
+    correct: random() < solveChance,
+    confidence,
+  }
+}

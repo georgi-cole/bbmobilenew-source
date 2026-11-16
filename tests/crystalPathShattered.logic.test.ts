@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/store/rng';
 import {
   applyMysteryEffect,
+  applyOverTimeSpTick,
+  aiPickSide,
   buildSummary,
   createRowStream,
   EFFECT_DURATION_MS,
@@ -181,6 +183,22 @@ describe('shatteredLogic · ranking', () => {
 });
 
 describe('shatteredLogic · async AI simulation', () => {
+  it('keeps blind choices at 50/50 regardless of the hidden safe side', () => {
+    const draws = Array.from({ length: 100 }, (_, index) => index / 100)
+    const picksFor = (safeSide: 'left' | 'right') =>
+      draws.map((draw) => aiPickSide(
+        { index: 0, safeSide, hasMystery: false },
+        'gambler',
+        () => draw,
+      ))
+
+    const leftSafePicks = picksFor('left')
+    const rightSafePicks = picksFor('right')
+    expect(leftSafePicks).toEqual(rightSafePicks)
+    expect(leftSafePicks.filter((side) => side === 'left')).toHaveLength(50)
+    expect(leftSafePicks.filter((side) => side === 'right')).toHaveLength(50)
+  })
+
   it('keeps moving to the next row after a wrong tile if SP remains', () => {
     const rows: BridgeRow[] = [{ index: 0, safeSide: 'left', hasMystery: false }];
     const result = simulateAiRun(
@@ -194,6 +212,78 @@ describe('shatteredLogic · async AI simulation', () => {
     expect(result.player.sp).toBe(STARTING_SP - 10);
     expect(result.player.eliminated).toBe(false);
   });
+
+  it('ticks regeneration and drain during turn delays', () => {
+    const row: BridgeRow = { index: 0, safeSide: 'right', hasMystery: false };
+    const drain: ActiveEffect = { kind: 'drain_5s', expiresAt: 5_000 };
+    const result = simulateAiRun(
+      mkPlayer({ id: 'ai', name: 'AI', sp: 10, effects: [drain] }),
+      [row],
+      'cautious',
+      () => 0.99,
+    );
+
+    expect(result.player.sp).toBe(2);
+    expect(result.player.eliminated).toBe(false);
+  });
+
+  it('keeps one 500ms cadence when a mystery adds regeneration during active drain', () => {
+    const rows: BridgeRow[] = [
+      { index: 0, safeSide: 'left', hasMystery: true },
+      { index: 1, safeSide: 'left', hasMystery: false },
+      { index: 2, safeSide: 'left', hasMystery: false },
+    ];
+    const draws = [0, 0, 0.45, 0.99, 0.1, 0, 0.99, 0.1, 0, 0.99, 0.1];
+    let calls = 0;
+    const result = simulateAiRun(
+      mkPlayer({
+        id: 'ai',
+        name: 'AI',
+        sp: STARTING_SP,
+        effects: [{ kind: 'drain_5s', expiresAt: 5_000 }],
+      }),
+      rows,
+      'balanced',
+      () => draws[calls++] ?? 0.1,
+    );
+
+    // Drain ticks at 500ms, then the overlapping regen cancels it until drain
+    // expires; the two remaining regen ticks leave a net +2 SP.
+    expect(result.player.sp).toBe(STARTING_SP + 2);
+    expect(result.player.effects).toEqual([]);
+    expect(result.player.eliminated).toBe(false);
+  });
+
+  it('eliminates an AI when drain reaches zero before its next choice', () => {
+    const row: BridgeRow = { index: 0, safeSide: 'right', hasMystery: false };
+    const drain: ActiveEffect = { kind: 'drain_5s', expiresAt: 5_000 };
+    const result = simulateAiRun(
+      mkPlayer({ id: 'ai', name: 'AI', sp: 4, effects: [drain] }),
+      [row],
+      'cautious',
+      () => 0.99,
+    );
+
+    expect(result.player.eliminated).toBe(true);
+    expect(result.player.eliminatedRow).toBe(1);
+    expect(result.player.furthestRow).toBe(0);
+  });
+
+  it('follows the true tile only when spending a hint', () => {
+    const rows: BridgeRow[] = [{ index: 0, safeSide: 'left', hasMystery: false }];
+    const values = [0.1, 0.2, 0.99];
+    let calls = 0;
+    const result = simulateAiRun(
+      mkPlayer({ id: 'ai', name: 'AI', hints: 1 }),
+      rows,
+      'cautious',
+      () => values[calls++] ?? 0.99,
+    );
+
+    expect(result.player.hints).toBe(0);
+    expect(result.player.sp).toBe(STARTING_SP);
+    expect(result.player.eliminated).toBe(false);
+  });
 });
 
 describe('shatteredLogic · summary', () => {
@@ -204,5 +294,17 @@ describe('shatteredLogic · summary', () => {
     expect(summary.secretWinner).toBe(true);
     expect(summary.winnerId).toBe('a');
     expect(summary.furthestRow.a).toBe(HIDDEN_BRIDGE_LENGTH);
+  });
+});
+
+describe('shatteredLogic — over-time SP effects', () => {
+  it('applies the shared ±2 SP tick only while the effect is active', () => {
+    const regen: ActiveEffect = { kind: 'regen_5s', expiresAt: 1_000 };
+    const drain: ActiveEffect = { kind: 'drain_5s', expiresAt: 1_000 };
+
+    expect(applyOverTimeSpTick(100, [regen], 500)).toBe(102);
+    expect(applyOverTimeSpTick(100, [drain], 500)).toBe(98);
+    expect(applyOverTimeSpTick(STARTING_SP + 100, [regen], 500)).toBe(STARTING_SP + 100);
+    expect(applyOverTimeSpTick(100, [regen], 1_000)).toBe(100);
   });
 });

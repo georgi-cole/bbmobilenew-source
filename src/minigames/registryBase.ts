@@ -339,12 +339,12 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
   holdWall: {
     key: 'holdWall',
     title: 'Hold the Wall',
-    description: 'Endurance competition — press and hold the wall, last player standing wins.',
+    description: 'Endurance competition - press and hold the wall. The last player standing wins.',
     instructions: [
       'Press and HOLD the wall panel to stay in the competition.',
       'Releasing the wall means you drop out immediately.',
       'AI players will drop off at random times — outlast them all.',
-      'Last player standing wins the prize.',
+      'If more than one player is still holding after 120 seconds, a tie-break decides the prize.',
     ],
     resultMode: 'placement',
     metricKind: 'endurance',

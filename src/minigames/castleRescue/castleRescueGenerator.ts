@@ -18,6 +18,7 @@
 
 import { mulberry32 } from '../../store/rng';
 import { PIPE_SLOT_COUNT, CORRECT_ROUTE_LENGTH } from './castleRescueConstants';
+import type { CastleRescueScoreVariant } from './castleRescueConstants';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -67,7 +68,10 @@ export interface LevelConfig {
  * mulberry32, and takes the first CORRECT_ROUTE_LENGTH shuffled positions as
  * the ordered correct route.
  */
-export function generateLevelConfig(seed: number): LevelConfig {
+export function generateLevelConfig(
+  seed: number,
+  variant: CastleRescueScoreVariant = 'classic',
+): LevelConfig {
   const rng = mulberry32((seed ^ 0xCAFEBABE) >>> 0);
 
   const slots: number[] = Array.from({ length: PIPE_SLOT_COUNT }, (_, i) => i);
@@ -87,7 +91,8 @@ export function generateLevelConfig(seed: number): LevelConfig {
   // Fisher-Yates shuffle of all four types, then take the first three so every
   // run is guaranteed to have three distinct wrong-pipe behaviors, with one
   // of the four possible types left unused per run.
-  const allWrongTypes: WrongPipeType[] = ['setback', 'bonus', 'ambush', 'dead'];
+  const allWrongTypes: WrongPipeType[] =
+    variant === 'lostAgain' ? ['setback', 'bonus', 'ambush'] : ['setback', 'bonus', 'ambush', 'dead'];
   for (let i = allWrongTypes.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     const tmp = allWrongTypes[i];

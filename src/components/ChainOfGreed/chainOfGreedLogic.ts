@@ -596,10 +596,161 @@ export function decideAiAction(options: {
     player.personality.caution * 0.2 +
     volatilitySwing +
     pressureBias
-  const higherScore = odds.higher + bias / (options.aiCapability ?? 1)
-  const lowerScore = odds.lower - bias / (options.aiCapability ?? 1)
-  if (odds.equal > Math.max(higherScore, lowerScore)) return 'equal'
-  return higherScore >= lowerScore ? 'higher' : 'lower'
+  const capability = clamp(options.aiCapability ?? 1, 0.5, 2)
+  // Personality can nudge a public-odds decision, but it must never turn an
+  // impossible call into the best-scoring one.
+  const directionalBias = clamp((bias / capability) * 0.08, -0.1, 0.1)
+  const choices: Array<{ choice: Exclude<ChainAction, 'bank'>; score: number }> = [
+    { choice: 'higher', score: odds.higher + directionalBias },
+    { choice: 'equal', score: odds.equal },
+    { choice: 'lower', score: odds.lower - directionalBias },
+  ]
+  const possibleChoices = choices.filter(({ choice }) => odds[choice] > 0)
+  return possibleChoices.reduce((best, candidate) =>
+    candidate.score > best.score ? candidate : best
+  ).choice
+}
+
+/** Estimate active time for one AI choice; reveal and animation time is excluded. */
+export function getChainAiDecisionDurationMs(options: {
+  player: ChainOfGreedPlayerState
+  chain: ChainOfGreedChainState
+  aiCapability?: number
+  bankAvailable: boolean
+  rng: () => number
+}) {
+  const { player, chain, bankAvailable, rng } = options
+  const odds = getNextNumberOdds(chain)
+  const maxCallProbability = Math.max(odds.higher, odds.equal, odds.lower)
+  const uncertainty = 1 - maxCallProbability
+  const bankChoiceComplexity = bankAvailable && chain.pot > 0 ? 150 : 0
+  const capability = clamp(options.aiCapability ?? 1, 0.5, 2)
+  const capabilityFactor = 1 / Math.sqrt(capability)
+  const personalityFactor = clamp(
+    1 +
+      (player.personality.caution - 0.5) * 0.18 +
+      (player.personality.volatility - 0.5) * 0.08 -
+      (player.personality.aggression - 0.5) * 0.12,
+    0.85,
+    1.15
+  )
+  const baselineMs = 700 + uncertainty * 600 + bankChoiceComplexity
+  const variation = 0.75 + rng() * 0.5
+  return Math.max(250, Math.round(baselineMs * capabilityFactor * personalityFactor * variation))
+}
+
+export interface SimulatedFinalAiRound {
+  chain: ChainOfGreedChainState
+  score: number
+  mistakes: number
+  correct: number
+  banks: number
+  recovered: number
+  lost: number
+  safetyAvailable: boolean
+  immunityEarned: boolean
+  actions: number
+}
+
+/** Simulate the AI's 30-second active decision window, matching the human timer. */
+export function simulateFinalAiWindow(
+  aiPlayer: ChainOfGreedPlayerState,
+  startChain: ChainOfGreedChainState,
+  startScore: number,
+  durationMs: number,
+  activePlayers: ChainOfGreedPlayerState[],
+  rng: () => number,
+  allowPawn: boolean,
+  aiCapability = 1
+): SimulatedFinalAiRound {
+  let chain = startChain
+  let score = startScore
+  let mistakes = 0
+  let correct = 0
+  let banks = 0
+  let recovered = 0
+  let lost = 0
+  let safetyAvailable = aiPlayer.safetyAvailable
+  let immunityEarned = false
+  let virtualTimeRemaining = durationMs
+  let bankAvailableForSim = true
+  let actions = 0
+
+  // The shared human timer pauses during the reveal pipeline and resumes with
+  // its remaining active time. Model the same active-time budget here without
+  // an AI-only action cap.
+  while (virtualTimeRemaining > 0) {
+    const thinkingTime = getChainAiDecisionDurationMs({
+      player: aiPlayer,
+      chain,
+      aiCapability,
+      bankAvailable: bankAvailableForSim,
+      rng,
+    })
+    if (thinkingTime > virtualTimeRemaining) break
+    virtualTimeRemaining -= thinkingTime
+
+    const remainingDecisions = Math.max(1, Math.floor(virtualTimeRemaining / 3_600))
+    const soloMove: ReturnType<typeof decideSoloRushMove> | null = allowPawn
+      ? decideSoloRushMove(
+          aiPlayer,
+          chain,
+          score,
+          bankAvailableForSim,
+          virtualTimeRemaining / 1_000
+        )
+      : null
+    const choice: ChainAction =
+      soloMove?.choice ??
+      decideAiAction({
+        aiCapability,
+        player: aiPlayer,
+        chain,
+        remainingTurns: remainingDecisions,
+        phase: 'final',
+        activePlayers,
+        playerScore: score,
+        bankAvailable: bankAvailableForSim,
+      })
+    const pawnStake = soloMove?.pawnStake ?? 0
+    const useSafety =
+      pawnStake === 0 && safetyAvailable && shouldAiUseSafety(aiPlayer, chain, choice)
+    const resolution = resolveChainAction(choice, chain, rng, useSafety)
+    score =
+      pawnStake > 0
+        ? resolvePawnedRoundBank(
+            score,
+            pawnStake,
+            Boolean(resolution.wasCorrect),
+            resolution.individualDelta
+          )
+        : score + resolution.individualDelta
+    if (resolution.wasCorrect) correct += 1
+    else if (resolution.wasCorrect === false) mistakes += 1
+    banks += choice === 'bank' ? 1 : 0
+    recovered += resolution.recoveredDelta
+    lost += resolution.lostAmount
+    safetyAvailable = resolution.safetyUsed ? false : safetyAvailable
+    chain = resolution.updatedChain
+    if (resolution.wasCorrect && resolution.updatedChain.step >= CHAIN_LADDER.length) {
+      immunityEarned = true
+    }
+    bankAvailableForSim = choice !== 'bank'
+    actions += 1
+  }
+
+  return {
+    chain,
+    score,
+    mistakes,
+    correct,
+    banks,
+    recovered,
+    lost,
+    safetyAvailable,
+    immunityEarned,
+    actions,
+  }
 }
 
 export interface SoloRushAiMove {

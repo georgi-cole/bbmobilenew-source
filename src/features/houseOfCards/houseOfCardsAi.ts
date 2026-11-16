@@ -30,6 +30,13 @@ export interface HouseOfCardsRoundPerformance {
   toolOutcome: string
 }
 
+export interface HouseOfCardsAiMemoryProfile {
+  memoryStoreChance: number
+  memoryAccessChance: number
+  recallChance: number
+  misrememberChance: number
+}
+
 export interface HouseOfCardsAiWagerParams {
   playerId: string
   round: number
@@ -136,11 +143,14 @@ export function simulateHouseOfCardsAiRound(params: {
   peekReveals?: number
   recentMistakes?: number
   isBehind?: boolean
+  memoryProfile?: Partial<HouseOfCardsAiMemoryProfile>
+  /** Force a caller-owned tool set when its offers differ from Deck of Light. */
+  forceTool?: boolean
 }): HouseOfCardsRoundPerformance {
   const { playerId, round, pairCount, tournamentSeed, sessionAbility } = params
   const offered = getHouseOfCardsAttemptToolOffer(tournamentSeed, params.attemptNumber, round)
   const tool =
-    params.tool && offered.includes(params.tool)
+    params.tool && (params.forceTool || offered.includes(params.tool))
       ? params.tool
       : chooseHouseOfCardsAiTool({ ...params, isBehind: params.isBehind ?? false })
   const roundSeed = (tournamentSeed ^ Math.imul(round, 0x85ebca6b)) >>> 0
@@ -154,9 +164,18 @@ export function simulateHouseOfCardsAiRound(params: {
   const abilityForm = (outcomeRng() + outcomeRng() + outcomeRng() + outcomeRng()) / 4 - 0.5
   const ability = clamp(sessionAbility + abilityForm * 22, 20, 90)
   const ability01 = ability / 100
-  const memoryStoreChance = clamp(0.34 + ability01 * 0.48, 0.42, 0.82)
-  const recallChance = clamp(0.22 + ability01 * 0.46, 0.28, 0.72)
-  const memoryAccessChance = clamp(0.48 + ability01 * 0.34, 0.54, 0.84)
+  const memoryStoreChance = clamp(
+    params.memoryProfile?.memoryStoreChance ?? 0.76 + ability01 * 0.23,
+    0,
+    1
+  )
+  const recallChance = clamp(params.memoryProfile?.recallChance ?? 0.72 + ability01 * 0.25, 0, 1)
+  const memoryAccessChance = clamp(params.memoryProfile?.memoryAccessChance ?? 1, 0, 1)
+  const misrememberChance = clamp(
+    params.memoryProfile?.misrememberChance ?? 0.055 - ability01 * 0.025,
+    0,
+    1
+  )
   const seen = new Set<number>()
   const keptOpen = new Set<number>()
   const remembered = new Map<number, string>()
@@ -175,8 +194,10 @@ export function simulateHouseOfCardsAiRound(params: {
   const peekReveals = tool === 'peek' ? (params.peekReveals ?? HOUSE_OF_CARDS_PEEK_REVEALS) : 0
   let peeksRemaining = peekReveals
 
-  const maxAttempts = Math.max(8, pairCount * 5)
-  while (completedPairs < pairCount && attemptCount < maxAttempts) {
+  // Humans can keep playing until every pair is found. Keep the simulated AI
+  // under the same completion rule; its fallible memory controls the number of
+  // attempts rather than an artificial early stop.
+  while (completedPairs < pairCount) {
     attemptCount += 1
     const available = cards.filter((card) => !matched.has(card.index))
     if (available.length < 2) break
@@ -199,7 +220,7 @@ export function simulateHouseOfCardsAiRound(params: {
     for (const [index, symbol] of remembered) {
       if (!recalled.has(index) && !matched.has(index) && outcomeRng() < memoryAccessChance) {
         const recalledSymbol =
-          outcomeRng() < 0.075
+          outcomeRng() < misrememberChance
             ? (cards[Math.floor(outcomeRng() * cards.length)]?.symbol ?? symbol)
             : symbol
         recalled.set(index, recalledSymbol)
@@ -243,11 +264,11 @@ export function simulateHouseOfCardsAiRound(params: {
       const rememberedMate = rememberedIndexes.find(
         (index) => index !== firstIndex && recalled.get(index) === firstCard.symbol
       )
-      if (
-        rememberedMate !== undefined &&
-        (keptOpen.has(rememberedMate) || outcomeRng() < recallChance * 0.74)
-      )
-        secondIndex = rememberedMate
+      // After the first card is revealed, an accessible remembered mate can
+      // be matched directly. Recall chance is already applied to choosing a
+      // remembered pair before a flip; applying another gate here would
+      // discount the same retrieval twice.
+      if (rememberedMate !== undefined) secondIndex = rememberedMate
       else {
         let secondPool = available.filter((card) => card.index !== firstIndex)
         // Check a plausible second card before committing. The decision to

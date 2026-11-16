@@ -37,9 +37,11 @@ import {
   aiShouldTakeMystery,
   aiShouldUseHint,
   applyMysteryEffect,
+  applyOverTimeSpTick,
   buildSummary,
   createRowStream,
   EFFECT_DURATION_MS,
+  EFFECT_SP_TICK_MS,
   formatEffectName,
   getRowBandDamage,
   HIDDEN_BRIDGE_LENGTH,
@@ -369,28 +371,48 @@ export default function CrystalPathShatteredGame({
   }, [players])
 
   // Apply over-time effects (regen/drain) every 500ms while active.
-  useEffect(() => {
-    const needsTick = players.some((p) =>
-      p.effects.some((e) => e.kind === 'regen_5s' || e.kind === 'drain_5s')
-    )
-    if (!needsTick) return undefined
-    const iv = window.setInterval(() => {
-      setPlayers((cur) =>
-        cur.map((p) => {
-          if (p.eliminated) return p
-          let delta = 0
-          for (const e of p.effects) {
-            if (e.expiresAt <= Date.now()) continue
-            if (e.kind === 'regen_5s') delta += 2
-            if (e.kind === 'drain_5s') delta -= 2
-          }
-          if (delta === 0) return p
-          return { ...p, sp: Math.max(0, Math.min(STARTING_SP + 100, p.sp + delta)) }
-        })
+  const hasTimedSpEffects = players.some(
+    (p) =>
+      !p.eliminated &&
+      p.finishedAtMs === null &&
+      p.effects.some(
+        (effect) =>
+          effect.expiresAt > Date.now() &&
+          (effect.kind === 'regen_5s' || effect.kind === 'drain_5s')
       )
-    }, 500)
+  )
+  useEffect(() => {
+    if (!hasTimedSpEffects) return undefined
+    const iv = window.setInterval(() => {
+      setPlayers((cur) => {
+        const now = Date.now()
+        let changed = false
+        const next = cur.map((p) => {
+          const effects = pruneEffects(p.effects, now)
+          if (effects.length !== p.effects.length) changed = true
+          if (p.eliminated || p.finishedAtMs !== null) {
+            return effects.length !== p.effects.length ? { ...p, effects } : p
+          }
+
+          const sp = applyOverTimeSpTick(p.sp, effects, now)
+          const eliminated = sp <= 0
+          if (sp === p.sp && eliminated === p.eliminated && effects.length === p.effects.length) {
+            return p
+          }
+          changed = true
+          return {
+            ...p,
+            sp,
+            effects,
+            eliminated,
+            eliminatedRow: eliminated ? p.furthestRow + 1 : p.eliminatedRow,
+          }
+        })
+        return changed ? next : cur
+      })
+    }, EFFECT_SP_TICK_MS)
     return () => window.clearInterval(iv)
-  }, [players])
+  }, [hasTimedSpEffects])
 
   const advanceToNextPlayer = useCallback((fromIndex: number) => {
     const nextIndex = findNextPlayablePlayerIndex(playersRef.current, fromIndex)
@@ -432,13 +454,9 @@ export default function CrystalPathShatteredGame({
       )
       if (useHint) consumeHint(activePlayer.id)
       // Pick side (hint biases AI toward safeSide).
-      const side = useHint
-        ? rngRef.current() < 0.85
-          ? row.safeSide
-          : row.safeSide === 'left'
-            ? 'right'
-            : 'left'
-        : aiPickSide(row, personality, rngRef.current)
+      // The hint shows the true tile to the human for 3.5 seconds, so the AI
+      // follows that same information when it spends a hint.
+      const side = useHint ? row.safeSide : aiPickSide(row, personality, rngRef.current)
       resolveStep(activePlayer.id, side, row)
     }, NEW_TURN_DELAY_MS + thinkMs)
     return () => cancelQueuedTimeout(timer)

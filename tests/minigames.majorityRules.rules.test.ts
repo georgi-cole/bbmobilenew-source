@@ -191,8 +191,9 @@ describe('Majority Rules', () => {
   })
 
   it('keeps the dice tie-break helpers deterministic', () => {
-    const duel = initializeDiceDuel(['alice', 'bob'])
-    expect(duel.currentRollerId).toBe('alice')
+    const duel = initializeDiceDuel(['alice', 'bob'], 7)
+    const reversedDuel = initializeDiceDuel(['bob', 'alice'], 7)
+    expect(duel.currentRollerId).toBe(reversedDuel.currentRollerId)
     expect(pickAiDuelNumber(7, 'alice', [1, 2, 3])).toBeGreaterThanOrEqual(4)
     expect(pickAiDuelNumber(7, 'alice', [1, 2, 3])).toBeLessThanOrEqual(6)
 
@@ -203,7 +204,7 @@ describe('Majority Rules', () => {
     const result = resolveDiceDuelRoll(duelWithChoice, 99)
     expect(result.duel.turnCount).toBe(1)
     expect(result.duel.lastRoll).toBeTruthy()
-    expect(result.duel.lastRoll?.playerId).toBe('alice')
+    expect(result.duel.lastRoll?.playerId).toBe(duel.currentRollerId)
     expect(result.duel.lastRoll?.value).toBeGreaterThanOrEqual(1)
     expect(result.duel.lastRoll?.value).toBeLessThanOrEqual(6)
 

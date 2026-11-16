@@ -69,3 +69,51 @@ export const TIME_LIMIT_MS = 150_000;
 
 /** Duration of the pipe-entry flash animation in milliseconds. */
 export const PIPE_FLASH_MS = 700;
+
+/** Score variants used by the two VIP Twin remasters. */
+export type CastleRescueScoreVariant = 'classic' | 'lostAgain';
+
+/**
+ * Score rules for the human-played Twin editions and their AI mirrors.
+ * The sequel keeps its original premium point economy; its score has no
+ * rescue bonus, elapsed-time penalty, or damage/wrong-door deductions.
+ */
+export interface CastleRescueScoreRules {
+  brick: number;
+  coin: number;
+  enemy: number;
+  checkpoint: number;
+  route: number;
+  wrongPipePenalty: number;
+  rescueBonus: number;
+  timePenaltyPerSecond: number;
+  deathPenalty: number;
+  outOfLivesPenalty: number;
+}
+
+export const CASTLE_RESCUE_SCORE_RULES: Record<CastleRescueScoreVariant, CastleRescueScoreRules> = {
+  classic: {
+    brick: SCORE_BRICK,
+    coin: SCORE_COIN,
+    enemy: SCORE_ENEMY,
+    checkpoint: SCORE_CHECKPOINT,
+    route: 0,
+    wrongPipePenalty: RESPAWN_PENALTY,
+    rescueBonus: SCORE_RESCUE,
+    timePenaltyPerSecond: TIME_PENALTY_PER_SECOND,
+    deathPenalty: PENALTY_DEATH,
+    outOfLivesPenalty: PENALTY_OUT_OF_LIVES,
+  },
+  lostAgain: {
+    brick: 20,
+    coin: 10,
+    enemy: 50,
+    checkpoint: 25,
+    route: 100,
+    wrongPipePenalty: 0,
+    rescueBonus: 0,
+    timePenaltyPerSecond: 0,
+    deathPenalty: 0,
+    outOfLivesPenalty: 0,
+  },
+};

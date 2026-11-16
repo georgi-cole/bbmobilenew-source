@@ -9,6 +9,7 @@ import { simulateSeasonsAiScore as simulateSeasonsAiScore_ } from '../../experim
 import { minigameAiRegistry } from './minigameAiRegistry'
 import { simulateQuickTapAiScore as simulateQuickTapAiScore_ } from './quickTapSimulation'
 import { simulateSnakeAiScore as simulateSnakeAiScore_ } from './snakeAiSimulator'
+import { simulateMinesweepsAiScore } from '../../components/Minesweeps/minesweepsAi'
 import {
   competitionIdentityMultiplier,
   type AiGameIdentity,
@@ -815,6 +816,30 @@ export function simulateMinigameAiScore({
   aiGameIdentity,
   identityMode,
 }: SimulateMinigameAiScoreArgs): number {
+  if (gameKey === 'minesweeps') {
+    const resolvedProfile = profile ?? getDefaultCompetitionProfile()
+    const model = minigameModel ?? getMinigameAiModel(gameKey)
+    const skill = clamp(
+      computeWeightedSkill(resolvedProfile, model.weights ?? DEFAULT_WEIGHTS) +
+        getCompetitionSeasonModifiers(seasonState ?? DEFAULT_SEASON_STATE).totalAdjustment,
+      0,
+      1
+    )
+    return applyIdentityToScore(
+      simulateMinesweepsAiScore({
+        seed,
+        playerId: playerId ?? `participant-${participantIndex ?? 0}`,
+        skill,
+      }),
+      gameKey,
+      seed,
+      playerId,
+      aiGameIdentity,
+      identityMode,
+      minigameModel
+    )
+  }
+
   if (
     gameKey === 'castleRescue' ||
     gameKey === 'castleRescue2' ||
@@ -841,6 +866,7 @@ export function simulateMinigameAiScore({
         participantIndex,
         difficulty,
         timeLimitMs,
+        scoringVariant: gameKey === 'castleRescue2Remastered' ? 'lostAgain' : 'classic',
       }),
       gameKey,
       seed,

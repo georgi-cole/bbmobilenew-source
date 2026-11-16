@@ -233,6 +233,13 @@ describe('aiShouldHitDuel', () => {
   it('uses the normal strategy while the opponent is still live', () => {
     expect(aiShouldHitDuel(8, 0, false)).toBe(true);
   });
+
+  it('uses a visible stood total to avoid standing behind a live opponent', () => {
+    expect(aiShouldHitDuel(17, 0.99, false, 1, 20, true)).toBe(true);
+    expect(aiShouldHitDuel(18, 0, false, 1, 17, true)).toBe(false);
+    expect(aiShouldHitDuel(20, 0, false, 1, 21, true)).toBe(true);
+    expect(aiShouldHitDuel(21, 0.99, false, 1, 21, true)).toBe(false);
+  });
 });
 
 // ─── aiDecisionRng ────────────────────────────────────────────────────────────

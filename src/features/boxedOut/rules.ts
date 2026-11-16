@@ -266,11 +266,22 @@ export function tiebreakQuestion(state: BoxedOutState) {
 }
 
 function aiTiebreakAnswer(state: BoxedOutState, id: string, correct: number): number {
-  const estimate = 0.72 + random01(state.seed, 'tb:guess:' + id + ':' + state.questionIndex) * 0.25
-  return Math.max(
-    0,
-    Math.min(correct, Math.round(correct * (1 - (1 - estimate) / (state.aiCapability ?? 1))))
+  const capability = Math.min(2, Math.max(0.5, state.aiCapability ?? 1))
+  const difficulty = Math.min(1, Math.log10(Math.max(10, correct)) / 4)
+  const exactChance = Math.min(
+    0.5,
+    Math.max(0.12, (0.36 - 0.14 * difficulty) * Math.sqrt(capability))
   )
+  const guessKey = `tb:guess:${id}:${state.questionIndex}`
+  if (random01(state.seed, `${guessKey}:exact`) < exactChance) return correct
+
+  const errorRange = 0.22 / Math.sqrt(capability)
+  // A centered triangular estimate varies around the target instead of giving
+  // every AI the same systematic underestimation advantage. A separate exact
+  // answer chance models knowledge for questions the AI can confidently solve.
+  const centeredError =
+    (random01(state.seed, `${guessKey}:a`) + random01(state.seed, `${guessKey}:b`) - 1) * errorRange
+  return Math.max(0, Math.round(correct * (1 + centeredError)))
 }
 
 export function resolveBoxedOutTiebreak(

@@ -12,7 +12,12 @@
 
 import { mulberry32 } from '../../store/rng';
 import type { TimingSubmission } from './timingBarLogic';
-import { BAR_TRACK_WIDTH, TARGET_POSITION, getRoundDurationSeconds } from './timingBarLogic';
+import {
+  BAR_TRACK_WIDTH,
+  TARGET_POSITION,
+  getRoundBarSpeed,
+  getRoundDurationSeconds,
+} from './timingBarLogic';
 import type { CompetitionSkillProfile } from '../../ai/competition/types';
 
 // ── Timeout probability constants ─────────────────────────────────────────────
@@ -179,7 +184,10 @@ export function simulateAiRoundSubmission(
   const clutchAdjustedSigma = pressuredSigma * (1 - pressureLevel * cfg.clutchBonus);
   const finalSigma = Math.max(
     0.01,
-    Math.min(0.5, clutchAdjustedSigma * AI_ACCURACY_CALIBRATION),
+    Math.min(
+      0.5,
+      clutchAdjustedSigma * AI_ACCURACY_CALIBRATION * getRoundBarSpeed(roundNumber),
+    ),
   );
 
   // Generate bar position: Gaussian error from TARGET_POSITION.

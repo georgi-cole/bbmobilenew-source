@@ -21,6 +21,7 @@ import { describe, it, expect } from 'vitest';
 import {
   selectBoosterPrompts,
   simulateQuickTapAiScore,
+  simulateQuickTapAiScoreDetails,
   BOOSTER_POOL,
   PROMPT_VISIBLE_FOR,
 } from '../../../src/ai/competition/quickTapSimulation';
@@ -180,22 +181,21 @@ describe('simulateQuickTapAiScore — basic correctness', () => {
 });
 
 describe('simulateQuickTapAiScore — realism and competitiveness', () => {
-  it('30-second scores stay inside the physically possible range', () => {
+  it('30-second scores stay bounded around the configured bands and boosters', () => {
     const seeds = Array.from({ length: 200 }, (_, i) => i + 1);
     const scores = seeds.map((seed) =>
       simulateQuickTapAiScore({ seed, playerId: `p${seed}`, profile: DEFAULT_PROFILE }),
     );
-    // Absolute minimum is the lowest band (89)
-    // minus max jitter (4) minus max slump (14) = 71. Absolute maximum is the
-    // rare peak band (380) plus max jitter (4) plus max hot-streak bonus (18) = 402.
+    // Lowest bands can lose extra taps to a drain; boosts add bounded score to
+    // the configured band result.
     expect(Math.min(...scores)).toBeGreaterThanOrEqual(60);
-    expect(Math.max(...scores)).toBeLessThanOrEqual(402);
+    expect(Math.max(...scores)).toBeLessThan(650);
   });
 
   it('competitive zone scores dominate — majority fall in the competitive range', () => {
     const seeds = Array.from({ length: 1000 }, (_, i) => i + 1);
-    const scores = seeds.map((seed) =>
-      simulateQuickTapAiScore({ seed, playerId: 'distribution-check', profile: DEFAULT_PROFILE }),
+    const baseScores = seeds.map((seed) =>
+      simulateQuickTapAiScoreDetails({ seed, playerId: 'distribution-check', profile: DEFAULT_PROFILE }).baseScore,
     );
 
     // Bands from minigameAiBalance.ts. Grouped to the
@@ -210,11 +210,11 @@ describe('simulateQuickTapAiScore — realism and competitiveness', () => {
     // band edges, so tolerances are intentionally wider than the nominal percentage.
     // Counts sum to exactly 1000 because the ranges are mutually exclusive and exhaustive.
     const counts = {
-      band1: scores.filter((s) => s <= 118).length,
-      band2: scores.filter((s) => s >= 119 && s <= 157).length,
-      band3: scores.filter((s) => s >= 158 && s <= 187).length,
-      band4: scores.filter((s) => s >= 188 && s <= 225).length,
-      band5: scores.filter((s) => s >= 226).length,
+      band1: baseScores.filter((s) => s <= 118).length,
+      band2: baseScores.filter((s) => s >= 119 && s <= 157).length,
+      band3: baseScores.filter((s) => s >= 158 && s <= 187).length,
+      band4: baseScores.filter((s) => s >= 188 && s <= 225).length,
+      band5: baseScores.filter((s) => s >= 226).length,
     };
 
     // Sanity: all 1000 scores are captured (exhaustive + non-overlapping).
@@ -303,7 +303,7 @@ describe('simulateQuickTapAiScore — realism and competitiveness', () => {
     expect(over200.length).toBeGreaterThan(0);
   });
 
-  it('no outlier scores exceed physically impossible values (< 500)', () => {
+  it('keeps booster outcomes bounded around configured base score bands', () => {
     // At 10 taps/sec for 33 seconds (30 + max time bonus) with 3× turbo for entire game,
     // the theoretical max would be ~990. Real players can't sustain that.
     // Ensure simulation doesn't produce bizarre outliers.
@@ -313,7 +313,30 @@ describe('simulateQuickTapAiScore — realism and competitiveness', () => {
         simulateQuickTapAiScore({ seed, playerId: 'max-ai', profile: STRONG_PROFILE }),
       ),
     );
-    expect(max).toBeLessThan(500);
+    expect(max).toBeLessThan(650);
+  });
+
+  it('uses seed-selected prompts with profile-based reactions instead of reading booster content', () => {
+    const takenByType: Record<string, { taken: number; total: number }> = {};
+    for (let seed = 1; seed <= 3_000; seed += 1) {
+      const details = simulateQuickTapAiScoreDetails({ seed, playerId: 'prompt-policy', profile: DEFAULT_PROFILE });
+      expect(details.boosters.map(({ type, scheduleAt }) => ({ type, scheduleAt }))).toEqual(
+        selectBoosterPrompts(seed).map(({ type, scheduleAt }) => ({ type, scheduleAt })),
+      );
+      for (const booster of details.boosters) {
+        const item = (takenByType[booster.type] ??= { taken: 0, total: 0 });
+        item.total += 1;
+        if (booster.taken) item.taken += 1;
+      }
+    }
+
+    // Every booster type receives roughly the same prompt reaction rate; the
+    // seeded AI decision cannot inspect whether a prompt is good or harmful.
+    for (const { taken, total } of Object.values(takenByType)) {
+      expect(total).toBeGreaterThan(1_000);
+      expect(taken / total).toBeGreaterThan(0.35);
+      expect(taken / total).toBeLessThan(0.49);
+    }
   });
 });
 

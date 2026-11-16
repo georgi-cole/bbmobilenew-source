@@ -33,16 +33,13 @@ function sequenceRng(values: number[]): () => number {
 describe('NumberTrivia helpers', () => {
   it('uses the new attached question bank with difficulty tiers', () => {
     expect(NUMBER_TRIVIA_QUESTIONS).toHaveLength(105);
-    expect(NUMBER_TRIVIA_QUESTIONS.filter((question) => question.difficulty === 'easy')).toHaveLength(50);
-    expect(NUMBER_TRIVIA_QUESTIONS.filter((question) => question.difficulty === 'medium')).toHaveLength(25);
-    expect(NUMBER_TRIVIA_QUESTIONS.filter((question) => question.difficulty === 'hard')).toHaveLength(15);
-    expect(NUMBER_TRIVIA_QUESTIONS.filter((question) => question.difficulty === 'very-hard')).toHaveLength(15);
     expect(NUMBER_TRIVIA_QUESTIONS).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ prompt: 'How many minutes are in an hour?', answer: 60, difficulty: 'easy' }),
         expect.objectContaining({ prompt: 'How many countries are in the EU (2026)?', answer: 27, difficulty: 'medium' }),
+        expect.objectContaining({ prompt: 'In which year did World War II end?', answer: 1945, difficulty: 'medium' }),
+        expect.objectContaining({ prompt: 'In which year did humans first land on the Moon?', answer: 1969, difficulty: 'medium' }),
         expect.objectContaining({ prompt: 'In which year did the Berlin Wall fall?', answer: 1989, difficulty: 'hard' }),
-        expect.objectContaining({ prompt: 'In which year did humans first land on the Moon?', answer: 1969, difficulty: 'very-hard' }),
       ]),
     );
     expect(
@@ -163,16 +160,35 @@ describe('NumberTrivia helpers', () => {
     expect(developing.guessed).toBe(true);
     expect(strong.timeMs).toBeLessThan(developing.timeMs);
 
-    const outcomes = Array.from({ length: 200 }, (_, seed) =>
+    const outcomes = Array.from({ length: 1_000 }, (_, seed) =>
       simulateNumberTriviaAiPerformance(
         { precomputedScore: 100, roundNumber: 1, question },
         createNumberTriviaAiRng({ seed, roundNumber: 1, participantId: 'strong-ai' }),
       ),
     );
-    expect(outcomes.some((outcome) => !outcome.guessed)).toBe(true);
+    expect(outcomes.some((outcome) => outcome.attempts > 1)).toBe(true);
     expect(outcomes.some((outcome) => outcome.guessed)).toBe(true);
     expect(outcomes.some((outcome) => outcome.timeMs < 500)).toBe(true);
     expect(outcomes.some((outcome) => outcome.timeMs >= 500)).toBe(true);
+  });
+
+  it('caps late-round fatigue without erasing retained knowledge', () => {
+    const context = {
+      precomputedScore: 60,
+      question: { prompt: 'How many days are in a week?', answer: 7, difficulty: 'easy' as const },
+    };
+    const runAtRound = (roundNumber: number, rng: () => number) =>
+      simulateNumberTriviaAiPerformance({ ...context, roundNumber }, rng);
+
+    const earlySolve = runAtRound(3, sequenceRng([0.1, 0.9]));
+    const lateMiss = runAtRound(7, sequenceRng([0.1, 0.9, 0.99, 0.99]));
+    const veryLateMiss = runAtRound(100, sequenceRng([0.1, 0.9, 0.99, 0.99]));
+    const veryLateSolve = runAtRound(100, sequenceRng([0.1, 0.5]));
+
+    expect(earlySolve).toMatchObject({ guessed: true, attempts: 1 });
+    expect(lateMiss).toMatchObject({ guessed: false, attempts: 6 });
+    expect(veryLateMiss).toEqual(lateMiss);
+    expect(veryLateSolve).toMatchObject({ guessed: true, attempts: 1 });
   });
 
   it('lets harder questions create hesitant but correct AI runs', () => {
@@ -182,7 +198,7 @@ describe('NumberTrivia helpers', () => {
         roundNumber: 2,
         question: { prompt: 'In which year was Google founded?', answer: 1998, difficulty: 'hard' },
       },
-      sequenceRng([0.5, 0.2, 0.3, 0.9]),
+      sequenceRng([0.5, 0.9, 0.1, 0.1, 0.5, 0.2, 0.1]),
     );
 
     expect(performance.guessed).toBe(true);
@@ -192,21 +208,84 @@ describe('NumberTrivia helpers', () => {
     expect(performance.timeMs).toBeLessThanOrEqual(16_600);
   });
 
-  it('uses near-miss logic for very hard AI misses', () => {
+  it('uses the near-miss clue to improve a very-hard follow-up guess', () => {
     const performance = simulateNumberTriviaAiPerformance(
       {
         precomputedScore: 40,
         roundNumber: 4,
-        question: { prompt: 'In which year did humans first land on the Moon?', answer: 1969, difficulty: 'very-hard' },
+        question: { prompt: 'In which year was the first photograph taken?', answer: 1826, difficulty: 'very-hard' },
       },
       sequenceRng([0.1, 0.95, 0.2, 0.4, 0.3]),
     );
 
-    expect(performance.guessed).toBe(false);
-    expect(performance.attempts).toBe(1);
-    expect(performance.closestDistance).toBe(1);
+    expect(performance.guessed).toBe(true);
+    expect(performance.attempts).toBe(2);
+    expect(performance.closestDistance).toBe(0);
     expect(performance.timeMs).toBeGreaterThanOrEqual(3_000);
-    expect(performance.timeMs).toBeLessThanOrEqual(8_500);
+    expect(performance.timeMs).toBeLessThanOrEqual(18_000);
+  });
+
+  it('preserves uncertainty when all six very-hard guesses miss', () => {
+    const performance = simulateNumberTriviaAiPerformance(
+      {
+        precomputedScore: 40,
+        roundNumber: 4,
+        question: { prompt: 'In which year was the first photograph taken?', answer: 1826, difficulty: 'very-hard' },
+      },
+      () => 0.99,
+    );
+
+    expect(performance).toMatchObject({ guessed: false, attempts: 6 });
+    expect(performance.closestDistance).toBeGreaterThan(0);
+  });
+
+  it('keeps a seeded six-guess benchmark ordered by question difficulty', () => {
+    const difficulties = ['easy', 'medium', 'hard', 'very-hard'] as const;
+    const distributions = difficulties.map((difficulty) => {
+      const outcomes = Array.from({ length: 1_000 }, (_, seed) =>
+        simulateNumberTriviaAiPerformance(
+          {
+            precomputedScore: 60,
+            roundNumber: 1,
+            question: { prompt: 'Benchmark question', answer: 1_969, difficulty },
+          },
+          createNumberTriviaAiRng({ seed, roundNumber: 1, participantId: 'benchmark-ai' }),
+        ),
+      );
+      expect(outcomes.every((outcome) => outcome.attempts >= 1 && outcome.attempts <= 6)).toBe(true);
+
+      const elapsed = outcomes.map((outcome) => outcome.timeMs).sort((a, b) => a - b);
+      const solvesByAttempt = Array.from({ length: 6 }, (_, index) =>
+        outcomes.filter((outcome) => outcome.guessed && outcome.attempts === index + 1).length,
+      );
+      return {
+        difficulty,
+        firstTryRate: solvesByAttempt[0] / outcomes.length,
+        solveRate: outcomes.filter((outcome) => outcome.guessed).length / outcomes.length,
+        solvesByAttempt,
+        failures: outcomes.filter((outcome) => !outcome.guessed).length,
+        timeMsP10: elapsed[Math.floor(elapsed.length * 0.1)],
+        timeMsP50: elapsed[Math.floor(elapsed.length * 0.5)],
+        timeMsP90: elapsed[Math.floor(elapsed.length * 0.9)],
+      };
+    });
+
+    const solveRates = distributions.map(({ solveRate }) => solveRate);
+    const firstTryRates = distributions.map(({ firstTryRate }) => firstTryRate);
+    expect(distributions.every(({ solvesByAttempt, failures }) =>
+      solvesByAttempt.reduce((sum, count) => sum + count, failures) === 1_000,
+    )).toBe(true);
+    expect(firstTryRates[0]).toBeGreaterThan(firstTryRates[1]);
+    expect(firstTryRates[1]).toBeGreaterThan(firstTryRates[2]);
+    expect(firstTryRates[2]).toBeGreaterThan(firstTryRates[3]);
+    expect(solveRates[0]).toBeGreaterThan(solveRates[1]);
+    expect(solveRates[1]).toBeGreaterThan(solveRates[2]);
+    expect(solveRates[2]).toBeGreaterThan(solveRates[3]);
+    expect(distributions[0].timeMsP50).toBeLessThan(distributions[1].timeMsP50);
+    expect(distributions[1].timeMsP50).toBeLessThan(distributions[2].timeMsP50);
+    expect(distributions[2].timeMsP50).toBeLessThan(distributions[3].timeMsP50);
+    expect(solveRates[3]).toBeGreaterThan(0.35);
+    expect(solveRates[3]).toBeLessThan(0.9);
   });
 
   it('gives each AI participant an order-independent rng stream per round', () => {

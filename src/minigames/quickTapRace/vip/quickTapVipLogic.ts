@@ -468,12 +468,12 @@ export interface QuickTapVipAiRace {
 // Per contestant, per match. Active cadence is reduced by fatigue, reaction
 // time, negative effects and pauses to claim mystery boxes.
 export const QUICK_TAP_VIP_AI_PACE_BANDS = [
-  { id: 'steady', weight: 25, min: 7, max: 10 },
-  { id: 'quick', weight: 25, min: 10, max: 12 },
-  { id: 'rapid', weight: 25, min: 12, max: 13.5 },
-  { id: 'fast', weight: 15, min: 13.5, max: 14.5 },
-  { id: 'very-fast', weight: 8, min: 14.5, max: 15.5 },
-  { id: 'elite', weight: 2, min: 15.5, max: 16.5 },
+  { id: 'steady', weight: 25, min: 6.5, max: 8.5 },
+  { id: 'quick', weight: 25, min: 8, max: 9.5 },
+  { id: 'rapid', weight: 25, min: 9, max: 10.5 },
+  { id: 'fast', weight: 15, min: 10, max: 11 },
+  { id: 'very-fast', weight: 8, min: 11, max: 12 },
+  { id: 'elite', weight: 2, min: 12, max: 13 },
 ] as const
 /** Public conditions only. The policy cannot inspect the mystery result. */
 export function shouldQuickTapVipAiGrab(args: {
@@ -525,10 +525,10 @@ export function simulateQuickTapVipAiRace(args: {
     }) ?? QUICK_TAP_VIP_AI_PACE_BANDS[QUICK_TAP_VIP_AI_PACE_BANDS.length - 1]
   const form = 0.97 + rng() * 0.06
   const motorTalent = (hashIdentity(`${playerId}:tap-pace`) % 1_000) / 999
-  // Phone play reaches 12–14 taps/s with alternating thumbs. Include competitors
-  // in that range, while skill, individual dexterity, form and fatigue vary the field.
+  // Active cadence centers near 9 taps/s while retaining a small fast tail;
+  // individual dexterity, form, profile, fatigue and pauses vary the field.
   const baseRate = Math.min(
-    16.5,
+    13.5,
     (paceBand.min + (paceBand.max - paceBand.min) * motorTalent + (physical - 0.5) * 1.5) * form
   )
   const roundMs = quickTapVipRoundMs(mode)

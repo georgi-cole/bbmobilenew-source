@@ -105,6 +105,25 @@ describe('Battery Low UI', () => {
     expect(screen.getByRole('dialog', { name: 'Bank Offer' })).toBeInTheDocument()
   })
 
+  it('excludes the forced offer reveal from the competition tie-break clock', () => {
+    vi.useFakeTimers()
+    const onFinish = vi.fn()
+    render(<BatteryLow seed={1226} participants={labParticipants} onFinish={onFinish} />)
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Battery 8' })))
+    for (const number of [1, 2, 3, 4, 5]) {
+      act(() => fireEvent.click(screen.getByRole('button', { name: `Battery ${number}` })))
+    }
+    act(() => vi.advanceTimersByTime(2_600))
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Accept offer' })))
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Lock result' })))
+
+    const [, finishTimeMs, completion] = onFinish.mock.calls[0] ?? []
+    expect(typeof finishTimeMs).toBe('number')
+    expect(completion?.tiebreakerMs).toBeLessThan(finishTimeMs)
+    expect(finishTimeMs - completion.tiebreakerMs).toBeGreaterThanOrEqual(2_500)
+  })
+
   it('keeps a named monitor reveal visible until the next battery is opened', () => {
     vi.useFakeTimers()
     render(<BatteryLow seed={seedWithMonitorEffectOnFirstPick()} participants={labParticipants} />)

@@ -50,6 +50,10 @@ import {
   type TileSide,
 } from '../../features/glassBridge/glassBridgeSlice'
 import { resolveGlassBridgeOutcome } from '../../features/glassBridge/thunks'
+import {
+  getHintLeftBreakChance,
+  inferSafeSideFromHint,
+} from '../../features/glassBridge/glassBridgeHints'
 import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
 import { mulberry32 } from '../../store/rng'
 import type { CompetitionSkillProfile } from '../../ai/competition/types'
@@ -292,25 +296,6 @@ function prefersReducedMotion(): boolean {
   )
 }
 
-/**
- * Compute the tiered certainty hint shown by The Expert.
- *
- * Returns the integer percentage chance that the LEFT platform will break,
- * with stronger repeat requests on the same row becoming increasingly certain.
- *
- * Repeated hints on the same row intentionally become much more certain:
- *  - 1st hint: 65% / 35%
- *  - 2nd hint: 90% / 10%
- *  - 3rd hint: 99% / 1%
- */
-function computeHintLeftBreakChance(safeSide: TileSide, sameRowHintCount: number): number {
-  // Convert the 1-based repeated-hint count into a 0-based tier index
-  // while clamping invalid/overflow values into the three supported tiers.
-  const tierIndex = Math.min(MAX_HINTS_PER_RUN - 1, Math.max(0, sameRowHintCount - 1))
-  const leftBreakChanceByTier = safeSide === 'right' ? [65, 90, 99] : [35, 10, 1]
-  return leftBreakChanceByTier[tierIndex]
-}
-
 function getHintUses(hintPenaltyMs: number | undefined): number {
   return Math.min(MAX_HINTS_PER_RUN, Math.floor((hintPenaltyMs ?? 0) / HINT_PENALTY_MS))
 }
@@ -350,16 +335,6 @@ function shouldAiUseHint(
     Math.min(0.62, 0.18 + rowPressure * 0.34 + hintsUsed * 0.06 + (50 - nerve) / 500)
   )
   return rng() < chance
-}
-
-function chooseSideFromHint(
-  safeSide: TileSide,
-  sameRowHintCount: number,
-  rng: () => number
-): TileSide {
-  const leftBreakChance = computeHintLeftBreakChance(safeSide, sameRowHintCount)
-  const safeChance = safeSide === 'left' ? (100 - leftBreakChance) / 100 : leftBreakChance / 100
-  return rng() < safeChance ? safeSide : safeSide === 'left' ? 'right' : 'left'
 }
 
 function getNextPlaybackSpeed(currentSpeed: 1 | 2 | 3): 1 | 2 | 3 {
@@ -1050,7 +1025,7 @@ export default function GlassBridgeComp({
       const participant = gb.participants.find((p) => p.id === activeId)
 
       const chosenSide = willUseHint
-        ? chooseSideFromHint(row.safeSide, 1, aiRngRef.current)
+        ? inferSafeSideFromHint(getHintLeftBreakChance(row.safeSide, 1))
         : aiDecideStep(row, aiRngRef.current, participant?.competitionProfile)
       const now = getEffectiveNowMs()
 
@@ -1401,7 +1376,7 @@ export default function GlassBridgeComp({
     if (window.GameAds && !(await requestHintAd('glass_bridge_hint'))) return
 
     const sameRowHintCount = hintRequestsForCurrentRow + 1
-    const chance = computeHintLeftBreakChance(row.safeSide, sameRowHintCount)
+    const chance = getHintLeftBreakChance(row.safeSide, sameRowHintCount)
     setCurrentHintMessage(pickRandom(hintMessages)(chance))
     setHintRequestsForCurrentRow(sameRowHintCount)
     dispatch(recordHintUsed({ playerId: humanId }))

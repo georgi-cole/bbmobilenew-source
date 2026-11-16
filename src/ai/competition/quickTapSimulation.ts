@@ -97,10 +97,13 @@ export interface SimulateQuickTapAiScoreArgs {
 }
 
 /**
- * Simulate a Quick Tap Race AI player's effective score for a given seed.
+ * Simulate a Quick Tap Race AI player's result for a given seed.
  *
- * Score bands and tuning parameters are read from `minigameAiBalance.quickTap`
- * — edit that file to rebalance AI scoring without touching logic here.
+ * Score bands and tuning parameters are read from `minigameAiBalance.quickTap`.
+ * The selected band determines the unboosted pace and remains the source of
+ * baseline score variation. The AI then responds to the same seed-selected
+ * booster prompts shown to the human, so those seed-specific effects contribute
+ * to both sides' results.
  *
  * Distribution (default 30 s game, from minigameAiBalance.ts):
  *  - 89–118   →  2%     (occasional weak outcome)
@@ -111,11 +114,12 @@ export interface SimulateQuickTapAiScoreArgs {
  *  - 300–350  →  5%     (excellent run)
  *  - 350–360  →  1%     (rare exceptional run)
  *  - 360–380  →  0.5%   (rare peak run)
- * plus optional ±jitter, hot-streak bonus and slump penalty.
+ * plus optional ±jitter, hot-streak bonus, slump penalty, and the selected
+ * booster effects.
  *
- * Profile stats (physical, consistency, luck) only bias the *position within*
- * the chosen band so band probabilities remain stable — avoiding deterministic
- * identity lock-in while still letting varied profiles influence outcomes.
+ * Physical, consistency, and luck bias performance within the selected band.
+ * Mental, nerve, and consistency also affect whether the AI reacts to a prompt;
+ * the decision is made before the selected booster type is applied.
  */
 export function simulateQuickTapAiScore({
   seed,
@@ -124,6 +128,40 @@ export function simulateQuickTapAiScore({
   profile,
   timeLimitSeconds = 30,
 }: SimulateQuickTapAiScoreArgs): number {
+  return simulateQuickTapAiScoreDetails({
+    seed,
+    playerId,
+    participantIndex,
+    profile,
+    timeLimitSeconds,
+  }).score;
+}
+
+export interface QuickTapAiBoosterOutcome {
+  type: BoosterType;
+  scheduleAt: number;
+  taken: boolean;
+  reactionMs: number | null;
+  scoreDelta: number;
+}
+
+export interface QuickTapAiScoreDetails {
+  score: number;
+  /** Score before boosters, after the selected band's pace and time scaling. */
+  baseScore: number;
+  /** Unboosted tapping rate implied by the selected score band. */
+  tapsPerSecond: number;
+  boosters: QuickTapAiBoosterOutcome[];
+}
+
+/** Return the seeded base performance and the same booster events as the human run. */
+export function simulateQuickTapAiScoreDetails({
+  seed,
+  playerId,
+  participantIndex = 0,
+  profile,
+  timeLimitSeconds = 30,
+}: SimulateQuickTapAiScoreArgs): QuickTapAiScoreDetails {
   const config = minigameAiBalance.quickTap;
   const bands: ScoreBand[] = config.scoreBands;
 
@@ -181,9 +219,71 @@ export function simulateQuickTapAiScore({
 
   baseScore = Math.max(0, baseScore);
 
-  if (timeLimitSeconds === 30) {
-    return baseScore;
+  const durationSeconds = Math.max(0, timeLimitSeconds);
+  const tapsPerSecond = baseScore / 30;
+  const unboostedScore = Math.round(tapsPerSecond * durationSeconds);
+  let score = unboostedScore;
+  let finishAtMs = durationSeconds * 1000;
+  const boosterRng = mulberry32(((seed >>> 0) ^ identity ^ 0x510e527f) >>> 0);
+  const mental = clamp01((profile?.mental ?? 50) / 100);
+  const nerve = clamp01((profile?.nerve ?? 50) / 100);
+  // The choice roll uses only profile traits and the run seed. It never peeks
+  // at which booster was selected before deciding whether to reach for it.
+  const boosterUseChance = clamp01(
+    0.42 + (mental - 0.5) * 0.2 + (nerve - 0.5) * 0.12 + (consistency - 0.5) * 0.08,
+  );
+  const boosters: QuickTapAiBoosterOutcome[] = [];
+
+  for (const prompt of selectBoosterPrompts(seed)) {
+    const scheduleAtMs = prompt.scheduleAt * 1000;
+    const wantsPrompt = boosterRng() < boosterUseChance;
+    const reactionMs = wantsPrompt ? 260 + Math.floor(boosterRng() * 661) : null;
+    const activationAtMs = scheduleAtMs + (reactionMs ?? 0);
+    const remainsVisible = activationAtMs <= (prompt.scheduleAt + prompt.visibleFor) * 1000;
+    const taken =
+      wantsPrompt &&
+      remainsVisible &&
+      scheduleAtMs < finishAtMs &&
+      activationAtMs < finishAtMs;
+    let scoreDelta = 0;
+
+    if (taken) {
+      if (prompt.kind === 'time') {
+        const previousFinishAtMs = finishAtMs;
+        finishAtMs = Math.max(activationAtMs, finishAtMs + (prompt.timeDelta ?? 0) * 1000);
+        scoreDelta = (finishAtMs - previousFinishAtMs) * (tapsPerSecond / 1000);
+      } else {
+        const effectEndsAtMs = Math.min(
+          finishAtMs,
+          activationAtMs + prompt.activeDuration * 1000,
+        );
+        const effectDurationSeconds = Math.max(0, (effectEndsAtMs - activationAtMs) / 1000);
+        const multiplier = prompt.multiplier ?? 1;
+        if (multiplier < 0) {
+          // A few momentum taps slip through after the drain appears; the AI
+          // then stops until the visible negative effect ends.
+          const inertiaTaps = 1 + Math.floor(boosterRng() * 3);
+          scoreDelta = -(tapsPerSecond * effectDurationSeconds) - inertiaTaps;
+        } else {
+          scoreDelta = tapsPerSecond * effectDurationSeconds * (multiplier - 1);
+        }
+      }
+      score += scoreDelta;
+    }
+
+    boosters.push({
+      type: prompt.type,
+      scheduleAt: prompt.scheduleAt,
+      taken,
+      reactionMs: taken ? reactionMs : null,
+      scoreDelta: Number(scoreDelta.toFixed(2)),
+    });
   }
 
-  return Math.max(0, Math.round(baseScore * (timeLimitSeconds / 30)));
+  return {
+    score: Math.max(0, Math.round(score)),
+    baseScore: unboostedScore,
+    tapsPerSecond,
+    boosters,
+  };
 }

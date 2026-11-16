@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-16: Reviewed minigame equilibrium corrections across standard and
+  premium variants. Opponents use comparable native scoring, information,
+  completion and timing rules; tie resolution and character skill models are
+  corrected without changing products, prices, entitlements or reward amounts.
+  Premium variant mechanics remain distinct. This maintenance does not change
+  the Store offer; the existing catalog and benefit descriptions remain valid.
+
 - 2026-11-16: Reviewed VIP ceremony Skip and AI continuation recovery. Media-start
   claims and broadcast acknowledgements no longer interrupt a committed Safety
   or replacement sequence; an unexpectedly empty ceremony falls back to the
@@ -625,9 +632,8 @@ store listings or change configured prices.
   change. The 63 walking atlases from #1762 are included in the optional inventory;
   transparency compression preserves their decoded pixels, frames and timing.
 
-- 2026-11-16: Reviewed bounded mobile layouts for premium and standard challenges,
-  finale/aftermath presentation, Deck of Light tool choices, Battery Low selections,
-  and fresh Don't Go Over Reverse Time draws. The isolated development review page
-  simulates ad rewards; release purchase/ad gates are unchanged.
-  Premium Challenges and VIP still unlock all premium minigame versions. This
-  maintenance changes no product, price, entitlement, reward, offer or Store copy.
+- 2026-11-17: Reviewed minigame equilibrium changes, including premium Twin and
+  Quick Tap variants, shared scoring and active-time budgets, fallible memory,
+  public-information hint decisions, and seeded competition ties. VIP and
+  Premium Challenges retain their current access and variant benefits. Products,
+  prices, Eyeros rewards, purchase/ad gates and Store descriptions remain accurate.

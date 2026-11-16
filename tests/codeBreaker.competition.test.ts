@@ -339,6 +339,37 @@ describe('Vault Cracker — scoring', () => {
     expect(result.elapsedMs).toBeLessThanOrEqual(DEFAULT_ELAPSED_SCORE_CAP_MS);
     expect(result.score).toBe(computeAiScore(42, 'cap-check', DEFAULT_ELAPSED_SCORE_CAP_MS));
   });
+
+  it('benchmarks seeded attempt percentiles and the best result as field size grows', () => {
+    const fieldSizes = [1, 5, 15];
+    const summaries = fieldSizes.map((fieldSize) => {
+      const matchAttempts = Array.from({ length: 1_000 }, (_, seed) =>
+        Array.from({ length: fieldSize }, (_, index) =>
+          computeAiSolveProfile(seed, `field-rival-${index}`),
+        ),
+      );
+      const attempts = matchAttempts.flat().map((profile) => profile.attempts).sort((a, b) => a - b);
+      const bestAttempts = matchAttempts.map((profiles) =>
+        Math.min(...profiles.map((profile) => profile.attempts)),
+      ).sort((a, b) => a - b);
+      const percentile = (values: number[], fraction: number) => values[Math.floor(values.length * fraction)];
+
+      return {
+        fieldSize,
+        perAiAttemptsP10P50P90: [0.1, 0.5, 0.9].map((fraction) => percentile(attempts, fraction)),
+        bestAttemptsP50: percentile(bestAttempts, 0.5),
+        matchesWithBestAtSixOrFewer: bestAttempts.filter((count) => count <= 6).length / bestAttempts.length,
+      };
+    });
+
+    expect(summaries.every(({ perAiAttemptsP10P50P90 }) =>
+      perAiAttemptsP10P50P90.every((attempts) => attempts >= 4 && attempts <= 20),
+    )).toBe(true);
+    expect(summaries[0].bestAttemptsP50).toBeGreaterThan(summaries[2].bestAttemptsP50);
+    expect(summaries[0].matchesWithBestAtSixOrFewer).toBeLessThan(
+      summaries[2].matchesWithBestAtSixOrFewer,
+    );
+  });
 });
 
 // ── 5. AI score determinism ───────────────────────────────────────────────────
@@ -354,9 +385,9 @@ describe('Vault Cracker — AI score determinism', () => {
     const a = computeAiScore(42, 'p1', DEFAULT_ELAPSED_SCORE_CAP_MS);
     const b = computeAiScore(42, 'p2', DEFAULT_ELAPSED_SCORE_CAP_MS);
     // Both must be in valid score range
-    expect(a).toBeGreaterThanOrEqual(30);
+    expect(a).toBeGreaterThanOrEqual(SOLVED_SCORE_FLOOR);
     expect(a).toBeLessThanOrEqual(100);
-    expect(b).toBeGreaterThanOrEqual(30);
+    expect(b).toBeGreaterThanOrEqual(SOLVED_SCORE_FLOOR);
     expect(b).toBeLessThanOrEqual(100);
     expect(a).not.toBe(b);
   });

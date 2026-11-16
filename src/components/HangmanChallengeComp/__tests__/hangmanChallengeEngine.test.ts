@@ -10,6 +10,7 @@ import {
   pickRevealPosition,
   pickTournamentWords,
   simulateAiRound,
+  simulateFinalAiGuess,
 } from '../hangmanChallengeEngine'
 
 describe('hangmanChallengeEngine V2', () => {
@@ -126,4 +127,54 @@ it('shares accurate host rules and never simulates a solved board after the thir
     })
     expect(result.wrongGuesses).toBeLessThanOrEqual(result.solved ? 2 : 3)
   }
+})
+
+describe('Verdict Board final AI', () => {
+  const decisionInput = {
+    seed: 616,
+    playerId: 'warden',
+    revealCycle: 4,
+    visibleLetters: 5,
+    totalLetters: 12,
+    difficulty: 5 as const,
+  }
+
+  it('uses season capability for both guess timing and required board progress', () => {
+    const strongSeason = simulateFinalAiGuess({ ...decisionInput, aiCapability: 1 })
+    const cappedSeason = simulateFinalAiGuess({ ...decisionInput, aiCapability: 0.4 })
+
+    expect(cappedSeason.skill).toBeLessThan(strongSeason.skill)
+    expect(cappedSeason.minimumVisibleLetters).toBeGreaterThan(strongSeason.minimumVisibleLetters)
+    expect(cappedSeason.buzzDelayMs).toBeGreaterThan(strongSeason.buzzDelayMs)
+    expect(simulateFinalAiGuess({ ...decisionInput, aiCapability: 0.4 })).toEqual(cappedSeason)
+  })
+
+  it('waits for more clues on harder boards and does not guarantee a correct final buzz', () => {
+    const easy = simulateFinalAiGuess({
+      ...decisionInput,
+      difficulty: 1,
+      totalLetters: 30,
+      visibleLetters: 10,
+    })
+    const hard = simulateFinalAiGuess({
+      ...decisionInput,
+      difficulty: 5,
+      totalLetters: 30,
+      visibleLetters: 10,
+    })
+    expect(hard.minimumVisibleLetters).toBeGreaterThan(easy.minimumVisibleLetters)
+
+    const fullyRevealed = Array.from({ length: 200 }, (_, seed) =>
+      simulateFinalAiGuess({
+        ...decisionInput,
+        seed,
+        difficulty: 5,
+        visibleLetters: decisionInput.totalLetters,
+        aiCapability: 1,
+      })
+    )
+    expect(fullyRevealed.some((decision) => decision.willBuzz && decision.correct)).toBe(true)
+    expect(fullyRevealed.some((decision) => decision.willBuzz && !decision.correct)).toBe(true)
+    expect(fullyRevealed.every((decision) => decision.buzzDelayMs <= 4200)).toBe(true)
+  })
 })

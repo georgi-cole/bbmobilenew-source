@@ -42,54 +42,34 @@ export interface NumberTriviaAiRngContext {
 interface NumberTriviaAiDifficultyProfile {
   accuracyRange: [number, number];
   delayRangeMs: [number, number];
-  maxCorrectAttempts: number;
-  maxWrongAttempts: number;
-  hesitationChance: number;
+  feedbackGain: number;
   nearMissChance: number;
-  giveUpChance: number;
-  confidentWrongChance: number;
 }
 
 const NUMBER_TRIVIA_AI_PROFILES: Record<NumberTriviaDifficulty, NumberTriviaAiDifficultyProfile> = {
   easy: {
     accuracyRange: [0.9, 0.98],
     delayRangeMs: [350, 1_300],
-    maxCorrectAttempts: 2,
-    maxWrongAttempts: 3,
-    hesitationChance: 0.16,
+    feedbackGain: 0.08,
     nearMissChance: 0.3,
-    giveUpChance: 0.08,
-    confidentWrongChance: 0.12,
   },
   medium: {
     accuracyRange: [0.7, 0.86],
     delayRangeMs: [1_800, 4_800],
-    maxCorrectAttempts: 4,
-    maxWrongAttempts: 4,
-    hesitationChance: 0.52,
+    feedbackGain: 0.06,
     nearMissChance: 0.4,
-    giveUpChance: 0.14,
-    confidentWrongChance: 0.16,
   },
   hard: {
     accuracyRange: [0.45, 0.65],
     delayRangeMs: [3_000, 8_000],
-    maxCorrectAttempts: 5,
-    maxWrongAttempts: 5,
-    hesitationChance: 0.64,
+    feedbackGain: 0.035,
     nearMissChance: 0.52,
-    giveUpChance: 0.2,
-    confidentWrongChance: 0.2,
   },
   'very-hard': {
     accuracyRange: [0.22, 0.46],
     delayRangeMs: [4_000, 11_000],
-    maxCorrectAttempts: 6,
-    maxWrongAttempts: 6,
-    hesitationChance: 0.76,
+    feedbackGain: 0.02,
     nearMissChance: 0.68,
-    giveUpChance: 0.32,
-    confidentWrongChance: 0.3,
   },
 };
 
@@ -133,58 +113,122 @@ function getFarMissDistance(answer: number, difficulty: NumberTriviaDifficulty, 
   return floor + Math.floor(rng() * (ceiling - floor + 1));
 }
 
+function getFeedbackAccuracy(
+  hint: string,
+  profile: NumberTriviaAiDifficultyProfile,
+  skillOffset: number,
+  attempt: number,
+): number {
+  const hintAccuracy = hint.includes('Almost!')
+    ? 1
+    : hint.includes('Close!')
+      ? 0.2
+      : hint.includes('Much higher') || hint.includes('Much lower')
+        ? 0.045
+        : hint.includes('Higher!') || hint.includes('Lower!')
+          ? 0.08
+          : hint.includes('Way higher') || hint.includes('Way lower')
+            ? 0.025
+            : 0.012;
+
+  // Hints improve the next estimate, but a directional clue does not reveal an
+  // exact answer. Keep follow-up guesses materially uncertain even for a strong
+  // AI so a six-try round is not equivalent to an instant answer.
+  return clamp(
+    hintAccuracy + profile.feedbackGain * 0.2 + skillOffset * 0.1 + Math.min(0.02, (attempt - 2) * 0.005),
+    0.03,
+    0.7,
+  );
+}
+
+function estimateNextMissDistance(
+  previousHint: string,
+  answer: number,
+  difficulty: NumberTriviaDifficulty,
+  rng: () => number,
+): number {
+  if (previousHint.includes('Almost!')) return 1;
+  if (previousHint.includes('Close!')) return 1 + Math.floor(rng() * 5);
+
+  const magnitude = Math.max(6, Math.abs(answer));
+  const uncertaintyRatio = previousHint.includes('Much higher') || previousHint.includes('Much lower')
+    ? 0.25
+    : previousHint.includes('Way higher') || previousHint.includes('Way lower')
+      ? 0.5
+      : previousHint.includes('Significantly higher') || previousHint.includes('Significantly lower')
+        ? 1
+        : 0.1;
+  const learningScale = difficulty === 'easy' ? 0.85 : difficulty === 'medium' ? 0.95 : 1;
+  const uncertainty = Math.max(2, Math.round(magnitude * uncertaintyRatio * learningScale));
+  return 1 + Math.floor(rng() * uncertainty);
+}
+
 export function simulateNumberTriviaAiPerformance(
   context: NumberTriviaAiPerformanceContext,
   rng: () => number,
 ): TriviaRoundPerformance {
   const profile = NUMBER_TRIVIA_AI_PROFILES[context.question.difficulty];
   const skillOffset = clamp((context.precomputedScore - 60) / 450, -0.08, 0.08);
-  const fatiguePenalty = Math.max(0, context.roundNumber - 3) * 0.015;
+  const fatiguePenalty = Math.min(0.06, Math.max(0, context.roundNumber - 3) * 0.015);
   const baseAccuracy = (profile.accuracyRange[0] + profile.accuracyRange[1]) / 2;
-  const accuracy = clamp(1 - (1 - (baseAccuracy + skillOffset - fatiguePenalty)) / (context.aiCapability ?? 1), 0.05, 0.985);
+  const initialAccuracy = clamp(
+    1 - (1 - (baseAccuracy + skillOffset - fatiguePenalty)) / (context.aiCapability ?? 1),
+    0.05,
+    0.985,
+  );
   const normalizedSkill = clamp((context.precomputedScore - 30) / 70, 0, 1);
   const responseSpeedMultiplier = 1.1 - normalizedSkill * 0.25;
-  const baseDelayMs =
-    randomBetween(profile.delayRangeMs[0], profile.delayRangeMs[1], rng) * responseSpeedMultiplier;
-  const guessed = rng() < accuracy;
+  let timeMs = 0;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  let priorMissDistance: number | undefined;
+  let priorMissHint: string | undefined;
 
-  if (guessed) {
-    let attempts = 1;
-    let hesitationChance = clamp(profile.hesitationChance - skillOffset * 1.2, 0.01, 0.9);
-    while (attempts < profile.maxCorrectAttempts && rng() < hesitationChance) {
-      attempts += 1;
-      hesitationChance *= 0.45;
+  for (let attempts = 1; attempts <= NUMBER_TRIVIA_MAX_ATTEMPTS; attempts += 1) {
+    const responseTime =
+      randomBetween(profile.delayRangeMs[0], profile.delayRangeMs[1], rng) * responseSpeedMultiplier;
+    timeMs += responseTime + Math.max(0, fatiguePenalty * 3_000) / NUMBER_TRIVIA_MAX_ATTEMPTS;
+
+    const attemptAccuracy = attempts === 1
+      ? initialAccuracy
+      : getFeedbackAccuracy(priorMissHint ?? '', profile, skillOffset, attempts);
+    if (rng() < attemptAccuracy) {
+      return {
+        guessed: true,
+        attempts,
+        timeMs: Math.round(timeMs),
+        closestDistance: 0,
+      };
     }
 
-    return {
-      guessed: true,
-      attempts,
-      timeMs: Math.round(baseDelayMs + (attempts - 1) * 1_400 + Math.max(0, fatiguePenalty * 3_000)),
-      closestDistance: 0,
-    };
+    const nearMiss = rng() < clamp(profile.nearMissChance + skillOffset * 0.6, 0.15, 0.95);
+    const missDistance = priorMissDistance === undefined
+      ? nearMiss
+        ? getNearMissDistance(context.question.answer, rng)
+        : getFarMissDistance(context.question.answer, context.question.difficulty, rng)
+      : estimateNextMissDistance(
+        priorMissHint ?? '',
+        context.question.answer,
+        context.question.difficulty,
+        rng,
+      );
+    closestDistance = Math.min(closestDistance, missDistance);
+    priorMissDistance = missDistance;
+
+    if (attempts < NUMBER_TRIVIA_MAX_ATTEMPTS) {
+      // The AI keeps the same directional and proximity evidence a human sees.
+      // Each miss narrows its next guess, while difficulty limits how quickly it
+      // can turn that evidence into a better answer.
+      const direction = rng() < 0.5 ? -1 : 1;
+      const guessedValue = context.question.answer + direction * missDistance;
+      priorMissHint = getTriviaHint(guessedValue, context.question.answer);
+    }
   }
 
-  let attempts = profile.maxWrongAttempts;
-  const confidentWrong = rng() < clamp(profile.confidentWrongChance + Math.max(0, skillOffset), 0.05, 0.9);
-  if (confidentWrong) {
-    attempts = 1;
-  } else if (rng() < clamp(profile.giveUpChance - skillOffset, 0.02, 0.9)) {
-    attempts = Math.max(1, profile.maxWrongAttempts - 1 - Math.floor(rng() * 2));
-  }
-
-  const nearMiss = rng() < clamp(profile.nearMissChance + skillOffset * 0.6, 0.15, 0.95);
   return {
     guessed: false,
-    attempts: clamp(attempts, 1, NUMBER_TRIVIA_MAX_ATTEMPTS),
-    timeMs: Math.round(
-      baseDelayMs
-      + Math.max(0, attempts - 1) * 1_350
-      + (nearMiss ? 250 : 900)
-      + Math.max(0, fatiguePenalty * 3_000),
-    ),
-    closestDistance: nearMiss
-      ? getNearMissDistance(context.question.answer, rng)
-      : getFarMissDistance(context.question.answer, context.question.difficulty, rng),
+    attempts: NUMBER_TRIVIA_MAX_ATTEMPTS,
+    timeMs: Math.round(timeMs),
+    closestDistance: Number.isFinite(closestDistance) ? closestDistance : undefined,
   };
 }
 

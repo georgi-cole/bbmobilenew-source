@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 
 const source = readFileSync('public/minigames/twin-remastered/part2/index.html', 'utf8')
 const part1Source = readFileSync('public/minigames/twin-remastered/part1/index.html', 'utf8')
+const remasteredHost = readFileSync(
+  'src/minigames/castleRescue/RemasteredCastleRescueGames.tsx',
+  'utf8'
+)
 
 describe('Find Your Twin 2 remastered mobile shell', () => {
   it.each([
@@ -42,5 +46,19 @@ describe('Find Your Twin 2 remastered mobile shell', () => {
     expect(source).toContain("button.addEventListener('contextmenu'")
     expect(source).toContain("document.addEventListener('selectstart'")
     expect(source).toContain("event.target.closest?.('canvas, .controls')")
+  })
+
+  it('uses the host seed to vary both remastered routes deterministically', () => {
+    expect(remasteredHost).toContain("typeof seed === 'number' && Number.isFinite(seed)")
+    expect(remasteredHost).toContain("query.set('seed', String(Math.trunc(seed)))")
+    expect(part1Source).toContain(
+      'Number.isFinite(parsedSeed) ? parsedSeed >>> 0 : randomSessionSeed()'
+    )
+    expect(source).toContain('Number.isFinite(parsedSeed) ? parsedSeed >>> 0 : randomSessionSeed()')
+    expect(part1Source).toContain('rng32((sessionSeed ^ 0xcafebabe) >>> 0)')
+    expect(source).toContain('rng32((sessionSeed ^ 0xcafebabe) >>> 0)')
+    expect(source).toContain('correctDoorOrder = slots.slice(0, 3)')
+    expect(source).toContain('let expected = correctDoorOrder[route]')
+    expect(source).not.toContain('let expected = [0, 3, 5][route]')
   })
 })

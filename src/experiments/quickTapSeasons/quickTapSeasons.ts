@@ -52,6 +52,8 @@ export type SeasonsAiResult = {
   name: string
   score: number
   rawTaps: number
+  /** All scheduled motor taps, including attempts made in a negative season. */
+  tapAttempts: number
   manualSeasonChanges: number
   accidentalTaps: number
 }
@@ -106,6 +108,7 @@ function scoreWithSeasonsModel(seed: number, opponent: SeasonsOpponentModel): Se
   let nextSeasonAt = SEASON_LENGTH
   let boxIndex = 0
   let rawTaps = 0
+  let tapAttempts = 0
   let score = 0
   let manualSeasonChanges = 0
   let accidentalTaps = 0
@@ -155,6 +158,7 @@ function scoreWithSeasonsModel(seed: number, opponent: SeasonsOpponentModel): Se
       nextSeasonAt += SEASON_LENGTH
     }
 
+    tapAttempts += 1
     const accidentalWinterTap = season === 'winter' && rng() < opponent.winterMistakeRate
     if (season !== 'winter' || accidentalWinterTap) {
       rawTaps += 1
@@ -182,6 +186,7 @@ function scoreWithSeasonsModel(seed: number, opponent: SeasonsOpponentModel): Se
     name: opponent.name,
     score: Number(score.toFixed(2)),
     rawTaps,
+    tapAttempts,
     manualSeasonChanges,
     accidentalTaps,
   }
@@ -200,9 +205,10 @@ function createSeasonsAiOpponent(
   return {
     id,
     name,
-    // Active cadence spans 8.9–13 taps/s before fatigue and pauses, while
-    // fatigue, short pauses, and imperfect box reads keep average AI in range.
-    tapsPerSecond: 8.9 + physical * 3.2 + consistency * 0.55 + rng() * 0.35,
+    // Active cadence spans about 7-9.7 taps/s before fatigue and pauses. The
+    // lower sustained baseline keeps skilled rivals quick without relying on
+    // a short-burst phone-tapping ceiling for the full 40-second race.
+    tapsPerSecond: 7 + physical * 2 + consistency * 0.35 + rng() * 0.35,
     fatigueLoss: 0.2 - consistency * 0.04 + rng() * 0.02,
     pauseRatePerSecond: 0.095 - consistency * 0.015,
     minPauseSeconds: 0.18,

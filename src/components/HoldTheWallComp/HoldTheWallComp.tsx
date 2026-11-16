@@ -23,6 +23,8 @@ import {
   skipFinalTwoDeal,
   dropPlayer,
   dropFinalDuelAi,
+  finishHoldTheWallAtEnduranceLimit,
+  HOLD_THE_WALL_ENDURANCE_LIMIT_MS,
   resetHoldTheWall,
 } from '../../features/holdTheWall/holdTheWallSlice'
 import { resolveHoldTheWallOutcome } from '../../features/holdTheWall/thunks'
@@ -148,6 +150,22 @@ function formatElapsed(ms: number): string {
   const s = Math.floor(ms / 1000)
   const tenths = Math.floor((ms % 1000) / 100)
   return `${s}.${tenths}s`
+}
+
+function getCompletedHoldTheWallStandings(
+  state: Pick<HoldTheWallState, 'winnerId' | 'tieGroupIds' | 'droppedIds'>
+) {
+  const winnerGroup = state.winnerId
+    ? [state.winnerId, ...state.tieGroupIds.filter((id) => id !== state.winnerId)]
+    : []
+  const rankedIds = [
+    ...winnerGroup,
+    ...state.droppedIds
+      .slice()
+      .reverse()
+      .filter((id) => !winnerGroup.includes(id)),
+  ]
+  return { winnerGroup, rankedIds }
 }
 
 /** Pick a random line from an array using a seeded RNG at a given step. */
@@ -354,6 +372,19 @@ export default function HoldTheWallComp({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [htw.status])
 
+  // Every run shares the same finite endurance window. Survivors at the limit
+  // are tied on endurance, then the slice resolves one representative winner
+  // from the seeded tie so neither side gets a human-specific rule.
+  useEffect(() => {
+    if (htw.status !== 'active') return
+    const startTime = startTimeRef.current ?? Date.now()
+    const timeout = window.setTimeout(
+      () => dispatch(finishHoldTheWallAtEnduranceLimit()),
+      Math.max(0, HOLD_THE_WALL_ENDURANCE_LIMIT_MS - (Date.now() - startTime))
+    )
+    return () => window.clearTimeout(timeout)
+  }, [dispatch, htw.status])
+
   // ── Schedule AI drops; pressure shortens the remaining endurance window ──
   // This only changes rival endurance. The human rule stays deliberately simple:
   // press and keep holding the wall. A fake call remains distraction-only.
@@ -402,7 +433,7 @@ export default function HoldTheWallComp({
     pressureTier,
   ])
 
-  // ── Final duel: no hard AI deadline; one 10% seeded drop roll every 5s ──
+  // ── Final duel: one 2.5% seeded drop roll every 5s until the shared limit ──
   useEffect(() => {
     finalDuelRollRef.current = 0
     if (
@@ -515,6 +546,11 @@ export default function HoldTheWallComp({
   // ── Notify parent after a short delay so the winner screen is visible ─────
   useEffect(() => {
     if (htw.status !== 'complete') return
+    const { winnerGroup, rankedIds } = getCompletedHoldTheWallStandings({
+      winnerId: htw.winnerId,
+      tieGroupIds: htw.tieGroupIds,
+      droppedIds: htw.droppedIds,
+    })
     const t = window.setTimeout(
       () =>
         onComplete?.({
@@ -522,16 +558,15 @@ export default function HoldTheWallComp({
           authoritativeLastPlaceId: htw.droppedIds[0] ?? null,
           rawValue: htw.winnerId ? 1 : 0,
           lastPlaceType: 'survival',
-          authoritativeRankedIds: [htw.winnerId, ...htw.droppedIds.slice().reverse()].filter(
-            (id): id is string => Boolean(id)
-          ),
-          authoritativeTiedGroups: [],
+          authoritativeRankedIds: rankedIds,
+          authoritativeTiedGroups: winnerGroup.length > 1 ? [winnerGroup] : [],
         }),
       WINNER_SCREEN_DURATION_MS
     )
     return () => window.clearTimeout(t)
-  }, [htw.status, htw.winnerId, htw.droppedIds, onComplete])
+  }, [htw.status, htw.winnerId, htw.tieGroupIds, htw.droppedIds, onComplete])
 
+  const completedStandings = getCompletedHoldTheWallStandings(htw)
   useCompetitionResultCheckpoint(
     htw.status === 'complete'
       ? {
@@ -541,9 +576,9 @@ export default function HoldTheWallComp({
             authoritativeWinnerId: htw.winnerId,
             authoritativeLastPlaceId: htw.droppedIds[0] ?? null,
             lastPlaceType: 'survival',
-            authoritativeRankedIds: [htw.winnerId, ...htw.droppedIds.slice().reverse()].filter(
-              (id): id is string => Boolean(id)
-            ),
+            authoritativeRankedIds: completedStandings.rankedIds,
+            authoritativeTiedGroups:
+              completedStandings.winnerGroup.length > 1 ? [completedStandings.winnerGroup] : [],
           },
         }
       : null

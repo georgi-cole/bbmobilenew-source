@@ -864,6 +864,29 @@ describe('round progression', () => {
     expect(['a', 'b']).toContain(s.winnerId);
   });
 
+  it('resolves a tied final score independently of active roster order', () => {
+    const store = makeStore();
+    init(store, ['a', 'b'], 42);
+    const tiedState: RiskWheelState = {
+      ...getState(store),
+      phase: 'round_summary',
+      round: 3,
+      activePlayerIds: ['a', 'b'],
+      eliminatedThisRound: [],
+      roundScores: { a: 750, b: 750 },
+    };
+
+    const forward = reducer(tiedState, advanceFromRoundSummary());
+    const reversed = reducer(
+      { ...tiedState, activePlayerIds: ['b', 'a'] },
+      advanceFromRoundSummary(),
+    );
+
+    expect(forward.phase).toBe('complete');
+    expect(forward.winnerId).toBe(reversed.winnerId);
+    expect(['a', 'b']).toContain(forward.winnerId);
+  });
+
   it('round scores reset each new round', () => {
     const store = makeStore();
     init(store, ['a', 'b', 'c', 'd']);

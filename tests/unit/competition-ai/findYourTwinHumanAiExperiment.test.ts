@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { TIME_LIMIT_MS } from '../../../src/minigames/castleRescue/castleRescueConstants'
+import {
+  CASTLE_RESCUE_SCORE_RULES,
+  TIME_LIMIT_MS,
+} from '../../../src/minigames/castleRescue/castleRescueConstants'
+import { generateLevelConfig } from '../../../src/minigames/castleRescue/castleRescueGenerator'
+import { computePlatformerFinalScore } from '../../../src/minigames/castleRescue/castleRescuePlatformerLogic'
 import {
   FIND_YOUR_TWIN_EXPERIMENT_FIELD,
   simulateHumanlikeFindYourTwinAi,
@@ -12,6 +17,83 @@ describe('Find Your Twin human-AI experiment', () => {
     const first = simulateHumanlikeFindYourTwinAi({ seed: 42, config, difficulty: 'balanced' })
     const second = simulateHumanlikeFindYourTwinAi({ seed: 42, config, difficulty: 'balanced' })
     expect(second).toEqual(first)
+  })
+
+  it('keeps seeded route generation deterministic and variant-specific', () => {
+    const first = generateLevelConfig(42, 'lostAgain')
+    const repeated = generateLevelConfig(42, 'lostAgain')
+    const zeroSeed = generateLevelConfig(0, 'lostAgain')
+    const routeSet = new Set(
+      Array.from({ length: 24 }, (_, index) =>
+        generateLevelConfig(index + 1, 'lostAgain').correctPipeSlots.join(',')
+      )
+    )
+
+    expect(repeated).toEqual(first)
+    expect(generateLevelConfig(0, 'lostAgain')).toEqual(zeroSeed)
+    expect(routeSet.size).toBeGreaterThan(1)
+    expect(Object.values(first.wrongPipeTypes).sort()).toEqual(['ambush', 'bonus', 'setback'])
+  })
+
+  it('uses the retained Lost Again VIP score model for its AI mirror', () => {
+    const config = FIND_YOUR_TWIN_EXPERIMENT_FIELD[0]
+    const result = simulateHumanlikeFindYourTwinAi({
+      seed: 424242,
+      config,
+      scoringVariant: 'lostAgain',
+    })
+
+    expect(CASTLE_RESCUE_SCORE_RULES.lostAgain).toEqual({
+      brick: 20,
+      coin: 10,
+      enemy: 50,
+      checkpoint: 25,
+      route: 100,
+      wrongPipePenalty: 0,
+      rescueBonus: 0,
+      timePenaltyPerSecond: 0,
+      deathPenalty: 0,
+      outOfLivesPenalty: 0,
+    })
+    expect(result.correctRoute).toEqual(generateLevelConfig(424242, 'lostAgain').correctPipeSlots)
+    expect(
+      result.actions.filter(
+        (action) => action.type === 'pipe' && action.detail.includes('found route pipe')
+      )
+    ).toHaveLength(3)
+    expect(result.finalScore).toBeGreaterThanOrEqual(0)
+  })
+
+  it('does not add rescue or time points in the Lost Again score model', () => {
+    const state = { score: 700, princessRescued: true }
+
+    expect(computePlatformerFinalScore(state, 90_000, CASTLE_RESCUE_SCORE_RULES.lostAgain)).toBe(
+      700
+    )
+    expect(computePlatformerFinalScore(state, 90_000)).toBe(800)
+  })
+
+  it('retries an active Lost Again sanctum warden after a miss while time and hearts remain', () => {
+    const config = FIND_YOUR_TWIN_EXPERIMENT_FIELD[1]
+    const result = Array.from({ length: 512 }, (_, index) =>
+      simulateHumanlikeFindYourTwinAi({
+        seed: index + 1,
+        config,
+        timeLimitMs: 300_000,
+        scoringVariant: 'lostAgain',
+      })
+    ).find(
+      (candidate) =>
+        candidate.rescued &&
+        candidate.actions.some((action) => action.detail.includes('missed a sanctum warden'))
+    )
+
+    expect(result).toBeDefined()
+    expect(
+      result?.actions.filter((action) => action.detail.includes('stomped sanctum warden'))
+    ).toHaveLength(2)
+    expect(result?.deaths).toBeGreaterThan(0)
+    expect(result?.elapsedMs).toBeLessThan(300_000)
   })
 
   it('earns scores through legal movement, jump, pipe, and rescue actions', () => {

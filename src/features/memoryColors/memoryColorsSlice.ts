@@ -98,6 +98,7 @@ export const MEMORY_COLOR_POOL: readonly MemoryColorDef[] = [
 export const NUM_COLORS = MEMORY_COLOR_POOL.length;
 export const INITIAL_SEQUENCE_LENGTH = 5;
 export const MAX_MISTAKES = 5;
+const MAX_AI_SIMULATION_ATTEMPTS = 10_000;
 
 const SALT_SEQUENCE = 0xabcdef01;
 const SALT_AI = 0x12345678;
@@ -143,19 +144,66 @@ export function simulateAiResult(seed: number, playerId: string, capability = 1)
   }
 
   const rng = mulberry32(((seed ^ SALT_AI) ^ idHash) >>> 0);
-  const skill = Math.min(1, (0.48 + rng() * 0.52) * capability);
-  const furthestRoundReached = Math.max(1, Math.floor(1 + skill * 9 + rng() * 4));
-  const likelyMistakes = Math.max(0, Math.round((1 - skill) * MAX_MISTAKES + rng()));
-  const mistakesUsed = Math.min(MAX_MISTAKES, likelyMistakes);
-  const failedRoundLength = Math.min(NUM_COLORS, INITIAL_SEQUENCE_LENGTH + (furthestRoundReached - 1));
-  const failedAtStep = furthestRoundReached > 1 ? Math.floor(rng() * failedRoundLength) : 0;
-  const roundsCleared = Math.max(0, furthestRoundReached - (mistakesUsed >= MAX_MISTAKES ? 1 : 0));
-  const baseMs = 380 + rng() * 320;
-  const stepsFromClearedRounds = Array.from(
-    { length: Math.max(roundsCleared, 0) },
-    (_, i) => Math.min(NUM_COLORS, INITIAL_SEQUENCE_LENGTH + i),
-  ).reduce((sum, len) => sum + len, 0);
-  const totalResponseMs = Math.round((stepsFromClearedRounds + failedAtStep) * baseMs);
+  const normalizedCapability = Math.max(0, capability);
+  const skill = Math.max(0, Math.min(1, (0.48 + rng() * 0.52) * normalizedCapability));
+  let furthestRoundReached = 1;
+  let roundsCleared = 0;
+  let mistakesUsed = 0;
+  let totalResponseMs = 0;
+  let failedAtStep = 0;
+  let round = 1;
+  let totalAttempts = 0;
+
+  // Model the same loop the human plays: each incorrect tap spends one of
+  // five mistakes and replays the sequence; clearing a round adds one color.
+  // The AI samples fallible recall from sequence length and skill rather than
+  // reading the generated sequence as an answer key.
+  while (mistakesUsed < MAX_MISTAKES) {
+    furthestRoundReached = round;
+    const sequenceLength = Math.min(
+      NUM_COLORS,
+      INITIAL_SEQUENCE_LENGTH + (round - 1),
+    );
+    let retriesThisRound = 0;
+    let clearedRound = false;
+
+    while (!clearedRound && mistakesUsed < MAX_MISTAKES) {
+      if (totalAttempts >= MAX_AI_SIMULATION_ATTEMPTS) {
+        throw new Error('Memory Colors AI simulation did not reach the five-mistake limit.');
+      }
+      totalAttempts += 1;
+      retriesThisRound += 1;
+      let failed = false;
+      for (let step = 0; step < sequenceLength; step += 1) {
+        // Human timing starts after the first tap of each replay.
+        if (step > 0) {
+          totalResponseMs += Math.round(340 + (1 - skill) * 160 + rng() * 300);
+        }
+        const retryLearning = Math.min(0.025, (retriesThisRound - 1) * 0.005);
+        const recallProbability = Math.max(
+          0.65,
+          Math.min(
+            0.995,
+            0.89 + skill * 0.08 - Math.max(0, sequenceLength - INITIAL_SEQUENCE_LENGTH) * 0.003 +
+              retryLearning,
+          ),
+        );
+        if (rng() >= recallProbability) {
+          mistakesUsed += 1;
+          failedAtStep = step;
+          failed = true;
+          break;
+        }
+      }
+
+      if (!failed) {
+        roundsCleared += 1;
+        round += 1;
+        clearedRound = true;
+      }
+    }
+  }
+
   const result: Omit<MemoryColorsPlayerResult, 'score'> = {
     roundsCleared,
     furthestRoundReached,

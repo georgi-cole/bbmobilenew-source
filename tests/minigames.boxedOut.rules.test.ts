@@ -123,6 +123,34 @@ describe('BOXED OUT survival rules', () => {
     expect(over.winnerId).toBe('a')
   })
 
+  it('uses deterministic two-sided arithmetic estimates for AI tiebreaks', () => {
+    const winners = new Set<string | null>()
+    let exactAnswerWins = 0
+    for (let seed = 1; seed <= 80; seed += 1) {
+      const duel = {
+        ...withSelections({ a: 0, b: 0, c: 1 }),
+        seed,
+        phase: 'tiebreak' as const,
+        finalists: ['human', 'a'],
+      }
+      const first = resolveBoxedOutTiebreak(duel, 0, 10_000)
+      const repeated = resolveBoxedOutTiebreak(duel, 0, 10_000)
+      expect(first).toEqual(repeated)
+      winners.add(first.winnerId)
+
+      const question = tiebreakQuestion(duel)
+      if (resolveBoxedOutTiebreak(duel, question.answer, 10_000).winnerId === 'a') {
+        exactAnswerWins += 1
+      }
+    }
+
+    // Some seeded estimates land under the answer and some overshoot it,
+    // where the existing closest-without-going-over rule rejects them.
+    expect([...winners]).toEqual(expect.arrayContaining(['human', 'a']))
+    expect(exactAnswerWins).toBeGreaterThan(0)
+    expect(exactAnswerWins).toBeLessThan(80)
+  })
+
   it('produces the same AI choices and end result for the same seed', () => {
     const a = createBoxedOutState(
       players.filter((p) => !p.isHuman),

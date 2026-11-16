@@ -471,6 +471,8 @@ export default function BlackjackTournamentComp({
     const activeId = duel.duelTurn === 'fighterA' ? duel.fighterAId : duel.fighterBId
     const activeCards = duel.duelTurn === 'fighterA' ? duel.fighterACards : duel.fighterBCards
     const opponentBust = duel.duelTurn === 'fighterA' ? duel.fighterBBust : duel.fighterABust
+    const opponentCards = duel.duelTurn === 'fighterA' ? duel.fighterBCards : duel.fighterACards
+    const opponentStood = duel.duelTurn === 'fighterA' ? duel.fighterBStood : duel.fighterAStood
     const decisionIndex = activeCards.length - 2 // 0 for first decision
 
     // Human active player: wait for button press, no timer needed.
@@ -478,7 +480,14 @@ export default function BlackjackTournamentComp({
 
     // AI active player: auto-decide after a short delay.
     const rngVal = aiDecisionRng(bt.seed, bt.duelIndex, activeId, decisionIndex)
-    const shouldHit = aiShouldHitDuel(computeTotal(activeCards), rngVal, opponentBust, aiCapability)
+    const shouldHit = aiShouldHitDuel(
+      computeTotal(activeCards),
+      rngVal,
+      opponentBust,
+      aiCapability,
+      computeTotal(opponentCards),
+      opponentStood
+    )
 
     const delay = bt.isSpectating ? SPECTATOR_ADVANCE_MS : applySpeed(TIMER_AI_ACTION_MS)
     aiActionTimerRef.current = window.setTimeout(() => {

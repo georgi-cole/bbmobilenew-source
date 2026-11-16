@@ -8,6 +8,7 @@ import {
   SAFE_STEP_MS,
   WRONG_STEP_MS,
   createRowStream,
+  rollMysteryEffect,
 } from '../src/minigames/crystalPathShattered/shatteredLogic'
 import gameReducer from '../src/store/gameSlice'
 import { mulberry32 } from '../src/store/rng'
@@ -130,6 +131,66 @@ describe('Crystal Path: Infinity async flow', () => {
     expect(firstRowSafeTile.closest('.cps-row')?.className).toContain('is-past')
     expect(secondRowSafeTile.closest('.cps-row')?.className).toContain('is-current')
     expect(secondRowSafeTile).not.toHaveAttribute('disabled')
+  })
+
+  it('keeps the 500ms drain cadence while fast human steps update player state', async () => {
+    let seed = 0
+    for (let candidate = 1; candidate < 10_000; candidate += 1) {
+      const effectRng = mulberry32(candidate ^ 0x9e3779b9)
+      if (rollMysteryEffect(effectRng) === 'drain_5s') {
+        seed = candidate
+        break
+      }
+    }
+    expect(seed).toBeGreaterThan(0)
+
+    const rows = createRowStream(mulberry32(seed)).take(16)
+    const mysteryIndex = rows.findIndex((row) => row.hasMystery)
+    expect(mysteryIndex).toBeGreaterThanOrEqual(0)
+
+    const { container } = render(
+      <Provider store={makeStore()}>
+        <CrystalPathShatteredGame
+          participantIds={['ai-1', 'human']}
+          participants={[
+            { id: 'ai-1', name: 'AI One', isHuman: false },
+            { id: 'human', name: 'Human', isHuman: true },
+          ]}
+          seed={seed}
+        />
+      </Provider>
+    )
+
+    for (const row of rows.slice(0, mysteryIndex)) {
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: `Row ${row.index + 1} ${row.safeSide} tile` })
+        )
+        vi.advanceTimersByTime(SAFE_STEP_MS + 1)
+      })
+    }
+
+    const mysteryRow = rows[mysteryIndex]
+    if (!mysteryRow) throw new Error('expected a mystery row')
+    fireEvent.click(
+      screen.getByRole('button', { name: `Row ${mysteryRow.index + 1} mystery tile` })
+    )
+    await act(async () => {
+      vi.advanceTimersByTime(2_401)
+    })
+    expect(container.querySelector('.cps-effect-name')?.textContent).toBe('Drain')
+    expect(container.querySelector('.cps-sp-value')?.textContent).toBe('292')
+
+    for (const row of rows.slice(mysteryIndex, mysteryIndex + 7)) {
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: `Row ${row.index + 1} ${row.safeSide} tile` })
+        )
+        vi.advanceTimersByTime(SAFE_STEP_MS + 1)
+      })
+    }
+
+    expect(container.querySelector('.cps-sp-value')?.textContent).toBe('282')
   })
 
   it('marks a wrong tile as cracking immediately and leaves it cracked after resolution', async () => {

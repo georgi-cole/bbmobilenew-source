@@ -23,6 +23,22 @@ describe('House of Cards preliminary AI', () => {
     expect(simulateHouseOfCardsAiRound(params)).toEqual(simulateHouseOfCardsAiRound(params));
   });
 
+  it('keeps playing until every preliminary pair is found at every skill level', () => {
+    for (const sessionAbility of [25, 55, 85]) {
+      for (let tournamentSeed = 1; tournamentSeed <= 60; tournamentSeed += 1) {
+        const performance = simulateHouseOfCardsAiRound({
+          playerId: 'alex',
+          round: 4,
+          pairCount: 10,
+          tournamentSeed,
+          sessionAbility,
+        });
+
+        expect(performance.completedPairs).toBe(10);
+      }
+    }
+  });
+
   it('redistributes a player ability between tournament seeds', () => {
     const abilities = new Set(
       Array.from({ length: 20 }, (_, index) =>

@@ -1,14 +1,9 @@
 import { mulberry32 } from '../../store/rng'
 import {
-  PENALTY_DEATH,
-  PENALTY_OUT_OF_LIVES,
-  RESPAWN_PENALTY,
-  SCORE_BRICK,
-  SCORE_CHECKPOINT,
-  SCORE_COIN,
-  SCORE_ENEMY,
+  CASTLE_RESCUE_SCORE_RULES,
   TIME_LIMIT_MS,
 } from '../../minigames/castleRescue/castleRescueConstants'
+import type { CastleRescueScoreVariant } from '../../minigames/castleRescue/castleRescueConstants'
 import { generateLevelConfig } from '../../minigames/castleRescue/castleRescueGenerator'
 import { computePlatformerFinalScore } from '../../minigames/castleRescue/castleRescuePlatformerLogic'
 import type { CastleRescueEndReason } from '../../minigames/castleRescue/castleRescueSession'
@@ -125,7 +120,11 @@ const MAIN_BRICK_X = [
   3162, 3622, 3654, 4080,
 ] as const
 const MAIN_ENEMY_X = [240, 650, 1270, 1520, 1800, 2190, 2530, 2890, 3310, 3740, 4220, 4640] as const
+const LOST_AGAIN_MAIN_ENEMY_X = [
+  240, 655, 1270, 1520, 1800, 2190, 2530, 2890, 3310, 3740, 4220,
+] as const
 const TWIN_X = 4670
+const LOST_AGAIN_SANCTUM_X = 4515
 const DIFFICULTY_SCALE: Record<FindYourTwinExperimentDifficulty, number> = {
   friendly: 0.88,
   balanced: 1,
@@ -171,14 +170,19 @@ export function simulateHumanlikeFindYourTwinAi({
   config,
   difficulty = 'balanced',
   timeLimitMs = TIME_LIMIT_MS,
+  scoringVariant = 'classic',
 }: {
   seed: number
   config: FindYourTwinAiConfig
   difficulty?: FindYourTwinExperimentDifficulty
   timeLimitMs?: number
+  scoringVariant?: CastleRescueScoreVariant
 }): FindYourTwinAiResult {
-  const level = generateLevelConfig(seed)
-  const lock = resolveLockedRoute(seed)
+  const scoreRules = CASTLE_RESCUE_SCORE_RULES[scoringVariant]
+  const level = generateLevelConfig(seed, scoringVariant)
+  const lock =
+    scoringVariant === 'lostAgain' ? { lockedSlot: null, keySlot: null } : resolveLockedRoute(seed)
+  const mainEnemyX = scoringVariant === 'lostAgain' ? LOST_AGAIN_MAIN_ENEMY_X : MAIN_ENEMY_X
   const rng = mulberry32(((seed >>> 0) ^ hashIdentity(config.id) ^ 0x52a7b91d) >>> 0)
   const difficultyScale = DIFFICULTY_SCALE[difficulty]
   const moveSpeed = config.moveSpeedPxPerSecond * difficultyScale
@@ -224,7 +228,7 @@ export function simulateHumanlikeFindYourTwinAi({
         activatedCheckpoints.add(index)
         checkpointsActivated += 1
         spawnX = checkpoint.respawnX
-        score += SCORE_CHECKPOINT
+        score += scoreRules.checkpoint
         push('collect', `activated checkpoint ${index + 1}`)
       }
     })
@@ -232,7 +236,7 @@ export function simulateHumanlikeFindYourTwinAi({
       if (!collectedCoins.has(index) && crossed(x, from, to) && rng() < pickupAwareness) {
         collectedCoins.add(index)
         coinsCollected += 1
-        score += SCORE_COIN
+        score += scoreRules.coin
         push('collect', `collected Eyeros ${index + 1}`)
       }
     })
@@ -240,15 +244,15 @@ export function simulateHumanlikeFindYourTwinAi({
       if (!brokenBricks.has(index) && crossed(x, from, to) && rng() < pickupAwareness * 0.42) {
         brokenBricks.add(index)
         bricksBroken += 1
-        score += SCORE_BRICK
+        score += scoreRules.brick
         push('collect', `broke brick ${index + 1}`)
       }
     })
-    MAIN_ENEMY_X.forEach((x, index) => {
+    mainEnemyX.forEach((x, index) => {
       if (!defeatedEnemies.has(index) && crossed(x, from, to) && rng() < combatControl) {
         defeatedEnemies.add(index)
         enemiesStomped += 1
-        score += SCORE_ENEMY
+        score += scoreRules.enemy
         push('collect', `stomped enemy ${index + 1}`)
       }
     })
@@ -283,11 +287,11 @@ export function simulateHumanlikeFindYourTwinAi({
     if (rng() < 1 - Math.pow(1 - hazardRate, hazardExposure)) {
       deaths += 1
       hearts -= 1
-      score = Math.max(0, score - PENALTY_DEATH)
+      score = Math.max(0, score - scoreRules.deathPenalty)
       elapsedMs += ranged(rng, 650, 1_050)
       push('death', `mistimed obstacle; ${hearts} hearts left`)
       if (hearts <= 0) {
-        score = Math.max(0, score - PENALTY_OUT_OF_LIVES)
+        score = Math.max(0, score - scoreRules.outOfLivesPenalty)
         endReason = 'out_of_lives'
         return false
       }
@@ -327,6 +331,7 @@ export function simulateHumanlikeFindYourTwinAi({
     if (routeIndex === pipesComplete) {
       usedPipes.add(slot)
       pipesComplete += 1
+      score += scoreRules.route
       push('pipe', `found route pipe ${pipesComplete} of 3 at slot ${slot + 1}`)
       attemptedThisStage = new Set<number>()
       continue
@@ -334,7 +339,7 @@ export function simulateHumanlikeFindYourTwinAi({
 
     if (routeIndex >= 0) {
       wrongPipes += 1
-      score = Math.max(0, score - RESPAWN_PENALTY)
+      score = Math.max(0, score - scoreRules.wrongPipePenalty)
       elapsedMs += 700
       position = spawnX
       push('pipe', `correct route pipe tried out of order at slot ${slot + 1}`)
@@ -345,7 +350,7 @@ export function simulateHumanlikeFindYourTwinAi({
     usedPipes.add(slot)
     if (wrongType === 'setback') {
       wrongPipes += 1
-      score = Math.max(0, score - RESPAWN_PENALTY)
+      score = Math.max(0, score - scoreRules.wrongPipePenalty)
       elapsedMs += 700
       position = spawnX
       push('pipe', `setback pipe ${slot + 1}; returned to checkpoint`)
@@ -365,7 +370,8 @@ export function simulateHumanlikeFindYourTwinAi({
       coinsCollected += roomCoins
       bricksBroken += roomBricks
       enemiesStomped += roomEnemies
-      score += roomCoins * SCORE_COIN + roomBricks * SCORE_BRICK + roomEnemies * SCORE_ENEMY
+      score +=
+        roomCoins * scoreRules.coin + roomBricks * scoreRules.brick + roomEnemies * scoreRules.enemy
       push(
         'room',
         `${wrongType} room: ${roomCoins} coins, ${roomBricks} bricks, ${roomEnemies} enemies`
@@ -373,7 +379,7 @@ export function simulateHumanlikeFindYourTwinAi({
       if (!isBonus && rng() > combatControl + 0.12) {
         deaths += 1
         hearts -= 1
-        score = Math.max(0, score - PENALTY_DEATH)
+        score = Math.max(0, score - scoreRules.deathPenalty)
         push('death', `hit in ambush room; ${hearts} hearts left`)
       }
       if (slot === lock.keySlot) locked = false
@@ -382,7 +388,45 @@ export function simulateHumanlikeFindYourTwinAi({
   }
 
   if (pipesComplete === 3 && hearts > 0 && elapsedMs < timeLimitMs) {
-    if (travelTo(TWIN_X, 'ran through the opened gate to the twin') && elapsedMs < timeLimitMs) {
+    if (scoringVariant === 'lostAgain') {
+      if (travelTo(LOST_AGAIN_SANCTUM_X, 'reached the twin sanctum') && elapsedMs < timeLimitMs) {
+        // Wardens stay active after a hit, so a living player can retry them.
+        // Each successful stomp earns the same enemy score as the VIP edition.
+        let wardensDefeated = 0
+        while (wardensDefeated < 2 && hearts > 0 && elapsedMs < timeLimitMs) {
+          elapsedMs += ranged(rng, 5_000, 10_000) / Math.max(0.65, combatControl)
+          if (elapsedMs >= timeLimitMs) break
+
+          if (rng() < combatControl) {
+            enemiesStomped += 1
+            score += scoreRules.enemy
+            wardensDefeated += 1
+            push('collect', `stomped sanctum warden ${wardensDefeated}`)
+          } else {
+            deaths += 1
+            hearts -= 1
+            score = Math.max(0, score - scoreRules.deathPenalty)
+            push('death', `missed a sanctum warden; ${hearts} hearts left`)
+            if (hearts <= 0) {
+              score = Math.max(0, score - scoreRules.outOfLivesPenalty)
+              endReason = 'out_of_lives'
+            }
+          }
+        }
+
+        // The human game still requires crossing the room and completing its
+        // reunion animation after both guards fall.
+        if (wardensDefeated === 2 && hearts > 0 && elapsedMs + 6_000 < timeLimitMs) {
+          elapsedMs += 6_000
+          rescued = true
+          endReason = 'rescued'
+          push('rescue', 'defeated both sanctum wardens and found the twin')
+        }
+      }
+    } else if (
+      travelTo(TWIN_X, 'ran through the opened gate to the twin') &&
+      elapsedMs < timeLimitMs
+    ) {
       rescued = true
       endReason = 'rescued'
       push('rescue', 'found the twin')
@@ -397,7 +441,8 @@ export function simulateHumanlikeFindYourTwinAi({
 
   const finalScore = computePlatformerFinalScore(
     { score, princessRescued: rescued },
-    Math.min(elapsedMs, timeLimitMs)
+    Math.min(elapsedMs, timeLimitMs),
+    scoreRules
   )
   return {
     id: config.id,
@@ -434,12 +479,14 @@ export function simulateFindYourTwinCompetitionScore({
   participantIndex = 0,
   difficulty = 'balanced',
   timeLimitMs = TIME_LIMIT_MS,
+  scoringVariant = 'classic',
 }: {
   seed: number
   playerId?: string
   participantIndex?: number
   difficulty?: FindYourTwinExperimentDifficulty
   timeLimitMs?: number
+  scoringVariant?: CastleRescueScoreVariant
 }): number {
   const identity = playerId || `castle-rescue-participant-${participantIndex}`
   const archetype =
@@ -448,6 +495,7 @@ export function simulateFindYourTwinCompetitionScore({
     seed,
     difficulty,
     timeLimitMs,
+    scoringVariant,
     config: { ...archetype, id: identity },
   }).finalScore
 }

@@ -34,7 +34,7 @@ import {
 import {
   chooseHouseOfDarknessAiCharm,
   getHouseOfDarknessAiAbility,
-  simulateHouseOfDarknessAiMemory,
+  simulateHouseOfDarknessAiBoard,
 } from './houseOfDarknessAiBalance'
 import {
   buildPortraitPairBoard,
@@ -467,49 +467,23 @@ export default function HouseOfDarknessComp({
       })
       const charm = choice.charm
       const targetId = charm === 'curse' ? choice.targetId : undefined
-      const performance = simulateHouseOfDarknessAiMemory({
+      const boardOutcome = simulateHouseOfDarknessAiBoard({
         playerId: player.id,
         round: simulatedRound,
         pairCount: simulatedPairCount,
         tournamentSeed: sessionSeed,
         sessionAbility: aiAbility,
+        health: player.health,
         charm,
         recentMistakes:
           player.completedRounds > 0 ? player.totalMistakes / player.completedRounds : undefined,
-      })
-      const damageResolution = applyHouseOfDarknessMistakes({
-        health: player.health,
-        sessionSeed,
-        playerId: player.id,
-        round: simulatedRound,
-        mistakeStartIndex: 0,
-        mistakeCount: performance.mistakes,
-        damageBonus: selectedOmen.damageBonus + (charm === 'bargain' ? 3 : 0),
+        curseCharges: player.curseCharges,
+        omenDamageBonus: selectedOmen.damageBonus,
         firstMistakeBonus: selectedOmen.firstMistakeBonus,
-        curseCharges: charm === 'cleanse' ? 0 : player.curseCharges,
-        shieldBlocks: charm === 'shield' ? 2 : 0,
-        lastChanceAvailable: charm === 'last-chance',
+        recoveryBonus: selectedOmen.recoveryBonus,
       })
-      const completedBoard = damageResolution.lethalMistakeIndex === null
-      const mistakesTaken =
-        damageResolution.lethalMistakeIndex === null
-          ? performance.mistakes
-          : damageResolution.lethalMistakeIndex + 1
-      const elapsedMs =
-        damageResolution.lethalMistakeIndex === null
-          ? performance.timeMs
-          : Math.max(
-              1,
-              Math.round((performance.timeMs * mistakesTaken) / Math.max(1, performance.mistakes))
-            )
-      const endingHealth = recoverHouseOfDarknessHealth(
-        damageResolution.health,
-        damageResolution.damage,
-        completedBoard,
-        (charm === 'heal' ? 8 : charm === 'bargain' ? 14 : 0) + selectedOmen.recoveryBonus,
-        !damageResolution.lastChanceUsed
-      )
-      const alive = completedBoard && endingHealth > 0
+      const { damageResolution, completedBoard, mistakesTaken, elapsedMs, endingHealth, alive } =
+        boardOutcome
       const next: ContestantState = {
         ...player,
         health: endingHealth,

@@ -3,7 +3,7 @@
  *
  * State machine:
  *   idle → active  (startHoldTheWall dispatched on component mount)
- *   active → complete  (only one player remains standing)
+ *   active → complete  (one player remains, or the shared endurance window expires)
  *
  * AI drop times are computed deterministically from the seed at start so the
  * result is reproducible. The React component schedules the setTimeout calls
@@ -14,10 +14,13 @@ import { mulberry32 } from '../../store/rng';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+/** Common maximum endurance window for the whole field. */
+export const HOLD_THE_WALL_ENDURANCE_LIMIT_MS = 120_000;
+
 /** Earliest an AI player can drop (ms after game start). */
 export const AI_DROP_MIN_MS = 10_000;
-/** Latest an AI player can drop (ms after game start). */
-export const AI_DROP_MAX_MS = 120_000;
+/** Latest a scheduled AI drop (ms after game start); some opponents can outlast the shared window. */
+export const AI_DROP_MAX_MS = HOLD_THE_WALL_ENDURANCE_LIMIT_MS + 15_000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +59,8 @@ export interface HoldTheWallState {
   droppedIds: string[];
   /** ID of the last player standing once complete, or null while active. */
   winnerId: string | null;
+  /** Players who shared the final endurance time before its seeded tie-break. */
+  tieGroupIds: string[];
   /** One optional final-two safety bargain for LOH Hold the Wall. */
   finalTwoDeal: HoldTheWallFinalTwoDeal | null;
   /** Prevents repeatedly reopening the final-two bargaining window. */
@@ -78,6 +83,7 @@ const initialState: HoldTheWallState = {
   aiDropSchedule: {},
   droppedIds: [],
   winnerId: null,
+  tieGroupIds: [],
   finalTwoDeal: null,
   dealOpportunityResolved: false,
   outcomeResolved: false,
@@ -100,10 +106,26 @@ export function buildAiDropSchedule(
   const range = AI_DROP_MAX_MS - AI_DROP_MIN_MS;
   for (const id of participantIds) {
     if (id !== humanId) {
-      schedule[id] = Math.round((AI_DROP_MIN_MS + Math.floor(rng() * range)) * capability);
+      const scheduledAt = Math.round((AI_DROP_MIN_MS + Math.floor(rng() * range)) * capability);
+      // Scheduled falls can extend beyond the shared match window. Those AI
+      // are genuine endurance survivors and join the seeded tie-break at 120s.
+      schedule[id] = Math.max(
+        AI_DROP_MIN_MS,
+        scheduledAt === HOLD_THE_WALL_ENDURANCE_LIMIT_MS
+          ? HOLD_THE_WALL_ENDURANCE_LIMIT_MS + 1
+          : scheduledAt,
+      );
     }
   }
   return schedule;
+}
+
+/** Pick a representative winner fairly when several players reach the limit. */
+function selectEnduranceTieWinner(seed: number, survivorIds: string[]): string | null {
+  if (survivorIds.length === 0) return null;
+  if (survivorIds.length === 1) return survivorIds[0];
+  const rng = mulberry32(((seed >>> 0) ^ 0x51f15e5d) >>> 0);
+  return survivorIds[Math.floor(rng() * survivorIds.length)];
 }
 
 function applyPlayerDrop(
@@ -145,9 +167,11 @@ function applyPlayerDrop(
   if (aliveIds.length === 1) {
     state.status = 'complete';
     state.winnerId = aliveIds[0];
+    state.tieGroupIds = [aliveIds[0]];
   } else if (aliveIds.length === 0) {
     state.status = 'complete';
     state.winnerId = state.droppedIds[state.droppedIds.length - 1] ?? null;
+    state.tieGroupIds = state.winnerId ? [state.winnerId] : [];
   }
 }
 
@@ -181,6 +205,7 @@ const holdTheWallSlice = createSlice({
       state.aiDropSchedule = buildAiDropSchedule(seed, participantIds, humanId, action.payload.aiCapability);
       state.droppedIds = [];
       state.winnerId = null;
+      state.tieGroupIds = [];
       state.finalTwoDeal = null;
       state.dealOpportunityResolved = false;
       state.outcomeResolved = false;
@@ -239,9 +264,20 @@ const holdTheWallSlice = createSlice({
       applyPlayerDrop(state, action.payload, false);
     },
 
-    /** Authoritative final-two AI fall: either the 10% roll or an accepted bargain. */
+    /** Authoritative final-two AI fall: a seeded duel roll or accepted bargain. */
     dropFinalDuelAi(state, action: PayloadAction<string>) {
       applyPlayerDrop(state, action.payload, true);
+    },
+
+    /** End the shared 120-second window and seed-break any surviving tie. */
+    finishHoldTheWallAtEnduranceLimit(state) {
+      if (state.status !== 'active') return;
+      const survivors = state.participantIds.filter((id) => !state.droppedIds.includes(id));
+      state.status = 'complete';
+      state.winnerId = selectEnduranceTieWinner(state.seed, survivors);
+      state.tieGroupIds = state.winnerId
+        ? [state.winnerId, ...survivors.filter((id) => id !== state.winnerId)]
+        : [];
     },
 
     /** Idempotency guard: prevent the outcome thunk from firing twice. */
@@ -263,6 +299,7 @@ export const {
   skipFinalTwoDeal,
   dropPlayer,
   dropFinalDuelAi,
+  finishHoldTheWallAtEnduranceLimit,
   markHoldTheWallOutcomeResolved,
   resetHoldTheWall,
 } = holdTheWallSlice.actions;

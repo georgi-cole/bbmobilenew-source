@@ -175,16 +175,11 @@ export function chooseHouseOfCardsAiPair(params: {
   const normalizedSkill = Math.min(1, Math.max(0, skill / 100))
 
   // Final-round AI should resemble a capable human, not a perfect lookup table.
-  // A revealed card can be stored in memory but temporarily inaccessible, and
-  // even an accessible matching pair is not recalled with certainty.
-  const memoryAccessChance = 0.4 + normalizedSkill * 0.22
-  const recallChance = 0.2 + normalizedSkill * 0.25
-  const accessibleRememberedIndexes = new Set(
-    [...rememberedIndexes].filter(() => rng() < memoryAccessChance)
-  )
-  const rememberedAvailable = available.filter((card) =>
-    accessibleRememberedIndexes.has(card.index)
-  )
+  // A remembered match can still be forgotten when it matters, with one
+  // fallible recall check instead of separately discounting access and recall.
+  const recallChance = 0.32 + normalizedSkill * 0.34
+  const knownRememberedIndexes = new Set(rememberedIndexes)
+  const rememberedAvailable = available.filter((card) => knownRememberedIndexes.has(card.index))
   const rememberedPairs = rememberedAvailable.flatMap((first, firstIndex) =>
     rememberedAvailable
       .slice(firstIndex + 1)
@@ -200,7 +195,7 @@ export function chooseHouseOfCardsAiPair(params: {
   // Prefer a card the AI has not reliably recalled this turn. Its symbol
   // becomes known only after it is flipped, so the second choice still relies
   // on fallible memory or ordinary chance.
-  const unseen = available.filter((card) => !accessibleRememberedIndexes.has(card.index))
+  const unseen = available.filter((card) => !knownRememberedIndexes.has(card.index))
   const firstPool = unseen.length > 0 ? unseen : available
   const first = firstPool[Math.floor(rng() * firstPool.length)]
   if (!first) return null
@@ -208,7 +203,7 @@ export function chooseHouseOfCardsAiPair(params: {
   const rememberedMatch = available.find(
     (card) =>
       card.index !== first.index &&
-      accessibleRememberedIndexes.has(card.index) &&
+      knownRememberedIndexes.has(card.index) &&
       card.symbol === first.symbol
   )
   if (rememberedMatch && rng() < recallChance) {

@@ -14,6 +14,7 @@ import famousFiguresReducer, {
   fastForwardCurrentRound,
   setAiSubmissionsForRound,
   getFamousFiguresAiPlan,
+  buildAiSubmissionsForRound,
   getPointsForHintsUsed,
   FAMOUS_FIGURES,
   getPlayerFigureIndex,
@@ -63,6 +64,29 @@ describe('famousFiguresSlice', () => {
     expect(s.playerScores[PLAYER_B]).toBe(0)
     expect(s.figureOrder.length).toBe(FAMOUS_FIGURES.length)
     expect(s.outcomeResolved).toBe(false)
+  })
+
+  it('lets a stable recognition roll turn a failed base-clue guess into a later-hint guess', () => {
+    const figureIndex = FAMOUS_FIGURES.findIndex((figure) => figure.difficulty === 'very_hard')
+    const participantIds = Array.from({ length: 200 }, (_, index) => `knowledge-${index}`)
+    const outcomes = participantIds.map((id) =>
+      Array.from({ length: 6 }, (_, hintsRevealed) =>
+        buildAiSubmissionsForRound([id], figureIndex, hintsRevealed, () => 0.5)[id],
+      ),
+    )
+
+    expect(outcomes.every((byHint) => byHint.every((correct, index) => index === 0 || !byHint[index - 1] || correct))).toBe(true)
+    expect(outcomes.some((byHint) => !byHint[0] && byHint.slice(1).some(Boolean))).toBe(true)
+  })
+
+  it('allows informed AI to answer on the base clue without making every plan early', () => {
+    const easyFigure = FAMOUS_FIGURES.find((figure) => figure.difficulty === 'easy')!
+    const plans = Array.from({ length: 100 }, (_, index) =>
+      getFamousFiguresAiPlan(index + 1, 0, `early-${index}`, easyFigure.difficulty),
+    )
+
+    expect(plans.some((plan) => plan.clueNumber === 1)).toBe(true)
+    expect(plans.some((plan) => plan.clueNumber > 1)).toBe(true)
   })
 
   it('submitPlayerGuess with correct answer awards points (cursor advances via advancePlayerCursor)', () => {
@@ -718,4 +742,3 @@ describe('famousFiguresSlice', () => {
     expect(getState(store).status).toBe('round_reveal') // closed
   })
 })
-

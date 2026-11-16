@@ -406,16 +406,16 @@ export default function FamousFiguresComp({
   useEffect(() => {
     if (ff.status !== 'round_active') return
     const round = ff.currentRound
-    if (ff.aiSubmissions[round]) return // already generated
 
     const aiIds = participantIds.filter((id) => id !== humanId)
     if (aiIds.length === 0) return
 
     const rng = mulberry32(effectiveSeed ^ (round * 0x9e3779b9))
-    // Build per-AI submissions using each AI's own figure for this round.
+    // Recheck the same seeded recognition roll as new hints arrive. A miss at
+    // the base clue can become a hit later, but the AI cannot reroll its luck.
     const submissions: Record<string, boolean> = {}
     for (const aiId of aiIds) {
-      const aiFigIdx = getPlayerFigureIndex(ff, aiId, round)
+      const aiFigIdx = getPlayerFigureIndex(ffRef.current, aiId, round)
       const aiResult = buildAiSubmissionsForRound(
         [aiId],
         aiFigIdx,
@@ -425,9 +425,26 @@ export default function FamousFiguresComp({
       )
       submissions[aiId] = aiResult[aiId] ?? false
     }
+    const existingSubmissions = ff.aiSubmissions[round]
+    if (
+      existingSubmissions &&
+      Object.keys(existingSubmissions).length === Object.keys(submissions).length &&
+      Object.entries(submissions).every(([id, correct]) => existingSubmissions[id] === correct)
+    ) {
+      return
+    }
     dispatch(setAiSubmissionsForRound({ round, submissions }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ff.status, ff.currentRound, ff.hintsRevealed])
+  }, [
+    aiCapability,
+    dispatch,
+    effectiveSeed,
+    ff.aiSubmissions,
+    ff.currentRound,
+    ff.hintsRevealed,
+    ff.status,
+    humanId,
+    participantIds,
+  ])
 
   // Cancel any pending AI submission timeouts when the round advances (or on
   // unmount). This prevents stale submissions from firing after the round ends.

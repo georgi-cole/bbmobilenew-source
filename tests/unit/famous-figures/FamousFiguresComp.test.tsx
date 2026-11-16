@@ -15,10 +15,14 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import famousFiguresReducer, {
+  buildAiSubmissionsForRound,
   FAMOUS_FIGURES,
+  revealNextHint,
+  startFamousFigures,
 } from '../../../src/features/famousFigures/famousFiguresSlice';
 import type { FamousFiguresState } from '../../../src/features/famousFigures/famousFiguresSlice';
 import gameReducer from '../../../src/store/gameSlice';
+import { mulberry32 } from '../../../src/store/rng';
 import FamousFiguresComp from '../../../src/components/FamousFiguresComp/FamousFiguresComp';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -158,5 +162,57 @@ describe('FamousFiguresComp — success overlay', () => {
     // Overlay should be gone and cursor should have advanced
     expect(screen.queryByTestId('ff-success-overlay')).not.toBeInTheDocument();
     expect(ff(store).playerRoundCursor[HUMAN_ID]).toBe(1);
+  });
+
+  it('rechecks a stable missed AI guess when later clues arrive', async () => {
+    const fixtureStore = makeStore();
+    const candidateIds = Array.from({ length: 2_000 }, (_, index) => `clue-recheck-${index}`);
+    fixtureStore.dispatch(startFamousFigures({
+      participantIds: [HUMAN_ID, 'figure-order-probe'],
+      competitionType: 'LOH',
+      seed: SEED,
+      recentFigureNames: [],
+    }));
+    const figureIndex = ff(fixtureStore).matchFigureOrder[0];
+    const rngForRound = () => mulberry32(SEED);
+    const aiId = candidateIds.find((id) => {
+      const missesBaseClue = !buildAiSubmissionsForRound(
+        [id], figureIndex, 0, rngForRound(),
+      )[id];
+      const recognizesByLastClue = buildAiSubmissionsForRound(
+        [id], figureIndex, 5, rngForRound(),
+      )[id];
+      return missesBaseClue && recognizesByLastClue;
+    });
+
+    expect(aiId).toBeDefined();
+    const store = makeStore();
+    const { unmount } = render(
+      <Provider store={store}>
+        <FamousFiguresComp
+          participantIds={[HUMAN_ID, aiId!]}
+          participants={[
+            { id: HUMAN_ID, name: 'Human', isHuman: true },
+            { id: aiId!, name: 'Housemate', isHuman: false },
+          ]}
+          prizeType="LOH"
+          seed={SEED}
+          avoidRecentFigures={false}
+        />
+      </Provider>,
+    );
+
+    await act(async () => {});
+    expect(ff(store).matchFigureOrder[0]).toBe(figureIndex);
+    expect(ff(store).aiSubmissions[0][aiId!]).toBe(false);
+
+    for (let clue = 1; clue <= 5 && !ff(store).aiSubmissions[0][aiId!]; clue += 1) {
+      await act(async () => {
+        store.dispatch(revealNextHint());
+      });
+    }
+
+    expect(ff(store).aiSubmissions[0][aiId!]).toBe(true);
+    unmount();
   });
 });

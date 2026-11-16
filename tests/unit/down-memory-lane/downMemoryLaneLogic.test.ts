@@ -377,6 +377,25 @@ describe('Down Memory Lane AI', () => {
     expect(first.delayMs).toBeGreaterThanOrEqual(1200)
   })
 
+  it('slows lower-skill and harder-memory buzzer decisions without changing answer chances into guarantees', () => {
+    const averageDelay = (ability: number, difficulty: number) => {
+      const decisions = Array.from({ length: 240 }, (_, seed) =>
+        simulateMemoryLaneAiDecision({
+          seed,
+          question: { ...question, difficulty },
+          aiPlayerId: 'alex',
+          aiAbility: ability,
+          aiLives: 5,
+          humanLives: 5,
+        })
+      )
+      return decisions.reduce((total, decision) => total + decision.delayMs, 0) / decisions.length
+    }
+
+    expect(averageDelay(42, 0.6)).toBeGreaterThan(averageDelay(88, 0.6))
+    expect(averageDelay(66, 0.9)).toBeGreaterThan(averageDelay(66, 0.2))
+  })
+
   it('can decline to buzz and can make mistakes across a representative seed spread', () => {
     const decisions = Array.from({ length: 100 }, (_, seed) =>
       simulateMemoryLaneAiDecision({

@@ -22,8 +22,8 @@ function getRuleDeclarations(css: string, selector: string) {
   );
 }
 
-const PICKER_BOTTOM_CLEARANCE = 'calc(8.5rem + env(safe-area-inset-bottom, 0px))';
-const CONFIRM_BUTTON_OFFSET = 'calc(4.5rem + env(safe-area-inset-bottom, 0px))';
+const PICKER_BOTTOM_CLEARANCE = 'calc(8.5rem + var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)))';
+const CONFIRM_BUTTON_OFFSET = 'calc(4.5rem + var(--minigame-safe-bottom, env(safe-area-inset-bottom, 0px)))';
 
 describe('BlackjackTournamentComp styles', () => {
   it('keeps the duel picker scrollable with a reachable sticky confirm button', () => {

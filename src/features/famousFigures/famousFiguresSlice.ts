@@ -185,7 +185,7 @@ function clampAiValue(value: number, min: number, max: number): number {
 /** Stable general-knowledge profile so AI contestants do not feel interchangeable. */
 export function getFamousFiguresAiKnowledge(aiId: string, capability = 1): number {
   const rng = mulberry32(hashFamousFiguresAiId(aiId) ^ 0xa511e9b3)
-  return Math.min(1, (0.38 + rng() * 0.52) * capability)
+  return clampAiValue((0.38 + rng() * 0.52) * capability, 0, 1)
 }
 
 /** Deterministic clue and reaction delay used for live and fast-forwarded AI guesses. */
@@ -207,7 +207,7 @@ export function getFamousFiguresAiPlan(
   const clueNumber = Math.round(
     clampAiValue(
       profile.expectedClue + knowledgeShift + naturalVariation + hesitation,
-      2,
+      1,
       MAX_VISIBLE_HINTS + 1
     )
   )
@@ -236,10 +236,12 @@ function fnv1a32(s: string): number {
  *
  * Probability combines the figure's five-level recognizability band, a stable
  * general-knowledge profile for each AI, and a figure-specific familiarity or
- * blind spot. This keeps outcomes varied without making iconic figures obscure.
+ * blind spot. One seeded recognition roll is compared with a clue-dependent
+ * threshold, so new hints can improve recall without rerolling a failed guess.
  *
  * The result is deterministic: given the same participantIds, figureIndex,
- * hintsRevealed and rng state, the output is always identical.
+ * hintsRevealed and rng state, the output is always identical. Repeated calls
+ * with the same round seed retain the same recognition roll as hints increase.
  */
 export function buildAiSubmissionsForRound(
   participantIds: string[],
@@ -255,7 +257,7 @@ export function buildAiSubmissionsForRound(
 
   for (const id of participantIds) {
     const idHash = fnv1a32(id)
-    const seed = (idHash ^ (figureIndex * 0x9e3779b9) ^ (hintsRevealed * 0x517cc1b7)) >>> 0
+    const seed = (idHash ^ (figureIndex * 0x9e3779b9)) >>> 0
     const localRng = mulberry32(seed ^ ((rng() * 0x100000000) >>> 0))
     const profile = AI_DIFFICULTY_PROFILE[figure.difficulty]
     const knowledge = getFamousFiguresAiKnowledge(id, capability)
@@ -263,7 +265,7 @@ export function buildAiSubmissionsForRound(
     const familiarityEvent = localRng()
     const exceptionalAdjustment =
       familiarityEvent < 0.06 ? -0.26 : familiarityEvent < 0.14 ? 0.14 : 0
-    const lateHintAdjustment = Math.min(MAX_VISIBLE_HINTS, Math.max(0, hintsRevealed)) * 0.025
+    const lateHintAdjustment = Math.min(MAX_VISIBLE_HINTS, Math.max(0, hintsRevealed)) * 0.055
     const threshold = clampAiValue(
       profile.solveChance +
         (knowledge - 0.64) * 0.38 +
@@ -278,6 +280,39 @@ export function buildAiSubmissionsForRound(
   }
 
   return result
+}
+
+function buildAiSubmissionsAtPlannedClues(
+  state: FamousFiguresState,
+  round: number,
+  aiIds: string[],
+  figureIndex: number,
+  minimumHintsRevealed: number
+): Record<string, boolean> {
+  const figure = FAMOUS_FIGURES[figureIndex]
+  if (!figure || aiIds.length === 0) return {}
+
+  const rng = mulberry32(state.seed ^ (round * 0x9e3779b9))
+  const submissions: Record<string, boolean> = {}
+  for (const id of aiIds) {
+    const plan = getFamousFiguresAiPlan(
+      state.seed,
+      round,
+      id,
+      figure.difficulty,
+      state.aiCapability
+    )
+    const hintsAtGuess = Math.max(minimumHintsRevealed, plan.clueNumber - 1)
+    const result = buildAiSubmissionsForRound(
+      [id],
+      figureIndex,
+      hintsAtGuess,
+      rng,
+      state.aiCapability
+    )
+    submissions[id] = result[id] ?? false
+  }
+  return submissions
 }
 
 /** Determine the winner from cumulative scores. Tiebreak: most correct rounds. */
@@ -692,6 +727,21 @@ const famousFiguresSlice = createSlice({
       const aiSubs = state.aiSubmissions[roundIdx] ?? {}
       const figIdx = state.matchFigureOrder[roundIdx] ?? state.currentFigureIndex
       const figure = FAMOUS_FIGURES[figIdx]
+      const aiIds = Object.keys(aiSubs)
+      const plannedSubmissions = buildAiSubmissionsAtPlannedClues(
+        state,
+        roundIdx,
+        aiIds,
+        figIdx,
+        state.hintsRevealed
+      )
+      for (const id of aiIds) {
+        // A miss at an earlier clue remains uncertain until the AI's planned
+        // clue. The seeded recognition roll is stable, so this can only turn a
+        // miss into a hit as the available evidence improves.
+        if (!aiSubs[id]) aiSubs[id] = plannedSubmissions[id] ?? false
+      }
+      state.aiSubmissions[roundIdx] = aiSubs
 
       for (const id of allIds) {
         if ((state.playerRoundCursor[id] ?? 0) > roundIdx) continue
@@ -703,7 +753,13 @@ const famousFiguresSlice = createSlice({
         }
 
         if (aiSubs[id] && figure) {
-          const plan = getFamousFiguresAiPlan(state.seed, roundIdx, id, figure.difficulty)
+          const plan = getFamousFiguresAiPlan(
+            state.seed,
+            roundIdx,
+            id,
+            figure.difficulty,
+            state.aiCapability
+          )
           const simulatedHints = Math.max(state.hintsRevealed, plan.clueNumber - 1)
           const points = getPointsForHintsUsed(simulatedHints)
           state.playerScores[id] = (state.playerScores[id] ?? 0) + points
@@ -736,6 +792,11 @@ const famousFiguresSlice = createSlice({
       if (state.status === 'complete') return
 
       const allIds = Object.keys(state.playerScores)
+      const aiIds = [
+        ...new Set(
+          Object.values(state.aiSubmissions).flatMap((submissions) => Object.keys(submissions))
+        ),
+      ]
 
       // Loop through remaining rounds starting from the current global round.
       for (let roundIdx = state.currentRound; roundIdx < state.totalRounds; roundIdx++) {
@@ -751,26 +812,19 @@ const famousFiguresSlice = createSlice({
 
         if (state.status !== 'round_active') break
 
-        // Compute AI submissions inline if not already available.
-        if (!state.aiSubmissions[roundIdx]) {
-          const figIdx = state.matchFigureOrder[roundIdx] ?? state.currentFigureIndex
-          const rng = mulberry32(state.seed ^ (roundIdx * 0x9e3779b9))
-          const submissions: Record<string, boolean> = {}
-          for (const id of allIds) {
-            const result = buildAiSubmissionsForRound(
-              [id],
-              figIdx,
-              state.hintsRevealed,
-              rng,
-              state.aiCapability
-            )
-            submissions[id] = result[id] ?? false
-          }
-          state.aiSubmissions[roundIdx] = submissions
-        }
-
-        const aiSubs = state.aiSubmissions[roundIdx]
         const figIdx = state.matchFigureOrder[roundIdx] ?? state.currentFigureIndex
+        const aiSubs = state.aiSubmissions[roundIdx] ?? {}
+        const plannedSubmissions = buildAiSubmissionsAtPlannedClues(
+          state,
+          roundIdx,
+          aiIds,
+          figIdx,
+          state.hintsRevealed
+        )
+        for (const id of aiIds) {
+          if (!aiSubs[id]) aiSubs[id] = plannedSubmissions[id] ?? false
+        }
+        state.aiSubmissions[roundIdx] = aiSubs
 
         // Apply correct AI submissions for players who haven't answered yet.
         for (const id of allIds) {
@@ -801,7 +855,13 @@ const famousFiguresSlice = createSlice({
           const fig = FAMOUS_FIGURES[figIdx]
           if (!fig) continue
 
-          const plan = getFamousFiguresAiPlan(state.seed, roundIdx, id, fig.difficulty)
+          const plan = getFamousFiguresAiPlan(
+            state.seed,
+            roundIdx,
+            id,
+            fig.difficulty,
+            state.aiCapability
+          )
           const simulatedHints = Math.max(state.hintsRevealed, plan.clueNumber - 1)
           const points = getPointsForHintsUsed(simulatedHints)
           state.playerScores[id] = (state.playerScores[id] ?? 0) + points

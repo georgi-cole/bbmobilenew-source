@@ -5,7 +5,12 @@ import { Provider } from 'react-redux'
 import HoldTheWallComp from '../../../src/components/HoldTheWallComp/HoldTheWallComp'
 import holdTheWallReducer, {
   offerFinalTwoDeal,
+  HOLD_THE_WALL_ENDURANCE_LIMIT_MS,
 } from '../../../src/features/holdTheWall/holdTheWallSlice'
+import {
+  FINAL_DUEL_AI_DROP_INTERVAL_MS,
+  shouldFinalDuelAiDrop,
+} from '../../../src/features/holdTheWall/deal'
 import gameReducer from '../../../src/store/gameSlice'
 import socialReducer from '../../../src/social/socialSlice'
 
@@ -60,6 +65,69 @@ describe('HoldTheWallComp final-two negotiation', () => {
       expect(store.getState().holdTheWall.status).toBe('active')
       expect(store.getState().holdTheWall.droppedIds).not.toContain('human')
       expect(screen.getByTestId('htw-final-two-deal')).toBeInTheDocument()
+    } finally {
+      unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('completes a still-held two-player field at the shared endurance limit', async () => {
+    vi.useFakeTimers()
+    const gameState = {
+      ...gameReducer(undefined, { type: 'test/init' }),
+      phase: 'loh_comp' as const,
+    }
+    const store = configureStore({
+      reducer: {
+        game: gameReducer,
+        holdTheWall: holdTheWallReducer,
+        social: socialReducer,
+      },
+      preloadedState: {
+        game: gameState,
+        social: socialReducer(undefined, { type: 'test/init' }),
+      },
+    })
+    let seed = 1
+    while (
+      Array.from(
+        { length: Math.floor(HOLD_THE_WALL_ENDURANCE_LIMIT_MS / FINAL_DUEL_AI_DROP_INTERVAL_MS) },
+        (_, index) => index + 1
+      ).some((roll) => shouldFinalDuelAiDrop(seed, 'rival', roll))
+    ) {
+      seed += 1
+    }
+    const onComplete = vi.fn()
+    const { unmount } = render(
+      <Provider store={store}>
+        <HoldTheWallComp
+          participantIds={['human', 'rival']}
+          participants={[
+            { id: 'human', name: 'Human', isHuman: true },
+            { id: 'rival', name: 'Rival', isHuman: false },
+          ]}
+          prizeType="POS"
+          seed={seed}
+          onComplete={onComplete}
+        />
+      </Provider>
+    )
+
+    try {
+      const wall = screen.getByTestId('htw-wall')
+      Object.defineProperty(wall, 'setPointerCapture', { configurable: true, value: vi.fn() })
+      fireEvent.pointerDown(wall, { pointerId: 1 })
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(HOLD_THE_WALL_ENDURANCE_LIMIT_MS)
+      })
+
+      const result = store.getState().holdTheWall
+      expect(result.status).toBe('complete')
+      expect(result.tieGroupIds).toHaveLength(2)
+      expect(new Set(result.tieGroupIds)).toEqual(new Set(['human', 'rival']))
+      expect(result.winnerId).toBe(result.tieGroupIds[0])
+      expect(onComplete).not.toHaveBeenCalled()
     } finally {
       unmount()
       vi.useRealTimers()

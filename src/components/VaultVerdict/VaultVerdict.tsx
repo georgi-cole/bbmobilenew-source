@@ -256,6 +256,8 @@ export default function BatteryLow(props: GenericMinigameProps) {
   const [sessionSeed] = useState(() => createVaultVerdictRng(seedProp).seed)
   const rng = useMemo(() => createVaultVerdictRng(sessionSeed).rng, [sessionSeed])
   const startTimeRef = useRef<number | null>(null)
+  const excludedOfferHoldMsRef = useRef(0)
+  const offerHoldStartedAtRef = useRef<number | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [feed, setFeed] = useState<BroadcastEvent[]>([])
   const [feedIndex, setFeedIndex] = useState(0)
@@ -364,11 +366,22 @@ export default function BatteryLow(props: GenericMinigameProps) {
             : 'Choose one battery to protect as your Reserve.'))
   useEffect(() => {
     if (offerPresentationKey == null) return
-    const timer = window.setTimeout(
-      () => setPresentedOfferKey(offerPresentationKey),
-      offerRevealDelayMs
-    )
-    return () => window.clearTimeout(timer)
+    const holdStartedAt = performance.now()
+    offerHoldStartedAtRef.current = holdStartedAt
+    const timer = window.setTimeout(() => {
+      if (offerHoldStartedAtRef.current === holdStartedAt) {
+        excludedOfferHoldMsRef.current += Math.max(0, performance.now() - holdStartedAt)
+        offerHoldStartedAtRef.current = null
+      }
+      setPresentedOfferKey(offerPresentationKey)
+    }, offerRevealDelayMs)
+    return () => {
+      window.clearTimeout(timer)
+      if (offerHoldStartedAtRef.current === holdStartedAt) {
+        excludedOfferHoldMsRef.current += Math.max(0, performance.now() - holdStartedAt)
+        offerHoldStartedAtRef.current = null
+      }
+    }
   }, [offerPresentationKey, offerRevealDelayMs])
 
   useEffect(() => {
@@ -429,6 +442,8 @@ export default function BatteryLow(props: GenericMinigameProps) {
 
   function handleChooseVault(vaultId: string, eventTimeMs: number) {
     startTimeRef.current = eventTimeMs
+    excludedOfferHoldMsRef.current = 0
+    offerHoldStartedAtRef.current = null
     setElapsedMs(0)
     updateHuman((current) => choosePersonalVault(current, vaultId))
   }
@@ -452,20 +467,38 @@ export default function BatteryLow(props: GenericMinigameProps) {
   }
 
   function finishWith(
-    updater: (current: VaultContestantState, finishTimeMs: number) => VaultContestantState,
+    updater: (
+      current: VaultContestantState,
+      finishTimeMs: number,
+      decisionTimeMs: number
+    ) => VaultContestantState,
     eventTimeMs: number
   ) {
     const finishTimeMs =
       startTimeRef.current == null ? elapsedMs : eventTimeMs - startTimeRef.current
+    const decisionTimeMs = getDecisionElapsedMs(eventTimeMs)
     setElapsedMs(finishTimeMs)
-    updateHuman((current) => updater(current, finishTimeMs))
+    updateHuman((current) => updater(current, finishTimeMs, decisionTimeMs))
+  }
+
+  function getDecisionElapsedMs(eventTimeMs: number) {
+    if (startTimeRef.current == null) return elapsedMs
+    const pendingOfferHoldMs =
+      offerHoldStartedAtRef.current == null
+        ? 0
+        : Math.max(0, eventTimeMs - offerHoldStartedAtRef.current)
+    return Math.max(
+      0,
+      eventTimeMs - startTimeRef.current - excludedOfferHoldMsRef.current - pendingOfferHoldMs
+    )
   }
 
   function handleRejectOffer(eventTimeMs: number) {
     const finishTimeMs =
       startTimeRef.current == null ? elapsedMs : eventTimeMs - startTimeRef.current
+    const decisionTimeMs = getDecisionElapsedMs(eventTimeMs)
     if (human.currentOffer != null && human.currentRound >= VAULT_VERDICT_ROUND_SCHEDULE.length) {
-      const resolvedHuman = riskVault(human, finishTimeMs)
+      const resolvedHuman = riskVault(human, finishTimeMs, decisionTimeMs)
       const reserveBattery = resolvedHuman.vaults.find(
         (battery) => battery.vaultId === resolvedHuman.personalVaultId
       )
@@ -524,7 +557,8 @@ export default function BatteryLow(props: GenericMinigameProps) {
     }
     setPendingOfferKey(offerKey)
     const elapsed = startTimeRef.current == null ? elapsedMs : eventTimeMs - startTimeRef.current
-    updateHuman((current) => riskVault(acceptInsuranceDeal(current), elapsed))
+    const decisionElapsed = getDecisionElapsedMs(eventTimeMs)
+    updateHuman((current) => riskVault(acceptInsuranceDeal(current), elapsed, decisionElapsed))
   }
 
   function handleSwapClick() {
@@ -547,7 +581,7 @@ export default function BatteryLow(props: GenericMinigameProps) {
       authoritativeWinnerId: completion.winner?.contestantId ?? null,
       rawValue: human.finalAmount ?? 0,
       rawResults: completion.rawResults,
-      tiebreakerMs: human.finishTimeMs ?? undefined,
+      tiebreakerMs: human.decisionTimeMs ?? human.finishTimeMs ?? undefined,
       batteryLowVoteEffects: completion.batteryLowVoteEffects,
     })
   }
@@ -562,7 +596,7 @@ export default function BatteryLow(props: GenericMinigameProps) {
             authoritativeWinnerId: checkpointCompletion.winner?.contestantId ?? null,
             rawValue: human.finalAmount ?? 0,
             rawResults: checkpointCompletion.rawResults,
-            tiebreakerMs: human.finishTimeMs ?? undefined,
+            tiebreakerMs: human.decisionTimeMs ?? human.finishTimeMs ?? undefined,
             batteryLowVoteEffects: checkpointCompletion.batteryLowVoteEffects,
           },
         }

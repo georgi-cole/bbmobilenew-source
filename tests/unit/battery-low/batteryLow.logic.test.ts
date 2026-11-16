@@ -340,7 +340,7 @@ describe('Battery Low logic', () => {
     expect(ai.broadcastEvents.every((event) => !/\bwinning|losing|leader\b/i.test(event.message))).toBe(true);
   });
 
-  it('ranks by final charge descending, finish time ascending, then original order', () => {
+  it('ranks by final charge, active decision time, then original order', () => {
     const base = participants.slice(0, 3).map((participant, index) => createInitialContestant(participant, index, 22));
     const contestants = [
       { ...base[0]!, finalAmount: 69, finishTimeMs: 3000 },
@@ -350,6 +350,15 @@ describe('Battery Low logic', () => {
     expect(rankVaultContestants(contestants).map((contestant) => contestant.contestantId)).toEqual(['ai-1', 'ai-2', 'human']);
     const exactTie = contestants.map((contestant) => ({ ...contestant, finalAmount: 50, finishTimeMs: 1000 }));
     expect(rankVaultContestants(exactTie).map((contestant) => contestant.contestantId)).toEqual(['human', 'ai-1', 'ai-2']);
+
+    const activeTimeTie = [
+      { ...base[0]!, finalAmount: 69, finishTimeMs: 9_000, decisionTimeMs: 1_000 },
+      { ...base[1]!, finalAmount: 69, finishTimeMs: 3_000, decisionTimeMs: 2_500 },
+    ];
+    expect(rankVaultContestants(activeTimeTie).map((contestant) => contestant.contestantId)).toEqual([
+      'human',
+      'ai-1',
+    ]);
   });
 
   it('resolves fallback participants and never leaves the user without a valid action', () => {

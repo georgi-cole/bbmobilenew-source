@@ -113,6 +113,8 @@ export interface VaultContestantState {
   simulatedStartTime: number;
   simulatedFinishTime: number | null;
   finishTimeMs: number | null;
+  /** Active elapsed time, excluding forced offer reveals, for competition tiebreaks. */
+  decisionTimeMs: number | null;
   aiPersonality: AiPersonality | null;
   bankMood: BankMood;
   broadcastEvents: BroadcastEvent[];
@@ -613,6 +615,7 @@ export function createInitialContestant(
     simulatedStartTime: 0,
     simulatedFinishTime: null,
     finishTimeMs: null,
+    decisionTimeMs: null,
     aiPersonality: participant.isHuman ? null : pick(rng, AI_PERSONALITIES),
     bankMood,
     broadcastEvents: [],
@@ -877,7 +880,11 @@ export function swapReserveBattery(
   };
 }
 
-export function riskVault(contestant: VaultContestantState, finishTimeMs: number): VaultContestantState {
+export function riskVault(
+  contestant: VaultContestantState,
+  finishTimeMs: number,
+  decisionTimeMs = finishTimeMs,
+): VaultContestantState {
   if (contestant.currentOffer == null || contestant.finalAmount != null) return contestant;
   if (contestant.currentRound >= VAULT_VERDICT_ROUND_SCHEDULE.length) {
     const vaults = contestant.vaults.map((vault) => {
@@ -894,6 +901,7 @@ export function riskVault(contestant: VaultContestantState, finishTimeMs: number
       outcomeType: 'openedVault',
       simulatedFinishTime: finishTimeMs,
       finishTimeMs,
+      decisionTimeMs,
       remainingAmounts: calculateRemainingValues({ vaults }),
     };
   }
@@ -906,7 +914,11 @@ export function riskVault(contestant: VaultContestantState, finishTimeMs: number
   };
 }
 
-export function signVerdict(contestant: VaultContestantState, finishTimeMs: number): VaultContestantState {
+export function signVerdict(
+  contestant: VaultContestantState,
+  finishTimeMs: number,
+  decisionTimeMs = finishTimeMs,
+): VaultContestantState {
   if (contestant.currentOffer == null || contestant.finalAmount != null) return contestant;
   return {
     ...contestant,
@@ -916,6 +928,7 @@ export function signVerdict(contestant: VaultContestantState, finishTimeMs: numb
     currentDeal: null,
     simulatedFinishTime: finishTimeMs,
     finishTimeMs,
+    decisionTimeMs,
   };
 }
 
@@ -1151,7 +1164,8 @@ export function rankVaultContestants(contestants: VaultContestantState[]): Ranke
     .sort((left, right) => {
       const amountDelta = (right.finalAmount ?? -1) - (left.finalAmount ?? -1);
       if (amountDelta !== 0) return amountDelta;
-      const timeDelta = (left.finishTimeMs ?? Number.MAX_SAFE_INTEGER) - (right.finishTimeMs ?? Number.MAX_SAFE_INTEGER);
+      const timeDelta = (left.decisionTimeMs ?? left.finishTimeMs ?? Number.MAX_SAFE_INTEGER) -
+        (right.decisionTimeMs ?? right.finishTimeMs ?? Number.MAX_SAFE_INTEGER);
       if (timeDelta !== 0) return timeDelta;
       return left.originalTurnOrderIndex - right.originalTurnOrderIndex;
     })

@@ -923,14 +923,21 @@ export function pickMajorityRulesQuestion(
   return shuffleMajorityRulesQuestion(selectedQuestion, seed, roundNumber, usedQuestionIds)
 }
 
-export function initializeDiceDuel(finalists: [string, string]): MajorityRulesDiceDuelState {
+export function initializeDiceDuel(
+  finalists: [string, string],
+  seed = 0
+): MajorityRulesDiceDuelState {
+  const starterPool = [...finalists].sort((left, right) => left.localeCompare(right))
+  const starterRng = seededRng(seed, 'duel-start', starterPool.join('|'))
+  const currentRollerId =
+    starterPool[Math.floor(starterRng() * starterPool.length)] ?? starterPool[0]
   return {
     finalists,
     chosenNumbers: {
       [finalists[0]]: null,
       [finalists[1]]: null,
     },
-    currentRollerId: finalists[0],
+    currentRollerId,
     pressureHolderId: null,
     roundCount: 0,
     suddenDeath: false,

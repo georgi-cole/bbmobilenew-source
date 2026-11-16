@@ -42,6 +42,7 @@ import {
   rankRoundResults,
   revealAllMatchingPositions,
   simulateAiRound,
+  simulateFinalAiGuess,
   type RevealKind,
   type RoundResult,
   type RoundScoreBreakdown,
@@ -106,9 +107,6 @@ const FALLBACK_PARTICIPANTS: MinigameParticipant[] = [
   { id: 'oracle', name: 'Oracle', isHuman: false, precomputedScore: 0, previousPR: null },
 ]
 
-const FINAL_AI_MIN_BUZZ_DELAY_MS = 2400
-const FINAL_AI_MAX_BUZZ_DELAY_MS = 4200
-
 function initialAvatar(name: string): string {
   return name.trim().slice(0, 1).toUpperCase() || '?'
 }
@@ -133,20 +131,6 @@ function seededFraction(seed: number): number {
   state ^= state >>> 15
   state = Math.imul(state | 1, state ^ (state >>> 7)) >>> 0
   return ((state ^ (state >>> 14)) >>> 0) / 4294967296
-}
-
-function finalAiBuzzDelayMs(
-  seed: number,
-  playerId: string,
-  revealCycle: number,
-  skill: number
-): number {
-  const jitter = seededFraction(seed ^ hashString('final-ai-delay-' + playerId + '-' + revealCycle))
-  const skillAdjustment = Math.round((1 - skill) * 700)
-  return Math.min(
-    FINAL_AI_MAX_BUZZ_DELAY_MS,
-    FINAL_AI_MIN_BUZZ_DELAY_MS + skillAdjustment + Math.floor(jitter * 900)
-  )
 }
 
 function isFinalLockActive(state: FinalState, playerId: string): boolean {
@@ -866,8 +850,21 @@ export default function HangmanChallengeComp({
     )
     if (!ai || isFinalLockActive(finalState, ai.id)) return undefined
 
-    const skill = 0.45 + (hashString(ai.id) % 40) / 100
-    const buzzDelay = finalAiBuzzDelayMs(seed, ai.id, finalState.revealCycle, skill)
+    const normalizedFinalWord = normalizeWord(finalWord.text)
+    const totalLetters = normalizedFinalWord.split('').filter(isLetter).length
+    const visibleLetters = finalState.revealedPositions.filter((position) =>
+      isLetter(normalizedFinalWord[position] ?? '')
+    ).length
+    const aiDecision = simulateFinalAiGuess({
+      seed,
+      playerId: ai.id,
+      revealCycle: finalState.revealCycle,
+      visibleLetters,
+      totalLetters,
+      difficulty: finalWord.difficulty,
+      aiCapability,
+      attemptedWords: finalState.attemptedWords.length,
+    })
 
     const timer = window.setTimeout(() => {
       const previous = finalState
@@ -900,35 +897,9 @@ export default function HangmanChallengeComp({
         })
         return
       }
-      const revealRatioNow = computeRevealRatio(finalWord.text, previous.revealedPositions)
-      const normalizedFinalWord = normalizeWord(finalWord.text)
-      const revealed = new Set(previous.revealedPositions)
-      const letterPositions = normalizedFinalWord
-        .split('')
-        .flatMap((character, index) => (isLetter(character) ? [index] : []))
-      const revealedLetterCount = letterPositions.filter((index) => revealed.has(index)).length
-      const minimumVisibleLetters = Math.min(
-        letterPositions.length,
-        Math.max(3, Math.ceil(letterPositions.length * 0.4))
-      )
-      if (revealedLetterCount < minimumVisibleLetters) return
+      if (!aiDecision.willBuzz) return
 
-      const confidence = revealRatioNow + skill * 0.24
-      const buzzChance = Math.min(0.7, 0.15 + Math.max(0, confidence - 0.35) * 0.55)
-      const buzzRoll = seededFraction(
-        seed ^
-          hashString(ai.id + '-buzz-' + previous.revealCycle + '-' + previous.attemptedWords.length)
-      )
-      if (buzzRoll >= buzzChance) return
-
-      const solveRoll = seededFraction(
-        seed ^
-          hashString(
-            ai.id + '-solve-' + previous.revealCycle + '-' + previous.attemptedWords.length
-          )
-      )
-      const correct = solveRoll < Math.min(0.86, 0.28 + confidence * 0.58)
-      if (correct) {
+      if (aiDecision.correct) {
         setFinalState({
           ...previous,
           revealedPositions: revealAllMatchingPositions(
@@ -955,10 +926,10 @@ export default function HangmanChallengeComp({
           ai.name + ' buzzed incorrectly and is locked until the next reveal.',
         ],
       })
-    }, buzzDelay)
+    }, aiDecision.buzzDelayMs)
 
     return () => window.clearTimeout(timer)
-  }, [finalState, finalWord, human.id, panel, phase, players, seed])
+  }, [aiCapability, finalState, finalWord, human.id, panel, phase, players, seed])
 
   const finalHuman = players.find((player) => player.id === human.id) ?? humanState
   const finalOpponent = players.find(

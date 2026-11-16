@@ -14,6 +14,7 @@ import {
   getNextNumberOdds,
   getRemainingNumberCount,
   getChainVoteRelationship,
+  getChainAiDecisionDurationMs,
   getStandardRoundEliminationCount,
   getStandardRoundTurnCap,
   rankPlayersByRoundPerformance,
@@ -21,6 +22,7 @@ import {
   resolveChainAction,
   resolvePawnedRoundBank,
   resolveVoteElimination,
+  simulateFinalAiWindow,
   type ChainOfGreedPlayerState,
 } from '../../../src/components/ChainOfGreed/chainOfGreedLogic'
 
@@ -529,5 +531,70 @@ describe('chainOfGreedLogic', () => {
     })
 
     expect(choice).not.toBe('bank')
+  })
+
+  it('does not call an impossible direction when personality bias is strong', () => {
+    const player = {
+      ...buildPlayer('ai'),
+      personality: { aggression: 0.9, caution: 0.1, volatility: 0.75, social: 0.5 },
+    }
+    const chain = {
+      step: 0,
+      pot: 0,
+      referenceNumber: 100,
+      recentNumbers: [100],
+      drawnNumbers: [100],
+    }
+
+    expect(getNextNumberOdds(chain).higher).toBe(0)
+    expect(
+      decideAiAction({
+        player,
+        chain,
+        remainingTurns: 3,
+        phase: 'final',
+        activePlayers: [player, buildPlayer('other')],
+      })
+    ).not.toBe('higher')
+  })
+
+  it('spends a realistic, capability-adjusted active decision budget before each final move', () => {
+    const player = buildPlayer('ai')
+    const chain = {
+      step: 0,
+      pot: 0,
+      referenceNumber: 50,
+      recentNumbers: [50],
+      drawnNumbers: [50],
+    }
+    const baselineMs = getChainAiDecisionDurationMs({
+      player,
+      chain,
+      aiCapability: 1,
+      bankAvailable: false,
+      rng: () => 0.5,
+    })
+    const higherCapabilityMs = getChainAiDecisionDurationMs({
+      player,
+      chain,
+      aiCapability: 1.2,
+      bankAvailable: false,
+      rng: () => 0.5,
+    })
+
+    expect(baselineMs).toBeGreaterThanOrEqual(950)
+    expect(baselineMs).toBeLessThanOrEqual(1_050)
+    expect(higherCapabilityMs).toBeLessThan(baselineMs)
+    expect(
+      simulateFinalAiWindow(player, chain, 0, baselineMs - 1, [player], () => 0.5, false).actions
+    ).toBe(0)
+
+    const simulate = (durationMs: number) =>
+      simulateFinalAiWindow(player, chain, 0, durationMs, [player], mulberry32(734), false).actions
+    const thirtySecondActions = simulate(30_000)
+    const sixtySecondActions = simulate(60_000)
+    expect(thirtySecondActions).toBeGreaterThan(15)
+    expect(sixtySecondActions).toBeGreaterThan(thirtySecondActions)
+    expect(sixtySecondActions).toBeLessThanOrEqual(thirtySecondActions * 2 + 2)
   })
 })

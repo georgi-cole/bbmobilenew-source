@@ -1046,11 +1046,22 @@ const riskWheelSlice = createSlice({
         if (state.activePlayerIds.length === 1) {
           state.winnerId = state.activePlayerIds[0]
         } else if (state.activePlayerIds.length > 1) {
-          // Determine winner by highest round score
-          const winner = state.activePlayerIds.reduce((best, id) =>
-            (state.roundScores[id] ?? 0) > (state.roundScores[best] ?? 0) ? id : best
+          const highestScore = Math.max(
+            ...state.activePlayerIds.map((id) => state.roundScores[id] ?? 0)
           )
-          state.winnerId = winner
+          const finalists = state.activePlayerIds
+            .filter((id) => (state.roundScores[id] ?? 0) === highestScore)
+            .sort((left, right) => left.localeCompare(right))
+          if (finalists.length === 1) {
+            state.winnerId = finalists[0]!
+          } else {
+            const tieSeed = deriveDeterministicSeed(`final-score-tie:${state.round}`, null, [
+              String(state.seed ?? 0),
+              ...finalists,
+            ])
+            const tieRng = mulberry32(tieSeed)
+            state.winnerId = finalists[Math.floor(tieRng() * finalists.length)] ?? finalists[0]!
+          }
         } else {
           state.winnerId = null
         }

@@ -16,7 +16,6 @@ import {
   createChainOfGreedRng,
   createInitialChainState,
   decideAiAction,
-  decideSoloRushMove,
   FINAL_ROUND_DURATION_MS,
   formatInfluence,
   getNextNumberOdds,
@@ -30,6 +29,7 @@ import {
   resolveChainOfGreedParticipants,
   resolvePawnedRoundBank,
   resolveVoteElimination,
+  simulateFinalAiWindow,
   SEMIFINAL_TURNS_PER_PLAYER,
   SOLO_RUSH_DURATION_MS,
   shouldAiUseSafety,
@@ -284,106 +284,6 @@ function getPlayerTurnMessage(players: ChainOfGreedPlayerState[], turnOrder: str
 function getTurnOrderPlayerId(turnOrder: string[], turnIndex: number) {
   if (turnOrder.length === 0) return null
   return turnOrder[turnIndex % turnOrder.length] ?? null
-}
-
-interface SimulatedFinalAiRound {
-  chain: ChainOfGreedChainState
-  score: number
-  mistakes: number
-  correct: number
-  banks: number
-  recovered: number
-  lost: number
-  safetyAvailable: boolean
-  immunityEarned: boolean
-}
-
-function simulateFinalAiWindow(
-  aiPlayer: ChainOfGreedPlayerState,
-  startChain: ChainOfGreedChainState,
-  startScore: number,
-  durationMs: number,
-  activePlayers: ChainOfGreedPlayerState[],
-  rng: () => number,
-  allowPawn: boolean,
-  aiCapability = 1
-): SimulatedFinalAiRound {
-  let chain = startChain
-  let score = startScore
-  let mistakes = 0
-  let correct = 0
-  let banks = 0
-  let recovered = 0
-  let lost = 0
-  let safetyAvailable = aiPlayer.safetyAvailable
-  let immunityEarned = false
-  let virtualTimeRemaining = durationMs
-  let bankAvailableForSim = true
-  let actionCount = 0
-
-  while (virtualTimeRemaining > 0 && actionCount < 20) {
-    const remainingDecisions = Math.max(1, Math.floor(virtualTimeRemaining / 3_600))
-    const soloMove: ReturnType<typeof decideSoloRushMove> | null = allowPawn
-      ? decideSoloRushMove(
-          aiPlayer,
-          chain,
-          score,
-          bankAvailableForSim,
-          virtualTimeRemaining / 1_000
-        )
-      : null
-    const choice: ChainAction =
-      soloMove?.choice ??
-      decideAiAction({
-        aiCapability,
-        player: aiPlayer,
-        chain,
-        remainingTurns: remainingDecisions,
-        phase: 'final',
-        activePlayers,
-        playerScore: score,
-        bankAvailable: bankAvailableForSim,
-      })
-    const pawnStake = soloMove?.pawnStake ?? 0
-    const useSafety =
-      pawnStake === 0 && safetyAvailable && shouldAiUseSafety(aiPlayer, chain, choice)
-    const resolution = resolveChainAction(choice, chain, rng, useSafety)
-    score =
-      pawnStake > 0
-        ? resolvePawnedRoundBank(
-            score,
-            pawnStake,
-            Boolean(resolution.wasCorrect),
-            resolution.individualDelta
-          )
-        : score + resolution.individualDelta
-    mistakes += resolution.wasCorrect === false ? 1 : 0
-    correct += resolution.wasCorrect === true ? 1 : 0
-    banks += choice === 'bank' ? 1 : 0
-    recovered += resolution.recoveredDelta
-    lost += resolution.lostAmount
-    safetyAvailable = resolution.safetyUsed ? false : safetyAvailable
-    chain = resolution.updatedChain
-    if (resolution.wasCorrect && resolution.updatedChain.step >= CHAIN_LADDER.length) {
-      immunityEarned = true
-    }
-    bankAvailableForSim = choice !== 'bank'
-    const thinkingTime = choice === 'bank' ? 650 + rng() * 650 : 1_800 + rng() * 2_400
-    virtualTimeRemaining -= thinkingTime
-    actionCount += 1
-  }
-
-  return {
-    chain,
-    score,
-    mistakes,
-    correct,
-    banks,
-    recovered,
-    lost,
-    safetyAvailable,
-    immunityEarned,
-  }
 }
 
 function getActionVerb(choice: ChainAction) {

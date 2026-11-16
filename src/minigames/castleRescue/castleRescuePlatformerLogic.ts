@@ -10,12 +10,12 @@
  */
 
 import {
+  CASTLE_RESCUE_SCORE_RULES,
   CORRECT_ROUTE_LENGTH,
   PIPE_FLASH_MS,
-  SCORE_RESCUE as RESCUE_BONUS,
   RESPAWN_PENALTY as P_WRONG_PIPE,
-  TIME_PENALTY_PER_SECOND as TIME_PEN,
 } from './castleRescueConstants';
+import type { CastleRescueScoreRules } from './castleRescueConstants';
 
 // ── Minimal structural types ───────────────────────────────────────────────────
 // These describe only the fields that the logic functions read/write.
@@ -55,9 +55,13 @@ export interface PipeEntryPipe {
  * they must NOT be subtracted again here to avoid double-counting.
  * Only the rescue bonus and time penalty are applied at finalisation time.
  */
-export function computePlatformerFinalScore(gs: PlatformerScoreState, elapsedMs: number): number {
-  const rescue      = gs.princessRescued ? RESCUE_BONUS : 0;
-  const timePenalty = Math.floor(elapsedMs / 1000) * TIME_PEN;
+export function computePlatformerFinalScore(
+  gs: PlatformerScoreState,
+  elapsedMs: number,
+  scoreRules: CastleRescueScoreRules = CASTLE_RESCUE_SCORE_RULES.classic,
+): number {
+  const rescue = gs.princessRescued ? scoreRules.rescueBonus : 0;
+  const timePenalty = Math.floor(elapsedMs / 1000) * scoreRules.timePenaltyPerSecond;
   return Math.max(0, gs.score + rescue - timePenalty);
 }
 

@@ -34,7 +34,7 @@ const HOSTILE_TAGS = new Set([
 ])
 
 export const FINAL_DUEL_AI_DROP_INTERVAL_MS = 5_000
-export const FINAL_DUEL_AI_DROP_CHANCE = 0.1
+export const FINAL_DUEL_AI_DROP_CHANCE = 0.025
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))

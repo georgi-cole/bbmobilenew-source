@@ -22,12 +22,15 @@ import holdTheWallReducer, {
   resolveFinalTwoDeal,
   dropPlayer,
   dropFinalDuelAi,
+  finishHoldTheWallAtEnduranceLimit,
   markHoldTheWallOutcomeResolved,
   resetHoldTheWall,
   buildAiDropSchedule,
   AI_DROP_MIN_MS,
   AI_DROP_MAX_MS,
+  HOLD_THE_WALL_ENDURANCE_LIMIT_MS,
 } from '../../../src/features/holdTheWall/holdTheWallSlice';
+import { FINAL_DUEL_AI_DROP_INTERVAL_MS, shouldFinalDuelAiDrop } from '../../../src/features/holdTheWall/deal';
 
 function makeStore() {
   return configureStore({ reducer: { holdTheWall: holdTheWallReducer } });
@@ -224,6 +227,148 @@ describe('holdTheWallSlice — final duel authority', () => {
     store.dispatch(dropFinalDuelAi('ai1'));
     expect(store.getState().holdTheWall.status).toBe('complete');
     expect(store.getState().holdTheWall.winnerId).toBe('human');
+  });
+});
+
+describe('holdTheWallSlice - common endurance limit', () => {
+  it('lets some scheduled AI rivals outlast the shared 120-second window', () => {
+    const schedule = buildAiDropSchedule(42, ['human', 'ai1', 'ai2'], 'human');
+    const dropTimes = Object.values(schedule);
+    const scheduleWithTail = Array.from({ length: 100 }, (_, index) =>
+      Object.values(buildAiDropSchedule(index + 1, ['human', 'ai1', 'ai2'], 'human')),
+    );
+
+    expect(HOLD_THE_WALL_ENDURANCE_LIMIT_MS).toBe(120_000);
+    expect(dropTimes).toHaveLength(2);
+    expect(dropTimes.every((time) => time >= AI_DROP_MIN_MS)).toBe(true);
+    expect(dropTimes.every((time) => time < AI_DROP_MAX_MS)).toBe(true);
+    expect(
+      scheduleWithTail.some((times) => times.some((time) => time > HOLD_THE_WALL_ENDURANCE_LIMIT_MS)),
+    ).toBe(true);
+    expect(AI_DROP_MAX_MS).toBe(HOLD_THE_WALL_ENDURANCE_LIMIT_MS + 15_000);
+  });
+
+  it('ends at the limit with the still-holding players tied before a seeded draw', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1', 'ai2'],
+        humanId: 'human',
+        prizeType: 'POS',
+        seed: 17,
+      }),
+    );
+    store.dispatch(dropPlayer('ai2'));
+    store.dispatch(finishHoldTheWallAtEnduranceLimit());
+
+    const state = store.getState().holdTheWall;
+    expect(state.status).toBe('complete');
+    expect(state.droppedIds).toEqual(['ai2']);
+    expect(state.tieGroupIds[0]).toBe(state.winnerId);
+    expect(new Set(state.tieGroupIds)).toEqual(new Set(['human', 'ai1']));
+    expect(state.winnerId).toBe(state.tieGroupIds[0]);
+  });
+
+  it('seed-breaks shared survivors without preferring the human participant', () => {
+    let humanWins = 0;
+    const sampleCount = 500;
+
+    for (let seed = 1; seed <= sampleCount; seed += 1) {
+      const store = makeStore();
+      store.dispatch(
+        startHoldTheWall({
+          participantIds: ['human', 'ai'],
+          humanId: 'human',
+          prizeType: 'LOH',
+          seed,
+        }),
+      );
+      store.dispatch(finishHoldTheWallAtEnduranceLimit());
+      const state = store.getState().holdTheWall;
+
+      expect(state.tieGroupIds).toHaveLength(2);
+      expect(new Set(state.tieGroupIds)).toEqual(new Set(['human', 'ai']));
+      if (state.winnerId === 'human') humanWins += 1;
+    }
+
+    expect(humanWins).toBeGreaterThan(sampleCount * 0.4);
+    expect(humanWins).toBeLessThan(sampleCount * 0.6);
+  });
+
+  it.each([2, 6, 16])('benchmarks the full %i-player endurance flow at the shared cap', (fieldSize) => {
+    let humanWins = 0;
+    let tiedFinishes = 0;
+    let tieWinnerCounts = 0;
+    const sampleCount = 500;
+
+    for (let seed = 1; seed <= sampleCount; seed += 1) {
+      const participantIds = ['human', ...Array.from({ length: fieldSize - 1 }, (_, i) => `ai${i + 1}`)];
+      const store = makeStore();
+      store.dispatch(startHoldTheWall({ participantIds, humanId: 'human', prizeType: 'POS', seed }));
+      const scheduledDrops = Object.entries(store.getState().holdTheWall.aiDropSchedule)
+        .sort((a, b) => a[1] - b[1]);
+      let finalDuel: { aiId: string; startMs: number } | null = fieldSize === 2
+        ? { aiId: scheduledDrops[0][0], startMs: 0 }
+        : null;
+
+      // Follow production's deterministic schedule in time order. Once the
+      // human and one AI remain, the old deadline is ignored and 5s duel rolls
+      // decide whether the AI drops before the cap.
+      for (const [aiId, dropAtMs] of scheduledDrops) {
+        if (dropAtMs >= HOLD_THE_WALL_ENDURANCE_LIMIT_MS) break;
+        const state = store.getState().holdTheWall;
+        if (state.status !== 'active') break;
+        const aliveIds = state.participantIds.filter((id) => !state.droppedIds.includes(id));
+        if (aliveIds.length === 2 && aliveIds.includes('human')) {
+          finalDuel ??= { aiId, startMs: dropAtMs };
+          continue;
+        }
+        store.dispatch(dropPlayer(aiId));
+        const afterDrop = store.getState().holdTheWall;
+        const remaining = afterDrop.participantIds.filter((id) => !afterDrop.droppedIds.includes(id));
+        if (remaining.length === 2 && remaining.includes('human')) {
+          finalDuel = { aiId: remaining.find((id) => id !== 'human')!, startMs: dropAtMs };
+          break;
+        }
+      }
+
+      if (finalDuel && store.getState().holdTheWall.status === 'active') {
+        const rollCount = Math.floor(
+          (HOLD_THE_WALL_ENDURANCE_LIMIT_MS - finalDuel.startMs) /
+            FINAL_DUEL_AI_DROP_INTERVAL_MS,
+        );
+        for (let roll = 1; roll <= rollCount; roll += 1) {
+          if (shouldFinalDuelAiDrop(seed, finalDuel.aiId, roll)) {
+            store.dispatch(dropFinalDuelAi(finalDuel.aiId));
+            break;
+          }
+        }
+      }
+
+      if (store.getState().holdTheWall.status === 'active') {
+        store.dispatch(finishHoldTheWallAtEnduranceLimit());
+      }
+      const result = store.getState().holdTheWall;
+      if (result.winnerId === 'human') humanWins += 1;
+      if (result.tieGroupIds.length > 1) {
+        tiedFinishes += 1;
+        tieWinnerCounts += result.tieGroupIds.length;
+      }
+    }
+
+    const humanWinRate = humanWins / sampleCount;
+    const meanTieSize = tiedFinishes ? tieWinnerCounts / tiedFinishes : 1;
+    // An attentive human can still lose on the seeded final duel or tie draw,
+    // while larger fields leave multiple genuine endurance survivors.
+    const expectedWinRateRange: Record<number, [number, number]> = {
+      2: [0.65, 0.85],
+      6: [0.45, 0.72],
+      16: [0.3, 0.55],
+    };
+    const [minimumWinRate, maximumWinRate] = expectedWinRateRange[fieldSize];
+    expect(humanWinRate).toBeGreaterThan(minimumWinRate);
+    expect(humanWinRate).toBeLessThan(maximumWinRate);
+    if (fieldSize >= 6) expect(meanTieSize).toBeGreaterThan(1.1);
   });
 });
 

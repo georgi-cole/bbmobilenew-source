@@ -33,6 +33,12 @@ export const STARTING_HINTS = 2;
 
 /** Temporary-effect window (ms) per issue spec. */
 export const EFFECT_DURATION_MS = 5_000;
+/** Regen and drain update the player's SP on this cadence. */
+export const EFFECT_SP_TICK_MS = 500;
+/** Regen/drain changes SP by this amount per tick. */
+export const EFFECT_SP_TICK_AMOUNT = 2;
+/** SP cannot be drained below zero or regenerated above this cap. */
+export const MAX_SP = STARTING_SP + 100;
 /** Cap on simultaneous active effects. */
 export const MAX_ACTIVE_EFFECTS = 2;
 
@@ -196,6 +202,18 @@ export function pruneEffects(effects: ActiveEffect[], now: number): ActiveEffect
   return effects.filter((e) => e.expiresAt > now);
 }
 
+/** Apply one elapsed regen/drain tick using the same limits as the live game. */
+export function applyOverTimeSpTick(sp: number, effects: ActiveEffect[], now: number): number {
+  let delta = 0;
+  for (const effect of effects) {
+    if (effect.expiresAt <= now) continue;
+    if (effect.kind === 'regen_5s') delta += EFFECT_SP_TICK_AMOUNT;
+    if (effect.kind === 'drain_5s') delta -= EFFECT_SP_TICK_AMOUNT;
+  }
+  if (delta === 0) return sp;
+  return Math.max(0, Math.min(MAX_SP, sp + delta));
+}
+
 // ─── Mystery effects ────────────────────────────────────────────────────────
 
 /** Weighted mystery-outcome table (moderate, not extreme). */
@@ -300,16 +318,14 @@ export function aiShouldTakeMystery(
 
 /** AI picks left/right. Hint usage handled separately. */
 export function aiPickSide(
-  row: BridgeRow,
-  personality: AiPersonality,
+  _row: BridgeRow,
+  _personality: AiPersonality,
   rng: () => number,
-  profile?: CompetitionSkillProfile,
+  _profile?: CompetitionSkillProfile,
 ): TileSide {
-  // 50/50 baseline with small personality skew (gamblers guess more "confidently").
-  const baseline = personality === 'gambler' ? 0.52 : personality === 'cautious' ? 0.5 : 0.51;
-  const skill = profile ? (profile.mental + profile.precision) / 200 : 0.5;
-  const correctChance = Math.min(0.8, Math.max(0.45, baseline + (skill - 0.5) * 0.2));
-  return rng() < correctChance ? row.safeSide : (row.safeSide === 'left' ? 'right' : 'left');
+  // Blind choices cannot depend on the hidden safe side. Profiles still affect
+  // hint and mystery decisions, but unseen tiles are always a fair coin flip.
+  return rng() < 0.5 ? 'left' : 'right';
 }
 
 /** AI hint decision — burns hints more aggressively when SP is low. */
@@ -342,19 +358,64 @@ export function simulateAiRun(
     effects: [...player.effects],
   };
   const feed: AiLiveFeedEvent[] = [];
-  let elapsedMs = NEW_TURN_DELAY_MS;
+  let elapsedMs = 0;
+  let nextSpTickAt = state.effects.some(
+    (effect) =>
+      effect.expiresAt > elapsedMs &&
+      (effect.kind === 'regen_5s' || effect.kind === 'drain_5s'),
+  )
+    ? EFFECT_SP_TICK_MS
+    : null;
+
+  const hasActiveSpEffect = (now: number) =>
+    state.effects.some(
+      (effect) =>
+        effect.expiresAt > now &&
+        (effect.kind === 'regen_5s' || effect.kind === 'drain_5s'),
+    );
+
+  const advanceTime = (durationMs: number, rowIndex: number): boolean => {
+    const targetMs = elapsedMs + durationMs;
+    while (nextSpTickAt !== null && nextSpTickAt <= targetMs && !state.eliminated) {
+      state.effects = pruneEffects(state.effects, nextSpTickAt);
+      state.sp = applyOverTimeSpTick(state.sp, state.effects, nextSpTickAt);
+      if (state.sp <= 0) {
+        state.eliminated = true;
+        state.eliminatedRow = rowIndex + 1;
+        feed.push({
+          playerId: state.id,
+          playerName: state.name,
+          row: rowIndex + 1,
+          atMs: nextSpTickAt,
+          message: `${state.name} ran out of SP while a timed effect was active.`,
+        });
+        break;
+      }
+      nextSpTickAt += EFFECT_SP_TICK_MS;
+    }
+    elapsedMs = targetMs;
+    state.effects = pruneEffects(state.effects, elapsedMs);
+    if (!hasActiveSpEffect(elapsedMs)) nextSpTickAt = null;
+    return !state.eliminated;
+  };
 
   while (!state.eliminated && state.finishedAtMs === null && state.furthestRow < HIDDEN_BRIDGE_LENGTH) {
     const row = rows[state.furthestRow];
     if (!row) break;
 
-    elapsedMs += AI_MIN_THINK_MS + Math.floor(rng() * (AI_MAX_THINK_MS - AI_MIN_THINK_MS));
+    const thinkMs = AI_MIN_THINK_MS + Math.floor(rng() * (AI_MAX_THINK_MS - AI_MIN_THINK_MS));
+    if (!advanceTime(NEW_TURN_DELAY_MS + thinkMs, row.index)) break;
 
     if (row.hasMystery && aiShouldTakeMystery(personality, state.sp, rng)) {
       const mystery = applyMysteryEffect(rollMysteryEffect(rng), elapsedMs);
+      const timedSpEffectAdded =
+        mystery.addedEffect?.kind === 'regen_5s' || mystery.addedEffect?.kind === 'drain_5s';
       state.sp = Math.max(0, state.sp + mystery.spDelta);
       state.hints = Math.max(0, state.hints + mystery.hintDelta);
       state.effects = mergeEffect(state.effects, mystery.addedEffect, elapsedMs);
+      if (timedSpEffectAdded && nextSpTickAt === null) {
+        nextSpTickAt = elapsedMs + EFFECT_SP_TICK_MS;
+      }
       if (state.sp <= 0) {
         state.eliminated = true;
         state.eliminatedRow = row.index + 1;
@@ -367,7 +428,7 @@ export function simulateAiRun(
         });
         break;
       }
-      elapsedMs += MYSTERY_REVEAL_MS;
+      if (!advanceTime(MYSTERY_REVEAL_MS, row.index)) break;
       if (mystery.spDelta >= 20) {
         feed.push({
           playerId: state.id,
@@ -382,9 +443,9 @@ export function simulateAiRun(
     const useHint = aiShouldUseHint(personality, state.sp, state.hints, rng);
     if (useHint) state.hints -= 1;
 
-    const chosenSide = useHint
-      ? (rng() < 0.85 ? row.safeSide : (row.safeSide === 'left' ? 'right' : 'left'))
-      : aiPickSide(row, personality, rng, state.profile);
+    // Infinity's hint reveals the same true tile the human sees for 3.5s.
+    // Blind choices remain independent 50/50 guesses.
+    const chosenSide = useHint ? row.safeSide : aiPickSide(row, personality, rng, state.profile);
     const wrong = chosenSide !== row.safeSide;
     const stepMs = wrong ? WRONG_STEP_MS : SAFE_STEP_MS;
 
@@ -395,7 +456,7 @@ export function simulateAiRun(
     }
 
     state.furthestRow = row.index + 1;
-    elapsedMs += stepMs;
+    if (!advanceTime(stepMs, row.index)) break;
 
     if (state.furthestRow % 25 === 0) {
       feed.push({

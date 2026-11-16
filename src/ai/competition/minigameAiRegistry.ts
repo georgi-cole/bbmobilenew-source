@@ -402,11 +402,12 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
     scoreDirection: 'higher-is-better',
     volatility: VOLATILITY_PUZZLE,
     weights: WEIGHTS_MENTAL,
-    minScore: 520,
+    minScore: 0,
     maxScore: 980,
     notes:
-      'Minesweeps rewards full clears, but final score is still speed-sensitive. ' +
-      'Strong AI should regularly land in the upper 700s to 900s so a human clear is competitive, not automatic.',
+      'Minesweeps AI follows visible clue deductions and chooses the lowest-risk ' +
+      'guess when no safe cell is proved. Clears use the native 650-980 speed scale; ' +
+      'mine hits retain the native 0-500 partial-progress score.',
   },
   laserPantryDash: {
     key: 'laserPantryDash',
@@ -704,6 +705,24 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
     },
     notes:
       'Deck of Darkness rewards memory and risk management across rising boards, changing omens, charms, and survival pressure.',
+  },
+  boxedOut: {
+    key: 'boxedOut',
+    category: 'luck',
+    scoreDirection: 'higher-is-better',
+    volatility: VOLATILITY_LUCK,
+    weights: WEIGHTS_MENTAL,
+    notes:
+      'Boxpocalypse uses its authoritative hidden-choice survival engine; public rewards, remaining lives and seeded risk preferences drive AI choices.',
+  },
+  percentagePanic: {
+    key: 'percentagePanic',
+    category: 'mental',
+    scoreDirection: 'higher-is-better',
+    volatility: VOLATILITY_TRIVIA,
+    weights: WEIGHTS_MENTAL,
+    notes:
+      'Percentage Panic owns survey estimates and its final duel. AI duel guesses use only the public higher/lower bounds.',
   },
   gatesOfTheEye: {
     key: 'gatesOfTheEye',

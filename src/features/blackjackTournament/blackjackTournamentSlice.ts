@@ -320,14 +320,23 @@ export function aiShouldHit(total: number, rngValue: number, capability = 1): bo
   return rngValue < 1 - (1 - AI_HIT_PROBABILITY) / capability
 }
 
-/** An AI stops drawing once its opponent has already busted. */
+/** Use a stood opponent's visible total before falling back to the ordinary hit heuristic. */
 export function aiShouldHitDuel(
   total: number,
   rngValue: number,
   opponentBust: boolean,
-  capability = 1
+  capability = 1,
+  opponentStandTotal?: number,
+  opponentStood = false
 ): boolean {
-  return !opponentBust && aiShouldHit(total, rngValue, capability)
+  if (opponentBust) return false
+  if (opponentStood && opponentStandTotal != null && opponentStandTotal <= 21) {
+    if (total >= 21 || total >= opponentStandTotal) return false
+    // A standing opponent leaves the AI's total visible. If behind, drawing
+    // keeps a tie or win possible; a 21 can still tie a standing 21 and rematch.
+    return true
+  }
+  return aiShouldHit(total, rngValue, capability)
 }
 
 /**
@@ -621,11 +630,15 @@ function simulateAiFinals(state: BlackjackTournamentState): void {
         const isA = duel.duelTurn === 'fighterA'
         const playerId = isA ? pair.fighterAId : pair.fighterBId
         const cards = isA ? duel.fighterACards : duel.fighterBCards
+        const opponentCards = isA ? duel.fighterBCards : duel.fighterACards
+        const opponentStood = isA ? duel.fighterBStood : duel.fighterAStood
         const shouldHit = aiShouldHitDuel(
           computeTotal(cards),
           aiDecisionRng(state.seed, state.duelIndex, playerId, decisions[playerId]++),
           isA ? duel.fighterBBust : duel.fighterABust,
-          state.aiCapability
+          state.aiCapability,
+          computeTotal(opponentCards),
+          opponentStood
         )
         if (shouldHit) {
           cards.push(dealDuelCard(state.seed, state.duelIndex, duel.rngCallCount++, rematch))

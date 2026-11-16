@@ -3,10 +3,19 @@ import type { CastleRescueGameProps } from './CastleRescueGame'
 
 type RemasteredProps = Omit<CastleRescueGameProps, 'variant' | 'remastered'>
 
-function RemasteredTwin({ part, onFinish, autoStart = true }: RemasteredProps & { part: 1 | 2 }) {
+function RemasteredTwin({
+  part,
+  onFinish,
+  autoStart = true,
+  seed,
+}: RemasteredProps & { part: 1 | 2 }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const finished = useRef(false)
   const gameTitle = part === 1 ? 'Find Your Twin' : 'Find Your Twin 2: Lost Again'
+  const query = new URLSearchParams({ autostart: autoStart ? '1' : '0' })
+  if (typeof seed === 'number' && Number.isFinite(seed)) {
+    query.set('seed', String(Math.trunc(seed)))
+  }
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || event.origin !== window.location.origin)
@@ -24,7 +33,7 @@ function RemasteredTwin({ part, onFinish, autoStart = true }: RemasteredProps & 
     <iframe
       ref={frame}
       title={`${gameTitle} — VIP edition`}
-      src={`${import.meta.env.BASE_URL}minigames/twin-remastered/part${part}/index.html?autostart=${autoStart ? '1' : '0'}`}
+      src={`${import.meta.env.BASE_URL}minigames/twin-remastered/part${part}/index.html?${query.toString()}`}
       style={{ width: '100%', height: '100dvh', border: 0, display: 'block' }}
     />
   )

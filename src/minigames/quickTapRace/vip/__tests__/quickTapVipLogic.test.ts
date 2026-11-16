@@ -191,6 +191,7 @@ describe('VIP AI parity', () => {
   it('samples the configured pace probabilities across seeds', () => {
     const sampleCount = 10_000
     const counts = new Map<string, number>()
+    let targetRateTotal = 0
     for (let seed = 0; seed < sampleCount; seed++) {
       const race = simulateQuickTapVipAiRace({
         seed,
@@ -200,13 +201,42 @@ describe('VIP AI parity', () => {
       })
       counts.set(race.paceBand, (counts.get(race.paceBand) ?? 0) + 1)
       expect(race.targetTapsPerSecond).toBeGreaterThan(6)
-      expect(race.targetTapsPerSecond).toBeLessThanOrEqual(16.5)
+      expect(race.targetTapsPerSecond).toBeLessThanOrEqual(13.5)
+      targetRateTotal += race.targetTapsPerSecond
     }
+    expect(targetRateTotal / sampleCount).toBeGreaterThan(8.5)
+    expect(targetRateTotal / sampleCount).toBeLessThan(10)
     expect(QUICK_TAP_VIP_AI_PACE_BANDS.reduce((sum, band) => sum + band.weight, 0)).toBe(100)
     for (const band of QUICK_TAP_VIP_AI_PACE_BANDS)
       expect(Math.abs((counts.get(band.id) ?? 0) / sampleCount - band.weight / 100)).toBeLessThan(
         0.015
       )
+  })
+
+  it('lets physical profile move pace without changing the seeded pace band', () => {
+    const low = Array.from({ length: 300 }, (_, seed) =>
+      simulateQuickTapVipAiRace({
+        seed,
+        playerId: 'profile-pace',
+        profile: { physical: 20 },
+        offers: [],
+        durationMs: 1_000,
+      })
+    )
+    const high = Array.from({ length: 300 }, (_, seed) =>
+      simulateQuickTapVipAiRace({
+        seed,
+        playerId: 'profile-pace',
+        profile: { physical: 80 },
+        offers: [],
+        durationMs: 1_000,
+      })
+    )
+
+    expect(high.map((race) => race.paceBand)).toEqual(low.map((race) => race.paceBand))
+    const average = (races: typeof low) =>
+      races.reduce((sum, race) => sum + race.targetTapsPerSecond, 0) / races.length
+    expect(average(high)).toBeGreaterThan(average(low) + 0.5)
   })
 
   it('produces repeatable distinct full races and exact live final scores', () => {
@@ -266,7 +296,7 @@ describe('VIP AI parity', () => {
       expect(new Set(Object.values(scores)).size).toBeGreaterThan(20)
     }
   })
-  it('includes fast phone opponents and a varied field even with equal skill profiles', () => {
+  it('keeps a varied upper pace tail across variants with equal skill profiles', () => {
     for (const mode of ['race', 'seasons'] as const) {
       const spreads: number[] = []
       const topAiTaps = Array.from({ length: 24 }, (_, seedOffset) => {
@@ -285,9 +315,9 @@ describe('VIP AI parity', () => {
         return Math.max(...taps)
       }).sort((a, b) => a - b)
       const medianTopAiTaps = topAiTaps[Math.floor(topAiTaps.length / 2)]
-      expect(medianTopAiTaps).toBeGreaterThan(850)
+      expect(medianTopAiTaps).toBeGreaterThan(750)
       expect(medianTopAiTaps).toBeLessThan(1_150)
-      expect(spreads.every((spread) => spread > 250)).toBe(true)
+      expect(spreads.every((spread) => spread > 200)).toBe(true)
     }
   })
 })

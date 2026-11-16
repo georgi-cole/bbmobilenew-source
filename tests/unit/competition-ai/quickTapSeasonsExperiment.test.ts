@@ -6,7 +6,6 @@ import {
   rerollSeason,
   simulateSeasonsAiScore,
   simulateSeasonsAiField,
-  simulateSeasonsStrategicPlayer,
 } from '../../../src/experiments/quickTapSeasons/quickTapSeasons'
 import { simulateMinigameAiScore } from '../../../src/ai/competition'
 import { assignAiGameIdentities } from '../../../src/ai/aiGameIdentity'
@@ -62,7 +61,7 @@ describe('Quick Tap Race 2: Seasons', () => {
       expect(hostedScore).toBe(standaloneScore)
     }
   })
-  it('preserves Quick Tap Seasons identity-adjusted scores above 320', () => {
+  it('preserves identity-adjusted score variety across a full roster', () => {
     const seed = 20260802
     const roster = Array.from({ length: 15 }, (_, index) => ({
       id: `ai-${index}`,
@@ -80,44 +79,18 @@ describe('Quick Tap Race 2: Seasons', () => {
       })
     )
 
-    expect(scores.some((score) => score > 320)).toBe(true)
+    expect(scores.some((score) => score > 100)).toBe(true)
     expect(new Set(scores).size).toBeGreaterThan(8)
   })
-  it('benchmarks modelled 10-taps/second strategic play over 1,000 seeds', () => {
-    const wins = { threeAverageAis: 0, elevenAverageAis: 0 }
-    const profile = {
-      overall: 50,
-      physical: 50,
-      mental: 50,
-      precision: 50,
-      nerve: 50,
-      consistency: 50,
-      clutch: 50,
-      chokeRisk: 50,
-      luck: 50,
-    }
+  it('keeps motor pace varied and within the tuned sustained cadence range', () => {
+    const runs = Array.from({ length: 200 }, (_, index) => simulateSeasonsAiField(index + 1)).flat()
+    const tapsPerSecond = runs.map((run) => run.tapAttempts / 40)
+    const mean = tapsPerSecond.reduce((sum, value) => sum + value, 0) / tapsPerSecond.length
 
-    for (let seed = 1; seed <= 1000; seed += 1) {
-      const humanScore = simulateSeasonsStrategicPlayer(seed).score
-      const standaloneScores = simulateSeasonsAiField(seed).map((opponent) => opponent.score)
-      const additionalAverageScores = Array.from({ length: 8 }, (_, index) =>
-        simulateSeasonsAiScore({
-          seed,
-          playerId: `additional-average-ai-${index + 1}`,
-          profile,
-        })
-      )
-      const aiScores = [...standaloneScores, ...additionalAverageScores]
-      if (humanScore > Math.max(...standaloneScores)) wins.threeAverageAis += 1
-      if (humanScore > Math.max(...aiScores)) wins.elevenAverageAis += 1
-    }
-
-    // These are synthetic model outputs, not measured human win rates.
-    // The wider 8.9–13 taps/s field now challenges the synthetic 10-taps/s player.
-    expect(wins.threeAverageAis / 10).toBeGreaterThanOrEqual(10)
-    expect(wins.threeAverageAis / 10).toBeLessThanOrEqual(25)
-    expect(wins.elevenAverageAis / 10).toBeGreaterThanOrEqual(0.2)
-    expect(wins.elevenAverageAis / 10).toBeLessThanOrEqual(5)
+    expect(Math.min(...tapsPerSecond)).toBeGreaterThan(5)
+    expect(Math.max(...tapsPerSecond)).toBeLessThan(9)
+    expect(mean).toBeGreaterThan(6.5)
+    expect(mean).toBeLessThan(8.2)
   })
   it('keeps hidden timing and reroll mechanics out of player-facing rules', () => {
     const rules = getGame('quickTapSeasons')?.instructions.join(' ').toLowerCase() ?? ''
