@@ -1,0 +1,36 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #100e14; color: #f4ecdf; font-family: Arial, Helvetica, sans-serif; }
+button { -webkit-tap-highlight-color: transparent; }
+.room-preview { display: grid; grid-template-columns: minmax(260px, 370px) 390px; align-items: center; justify-content: center; gap: clamp(35px, 7vw, 100px); min-height: 100vh; padding: 36px; background: radial-gradient(ellipse at 65% 30%, #2d2333 0, #141118 50%, #100e14 80%); }
+.room-preview__eyebrow { color: #b89a67; font-size: 10px; font-weight: 700; letter-spacing: 0.18em; margin: 0 0 22px; }
+.room-preview__controls > h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(36px, 4vw, 49px); font-weight: 400; letter-spacing: -0.04em; line-height: 1.08; margin: 0 0 20px; }
+.room-preview__intro { color: #bcaebd; font-size: 14px; line-height: 1.7; margin: 0 0 30px; }
+.room-preview__label { display: block; color: #bfae92; font-size: 9px; letter-spacing: 0.14em; margin-bottom: 12px; }
+.room-preview__scenarios { display: flex; flex-wrap: wrap; gap: 8px; }
+.room-preview__scenarios button { border: 1px solid #423645; border-radius: 9px; padding: 11px 12px; color: #cdbfd0; background: #211b26; cursor: pointer; font-size: 12px; }
+.room-preview__scenarios button[aria-pressed='true'] { color: #f5dfb9; border-color: #b99a61; background: #352b2c; }
+.room-preview__wallet { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #3a303e; border-bottom: 1px solid #3a303e; padding: 18px 0; margin: 24px 0 18px; font-size: 12px; color: #bcaebd; }
+.room-preview__wallet strong { font-size: 15px; color: #edd6ac; font-weight: 500; }
+.room-preview__safe { color: #a799aa; font-size: 12px; line-height: 1.6; }
+.room-preview__reset { color: #d5bb91; font-size: 12px; border: 0; padding: 10px 0; background: transparent; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.room-preview__result { min-height: 40px; font-size: 12px; line-height: 1.6; color: #dac3a1; }
+.room-preview__device { width: 390px; border: 1px solid #66536b; border-radius: 28px; overflow: hidden; box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4); }
+.room-preview__device-caption { text-align: center; font-size: 8px; font-weight: 700; letter-spacing: 0.15em; color: #a899ae; background: #1a1520; padding: 10px; }
+.room-preview__back { font-size: 27px; font-weight: 400; }
+.room-preview .dressing-room { width: 100%; }
+.room-preview .appearance-carousel__stage { height: 495px; min-height: 360px; }
+.room-preview .dressing-room__season-note { margin: 12px 4px 0; }
+@media (max-width: 760px) {
+  .room-preview { display: flex; flex-direction: column; align-items: stretch; gap: 20px; padding: 18px 0 0; }
+  .room-preview__controls { padding: 0 18px; }
+  .room-preview__eyebrow { margin-bottom: 12px; font-size: 8px; }
+  .room-preview__controls > h1 { font-size: 28px; margin-bottom: 10px; }
+  .room-preview__intro { font-size: 12px; margin-bottom: 16px; }
+  .room-preview__scenarios { gap: 5px; }
+  .room-preview__scenarios button { padding: 11px 9px; font-size: 11px; }
+  .room-preview__wallet { margin: 14px 0 8px; padding: 12px 0; }
+  .room-preview__safe { font-size: 10px; margin: 5px 0; }
+  .room-preview__result { min-height: 0; margin: 4px 0; font-size: 11px; }
+  .room-preview__device { width: 100%; max-width: 430px; align-self: center; border-radius: 0; border-left: 0; border-right: 0; }
+  .room-preview .appearance-carousel__stage { height: min(62svh, 500px); }
+}
