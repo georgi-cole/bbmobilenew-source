@@ -19,7 +19,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  *  Enemy stomped:      +20       Wrong pipe:         −100
  *  Brick broken:        +5       Enemy hit/pit:       −50
- *  Eyeolean collected: +25       Time penalty:    −10/s
+ *  Eyeros collected: +25       Time penalty:    −10/s
  *  Checkpoint found:   +50
  *  Twin found:        +1000
  */
@@ -1050,7 +1050,7 @@ function updateRoom(gs: GameState, keys: Set<string>, dt: number, now: number): 
     }
   }
 
-  // Eyeoleans (room)
+  // Eyeros (room)
   for (const coin of room.coins) {
     if (coin.collected) continue
     if (overlaps(pR, { x: coin.x - COIN_R, y: coin.y - COIN_R, w: COIN_R * 2, h: COIN_R * 2 })) {
@@ -1617,7 +1617,7 @@ function renderGame(
     }
   }
 
-  // Eyeoleans
+  // Eyeros
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   for (const coin of gs.geom.coins) {
@@ -1860,9 +1860,9 @@ function renderRoom(
     ctx.textBaseline = 'top'
     ctx.fillText(
       isSequel
-        ? '🖼️ HUBMATE GALLERY — collect Eyeoleans among the portraits!'
+        ? '🖼️ HUBMATE GALLERY — collect Eyeros among the portraits!'
         : room.type === 'bonus'
-          ? '✨ MEMORY WALL — collect Eyeoleans among four familiar faces!'
+          ? '✨ MEMORY WALL — collect Eyeros among four familiar faces!'
           : '⚔️ AMBUSH! Stomp enemies or escape through the exit pipe.',
       CW / 2,
       HUD_H + 4
@@ -1931,7 +1931,7 @@ function renderRoom(
     ctx.fillText('EXIT', room.exitX + PIPE_W / 2, room.exitY + PIPE_H * 0.62)
   }
 
-  // Eyeoleans
+  // Eyeros
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   for (const coin of room.coins) {

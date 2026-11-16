@@ -217,7 +217,7 @@ export class SeasonAuditor {
       ...(economySample
         ? [
             '',
-            '## Eyeolean economy',
+            '## Eyeros economy',
             `- payout: ${economySample.total.toLocaleString('en-US')}`,
             `- source: ${economySample.source}`,
           ]

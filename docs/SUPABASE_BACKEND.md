@@ -98,7 +98,7 @@ Season deduplication prefers the valid UUID `game_id`, since guest/fresh-reset r
 
 The RPC returns `generatedAt`, nullable `coverageStart`, `totalPlayers`, `truncated`, `groupCounts`, and `players`. At most 500 recent rows are returned; totals and group counts cover the complete eligible result. Each row includes `id`, nullable `profileId`, `displayName`, `isGuest`, `verifiedEmail: false`, nullable `email`, `updatesOptIn`, observation timestamps, season counts, and group IDs. No contact revision, audit fields, or unsubscribe token is returned. Contact addresses are labeled unverified even if the owner's separate Auth user happens to have a verified email.
 
-Groups can overlap. `coverageStart` is the earliest included observation, not the rollout date of every event type. Profiles without events use their backup timestamps; absent older guest/Tribunal events are not evidence of no activity. Gameplay events and reports are observational, not authoritative purchase records or game results. Eyeolean spending is not verified monetary revenue.
+Groups can overlap. `coverageStart` is the earliest included observation, not the rollout date of every event type. Profiles without events use their backup timestamps; absent older guest/Tribunal events are not evidence of no activity. Gameplay events and reports are observational, not authoritative purchase records or game results. Eyeros spending is not verified monetary revenue.
 
 ## Setup and rollout
 

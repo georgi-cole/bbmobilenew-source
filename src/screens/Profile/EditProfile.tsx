@@ -30,6 +30,8 @@ import {
 import { normalizeProfileBio } from '../../components/ProfileOptionalDetails/profileBio'
 import ProfilePhotoPreview from '../../components/ProfilePhotoPreview/ProfilePhotoPreview'
 import { coerceAppearanceSelection, type AppearanceSelection } from '../../appearance/catalog'
+import { hasAppearanceLookAccess } from '../../appearance/lookAccess'
+import { selectIsVipActive } from '../../store/vipSlice'
 import { warmSelectedAppearance } from '../../appearance/preloadAppearance'
 import './EditProfile.css'
 
@@ -59,6 +61,7 @@ export default function EditProfile() {
   const routeLocation = useLocation()
   const dispatch = useAppDispatch()
   const profile = useAppSelector(selectCurrentProfile)
+  const isVip = useAppSelector(selectIsVipActive)
   const profileCount = useAppSelector((state) => state.profiles.profiles.length)
   const currentRunPhotoId = useAppSelector(
     (state) =>
@@ -67,7 +70,10 @@ export default function EditProfile() {
   )
   const routeState = routeLocation.state as EditProfileRouteState | null
   const creationSelection = coerceAppearanceSelection(routeState?.appearanceSelection)
-  const creatingProfile = routeState?.createProfile === true && creationSelection.kind === 'catalog'
+  const creatingProfile =
+    routeState?.createProfile === true &&
+    creationSelection.kind === 'catalog' &&
+    hasAppearanceLookAccess(creationSelection.lookId, null, isVip)
   const requestedReturnTo = routeState?.from
   const returnTo =
     requestedReturnTo === '/' ||

@@ -130,7 +130,7 @@ function prepareVoxNominationState(): { state: GameState; human: Player; targets
   return { state, human, targets }
 }
 
-describe('Eyeolean Store nomination protection', () => {
+describe('Eyeros Store nomination protection', () => {
   it('keeps a Store-protected player out of a Vox Safety replacement', () => {
     const state = createInitialGameState({ seed: 7714 })
     state.mode = 'classic'
@@ -256,7 +256,7 @@ describe('Eyeolean Store nomination protection', () => {
   )
 })
 
-describe('Eyeolean Store voting powers', () => {
+describe('Eyeros Store voting powers', () => {
   it('keeps a purchased protection active after nominations and rejects a protected backup', () => {
     const game = createInitialGameState({ seed: 7713 })
     game.phase = 'social_1'

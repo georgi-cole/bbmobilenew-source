@@ -24,6 +24,7 @@ type AccountProfileSnapshot = {
     | 'avatar'
     | 'appearanceSelection'
     | 'initialAppearanceSelection'
+    | 'unlockedAppearanceLookIds'
     | 'bio'
     | 'createdAt'
     | 'accountProfileUpdatedAt'
@@ -73,6 +74,9 @@ function snapshotFor(profile: StoredProfile): AccountProfileSnapshot {
       ...(profile.initialAppearanceSelection
         ? { initialAppearanceSelection: profile.initialAppearanceSelection }
         : {}),
+      ...(profile.unlockedAppearanceLookIds?.length
+        ? { unlockedAppearanceLookIds: profile.unlockedAppearanceLookIds }
+        : {}),
       ...(profile.bio ? { bio: profile.bio } : {}),
       createdAt: profile.createdAt,
       accountProfileUpdatedAt: profile.accountProfileUpdatedAt ?? profile.createdAt,
@@ -107,6 +111,7 @@ function parseSnapshot(value: unknown, expectedId: string): StoredProfile | null
     ...(profile.initialAppearanceSelection
       ? { initialAppearanceSelection: profile.initialAppearanceSelection }
       : {}),
+    unlockedAppearanceLookIds: profile.unlockedAppearanceLookIds,
     ...(bio ? { bio } : {}),
     createdAt: profile.createdAt,
     accountProfileUpdatedAt: profile.accountProfileUpdatedAt ?? profile.createdAt,

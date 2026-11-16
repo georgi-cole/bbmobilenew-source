@@ -44,7 +44,7 @@ function getWalletAriaLabel(wallet: BigSpenderWallet, secondChancePending: boole
 function getLatestRevealText(reveal: BigSpenderLatestReveal) {
   if (reveal.outcome.type === 'bomb') return 'Bomb found. The round is on the line.'
   const amount = reveal.outcome.amount ?? 0
-  return amount < 0 ? `${Math.abs(amount)} Eyeoleans removed.` : `${amount} Eyeoleans added back.`
+  return amount < 0 ? `${Math.abs(amount)} Eyeros removed.` : `${amount} Eyeros added back.`
 }
 
 export default function BigSpenderBoard({

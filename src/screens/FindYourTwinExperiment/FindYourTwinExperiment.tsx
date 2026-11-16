@@ -172,7 +172,7 @@ export default function FindYourTwinExperiment() {
                   {humanResult.deaths} deaths
                 </p>
                 <p>
-                  {humanResult.jumps} jumps · {humanResult.coinsCollected} Eyeoleans ·{' '}
+                  {humanResult.jumps} jumps · {humanResult.coinsCollected} Eyeros ·{' '}
                   {humanResult.enemiesStomped} enemies · {humanResult.bricksBroken} bricks · longest
                   frame {humanResult.longestFrameMs.toFixed(0)}ms
                 </p>
@@ -206,7 +206,7 @@ export default function FindYourTwinExperiment() {
                   deaths · {result.roomsEntered} rooms
                 </p>
                 <p>
-                  {result.jumps} jumps · {result.coinsCollected} Eyeoleans · {result.enemiesStomped}{' '}
+                  {result.jumps} jumps · {result.coinsCollected} Eyeros · {result.enemiesStomped}{' '}
                   enemies · {result.bricksBroken} bricks
                 </p>
                 <details>

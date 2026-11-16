@@ -145,7 +145,7 @@ export default function BigSpenderOverlays({
                     <span>{player.rank}</span>
                     <strong>{player.displayName}</strong>
                     <em>
-                      {player.balance.toLocaleString('en-US')} Eyeoleans ·{' '}
+                      {player.balance.toLocaleString('en-US')} Eyeros ·{' '}
                       {eliminated
                         ? 'Eliminated'
                         : `${player.walletsOpened} wallets · ${getPlayerLabel(player)}`}
@@ -203,7 +203,7 @@ export default function BigSpenderOverlays({
                   <span>{RESULT_MEDALS[player.rank - 1] ?? player.rank}</span>
                   <strong>{player.displayName}</strong>
                   <em>
-                    {player.balance.toLocaleString('en-US')} Eyeoleans · {getPlayerLabel(player)} ·{' '}
+                    {player.balance.toLocaleString('en-US')} Eyeros · {getPlayerLabel(player)} ·{' '}
                     {player.walletsOpened} wallets
                   </em>
                 </li>

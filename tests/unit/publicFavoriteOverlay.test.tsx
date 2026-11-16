@@ -220,7 +220,7 @@ describe('PublicFavoriteOverlay', () => {
     )
 
     expect(screen.getByText('Taylor')).toBeInTheDocument()
-    expect(screen.getByText('Wins 25,000 Eyeoleans!')).toBeInTheDocument()
+    expect(screen.getByText('Wins 25,000 Eyeros!')).toBeInTheDocument()
     const continueButton = screen.getByRole('button', { name: 'Continue' })
     fireEvent.click(continueButton)
     fireEvent.click(continueButton)
@@ -252,7 +252,7 @@ describe('PublicFavoriteOverlay', () => {
     expect(screen.getByText('Final Public Vote')).toBeInTheDocument()
     expect(screen.getByText('Taylor')).toBeInTheDocument()
     expect(screen.getByText('Jordan finishes as runner-up.')).toBeInTheDocument()
-    expect(screen.queryByText('Wins 25,000 Eyeoleans!')).toBeNull()
+    expect(screen.queryByText('Wins 25,000 Eyeros!')).toBeNull()
 
     const next = screen.getByRole('button', { name: 'Continue to coronation' })
     fireEvent.click(next)

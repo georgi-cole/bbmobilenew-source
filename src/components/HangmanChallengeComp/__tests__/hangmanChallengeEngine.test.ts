@@ -89,7 +89,7 @@ describe('hangmanChallengeEngine V2', () => {
     expect(tournament.qualifying.some((entry) => entry.text === tournament.final.text)).toBe(false)
   })
 
-  it('makes AI contestants spend from the same Eyeolean economy instead of manufacturing a score', () => {
+  it('makes AI contestants spend from the same Eyeros economy instead of manufacturing a score', () => {
     const word = pickTournamentWords(77, 3).qualifying[1]
     const ai = simulateAiRound({
       participantId: 'ai-1',
@@ -110,7 +110,7 @@ describe('hangmanChallengeEngine V2', () => {
 
 it('shares accurate host rules and never simulates a solved board after the third wrong guess', () => {
   const rules = getVerdictBoardRules().join(' ')
-  expect(rules).toContain('50 Eyeoleans')
+  expect(rules).toContain('50 Eyeros')
   expect(rules).toContain('3 wrong full-word guesses')
   expect(rules).toContain('5 boards')
   const word = pickTournamentWords(77, 3).qualifying[1]

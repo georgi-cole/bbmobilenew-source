@@ -15,7 +15,7 @@ function summary(overrides: Partial<PlayerSeasonSummary> = {}): PlayerSeasonSumm
   }
 }
 
-describe('Eyeolean economy calibration', () => {
+describe('Eyeros economy calibration', () => {
   it('reports payout distribution, outcome segments, source mix, and anchor pressure', () => {
     const samples: EyeoleanCalibrationSample[] = [
       {

@@ -38,7 +38,7 @@ describe('HangmanChallengeComp V2', () => {
     expect(document.querySelector('.verdict-v2')).toBeTruthy()
   })
 
-  it('spends four Eyeoleans to reveal exactly one vowel position', () => {
+  it('spends four Eyeros to reveal exactly one vowel position', () => {
     const { container } = render(<HangmanChallengeComp participants={participants} seed={42} />)
 
     expect(container.querySelectorAll('.verdict-v2__tile.is-revealed')).toHaveLength(0)

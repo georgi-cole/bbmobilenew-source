@@ -167,3 +167,11 @@
     transition: none;
   }
 }
+
+.appearance-carousel__access {
+  color: #dcc8a3;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.025em;
+  line-height: 1.2;
+}

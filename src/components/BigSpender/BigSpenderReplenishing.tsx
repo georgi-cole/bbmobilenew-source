@@ -499,7 +499,7 @@ export default function BigSpenderReplenishing(props: GenericMinigameProps) {
               }
             >
               <strong>{player.displayName}</strong>
-              <em>{player.balance.toLocaleString('en-US')} Eyeoleans</em>
+              <em>{player.balance.toLocaleString('en-US')} Eyeros</em>
             </span>
           ))}
         </section>

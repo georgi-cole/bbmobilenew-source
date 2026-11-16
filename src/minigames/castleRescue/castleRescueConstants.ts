@@ -46,7 +46,7 @@ export const SCORE_ENEMY = 20;
 /** Points awarded for breaking a brick. */
 export const SCORE_BRICK = 5;
 
-/** Points awarded for collecting an Eyeolean. */
+/** Points awarded for collecting an Eyeros. */
 export const SCORE_COIN = 25;
 
 /** Points awarded for activating a checkpoint (explore bonus). */

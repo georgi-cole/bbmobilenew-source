@@ -12,7 +12,7 @@ presentations, alternate premium rules, and replacement remasters.
 - Store shelves and VIP bundle benefits derive from each standalone product's
   shelf and release availability in `src/vip/vipConfig.ts`.
 - `npm run generate:marketplace` updates the reference from the runtime store,
-  minigame, upgrade-pricing, and Eyeolean catalogs. Development startup also
+  minigame, upgrade-pricing, and Eyeros catalogs. Development startup also
   generates it automatically.
 - `npm run check:marketplace` rejects stale generated documentation and paid
   feature changes without a marketplace review. It runs in `check:pr`; release
@@ -27,7 +27,7 @@ presentations, alternate premium rules, and replacement remasters.
    presentation, saved-session selection, and AI rules. VIP includes this
    entitlement automatically.
 2. For other paid features, update their source catalog. Store products are in
-   `src/vip/vipConfig.ts`; Eyeolean powers are in `src/economy/storeCatalog.ts`.
+   `src/vip/vipConfig.ts`; Eyeros powers are in `src/economy/storeCatalog.ts`.
    Add coverage to `scripts/marketplace-review-policy.mjs` when a paid feature
    uses a new implementation location.
 3. Run `npm run generate:marketplace` and review the catalog with the feature.
@@ -138,7 +138,7 @@ store listings or change configured prices.
   one three-profile device limit before and after sign-in; existing extra
   profiles and their saves remain available for management. Account-wide
   linking, sync retries, deletion reconciliation, and account-only management
-  navigation do not change wallet balances, Eyeolean inventory, purchases,
+  navigation do not change wallet balances, Eyeros inventory, purchases,
   entitlements, ads, prices, rewards, or premium benefits. VIP and Premium
   Challenges still unlock every premium minigame version; offer copy is accurate.
 
@@ -271,7 +271,7 @@ store listings or change configured prices.
 
 - 2026-11-09: Reviewed optional player sign-in and local profile linking. The
   account link grants no entitlements. Store receipts and local profile progress
-  continue to determine purchase access and Eyeolean balances. Prices, benefits,
+  continue to determine purchase access and Eyeros balances. Prices, benefits,
   listings, and premium minigame availability stay as currently published.
 
 - 2026-11-06: Reviewed durable competition-attempt and result checkpoints across
@@ -306,7 +306,7 @@ store listings or change configured prices.
 - 2026-11-03: Reviewed grounded audience consequences, private-event filtering,
   persisted reaction receipts and existing audience-feed feedback for epic #1711
   local phase 5. Mode access, product benefits, prices, minigame versions,
-  purchases and Eyeolean powers are unchanged. Audience eviction and finale
+  purchases and Eyeros powers are unchanged. Audience eviction and finale
   formulas remain unchanged; existing Store wording remains accurate.
 
 - 2026-11-03: Reviewed mode-aware AI social preferences, observer privacy and
@@ -317,7 +317,7 @@ store listings or change configured prices.
 
 - 2026-11-03: Reviewed mode-aware alliance choices and nonbinding faction agendas
   for Classic and Vox (epic #1711, local phase 3). Existing consent, capacity,
-  purchases, mode access, prices, premium games and Eyeolean powers remain
+  purchases, mode access, prices, premium games and Eyeros powers remain
   unchanged. The AI now considers witnessed public conflict, known reliability
   and immediate risk; no product contents or Store wording change is needed.
 
@@ -329,7 +329,7 @@ store listings or change configured prices.
 - 2026-11-03: Reviewed the diagnostic strategic context resolver for Classic, Vox
   Populi, Cupid and Survival (epic #1711, PR 2). It describes existing authority
   and public powers without connecting new weights to gameplay. Mode access,
-  paid benefits, prices, minigame versions, Eyeolean powers and Store copy remain
+  paid benefits, prices, minigame versions, Eyeros powers and Store copy remain
   unchanged; the existing listings remain accurate.
 
 - 2026-11-03: Reviewed replacement-ceremony outcome routing and the shared film
@@ -481,7 +481,7 @@ store listings or change configured prices.
   The existing Premium Challenges and VIP listings remain accurate.
 
 - 2026-10-27: Added analytics for Store shelf and product selection, purchase
-  start and result, and Eyeolean purchases. Reviewed the runtime catalog,
+  start and result, and Eyeros purchases. Reviewed the runtime catalog,
   entitlements, prices, and offer copy; this change does not alter any offers.
 
 - 2026-10-27: Added four more included profile looks (32-35) and wired them into
@@ -615,7 +615,7 @@ store listings or change configured prices.
   Animation, reduced-motion and SFX settings remain authoritative. Eye closing
   choreography, offers, prices, rewards, entitlements and availability are unchanged.
 
-- 2026-11-14: Reviewed secret mission acceptance, deadline, legacy-save and energy tracking repairs. Existing reward boxes, Eyeolean power eligibility, prices, entitlements and paid-mode availability remain unchanged.
+- 2026-11-14: Reviewed secret mission acceptance, deadline, legacy-save and energy tracking repairs. Existing reward boxes, Eyeros power eligibility, prices, entitlements and paid-mode availability remain unchanged.
 
 - 2026-11-14: Reviewed mobile base-app media exclusion. The existing optional VIP
   image pack is now omitted from Android/iOS builds; Standard is used until a full

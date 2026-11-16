@@ -209,7 +209,7 @@ describe('PublicFavoriteOverlay', () => {
     )
 
     expect(screen.getByText('Taylor')).toBeInTheDocument()
-    expect(screen.getByText('Wins 25,000 Eyeoleans!')).toBeInTheDocument()
+    expect(screen.getByText('Wins 25,000 Eyeros!')).toBeInTheDocument()
     const continueButton = screen.getByRole('button', { name: 'Continue' })
     fireEvent.click(continueButton)
     fireEvent.click(continueButton)

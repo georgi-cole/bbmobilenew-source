@@ -597,7 +597,7 @@ export default function SettingsAdmin() {
                 {settings.sim.enableFavoritePlayer && (
                   <div className="settings-row settings-row--col">
                     <label className="settings-row__label">
-                      Award Amount — {settings.sim.favoritePlayerAwardAmount ?? 25000} Eyeoleans
+                      Award Amount — {settings.sim.favoritePlayerAwardAmount ?? 25000} Eyeros
                     </label>
                     <input
                       type="number"
@@ -611,7 +611,7 @@ export default function SettingsAdmin() {
                       aria-label="Public's Favorite award amount"
                     />
                     <p className="settings-helper-text">
-                      Eyeolean prize awarded to the Public's Favorite Player (requires Twists on).
+                      Eyeros prize awarded to the Public's Favorite Player (requires Twists on).
                     </p>
                   </div>
                 )}

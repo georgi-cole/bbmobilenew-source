@@ -1419,7 +1419,7 @@ export default function HangmanChallengeComp({
             </div>
             <p>
               {roundResolution.humanResult.solved
-                ? '+' + SURVIVAL_BONUS + ' Eyeoleans if you survive the cut.'
+                ? '+' + SURVIVAL_BONUS + ' Eyeros if you survive the cut.'
                 : 'Wallet retained. No survival refill.'}
             </p>
             <button type="button" onClick={proceedFromRoundResult}>
