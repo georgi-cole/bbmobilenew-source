@@ -1402,3 +1402,83 @@
     height: 2.6rem;
   }
 }
+
+/* Account for native status/home areas and keep the reveal action on screen. */
+.pf-overlay .pf-overlay__stage {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  padding-top: calc(
+    max(var(--app-safe-area-top, 0px), var(--safe-top, 0px), env(safe-area-inset-top, 0px)) + 8px
+  );
+  padding-bottom: calc(max(var(--safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 8px);
+}
+.pf-overlay .pf-overlay__winner-stage {
+  min-height: 0;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  gap: 10px;
+  padding: 14px;
+}
+.pf-overlay .pf-overlay__winner-avatar-wrap {
+  flex-shrink: 0;
+  width: min(40vw, 22dvh, 180px);
+  height: min(40vw, 22dvh, 180px);
+}
+.pf-overlay .pf-overlay__winner-stage .pf-overlay__headline {
+  font-size: clamp(2rem, 10vw, 4rem);
+}
+.pf-overlay .pf-overlay__winner-cta {
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+  min-height: 46px;
+  margin-top: auto;
+  z-index: 2;
+}
+.pf-overlay .pf-overlay__board-shell {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.pf-overlay.pf-overlay--complete {
+  overflow: hidden;
+}
+.pf-overlay.pf-overlay--complete .pf-overlay__stage {
+  min-height: 0;
+}
+
+.pf-overlay.pf-overlay--complete .pf-overlay__winner-stage {
+  flex: 1 1 0;
+}
+@media (max-height: 700px) {
+  .pf-overlay .pf-overlay__winner-stage {
+    gap: 6px;
+    padding: 10px;
+  }
+  .pf-overlay .pf-overlay__winner-stage > p {
+    margin-block: 0;
+  }
+  .pf-overlay .pf-overlay__winner-avatar-wrap {
+    width: min(26vw, 14dvh);
+    height: min(26vw, 14dvh);
+  }
+  .pf-overlay .pf-overlay__winner-stage .pf-overlay__headline {
+    font-size: 2rem;
+    margin-block: 4px;
+  }
+  .pf-overlay .pf-overlay__winner-prize {
+    font-size: 1.1rem;
+  }
+  .pf-overlay .pf-overlay__called-winner {
+    padding: 6px 10px;
+    font-size: 0.65rem;
+  }
+  .pf-overlay .pf-overlay__sub {
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+}

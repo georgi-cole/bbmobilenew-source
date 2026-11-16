@@ -73,6 +73,32 @@ vi.mock('../../ColorMatchComp/ColorMatchComp', () => ({
   ),
 }))
 
+vi.mock('../../ClosestWithoutGoingOverComp', () => ({
+  default: ({
+    seed,
+    onComplete,
+  }: {
+    seed: number
+    onComplete: (result: {
+      authoritativeWinnerId: string
+      authoritativeLastPlaceId: string
+    }) => void
+  }) => (
+    <button
+      type="button"
+      data-seed={seed}
+      onClick={() =>
+        onComplete({
+          authoritativeWinnerId: 'ai-1',
+          authoritativeLastPlaceId: 'human',
+        })
+      }
+    >
+      Finish seeded competition
+    </button>
+  ),
+}))
+
 const baseGame = {
   key: 'unit-test-game',
   title: 'Unit Test Game',
@@ -195,6 +221,40 @@ describe('MinigameHost competition retry', () => {
     })
     expect(screen.queryByText('Get Ready')).toBeNull()
     expect(screen.getByRole('button', { name: 'Finish Test Game' })).toBeInTheDocument()
+  })
+
+  it("gives a Don't Go Over Reverse Time retry a new draw and preserves the first seed", async () => {
+    render(
+      <MinigameHost
+        game={{
+          ...baseGame,
+          key: 'dontGoOver',
+          implementation: 'react',
+          reactComponentKey: 'ClosestWithoutGoingOver',
+          authoritative: true,
+        }}
+        gameOptions={{ seed: 424242 }}
+        onDone={vi.fn()}
+        skipRules
+        skipCountdown
+        participants={makeParticipants(0, 50)}
+        competitionRetry={{ enabled: true, onWatch: (onReward) => onReward() }}
+      />
+    )
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+    const firstDraw = screen.getByRole('button', { name: 'Finish seeded competition' })
+    expect(firstDraw).toHaveAttribute('data-seed', '424242')
+    fireEvent.click(firstDraw)
+    fireEvent.click(screen.getByRole('button', { name: 'Reverse time' }))
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+    expect(screen.getByRole('button', { name: 'Finish seeded competition' })).not.toHaveAttribute(
+      'data-seed',
+      '424242'
+    )
   })
 
   it('offers retry in the results panel when the human exits early and finishes last', () => {

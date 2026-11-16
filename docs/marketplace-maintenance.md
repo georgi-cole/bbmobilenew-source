@@ -607,3 +607,10 @@ store listings or change configured prices.
   finale artwork stay bundled. Ownership, prices, rewards and product copy do not
   change. The 63 walking atlases from #1762 are included in the optional inventory;
   transparency compression preserves their decoded pixels, frames and timing.
+
+- 2026-11-16: Reviewed bounded mobile layouts for premium and standard challenges,
+  finale/aftermath presentation, Deck of Light tool choices, Battery Low selections,
+  and fresh Don't Go Over Reverse Time draws. The isolated development review page
+  simulates ad rewards; release purchase/ad gates are unchanged.
+  Premium Challenges and VIP still unlock all premium minigame versions. This
+  maintenance changes no product, price, entitlement, reward, offer or Store copy.

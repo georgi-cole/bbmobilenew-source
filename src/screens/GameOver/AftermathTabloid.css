@@ -716,3 +716,16 @@
     animation: none;
   }
 }
+
+/* Inset the entire edition, including its masthead and fixed navigation. */
+.gameover-overlay .gameover-aftermath {
+  box-sizing: border-box;
+  width: min(100%, 790px);
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+}
+.gameover-overlay .gameover-aftermath__topbar,
+.gameover-overlay .gameover-aftermath__footer {
+  flex-shrink: 0;
+}

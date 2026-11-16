@@ -1,0 +1,104 @@
+.viewport-review {
+  box-sizing: border-box;
+  padding: 24px;
+  min-height: 100dvh;
+  background: #0b0912;
+  color: #f4edf9;
+  font-family: system-ui, sans-serif;
+  overflow-x: auto;
+}
+.viewport-review h1 {
+  margin-top: 0;
+}
+.viewport-review label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 16px 0;
+}
+.viewport-review select,
+.viewport-review button {
+  min-height: 44px;
+  color: inherit;
+  background: #21172f;
+  border: 1px solid #6a4f83;
+  border-radius: 10px;
+  padding: 10px;
+}
+.viewport-review__cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+.viewport-review__cases button {
+  text-align: left;
+  cursor: pointer;
+}
+.viewport-review__cases button[aria-pressed='true'] {
+  border-color: #ebc77f;
+  background: #39294b;
+}
+.viewport-review__cases strong,
+.viewport-review__cases span {
+  display: block;
+}
+.viewport-review__cases span {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #d4c5e0;
+}
+.viewport-review a {
+  color: #eac77d;
+}
+.viewport-review__frame {
+  border: 2px solid #8768a7;
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 18px auto;
+  flex-shrink: 0;
+}
+.viewport-review iframe {
+  display: block;
+  border: 0;
+  background: #08060d;
+}
+.viewport-review details {
+  margin-top: 24px;
+}
+.viewport-review-case.app-shell {
+  position: fixed;
+  inset: 0;
+  background: #09060f;
+  overflow: hidden;
+}
+.viewport-review-case--safe {
+  --safe-top: 59px;
+  --app-safe-area-top: 59px;
+  --safe-bottom: 34px;
+}
+.viewport-review-status {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 59px;
+  box-sizing: border-box;
+  padding: 16px 18px;
+  background: #0c0b12;
+  color: #fff;
+  z-index: 12000;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  font: 600 14px system-ui;
+}
+.viewport-review-status span {
+  font-size: 9px;
+  align-self: center;
+  opacity: 0.7;
+}
+
+/* Hall of Fame normally receives its safe padding from the routed app shell. */
+.viewport-review-case--safe .hall-of-fame-screen {
+  padding-top: 75px;
+  padding-bottom: 50px;
+}
