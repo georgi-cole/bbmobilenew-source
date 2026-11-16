@@ -35,11 +35,18 @@ function ChangingRoomPreview() {
       <aside className="room-preview__controls">
         <p className="room-preview__eyebrow">THE BIG EYE / DESIGN REVIEW</p>
         <h1>The changing room.</h1>
-        <p className="room-preview__intro">Try the wardrobe, then tap the crown or Eyeros badge to enter the market.</p>
+        <p className="room-preview__intro">
+          Try the wardrobe, then tap the crown or Eyeros badge to enter the market.
+        </p>
         <span className="room-preview__label">TEST A PLAYER STATE</span>
         <div className="room-preview__scenarios" role="group" aria-label="Test scenarios">
           {['Standard', 'Free', 'Low balance', 'VIP', 'Owned'].map((name) => (
-            <button key={name} type="button" aria-pressed={scenario === name} onClick={() => reset(name)}>
+            <button
+              key={name}
+              type="button"
+              aria-pressed={scenario === name}
+              onClick={() => reset(name)}
+            >
               {name}
             </button>
           ))}
@@ -48,23 +55,41 @@ function ChangingRoomPreview() {
           <span>Demo wallet</span>
           <strong data-testid="demo-balance">{balance.toLocaleString('en-US')} Eyeros</strong>
         </div>
-        <p className="room-preview__safe">Interactive sandbox. All 35 real looks. No real payments or saved-game changes.</p>
-        <button type="button" className="room-preview__reset" onClick={() => reset('Standard')}>Reset demo</button>
-        <p className="room-preview__result" role="status">{notice || 'Ready to explore.'}</p>
+        <p className="room-preview__safe">
+          Interactive sandbox. All 35 real looks. No real payments or saved-game changes.
+        </p>
+        <button type="button" className="room-preview__reset" onClick={() => reset('Standard')}>
+          Reset demo
+        </button>
+        <p className="room-preview__result" role="status">
+          {notice || 'Ready to explore.'}
+        </p>
       </aside>
       <section className="room-preview__device" aria-label="Changing room preview">
         <div className="room-preview__device-caption">LIVE INTERACTIVE PREVIEW</div>
         <main className="dressing-room placeholder-screen">
           <div className="dressing-room__topbar">
-            <span className="room-preview__back" aria-hidden="true">‹</span>
+            <span className="room-preview__back" aria-hidden="true">
+              ‹
+            </span>
             <span>Changing room</span>
           </div>
           <h1>Choose your look</h1>
           <p className="dressing-room__subtitle">Your name. Your story. Your style.</p>
           <AppearanceCarousel
             selectedId={selectedId}
-            onSelect={(id) => { setSelectedId(id); setNotice('') }}
-            onConfirm={available ? () => setNotice(`${look.label} selected. In the game, the existing lock-in reveal plays here.`) : undefined}
+            onSelect={(id) => {
+              setSelectedId(id)
+              setNotice('')
+            }}
+            onConfirm={
+              available
+                ? () =>
+                    setNotice(
+                      `${look.label} selected. In the game, the existing lock-in reveal plays here.`
+                    )
+                : undefined
+            }
             confirmLabel="Use this look"
             accessContent={
               <LookAccessBadges
@@ -75,21 +100,30 @@ function ChangingRoomPreview() {
               />
             }
           />
-          <p className="dressing-room__season-note">Your first character replaces the guest silhouette now. Changing an existing character takes effect next season.</p>
+          <p className="dressing-room__season-note">
+            Your first character replaces the guest silhouette now. Changing an existing character
+            takes effect next season.
+          </p>
         </main>
       </section>
       {market && (
         <LookMarket
           key={`${selectedId}:${market}`}
           look={look}
-          portraitUrl={joinPublicAssetPath(getAppearanceAsset({ kind: 'catalog', lookId: selectedId, revision: 1 }, 'main') ?? '')}
+          portraitUrl={joinPublicAssetPath(
+            getAppearanceAsset({ kind: 'catalog', lookId: selectedId, revision: 1 }, 'main') ?? ''
+          )}
           balance={balance}
           isAvailable={available}
           canSpend
           initialOption={market}
           vipLabel="Activate demo VIP"
           onClose={() => setMarket(null)}
-          onVip={() => { setVip(true); setScenario('VIP'); setNotice('Demo VIP activated. Every look is now available; no Eyeros were spent.') }}
+          onVip={() => {
+            setVip(true)
+            setScenario('VIP')
+            setNotice('Demo VIP activated. Every look is now available; no Eyeros were spent.')
+          }}
           onPurchase={() => {
             if (available) return 'owned'
             if (balance < 30_000) return 'insufficient'

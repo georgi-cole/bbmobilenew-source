@@ -28,19 +28,28 @@ const result = await build({
   minify: true,
   loader: { '.svg': 'dataurl' },
   define: { 'process.env.NODE_ENV': '"production"' },
-  plugins: [{
-    name: 'isolated-preview-assets',
-    setup(builder) {
-      builder.onResolve({ filter: /utils\/avatar$/ }, () => ({ path: 'avatar', namespace: 'preview' }))
-      builder.onResolve({ filter: /preloadAppearance$/ }, () => ({ path: 'preload', namespace: 'preview' }))
-      builder.onLoad({ filter: /.*/, namespace: 'preview' }, ({ path: name }) => ({
-        loader: 'js',
-        contents: name === 'avatar'
-          ? `export function joinPublicAssetPath(value) { const key = decodeURIComponent(value.split('?')[0]).replace(/^\\//, ''); return globalThis.__LOOK_PREVIEW_ASSETS__[key] || value; }`
-          : 'export async function warmAppearanceRole() {}',
-      }))
+  plugins: [
+    {
+      name: 'isolated-preview-assets',
+      setup(builder) {
+        builder.onResolve({ filter: /utils\/avatar$/ }, () => ({
+          path: 'avatar',
+          namespace: 'preview',
+        }))
+        builder.onResolve({ filter: /preloadAppearance$/ }, () => ({
+          path: 'preload',
+          namespace: 'preview',
+        }))
+        builder.onLoad({ filter: /.*/, namespace: 'preview' }, ({ path: name }) => ({
+          loader: 'js',
+          contents:
+            name === 'avatar'
+              ? `export function joinPublicAssetPath(value) { const key = decodeURIComponent(value.split('?')[0]).replace(/^\\//, ''); return globalThis.__LOOK_PREVIEW_ASSETS__[key] || value; }`
+              : 'export async function warmAppearanceRole() {}',
+        }))
+      },
     },
-  }],
+  ],
 })
 const js = result.outputFiles.find((file) => file.path.endsWith('.js'))?.text
 const css = result.outputFiles.find((file) => file.path.endsWith('.css'))?.text
@@ -48,4 +57,6 @@ if (!js || !css) throw new Error('Preview bundling did not produce both JavaScri
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>The Big Eye — Changing Room Test Page</title><style>${css}</style></head><body><div id="root"></div><script>globalThis.__LOOK_PREVIEW_ASSETS__=${JSON.stringify(assets)};</script><script>${js.replaceAll('</script', '<\\/script')}</script></body></html>`
 await writeFile(path.join(output, 'changing-room-test.html'), html)
-console.log(`Built offline preview with ${Object.keys(assets).length} embedded repository assets (${Math.round(Buffer.byteLength(html) / 1024)} KB).`)
+console.log(
+  `Built offline preview with ${Object.keys(assets).length} embedded repository assets (${Math.round(Buffer.byteLength(html) / 1024)} KB).`
+)

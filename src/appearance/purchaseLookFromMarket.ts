@@ -1,7 +1,11 @@
 import type { AppDispatch, RootState } from '../store/store'
 import { purchaseAppearanceLook, selectCurrentProfile } from '../store/profilesSlice'
 import { selectIsVipActive } from '../store/vipSlice'
-import { APPEARANCE_LOOK_PRICE_EYEROS, hasAppearanceLookAccess, isPaidAppearanceLook } from './lookAccess'
+import {
+  APPEARANCE_LOOK_PRICE_EYEROS,
+  hasAppearanceLookAccess,
+  isPaidAppearanceLook,
+} from './lookAccess'
 import type { LookPurchaseResult } from './LookMarket'
 
 /** Recheck the active profile and entitlement at confirmation, not at modal-open time. */

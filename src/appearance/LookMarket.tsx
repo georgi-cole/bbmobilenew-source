@@ -96,8 +96,6 @@ export function LookMarket({
   vipLabel?: string
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const closeRef = useRef(onClose)
-  closeRef.current = onClose
   const titleId = useId()
   const descriptionId = useId()
   const [option, setOption] = useState(initialOption)
@@ -113,7 +111,9 @@ export function LookMarket({
     if (!dialog) return
     // Native dialog supplies focus containment, Escape and background inertness.
     if (typeof dialog.showModal === 'function') dialog.showModal()
-    else dialog.setAttribute('open', '')
+    // Partial dialog implementations (including the test DOM) may expose a no-op
+    // showModal. Keep the content visible there without affecting native browsers.
+    if (!dialog.open) dialog.setAttribute('open', '')
     return () => {
       if (typeof dialog.close === 'function') dialog.close()
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus()
@@ -138,7 +138,7 @@ export function LookMarket({
       aria-describedby={descriptionId}
       onCancel={(event) => {
         event.preventDefault()
-        closeRef.current()
+        onClose()
       }}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose()
@@ -147,8 +147,15 @@ export function LookMarket({
       <div className="look-market__body">
         <header className="look-market__header">
           <span className="look-market__eyebrow">The Big Eye · Look market</span>
-          <button type="button" className="look-market__close" onClick={onClose} aria-label="Close market">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+          <button
+            type="button"
+            className="look-market__close"
+            onClick={onClose}
+            aria-label="Close market"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
           </button>
         </header>
         <div className="look-market__identity">
@@ -163,7 +170,9 @@ export function LookMarket({
         </div>
         {unlocked ? (
           <div className="look-market__success" role="status">
-            <span className="look-market__success-icon"><LookAccessIcon kind="check" /></span>
+            <span className="look-market__success-icon">
+              <LookAccessIcon kind="check" />
+            </span>
             <h3>{result === 'purchased' ? 'This look is yours.' : 'Already unlocked.'}</h3>
             <p>No repeat payments. Keep it for future seasons.</p>
             <button type="button" className="look-market__primary" onClick={onClose}>
@@ -177,7 +186,10 @@ export function LookMarket({
                 type="button"
                 className="look-market__option look-market__option--vip"
                 aria-pressed={option === 'vip'}
-                onClick={() => { setOption('vip'); setResult(null) }}
+                onClick={() => {
+                  setOption('vip')
+                  setResult(null)
+                }}
               >
                 <LookAccessIcon kind="vip" />
                 <strong>VIP</strong>
@@ -187,7 +199,10 @@ export function LookMarket({
                 type="button"
                 className="look-market__option"
                 aria-pressed={option === 'eyeros'}
-                onClick={() => { setOption('eyeros'); setResult(null) }}
+                onClick={() => {
+                  setOption('eyeros')
+                  setResult(null)
+                }}
               >
                 <LookAccessIcon kind="eyeros" />
                 <strong>{price.toLocaleString('en-US')} Eyeros</strong>
@@ -198,35 +213,58 @@ export function LookMarket({
               {option === 'vip' ? (
                 <>
                   <h3>The entire wardrobe. Yours.</h3>
-                  <p>All changing-room looks are included with VIP. Already own it? Restore your purchase in the Store.</p>
+                  <p>
+                    All changing-room looks are included with VIP. Already own it? Restore your
+                    purchase in the Store.
+                  </p>
                   <button type="button" className="look-market__primary" onClick={onVip}>
-                    <LookAccessIcon kind="vip" />{vipLabel}<span aria-hidden="true">↗</span>
+                    <LookAccessIcon kind="vip" />
+                    {vipLabel}
+                    <span aria-hidden="true">↗</span>
                   </button>
-                  <small className="look-market__note">The Store confirms the price before you pay.</small>
+                  <small className="look-market__note">
+                    The Store confirms the price before you pay.
+                  </small>
                 </>
               ) : (
                 <>
                   <div className="look-market__balance">
                     <span>Your wallet</span>
-                    <strong><LookAccessIcon kind="eyeros" />{balance.toLocaleString('en-US')} Eyeros</strong>
+                    <strong>
+                      <LookAccessIcon kind="eyeros" />
+                      {balance.toLocaleString('en-US')} Eyeros
+                    </strong>
                   </div>
                   {!canSpend ? (
-                    <p className="look-market__hint">Create your profile with a free look first, then return here to spend your earned Eyeros.</p>
+                    <p className="look-market__hint">
+                      Create your profile with a free look first, then return here to spend your
+                      earned Eyeros.
+                    </p>
                   ) : !affordable || result === 'insufficient' ? (
-                    <p className="look-market__hint">You need {Math.max(0, price - balance).toLocaleString('en-US')} more Eyeros. Earn them by playing seasons, or unlock every look with VIP.</p>
+                    <p className="look-market__hint">
+                      You need {Math.max(0, price - balance).toLocaleString('en-US')} more Eyeros.
+                      Earn them by playing seasons, or unlock every look with VIP.
+                    </p>
                   ) : (
-                    <p className="look-market__after">After unlocking: {(balance - price).toLocaleString('en-US')} Eyeros</p>
+                    <p className="look-market__after">
+                      After unlocking: {(balance - price).toLocaleString('en-US')} Eyeros
+                    </p>
                   )}
-                  {result === 'unavailable' && <p role="alert">Your profile changed. Close the market and try again.</p>}
+                  {result === 'unavailable' && (
+                    <p role="alert">Your profile changed. Close the market and try again.</p>
+                  )}
                   <button
                     type="button"
                     className="look-market__primary"
                     disabled={!canSpend || !affordable}
                     onClick={buy}
                   >
-                    <LookAccessIcon kind="eyeros" />Unlock for {price.toLocaleString('en-US')} Eyeros
+                    <LookAccessIcon kind="eyeros" />
+                    Unlock for {price.toLocaleString('en-US')} Eyeros
                   </button>
-                  <small className="look-market__note">Permanent on this profile. No gameplay advantage.</small>
+                  <small className="look-market__note">
+                    Permanent on this profile. No gameplay advantage.
+                  </small>
                 </>
               )}
             </div>
