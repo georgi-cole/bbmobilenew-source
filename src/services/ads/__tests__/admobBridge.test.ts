@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installSafetyFixture } from '../../../safety/__tests__/safetyFixture'
-import { setOptionalPlayerFeature } from '../../../safety/playerSafety'
+import { declarePlayerAge, setOptionalPlayerFeature } from '../../../safety/playerSafety'
 import { resolveAdMobConfig } from '../admobConfig'
 
 const mock = vi.hoisted(() => ({
@@ -57,7 +57,7 @@ describe('native AdMob integration', () => {
     mock.show.mockImplementation(() => new Promise(() => {}))
     mock.consent.mockResolvedValue({ canRequestAds: true, status: 'NOT_REQUIRED' })
     mock.privacy.mockResolvedValue(undefined)
-    installSafetyFixture(28, ['ads'])
+    installSafetyFixture(28)
     vi.stubEnv('VITE_ADMOB_MODE', 'test')
   })
   afterEach(() => {
@@ -81,11 +81,22 @@ describe('native AdMob integration', () => {
     expect(mock.initialize).not.toHaveBeenCalled()
   })
 
-  it('installs without initializing the SDK and requires the adult advertising choice', async () => {
+  it('installs without initializing the SDK and accepts an adult with the legacy ad flag off', async () => {
+    installSafetyFixture(28)
     await install()
     expect(mock.initialize).not.toHaveBeenCalled()
-    setOptionalPlayerFeature('ads', false)
+    const result = window.GameAds!.showRewarded('eviction_vote_breakdown')
+    await vi.waitFor(() => expect(mock.show).toHaveBeenCalledOnce())
+    mock.handlers.get('earned')!()
+    mock.handlers.get('closed')!()
+    expect(await result).toBe(true)
+  })
+
+  it.each([undefined, 15])('blocks native ads without an adult declaration (%s)', async (age) => {
+    installSafetyFixture(age)
+    await install()
     expect(await window.GameAds!.showRewarded('competition_retry')).toBe(false)
+    expect(await window.GameAds!.showInterstitial('live_vote_auto')).toBe(false)
     expect(mock.initialize).not.toHaveBeenCalled()
   })
 
@@ -113,9 +124,9 @@ describe('native AdMob integration', () => {
     )
   })
 
-  it('cancels a loaded ad when the local advertising choice is withdrawn', async () => {
+  it('cancels a loaded ad when the player is reclassified as under 18', async () => {
     mock.prepare.mockImplementationOnce(async () => {
-      setOptionalPlayerFeature('ads', false)
+      declarePlayerAge(15)
     })
     await install()
     expect(await window.GameAds!.showRewarded('competition_retry')).toBe(false)
@@ -190,7 +201,7 @@ describe('native AdMob integration', () => {
     expect(mock.prepare).not.toHaveBeenCalled()
     expect(mock.show).not.toHaveBeenCalled()
     setOptionalPlayerFeature('ads', false)
-    expect(await checkAdMobAvailability()).toContain('Optional advertising is off')
+    expect(await checkAdMobAvailability()).toBeNull()
     expect(mock.consent).toHaveBeenCalledOnce()
   })
 
@@ -238,7 +249,7 @@ describe('native AdMob integration', () => {
     ).toBe('ca-app-pub-3940256099942544/5224354917')
   })
 
-  it('opens Google privacy choices after local opt-out without initializing advertising', async () => {
+  it('keeps Google privacy choices accessible without initializing advertising', async () => {
     vi.stubEnv('VITE_ADMOB_MODE', 'live')
     vi.stubEnv('VITE_ADMOB_INTERSTITIAL_ID', 'ca-app-pub-9243398419153145/1852027238')
     vi.stubEnv('VITE_ADMOB_REWARDED_ID', 'ca-app-pub-9243398419153145/2733864063')

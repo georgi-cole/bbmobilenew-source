@@ -40,7 +40,7 @@ function makeState(
 
 describe('adsService bridge guards', () => {
   beforeEach(() => {
-    installSafetyFixture(28, ['ads'])
+    installSafetyFixture(28)
   })
   afterEach(() => {
     vi.restoreAllMocks()
@@ -63,19 +63,20 @@ describe('adsService bridge guards', () => {
     expect(reward).not.toHaveBeenCalled()
   })
 
-  it('requires adult advertising opt-in', () => {
+  it('requests automatic and voluntary ads for adults despite the legacy local opt-out', () => {
     setOptionalPlayerFeature('ads', false)
     const bridge = vi.fn()
     window.GameAds = { showInterstitial: bridge, showRewarded: bridge }
-    expect(showInterstitial('live_vote_auto', makeState(), vi.fn())).toBe(false)
-    expect(bridge).not.toHaveBeenCalled()
+    expect(showInterstitial('live_vote_auto', makeState(), vi.fn())).toBe(true)
+    expect(showRewarded('eviction_vote_breakdown', makeState(), vi.fn(), vi.fn())).toBe(true)
+    expect(bridge).toHaveBeenCalledTimes(2)
+    clearRewardHandler('eviction_vote_breakdown')
   })
 
-  it('explains why rewards are unavailable without changing the advertising choice', () => {
-    setOptionalPlayerFeature('ads', false)
-    expect(getAdAvailabilityMessage()).toContain('Optional advertising is off')
-    expect(getAdAvailabilityMessage()).toContain('Settings → Advertising privacy')
-    setOptionalPlayerFeature('ads', true)
+  it('explains missing age and bridge readiness without an advertising opt-in gate', () => {
+    installSafetyFixture()
+    expect(getAdAvailabilityMessage()).toContain('Enter your age')
+    declarePlayerAge(28)
     expect(getAdAvailabilityMessage()).toContain('not available in this build')
     window.GameAds = { showInterstitial: vi.fn(), showRewarded: vi.fn() }
     expect(getAdAvailabilityMessage()).toBeNull()

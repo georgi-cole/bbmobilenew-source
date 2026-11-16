@@ -15,7 +15,7 @@ import { recordAdShown } from '../../store/adsSlice'
 import { hasEffectiveStoreEntitlement } from '../../vip/effectiveEntitlements'
 import { IS_MOBILE_DEV_BUILD } from '../../config/buildTarget'
 import { setEnergyBankEntry } from '../../social/socialSlice'
-import { canUseOptionalFeature, subscribePlayerSafety } from '../../safety/playerSafety'
+import { canUseAdultServices, subscribePlayerSafety } from '../../safety/playerSafety'
 export { getAdAvailabilityMessage } from './adAvailability'
 
 export const SOCIAL_ENERGY_RECHARGE_REWARD = 6
@@ -68,7 +68,7 @@ type RewardHandler = (payload?: Record<string, unknown>) => void
 const rewardHandlers = new Map<AdPlacement, RewardHandler>()
 const dismissalHandlers = new Map<AdPlacement, () => void>()
 subscribePlayerSafety(() => {
-  if (!canUseOptionalFeature('ads')) clearPendingAdRewards()
+  if (!canUseAdultServices()) clearPendingAdRewards()
 })
 
 export function clearRewardHandler(placement: AdPlacement): void {
@@ -84,7 +84,7 @@ export function clearPendingAdRewards(): void {
 
 export function initAdBridge(): void {
   window.onAdRewardGranted = (placement: string, payload?: Record<string, unknown>) => {
-    if (!canUseOptionalFeature('ads')) {
+    if (!canUseAdultServices()) {
       clearPendingAdRewards()
       return
     }
@@ -119,7 +119,7 @@ export function canShowAd(
   state: RootState,
   options?: { isFinal3Week?: boolean }
 ): boolean {
-  if (!canUseOptionalFeature('ads')) return false
+  if (!canUseAdultServices()) return false
   const hasNoAdsPack =
     (state.ads?.hasNoAdsPack ?? false) || hasEffectiveStoreEntitlement(state.vip, 'noAds')
 
@@ -257,7 +257,7 @@ export function showRewarded(
         .then((earned) => {
           // A cleared handler belongs to an old screen/run or privacy decision.
           if (rewardHandlers.get(placement) !== rewardHandler) return
-          if (earned && canUseOptionalFeature('ads')) {
+          if (earned && canUseAdultServices()) {
             window.onAdRewardGranted?.(placement, { source: 'admob' })
           } else dismiss()
         })

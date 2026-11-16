@@ -40,7 +40,7 @@ Use the normal iOS build with `VITE_BUILD_TARGET=release`,
 `VITE_VIP_DEV_ENTITLEMENT=false`, and `VITE_ADMOB_MODE=test` in `.env.ios.local`.
 Run `npm run sync:ios`, then build and run from Xcode. In the game, open
 **Settings → Advertising privacy**, declare the actual adult player's age, and
-enable **Optional advertising**. Google demo ads can then appear at the existing
+complete any required Google privacy choices. Google demo ads can then appear at the existing
 automatic breaks or voluntary reward prompts.
 
 For actual purchase-flow testing, use an Apple Sandbox account with the
