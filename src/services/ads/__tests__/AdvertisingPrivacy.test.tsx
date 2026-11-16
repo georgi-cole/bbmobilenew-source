@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AdvertisingPrivacy from '../AdvertisingPrivacy'
-import { canUseOptionalFeature } from '../../../safety/playerSafety'
+import { canUseAdultServices } from '../../../safety/playerSafety'
 import { installSafetyFixture } from '../../../safety/__tests__/safetyFixture'
 import { configureStore } from '@reduxjs/toolkit'
 import { Provider } from 'react-redux'
@@ -35,17 +35,14 @@ describe('advertising privacy controls', () => {
   })
   afterEach(cleanup)
 
-  it('requires an adult declaration and explicit opt-in, and keeps Google choices accessible after opt-out', () => {
+  it('includes ads for an adult without a separate local opt-in and keeps Google choices accessible', () => {
     renderPrivacy()
-    expect(canUseOptionalFeature('ads')).toBe(false)
+    expect(canUseAdultServices()).toBe(false)
     fireEvent.change(screen.getByLabelText('Your age'), { target: { value: '28' } })
     fireEvent.click(screen.getByText('Continue'))
-    const toggle = screen.getByRole('checkbox')
-    expect(canUseOptionalFeature('ads')).toBe(false)
-    fireEvent.click(toggle)
-    expect(canUseOptionalFeature('ads')).toBe(true)
-    fireEvent.click(toggle)
-    expect(canUseOptionalFeature('ads')).toBe(false)
+    expect(canUseAdultServices()).toBe(true)
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.getByText(/Standard play includes automatic ad breaks/)).toBeInTheDocument()
     fireEvent.click(screen.getByText('Advertising privacy choices'))
     expect(privacy.open).toHaveBeenCalledOnce()
   })
@@ -56,18 +53,16 @@ describe('advertising privacy controls', () => {
     fireEvent.click(screen.getByText('Continue'))
     expect(screen.queryByRole('checkbox')).toBeNull()
     expect(screen.queryByText('Advertising privacy choices')).toBeNull()
-    expect(canUseOptionalFeature('ads')).toBe(false)
+    expect(canUseAdultServices()).toBe(false)
     expect(privacy.open).not.toHaveBeenCalled()
     expect(screen.queryByText('Check advertising setup')).toBeNull()
   })
 
-  it('explains disabled advertising and lets an adult check setup without watching an ad', async () => {
+  it('lets an adult check Google setup without enabling a local ad switch or watching an ad', async () => {
     renderPrivacy()
     fireEvent.change(screen.getByLabelText('Your age'), { target: { value: '28' } })
     fireEvent.click(screen.getByText('Continue'))
-    expect(screen.getByText(/Optional advertising is off/)).toBeInTheDocument()
-    expect(screen.queryByText('Check advertising setup')).toBeNull()
-    fireEvent.click(screen.getByRole('checkbox'))
+    expect(screen.queryByRole('checkbox')).toBeNull()
     privacy.check.mockResolvedValueOnce('Advertising permission is not ready. Please try again.')
     fireEvent.click(screen.getByText('Check advertising setup'))
     expect(privacy.check).toHaveBeenCalledOnce()

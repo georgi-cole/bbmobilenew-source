@@ -7,11 +7,7 @@ import {
   RewardAdPluginEvents,
 } from '@capacitor-community/admob'
 import { IS_MOBILE_DEV_BUILD } from '../../config/buildTarget'
-import {
-  canUseAdultServices,
-  canUseOptionalFeature,
-  subscribePlayerSafety,
-} from '../../safety/playerSafety'
+import { canUseAdultServices, subscribePlayerSafety } from '../../safety/playerSafety'
 import { resolveAdMobConfig, type AdMobConfig } from './admobConfig'
 import type { AdPlacement } from './adsService'
 import { getAdAvailabilityMessage, setAdRequestFailure } from './adAvailability'
@@ -22,12 +18,12 @@ let consentReady = false
 let privacyGeneration = 0
 
 async function authorize(config: AdMobConfig): Promise<boolean> {
-  if (!canUseOptionalFeature('ads')) return false
+  if (!canUseAdultServices()) return false
   const generation = privacyGeneration
   // Google's demo app IDs have no publisher UMP message. Live ads always use UMP.
   if (config.mode === 'live' && !consentReady) {
     let consent = await AdMob.requestConsentInfo()
-    if (!canUseOptionalFeature('ads') || generation !== privacyGeneration) return false
+    if (!canUseAdultServices() || generation !== privacyGeneration) return false
     if (consent.isConsentFormAvailable && consent.status === AdmobConsentStatus.REQUIRED) {
       consent = await AdMob.showConsentForm()
     }
@@ -39,12 +35,12 @@ async function authorize(config: AdMobConfig): Promise<boolean> {
       return false
     }
   }
-  if (!canUseOptionalFeature('ads') || generation !== privacyGeneration) return false
+  if (!canUseAdultServices() || generation !== privacyGeneration) return false
   if (!initialized) {
     await AdMob.initialize({ maxAdContentRating: MaxAdContentRating.Teen })
     initialized = true
   }
-  return canUseOptionalFeature('ads') && generation === privacyGeneration
+  return canUseAdultServices() && generation === privacyGeneration
 }
 
 async function present(
@@ -53,7 +49,7 @@ async function present(
   placement: string,
   isAllowed: () => boolean
 ): Promise<boolean> {
-  if (busy || !canUseOptionalFeature('ads') || !isAllowed()) return false
+  if (busy || !canUseAdultServices() || !isAllowed()) return false
   busy = true
   const generation = privacyGeneration
   const listeners: PluginListenerHandle[] = []
@@ -73,8 +69,7 @@ async function present(
     }
     if (rewarded) await AdMob.prepareRewardVideoAd(options)
     else await AdMob.prepareInterstitial(options)
-    if (!canUseOptionalFeature('ads') || generation !== privacyGeneration || !isAllowed())
-      return false
+    if (!canUseAdultServices() || generation !== privacyGeneration || !isAllowed()) return false
 
     // showRewardVideoAd resolves when earned, while dismissal can also happen
     // without a reward. Keep the native slot occupied until the ad actually closes.
@@ -106,7 +101,7 @@ async function present(
       void AdMob.showInterstitial({ adId: options.adId }).catch(failedToShow)
     }
     const completed = await closed
-    return completed && canUseOptionalFeature('ads') && generation === privacyGeneration
+    return completed && canUseAdultServices() && generation === privacyGeneration
   } catch (error) {
     setAdRequestFailure(
       stage === 'privacy'
@@ -129,7 +124,7 @@ export function installAdMobBridge(isPlacementAllowed?: (placement: AdPlacement)
   subscribePlayerSafety(() => {
     privacyGeneration += 1
     setAdRequestFailure(null)
-    if (!canUseOptionalFeature('ads')) consentReady = false
+    if (!canUseAdultServices()) consentReady = false
   })
   window.GameAds = {
     managesAdLifecycle: true,
@@ -157,7 +152,7 @@ export function invalidateAdMobRequests(): void {
 
 /** The adult explicitly checks setup before returning to a reward prompt. */
 export async function checkAdMobAvailability(): Promise<string | null> {
-  if (!canUseOptionalFeature('ads') || !window.GameAds) return getAdAvailabilityMessage()
+  if (!canUseAdultServices() || !window.GameAds) return getAdAvailabilityMessage()
   if (busy) return 'An ad request is already in progress. Please try again when it finishes.'
   const config = resolveAdMobConfig(Capacitor.getPlatform(), import.meta.env)
   if (!config) return getAdAvailabilityMessage()

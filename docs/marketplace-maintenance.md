@@ -44,6 +44,16 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-15: Reviewed removal of the separate local advertising opt-in switch.
+  Standard adult play now uses existing automatic ad placements without that
+  extra gate, including installs whose legacy ads flag is false. Google UMP
+  privacy choices and canRequestAds remain mandatory before live requests;
+  undeclared-age and under-18 players remain blocked. No Ads/VIP still suppress
+  automatic breaks, and rewarded ads still require a voluntary Watch action and
+  real completion. Products, prices, reward amounts, limits, entitlements, and
+  Store benefits are unchanged; existing No Ads copy remains accurate. Updated
+  Settings, both published privacy policies, and device-test guidance.
+
 - 2026-11-16: Reviewed the TestFlight follow-up batch. Chain of Greed reports
   actual match placement separately from its unchanged winner-only Influence
   payout, so Reverse Time remains restricted to actual last place or early exit.
@@ -607,3 +617,10 @@ store listings or change configured prices.
   finale artwork stay bundled. Ownership, prices, rewards and product copy do not
   change. The 63 walking atlases from #1762 are included in the optional inventory;
   transparency compression preserves their decoded pixels, frames and timing.
+
+- 2026-11-16: Reviewed bounded mobile layouts for premium and standard challenges,
+  finale/aftermath presentation, Deck of Light tool choices, Battery Low selections,
+  and fresh Don't Go Over Reverse Time draws. The isolated development review page
+  simulates ad rewards; release purchase/ad gates are unchanged.
+  Premium Challenges and VIP still unlock all premium minigame versions. This
+  maintenance changes no product, price, entitlement, reward, offer or Store copy.

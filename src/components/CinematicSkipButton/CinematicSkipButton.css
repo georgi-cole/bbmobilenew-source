@@ -1,6 +1,11 @@
 .cinematic-skip-button {
   position: fixed;
-  top: max(14px, calc(env(safe-area-inset-top, 0px) + 8px));
+  top: max(
+    14px,
+    calc(
+      max(var(--app-safe-area-top, 0px), var(--safe-top, 0px), env(safe-area-inset-top, 0px)) + 8px
+    )
+  );
   right: max(14px, calc(env(safe-area-inset-right, 0px) + 10px));
   z-index: 10003;
   display: inline-flex;

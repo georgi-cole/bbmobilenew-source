@@ -1,3 +1,4 @@
+import { competitionAttemptSeed } from './competitionAttemptSeed'
 import { SeasonAiContext } from '../../ai/competition/SeasonAiContext'
 import type { SeasonAiRuntime } from '../../ai/competition/seasonAiDifficulty'
 import type { CompetitionSkillProfile } from '../../ai/competition/types'
@@ -35,7 +36,7 @@ import {
   createAbandonedChallengeResult,
   recoverCommittedChallengeResult,
 } from '../../store/challengeResults'
-import { persistCompetitionCheckpoint, store } from '../../store/store'
+import { persistCompetitionCheckpoint, store as appStore } from '../../store/store'
 import { CompetitionResultContext } from '../../minigames/competitionResultContext'
 import type { CompetitionResult, ReactMinigameCompletion } from '../../minigames/competitionResult'
 export type { ReactMinigameCompletion } from '../../minigames/competitionResult'
@@ -164,6 +165,8 @@ interface Props {
   onPhaseChange?: (phase: HostPhase) => void
   onMusicVariantChange?: (variant: MusicMinigameVariant) => void
   /** When true the rules modal is skipped and countdown starts immediately. */
+  /** Isolated state for development review fixtures. Defaults to the app store. */
+  stateStore?: Pick<typeof appStore, 'getState' | 'dispatch' | 'subscribe'>
   skipRules?: boolean
   /** When true the 3-second countdown is skipped (for testing). */
   skipCountdown?: boolean
@@ -209,12 +212,14 @@ export default function MinigameHost({
   onDone,
   onPhaseChange,
   onMusicVariantChange,
+  stateStore,
   skipRules = false,
   skipCountdown = false,
   premiumPresentationOverride,
   participants,
   competitionRetry,
 }: Props) {
+  const store = stateStore ?? appStore
   const [gamePortalTarget] = useState(() => {
     const target = document.createElement('div')
     target.className = 'minigame-host-portal-target'
@@ -348,7 +353,7 @@ export default function MinigameHost({
       checkpointWorkRef.current = work
       return work.promise
     },
-    [attempt, attemptToken, sessionId]
+    [attempt, attemptToken, sessionId, store]
   )
 
   const reportDoneOnce = useCallback(
@@ -383,7 +388,7 @@ export default function MinigameHost({
         publish('result' in pending.attempt ? pending.attempt.result : result)
       })
     },
-    [attempt, attemptToken, checkpointResult, onDone, sessionId]
+    [attempt, attemptToken, checkpointResult, onDone, sessionId, store]
   )
 
   const beginGameplay = useCallback(() => {
@@ -414,7 +419,7 @@ export default function MinigameHost({
       if (saved && store.getState().challenge.pending?.id === sessionId) setPhase('playing')
     }
     void saveAndStart()
-  }, [attempt, attemptToken, sessionId])
+  }, [attempt, attemptToken, sessionId, store])
 
   const rankingOnly = isPlacementRankingGame(launchedGame)
   const competitionRetryEnabled = competitionRetry?.enabled ?? false
@@ -465,7 +470,7 @@ export default function MinigameHost({
         }
         return resolved
       })(),
-    [launchedGame, quickTapVipEnabled]
+    [launchedGame, quickTapVipEnabled, store]
   )
 
   useEffect(() => {
@@ -574,7 +579,7 @@ export default function MinigameHost({
     setWasPartial(true)
     setPhase('results')
     void checkpointResult({ rawValue: 0, partial: true })
-  }, [checkpointResult, phase, sessionId])
+  }, [checkpointResult, phase, sessionId, store])
 
   // Pause the host-owned countdown while the menu, rules, or warning is open.
   useEffect(() => {
@@ -848,7 +853,7 @@ export default function MinigameHost({
       retryCheckpointRef.current = saved ? null : () => void saveReadyAttempt()
     }
     void saveReadyAttempt()
-  }, [attempt, launchedGame.reactComponentKey, sessionId])
+  }, [attempt, launchedGame.reactComponentKey, sessionId, store])
 
   const relationships = useSyncExternalStore(
     store.subscribe,
@@ -889,7 +894,7 @@ export default function MinigameHost({
         <ClosestWithoutGoingOverComp
           participantIds={participantIds}
           prizeType={gameOptions?.prizeType as CwgoPrizeType}
-          seed={seed}
+          seed={competitionAttemptSeed(seed, attempt)}
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -1315,7 +1320,16 @@ export default function MinigameHost({
           launchedGame.reactComponentKey === 'ChainOfGreed' ||
           launchedGame.reactComponentKey === 'GatesOfTheEye' ||
           launchedGame.reactComponentKey === 'RiskWheel' ||
-          launchedGame.reactComponentKey === 'ColorMatch'
+          launchedGame.reactComponentKey === 'ColorMatch' ||
+          launchedGame.reactComponentKey === 'ClosestWithoutGoingOver' ||
+          launchedGame.reactComponentKey === 'TimingBar' ||
+          launchedGame.reactComponentKey === 'Capitalization' ||
+          launchedGame.reactComponentKey === 'HouseOfCards' ||
+          launchedGame.reactComponentKey === 'VaultVerdict' ||
+          launchedGame.reactComponentKey === 'BatteryLow' ||
+          launchedGame.reactComponentKey === 'PercentagePanic' ||
+          launchedGame.reactComponentKey === 'TrapAuction' ||
+          launchedGame.reactComponentKey === 'FinalThreeCircuit'
             ? 'minigame-host--scrollable-game'
             : '',
         ]

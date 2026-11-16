@@ -225,3 +225,609 @@
     font-size: 0.7rem;
   }
 }
+
+/* These games share a bounded layout: the host has already removed hardware
+   insets. Size against that container, never against the full device again. */
+.minigame-host-playing {
+  container: minigame / size;
+}
+.minigame-host--scrollable-game,
+.minigame-host--scrollable-game .minigame-host-playing {
+  touch-action: pan-x pan-y;
+}
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed,
+.minigame-stage .minigame-host .minigame-host-playing .capitalization,
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia,
+.minigame-stage .minigame-host .minigame-host-playing .cwgo,
+.minigame-stage .minigame-host .minigame-host-playing .tbg {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  padding: 48px 8px 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+}
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__shell {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  gap: 6px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__hero-stage {
+  flex: 1 1 0;
+  min-height: 210px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__stage-core,
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__ladder,
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__participant-panel,
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__ladder-track {
+  min-height: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__header {
+  flex-shrink: 0;
+  padding: 8px 10px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__overlay {
+  box-sizing: border-box;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+/* Numpads belong in the play area. Only exceptional long questions and
+   results may scroll; remove decorative space before reducing touch targets. */
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__panel {
+  grid-template-rows: auto minmax(68px, 0.7fr) minmax(270px, 2fr) auto;
+  gap: 6px;
+  padding: 10px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__header {
+  gap: 2px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__title-row {
+  min-height: 30px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__title {
+  font-size: 1rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__eyebrow {
+  font-size: 0.6rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__statusline {
+  height: auto;
+  font-size: 0.7rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__question {
+  padding: 8px 10px;
+  gap: 5px;
+  overflow-y: auto;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__question-text {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__question-unit {
+  font-size: 0.65rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__phase-window {
+  min-height: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__phase {
+  padding: 8px;
+  overflow-y: auto;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo-mass-input {
+  gap: 6px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo--mass_input .cwgo-mass-input__subtitle,
+.minigame-stage .minigame-host .minigame-host-playing .cwgo--mass_input .cwgo-mass-input__you-row,
+.minigame-stage .minigame-host .minigame-host-playing .cwgo--duel_input .cwgo-mass-input__you-row {
+  display: none;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo-mass-input__human-card {
+  padding: 6px;
+  gap: 4px;
+  width: 100%;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo-mass-input__input-row {
+  width: 100%;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo-mass-input__input {
+  min-height: 40px;
+  padding: 6px 10px;
+  font-size: 1rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo .numeric-keypad {
+  margin-top: 2px;
+  gap: 4px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo-error-slot {
+  margin: 0;
+  min-height: 14px;
+  font-size: 0.7rem;
+  line-height: 14px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__action-rail {
+  padding-top: 5px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__action-rail .cwgo-btn {
+  min-height: 44px;
+  padding: 8px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo--mass_input .cwgo-participants {
+  max-height: 42px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo-participants .cwgo-avatar__ring {
+  width: 32px;
+  height: 32px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo-duel__vs-card {
+  flex-shrink: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo--duel_input .cwgo-duel__side {
+  padding: 4px;
+  gap: 2px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo--duel_input .cwgo-duel__avatar-ring {
+  width: 30px;
+  height: 30px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .cwgo--duel_input .cwgo-duel__player-name {
+  margin: 0;
+  font-size: 0.65rem;
+}
+
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__shell {
+  gap: 6px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__header {
+  padding: 0 4px 6px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__header h1 {
+  font-size: 1.2rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__summary {
+  padding-block: 3px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__round {
+  min-height: 0;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__contestants {
+  max-height: 48px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__gameplay-card {
+  flex-shrink: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__question-text {
+  min-height: 62px;
+  max-height: 130px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-size: 1rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__question-heading {
+  padding: 8px 12px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__answer-console {
+  padding: 6px 10px 8px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__answer-display {
+  min-height: 40px;
+  margin-block: 4px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__input {
+  min-height: 40px;
+  padding: 4px 10px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__input-help {
+  display: none;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__keypad {
+  gap: 4px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__controls {
+  margin-top: 6px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .number-trivia__controls button {
+  min-height: 44px;
+  padding-block: 6px;
+}
+
+/* Compact result chrome leaves a bounded ranking and a persistent action area. */
+.minigame-stage .minigame-host .minigame-host-playing .tbg {
+  align-items: stretch;
+  justify-content: center;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__card {
+  box-sizing: border-box;
+  height: 100%;
+  max-height: 100%;
+  margin-block: 0;
+  overflow-y: auto;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__header {
+  padding: 10px 12px;
+  flex-shrink: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__header h2 {
+  font-size: 1.15rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__header p {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__round-banner {
+  padding: 6px 12px;
+  flex-shrink: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__results,
+.minigame-stage .minigame-host .minigame-host-playing .tbg__final {
+  min-height: 0;
+  padding: 10px;
+  gap: 8px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__leaderboard {
+  flex: 1 1 70px;
+  min-height: 70px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__entry {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  padding: 7px;
+  gap: 6px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__entry-score-block {
+  margin-left: auto;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__entry-elim-badge,
+.minigame-stage .minigame-host .minigame-host-playing .tbg__entry-timeout-badge {
+  position: static;
+  margin-left: auto;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__eliminated {
+  flex: 0 0 auto;
+  padding: 8px;
+  gap: 6px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__eliminated-icon,
+.minigame-stage .minigame-host .minigame-host-playing .tbg__final-icon {
+  font-size: 1.6rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__eliminated-title {
+  font-size: 1rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__spectator-choices {
+  gap: 6px;
+  max-width: 100%;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__spectator-choices button,
+.minigame-stage .minigame-host .minigame-host-playing .tbg__action-area button {
+  min-height: 44px;
+  padding: 8px;
+  font-size: 0.8rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__action-area {
+  flex-shrink: 0;
+  padding: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .tbg__final-winner {
+  padding: 8px;
+}
+
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__shell {
+  height: 100%;
+  min-height: 0;
+  gap: 8px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__header {
+  padding: 10px;
+  flex-shrink: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__title {
+  font-size: 1.65rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__meta {
+  gap: 5px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__meta span {
+  padding: 5px 7px;
+  font-size: 0.7rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__battle-back-rule {
+  padding: 8px 10px;
+  font-size: 0.75rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__battle-back-rule p {
+  margin: 3px 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__arena {
+  flex: 1 0 220px;
+  min-height: 220px;
+  gap: 8px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__arena--spinning {
+  flex-basis: 0;
+  min-height: 150px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__globe-panel {
+  min-height: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__scoreboard {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 200px;
+  min-height: 200px;
+  padding: 10px;
+  gap: 8px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__scoreboard-copy h3 {
+  margin: 4px 0;
+  font-size: 1.5rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__scoreboard-copy p {
+  margin: 4px 0;
+  font-size: 0.8rem;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__standings-list {
+  flex: 1 1 0;
+  min-height: 60px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__standing {
+  padding: 7px;
+}
+.minigame-stage .minigame-host .minigame-host-playing .capitalization__footer {
+  flex-shrink: 0;
+  padding: 4px 0;
+}
+
+@container minigame (max-height: 700px) {
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo--mass_input .cwgo-participants,
+  .minigame-stage .minigame-host .minigame-host-playing .number-trivia__contestants {
+    display: none;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .number-trivia__question-text {
+    max-height: 95px;
+  }
+}
+@container minigame (max-height: 580px) {
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo__panel {
+    grid-template-rows: auto minmax(60px, 1fr) minmax(255px, 3fr) auto;
+    padding: 6px;
+    gap: 4px;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo__statusline,
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo__question-unit {
+    display: none;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo__phase {
+    padding: 4px;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo__question-text {
+    font-size: 0.85rem;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .number-trivia__question-text {
+    min-height: 48px;
+    max-height: 72px;
+    font-size: 0.9rem;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .number-trivia__keypad {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__header {
+    padding: 4px 8px;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__participant-panel {
+    padding: 6px;
+    gap: 5px;
+  }
+}
+@container minigame (max-height: 420px) {
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo .numeric-keypad {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .minigame-stage
+    .minigame-host
+    .minigame-host-playing
+    .cwgo
+    .numeric-keypad--decimal
+    button:last-child {
+    grid-column: auto;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo__panel {
+    grid-template-rows: auto 60px minmax(185px, 1fr) auto;
+  }
+}
+
+@container minigame (max-height: 580px) {
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo__panel {
+    grid-template-rows: auto minmax(60px, 1fr) minmax(185px, 2fr) auto;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo .numeric-keypad {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .minigame-stage
+    .minigame-host
+    .minigame-host-playing
+    .cwgo
+    .numeric-keypad--decimal
+    button:last-child {
+    grid-column: auto;
+  }
+}
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__hero-stage--solo-timed {
+  grid-template-rows: minmax(0, 1fr);
+}
+.minigame-stage
+  .minigame-host
+  .minigame-host-playing
+  .chain-of-greed__hero-stage--solo-timed
+  .chain-of-greed__ladder-stage,
+.minigame-stage
+  .minigame-host
+  .minigame-host-playing
+  .chain-of-greed__hero-stage--solo-timed
+  .chain-of-greed__participant-panel,
+.minigame-stage
+  .minigame-host
+  .minigame-host-playing
+  .chain-of-greed__hero-stage--solo-timed
+  .chain-of-greed__stage-core {
+  min-height: 0;
+}
+.minigame-stage
+  .minigame-host
+  .minigame-host-playing
+  .capitalization__arena--spinning
+  .capitalization__globe-panel {
+  min-height: 0;
+}
+
+@container minigame (max-height: 580px) {
+  .minigame-stage .minigame-host .minigame-host-playing .number-trivia__eyebrow {
+    display: none;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .number-trivia__title {
+    font-size: 1.15rem;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .number-trivia__status {
+    min-height: 32px;
+    font-size: 0.7rem;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .number-trivia__question-heading {
+    padding-block: 5px;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .number-trivia__summary {
+    font-size: 0.65rem;
+    padding-block: 0;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .number-trivia__input-label {
+    font-size: 0.65rem;
+  }
+}
+
+.minigame-stage
+  .minigame-host
+  .minigame-host-playing
+  .tbg__card:has(.tbg__results)
+  .tbg__round-banner,
+.minigame-stage .minigame-host .minigame-host-playing .tbg__card:has(.tbg__results) .tbg__subtitle,
+.minigame-stage .minigame-host .minigame-host-playing .tbg__card:has(.tbg__final) .tbg__subtitle {
+  display: none;
+}
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__action-bar,
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__player-rail {
+  flex-shrink: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .chain-of-greed__action {
+  min-height: 44px;
+}
+
+/* Additional audit findings: tool selection and the final battery row were
+   clipped at 320px. Keep overflow reachable even with enlarged text. */
+.minigame-stage .minigame-host .minigame-host-playing .hoc-root[data-phase='tool_select'] {
+  padding-top: 48px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.minigame-stage .minigame-host .minigame-host-playing .hoc-tool-choices {
+  flex-shrink: 0;
+}
+.minigame-stage .minigame-host .minigame-host-playing .vault-verdict__board {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@container minigame (max-height: 700px) {
+  .minigame-stage
+    .minigame-host
+    .minigame-host-playing
+    .hoc-root[data-phase='tool_select']
+    .hoc-tool-choices {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .minigame-stage
+    .minigame-host
+    .minigame-host-playing
+    .hoc-root[data-phase='tool_select']
+    .hoc-tool-choice {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    align-items: center;
+    justify-items: start;
+    gap: 4px 10px;
+    min-height: 86px;
+    padding: 8px 12px;
+    text-align: left;
+  }
+  .minigame-stage
+    .minigame-host
+    .minigame-host-playing
+    .hoc-root[data-phase='tool_select']
+    .hoc-tool-choice__icon {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+  }
+  .minigame-stage
+    .minigame-host
+    .minigame-host-playing
+    .hoc-root[data-phase='tool_select']
+    .hoc-tool-choice
+    strong {
+    grid-column: 2;
+    font-size: 0.9rem;
+  }
+  .minigame-stage
+    .minigame-host
+    .minigame-host-playing
+    .hoc-root[data-phase='tool_select']
+    .hoc-tool-choice
+    > span:last-child {
+    grid-column: 2;
+    font-size: 0.72rem;
+  }
+}
+@container minigame (max-height: 580px) {
+  .minigame-stage .minigame-host .minigame-host-playing .vault-verdict {
+    padding: 48px 8px 8px;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .vault-verdict__battery-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(44px, 1fr));
+    gap: 3px;
+    align-content: start;
+  }
+  .minigame-stage .minigame-host .minigame-host-playing .vault-verdict__pod {
+    min-height: 44px;
+    padding-inline: 2px;
+  }
+}
+
+/* When the device is exceptionally short, keep a real scroll fallback around
+   the whole card rather than clipping the action rail inside its grid. */
+.minigame-stage .minigame-host .minigame-host-playing .cwgo__panel {
+  min-height: 375px;
+}
+
+@container minigame (max-height: 580px) {
+  .minigame-stage .minigame-host .minigame-host-playing .cwgo__panel:has(.numeric-keypad--decimal) {
+    grid-template-rows: auto minmax(60px, 1fr) minmax(230px, 2fr) auto;
+    min-height: 400px;
+  }
+}

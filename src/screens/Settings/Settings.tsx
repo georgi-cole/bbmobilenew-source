@@ -525,7 +525,7 @@ export default function Settings() {
         >
           <span>
             <strong>Advertising privacy</strong>
-            <small>Optional ads and Google privacy choices</small>
+            <small>Ad information and Google privacy choices</small>
           </span>
           <span aria-hidden="true">&rsaquo;</span>
         </button>

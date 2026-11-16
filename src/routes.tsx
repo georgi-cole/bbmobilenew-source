@@ -47,6 +47,9 @@ const PhonePreviewPage = lazy(() => import('./screens/PhonePreviewPage/PhonePrev
 const SeasonRecapPreview = import.meta.env.DEV
   ? lazy(() => import('./screens/SeasonRecapPreview/SeasonRecapPreview'))
   : null
+const ViewportReview = import.meta.env.DEV
+  ? lazy(() => import('./screens/ViewportReview/ViewportReview'))
+  : null
 const ReleaseFixesPreview = import.meta.env.DEV
   ? lazy(() => import('./screens/ReleaseFixesPreview/ReleaseFixesPreview'))
   : null
@@ -174,6 +177,9 @@ export const router = createHashRouter([
           errorElement: <RouteErrorBoundary />,
         },
       ]
+    : []),
+  ...(ViewportReview != null
+    ? [{ path: '/viewport-review', element: load(<ViewportReview />) }]
     : []),
   ...(ReleaseFixesPreview != null
     ? [

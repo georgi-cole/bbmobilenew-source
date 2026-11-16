@@ -126,7 +126,9 @@ function buildArchive(
 
 type GameOverPanel = 'results' | 'adPrompt' | 'aftermath'
 
-export default function GameOver() {
+export default function GameOver({
+  developmentPreview = false,
+}: { developmentPreview?: boolean } = {}) {
   const aftermathAd = useRewardedAd()
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
@@ -298,7 +300,12 @@ export default function GameOver() {
     setIsAftermathLoading(true)
 
     try {
-      if (window.GameAds && !(await aftermathAd.request('aftermath_unlock'))) return
+      if (
+        !(import.meta.env.DEV && developmentPreview) &&
+        window.GameAds &&
+        !(await aftermathAd.request('aftermath_unlock'))
+      )
+        return
       let issue = readPersistedAftermathIssue(issueStorageKey)
       if (!issue) {
         const config = await loadAftermathConfig()

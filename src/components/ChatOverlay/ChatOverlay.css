@@ -394,3 +394,84 @@
 .chat-overlay__done:active {
   transform: scale(0.98);
 }
+
+/* Finale conversations use the same intimate glass bubbles as the
+   Confessional Tribunal, with a scrollable transcript and anchored choices. */
+.chat-overlay {
+  box-sizing: border-box;
+  padding-top: max(
+    var(--app-safe-area-top, 0px),
+    var(--safe-top, 0px),
+    env(safe-area-inset-top, 0px)
+  );
+  padding-bottom: max(var(--safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(160deg, #171021, #080912);
+  overflow: hidden;
+}
+.chat-overlay .chat-overlay__panel {
+  max-width: 720px;
+  min-width: 0;
+  min-height: 0;
+  background-color: #100d18;
+  background-image:
+    linear-gradient(180deg, rgba(17, 10, 27, 0.88), rgba(8, 9, 18, 0.95)),
+    var(--diary-room-tribunal-backdrop, none);
+  background-size: cover;
+  background-position: center;
+  border-inline: 1px solid rgba(205, 179, 241, 0.12);
+}
+.chat-overlay .chat-overlay__header {
+  padding: 14px 16px 10px;
+  background: linear-gradient(180deg, rgba(59, 30, 78, 0.7), rgba(16, 11, 25, 0.6));
+  border-bottom-color: rgba(205, 179, 241, 0.16);
+}
+.chat-overlay .chat-overlay__header-title {
+  color: #e2c9fa;
+  font-size: 0.84rem;
+}
+.chat-overlay .chat-overlay__feed {
+  min-height: 0;
+  padding: 14px 12px;
+  gap: 12px;
+  overscroll-behavior: contain;
+}
+.chat-overlay .chat-overlay__line {
+  gap: 9px;
+  align-items: flex-end;
+}
+.chat-overlay .chat-overlay__avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+}
+.chat-overlay .chat-overlay__bubble {
+  box-sizing: border-box;
+  max-width: 84%;
+  padding: 10px 13px 11px;
+  border: 1px solid rgba(196, 155, 239, 0.2);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(57, 34, 76, 0.78), rgba(22, 19, 36, 0.88));
+}
+.chat-overlay .chat-overlay__speaker {
+  color: #d9c8f3;
+  font-size: 0.68rem;
+}
+.chat-overlay .chat-overlay__text {
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.chat-overlay .chat-overlay__line--host .chat-overlay__bubble {
+  border: 0;
+  background: transparent;
+}
+.chat-overlay .chat-overlay__line--pov .chat-overlay__bubble {
+  background: rgba(88, 44, 78, 0.65);
+}
+.chat-overlay .chat-overlay__footer {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  background: rgba(15, 11, 24, 0.95);
+}
+.chat-overlay .chat-overlay__footer button {
+  min-height: 44px;
+}
