@@ -46,7 +46,7 @@ function skillForPersona(personaId: string, index: number): SimulationSkill {
 
 const count = calibrationCount()
 
-test.describe('Eyeolean economy calibration @eyeolean-calibration', () => {
+test.describe('Eyeros economy calibration @eyeolean-calibration', () => {
   for (let index = 0; index < count; index += 1) {
     const personaId = PERSONA_IDS[index % PERSONA_IDS.length]
     const seeds = {

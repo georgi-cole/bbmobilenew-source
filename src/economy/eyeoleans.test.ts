@@ -16,7 +16,7 @@ function summary(overrides: Partial<PlayerSeasonSummary> = {}): PlayerSeasonSumm
   }
 }
 
-describe('Eyeolean season economy', () => {
+describe('Eyeros season economy', () => {
   it('pays authoritative achievements additively, including winner + Public Favorite', () => {
     const rewards = computeSeasonEyeoleanRewards(
       summary({

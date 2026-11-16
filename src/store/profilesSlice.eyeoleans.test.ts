@@ -28,7 +28,7 @@ const REWARDS: EyeoleanRewardLine[] = [
   },
 ]
 
-describe('Eyeolean profile wallet', () => {
+describe('Eyeros profile wallet', () => {
   it('supports an idempotent QA-only wallet grant', () => {
     let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
     const grant = debugGrantEyeoleans({ grantId: 'wallet-test', amount: 5_000_000 })
@@ -146,7 +146,7 @@ describe('Eyeolean profile wallet', () => {
     expect(profile.eyeoleanTransactions).toHaveLength(3)
     expect(profile.eyeoleanTransactions?.at(-1)?.amount).toBe(-50_000)
   })
-  it('buys repeatable Eyeolean consumables at canonical catalog prices', () => {
+  it('buys repeatable Eyeros consumables at canonical catalog prices', () => {
     let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
     state = profilesReducer(
       state,
@@ -265,7 +265,7 @@ describe('Eyeolean profile wallet', () => {
     expect(profile.eyeoleanInventory?.remove_vote).toBe(1)
   })
 
-  it('does not overdraw the wallet when an Eyeolean product is unaffordable', () => {
+  it('does not overdraw the wallet when an Eyeros product is unaffordable', () => {
     const state = profilesReducer(
       profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' })),
       purchaseEyeoleanStoreProduct({

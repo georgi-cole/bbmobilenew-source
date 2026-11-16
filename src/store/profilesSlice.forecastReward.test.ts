@@ -7,7 +7,7 @@ import profilesReducer, {
 } from './profilesSlice'
 
 describe('Public Favorite forecast profile reward', () => {
-  it('adds permanent Eyeoleans and the achievement only once for an event', () => {
+  it('adds permanent Eyeros and the achievement only once for an event', () => {
     let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
     state = profilesReducer(
       state,
