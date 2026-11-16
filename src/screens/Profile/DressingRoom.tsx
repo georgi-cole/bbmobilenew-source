@@ -3,19 +3,12 @@ import { useLocation, useNavigate } from 'react-router'
 import AppearanceCarousel from '../../appearance/AppearanceCarousel'
 import { warmAppearanceRole, warmSelectedAppearance } from '../../appearance/preloadAppearance'
 import { getAppearanceAsset, SELECTABLE_LOOKS } from '../../appearance/catalog'
-import {
-  APPEARANCE_LOOK_PRICE_EYEROS,
-  hasAppearanceLookAccess,
-  isFreeAppearanceLook,
-} from '../../appearance/lookAccess'
+import { hasAppearanceLookAccess, isFreeAppearanceLook } from '../../appearance/lookAccess'
+import { LookAccessBadges, LookMarket, type LookMarketOption } from '../../appearance/LookMarket'
+import { purchaseLookFromMarket } from '../../appearance/purchaseLookFromMarket'
 import { canFillInitialSeasonAppearance } from '../../appearance/initialSeasonAppearance'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import {
-  MAX_PROFILES,
-  purchaseAppearanceLook,
-  selectCurrentProfile,
-  updateProfile,
-} from '../../store/profilesSlice'
+import { MAX_PROFILES, selectCurrentProfile, updateProfile } from '../../store/profilesSlice'
 import { selectIsVipActive } from '../../store/vipSlice'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import { joinPublicAssetPath } from '../../utils/avatar'
@@ -45,12 +38,11 @@ export default function DressingRoom() {
   const profileIdAtOpen = useRef(creatingProfile ? undefined : profile?.id)
   const figureRef = useRef<HTMLImageElement>(null)
   const [lockIn, setLockIn] = useState<LockInLook | null>(null)
-  const [pendingUnlockId, setPendingUnlockId] = useState<string | null>(null)
-  const [accessMessage, setAccessMessage] = useState<string | null>(null)
+  const [marketOption, setMarketOption] = useState<LookMarketOption | null>(null)
   const [selectedId, setSelectedId] = useState(
-    creatingProfile && SELECTABLE_LOOKS.some((look) => look.id === routeState?.initialLookId)
+    SELECTABLE_LOOKS.some((look) => look.id === routeState?.initialLookId)
       ? routeState!.initialLookId!
-      : profile?.appearanceSelection?.kind === 'catalog'
+      : !creatingProfile && profile?.appearanceSelection?.kind === 'catalog'
         ? profile.appearanceSelection.lookId
         : (SELECTABLE_LOOKS[0]?.id ?? '')
   )
@@ -58,22 +50,7 @@ export default function DressingRoom() {
   const creationBack = routeState?.fromPlayerAccount ? '/profile/account' : '/'
   const currentLook = SELECTABLE_LOOKS.find((look) => look.id === selectedId)
   const isAvailable = hasAppearanceLookAccess(selectedId, creatingProfile ? null : profile, isVip)
-  const isIncluded = isFreeAppearanceLook(selectedId)
-  const balance = profile?.eyeoleans ?? 0
-  const accessText = isIncluded
-    ? 'Free look'
-    : isVip
-      ? 'Included with VIP'
-      : isAvailable
-        ? 'Permanently unlocked'
-        : `VIP or ${APPEARANCE_LOOK_PRICE_EYEROS.toLocaleString('en-US')} Eyeros`
-  const confirmLabel = isAvailable
-    ? creatingProfile
-      ? 'Choose this look'
-      : 'Use this look'
-    : creatingProfile
-      ? 'VIP look'
-      : `Unlock · ${APPEARANCE_LOOK_PRICE_EYEROS.toLocaleString('en-US')} Eyeros`
+  const balance = creatingProfile ? 0 : (profile?.eyeoleans ?? 0)
 
   useEffect(() => {
     if (creatingProfile && atProfileLimit)
@@ -109,16 +86,7 @@ export default function DressingRoom() {
     const look = SELECTABLE_LOOKS.find((candidate) => candidate.id === selectedId)
     if (!look) return
     if (!hasAppearanceLookAccess(look.id, creatingProfile ? null : profile, isVip)) {
-      if (creatingProfile) {
-        setAccessMessage('Choose one of the five free looks, or unlock VIP in the Store.')
-      } else if (balance < APPEARANCE_LOOK_PRICE_EYEROS) {
-        setAccessMessage(
-          `You need ${(APPEARANCE_LOOK_PRICE_EYEROS - balance).toLocaleString('en-US')} more Eyeros to unlock this look.`
-        )
-      } else {
-        setAccessMessage(null)
-        setPendingUnlockId(look.id)
-      }
+      setMarketOption('eyeros')
       return
     }
     const selection = { kind: 'catalog' as const, lookId: look.id, revision: look.revision }
@@ -130,8 +98,7 @@ export default function DressingRoom() {
     const portraitAsset = getAppearanceAsset(selection, 'main')
     const figure = figureRef.current
     const bounds = figure?.getBoundingClientRect()
-    // The carousel contains the image at bottom-center. Its CSS box can include
-    // letterboxing, which must not become part of the cloned figure's face coordinates.
+    // Anchor the reveal to painted pixels, excluding image letterboxing.
     let source = bounds
     if (figure && bounds && figure.naturalWidth > 0 && figure.naturalHeight > 0) {
       const fit = Math.min(bounds.width / figure.naturalWidth, bounds.height / figure.naturalHeight)
@@ -144,7 +111,7 @@ export default function DressingRoom() {
         height
       )
     }
-    // Persistence is independent of the cinematic and of image/network readiness.
+    // Persistence remains independent of the reveal and image/network readiness.
     if (!creatingProfile) dispatch(updateProfile({ appearanceSelection: selection }))
     void warmSelectedAppearance(selection)
     if (!casualAsset || !portraitAsset) {
@@ -169,21 +136,15 @@ export default function DressingRoom() {
     })
   }
 
-  function confirmUnlock() {
-    if (
-      !profile ||
-      profile.id !== profileIdAtOpen.current ||
-      !pendingUnlockId ||
-      pendingUnlockId !== selectedId ||
-      !currentLook ||
-      balance < APPEARANCE_LOOK_PRICE_EYEROS ||
-      hasAppearanceLookAccess(pendingUnlockId, profile, isVip)
-    ) {
-      setPendingUnlockId(null)
-      return
-    }
-    dispatch(purchaseAppearanceLook({ lookId: pendingUnlockId }))
-    setPendingUnlockId(null)
+  function openVipStore() {
+    setMarketOption(null)
+    // Save the browsing position and creation draft in the history entry. The
+    // Store's normal Back action returns here without losing the chosen look.
+    navigate('/profile/dressing-room', {
+      replace: true,
+      state: { ...routeState, initialLookId: selectedId },
+    })
+    navigate('/store', { state: { shelf: 'all-access' } })
   }
 
   function finishLockIn() {
@@ -233,70 +194,52 @@ export default function DressingRoom() {
         </div>
         <h1>Choose your look</h1>
         <p className="dressing-room__subtitle">Your name. Your story. Your style.</p>
-        {!creatingProfile && (
-          <p className="dressing-room__wallet">
-            Available: <strong>{balance.toLocaleString('en-US')} Eyeros</strong>
-          </p>
-        )}
         <AppearanceCarousel
           selectedId={selectedId}
           onSelect={(lookId) => {
             setSelectedId(lookId)
-            setPendingUnlockId(null)
-            setAccessMessage(null)
+            setMarketOption(null)
           }}
-          onConfirm={confirmSelection}
-          confirmLabel={confirmLabel}
-          accessText={accessText}
+          onConfirm={isAvailable ? confirmSelection : undefined}
+          confirmLabel={creatingProfile ? 'Choose this look' : 'Use this look'}
+          accessContent={
+            <LookAccessBadges
+              isFree={isFreeAppearanceLook(selectedId)}
+              isVip={isVip}
+              isOwned={isAvailable}
+              onOpen={(option) => {
+                if (option === 'vip') openVipStore()
+                else setMarketOption('eyeros')
+              }}
+            />
+          }
           figureRef={figureRef}
         />
-        {accessMessage && (
-          <p className="dressing-room__access-message" role="status">
-            {accessMessage}
-          </p>
-        )}
-        {!isAvailable && (
-          <button
-            type="button"
-            className="dressing-room__vip-link"
-            onClick={() => navigate('/store')}
-          >
-            View VIP in Store
-          </button>
-        )}
         {!creatingProfile && (
           <p className="dressing-room__season-note">
             Your first character replaces the guest silhouette now. Changing an existing character
             takes effect next season.
           </p>
         )}
-        {pendingUnlockId && (
-          <div className="dressing-room__unlock-backdrop">
-            <div
-              className="dressing-room__unlock-panel"
-              role="alertdialog"
-              aria-modal="true"
-              aria-label="Unlock selected look"
-              aria-describedby="dressing-room-unlock-description"
-            >
-              <span className="dressing-room__unlock-eyebrow">Permanent look unlock</span>
-              <h2>{currentLook?.label}</h2>
-              <p id="dressing-room-unlock-description">
-                Unlock this look for 30,000 Eyeros? It will stay available on this profile,
-                including in future seasons.
-              </p>
-              <div className="dressing-room__unlock-actions">
-                <button type="button" onClick={() => setPendingUnlockId(null)}>
-                  Cancel
-                </button>
-                <button type="button" onClick={confirmUnlock}>
-                  Confirm · 30,000 Eyeros
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
+      {marketOption && currentLook && (
+        <LookMarket
+          key={`${selectedId}:${marketOption}`}
+          look={currentLook}
+          portraitUrl={joinPublicAssetPath(
+            getAppearanceAsset({ kind: 'catalog', lookId: selectedId, revision: 1 }, 'main') ?? ''
+          )}
+          balance={balance}
+          isAvailable={isAvailable}
+          canSpend={!creatingProfile && Boolean(profile)}
+          onClose={() => setMarketOption(null)}
+          onVip={openVipStore}
+          onPurchase={() => {
+            if (creatingProfile || !profileIdAtOpen.current) return 'unavailable'
+            return dispatch(purchaseLookFromMarket(selectedId, profileIdAtOpen.current))
+          }}
+        />
+      )}
       {lockIn && <LookLockInReveal look={lockIn} onComplete={finishLockIn} />}
     </>
   )

@@ -1,0 +1,44 @@
+name: Changing room design preview
+
+on:
+  pull_request:
+    paths:
+      - 'src/appearance/**'
+      - 'src/screens/Profile/DressingRoom*'
+      - 'src/previews/changingRoom/**'
+      - 'scripts/*changing-room-preview.mjs'
+      - '.github/workflows/changing-room-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build offline interactive test page from production components
+        run: node scripts/build-changing-room-preview.mjs
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Verify interactions and capture desktop and mobile screenshots
+        run: node scripts/test-changing-room-preview.mjs
+      - name: Capture formatting suggestions without changing the branch
+        if: always()
+        run: |
+          npx prettier --write src/appearance/LookMarket.tsx src/appearance/LookMarket.css src/appearance/purchaseLookFromMarket.ts src/appearance/AppearanceCarousel.tsx src/screens/Profile/DressingRoom.tsx src/screens/Profile/DressingRoom.css src/previews/changingRoom/* scripts/build-changing-room-preview.mjs scripts/test-changing-room-preview.mjs .github/workflows/changing-room-preview.yml
+          mkdir -p artifacts/changing-room-preview
+          git diff > artifacts/changing-room-preview/formatting.patch
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: changing-room-interactive-preview
+          path: artifacts/changing-room-preview
+          if-no-files-found: error

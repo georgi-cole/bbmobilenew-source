@@ -1,0 +1,20 @@
+/* The marketplace's existing VIP eye uses a 48px viewBox, not the 24px coin grid. */
+.look-access svg.store-product-icon,
+.look-market svg.store-product-icon {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.1;
+}
+
+.look-access .store-product-icon__surface,
+.look-market .store-product-icon__surface {
+  fill: currentColor;
+  fill-opacity: 0.08;
+  stroke: none;
+}
+
+.look-access .store-product-icon__core,
+.look-market .store-product-icon__core {
+  fill: currentColor;
+  fill-opacity: 0.82;
+}

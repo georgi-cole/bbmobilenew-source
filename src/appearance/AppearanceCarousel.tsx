@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { CSSProperties, Ref } from 'react'
+import type { CSSProperties, ReactNode, Ref } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { joinPublicAssetPath } from '../utils/avatar'
 import { getAppearanceAsset, SELECTABLE_LOOKS } from './catalog'
@@ -14,6 +14,7 @@ interface AppearanceCarouselProps {
   onConfirm?: () => void
   confirmLabel?: string
   accessText?: string
+  accessContent?: ReactNode
   figureRef?: Ref<HTMLImageElement>
 }
 
@@ -34,6 +35,7 @@ export default function AppearanceCarousel({
   onConfirm,
   confirmLabel = 'Choose this look',
   accessText,
+  accessContent,
   figureRef,
 }: AppearanceCarouselProps) {
   const reducedMotion = useReducedMotion()
@@ -130,6 +132,7 @@ export default function AppearanceCarousel({
       <div className="appearance-carousel__caption" aria-live="polite">
         <strong>{current.label}</strong>
         {accessText && <span className="appearance-carousel__access">{accessText}</span>}
+        {accessContent}
       </div>
       {onConfirm && (
         <button type="button" className="appearance-carousel__confirm" onClick={onConfirm}>
