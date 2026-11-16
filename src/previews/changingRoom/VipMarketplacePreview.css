@@ -73,7 +73,9 @@
 
 .room-vip-preview h2 {
   margin: 18px 0 12px;
-  font: 30px Georgia, serif;
+  font:
+    30px Georgia,
+    serif;
 }
 
 .room-vip-preview__card > p:not(.room-vip-preview__eyebrow) {

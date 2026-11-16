@@ -200,13 +200,13 @@ export function LookMarket({
               </div>
               {!canSpend ? (
                 <p className="look-market__hint">
-                  Create your profile with a free look first, then return here to spend your
-                  earned Eyeros.
+                  Create your profile with a free look first, then return here to spend your earned
+                  Eyeros.
                 </p>
               ) : !affordable || result === 'insufficient' ? (
                 <p className="look-market__hint">
-                  You need {Math.max(0, price - balance).toLocaleString('en-US')} more Eyeros.
-                  Earn them by playing seasons, or unlock every look with VIP.
+                  You need {Math.max(0, price - balance).toLocaleString('en-US')} more Eyeros. Earn
+                  them by playing seasons, or unlock every look with VIP.
                 </p>
               ) : (
                 <p className="look-market__after">

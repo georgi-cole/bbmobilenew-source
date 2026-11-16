@@ -27,7 +27,12 @@ export default function VipMarketplacePreview({
         <p className="room-vip-preview__eyebrow">VIP MARKETPLACE</p>
         <h2>Every look. Yours.</h2>
         <p>All changing-room looks, with VIP.</p>
-        <button type="button" className="room-vip-preview__activate" onClick={onActivate} disabled={active}>
+        <button
+          type="button"
+          className="room-vip-preview__activate"
+          onClick={onActivate}
+          disabled={active}
+        >
           {active ? 'Demo VIP active' : 'Activate demo VIP'}
         </button>
       </section>
