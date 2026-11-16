@@ -18,7 +18,7 @@ export function renderMarketplaceDocumentation(): string {
     '',
     'Premium Challenges and VIP both unlock every premium minigame version listed below. VIP also includes every released permanent standalone product. Consumable Survival runs are purchased separately.',
     '',
-    'Prices shown to players come from Apple or Google. Eyeolean prices below are in-game currency.',
+    'Prices shown to players come from Apple or Google. Eyeros prices below are in-game currency.',
     '',
     '## Permanent products',
     '',
@@ -90,7 +90,7 @@ export function renderMarketplaceDocumentation(): string {
         `| ${game.title} | \`${game.key}\` | ${game.premiumExperience ?? 'remaster'} | Premium Challenges or VIP |`
     ),
     '',
-    '## Eyeolean powers',
+    '## Eyeros powers',
     ''
   )
 
@@ -100,7 +100,7 @@ export function renderMarketplaceDocumentation(): string {
       '',
       product.shortDescription,
       '',
-      `First purchase: ${product.price.toLocaleString('en-US')} Eyeoleans. Second purchase: ${product.secondPrice.toLocaleString('en-US')} Eyeoleans. Season caps: ${product.maxSeasonPurchases} purchases, ${product.maxSeasonUses} uses.`,
+      `First purchase: ${product.price.toLocaleString('en-US')} Eyeros. Second purchase: ${product.secondPrice.toLocaleString('en-US')} Eyeros. Season caps: ${product.maxSeasonPurchases} purchases, ${product.maxSeasonUses} uses.`,
       '',
       ...Object.entries(product.modeRules).map(([mode, rule]) =>
         rule.available

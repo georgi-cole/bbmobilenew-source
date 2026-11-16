@@ -1,12 +1,12 @@
-# Eyeolean Economy
+# Eyeros Economy
 
-Eyeoleans are the persistent soft currency for the player profile. They replace XP as the player-facing progression/reward loop and are designed to fund a future Store without turning normal gameplay into a grind.
+Eyeros are the persistent soft currency for the player profile. They replace XP as the player-facing progression/reward loop and are designed to fund a future Store without turning normal gameplay into a grind.
 
 ## Product rules
 
-Eyeoleans reward **authoritative season outcomes**, not raw click volume or arbitrary minigame score. Season-performance rewards are calculated from canonical stats and banked at settlement, so the finale acts as a payday rather than every individual action minting currency.
+Eyeros reward **authoritative season outcomes**, not raw click volume or arbitrary minigame score. Season-performance rewards are calculated from canonical stats and banked at settlement, so the finale acts as a payday rather than every individual action minting currency.
 
-| Result                           |                                          Eyeoleans |
+| Result                           |                                          Eyeros |
 | -------------------------------- | -------------------------------------------------: |
 | Season winner                    |                                            100,000 |
 | Runner-up                        |                                             50,000 |
@@ -22,7 +22,7 @@ Eyeoleans reward **authoritative season outcomes**, not raw click volume or arbi
 
 The three anchor rewards remain intentionally large: 100,000 for winning, 50,000 for runner-up, and 25,000 for Public Favorite. Secondary achievements are deliberately smaller so a competition-heavy non-finalist does not routinely out-earn a finalist. Currency rewards remain additive, including winner + Public Favorite.
 
-## What does not pay Eyeoleans
+## What does not pay Eyeros
 
 For the first economy version, these do **not** credit the persistent wallet:
 
@@ -31,7 +31,7 @@ For the first economy version, these do **not** credit the persistent wallet:
 - nominations received;
 - individual taps, moves, coins, or other farmable interactions;
 - Secret Mission completion when the mission already grants a gameplay reward;
-- local Eyeolean-like balances used inside a competition as that competition's scoring mechanic.
+- local Eyeros-like balances used inside a competition as that competition's scoring mechanic.
 
 This prevents players from optimizing repetitive actions instead of trying to play the season well, and keeps future Store prices economically meaningful.
 
@@ -45,7 +45,7 @@ A season is settled with a stable settlement ID. Reopening/reloading the finale 
 
 Guest play can show the season's calculated payout, but does not bank it because guest profiles are intentionally non-persistent.
 
-Profiles created before the Eyeolean economy keep any already-earned Public Favorite forecast rewards. Existing forecast event IDs are migrated at 5,000 Eyeoleans per paid event. Legacy XP remains readable for compatibility but is no longer displayed or awarded.
+Profiles created before the Eyeros economy keep any already-earned Public Favorite forecast rewards. Existing forecast event IDs are migrated at 5,000 Eyeros per paid event. Legacy XP remains readable for compatibility but is no longer displayed or awarded.
 
 ## Future Store contract
 
@@ -56,7 +56,7 @@ The profile wallet already supports atomic soft-currency debits, so future Store
 - one-time gameplay rewards;
 - other permanent or consumable unlocks.
 
-Do not implement real-money-to-Eyeolean purchases by directly crediting the current local reducer. The current wallet is client/localStorage state and is appropriate only for non-paid soft currency.
+Do not implement real-money-to-Eyeros purchases by directly crediting the current local reducer. The current wallet is client/localStorage state and is appropriate only for non-paid soft currency.
 
 Before real money is enabled:
 

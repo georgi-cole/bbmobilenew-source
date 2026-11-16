@@ -156,7 +156,7 @@ export interface StoredProfile {
   createdAt: string
   /**
    * @deprecated Legacy XP is retained only so old profiles can be read safely.
-   * New progression uses the Eyeolean wallet.
+   * New progression uses the Eyeros wallet.
    */
   lifetimeXp?: number
   /** Persistent soft-currency balance carried across seasons. */
@@ -180,7 +180,7 @@ export interface StoredProfile {
   settledEyeoleanSeasonIds?: string[]
   /** Permanent achievement identifiers unlocked by this profile. */
   achievements?: string[]
-  /** Reward-event keys already paid, preventing a reload from duplicating Eyeoleans. */
+  /** Reward-event keys already paid, preventing a reload from duplicating Eyeros. */
   forecastRewardEventIds?: string[]
   /** Permanent Bella discovery/casting cadence state. */
   bellaProgress?: BellaProgress
@@ -433,7 +433,7 @@ export function coerceStoredProfile(raw: unknown): StoredProfile | null {
       ? Math.max(0, Math.floor(r.eyeoleans))
       : null
   // The only shipped XP award was the Public Favorite forecast. Preserve those
-  // earned rewards when an old profile first enters the Eyeolean economy.
+  // earned rewards when an old profile first enters the Eyeros economy.
   const migratedForecastBalance =
     storedEyeoleanBalance == null
       ? forecastRewardEventIds.length * PUBLIC_FAVORITE_FORECAST_EYEOLEANS
@@ -974,7 +974,7 @@ const profilesSlice = createSlice({
     },
 
     /**
-     * Purchase one soft-currency consumable from the canonical Eyeolean catalog.
+     * Purchase one soft-currency consumable from the canonical Eyeros catalog.
      * The reducer resolves the price internally so callers cannot spoof a cheaper amount.
      */
     purchaseEyeoleanStoreProduct(

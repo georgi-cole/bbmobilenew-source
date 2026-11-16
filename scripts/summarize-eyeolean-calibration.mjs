@@ -200,13 +200,13 @@ function money(value) {
 
 function markdown(report) {
   const lines = [
-    '# Eyeolean calibration report',
+    '# Eyeros calibration report',
     '',
     'Simulation reports read: ' + report.inputReports,
     'Completed valid unique samples: ' + report.sampleSize,
     'Excluded with auditor errors: ' + report.excludedWithErrors,
     'Excluded without a completed authoritative outcome: ' + report.excludedWithoutCompletedOutcome,
-    'Total Eyeoleans minted: ' + money(report.totalMinted),
+    'Total Eyeros minted: ' + money(report.totalMinted),
     '',
     '| Segment | N | Median | P75 | P90 | Max |',
     '| --- | ---: | ---: | ---: | ---: | ---: |',

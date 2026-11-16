@@ -4,7 +4,7 @@
 
 Premium Challenges and VIP both unlock every premium minigame version listed below. VIP also includes every released permanent standalone product. Consumable Survival runs are purchased separately.
 
-Prices shown to players come from Apple or Google. Eyeolean prices below are in-game currency.
+Prices shown to players come from Apple or Google. Eyeros prices below are in-game currency.
 
 ## Permanent products
 
@@ -268,13 +268,13 @@ Nominal VIP price: 19.99. Standalone credit: 75%. Minimum upgrade price: 4.99. T
 | Find Your Twin               | `castleRescueRemastered`  | remaster     | Premium Challenges or VIP |
 | Find Your Twin 2: Lost Again | `castleRescue2Remastered` | remaster     | Premium Challenges or VIP |
 
-## Eyeolean powers
+## Eyeros powers
 
 ### Extra Vote
 
 Adds one ballot to your next eligible vote.
 
-First purchase: 15,000 Eyeoleans. Second purchase: 25,000 Eyeoleans. Season caps: 2 purchases, 2 uses.
+First purchase: 15,000 Eyeros. Second purchase: 25,000 Eyeros. Season caps: 2 purchases, 2 uses.
 
 - classic: Extra Vote. One extra ballot at an eligible elimination vote.
 - vox: Extra Vote. Cast a third secret nomination at your next eligible nomination.
@@ -283,7 +283,7 @@ First purchase: 15,000 Eyeoleans. Second purchase: 25,000 Eyeoleans. Season caps
 
 Removes one vote against you from the next eligible result.
 
-First purchase: 25,000 Eyeoleans. Second purchase: 40,000 Eyeoleans. Season caps: 2 purchases, 2 uses.
+First purchase: 25,000 Eyeros. Second purchase: 40,000 Eyeros. Season caps: 2 purchases, 2 uses.
 
 - classic: Remove a Vote. Cancel one vote against you at an eligible elimination vote.
 - vox: Remove a Vote. Cancel one secret nomination against you at an eligible nomination.
@@ -292,7 +292,7 @@ First purchase: 25,000 Eyeoleans. Second purchase: 40,000 Eyeoleans. Season caps
 
 Protects you from nominations for the full day. Public Mode auto-nominations still apply.
 
-First purchase: 150,000 Eyeoleans. Second purchase: 300,000 Eyeoleans. Season caps: 2 purchases, 2 uses.
+First purchase: 150,000 Eyeros. Second purchase: 300,000 Eyeros. Season caps: 2 purchases, 2 uses.
 
 - classic: Immunity. Once triggered, other players cannot nominate you again that day, including as a backup nominee.
 - vox: Immunity. Once triggered, other players cannot nominate you again that day, including as a backup nominee.
@@ -301,7 +301,7 @@ First purchase: 150,000 Eyeoleans. Second purchase: 300,000 Eyeoleans. Season ca
 
 Protects one other player from nomination. Public Mode auto-nominations still apply.
 
-First purchase: 60,000 Eyeoleans. Second purchase: 90,000 Eyeoleans. Season caps: 2 purchases, 2 uses.
+First purchase: 60,000 Eyeros. Second purchase: 90,000 Eyeros. Season caps: 2 purchases, 2 uses.
 
 - classic: Protection. Choose another player; once triggered, they cannot be nominated again that day, including as a backup nominee.
 - vox: Protection. Choose another player; once triggered, they cannot be nominated again that day, including as a backup nominee.
