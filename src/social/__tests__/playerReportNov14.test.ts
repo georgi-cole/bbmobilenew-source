@@ -61,6 +61,27 @@ function fixture(memberIds = ['human', 'ally', 'loh']) {
 }
 
 describe('reported alliance decision contexts', () => {
+  it('recognizes the human co-LOH even when the other co-LOH is outside the alliance', () => {
+    const { state, alliance } = fixture(['human', 'ally'])
+    state.game.phase = 'democracia_results'
+    state.game.coLohIds = ['loh', 'human']
+    state.game.nomineeIds = []
+    state.game.posWinnerId = null
+    expect(buildAllianceConsultationPlan(state, alliance, 'human')?.agenda).toBe('nominations')
+  })
+  it.each(['loh_results', 'democracia_results'] as const)(
+    'lets a newly crowned human LOH consult their alliance at %s',
+    (phase) => {
+      const { state, alliance } = fixture(['human', 'ally', 'loh'])
+      state.game.phase = phase
+      state.game.lohId = 'human'
+      state.game.nomineeIds = []
+      state.game.posWinnerId = null
+      const plan = buildAllianceConsultationPlan(state, alliance, 'human')
+      expect(plan?.agenda).toBe('nominations')
+      expect(plan?.attendeeIds).toEqual(expect.arrayContaining(['human', 'ally']))
+    }
+  )
   it('plans a conditional backup when a nominee outside the alliance wins Safety', () => {
     const { state, alliance } = fixture()
     const plan = buildAllianceConsultationPlan(state, alliance, 'human')

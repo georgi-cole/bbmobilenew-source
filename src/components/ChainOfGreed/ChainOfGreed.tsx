@@ -8,6 +8,7 @@ import {
   applyRoundReset,
   buildAiVoteRecords,
   buildFinalRawResults,
+  buildChainOfGreedStandings,
   CHAIN_TURN_PIPELINE_DURATIONS,
   CHAIN_LADDER,
   type ChainActionResolution,
@@ -104,6 +105,7 @@ interface ChainOfGreedState {
   revealedVotes: number
   tieBreaks: ChainOfGreedTieBreakInfo[]
   eliminatedThisStep: string[]
+  eliminationGroups?: string[][]
   semifinalOrder: string[]
   semifinalTurnIndex: number
   semifinalScores: Record<string, number>
@@ -560,6 +562,7 @@ function buildInitialState(props: GenericMinigameProps): ChainOfGreedState {
     revealedVotes: 0,
     tieBreaks: [],
     eliminatedThisStep: [],
+    eliminationGroups: [],
     semifinalOrder: [],
     semifinalTurnIndex: 0,
     semifinalScores: {},
@@ -925,6 +928,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
       revealedVotes: 0,
       tieBreaks: elimination.tieBreaks,
       eliminatedThisStep: elimination.eliminatedIds,
+      eliminationGroups: [...(previous.eliminationGroups ?? []), elimination.eliminatedIds],
       statusText: 'The weakest link will now be decided.',
       helperText: 'One bad round can end the game.',
     }))
@@ -972,6 +976,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
           eliminatedThisStep.includes(player.id) ? { ...player, isEliminated: true } : player
         ),
         eliminatedThisStep,
+        eliminationGroups: [...(previous.eliminationGroups ?? []).slice(0, -1), eliminatedThisStep],
         tieBreaks: previous.tieBreaks.map((entry, index) =>
           index === tieBreakIndex
             ? {
@@ -1131,6 +1136,10 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
               semifinalChains: nextChains,
               semifinalTieBreak: ranking.tieBreak,
               semifinalEliminatedId: eliminated?.id ?? null,
+              eliminationGroups: [
+                ...(previous.eliminationGroups ?? []),
+                ...(eliminated ? [[eliminated.id]] : []),
+              ],
               turnHistory: nextHistory,
               revealedNumber: turn.resolution.revealedNumber,
               statusText: eliminated
@@ -1453,6 +1462,10 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
       soloImmunityIds: [...nextImmuneIds],
       winnerIds: finalWinnerIds,
       eliminatedThisStep: eliminatedIds,
+      eliminationGroups: [
+        ...(state.eliminationGroups ?? []),
+        ...(eliminatedIds.length ? [eliminatedIds] : []),
+      ],
       winnerId: soloWinner?.id ?? null,
       tieBreaks: [],
       finalTimerExpiry: null,
@@ -1620,6 +1633,12 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
       rawValue,
       partial: false,
       completion: {
+        ...buildChainOfGreedStandings(
+          state.players,
+          state.finalScores,
+          winnerIds.length ? winnerIds : winnerId ? [winnerId] : [],
+          state.eliminationGroups ?? []
+        ),
         authoritativeWinnerId: winnerId,
         ...(winnerIds.length > 1 ? { authoritativeWinnerIds: winnerIds } : {}),
         rawValue,

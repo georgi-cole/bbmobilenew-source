@@ -46,7 +46,7 @@ export function selectCompetitionLastPlaceIds(
   const validLastPlaces = (ids: string[]) =>
     [...new Set(ids)].filter((id) => participantIds.has(id) && !winners.has(id))
 
-  if (completion.authoritativeLastPlaceIds?.length)
+  if (completion.authoritativeLastPlaceIds !== undefined)
     return validLastPlaces(completion.authoritativeLastPlaceIds)
   if (completion.authoritativeLastPlaceId)
     return validLastPlaces([completion.authoritativeLastPlaceId])

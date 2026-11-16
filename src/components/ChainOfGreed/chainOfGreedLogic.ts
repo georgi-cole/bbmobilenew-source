@@ -1143,3 +1143,45 @@ export function buildFinalRawResults(
     players.map((player) => [player.id, player.id === winnerId ? securedTotal : 0])
   )
 }
+
+/** Match placement is independent of the winner-takes-all Influence payout. */
+export function buildChainOfGreedStandings(
+  players: ChainOfGreedPlayerState[],
+  scores: Record<string, number>,
+  winnerIds: string[],
+  eliminationGroups: string[][]
+) {
+  const knownIds = new Set(players.map((player) => player.id))
+  const winners = [...new Set(winnerIds)].filter((id) => knownIds.has(id))
+  const eliminated = new Set(eliminationGroups.flat())
+  // Legacy sessions without an elimination history cannot certify last place
+  // from payout zeros. Do not manufacture a losing rank for those sessions.
+  if (players.some((player) => player.isEliminated && !eliminated.has(player.id)))
+    return { authoritativeLastPlaceIds: [] as string[] }
+
+  const compare = (left: ChainOfGreedPlayerState, right: ChainOfGreedPlayerState) =>
+    (scores[right.id] ?? 0) - (scores[left.id] ?? 0) ||
+    left.finalWrongGuesses - right.finalWrongGuesses ||
+    left.finalBanks - right.finalBanks
+  const finalists = players
+    .filter((player) => !eliminated.has(player.id) && !winners.includes(player.id))
+    .sort(compare)
+  const groups: string[][] = winners.length ? [winners] : []
+  let prior: ChainOfGreedPlayerState | undefined
+  for (const player of finalists) {
+    if (prior && compare(prior, player) === 0) groups[groups.length - 1].push(player.id)
+    else groups.push([player.id])
+    prior = player
+  }
+  const placed = new Set(groups.flat())
+  for (const group of [...eliminationGroups].reverse()) {
+    const ids = [...new Set(group)].filter((id) => knownIds.has(id) && !placed.has(id))
+    if (ids.length) groups.push(ids)
+    ids.forEach((id) => placed.add(id))
+  }
+  return {
+    authoritativeRankedIds: groups.flat(),
+    authoritativeTiedGroups: groups.filter((group) => group.length > 1),
+    authoritativeLastPlaceIds: groups.length > 1 ? groups[groups.length - 1] : [],
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import gameReducer, { createInitialGameState, submitDemocraciaVote } from '../gameSlice'
+import gameReducer, { advance, createInitialGameState, submitDemocraciaVote } from '../gameSlice'
 
 function ballot() {
   const state = createInitialGameState({ seed: 7301 })
@@ -20,17 +20,28 @@ function ballot() {
   return { state, human }
 }
 
-describe('Democracia self-election', () => {
-  it('records a human candidate voting for themselves exactly once', () => {
+describe('Democracia ballots', () => {
+  it('keeps AI ballots directed at other candidates', () => {
+    for (let seed = 1; seed <= 12; seed++) {
+      const state = createInitialGameState({ seed })
+      state.phase = 'loh_comp_announcement'
+      state.democracia = { ...state.democracia!, active: true, activatedDay: state.week }
+      const next = gameReducer(state, advance())
+      const votes = Object.entries(next.democracia!.votesByVoterId)
+      expect(votes.length).toBeGreaterThan(0)
+      for (const [voter, candidate] of votes) expect(candidate).not.toBe(voter)
+    }
+  })
+  it('rejects self-election and records a vote for another candidate exactly once', () => {
     const { state, human } = ballot()
     const next = gameReducer(state, submitDemocraciaVote(human.id))
-    expect(next.democracia?.votesByVoterId[human.id]).toBe(human.id)
-    expect(next.democracia?.awaitingHumanVote).toBe(false)
-    const repeated = gameReducer(
-      next,
-      submitDemocraciaVote(state.players.find((p) => !p.isUser)!.id)
-    )
-    expect(repeated.democracia?.votesByVoterId[human.id]).toBe(human.id)
+    expect(next.democracia?.votesByVoterId[human.id]).toBeUndefined()
+    expect(next.democracia?.awaitingHumanVote).toBe(true)
+    const candidate = state.players.find((p) => !p.isUser)!.id
+    const accepted = gameReducer(next, submitDemocraciaVote(candidate))
+    expect(accepted.democracia?.votesByVoterId[human.id]).toBe(candidate)
+    expect(accepted.democracia?.awaitingHumanVote).toBe(false)
+    expect(gameReducer(accepted, submitDemocraciaVote(human.id))).toEqual(accepted)
   })
 
   it('still rejects self-election if the human is not an eligible candidate or voter', () => {

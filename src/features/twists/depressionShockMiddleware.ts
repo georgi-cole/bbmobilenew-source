@@ -96,7 +96,7 @@ function maybeDistortStrategicRelationships(
     const holder = game.posWinnerId
       ? game.players.find((player) => player.id === game.posWinnerId)
       : null
-    if (!holder || holder.isUser) return payload
+    if (!holder || holder.isUser || game.nomineeIds.includes(holder.id)) return payload
     if (!shouldDepressionShockTriggerSurpriseDecision(game.gameId, game.week, 'safety')) {
       return payload
     }
@@ -147,6 +147,8 @@ function announceSurpriseDecision(
   const holderName =
     after.players.find((player) => player.id === after.posWinnerId)?.name ?? 'The Safety holder'
   const savedIds = before.nomineeIds.filter((id) => !after.nomineeIds.includes(id))
+  // A pending distortion must not label routine self-preservation as erratic.
+  if (before.posWinnerId && before.nomineeIds.includes(before.posWinnerId)) return
   const savedNames = savedIds
     .map((id) => after.players.find((player) => player.id === id)?.name)
     .filter((name): name is string => Boolean(name))

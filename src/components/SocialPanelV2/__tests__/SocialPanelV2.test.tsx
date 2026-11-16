@@ -1380,11 +1380,11 @@ describe('SocialPanelV2 – subject picker', () => {
 describe('LOH target question integration', () => {
   afterEach(() => cleanup())
 
-  it('executes while the LOH controls nominations and logs a concrete answer', () => {
+  it.each(['social_1', 'live_vote'] as const)('asks the LOH for their plan during %s', (phase) => {
     const seedStore = makeStore()
     const loh = seedStore.getState().game.players.find((player) => !player.isUser)!
     const store = makeStore({
-      phase: 'social_1',
+      phase,
       lohId: loh.id,
       playerStatusOverrides: { [loh.id]: 'loh' },
       dramaMode: true,
@@ -1396,7 +1396,11 @@ describe('LOH target question integration', () => {
     renderPanel(store)
 
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(loh.name, 'i') })[0])
-    fireEvent.click(screen.getByRole('button', { name: /Ask LOH Plan/i }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: phase === 'live_vote' ? /Ask Who Goes/i : /Ask LOH Plan/i,
+      })
+    )
     const execute = screen.getByRole('button', { name: 'Execute' })
     expect(execute).toBeEnabled()
     fireEvent.click(execute)

@@ -374,8 +374,9 @@ export function useTwistFlow({
     !game.democracia?.resultDisplay &&
     humanPlayer != null &&
     Boolean(game.democracia?.eligibleVoterIds?.includes(humanPlayer.id))
-  const democraciaVoteOptions = alivePlayers.filter((player) =>
-    (game.democracia?.candidateIds ?? []).includes(player.id)
+  const democraciaVoteOptions = alivePlayers.filter(
+    (player) =>
+      player.id !== humanPlayer?.id && (game.democracia?.candidateIds ?? []).includes(player.id)
   )
 
   const democraciaResultDisplay = game.democracia?.resultDisplay ?? null
