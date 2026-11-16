@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Ref } from 'react'
+import type { ReactNode, Ref } from 'react'
 import profilesReducer, {
   createProfile,
   debugGrantEyeoleans,
@@ -30,23 +30,25 @@ vi.mock('../../appearance/AppearanceCarousel', () => ({
     onSelect,
     figureRef,
     confirmLabel,
-    accessText,
+    accessContent,
   }: {
-    onConfirm: () => void
+    onConfirm?: () => void
     onSelect: (id: string) => void
     figureRef?: Ref<HTMLImageElement>
     confirmLabel?: string
-    accessText?: string
+    accessContent?: ReactNode
   }) => (
     <>
       <img ref={figureRef} alt="Selected figure" />
       <button type="button" onClick={() => onSelect('pc-006')}>
         Preview look 6
       </button>
-      <span>{accessText}</span>
-      <button type="button" onClick={onConfirm}>
-        {confirmLabel ?? 'Choose this look'}
-      </button>
+      {accessContent}
+      {onConfirm && (
+        <button type="button" onClick={onConfirm}>
+          {confirmLabel ?? 'Choose this look'}
+        </button>
+      )}
     </>
   ),
 }))
@@ -80,7 +82,25 @@ vi.mock('framer-motion', async (importOriginal) => {
   }
 })
 
-describe('Changing room look lock-in', () => {
+function enableReducerDispatch() {
+  mockDispatch.mockImplementation((action) => {
+    if (typeof action === 'function') {
+      return action(mockDispatch, () => ({
+        profiles: mockProfiles,
+        vip: { isActive: mockVipActive },
+      }))
+    }
+    mockProfiles = profilesReducer(mockProfiles, action)
+    return action
+  })
+}
+
+function openPaidLook() {
+  fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Open look market for 30,000 Eyeros' }))
+}
+
+describe('Changing room look lock-in and market', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     mockNavigate.mockReset()
@@ -100,9 +120,7 @@ describe('Changing room look lock-in', () => {
 
   it('saves the chosen look, reveals its portrait, then returns to the profile', async () => {
     render(<DressingRoom />)
-
     fireEvent.click(screen.getByRole('button', { name: 'Use this look' }))
-
     expect(mockDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'profiles/updateProfile',
@@ -113,14 +131,12 @@ describe('Changing room look lock-in', () => {
     expect(dialog).toHaveTextContent('Your next chapter')
     const portrait = dialog.querySelector('img.look-lock__portrait')!
     expect(portrait.getAttribute('src')).toContain('character%201/main.webp')
-
     expect(mockNavigate).not.toHaveBeenCalled()
     fireEvent.load(portrait)
     fireEvent.load(dialog.querySelector('img.look-lock__frame')!)
     await act(async () => {
       vi.advanceTimersByTime(2800)
     })
-
     expect(dialog).toHaveTextContent('Saved for your next season.')
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(mockNavigate).toHaveBeenCalledWith('/profile', {
@@ -197,43 +213,44 @@ describe('Changing room look lock-in', () => {
     expect(mockDispatch).toHaveBeenCalledTimes(1)
   })
 
-  it('requires funds to unlock a paid look for standard profiles', () => {
+  it('shows two market badges without hiding the look or spending on preview', () => {
     render(<DressingRoom />)
     fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
-    expect(screen.getByText('VIP or 30,000 Eyeros')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Unlock · 30,000 Eyeros' }))
-    expect(screen.getByRole('status')).toHaveTextContent('30,000 more Eyeros')
+    expect(screen.getByRole('img', { name: 'Selected figure' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Open VIP market for all looks' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Open look market for 30,000 Eyeros' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Use this look' })).toBeNull()
     expect(mockDispatch).not.toHaveBeenCalled()
   })
 
-  it('confirms a permanent paid unlock before debiting the profile wallet once', () => {
+  it('opens the market with an insufficient-balance explanation, not a purchase', () => {
+    render(<DressingRoom />)
+    openPaidLook()
+    expect(screen.getByRole('dialog', { name: 'Look 6' })).toBeVisible()
+    expect(screen.getByText(/30,000 more Eyeros/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Unlock for 30,000 Eyeros' })).toBeDisabled()
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('confirms a permanent unlock in the market and debits once', () => {
     mockProfiles = profilesReducer(
       mockProfiles,
       debugGrantEyeoleans({ grantId: 'changing-room', amount: 55_000 })
     )
-    mockDispatch.mockImplementation((action) => {
-      mockProfiles = profilesReducer(mockProfiles, action)
-      return action
-    })
+    enableReducerDispatch()
     const view = render(<DressingRoom />)
-    fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Unlock · 30,000 Eyeros' }))
+    openPaidLook()
     expect(mockDispatch).not.toHaveBeenCalled()
-    expect(screen.getByRole('alertdialog', { name: 'Unlock selected look' })).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm · 30,000 Eyeros' }))
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'profiles/purchaseAppearanceLook',
-        payload: { lookId: 'pc-006' },
-      })
-    )
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock for 30,000 Eyeros' }))
     expect(mockProfiles.profiles[0].eyeoleans).toBe(25_000)
+    expect(screen.getByText('This look is yours.')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to changing room' }))
     view.rerender(<DressingRoom />)
     expect(screen.getByRole('button', { name: 'Use this look' })).toBeVisible()
     expect(screen.getByText('Permanently unlocked')).toBeVisible()
   })
 
-  it('includes all premium looks in VIP without a wallet purchase', () => {
+  it('includes premium looks in VIP without a wallet purchase', () => {
     mockVipActive = true
     render(<DressingRoom />)
     fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
@@ -247,27 +264,56 @@ describe('Changing room look lock-in', () => {
     )
   })
 
-  it('does not allow a paid look during free profile creation', () => {
-    mockProfiles = profilesReducer(undefined, { type: 'test/reset' })
-    mockLocationState = { from: '/', createProfile: true }
+  it('preserves selected look and creation draft when opening the real VIP Store', () => {
+    mockLocationState = { createProfile: true, fromPlayerAccount: true, playerAccountId: 'account' }
     render(<DressingRoom />)
     fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
-    fireEvent.click(screen.getByRole('button', { name: 'VIP look' }))
-    expect(screen.getByRole('status')).toHaveTextContent('five free looks')
-    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open VIP market for all looks' }))
+    fireEvent.click(screen.getByRole('button', { name: /Explore VIP/ }))
+    expect(mockNavigate).toHaveBeenNthCalledWith(1, '/profile/dressing-room', {
+      replace: true,
+      state: { ...mockLocationState, initialLookId: 'pc-006' },
+    })
+    expect(mockNavigate).toHaveBeenNthCalledWith(2, '/store', { state: { shelf: 'all-access' } })
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('lets new profiles preview locked looks without spending another profile wallet', () => {
+    mockProfiles = profilesReducer(
+      mockProfiles,
+      debugGrantEyeoleans({ grantId: 'other-profile', amount: 55_000 })
+    )
+    mockLocationState = { from: '/', createProfile: true }
+    render(<DressingRoom />)
+    openPaidLook()
+    expect(screen.getByText(/free look first/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Unlock for 30,000 Eyeros' })).toBeDisabled()
+    expect(mockProfiles.profiles[0].eyeoleans).toBe(55_000)
+  })
+
+  it('rechecks VIP at confirmation, avoiding a charge when access changes', () => {
+    mockProfiles = profilesReducer(
+      mockProfiles,
+      debugGrantEyeoleans({ grantId: 'vip-race', amount: 55_000 })
+    )
+    enableReducerDispatch()
+    render(<DressingRoom />)
+    openPaidLook()
+    mockVipActive = true
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock for 30,000 Eyeros' }))
+    expect(mockProfiles.profiles[0].eyeoleans).toBe(55_000)
+    expect(screen.getByText('Already unlocked.')).toBeVisible()
   })
 
   it('uses the Changing room as the first profile-creation step', () => {
     mockProfiles = profilesReducer(undefined, { type: 'test/reset' })
     mockLocationState = { from: '/', createProfile: true }
     render(<DressingRoom />)
-
     fireEvent.click(screen.getByRole('button', { name: 'Choose this look' }))
     expect(mockDispatch).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Skip reveal' }))
     expect(screen.getByRole('status')).toHaveTextContent('Look chosen')
     expect(screen.getByRole('dialog', { name: 'Look 1' })).toHaveTextContent('Now make it yours.')
-
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(mockNavigate).toHaveBeenCalledWith('/profile-edit', {
       replace: true,
