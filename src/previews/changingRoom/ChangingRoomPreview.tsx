@@ -10,7 +10,7 @@ import '../../screens/Profile/DressingRoom.css'
 import './ChangingRoomPreview.css'
 
 /** No application store, native purchases, persistence, analytics or player data. */
-function ChangingRoomPreview() {
+export function ChangingRoomPreview() {
   const [selectedId, setSelectedId] = useState('pc-006')
   const [balance, setBalance] = useState(45_000)
   const [vip, setVip] = useState(false)
