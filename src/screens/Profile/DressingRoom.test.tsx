@@ -197,7 +197,6 @@ describe('Changing room look lock-in', () => {
     expect(mockDispatch).toHaveBeenCalledTimes(1)
   })
 
-
   it('requires funds to unlock a paid look for standard profiles', () => {
     render(<DressingRoom />)
     fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))

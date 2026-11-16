@@ -256,8 +256,7 @@ function getOutcomeMessage(
   const amount = outcome.amount ?? 0
   if (player.isHuman && kind === 'secondChance' && amount < 0)
     return `Second Chance Wallet: ${amount} Eyeros.`
-  if (player.isHuman && kind === 'secondChance')
-    return `Second Chance Wallet: +${amount} Eyeros.`
+  if (player.isHuman && kind === 'secondChance') return `Second Chance Wallet: +${amount} Eyeros.`
   if (player.isHuman && amount < 0) return `You opened ${amount} Eyeros.`
   if (player.isHuman) return `You found +${amount} Eyeros.`
   return getAiBroadcastLine(

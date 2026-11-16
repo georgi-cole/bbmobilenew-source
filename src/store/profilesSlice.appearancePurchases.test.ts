@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { APPEARANCE_LOOK_PRICE_EYEROS, hasAppearanceLookAccess, isFreeAppearanceLook } from '../appearance/lookAccess'
+import {
+  APPEARANCE_LOOK_PRICE_EYEROS,
+  hasAppearanceLookAccess,
+  isFreeAppearanceLook,
+} from '../appearance/lookAccess'
 import profilesReducer, {
   coerceStoredProfile,
   createProfile,
@@ -27,7 +31,9 @@ describe('changing-room Eyeros unlocks', () => {
     state = profilesReducer(state, purchase)
     expect(state.profiles[0].eyeoleans).toBe(80_000 - APPEARANCE_LOOK_PRICE_EYEROS)
     expect(state.profiles[0].unlockedAppearanceLookIds).toEqual(['pc-006'])
-    expect(state.profiles[0].eyeoleanTransactions?.filter((entry) => entry.source === 'store_purchase')).toEqual([
+    expect(
+      state.profiles[0].eyeoleanTransactions?.filter((entry) => entry.source === 'store_purchase')
+    ).toEqual([
       expect.objectContaining({ amount: -30_000, id: expect.stringContaining('pc-006') }),
     ])
     expect(hasAppearanceLookAccess('pc-006', state.profiles[0], false)).toBe(true)
@@ -45,10 +51,15 @@ describe('changing-room Eyeros unlocks', () => {
   })
 
   it('keeps existing premium selections without a fee when old saves are loaded', () => {
-    const old = { id: 'legacy', name: 'Maya', avatar: '👤', createdAt: '2026-10-01',
+    const old = {
+      id: 'legacy',
+      name: 'Maya',
+      avatar: '👤',
+      createdAt: '2026-10-01',
       appearanceSelection: { kind: 'catalog', lookId: 'pc-017', revision: 1 },
       initialAppearanceSelection: { kind: 'catalog', lookId: 'pc-014', revision: 1 },
-      eyeoleans: 45_000 }
+      eyeoleans: 45_000,
+    }
     const restored = coerceStoredProfile(old)
     expect(restored?.unlockedAppearanceLookIds).toEqual(['pc-014', 'pc-017'])
     expect(restored?.eyeoleans).toBe(45_000)

@@ -202,9 +202,7 @@ export default function Store() {
       return
     }
     if (eyeoleanBalance < price) {
-      setEyeoleanError(
-        `You need ${(price - eyeoleanBalance).toLocaleString('en-US')} more Eyeros.`
-      )
+      setEyeoleanError(`You need ${(price - eyeoleanBalance).toLocaleString('en-US')} more Eyeros.`)
       return
     }
 

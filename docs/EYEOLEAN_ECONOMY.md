@@ -6,7 +6,7 @@ Eyeros are the persistent soft currency for the player profile. They replace XP 
 
 Eyeros reward **authoritative season outcomes**, not raw click volume or arbitrary minigame score. Season-performance rewards are calculated from canonical stats and banked at settlement, so the finale acts as a payday rather than every individual action minting currency.
 
-| Result                           |                                          Eyeros |
+| Result                           |                                             Eyeros |
 | -------------------------------- | -------------------------------------------------: |
 | Season winner                    |                                            100,000 |
 | Runner-up                        |                                             50,000 |

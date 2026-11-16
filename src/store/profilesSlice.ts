@@ -943,13 +943,16 @@ const profilesSlice = createSlice({
 
       const balance = Math.max(0, Math.floor(profile.eyeoleans ?? 0))
       if (!Number.isFinite(balance) || balance < APPEARANCE_LOOK_PRICE_EYEROS) return
-      if (!appendEyeoleanTransaction(profile, {
-        id: `appearance:unlock:${profile.id}:${lookId}`,
-        amount: -APPEARANCE_LOOK_PRICE_EYEROS,
-        source: 'store_purchase',
-        label: `Look ${Number(lookId.slice(-3))} unlock`,
-        createdAt: new Date().toISOString(),
-      })) return
+      if (
+        !appendEyeoleanTransaction(profile, {
+          id: `appearance:unlock:${profile.id}:${lookId}`,
+          amount: -APPEARANCE_LOOK_PRICE_EYEROS,
+          source: 'store_purchase',
+          label: `Look ${Number(lookId.slice(-3))} unlock`,
+          createdAt: new Date().toISOString(),
+        })
+      )
+        return
       profile.eyeoleans = balance - APPEARANCE_LOOK_PRICE_EYEROS
       profile.unlockedAppearanceLookIds = [...(profile.unlockedAppearanceLookIds ?? []), lookId]
       if (profile.playerAccountId) {

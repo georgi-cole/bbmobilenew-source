@@ -734,12 +734,16 @@ export default function ProfilePicker() {
                       onConfirm={() => {
                         if (hasAppearanceLookAccess(newLookId, null, isVip)) setCreateStep('details')
                       }}
-                      confirmLabel={hasAppearanceLookAccess(newLookId, null, isVip)
-                        ? 'Choose this look'
-                        : 'VIP look'}
-                      accessText={hasAppearanceLookAccess(newLookId, null, isVip)
-                        ? 'Included'
-                        : 'VIP exclusive during profile creation'}
+                      confirmLabel={
+                        hasAppearanceLookAccess(newLookId, null, isVip)
+                          ? 'Choose this look'
+                          : 'VIP look'
+                      }
+                      accessText={
+                        hasAppearanceLookAccess(newLookId, null, isVip)
+                          ? 'Included'
+                          : 'VIP exclusive during profile creation'
+                      }
                     />
                     <button
                       type="button"
