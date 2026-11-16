@@ -18,6 +18,11 @@ async function check(name, test) {
 function assert(value, message) {
   if (!value) throw new Error(message)
 }
+async function assertNoAvailabilityLabel() {
+  for (const text of ['Free look', 'Included with VIP', 'Permanently unlocked']) {
+    assert((await page.getByText(text, { exact: true }).count()) === 0, `Unexpected label: ${text}`)
+  }
+}
 try {
   await page.goto(pathToFileURL(path.join(folder, 'changing-room-test.html')).href)
   await page.getByRole('img', { name: 'Look 6' }).waitFor()
@@ -32,6 +37,11 @@ try {
     }
     await page.getByRole('img', { name: 'Look 6', exact: true }).waitFor()
   })
+  await check('VIP badge reuses the marketplace eye artwork', async () => {
+    const icon = page.getByRole('button', { name: 'Open VIP market for all looks' }).locator('svg.store-product-icon')
+    assert((await icon.getAttribute('viewBox')) === '0 0 48 48', 'Not the shared VIP eye')
+    assert((await icon.locator('.store-product-icon__core').count()) === 1, 'VIP eye core missing')
+  })
   await page.screenshot({ path: path.join(folder, '01-changing-room.png') })
   await check('Eyeros badge opens the market without spending', async () => {
     await page.getByRole('button', { name: 'Open look market for 30,000 Eyeros' }).click()
@@ -42,7 +52,7 @@ try {
     )
   })
   await page.screenshot({ path: path.join(folder, '02-eyeros-market.png') })
-  await check('Purchase spends exactly 30,000 once, then becomes owned', async () => {
+  await check('Purchase spends exactly 30,000 once and removes unlock badges and labels', async () => {
     await page.getByRole('button', { name: 'Unlock for 30,000 Eyeros' }).click()
     await page.getByText('This look is yours.').waitFor()
     assert(
@@ -52,12 +62,12 @@ try {
     await page.getByRole('button', { name: 'Back to changing room' }).click()
     await page.getByRole('button', { name: 'Use this look' }).waitFor()
     assert(
-      (await page.getByRole('button', { name: 'Open look market for 30,000 Eyeros' }).count()) ===
-        0,
+      (await page.getByRole('group', { name: 'Ways to unlock this look' }).count()) === 0,
       'Owned look still purchasable'
     )
+    await assertNoAvailabilityLabel()
   })
-  await check('Insufficient balance disables purchase', async () => {
+  await check('Insufficient balance disables purchase; Escape closes and restores focus', async () => {
     await page.getByRole('button', { name: 'Low balance', exact: true }).click()
     await page.getByRole('button', { name: 'Open look market for 30,000 Eyeros' }).click()
     assert(
@@ -74,25 +84,44 @@ try {
       'Focus not restored'
     )
   })
-  await check('VIP badge opens VIP option, demo unlocks all without spending', async () => {
+  await check('One VIP tap opens the VIP destination, with no intermediate look dialog', async () => {
     await page.getByRole('button', { name: 'Reset demo', exact: true }).click()
     await page.getByRole('button', { name: 'Open VIP market for all looks' }).click()
-    await page.getByRole('button', { name: 'Activate demo VIP' }).waitFor()
+    await page.getByRole('main', { name: 'VIP marketplace preview' }).waitFor()
+    assert((await page.getByRole('dialog').count()) === 0, 'Intermediate VIP dialog remains')
+    assert((await page.locator('[aria-current="page"]').textContent()) === 'VIP', 'Wrong destination')
+    assert((await page.getByTestId('demo-balance').textContent()) === '45,000 Eyeros', 'VIP navigation spent currency')
     await page.screenshot({ path: path.join(folder, '03-vip-market.png') })
-    await page.getByRole('button', { name: 'Activate demo VIP' }).click()
-    await page.getByText('Already unlocked.').waitFor()
-    assert(
-      (await page.getByTestId('demo-balance').textContent()) === '45,000 Eyeros',
-      'VIP spent Eyeros'
-    )
     await page.getByRole('button', { name: 'Back to changing room' }).click()
+    await page.getByRole('img', { name: 'Look 6', exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Open VIP market for all looks' }).waitFor()
+  })
+  await check('VIP choice inside the Eyeros panel also navigates directly without charging', async () => {
+    await page.getByRole('button', { name: 'Open look market for 30,000 Eyeros' }).click()
+    await page.getByRole('button', { name: 'Open VIP marketplace', exact: true }).click()
+    await page.getByRole('main', { name: 'VIP marketplace preview' }).waitFor()
+    assert((await page.getByRole('dialog').count()) === 0, 'Look dialog not dismissed')
+    assert((await page.getByTestId('demo-balance').textContent()) === '45,000 Eyeros', 'VIP navigation spent currency')
+  })
+  await check('Demo VIP unlocks looks without spending; returning preserves selection without labels', async () => {
+    await page.getByRole('button', { name: 'Activate demo VIP' }).click()
+    await page.getByRole('button', { name: 'Demo VIP active' }).waitFor()
+    assert((await page.getByTestId('demo-balance').textContent()) === '45,000 Eyeros', 'VIP spent Eyeros')
+    await page.getByRole('button', { name: 'Back to changing room' }).click()
+    await page.getByRole('img', { name: 'Look 6', exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Use this look' }).waitFor()
+    await assertNoAvailabilityLabel()
     await page.getByRole('button', { name: 'Next look' }).click()
     await page.getByRole('button', { name: 'Use this look' }).waitFor()
+    await assertNoAvailabilityLabel()
   })
-  await check('First free look needs no market', async () => {
-    await page.getByRole('button', { name: 'Free', exact: true }).click()
-    await page.getByText('Free look', { exact: true }).waitFor()
-    await page.getByRole('button', { name: 'Use this look' }).waitFor()
+  await check('Free and owned presets need no availability labels or market', async () => {
+    for (const name of ['Free', 'Owned']) {
+      await page.getByRole('button', { name, exact: true }).click()
+      await page.getByRole('button', { name: 'Use this look' }).waitFor()
+      await assertNoAvailabilityLabel()
+      assert((await page.getByRole('group', { name: 'Ways to unlock this look' }).count()) === 0, 'Unexpected market badges')
+    }
   })
   await check('Mobile and narrow layout: readable, no horizontal overflow', async () => {
     for (const width of [390, 320]) {
@@ -107,15 +136,16 @@ try {
       await page.getByRole('button', { name: 'Open look market for 30,000 Eyeros' }).click()
       const bounds = await page.getByRole('dialog').boundingBox()
       assert(
-        bounds &&
-          bounds.x >= 0 &&
-          bounds.x + bounds.width <= width &&
-          bounds.y >= 0 &&
-          bounds.y + bounds.height <= 844,
+        bounds && bounds.x >= 0 && bounds.x + bounds.width <= width && bounds.y >= 0 && bounds.y + bounds.height <= 844,
         `Market outside ${width}px viewport`
       )
       if (width === 390) await page.screenshot({ path: path.join(folder, '05-mobile-market.png') })
       await page.getByRole('button', { name: 'Close market' }).click()
+      await page.getByRole('button', { name: 'Open VIP market for all looks' }).click()
+      await page.getByRole('main', { name: 'VIP marketplace preview' }).waitFor()
+      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `VIP overflow at ${width}`)
+      await page.getByRole('button', { name: 'Back to changing room' }).click()
+      await page.getByRole('img', { name: 'Look 6', exact: true }).waitFor()
     }
   })
   assert(errors.length === 0, errors.join('\n'))

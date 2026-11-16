@@ -100,6 +100,12 @@ function openPaidLook() {
   fireEvent.click(screen.getByRole('button', { name: 'Open look market for 30,000 Eyeros' }))
 }
 
+function expectNoAvailabilityLabel() {
+  expect(screen.queryByText('Free look', { exact: true })).not.toBeInTheDocument()
+  expect(screen.queryByText('Included with VIP', { exact: true })).not.toBeInTheDocument()
+  expect(screen.queryByText('Permanently unlocked', { exact: true })).not.toBeInTheDocument()
+}
+
 describe('Changing room look lock-in and market', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -213,14 +219,24 @@ describe('Changing room look lock-in and market', () => {
     expect(mockDispatch).toHaveBeenCalledTimes(1)
   })
 
-  it('shows two market badges without hiding the look or spending on preview', () => {
+  it('shows the shared marketplace VIP eye and Eyeros badge without spending on preview', () => {
     render(<DressingRoom />)
     fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
     expect(screen.getByRole('img', { name: 'Selected figure' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Open VIP market for all looks' })).toBeVisible()
+    const vipBadge = screen.getByRole('button', { name: 'Open VIP market for all looks' })
+    expect(vipBadge).toBeVisible()
+    expect(vipBadge.querySelector('svg.store-product-icon')).toHaveAttribute('viewBox', '0 0 48 48')
+    expect(vipBadge.querySelector('.store-product-icon__core')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open look market for 30,000 Eyeros' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Use this look' })).toBeNull()
     expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('keeps free looks selectable without an availability label or unlock badges', () => {
+    render(<DressingRoom />)
+    expectNoAvailabilityLabel()
+    expect(screen.getByRole('button', { name: 'Use this look' })).toBeVisible()
+    expect(screen.queryByRole('group', { name: 'Ways to unlock this look' })).toBeNull()
   })
 
   it('opens the market with an insufficient-balance explanation, not a purchase', () => {
@@ -247,14 +263,16 @@ describe('Changing room look lock-in and market', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to changing room' }))
     view.rerender(<DressingRoom />)
     expect(screen.getByRole('button', { name: 'Use this look' })).toBeVisible()
-    expect(screen.getByText('Permanently unlocked')).toBeVisible()
+    expectNoAvailabilityLabel()
+    expect(screen.queryByRole('group', { name: 'Ways to unlock this look' })).toBeNull()
   })
 
-  it('includes premium looks in VIP without a wallet purchase', () => {
+  it('includes premium looks in VIP without an availability label or wallet purchase', () => {
     mockVipActive = true
     render(<DressingRoom />)
     fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
-    expect(screen.getByText('Included with VIP')).toBeVisible()
+    expectNoAvailabilityLabel()
+    expect(screen.queryByRole('group', { name: 'Ways to unlock this look' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Use this look' }))
     expect(mockDispatch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'profiles/updateProfile' })
@@ -264,17 +282,40 @@ describe('Changing room look lock-in and market', () => {
     )
   })
 
-  it('preserves selected look and creation draft when opening the real VIP Store', () => {
+  it('opens the real VIP shelf with one tap and preserves the current browsing position', () => {
+    render(<DressingRoom />)
+    fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open VIP market for all looks' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mockNavigate).toHaveBeenNthCalledWith(1, '/profile/dressing-room', {
+      replace: true,
+      state: { from: '/', initialLookId: 'pc-006' },
+    })
+    expect(mockNavigate).toHaveBeenNthCalledWith(2, '/store', { state: { shelf: 'all-access' } })
+    expect(mockNavigate).toHaveBeenCalledTimes(2)
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('preserves selected look and creation draft when opening the real VIP Store directly', () => {
     mockLocationState = { createProfile: true, fromPlayerAccount: true, playerAccountId: 'account' }
     render(<DressingRoom />)
     fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
     fireEvent.click(screen.getByRole('button', { name: 'Open VIP market for all looks' }))
-    fireEvent.click(screen.getByRole('button', { name: /Explore VIP/ }))
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(mockNavigate).toHaveBeenNthCalledWith(1, '/profile/dressing-room', {
       replace: true,
       state: { ...mockLocationState, initialLookId: 'pc-006' },
     })
     expect(mockNavigate).toHaveBeenNthCalledWith(2, '/store', { state: { shelf: 'all-access' } })
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('also opens the VIP shelf directly from the Eyeros panel without a purchase', () => {
+    render(<DressingRoom />)
+    openPaidLook()
+    fireEvent.click(screen.getByRole('button', { name: 'Open VIP marketplace' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mockNavigate).toHaveBeenLastCalledWith('/store', { state: { shelf: 'all-access' } })
     expect(mockDispatch).not.toHaveBeenCalled()
   })
 

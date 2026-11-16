@@ -5,6 +5,7 @@ import { getAppearanceAsset, SELECTABLE_LOOKS } from '../../appearance/catalog'
 import { hasAppearanceLookAccess, isFreeAppearanceLook } from '../../appearance/lookAccess'
 import { LookAccessBadges, LookMarket, type LookMarketOption } from '../../appearance/LookMarket'
 import { joinPublicAssetPath } from '../../utils/avatar'
+import VipMarketplacePreview from './VipMarketplacePreview'
 import '../../screens/Profile/DressingRoom.css'
 import './ChangingRoomPreview.css'
 
@@ -15,6 +16,7 @@ function ChangingRoomPreview() {
   const [vip, setVip] = useState(false)
   const [owned, setOwned] = useState<string[]>([])
   const [market, setMarket] = useState<LookMarketOption | null>(null)
+  const [vipMarketplace, setVipMarketplace] = useState(false)
   const [notice, setNotice] = useState('')
   const [scenario, setScenario] = useState('Standard')
   const look = SELECTABLE_LOOKS.find((entry) => entry.id === selectedId)!
@@ -23,11 +25,18 @@ function ChangingRoomPreview() {
   function reset(name: string) {
     setScenario(name)
     setMarket(null)
+    setVipMarketplace(false)
     setNotice('')
     setVip(name === 'VIP')
     setOwned(name === 'Owned' ? ['pc-006'] : [])
     setBalance(name === 'Low balance' ? 12_000 : 45_000)
     setSelectedId(name === 'Free' ? 'pc-001' : 'pc-006')
+  }
+
+  function openVipMarketplace() {
+    setMarket(null)
+    setVipMarketplace(true)
+    setNotice('VIP opens the marketplace directly. Your selected look and wallet are unchanged.')
   }
 
   return (
@@ -36,7 +45,8 @@ function ChangingRoomPreview() {
         <p className="room-preview__eyebrow">THE BIG EYE / DESIGN REVIEW</p>
         <h1>The changing room.</h1>
         <p className="room-preview__intro">
-          Try the wardrobe, then tap the crown or Eyeros badge to enter the market.
+          Tap the VIP eye to go straight to the VIP marketplace. The Eyeros badge opens the look
+          purchase panel.
         </p>
         <span className="room-preview__label">TEST A PLAYER STATE</span>
         <div className="room-preview__scenarios" role="group" aria-label="Test scenarios">
@@ -67,44 +77,59 @@ function ChangingRoomPreview() {
       </aside>
       <section className="room-preview__device" aria-label="Changing room preview">
         <div className="room-preview__device-caption">LIVE INTERACTIVE PREVIEW</div>
-        <main className="dressing-room placeholder-screen">
-          <div className="dressing-room__topbar">
-            <span className="room-preview__back" aria-hidden="true">
-              ‹
-            </span>
-            <span>Changing room</span>
-          </div>
-          <h1>Choose your look</h1>
-          <p className="dressing-room__subtitle">Your name. Your story. Your style.</p>
-          <AppearanceCarousel
-            selectedId={selectedId}
-            onSelect={(id) => {
-              setSelectedId(id)
-              setNotice('')
+        {vipMarketplace ? (
+          <VipMarketplacePreview
+            active={vip}
+            onBack={() => setVipMarketplace(false)}
+            onActivate={() => {
+              setVip(true)
+              setScenario('VIP')
+              setNotice('Demo VIP activated. Every look is now available; no Eyeros were spent.')
             }}
-            onConfirm={
-              available
-                ? () =>
-                    setNotice(
-                      `${look.label} selected. In the game, the existing lock-in reveal plays here.`
-                    )
-                : undefined
-            }
-            confirmLabel="Use this look"
-            accessContent={
-              <LookAccessBadges
-                isFree={isFreeAppearanceLook(selectedId)}
-                isVip={vip}
-                isOwned={available}
-                onOpen={setMarket}
-              />
-            }
           />
-          <p className="dressing-room__season-note">
-            Your first character replaces the guest silhouette now. Changing an existing character
-            takes effect next season.
-          </p>
-        </main>
+        ) : (
+          <main className="dressing-room placeholder-screen">
+            <div className="dressing-room__topbar">
+              <span className="room-preview__back" aria-hidden="true">
+                ‹
+              </span>
+              <span>Changing room</span>
+            </div>
+            <h1>Choose your look</h1>
+            <p className="dressing-room__subtitle">Your name. Your story. Your style.</p>
+            <AppearanceCarousel
+              selectedId={selectedId}
+              onSelect={(id) => {
+                setSelectedId(id)
+                setNotice('')
+              }}
+              onConfirm={
+                available
+                  ? () =>
+                      setNotice(
+                        `${look.label} selected. In the game, the existing lock-in reveal plays here.`
+                      )
+                  : undefined
+              }
+              confirmLabel="Use this look"
+              accessContent={
+                <LookAccessBadges
+                  isFree={isFreeAppearanceLook(selectedId)}
+                  isVip={vip}
+                  isOwned={available}
+                  onOpen={(option) => {
+                    if (option === 'vip') openVipMarketplace()
+                    else setMarket('eyeros')
+                  }}
+                />
+              }
+            />
+            <p className="dressing-room__season-note">
+              Your first character replaces the guest silhouette now. Changing an existing character
+              takes effect next season.
+            </p>
+          </main>
+        )}
       </section>
       {market && (
         <LookMarket
@@ -116,14 +141,8 @@ function ChangingRoomPreview() {
           balance={balance}
           isAvailable={available}
           canSpend
-          initialOption={market}
-          vipLabel="Activate demo VIP"
           onClose={() => setMarket(null)}
-          onVip={() => {
-            setVip(true)
-            setScenario('VIP')
-            setNotice('Demo VIP activated. Every look is now available; no Eyeros were spent.')
-          }}
+          onVip={openVipMarketplace}
           onPurchase={() => {
             if (available) return 'owned'
             if (balance < 30_000) return 'insufficient'

@@ -1,0 +1,114 @@
+.room-vip-preview {
+  min-height: 670px;
+  padding: 20px;
+  color: #f6efe5;
+  background: linear-gradient(155deg, #302637, #17131e 70%);
+}
+
+.room-vip-preview header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.room-vip-preview header button {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 1px solid #c5aa784a;
+  border-radius: 50%;
+  background: #ffffff06;
+  color: #eddbb7;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+.room-vip-preview h1 {
+  font-size: 14px;
+  letter-spacing: 0.1em;
+}
+
+.room-vip-preview nav {
+  margin: 28px 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid #c5aa7833;
+  color: #e3c98e;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+
+.room-vip-preview__card {
+  padding: 30px 20px;
+  border: 1px solid #c5aa7855;
+  border-radius: 22px;
+  text-align: center;
+  background: linear-gradient(150deg, #c5aa7814, #ffffff03);
+}
+
+.room-vip-preview__card svg {
+  width: 94px;
+  height: 94px;
+  stroke: #ecd29a;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.room-vip-preview__card .store-product-icon__surface {
+  fill: #ecd29a;
+  fill-opacity: 0.08;
+  stroke: none;
+}
+
+.room-vip-preview__card .store-product-icon__core {
+  fill: #ecd29a;
+  fill-opacity: 0.82;
+}
+
+.room-vip-preview__eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: #d1bd98;
+}
+
+.room-vip-preview h2 {
+  margin: 18px 0 12px;
+  font: 30px Georgia, serif;
+}
+
+.room-vip-preview__card > p:not(.room-vip-preview__eyebrow) {
+  color: #c6bac7;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.room-vip-preview__activate {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 20px;
+  padding: 12px;
+  border: 1px solid #e4c796;
+  border-radius: 13px;
+  background: linear-gradient(110deg, #eedab1, #d6b87f);
+  color: #30251b;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.room-vip-preview__activate:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.room-vip-preview__note {
+  margin: 24px 4px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #b8aabc;
+}
+
+.room-vip-preview button:focus-visible {
+  outline: 2px solid #f6ddaa;
+  outline-offset: 4px;
+}

@@ -207,7 +207,10 @@ export default function DressingRoom() {
               isFree={isFreeAppearanceLook(selectedId)}
               isVip={isVip}
               isOwned={isAvailable}
-              onOpen={setMarketOption}
+              onOpen={(option) => {
+                if (option === 'vip') openVipStore()
+                else setMarketOption('eyeros')
+              }}
             />
           }
           figureRef={figureRef}
@@ -229,7 +232,6 @@ export default function DressingRoom() {
           balance={balance}
           isAvailable={isAvailable}
           canSpend={!creatingProfile && Boolean(profile)}
-          initialOption={marketOption}
           onClose={() => setMarketOption(null)}
           onVip={openVipStore}
           onPurchase={() => {
