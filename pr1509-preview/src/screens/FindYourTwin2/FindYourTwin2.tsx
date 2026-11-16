@@ -51,7 +51,7 @@ export default function FindYourTwin2() {
 
         <p className="fyt2__same-rules">
           Move with Left and Right, jump over danger, and stand in front of a door before pressing
-          Up to enter. Find three correct doors in order, then reach Lenny within 2:30. Eyeoleans,
+          Up to enter. Find three correct doors in order, then reach Lenny within 2:30. Eyeros,
           enemies, bricks, checkpoints, mistakes, and elapsed time all affect the final score.
         </p>
 

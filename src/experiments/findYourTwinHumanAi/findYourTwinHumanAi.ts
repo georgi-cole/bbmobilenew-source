@@ -233,7 +233,7 @@ export function simulateHumanlikeFindYourTwinAi({
         collectedCoins.add(index)
         coinsCollected += 1
         score += SCORE_COIN
-        push('collect', `collected Eyeolean ${index + 1}`)
+        push('collect', `collected Eyeros ${index + 1}`)
       }
     })
     MAIN_BRICK_X.forEach((x, index) => {

@@ -100,7 +100,7 @@ function saveForecastStreak(value: number): void {
 }
 
 function formatEyeoleans(amount: number): string {
-  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(amount)} Eyeoleans`
+  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(amount)} Eyeros`
 }
 
 function countdown(ms: number): number {
