@@ -732,7 +732,8 @@ export default function ProfilePicker() {
                       selectedId={newLookId}
                       onSelect={setNewLookId}
                       onConfirm={() => {
-                        if (hasAppearanceLookAccess(newLookId, null, isVip)) setCreateStep('details')
+                        if (hasAppearanceLookAccess(newLookId, null, isVip))
+                          setCreateStep('details')
                       }}
                       confirmLabel={
                         hasAppearanceLookAccess(newLookId, null, isVip)

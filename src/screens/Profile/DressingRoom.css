@@ -138,7 +138,10 @@
 
 .dressing-room__unlock-panel h2 {
   margin: 8px 0;
-  font: 500 1.6rem Georgia, 'Times New Roman', serif;
+  font:
+    500 1.6rem Georgia,
+    'Times New Roman',
+    serif;
   color: #fff3dd;
 }
 

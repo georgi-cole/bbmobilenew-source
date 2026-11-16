@@ -10,7 +10,12 @@ import {
 } from '../../appearance/lookAccess'
 import { canFillInitialSeasonAppearance } from '../../appearance/initialSeasonAppearance'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { MAX_PROFILES, purchaseAppearanceLook, selectCurrentProfile, updateProfile } from '../../store/profilesSlice'
+import {
+  MAX_PROFILES,
+  purchaseAppearanceLook,
+  selectCurrentProfile,
+  updateProfile,
+} from '../../store/profilesSlice'
 import { selectIsVipActive } from '../../store/vipSlice'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import { joinPublicAssetPath } from '../../utils/avatar'

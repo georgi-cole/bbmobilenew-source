@@ -447,8 +447,7 @@ export function coerceStoredProfile(raw: unknown): StoredProfile | null {
   const unlockedAppearanceLookIds = new Set<string>(
     Array.isArray(r.unlockedAppearanceLookIds)
       ? r.unlockedAppearanceLookIds.filter(
-          (lookId): lookId is string =>
-            typeof lookId === 'string' && isPaidAppearanceLook(lookId)
+          (lookId): lookId is string => typeof lookId === 'string' && isPaidAppearanceLook(lookId)
         )
       : []
   )

@@ -33,9 +33,7 @@ describe('changing-room Eyeros unlocks', () => {
     expect(state.profiles[0].unlockedAppearanceLookIds).toEqual(['pc-006'])
     expect(
       state.profiles[0].eyeoleanTransactions?.filter((entry) => entry.source === 'store_purchase')
-    ).toEqual([
-      expect.objectContaining({ amount: -30_000, id: expect.stringContaining('pc-006') }),
-    ])
+    ).toEqual([expect.objectContaining({ amount: -30_000, id: expect.stringContaining('pc-006') })])
     expect(hasAppearanceLookAccess('pc-006', state.profiles[0], false)).toBe(true)
   })
 
