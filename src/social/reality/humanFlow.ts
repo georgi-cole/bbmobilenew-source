@@ -1000,8 +1000,9 @@ function getAllianceConsultationAgenda(
   const attendeeSet = new Set(attendeeIds)
   const lohId = state.game.lohId
   const safetyHolderId = state.game.posWinnerId
-  const attendeeHasLoh = Boolean(
-    lohId && (attendeeSet.has(lohId) || attendeeSet.has(getCupidPartnerId(state.game, lohId) ?? ''))
+  const lohIds = state.game.coLohIds?.length ? state.game.coLohIds : lohId ? [lohId] : []
+  const attendeeHasLoh = lohIds.some(
+    (id) => attendeeSet.has(id) || attendeeSet.has(getCupidPartnerId(state.game, id) ?? '')
   )
   const attendeeHasSafety = Boolean(
     safetyHolderId &&
@@ -1016,7 +1017,7 @@ function getAllianceConsultationAgenda(
     attendeeIds.some((id) => state.game.lohSocialPlan?.disclosedTargetByPlayerId?.[id])
   )
   const nomineesExist = state.game.nomineeIds.length > 0
-  const beforeNominations = ['loh_results', 'social_1', 'nominations'].includes(state.game.phase)
+  const beforeNominations = isBeforeInitialNominations(state.game.phase)
   const voxDecides = state.game.voxPopuli?.status === 'active'
 
   // A vacant seat takes precedence over any discussion of how to use Safety.

@@ -50,9 +50,6 @@ describe('Democracia ballot options', () => {
       }
     )
     expect(result.current.showDemocraciaVoteModal).toBe(true)
-    expect(result.current.democraciaVoteOptions.map((player) => player.id)).toEqual([
-      human.id,
-      candidate.id,
-    ])
+    expect(result.current.democraciaVoteOptions.map((player) => player.id)).toEqual([candidate.id])
   })
 })

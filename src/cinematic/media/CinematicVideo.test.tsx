@@ -51,6 +51,10 @@ describe('CinematicVideo', () => {
     const view = render(<CinematicVideo asset={asset} prepare={false} data-testid="pilot-video" />)
     const video = view.getByTestId('pilot-video') as HTMLVideoElement
 
+    expect(video.muted).toBe(true)
+    expect(video.defaultMuted).toBe(true)
+    expect(video).toHaveAttribute('muted')
+
     expect(video).not.toHaveAttribute('src')
     expect(video).not.toHaveAttribute('poster')
     expect(video).toHaveAttribute('preload', 'none')

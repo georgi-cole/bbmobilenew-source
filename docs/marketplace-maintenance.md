@@ -54,6 +54,16 @@ store listings or change configured prices.
   Store benefits are unchanged; existing No Ads copy remains accurate. Updated
   Settings, both published privacy policies, and device-test guidance.
 
+- 2026-11-16: Reviewed the TestFlight follow-up batch. Chain of Greed reports
+  actual match placement separately from its unchanged winner-only Influence
+  payout, so Reverse Time remains restricted to actual last place or early exit.
+  Both existing versions keep their rules, access and rewards. Democracia again
+  excludes self-votes; shock commentary and alliance/LOH consultation windows
+  follow the actual decision context. Credits automatically start their muted
+  video after the first decoded frame, with one bounded autoplay retry and the
+  existing live fallback. No products, prices, entitlements, ad reward amounts,
+  premium benefits or Store copy change; the current offer remains accurate.
+
 - 2026-11-15: Reviewed the 23-report TestFlight regression batch. Hosted premium
   minigames retain reachable controls/results, Twin remasters retain concurrent
   movement/jump input, and Deck of Light offers vary fairly by round for human

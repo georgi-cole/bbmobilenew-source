@@ -63,6 +63,7 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
   const videoStallTimeoutRef = useRef<number | null>(null)
   const videoFailureHandledRef = useRef(false)
   const videoHasPlayedRef = useRef(false)
+  const videoAutoplayRetriedRef = useRef(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const exitStartedRef = useRef(false)
   const exitDeliveredRef = useRef(false)
@@ -72,7 +73,6 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isForeground, setIsForeground] = useState(() => !document.hidden)
   const [videoReady, setVideoReady] = useState(false)
-  const [awaitingPlayGesture, setAwaitingPlayGesture] = useState(false)
   const [renderFailed, setRenderFailed] = useState(!useVideo)
   const [creditCards, setCreditCards] = useState<readonly CreditCard[]>(CINEMATIC_CREDITS)
   const [contentState, setContentState] = useState<CreditsContentLoadResult>(() => ({
@@ -101,7 +101,6 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
     videoFailureHandledRef.current = true
     clearVideoTimeouts()
     elapsedRef.current = videoRef.current?.currentTime || elapsedRef.current
-    setAwaitingPlayGesture(false)
     releaseCinematicVideoElement(videoRef.current)
     setVideoReady(false)
     setIsPlaying(false)
@@ -183,15 +182,20 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
       )
         return
       if (error?.name === 'AbortError') return
-      if (error?.name === 'NotAllowedError') {
-        clearVideoTimeouts()
-        setAwaitingPlayGesture(true)
+      if (error?.name === 'NotAllowedError' && !videoAutoplayRetriedRef.current) {
+        videoAutoplayRetriedRef.current = true
+        video.defaultMuted = true
+        video.muted = true
+        video.setAttribute('muted', '')
+        // One automatic retry after asserting the native muted state. A real
+        // device playback restriction still falls back without trapping Credits.
+        void video.play().catch(() => fallbackToStaticScene())
         return
       }
       fallbackToStaticScene()
       console.warn('[Credits] Background video playback was blocked.', error)
     })
-  }, [clearVideoTimeouts, fallbackToStaticScene, isOwner, useVideo, renderFailed])
+  }, [fallbackToStaticScene, isOwner, useVideo, renderFailed])
 
   useEffect(() => {
     if (
@@ -199,7 +203,6 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
       !isOwner ||
       !useVideo ||
       renderFailed ||
-      awaitingPlayGesture ||
       videoReady ||
       isExiting ||
       !isForeground
@@ -223,7 +226,6 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
     }
   }, [
     autoPlay,
-    awaitingPlayGesture,
     isExiting,
     isForeground,
     isOwner,
@@ -250,8 +252,8 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
   }, [])
 
   useEffect(() => {
-    if (autoPlay && isOwner && useVideo) startVisualPlayback()
-  }, [autoPlay, isOwner, useVideo, startVisualPlayback])
+    if (autoPlay && isOwner && useVideo && videoReady) startVisualPlayback()
+  }, [autoPlay, isOwner, useVideo, videoReady, startVisualPlayback])
 
   // The background video is muted and may autoplay without a gesture, while
   // its separate soundtrack can be blocked by browser autoplay policy. Prime
@@ -363,7 +365,6 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
       videoStallTimeoutRef.current = null
     }
     videoHasPlayedRef.current = true
-    setAwaitingPlayGesture(false)
     setIsPlaying(true)
     // Mobile video commonly emits `waiting` once immediately after starting.
     // That pauses the soundtrack to keep it aligned. Resume the soundtrack
@@ -417,7 +418,6 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
                 setIsPlaying(false)
                 setVideoReady(false)
               }}
-              onLoadedMetadata={startVisualPlayback}
               onPlay={handlePlay}
               onPlaying={handleVideoPlaying}
               onPause={() => {
@@ -462,19 +462,6 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
         <span>Skip</span>
         <span aria-hidden="true">×</span>
       </button>
-
-      {awaitingPlayGesture && !renderFailed && (
-        <button
-          type="button"
-          className="credits-play"
-          onClick={() => {
-            setAwaitingPlayGesture(false)
-            startVisualPlayback()
-          }}
-        >
-          Play credits
-        </button>
-      )}
 
       <div
         className={`credits-end-guard${isExiting ? ' is-visible' : ''}`}

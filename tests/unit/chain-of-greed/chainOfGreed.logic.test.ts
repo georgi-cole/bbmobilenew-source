@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { selectCompetitionLastPlaceIds } from '../../../src/components/MinigameHost/competitionRetryEligibility'
 import { mulberry32 } from '../../../src/store/rng'
 import {
   buildFinalRawResults,
+  buildChainOfGreedStandings,
   CHAIN_LADDER,
   CHAIN_SHOE_TOTAL_CARDS,
   createInitialChainState,
@@ -60,6 +62,51 @@ function buildPlayer(id: string): ChainOfGreedPlayerState {
 }
 
 describe('chainOfGreedLogic', () => {
+  it('keeps a second-place finisher out of Reverse Time despite a zero prize payout', () => {
+    const players = ['human', 'winner', 'third', 'last'].map(buildPlayer)
+    const scores = { human: 800, winner: 875, third: 700, last: 625 }
+    const completion = {
+      authoritativeWinnerId: 'winner',
+      rawResults: buildFinalRawResults(players, 'winner', 875),
+      ...buildChainOfGreedStandings(players, scores, ['winner'], []),
+    }
+    expect(completion.rawResults.human).toBe(0)
+    expect(completion.authoritativeRankedIds).toEqual(['winner', 'human', 'third', 'last'])
+    expect(selectCompetitionLastPlaceIds(completion, players, false)).toEqual(['last'])
+  })
+
+  it('uses elimination order rather than payout or an earlier-round bank for shared last place', () => {
+    const players = ['human', 'winner', 'third', 'last-a', 'last-b'].map(buildPlayer)
+    players
+      .filter((p) => ['third', 'last-a', 'last-b'].includes(p.id))
+      .forEach((p) => (p.isEliminated = true))
+    const completion = buildChainOfGreedStandings(
+      players,
+      { human: 800, winner: 875, 'last-a': 9000 },
+      ['winner'],
+      [['last-a', 'last-b'], ['third']]
+    )
+    expect(completion.authoritativeRankedIds).toEqual([
+      'winner',
+      'human',
+      'third',
+      'last-a',
+      'last-b',
+    ])
+    expect(selectCompetitionLastPlaceIds(completion, players, false)).toEqual(['last-a', 'last-b'])
+  })
+
+  it('does not infer a losing place from a legacy payout without elimination history', () => {
+    const players = ['human', 'winner', 'last'].map(buildPlayer)
+    players[2].isEliminated = true
+    const completion = {
+      authoritativeWinnerId: 'winner',
+      rawResults: buildFinalRawResults(players, 'winner', 875),
+      ...buildChainOfGreedStandings(players, {}, ['winner'], []),
+    }
+    expect(selectCompetitionLastPlaceIds(completion, players, false)).toEqual([])
+  })
+
   it('ranks the strongest round performer by clean play, then banked value', () => {
     const ranking = rankPlayersByRoundPerformance([
       {

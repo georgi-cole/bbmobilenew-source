@@ -22,6 +22,11 @@ export const CinematicVideo = forwardRef<HTMLVideoElement, CinematicVideoProps>(
     const setVideoRef = useCallback(
       (video: HTMLVideoElement | null) => {
         videoRef.current = video
+        if (video) {
+          video.defaultMuted = true
+          video.muted = true
+          video.setAttribute('muted', '')
+        }
         if (typeof forwardedRef === 'function') forwardedRef(video)
         else if (forwardedRef) forwardedRef.current = video
       },

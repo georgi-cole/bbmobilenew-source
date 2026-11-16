@@ -7740,7 +7740,7 @@ const gameSlice = createSlice({
 
     /**
      * Human player casts their Democracia vote.
-     * Validates voter eligibility and candidacy. Candidates may elect themselves.
+     * Validates voter eligibility and candidacy. Self-votes are not allowed.
      * Clears awaitingHumanVote when accepted.
      */
     submitDemocraciaVote(state, action: PayloadAction<string>) {
@@ -7749,7 +7749,7 @@ const gameSlice = createSlice({
       const targetId = action.payload
       const humanPlayer = state.players.find((p) => p.isUser)
       if (!humanPlayer) return
-      if (targetId !== humanPlayer.id && !canPlayerTargetPlayer(state, humanPlayer.id, targetId))
+      if (targetId === humanPlayer.id || !canPlayerTargetPlayer(state, humanPlayer.id, targetId))
         return
       if (!dem.candidateIds.includes(targetId)) return // must be a candidate
       if (!dem.eligibleVoterIds.includes(humanPlayer.id)) return // must be eligible voter

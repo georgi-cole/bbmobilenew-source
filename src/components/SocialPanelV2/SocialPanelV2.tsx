@@ -1332,6 +1332,7 @@ export default function SocialPanelV2() {
         entry.week === game.week
     )
     const lohPlanOpen = [
+      'democracia_results',
       'loh_results',
       'social_1',
       'nominations',
@@ -1343,6 +1344,7 @@ export default function SocialPanelV2() {
       'pos_ceremony',
       'pos_ceremony_results',
       'social_2',
+      'live_vote',
     ].includes(game.phase)
     if (isVoxPopuli) {
       socialActions

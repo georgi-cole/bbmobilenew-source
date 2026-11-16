@@ -91,6 +91,7 @@ describe('Credits', () => {
     expect(video).toHaveAttribute('autoplay')
     expect(video).toHaveAttribute('playsinline')
     expect(video).toHaveProperty('muted', true)
+    fireEvent.loadedData(video)
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Skip credits' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Tap to start credits' })).toBeNull()
@@ -200,6 +201,7 @@ describe('Credits', () => {
       })
 
       expect(video).toHaveAttribute('src')
+      fireEvent.loadedData(video)
       expect(HTMLMediaElement.prototype.play).toHaveBeenCalled()
     } finally {
       releaseBlocker()
@@ -233,6 +235,7 @@ describe('Credits', () => {
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(new Error('Blocked'))
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const view = renderCredits()
+    fireEvent.loadedData(screen.getByTestId('credits-background-video'))
 
     await waitFor(() => expect(view.queryByTestId('credits-background-video')).toBeNull())
     expect(screen.getByTestId('credits-background-fallback')).toBeInTheDocument()
@@ -251,26 +254,40 @@ describe('Credits', () => {
       new DOMException('A newer playback request interrupted this one', 'AbortError')
     )
     renderCredits()
+    fireEvent.loadedData(screen.getByTestId('credits-background-video'))
     await act(async () => {
       await Promise.resolve()
     })
     expect(screen.getByTestId('credits-background-video')).toHaveAttribute('src')
   })
 
-  it('offers a real gesture when autoplay is blocked, then plays the same video', async () => {
+  it('retries muted autoplay automatically without presenting a Play button', async () => {
     const play = vi
       .spyOn(HTMLMediaElement.prototype, 'play')
       .mockRejectedValueOnce(new DOMException('A gesture is required', 'NotAllowedError'))
       .mockResolvedValue()
     renderCredits()
     const video = screen.getByTestId('credits-background-video')
-    fireEvent.click(await screen.findByRole('button', { name: 'Play credits' }))
+    fireEvent.loadedData(video)
     await act(async () => {
       await Promise.resolve()
     })
+    expect(video).toHaveAttribute('muted')
+    expect(video).toHaveProperty('defaultMuted', true)
     expect(play).toHaveBeenCalledTimes(2)
     expect(screen.getByTestId('credits-background-video')).toBe(video)
     expect(screen.queryByRole('button', { name: 'Play credits' })).toBeNull()
+  })
+
+  it('continues with live credits if the device rejects both automatic attempts', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(
+      new DOMException('Blocked', 'NotAllowedError')
+    )
+    renderCredits()
+    fireEvent.loadedData(screen.getByTestId('credits-background-video'))
+    await waitFor(() => expect(screen.queryByTestId('credits-background-video')).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Play credits' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Skip credits' })).toBeInTheDocument()
   })
 
   it('keeps runtime-loaded credit cards above the video', async () => {
