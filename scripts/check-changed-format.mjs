@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import prettier from 'prettier'
 
 const cwd = process.cwd()
@@ -100,6 +100,19 @@ console.log(`Legacy-format exceptions already dirty at merge base: ${legacyExcep
 for (const file of legacyExceptions) console.log(`  legacy: ${file}`)
 
 if (violations.length > 0) {
+  // Temporary diagnostics for changing-room PR: show exact formatter suggestions.
+  for (const file of violations) {
+    const options = { ...((await prettier.resolveConfig(file)) ?? {}), filepath: file }
+    const expected = await prettier.format(await readFile(file, 'utf8'), options)
+    const temporary = `/tmp/bbm-prettier-${process.pid}-${file.replaceAll('/', '_')}`
+    await writeFile(temporary, expected)
+    const suggestion = spawnSync('diff', ['-u', file, temporary], {
+      cwd,
+      encoding: 'utf8',
+      maxBuffer: 1024 * 1024,
+    })
+    console.error(`PRETTIER DIFF ${file}\n${suggestion.stdout?.slice(0, 50000) ?? ''}`)
+  }
   console.error('Changed-file formatting regressions:')
   for (const file of violations) console.error(`  ${file}`)
   process.exit(1)
