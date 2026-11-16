@@ -26,7 +26,7 @@ export default function WalletDebugControls() {
     <section className="dbg-section" id="dbg-wallet">
       <h3 className="dbg-section__title">QA Wallet Loader</h3>
       <p className="dbg-help">
-        Testing only. Adds Eyeoleans to the active profile and records a wallet transaction.
+        Testing only. Adds Eyeros to the active profile and records a wallet transaction.
       </p>
       <dl className="dbg-grid">
         <dt>Balance</dt>

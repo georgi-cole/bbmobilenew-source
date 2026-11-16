@@ -806,7 +806,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     key: 'hangman',
     title: 'Verdict Board',
     description:
-      'A premium word-survival tournament where Eyeoleans buy information and wrong verdicts crack the window.',
+      'A premium word-survival tournament where Eyeros buy information and wrong verdicts crack the window.',
     instructions: getVerdictBoardRules(),
     resultMode: 'placement',
     metricKind: 'points',

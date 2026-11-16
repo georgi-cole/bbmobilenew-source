@@ -249,10 +249,10 @@ function getOutcomeMessage(player: BigSpenderPlayerState, outcome: BigSpenderWal
   if (outcome.type === 'bomb' && player.isHuman) return 'You opened a bomb.';
   if (outcome.type === 'bomb') return getAiBroadcastLine(player, AI_BOMB_BROADCASTS);
   const amount = outcome.amount ?? 0;
-  if (player.isHuman && kind === 'secondChance' && amount < 0) return `Second Chance Wallet: ${amount} Eyeoleans.`;
-  if (player.isHuman && kind === 'secondChance') return `Second Chance Wallet: +${amount} Eyeoleans.`;
-  if (player.isHuman && amount < 0) return `You opened ${amount} Eyeoleans.`;
-  if (player.isHuman) return `You found +${amount} Eyeoleans.`;
+  if (player.isHuman && kind === 'secondChance' && amount < 0) return `Second Chance Wallet: ${amount} Eyeros.`;
+  if (player.isHuman && kind === 'secondChance') return `Second Chance Wallet: +${amount} Eyeros.`;
+  if (player.isHuman && amount < 0) return `You opened ${amount} Eyeros.`;
+  if (player.isHuman) return `You found +${amount} Eyeros.`;
   return getAiBroadcastLine(player, outcome.type === 'negative' ? AI_NEGATIVE_BROADCASTS : AI_POSITIVE_BROADCASTS);
 }
 

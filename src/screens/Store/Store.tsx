@@ -181,7 +181,7 @@ export default function Store() {
     setEyeoleanError(null)
 
     if (!currentProfile) {
-      setEyeoleanError('Choose a profile to use the Eyeolean Store.')
+      setEyeoleanError('Choose a profile to use the Eyeros Store.')
       return
     }
 
@@ -203,7 +203,7 @@ export default function Store() {
     }
     if (eyeoleanBalance < price) {
       setEyeoleanError(
-        `You need ${(price - eyeoleanBalance).toLocaleString('en-US')} more Eyeoleans.`
+        `You need ${(price - eyeoleanBalance).toLocaleString('en-US')} more Eyeros.`
       )
       return
     }
@@ -307,12 +307,12 @@ export default function Store() {
           </div>
           <div
             className="vip-store__wallet vip-store__wallet-row"
-            aria-label="Eyeolean wallet balance"
+            aria-label="Eyeros wallet balance"
           >
             <span>Wallet</span>
             <span className="vip-store__wallet-balance">
               <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
-              <small>Eyeoleans</small>
+              <small>Eyeros</small>
             </span>
           </div>
 
@@ -382,7 +382,7 @@ export default function Store() {
                       aria-label={
                         nextPrice == null
                           ? `${product.title} season stock exhausted`
-                          : `Buy ${product.title} for ${nextPrice.toLocaleString('en-US')} Eyeoleans`
+                          : `Buy ${product.title} for ${nextPrice.toLocaleString('en-US')} Eyeros`
                       }
                     >
                       {!currentProfile

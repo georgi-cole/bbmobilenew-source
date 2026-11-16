@@ -140,13 +140,13 @@ export default function ConfessionalWallet() {
   }
 
   return (
-    <section className="diary-room__wallet" aria-label="Eyeolean wallet and powers">
+    <section className="diary-room__wallet" aria-label="Eyeros wallet and powers">
       <div className="diary-room__wallet-balance-card">
         <div className="diary-room__wallet-balance-copy">
           <span className="diary-room__wallet-coin" aria-hidden="true" />
           <div className="diary-room__wallet-balance-meta">
             <strong>{balance.toLocaleString('en-US')}</strong>
-            <small>Eyeoleans</small>
+            <small>Eyeros</small>
           </div>
         </div>
         <button

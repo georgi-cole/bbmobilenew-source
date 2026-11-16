@@ -447,7 +447,7 @@ export default function GameOver({
               <div className="gameover-eyeolean-total">
                 <span>Season earned</span>
                 <strong>+{formatEyeoleans(seasonEarnings)}</strong>
-                <small>Eyeoleans</small>
+                <small>Eyeros</small>
               </div>
             </div>
           </div>
@@ -456,7 +456,7 @@ export default function GameOver({
             className={`gameover-carousel__slide${carouselSlide === 2 ? ' gameover-carousel__slide--active' : ''}`}
           >
             <p className="gameover-carousel__heading">
-              {isGuest ? 'Eyeolean Preview' : 'Eyeolean Wallet'}
+              {isGuest ? 'Eyeros Preview' : 'Eyeros Wallet'}
             </p>
             <div className="gameover-eyeolean-wallet">
               <span className="gameover-eyeolean-wallet__eyebrow">
@@ -465,7 +465,7 @@ export default function GameOver({
               <strong className="gameover-eyeolean-wallet__balance">
                 {formatEyeoleans(isGuest ? seasonEarnings : walletBalance)}
               </strong>
-              <span className="gameover-eyeolean-wallet__currency">Eyeoleans</span>
+              <span className="gameover-eyeolean-wallet__currency">Eyeros</span>
 
               <div className="gameover-eyeolean-wallet__season">
                 <span>This season</span>
@@ -474,7 +474,7 @@ export default function GameOver({
 
               <p className="gameover-eyeolean-wallet__copy">
                 {isGuest
-                  ? 'Guest rewards are preview-only. Select or create a profile to bank Eyeoleans across seasons.'
+                  ? 'Guest rewards are preview-only. Select or create a profile to bank Eyeros across seasons.'
                   : 'Saved to this profile across seasons and ready for future Store purchases.'}
               </p>
             </div>

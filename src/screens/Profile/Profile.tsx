@@ -88,7 +88,7 @@ export default function Profile() {
             You are playing as <strong>Guest</strong>
           </p>
           <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
-            Stats, season archives, and Eyeoleans are not saved in guest mode.
+            Stats, season archives, and Eyeros are not saved in guest mode.
           </p>
           <p style={{ margin: '8px 0 0' }}>
             <button
