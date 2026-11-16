@@ -393,8 +393,8 @@ describe('Settings screen', () => {
     if (!(favoritePlayerToggle as HTMLInputElement).checked) {
       fireEvent.click(favoritePlayerToggle)
     }
-    expect(screen.getByText(/award amount — 25000 eyeoleans/i)).toBeTruthy()
-    expect(screen.getByText(/eyeolean prize awarded to the public's favorite player/i)).toBeTruthy()
+    expect(screen.getByText(/award amount — 25000 eyeros/i)).toBeTruthy()
+    expect(screen.getByText(/eyero prize awarded to the public's favorite player/i)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('tab', { name: /about/i }))
 

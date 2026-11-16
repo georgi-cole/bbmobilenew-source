@@ -29,6 +29,7 @@ Own the complete premium collection in one purchase, including every permanent S
 - Cupid's Arrow
 - Vox Populi
 - No automatic ads
+- Every changing-room look
 - Cinematic ceremonies
 
 A permanent, non-consumable purchase. Existing eligible standalone purchases receive 75% credit toward the nearest supported VIP upgrade tier, with a minimum upgrade price.

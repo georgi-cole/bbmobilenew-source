@@ -20,5 +20,9 @@ export function hasAppearanceLookAccess(
   isVip: boolean
 ): boolean {
   if (!SELECTABLE_LOOKS.some((look) => look.id === lookId)) return false
-  return isVip || isFreeAppearanceLook(lookId) || Boolean(profile?.unlockedAppearanceLookIds?.includes(lookId))
+  return (
+    isVip ||
+    isFreeAppearanceLook(lookId) ||
+    Boolean(profile?.unlockedAppearanceLookIds?.includes(lookId))
+  )
 }

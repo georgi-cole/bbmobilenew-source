@@ -1,12 +1,17 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Ref } from 'react'
-import profilesReducer, { createProfile, type ProfilesState } from '../../store/profilesSlice'
+import profilesReducer, {
+  createProfile,
+  debugGrantEyeoleans,
+  type ProfilesState,
+} from '../../store/profilesSlice'
 import DressingRoom from './DressingRoom'
 
 const mockNavigate = vi.fn()
 const mockDispatch = vi.fn()
 let mockReducedMotion = false
+let mockVipActive = false
 let mockProfiles: ProfilesState
 let mockLocationState: Record<string, unknown> = { from: '/' }
 
@@ -16,20 +21,29 @@ vi.mock('react-router', () => ({
 }))
 vi.mock('../../store/hooks', () => ({
   useAppDispatch: () => mockDispatch,
-  useAppSelector: (selector: (state: unknown) => unknown) => selector({ profiles: mockProfiles }),
+  useAppSelector: (selector: (state: unknown) => unknown) =>
+    selector({ profiles: mockProfiles, vip: { isActive: mockVipActive } }),
 }))
 vi.mock('../../appearance/AppearanceCarousel', () => ({
   default: ({
     onConfirm,
+    onSelect,
     figureRef,
     confirmLabel,
+    accessText,
   }: {
     onConfirm: () => void
+    onSelect: (id: string) => void
     figureRef?: Ref<HTMLImageElement>
     confirmLabel?: string
+    accessText?: string
   }) => (
     <>
       <img ref={figureRef} alt="Selected figure" />
+      <button type="button" onClick={() => onSelect('pc-006')}>
+        Preview look 6
+      </button>
+      <span>{accessText}</span>
       <button type="button" onClick={onConfirm}>
         {confirmLabel ?? 'Choose this look'}
       </button>
@@ -72,6 +86,7 @@ describe('Changing room look lock-in', () => {
     mockNavigate.mockReset()
     mockDispatch.mockReset()
     mockReducedMotion = false
+    mockVipActive = false
     mockLocationState = { from: '/' }
     mockProfiles = profilesReducer(
       undefined,
@@ -180,6 +195,67 @@ describe('Changing room look lock-in', () => {
       state: { from: '/', fromLookReveal: true },
     })
     expect(mockDispatch).toHaveBeenCalledTimes(1)
+  })
+
+
+  it('requires funds to unlock a paid look for standard profiles', () => {
+    render(<DressingRoom />)
+    fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
+    expect(screen.getByText('VIP or 30,000 Eyeros')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock · 30,000 Eyeros' }))
+    expect(screen.getByRole('status')).toHaveTextContent('30,000 more Eyeros')
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('confirms a permanent paid unlock before debiting the profile wallet once', () => {
+    mockProfiles = profilesReducer(
+      mockProfiles,
+      debugGrantEyeoleans({ grantId: 'changing-room', amount: 55_000 })
+    )
+    mockDispatch.mockImplementation((action) => {
+      mockProfiles = profilesReducer(mockProfiles, action)
+      return action
+    })
+    const view = render(<DressingRoom />)
+    fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock · 30,000 Eyeros' }))
+    expect(mockDispatch).not.toHaveBeenCalled()
+    expect(screen.getByRole('alertdialog', { name: 'Unlock selected look' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm · 30,000 Eyeros' }))
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'profiles/purchaseAppearanceLook',
+        payload: { lookId: 'pc-006' },
+      })
+    )
+    expect(mockProfiles.profiles[0].eyeoleans).toBe(25_000)
+    view.rerender(<DressingRoom />)
+    expect(screen.getByRole('button', { name: 'Use this look' })).toBeVisible()
+    expect(screen.getByText('Permanently unlocked')).toBeVisible()
+  })
+
+  it('includes all premium looks in VIP without a wallet purchase', () => {
+    mockVipActive = true
+    render(<DressingRoom />)
+    fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
+    expect(screen.getByText('Included with VIP')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Use this look' }))
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'profiles/updateProfile' })
+    )
+    expect(mockDispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'profiles/purchaseAppearanceLook' })
+    )
+  })
+
+  it('does not allow a paid look during free profile creation', () => {
+    mockProfiles = profilesReducer(undefined, { type: 'test/reset' })
+    mockLocationState = { from: '/', createProfile: true }
+    render(<DressingRoom />)
+    fireEvent.click(screen.getByRole('button', { name: 'Preview look 6' }))
+    fireEvent.click(screen.getByRole('button', { name: 'VIP look' }))
+    expect(screen.getByRole('status')).toHaveTextContent('five free looks')
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('uses the Changing room as the first profile-creation step', () => {

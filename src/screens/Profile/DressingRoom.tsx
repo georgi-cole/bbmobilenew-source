@@ -167,6 +167,7 @@ export default function DressingRoom() {
   function confirmUnlock() {
     if (
       !profile ||
+      profile.id !== profileIdAtOpen.current ||
       !pendingUnlockId ||
       pendingUnlockId !== selectedId ||
       !currentLook ||
@@ -245,7 +246,9 @@ export default function DressingRoom() {
           figureRef={figureRef}
         />
         {accessMessage && (
-          <p className="dressing-room__access-message" role="status">{accessMessage}</p>
+          <p className="dressing-room__access-message" role="status">
+            {accessMessage}
+          </p>
         )}
         {!isAvailable && (
           <button

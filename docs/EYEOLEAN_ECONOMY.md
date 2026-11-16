@@ -47,6 +47,10 @@ Guest play can show the season's calculated payout, but does not bank it because
 
 Profiles created before the Eyeros economy keep any already-earned Public Favorite forecast rewards. Existing forecast event IDs are migrated at 5,000 Eyeros per paid event. Legacy XP remains readable for compatibility but is no longer displayed or awarded.
 
+## Changing room cosmetics
+
+Looks 1–5 are free. Looks 6–35 cost 30,000 Eyeros each, unless the player owns VIP, which unlocks all looks. Cosmetic purchases are permanent on the paying profile. Older chosen premium looks remain usable without a new charge.
+
 ## Future Store contract
 
 The profile wallet already supports atomic soft-currency debits, so future Store items can use stable transaction IDs such as:

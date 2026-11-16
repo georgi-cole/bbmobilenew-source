@@ -84,7 +84,9 @@
   color: #d1c5b5;
 }
 
-.dressing-room__wallet strong { color: #f1dba8; }
+.dressing-room__wallet strong {
+  color: #f1dba8;
+}
 
 .dressing-room__access-message {
   color: #f4d9a3;
@@ -157,7 +159,7 @@
   min-height: 45px;
   border: 1px solid rgba(239, 216, 173, 0.58);
   border-radius: 10px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
   color: #f9ead4;
   font: inherit;
   font-size: 0.76rem;
