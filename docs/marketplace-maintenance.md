@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-16: Reviewed VIP ceremony Skip and AI continuation recovery. Media-start
+  claims and broadcast acknowledgements no longer interrupt a committed Safety
+  or replacement sequence; an unexpectedly empty ceremony falls back to the
+  existing native flow. Pending human choices, nomination outcomes, AI rules,
+  rewards, products, prices, entitlements and Store benefits remain unchanged.
+  Existing marketplace copy accurately describes the offer.
+
 - 2026-11-15: Reviewed removal of the separate local advertising opt-in switch.
   Standard adult play now uses existing automatic ad placements without that
   extra gate, including installs whose legacy ads flag is false. Google UMP

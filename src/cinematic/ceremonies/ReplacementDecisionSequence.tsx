@@ -57,6 +57,13 @@ export default function ReplacementDecisionSequence({
     callbacks.current.onRequestDecision()
   }
   useEffect(() => {
+    if (!sequence.active || outcome || !visible) return
+    // An AI handoff normally resolves in the same update. If it cannot, release
+    // to the existing native flow rather than retain an empty blocking shell.
+    const timer = setTimeout(() => callbacks.current.sequence.onError(), 2000)
+    return () => clearTimeout(timer)
+  }, [key, sequence.active, outcome, visible])
+  useEffect(() => {
     if (!sequence.active || !outcome || !target.current) return
     let cancelled = false,
       displayed = false

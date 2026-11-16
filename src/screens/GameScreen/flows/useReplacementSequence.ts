@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useStore } from 'react-redux'
+import type { Store } from '@reduxjs/toolkit'
 import { advance, aiReplacementRendered } from '../../../store/gameSlice'
 import type { RootState } from '../../../store/store'
 import type { GameState } from '../../../types'
 import { usePersistedGameScreenKey } from '../gameScreenPersistence'
 import { getReplacementProgress } from '../../../cinematic/ceremonies/replacementPresentationMiddleware'
-import { selectReplacementPresentation } from '../../../cinematic/ceremonies/replacementPresentation'
+import {
+  selectReplacementPresentation,
+  type ReplacementPresentation,
+} from '../../../cinematic/ceremonies/replacementPresentation'
 import {
   canAdvanceReplacementStep,
   nextReplacementStep,
@@ -17,6 +21,34 @@ import {
   authorityIds,
   replacementDuration,
 } from '../../../cinematic/ceremonies/replacement-timing.js'
+
+function continueAiReplacementStep(
+  store: Store<RootState>,
+  game: GameState,
+  expectedProgress: ReplacementPresentation | null
+) {
+  const current = store.getState().game
+  const currentProgress = getReplacementProgress(current)
+  // Media-start claims and broadcast acknowledgements can replace the game
+  // object without changing this ceremony. Guard its receipt and pending step
+  // instead: object identity can leave an empty ceremony waiting forever.
+  if (
+    current.gameId !== game.gameId ||
+    current.season !== game.season ||
+    current.week !== game.week ||
+    current.phase !== game.phase ||
+    current.aiReplacementStep !== game.aiReplacementStep ||
+    current.aiReplacementWaiting !== game.aiReplacementWaiting ||
+    currentProgress?.eventKey !== expectedProgress?.eventKey ||
+    currentProgress?.sequenceKey !== expectedProgress?.sequenceKey ||
+    !canAdvanceReplacementStep(current)
+  )
+    return
+  // Preserve the reducer's normal staged progression and RNG behavior.
+  if (current.aiReplacementStep === 2 && current.aiReplacementWaiting)
+    store.dispatch(aiReplacementRendered())
+  store.dispatch(advance())
+}
 
 export function useReplacementSequence(game: GameState, enabled: boolean) {
   const store = useStore<RootState>()
@@ -83,7 +115,7 @@ export function useReplacementSequence(game: GameState, enabled: boolean) {
           ? authorityIds(playing.outcome, last).join('|')
           : ''
       )
-    }
+    } else if (aiStep && !delegatedAmbush) continueAiReplacementStep(store, game, tracked)
   }
   const onError = useCallback(() => setFailure(scope), [scope, setFailure])
   useEffect(() => {
@@ -93,14 +125,8 @@ export function useReplacementSequence(game: GameState, enabled: boolean) {
       setReceipt(String(tracked.actionHistory.length))
   }, [enabled, tracked, consumed, setReceipt])
   useEffect(() => {
-    if (!aiStep || delegatedAmbush) return
-    const current = store.getState().game
-    if (current !== game || !canAdvanceReplacementStep(current)) return
-    // Preserve the reducer's normal staged progression and RNG behavior.
-    if (current.aiReplacementStep === 2 && current.aiReplacementWaiting)
-      store.dispatch(aiReplacementRendered())
-    store.dispatch(advance())
-  }, [aiStep, delegatedAmbush, game, store])
+    if (aiStep && !delegatedAmbush) continueAiReplacementStep(store, game, tracked)
+  }, [aiStep, delegatedAmbush, game, store, tracked])
   const held =
     active && !playing && decision && progress
       ? {
