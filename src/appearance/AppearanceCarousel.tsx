@@ -13,6 +13,7 @@ interface AppearanceCarouselProps {
   onSelect: (lookId: string) => void
   onConfirm?: () => void
   confirmLabel?: string
+  accessText?: string
   figureRef?: Ref<HTMLImageElement>
 }
 
@@ -32,6 +33,7 @@ export default function AppearanceCarousel({
   onSelect,
   onConfirm,
   confirmLabel = 'Choose this look',
+  accessText,
   figureRef,
 }: AppearanceCarouselProps) {
   const reducedMotion = useReducedMotion()
@@ -127,6 +129,7 @@ export default function AppearanceCarousel({
       </div>
       <div className="appearance-carousel__caption" aria-live="polite">
         <strong>{current.label}</strong>
+        {accessText && <span className="appearance-carousel__access">{accessText}</span>}
       </div>
       {onConfirm && (
         <button type="button" className="appearance-carousel__confirm" onClick={onConfirm}>

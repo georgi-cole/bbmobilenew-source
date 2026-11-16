@@ -46,6 +46,8 @@ import ProfilePhotoPreview from '../../components/ProfilePhotoPreview/ProfilePho
 import AppearanceCarousel from '../../appearance/AppearanceCarousel'
 import { warmSelectedAppearance } from '../../appearance/preloadAppearance'
 import { getAppearanceLook, SELECTABLE_LOOKS } from '../../appearance/catalog'
+import { hasAppearanceLookAccess } from '../../appearance/lookAccess'
+import { selectIsVipActive } from '../../store/vipSlice'
 import { gameWithInitialProfileAppearance } from '../../appearance/initialSeasonAppearance'
 import { isPlayerSignInConfigured } from '../../services/backend/config'
 import {
@@ -88,6 +90,7 @@ export default function ProfilePicker() {
   const profiles = useAppSelector(selectAllProfiles)
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const isGuest = useAppSelector(selectIsGuest)
+  const isVip = useAppSelector(selectIsVipActive)
   const autoSelectingSingle =
     (location.state as { autoSelectSingle?: boolean } | null)?.autoSelectSingle === true &&
     profiles.length === 1
@@ -379,7 +382,7 @@ export default function ProfilePicker() {
     )
       return
     const selectedLook = getAppearanceLook(newLookId, 1)
-    if (!selectedLook?.selectable) return
+    if (!selectedLook?.selectable || !hasAppearanceLookAccess(selectedLook.id, null, isVip)) return
     creatingRef.current = true
     setSavingProfile(true)
     const profileIdAtSave = activeProfileId
@@ -728,7 +731,15 @@ export default function ProfilePicker() {
                     <AppearanceCarousel
                       selectedId={newLookId}
                       onSelect={setNewLookId}
-                      onConfirm={() => setCreateStep('details')}
+                      onConfirm={() => {
+                        if (hasAppearanceLookAccess(newLookId, null, isVip)) setCreateStep('details')
+                      }}
+                      confirmLabel={hasAppearanceLookAccess(newLookId, null, isVip)
+                        ? 'Choose this look'
+                        : 'VIP look'}
+                      accessText={hasAppearanceLookAccess(newLookId, null, isVip)
+                        ? 'Included'
+                        : 'VIP exclusive during profile creation'}
                     />
                     <button
                       type="button"

@@ -335,6 +335,10 @@ export const VIP_BENEFIT_DETAILS = [
     detail: product.shortTagline,
   })),
   {
+    title: 'Every changing-room look',
+    detail: 'All 35 player looks, including the 30 premium looks, are unlocked with VIP.',
+  },
+  {
     title: 'Cinematic ceremonies',
     detail:
       'Exclusive ceremony films and themed shock reveals in Classic, Cupid’s Arrow and Vox Populi. On mobile, download the optional cinematic pack once to use it offline, or keep Standard. Switch styles or manage the download in Settings. Survival keeps its fast standard presentation.',

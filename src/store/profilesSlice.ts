@@ -18,6 +18,7 @@ import {
   type AppearanceSelection,
 } from '../appearance/catalog'
 import { coerceContestantDefaults, type SeasonContestant } from '../appearance/seasonContestant'
+import { APPEARANCE_LOOK_PRICE_EYEROS, isPaidAppearanceLook } from '../appearance/lookAccess'
 import { PUBLIC_FAVORITE_FORECAST_EYEOLEANS, type EyeoleanRewardLine } from '../economy/eyeoleans'
 import {
   EYEOLEAN_STORE_PRODUCT_KEYS,
@@ -145,6 +146,8 @@ export interface StoredProfile {
   appearanceSelection?: AppearanceSelection
   /** First chosen look, retained when repairing an adopted guest's unselected silhouette. */
   initialAppearanceSelection?: AppearanceSelection
+  /** Permanently unlocked premium looks purchased with the profile wallet. */
+  unlockedAppearanceLookIds?: string[]
   /** Extended biography fields. */
   bio?: ProfileBio
   /** Optional next-season choice; existing saves own independent snapshots. */
@@ -438,6 +441,22 @@ export function coerceStoredProfile(raw: unknown): StoredProfile | null {
   const initialAppearance = coerceAppearanceSelection(
     r.initialAppearanceSelection ?? r.appearanceSelection
   )
+  const currentAppearance = coerceAppearanceSelection(r.appearanceSelection)
+  // All looks were once free. Permanently grandfather the looks already chosen
+  // by a saved profile instead of unexpectedly charging its owner on upgrade.
+  const unlockedAppearanceLookIds = new Set<string>(
+    Array.isArray(r.unlockedAppearanceLookIds)
+      ? r.unlockedAppearanceLookIds.filter(
+          (lookId): lookId is string =>
+            typeof lookId === 'string' && isPaidAppearanceLook(lookId)
+        )
+      : []
+  )
+  for (const appearance of [initialAppearance, currentAppearance]) {
+    if (appearance.kind === 'catalog' && isPaidAppearanceLook(appearance.lookId)) {
+      unlockedAppearanceLookIds.add(appearance.lookId)
+    }
+  }
 
   return {
     id: r.id,
@@ -451,7 +470,8 @@ export function coerceStoredProfile(raw: unknown): StoredProfile | null {
     name: typeof r.name === 'string' && r.name.trim() ? r.name.trim() : 'You',
     avatar: typeof r.avatar === 'string' && r.avatar ? r.avatar : '👤',
     photoId: typeof r.photoId === 'string' && r.photoId ? r.photoId : undefined,
-    appearanceSelection: coerceAppearanceSelection(r.appearanceSelection),
+    appearanceSelection: currentAppearance,
+    unlockedAppearanceLookIds: [...unlockedAppearanceLookIds],
     ...(initialAppearance.kind === 'catalog'
       ? { initialAppearanceSelection: initialAppearance }
       : {}),
@@ -640,6 +660,7 @@ const profilesSlice = createSlice({
         createdAt: new Date().toISOString(),
         bio: action.payload.bio,
         eyeoleans: 0,
+        unlockedAppearanceLookIds: [],
         eyeoleanTransactions: [],
         eyeoleanInventory: {},
         eyeoleanPowerReservations: {},
@@ -713,6 +734,12 @@ const profilesSlice = createSlice({
           existing.avatar = profile.avatar
           existing.appearanceSelection = profile.appearanceSelection
           existing.initialAppearanceSelection = profile.initialAppearanceSelection
+          existing.unlockedAppearanceLookIds = [
+            ...new Set([
+              ...(existing.unlockedAppearanceLookIds ?? []),
+              ...(profile.unlockedAppearanceLookIds ?? []),
+            ]),
+          ]
           existing.bio = profile.bio
           existing.createdAt = profile.createdAt
           continue
@@ -899,6 +926,34 @@ const profilesSlice = createSlice({
         })
       ) {
         profile.eyeoleans = balance - amount
+      }
+    },
+
+    /**
+     * Permanently unlock one premium look using the profile's Eyeros wallet.
+     * The catalog price and transaction ID are resolved here: callers cannot
+     * choose a cheaper price, buy an invalid look, or pay for the same look twice.
+     */
+    purchaseAppearanceLook(state, action: PayloadAction<{ lookId: string }>) {
+      if (state.isGuest) return
+      const profile = state.profiles.find((entry) => entry.id === state.activeProfileId)
+      const { lookId } = action.payload
+      if (!profile || !isPaidAppearanceLook(lookId)) return
+      if (profile.unlockedAppearanceLookIds?.includes(lookId)) return
+
+      const balance = Math.max(0, Math.floor(profile.eyeoleans ?? 0))
+      if (!Number.isFinite(balance) || balance < APPEARANCE_LOOK_PRICE_EYEROS) return
+      if (!appendEyeoleanTransaction(profile, {
+        id: `appearance:unlock:${profile.id}:${lookId}`,
+        amount: -APPEARANCE_LOOK_PRICE_EYEROS,
+        source: 'store_purchase',
+        label: `Look ${Number(lookId.slice(-3))} unlock`,
+        createdAt: new Date().toISOString(),
+      })) return
+      profile.eyeoleans = balance - APPEARANCE_LOOK_PRICE_EYEROS
+      profile.unlockedAppearanceLookIds = [...(profile.unlockedAppearanceLookIds ?? []), lookId]
+      if (profile.playerAccountId) {
+        profile.accountProfileUpdatedAt = nextAccountProfileTimestamp(profile)
       }
     },
 
@@ -1165,6 +1220,7 @@ export const {
   recordBellaCompatibleClassicCompleted,
   settleSeasonEyeoleans,
   spendEyeoleans,
+  purchaseAppearanceLook,
   debugGrantEyeoleans,
   purchaseEyeoleanStoreProduct,
   armEyeoleanStorePower,
