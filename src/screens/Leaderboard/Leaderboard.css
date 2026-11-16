@@ -469,3 +469,26 @@
     gap: 8px;
   }
 }
+
+/* Vertical history stays readable without allowing the entire screen to pan. */
+.placeholder-screen.hall-of-fame-screen {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+}
+.hall-of-fame-screen *,
+.hall-of-fame-screen *::before,
+.hall-of-fame-screen *::after {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.hall-of-fame-screen > * {
+  max-width: 100%;
+}
