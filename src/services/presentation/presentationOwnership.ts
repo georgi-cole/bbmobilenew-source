@@ -123,13 +123,17 @@ export function getPresentationOwner(): PresentationOwnerSnapshot | null {
   return ownerSnapshot
 }
 
+export function usePresentationOwnerSnapshot(): PresentationOwnerSnapshot | null {
+  return useSyncExternalStore(subscribe, getOwnerSnapshot, getServerOwnerSnapshot)
+}
+
 export function usePresentationOwner(
   groupId: string,
   priority: number,
   enabled = true
 ): { isOwner: boolean; isSuspended: boolean; hasOwner: boolean } {
   const token = useMemo(() => createPresentationOwnerToken(), [])
-  const owner = useSyncExternalStore(subscribe, getOwnerSnapshot, getServerOwnerSnapshot)
+  const owner = usePresentationOwnerSnapshot()
 
   useLayoutEffect(() => {
     if (!enabled) return undefined

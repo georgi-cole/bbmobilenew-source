@@ -1,5 +1,23 @@
-import type { Phase, PresentationEventClaim, TvEvent } from '../types'
+import type { GameState, Phase, PresentationEventClaim, TvEvent } from '../types'
 import { isVisibleOnTv } from '../services/activityService'
+
+/** An executed Ambush belongs to its Safety results, including after a resume. */
+export function selectPendingAmbushBroadcast(
+  game: Pick<GameState, 'gameId' | 'phase' | 'week' | 'tvFeed' | 'lohNominationPlan'>
+): TvEvent | undefined {
+  const plan = game.lohNominationPlan
+  if (game.phase !== 'pos_ceremony_results' || plan?.week !== game.week || !plan.revealed)
+    return undefined
+  const id = `backdoor:${game.gameId}:${game.week}:${plan.targetId}`
+  return game.tvFeed.find(
+    (event) =>
+      event.id === id &&
+      event.meta?.phase === game.phase &&
+      event.meta?.week === game.week &&
+      event.meta.broadcastConsumed !== true &&
+      isVisibleOnTv(event)
+  )
+}
 
 /** Completion, rather than a media-start claim, owns durable stream progress. */
 export function isPendingDetoxEvent(

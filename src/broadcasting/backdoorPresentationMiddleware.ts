@@ -1,28 +1,22 @@
 import { requestAmbush } from '../cinematic/ceremonies/runtime.mjs'
 import type { Middleware } from '@reduxjs/toolkit'
-
-type BackdoorPlanSnapshot = {
-  week: number
-  targetId: string
-  revealed?: boolean
-} | null
-
-type LohSocialPlanSnapshot = {
-  week: number
-  lohId: string
-  currentTargetId: string | null
-  backupTargetId: string | null
-  disclosedTargetByPlayerId?: Record<string, string>
-} | null
+import type { GameState } from '../types'
+import { getPresentationOwner } from '../services/presentation/presentationOwnership'
+import { selectPendingAmbushBroadcast } from './fauxTvPresentation'
 
 type BackdoorPresentationState = {
-  game: {
-    week: number
-    lohId: string | null
-    players?: Array<{ id: string; name: string; isUser?: boolean }>
-    lohNominationPlan?: BackdoorPlanSnapshot
-    lohSocialPlan?: LohSocialPlanSnapshot
-  }
+  game: Pick<
+    GameState,
+    | 'gameId'
+    | 'week'
+    | 'phase'
+    | 'lohId'
+    | 'players'
+    | 'tvFeed'
+    | 'activeBroadcastEventId'
+    | 'lohNominationPlan'
+    | 'lohSocialPlan'
+  >
 }
 
 const BACKDOOR_EFFECT_MS = 1800
@@ -102,8 +96,7 @@ function canonicalizeLohTargetLog(action: unknown, state: BackdoorPresentationSt
   }
 }
 
-function playBackdoorFauxTvEffect(skipPremium = false): void {
-  if (!skipPremium && requestAmbush(() => playBackdoorFauxTvEffect(true))) return
+function playBackdoorFauxTvEffect(): void {
   if (typeof document === 'undefined' || typeof window === 'undefined') return
 
   const zone = document.querySelector<HTMLElement>('.tv-zone')
@@ -231,12 +224,10 @@ function playBackdoorFauxTvEffect(skipPremium = false): void {
 }
 
 /**
- * The replacement nominee ceremony owns the screen first. A backdoor can be
- * revealed by Redux before React has finished mounting/unmounting that overlay,
- * so wait through the next paint and any active ceremony before starting the
- * Faux TV shake. The short settle delay also lets the dim layer fully disappear.
+ * Let the outgoing replacement spotlight finish its exit before accenting the
+ * visible Ambush card. The callback stays scoped to that specific broadcast.
  */
-function scheduleBackdoorFauxTvEffect(): void {
+function scheduleBackdoorFauxTvEffect(isCurrent: () => boolean): void {
   if (typeof document === 'undefined' || typeof window === 'undefined') return
 
   pendingCeremonyCleanup?.()
@@ -255,7 +246,7 @@ function scheduleBackdoorFauxTvEffect(): void {
   }
 
   const watchForCeremonyClear = () => {
-    if (cancelled) return
+    if (cancelled || !isCurrent()) return
     if (
       !document.querySelector(
         '.ceremony-overlay, .winner-tile-lift, .seo, [data-cinematic-active="true"]'
@@ -265,7 +256,7 @@ function scheduleBackdoorFauxTvEffect(): void {
       observer = null
       if (settleTimer !== null) window.clearTimeout(settleTimer)
       settleTimer = window.setTimeout(() => {
-        if (cancelled) return
+        if (cancelled || !isCurrent()) return
         if (
           document.querySelector(
             '.ceremony-overlay, .winner-tile-lift, .seo, [data-cinematic-active="true"]'
@@ -275,7 +266,7 @@ function scheduleBackdoorFauxTvEffect(): void {
           return
         }
         pendingCeremonyCleanup = null
-        playBackdoorFauxTvEffect()
+        if (getPresentationOwner()?.groupId === 'tv-announcement') playBackdoorFauxTvEffect()
       }, CEREMONY_CLEAR_SETTLE_MS)
       return
     }
@@ -307,23 +298,37 @@ function scheduleBackdoorFauxTvEffect(): void {
  */
 export const backdoorPresentationMiddleware: Middleware = (api) => (next) => (action) => {
   const stateBefore = api.getState() as BackdoorPresentationState
-  const before = stateBefore.game.lohNominationPlan ?? null
   const forwardedAction = canonicalizeLohTargetLog(action, stateBefore)
   const result = next(forwardedAction)
-  const after = (api.getState() as BackdoorPresentationState).game.lohNominationPlan ?? null
+  const after = (api.getState() as BackdoorPresentationState).game
   const actionType =
     typeof forwardedAction === 'object' && forwardedAction !== null && 'type' in forwardedAction
       ? String((forwardedAction as { type: unknown }).type)
       : ''
 
-  const newlyRevealed =
-    actionType === 'game/advance' &&
-    before?.revealed !== true &&
-    after?.revealed === true &&
-    before?.week === after.week &&
-    before?.targetId === after.targetId
-
-  if (newlyRevealed) scheduleBackdoorFauxTvEffect()
+  if (after.activeBroadcastEventId !== stateBefore.game.activeBroadcastEventId) {
+    pendingCeremonyCleanup?.()
+    activeCleanup?.()
+    const ambush =
+      actionType === 'game/claimActiveBroadcastEvent' && selectPendingAmbushBroadcast(after)
+    if (ambush && after.activeBroadcastEventId === ambush.id) {
+      const isCurrent = () => {
+        const current = (api.getState() as BackdoorPresentationState).game
+        return (
+          current.activeBroadcastEventId === ambush.id &&
+          selectPendingAmbushBroadcast(current)?.id === ambush.id
+        )
+      }
+      // TvZone claims this card in its layout handoff. Offer the VIP film
+      // before the browser paints it, then accent that same card on return.
+      if (
+        !requestAmbush(() => {
+          if (isCurrent()) playBackdoorFauxTvEffect()
+        })
+      )
+        scheduleBackdoorFauxTvEffect(isCurrent)
+    }
+  }
 
   return result
 }

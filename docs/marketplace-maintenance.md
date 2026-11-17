@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-18: Reviewed the Ambush reveal handoff. Standard and VIP both receive
+  the ordered Safety result and Ambush broadcast. VIP keeps the existing film,
+  skip and live fallback with the existing access rules. The current marketplace
+  copy accurately describes the offer.
+
 - 2026-11-17: Reviewed the Safety Confessional handoff. Standard ceremonies let
   players resume in the Hub after sealing their save target. The review confirmed
   that VIP ceremony playback, its existing access rules, and marketplace
