@@ -208,3 +208,65 @@ describe('competition result ceremony handoff', () => {
     }
   )
 })
+
+it.each([1, 2, 3] as const)(
+  'commits Final Three Part %s only after its ident and only once',
+  (part) => {
+    const fixture = structuredClone(baseline.getState())
+    const game = createInitialGameState({ seed: 44391 })
+    game.players = game.players
+      .slice(0, 3)
+      .map((player, index) => ({ ...player, isUser: index === 0, status: 'active' as const }))
+    game.phase = `final3_comp${part}_minigame`
+    const ids = game.players.map((player) => player.id)
+    game.minigameContext = { participants: ids, seed: 44391, phaseKey: `final3_comp${part}` }
+    const pending = {
+      id: `finale-ident-${part}`,
+      game: getGame('quickTap')!,
+      seed: 44391,
+      participants: ids,
+      phase: 'results' as const,
+      aiScores: { [ids[1]]: 100, [ids[2]]: 50 },
+      prizeType: 'LOH' as const,
+      origin: { gameId: game.gameId, week: game.week, phase: game.phase },
+    }
+    const initial: RootState = { ...fixture, game, challenge: { ...fixture.challenge, pending } }
+    const store = configureStore({
+      reducer: (state = initial, action) => ({
+        ...state,
+        game: gameReducer(state.game, action),
+        challenge: challengeReducer(state.challenge, action),
+      }),
+      middleware: (get) => get({ serializableCheck: false, immutableCheck: false }),
+    })
+    const { result } = renderHook(
+      () =>
+        useCompetitionFlow({
+          game: store.getState().game,
+          humanPlayer: game.players[0],
+          aliveIds: ids,
+          hohCompParticipants: ids,
+          humanIsOutgoingHoh: false,
+          spectatorReactEnabled: false,
+          spectatorMode: false,
+          dispatch: store.dispatch,
+        }),
+      {
+        wrapper: ({ children }: { children: React.ReactNode }) => (
+          <Provider store={store}>{children}</Provider>
+        ),
+      }
+    )
+    act(() => result.current.handleChallengeDone(0, false))
+    expect(result.current.pendingFinalThreeTransition?.runId).toBe(pending.id)
+    expect(store.getState().game.phase).toBe(`final3_comp${part}_minigame`)
+    const done = result.current.handleFinalThreeTransitionDone
+    act(() => done())
+    expect(store.getState().challenge.pending).toBeNull()
+    expect(store.getState().game.phase).not.toBe(`final3_comp${part}_minigame`)
+    const committedGame = store.getState().game
+    act(() => done())
+    expect(store.getState().challenge.pending).toBeNull()
+    expect(store.getState().game).toBe(committedGame)
+  }
+)

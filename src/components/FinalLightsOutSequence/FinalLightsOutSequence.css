@@ -25,13 +25,27 @@
   opacity: 0;
   transition: opacity 1.2s ease;
 }
-.flo-stage-0 .flo-bg-overlay { opacity: 0; }
-.flo-stage-1 .flo-bg-overlay { opacity: 0.25; }
-.flo-stage-2 .flo-bg-overlay { opacity: 0.45; }
-.flo-stage-3 .flo-bg-overlay { opacity: 0.65; }
-.flo-stage-4 .flo-bg-overlay { opacity: 0.82; }
-.flo-stage-5 .flo-bg-overlay { opacity: 0.96; }
-.flo-stage-6 .flo-bg-overlay { opacity: 1; }
+.flo-stage-0 .flo-bg-overlay {
+  opacity: 0;
+}
+.flo-stage-1 .flo-bg-overlay {
+  opacity: 0.25;
+}
+.flo-stage-2 .flo-bg-overlay {
+  opacity: 0.45;
+}
+.flo-stage-3 .flo-bg-overlay {
+  opacity: 0.65;
+}
+.flo-stage-4 .flo-bg-overlay {
+  opacity: 0.82;
+}
+.flo-stage-5 .flo-bg-overlay {
+  opacity: 0.96;
+}
+.flo-stage-6 .flo-bg-overlay {
+  opacity: 1;
+}
 
 /* ── Light rails — left and right vertical columns of glowing lights ── */
 .flo-light-rail {
@@ -46,8 +60,12 @@
   z-index: 2;
   pointer-events: none;
 }
-.flo-light-rail--left  { left: 0; }
-.flo-light-rail--right { right: 0; }
+.flo-light-rail--left {
+  left: 0;
+}
+.flo-light-rail--right {
+  right: 0;
+}
 
 /* ── A single row of two lights (mirroring the physical house lighting) ── */
 .flo-light-row {
@@ -62,11 +80,26 @@
   animation: flo-light-off 0.7s ease forwards;
 }
 @keyframes flo-light-off {
-  0%   { opacity: 1; filter: brightness(1); }
-  20%  { opacity: 0.6; filter: brightness(0.5); }
-  35%  { opacity: 1; filter: brightness(0.9); }
-  60%  { opacity: 0.3; filter: brightness(0.2); }
-  100% { opacity: 0; filter: brightness(0); }
+  0% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+  20% {
+    opacity: 0.6;
+    filter: brightness(0.5);
+  }
+  35% {
+    opacity: 1;
+    filter: brightness(0.9);
+  }
+  60% {
+    opacity: 0.3;
+    filter: brightness(0.2);
+  }
+  100% {
+    opacity: 0;
+    filter: brightness(0);
+  }
 }
 
 /* ── Individual light dot ── */
@@ -81,11 +114,20 @@
     0 0 14px 4px rgba(255, 180, 40, 0.45);
   animation: flo-light-warm 2.5s ease-in-out infinite;
 }
-.flo-light--b { animation-delay: 0.4s; }
-.flo-light-row--off .flo-light { animation: none; }
+.flo-light--b {
+  animation-delay: 0.4s;
+}
+.flo-light-row--off .flo-light {
+  animation: none;
+}
 @keyframes flo-light-warm {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.75; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.75;
+  }
 }
 
 /* ── Main TV screen area — aligns to the existing TvZone viewport ─────────── */
@@ -94,7 +136,11 @@
   position: fixed;
   z-index: 3;
   overflow: hidden;
-  transition: background 1.4s ease, box-shadow 1.4s ease, filter 1.4s ease, opacity 1.4s ease;
+  transition:
+    background 1.4s ease,
+    box-shadow 1.4s ease,
+    filter 1.4s ease,
+    opacity 1.4s ease;
 }
 
 .flo-tv-shell {
@@ -159,8 +205,7 @@
 .flo-tv-frame--active {
   background:
     radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 26%),
-    linear-gradient(180deg, rgba(16, 16, 18, 0.96), rgba(4, 4, 6, 0.99)),
-    #010101;
+    linear-gradient(180deg, rgba(16, 16, 18, 0.96), rgba(4, 4, 6, 0.99)), #010101;
   box-shadow:
     0 0 20px rgba(0, 0, 0, 0.38),
     inset 0 0 24px rgba(0, 0, 0, 0.55),
@@ -172,8 +217,18 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(134deg, rgba(255, 255, 255, 0.1) 0%, rgba(180, 205, 255, 0.06) 16%, rgba(255, 255, 255, 0) 42%),
-    radial-gradient(ellipse at 18% 10%, rgba(255, 255, 255, 0.08) 0%, rgba(180, 205, 255, 0.04) 28%, rgba(255, 255, 255, 0) 65%);
+    linear-gradient(
+      134deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(180, 205, 255, 0.06) 16%,
+      rgba(255, 255, 255, 0) 42%
+    ),
+    radial-gradient(
+      ellipse at 18% 10%,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(180, 205, 255, 0.04) 28%,
+      rgba(255, 255, 255, 0) 65%
+    );
   clip-path: ellipse(44% 30% at 18% 12%);
   filter: blur(2px);
   opacity: 0.95;
@@ -237,8 +292,14 @@
   transition: opacity 0.5s ease;
 }
 @keyframes flo-tv-content-in {
-  from { opacity: 0; transform: scale(0.92); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .flo-tv-logo {
@@ -259,8 +320,13 @@
 }
 
 @keyframes flo-logo-pulse {
-  0%, 100% { filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.18)); }
-  50%       { filter: drop-shadow(0 0 24px rgba(255, 255, 255, 0.28)); }
+  0%,
+  100% {
+    filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.18));
+  }
+  50% {
+    filter: drop-shadow(0 0 24px rgba(255, 255, 255, 0.28));
+  }
 }
 
 .flo-tv-message {
@@ -289,10 +355,26 @@
 }
 
 @keyframes flo-tv-power-down {
-  0% { opacity: 1; transform: scale(1); filter: brightness(1); }
-  52% { opacity: 1; transform: scaleX(1) scaleY(0.018); filter: brightness(5); }
-  76% { opacity: 1; transform: scaleX(0.14) scaleY(0.018); filter: brightness(7); }
-  100% { opacity: 0; transform: scale(0.01); filter: brightness(0); }
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  52% {
+    opacity: 1;
+    transform: scaleX(1) scaleY(0.018);
+    filter: brightness(5);
+  }
+  76% {
+    opacity: 1;
+    transform: scaleX(0.14) scaleY(0.018);
+    filter: brightness(7);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.01);
+    filter: brightness(0);
+  }
 }
 
 /* ── Final blackout ── */
@@ -304,8 +386,12 @@
   animation: flo-final-black-in 1.4s ease forwards;
 }
 @keyframes flo-final-black-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ── Reduced motion ── */
@@ -321,10 +407,65 @@
     animation: none;
     transition: none;
   }
-  .flo-light-row--off { opacity: 0; }
-  .flo-tv-frame--off  {
+  .flo-light-row--off {
+    opacity: 0;
+  }
+  .flo-tv-frame--off {
     opacity: 1 !important;
   }
-  .flo-tv-frame--off .flo-tv-screen-inner { opacity: 0; }
-  .flo-tv-content     { opacity: 1; }
+  .flo-tv-frame--off .flo-tv-screen-inner {
+    opacity: 0;
+  }
+  .flo-tv-content {
+    opacity: 1;
+  }
+}
+
+/* Fade the existing set around a warm broadcast farewell, within its measured glass. */
+.flo-tv-shell--active {
+  background: transparent;
+  box-shadow: none;
+}
+.flo-tv-shell--active::before {
+  display: none;
+}
+.flo-tv-frame--active {
+  border-radius: 0;
+  background:
+    radial-gradient(ellipse at 25% 0%, #55537566, transparent 64%),
+    radial-gradient(ellipse at 72% 95%, #72542422, transparent 65%),
+    linear-gradient(165deg, #222033, #121222 70%, #151120);
+  box-shadow: inset 0 0 32px #09071844;
+}
+.flo-tv-frame--active::before {
+  opacity: 0.28;
+}
+.flo-tv-screen-inner {
+  min-height: 0;
+}
+.flo-tv-content {
+  gap: clamp(0.25rem, 1.4vh, 0.65rem);
+  padding: 0.65rem;
+}
+.flo-tv-logo {
+  width: clamp(2.2rem, 16%, 3.6rem);
+  max-height: 34%;
+}
+.flo-tv-logo-image {
+  max-height: 100%;
+  filter: drop-shadow(0 0 12px #deb77044);
+}
+.flo-tv-message {
+  font-size: clamp(0.85rem, 3.4vw, 1.2rem);
+  font-weight: 600;
+  color: #f4e8d5;
+  text-shadow: 0 2px 10px #09071888;
+}
+.flo-tv-message span:last-child {
+  color: #dbc492;
+  font-size: 0.86em;
+  font-weight: 500;
+}
+.flo-tv-frame--off {
+  background: #080711;
 }

@@ -62,7 +62,8 @@ export function PremiumBridge({
     [handover, setHandover] = useState(!wantsClip),
     [preparing, setPreparing] = useState(false),
     [entryCover, setEntryCover] = useState(() => wantsClip && ceremonyQueue.counts.active === 0),
-    [finished, setFinished] = useState(false)
+    [finished, setFinished] = useState(false),
+    [closingBrand, setClosingBrand] = useState(false)
   const globalPriority =
     scene === 'shock'
       ? PRESENTATION_PRIORITY.broadcastShock
@@ -223,6 +224,9 @@ export function PremiumBridge({
             shockType,
             {
               matchHandoff: true,
+              onClosingBrand: () => {
+                if (!current.cancelled) setClosingBrand(true)
+              },
               origin: (() => {
                 const id = state.game.nomineeIds?.[0]
                 return id
@@ -426,7 +430,9 @@ export function PremiumBridge({
                   <PreludeEye />
                 </div>
               )}
-              <CinematicSkipButton ref={skipButton} ariaLabel="Skip cinematic" onClick={skip} />
+              {!closingBrand && (
+                <CinematicSkipButton ref={skipButton} ariaLabel="Skip cinematic" onClick={skip} />
+              )}
             </div>,
             document.body
           )

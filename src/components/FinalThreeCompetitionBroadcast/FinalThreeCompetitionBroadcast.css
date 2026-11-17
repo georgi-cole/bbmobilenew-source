@@ -1300,3 +1300,12 @@
     transition: none !important;
   }
 }
+
+/* Station ident sits below the left network name, clear of the monitor and controls. */
+.f3-broadcast__eye {
+  top: 10.5%;
+  left: 8%;
+  width: 13%;
+  height: 8.5%;
+  transform: none;
+}

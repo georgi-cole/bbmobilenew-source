@@ -225,7 +225,10 @@ export default function FloatingActionBar({
   )
   const canPersistActiveRun = !isGuest && Boolean(activeProfileId) && weekend?.debug !== true
   const weekendSocialActive =
-    weekend?.active === true && !reunionDepartureInProgress && isWeekendSocialAvailable(weekend)
+    canUseSocialModules &&
+    weekend?.active === true &&
+    !reunionDepartureInProgress &&
+    isWeekendSocialAvailable(weekend)
   const weekendSocialSpotlightKey = weekendSocialActive
     ? `${game.gameId ?? game.season}:${weekend.weekendNumber ?? weekend.afterDay}:${weekend.afterDay}`
     : null
@@ -247,6 +250,10 @@ export default function FloatingActionBar({
     // Re-arm Play for the next press so that the staged save can be committed.
     game.missionPowers?.safetyIntent?.id ?? 'no-staged-safety',
     game.specialVeto?.vipUseStage ?? 0,
+    game.democracia?.round ?? 0,
+    game.democracia?.resultDisplay ? 'ballot-result' : 'ballot-ready',
+    game.democracia?.awaitingHumanVote ? 'human-ballot' : 'ballots-cast',
+    game.democracia?.awaitingPublicBreaker ? 'public-breaker' : 'no-public-breaker',
     game.voxPopuli?.finalThreePacingSeen?.join(',') ?? 'no-final-three-pacing',
     isWaiting ? 'waiting-for-input' : 'ready',
     weekend?.active ? `${weekend.afterDay}:${weekend.stage}:${weekend.weekendDay}` : 'no-weekend',
@@ -1220,7 +1227,7 @@ export default function FloatingActionBar({
         socialIconRef={socialIconRef}
       />
       <ConfessionalSpotlightOverlay
-        active={showWeekendSocialSpotlight}
+        active={showWeekendSocialSpotlight && weekendSocialActive}
         targetRef={socialIconRef}
         onComplete={completeWeekendSocialSpotlight}
       />

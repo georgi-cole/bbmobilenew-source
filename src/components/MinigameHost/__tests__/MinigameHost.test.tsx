@@ -99,6 +99,22 @@ vi.mock('../../ClosestWithoutGoingOverComp', () => ({
   ),
 }))
 
+vi.mock('../../../minigames/reactComponents', () => ({
+  preloadReactMinigame: () => Promise.resolve(),
+  default: new Proxy(
+    {},
+    {
+      get:
+        () =>
+        ({ seed, onFinish }: { seed: number; onFinish: (score: number) => void }) => (
+          <button data-seed={seed} onClick={() => onFinish(0)}>
+            Finish generic draw
+          </button>
+        ),
+    }
+  ),
+}))
+
 const baseGame = {
   key: 'unit-test-game',
   title: 'Unit Test Game',
@@ -252,6 +268,51 @@ describe('MinigameHost competition retry', () => {
       await vi.runAllTimersAsync()
     })
     expect(screen.getByRole('button', { name: 'Finish seeded competition' })).not.toHaveAttribute(
+      'data-seed',
+      '424242'
+    )
+  })
+
+  it.each([
+    'NumberTrivia',
+    'SnakeGame',
+    'TimingBar',
+    'BatteryLow',
+    'ChainOfGreed',
+    'GridOfLuck',
+    'Minesweeps',
+    'HangmanChallenge',
+    'BoxedOut',
+    'BigSpender',
+    'HouseOfDarkness',
+    'GatesOfTheEye',
+    'MysticChamber',
+    'FinalThreeCircuit',
+  ])('gives generic %s a fresh retry seed', async (component) => {
+    render(
+      <MinigameHost
+        game={{ ...baseGame, implementation: 'react', reactComponentKey: component }}
+        gameOptions={{ seed: 424242 }}
+        onDone={vi.fn()}
+        skipRules
+        skipCountdown
+        participants={makeParticipants(0, 50)}
+        competitionRetry={{ enabled: true, onWatch: (reward) => reward() }}
+      />
+    )
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+    expect(screen.getByRole('button', { name: 'Finish generic draw' })).toHaveAttribute(
+      'data-seed',
+      '424242'
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Finish generic draw' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reverse time' }))
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+    expect(screen.getByRole('button', { name: 'Finish generic draw' })).not.toHaveAttribute(
       'data-seed',
       '424242'
     )

@@ -20,6 +20,7 @@ import type { ComponentProps } from 'react'
 import { MemoryRouter, useLocation } from 'react-router'
 import gameReducer, {
   advance,
+  dismissDemocraciaResultDisplay,
   continueWeekendFeature,
   returnFromWeekendTribunalStream,
   createInitialGameState,
@@ -1263,4 +1264,78 @@ describe('durable weekend presentation', () => {
     ).toBe(true)
     expect(hydrated.weekendInterlude?.wallet).toEqual(legacy.weekendInterlude.wallet)
   })
+})
+
+describe('pre-release spectator progression', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+  it.each(['jury', 'evicted'] as const)(
+    'advances an AI-only Democracia revote while the human is %s',
+    (status) => {
+      const initial = createInitialGameState({ seed: 81621 })
+      const players = initial.players.slice(0, 5).map((player, index) => ({
+        ...player,
+        isUser: index === 0,
+        status: index === 0 ? status : ('active' as const),
+      }))
+      const [human, a, b, c, d] = players
+      const store = makeStore(true, {
+        ...initial,
+        players,
+        phase: 'democracia_vote',
+        democracia: {
+          usedThisSeason: true,
+          active: true,
+          activatedDay: initial.week,
+          round: 1,
+          candidateIds: [a.id, b.id],
+          eligibleVoterIds: [a.id, b.id, c.id, d.id],
+          votesByVoterId: { [a.id]: b.id, [b.id]: a.id, [c.id]: a.id, [d.id]: b.id },
+          awaitingHumanVote: false,
+          awaitingPublicBreaker: false,
+          resultDisplay: null,
+        },
+      })
+      renderFAB(store, '/game', {
+        onDemocraciaResultsDone: () => store.dispatch(dismissDemocraciaResultDisplay()),
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Advance to next phase' }))
+      expect(store.getState().game.democracia?.round).toBe(2)
+      expect(store.getState().game.democracia?.eligibleVoterIds).not.toContain(human.id)
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+      fireEvent.click(screen.getByRole('button', { name: 'Advance to next phase' }))
+      expect(store.getState().game.phase).toBe('democracia_results')
+    }
+  )
+
+  it.each(['jury', 'evicted'] as const)(
+    'does not grant a weekend spotlight to a %s human',
+    (status) => {
+      let game = gameReducer(
+        createInitialGameState({ seed: 81622 }),
+        debugActivateWeekendInterlude(5)
+      )
+      game = {
+        ...game,
+        players: game.players.map((player) => (player.isUser ? { ...player, status } : player)),
+        presentationEventClaims: [],
+        weekendInterlude: {
+          ...game.weekendInterlude!,
+          stage: 'social',
+          wallet: { ...game.weekendInterlude!.wallet, energy: 30 },
+        },
+      }
+      const store = makeStore(true, game)
+      renderFAB(store)
+      act(() => vi.advanceTimersByTime(2000))
+      expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
+      expect(
+        store
+          .getState()
+          .game.presentationEventClaims?.some((claim) =>
+            claim.eventId.startsWith('weekend-energy:')
+          )
+      ).toBe(false)
+    }
+  )
 })

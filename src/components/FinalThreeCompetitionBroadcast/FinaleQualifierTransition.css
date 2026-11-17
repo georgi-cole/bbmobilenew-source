@@ -1,0 +1,11 @@
+.finale-qualifier-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  overflow: hidden;
+  background: #100b1a;
+  isolation: isolate;
+}
+.finale-qualifier-transition[hidden] {
+  display: none;
+}

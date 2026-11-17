@@ -212,7 +212,8 @@ describe('Credits', () => {
     renderCredits()
 
     const video = screen.getByTestId('credits-background-video')
-    expect(video).not.toHaveClass('is-ready')
+    expect(video).toHaveClass('is-ready')
+    expect(screen.queryByTestId('credits-background-fallback')).toBeNull()
     fireEvent.loadedData(video)
     expect(video).toHaveClass('is-ready')
   })
@@ -341,7 +342,7 @@ describe('Credits', () => {
     fireEvent.loadedData(video)
     fireEvent.playing(video)
     fireEvent.waiting(video)
-    act(() => vi.advanceTimersByTime(1_800))
+    act(() => vi.advanceTimersByTime(8_000))
 
     expect(screen.queryByTestId('credits-background-video')).toBeNull()
     expect(video).not.toHaveAttribute('src')

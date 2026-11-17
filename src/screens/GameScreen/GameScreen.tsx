@@ -85,6 +85,7 @@ import FloatingActionBar from '../../components/FloatingActionBar/FloatingAction
 import { shouldRenderGameControlDock } from './gameScreenUiGuards'
 import WeekendPartyAtmosphere from '../../components/WeekendPartyAtmosphere/WeekendPartyAtmosphere'
 import { resolveWeekendVisualTheme } from '../../utils/weekendVisualTheme'
+import FinaleQualifierTransition from '../../components/FinalThreeCompetitionBroadcast/FinaleQualifierTransition'
 import SpotlightEvictionOverlay from '../../cinematic/ceremonies/exit.jsx'
 import SurveyevalTileEvictionEffect from '../../components/Eviction/SurveyevalTileEvictionEffect'
 import DayStartShockPopup from '../../cinematic/ceremonies/day-shock.jsx'
@@ -705,6 +706,8 @@ export default function GameScreen() {
   const {
     pendingChallenge,
     pendingWinnerCeremony,
+    pendingFinalThreeTransition,
+    handleFinalThreeTransitionDone,
     handleWinnerCeremonyDone,
     handleChallengeDone,
     spectatorLegacyPayload,
@@ -1089,7 +1092,10 @@ export default function GameScreen() {
   // Release the gameplay presentation owner before the lower-priority winner
   // award starts. The accepted result remains in the pending challenge until
   // the ceremony commits the winner.
-  const showMinigameHost = humanIsChallengeParticipant && pendingWinnerCeremony == null
+  const showMinigameHost =
+    humanIsChallengeParticipant &&
+    pendingWinnerCeremony == null &&
+    pendingFinalThreeTransition == null
   const aiOnlyChallengeResolvedRef = useRef<string | null>(null)
   useEffect(() => {
     const isClassicCompetitionPhase =
@@ -1431,6 +1437,7 @@ export default function GameScreen() {
     showBattleBackReturn ||
     showFavoriteVoting ||
     showMinigameHost ||
+    pendingFinalThreeTransition != null ||
     showTribunalInvitation ||
     showQuickTapRace ||
     showPressurePlank ||
@@ -1461,6 +1468,7 @@ export default function GameScreen() {
       competition: {
         awaitingDecision: [
           showMinigameHost,
+          pendingFinalThreeTransition != null,
           showWinnerCeremony,
           showQuickTapRace,
           showBullseyeBlitz,
@@ -2308,6 +2316,12 @@ export default function GameScreen() {
         )}
 
         {/* ── Winner tile lift — LOH / POS result without coordinate-space cutouts ── */}
+        {pendingFinalThreeTransition && (
+          <FinaleQualifierTransition
+            key={pendingFinalThreeTransition.runId}
+            onComplete={handleFinalThreeTransitionDone}
+          />
+        )}
         {showWinnerCeremony && pendingWinnerCeremony && (
           <WinnerTileLiftAnimation
             key={`${presentationRunKey}:winner:${pendingWinnerCeremony.targetIds.join(',')}`}

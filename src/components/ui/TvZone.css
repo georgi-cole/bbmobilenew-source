@@ -2208,3 +2208,19 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
     animation: none;
   }
 }
+
+.tv-zone__now:not(.tv-zone__now--hidden) {
+  animation-name: tvMessageSettle, signalLockGlowFade;
+}
+@keyframes tvMessageSettle {
+  from {
+    opacity: 0.85;
+    transform: scale(1.01);
+    filter: blur(0.5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
