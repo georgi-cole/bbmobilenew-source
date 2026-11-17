@@ -1,3 +1,4 @@
+import { normalizeSocialParticipation } from './socialParticipation'
 import { SOCIAL_INITIAL_STATE } from './constants'
 import { socialConfig } from './socialConfig'
 import { normalizeDramaSocialNetwork } from './dramaModeEngine'
@@ -41,6 +42,7 @@ function sanitiseBank(raw: unknown, kind: SocialResourceKind): Record<string, nu
 function cloneInitialState(): SocialState {
   return {
     ...SOCIAL_INITIAL_STATE,
+    participation: normalizeSocialParticipation(),
     energyBank: {},
     influenceBank: {},
     infoBank: {},
@@ -82,6 +84,7 @@ export function migrateSocialState(raw: SocialState): SocialState {
   const migrated: SocialStateWithHistory = {
     ...base,
     ...input,
+    participation: normalizeSocialParticipation(input.participation),
     socialStateVersion: SOCIAL_STATE_VERSION,
     realitySimulation: normalizeRealitySimulationState(input.realitySimulation),
     energyBank: sanitiseBank(input.energyBank, 'energy'),

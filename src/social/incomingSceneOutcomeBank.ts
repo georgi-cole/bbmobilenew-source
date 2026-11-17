@@ -12,6 +12,12 @@ export type IncomingSceneOutcomeStance = 'positive' | 'neutral' | 'negative' | '
 type OutcomeSet = Record<IncomingSceneOutcomeStance, readonly string[]>
 
 export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
+  social_engagement_check_in: {
+    positive: ['You compared where you stand. No vote or protection was promised.'],
+    neutral: ['You explained your approach and kept communication open without making a deal.'],
+    negative: ['You set a boundary without agreeing to a deal.'],
+    dismiss: ['You left the invitation for now. No promise was made.'],
+  },
   week_start_ally_check_in: {
     positive: [
       '{from} starts the week treating you as someone they can check in with before the Hub turns.',

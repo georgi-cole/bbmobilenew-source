@@ -5,6 +5,11 @@ export interface SceneDefinition {
 }
 
 export const SCENE_DEFINITIONS: Record<string, SceneDefinition> = {
+  social_engagement_check_in: {
+    topic: 'where the two of you stand',
+    stakes: 'meaningful',
+    kind: 'bond',
+  },
   private_intel_lead: {
     topic: 'a private tip about the Hub',
     stakes: 'meaningful',

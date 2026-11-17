@@ -88,11 +88,16 @@ export async function completeTestFlight({
     baseline.attributes.processingState !== 'VALID'
   )
     throw new Error('The approved compliance baseline does not belong to this app or is not valid.')
-  if (
-    group.relationships?.app?.data?.id !== policy.appId ||
-    group.attributes.isInternalGroup !== true
-  )
+  if (group.attributes.isInternalGroup !== true)
     throw new Error('The configured tester group is not internal to this app.')
+  const groupAppId = group.relationships?.app?.data?.id
+  if (groupAppId && groupAppId !== policy.appId)
+    throw new Error('The configured tester group is not internal to this app.')
+  if (!groupAppId) {
+    const { data } = await api('GET', `/v1/apps/${policy.appId}/relationships/betaGroups?limit=200`)
+    if (!data.some((entry) => entry.type === 'betaGroups' && entry.id === policy.internalGroupId))
+      throw new Error('The configured tester group is not internal to this app.')
+  }
   const encryption = baseline.attributes.usesNonExemptEncryption
   const declaration = baseline.relationships?.appEncryptionDeclaration?.data
   if (typeof encryption !== 'boolean' || (encryption && !declaration))

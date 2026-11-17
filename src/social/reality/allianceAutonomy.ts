@@ -1,11 +1,6 @@
-import { evaluateAllianceStrategicFit } from './allianceStrategicFit'
 import { buildStrategicThreatSnapshot } from '../strategicThreat'
-import {
-  isPendingAllianceRequest,
-  manageAlliance,
-  type AllianceManagementContext,
-} from './allianceManagement'
-import { allianceKind, getCurrentPact, isCurrentAlliance } from './allianceIdentity'
+import { manageAlliance, type AllianceManagementContext } from './allianceManagement'
+import { isCurrentAlliance } from './allianceIdentity'
 import { holdRealityAllianceStrategyMeeting } from './relationshipForms'
 import type { RealityAlliance, RealityDomainState } from './types'
 
@@ -205,102 +200,12 @@ function strategySummary(
   return `The members compared witnessed social influence, personal ties, and the current vote. They chose ${targetName}: ${targetReason(selected[0], context)}${alternate} Individual members may still protect someone they care about.`
 }
 
-function chooseRecruitment(
-  domain: RealityDomainState,
-  alliance: RealityAlliance,
-  context: AllianceManagementContext,
-  selectedTargetId?: string
-): void {
-  if (context.at.phase !== 'social_1' || alliance.memberIds.length >= 6) return
-  const hasPendingRequest = Object.values(domain.allianceManagement.requests).some(
-    (request) =>
-      isPendingAllianceRequest(request) &&
-      request.allianceId === alliance.id &&
-      request.kind === 'ADMIT'
-  )
-  if (hasPendingRequest) return
-
-  const eligibleRecruiters = aiMembers(alliance, context)
-    .filter((id) =>
-      allianceKind(alliance) === 'PACT' ? true : (alliance.memberCommitment[id] ?? 0) >= 0.4
-    )
-    .sort(
-      (left, right) =>
-        Number(right === alliance.leaderId) - Number(left === alliance.leaderId) ||
-        (alliance.memberCommitment[right] ?? 0) - (alliance.memberCommitment[left] ?? 0) ||
-        left.localeCompare(right)
-    )
-  const recruiterId = eligibleRecruiters[0]
-  if (!recruiterId) return
-
-  const candidate = context.activeActorIds
-    .filter(
-      (id) =>
-        id !== recruiterId &&
-        !alliance.memberIds.includes(id) &&
-        id !== selectedTargetId &&
-        (allianceKind(alliance) !== 'GROUP' || alliance.memberIds.length < 6)
-    )
-    .map((id) => {
-      const edge = domain.relationships[recruiterId]?.[id]
-      const fit = evaluateAllianceStrategicFit(
-        domain,
-        {
-          ...context,
-          strategicMode:
-            context.strategicPreferencesEnabled === false ? undefined : context.strategicMode,
-        },
-        recruiterId,
-        [id]
-      )
-      const score =
-        (edge?.trust ?? 0) * 0.03 +
-        (edge?.loyalty ?? 0) * 0.018 +
-        (edge?.reliability ?? 0) * 0.012 +
-        (edge?.strategicValue ?? 0) * 0.022 -
-        (edge?.suspicion ?? 0) * 0.012 +
-        fit.modifier * 4
-      return { id, score, trust: edge?.trust ?? 0, strategicValue: edge?.strategicValue ?? 0 }
-    })
-    .filter((entry) => entry.trust >= 18 || entry.strategicValue >= 34)
-    .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id))[0]
-  if (!candidate || candidate.score < 1.15) return
-
-  if (allianceKind(alliance) === 'GROUP') {
-    manageAlliance(
-      domain,
-      {
-        type: 'PROPOSE',
-        kind: 'ADMIT',
-        actorId: recruiterId,
-        allianceId: alliance.id,
-        candidateId: candidate.id,
-      },
-      context
-    )
-    return
-  }
-
-  if (alliance.provenance === 'UNRESOLVED' || getCurrentPact(domain, recruiterId, candidate.id))
-    return
-  manageAlliance(
-    domain,
-    {
-      type: 'PROPOSE',
-      kind: 'FOUND',
-      actorId: recruiterId,
-      memberIds: [...alliance.memberIds, candidate.id],
-      basePactId: alliance.id,
-    },
-    context
-  )
-}
-
 /** Nonbinding discussion plans never create promises, ballots or protection. */
 function discussSupportAgenda(
   domain: RealityDomainState,
   alliance: RealityAlliance,
-  context: AllianceManagementContext
+  context: AllianceManagementContext,
+  threatSnapshot: ReturnType<typeof buildStrategicThreatSnapshot>
 ): boolean {
   const rules = context.strategicMode
   if (!rules || !['classic', 'vox'].includes(rules.format)) return false
@@ -326,22 +231,32 @@ function discussSupportAgenda(
         ? 'The members reviewed known nomination risk and mutual support. They cannot coordinate or guarantee the audience vote.'
         : 'The members reviewed their nomination risk and possible support, while keeping individual voting decisions.',
   }
+  const selected =
+    rules.format === 'classic' && atRisk.length > 0
+      ? selectAllianceTargets(
+          alliance,
+          rankAllianceTargets(domain, alliance, context, threatSnapshot),
+          context
+        )
+      : []
   const attendees = aiMembers(alliance, context)
   holdRealityAllianceStrategyMeeting(domain, {
     allianceId: alliance.id,
     callerId: attendees.includes(alliance.leaderId ?? '') ? alliance.leaderId! : attendees[0],
     attendeeIds: attendees,
-    targetIds: [],
-    fallbackTargetIds: [],
-    planIds: [`discuss:${agenda}`],
-    memberPlanBeliefs: Object.fromEntries(attendees.map((id) => [id, [`aware:${agenda}`]])),
+    targetIds: selected.slice(0, 1).map((entry) => entry.actorId),
+    fallbackTargetIds: selected.slice(1, 2).map((entry) => entry.actorId),
+    planIds: [`discuss:${agenda}`, ...selected.map((entry) => planId('target', entry.actorId))],
+    memberPlanBeliefs: selected.length
+      ? planBeliefs(domain, alliance, selected)
+      : Object.fromEntries(attendees.map((id) => [id, [`aware:${agenda}`]])),
     agenda,
-    consultationSummary: summaries[agenda],
+    consultationSummary:
+      summaries[agenda] + (selected.length ? ` ${strategySummary(selected, context)}` : ''),
     at: context.at,
     sourceEventId: `autonomous-support:${alliance.id}:${context.at.day}:${context.at.phase}`,
     excusedAbsentIds: alliance.memberIds.filter((id) => context.humanActorIds.includes(id)),
   })
-  chooseRecruitment(domain, alliance, context)
   return true
 }
 
@@ -382,7 +297,7 @@ export function evaluateAllianceAutonomy(
     .sort((left, right) => left.id.localeCompare(right.id))
 
   for (const alliance of alliances) {
-    if (discussSupportAgenda(domain, alliance, context)) continue
+    if (discussSupportAgenda(domain, alliance, context, threatSnapshot)) continue
     const ranked = rankAllianceTargets(domain, alliance, context, threatSnapshot)
     const selected = selectAllianceTargets(alliance, ranked, context)
     if (selected.length > 0) {
@@ -423,7 +338,6 @@ export function evaluateAllianceAutonomy(
         })
       }
     }
-    chooseRecruitment(domain, alliance, context, selected[0]?.actorId)
   }
 
   // Keep the prior low-commitment exit behavior, while allowing every faction

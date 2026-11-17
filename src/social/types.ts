@@ -422,6 +422,8 @@ export interface IncomingInteractionDeliveryState {
 
 /** Redux-serialisable state subtree owned by the social module. */
 export interface SocialState {
+  /** Bounded, reversible social-presence observations; omitted on legacy saves. */
+  participation?: import('./socialParticipation').SocialParticipationState
   missionResourceReceipts?: string[]
   missionResourcePayouts?: Record<string, { energy: number; influence: number; info: number }>
   energyBank: SocialEnergyBank

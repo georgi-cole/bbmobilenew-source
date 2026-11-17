@@ -135,6 +135,7 @@ function audienceMoodVariance(input: {
   if (
     input.delta === 0 ||
     input.reason.startsWith('direction_') ||
+    input.reason.startsWith('social_presence_') ||
     input.reason === 'audience_reconsideration'
   )
     return 0

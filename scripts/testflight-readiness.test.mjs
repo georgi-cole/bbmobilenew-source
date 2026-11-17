@@ -145,6 +145,26 @@ test('already completed builds are verified without changing compliance or group
   assert.ok(calls.every((entry) => entry.method === 'GET'))
 })
 
+test('verifies the exact internal group from the app when the group omits its app ID', async () => {
+  for (const groupId of ['internal', 'different']) {
+    const { calls, options } = fixture()
+    const original = options.api
+    options.api = (method, endpoint, body) => {
+      if (method === 'GET' && endpoint.startsWith('/v1/betaGroups/internal?'))
+        return Promise.resolve({ data: { attributes: { isInternalGroup: true } } })
+      if (method === 'GET' && endpoint.startsWith('/v1/apps/app/relationships/betaGroups?'))
+        return Promise.resolve({ data: [{ type: 'betaGroups', id: groupId }] })
+      return original(method, endpoint, body)
+    }
+    if (groupId === 'internal') {
+      assert.equal((await completeTestFlight(options)).internalBuildState, 'IN_BETA_TESTING')
+    } else {
+      await assert.rejects(completeTestFlight(options), /not internal/)
+      assert.ok(calls.every((entry) => entry.method === 'GET'))
+    }
+  }
+})
+
 test('finds existing membership beyond the first page without reassigning a group', async () => {
   const { calls, options } = fixture({
     target: build({ usesNonExemptEncryption: false }),
