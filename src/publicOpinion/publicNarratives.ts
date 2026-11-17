@@ -1,4 +1,12 @@
 const NARRATIVE_VARIANTS = {
+  social_presence_quiet: [
+    'A quiet stretch has left the audience with fewer moments to connect with.',
+    'With little visible involvement lately, this game has been harder for viewers to follow.',
+  ],
+  social_presence_recovery: [
+    'A visible contribution has brought this game back into the conversation.',
+    'The audience has a clearer reason to connect again after a quiet stretch.',
+  ],
   audience_substantiated_exposure: [
     'Viewers saw evidence behind the exposure.',
     'The reveal had a visible factual basis.',

@@ -109,6 +109,7 @@ export function getAudienceApproval(breakdown: AudienceBreakdown): number {
 
 function getWeights(reason: string, eventType?: string): Record<AudienceMetric, number> {
   const signal = `${reason} ${eventType ?? ''}`.toLowerCase()
+  if (reason.startsWith('social_presence_')) return { charisma: 1, gameplay: 0, integrity: 0 }
 
   if (
     /(substantiated_exposure|grounded_boundary|accountable_repair|unsupported_attack|explicit_promise_breach)/.test(
@@ -164,13 +165,15 @@ export function applyAudienceApprovalDelta(
   const weights = getWeights(input.reason, input.eventType)
   const damping = publicOpinionConfig.positiveApprovalDamping
   const positiveMultiplier =
-    profile.approval >= damping.belovedThreshold
-      ? damping.belovedMultiplier
-      : profile.approval >= damping.strongThreshold
-        ? damping.strongMultiplier
-        : profile.approval >= damping.likedThreshold
-          ? damping.likedMultiplier
-          : 1
+    input.reason === 'social_presence_recovery'
+      ? 1
+      : profile.approval >= damping.belovedThreshold
+        ? damping.belovedMultiplier
+        : profile.approval >= damping.strongThreshold
+          ? damping.strongMultiplier
+          : profile.approval >= damping.likedThreshold
+            ? damping.likedMultiplier
+            : 1
   const effectiveDelta = input.delta > 0 ? input.delta * positiveMultiplier : input.delta
   const next: AudienceBreakdown = {
     charisma: round(clamp(current.charisma + effectiveDelta * METRICS.length * weights.charisma)),

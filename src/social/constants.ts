@@ -17,6 +17,7 @@ export const MAX_HUMAN_SOCIAL_ENERGY = SOCIAL_RESOURCE_CALIBRATION.drama.energyC
 /** Initial value for the Redux social state subtree. */
 export const SOCIAL_INITIAL_STATE: SocialState = {
   socialStateVersion: SOCIAL_STATE_VERSION,
+  participation: { version: 1, processedDays: [], recordsByActor: {}, effectsByActor: {} },
   realitySimulation: createInitialRealitySimulationState(),
   reality: createInitialRealityDomainState(),
   intelligenceDeliveries: [],
