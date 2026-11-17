@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-17: Reviewed the Safety Confessional handoff. Standard ceremonies let
+  players resume in the Hub after sealing their save target. The review confirmed
+  that VIP ceremony playback, its existing access rules, and marketplace
+  benefits continue as advertised.
+
 - 2026-11-16: Reviewed VIP ceremony Skip and AI continuation recovery. Media-start
   claims and broadcast acknowledgements no longer interrupt a committed Safety
   or replacement sequence; an unexpectedly empty ceremony falls back to the

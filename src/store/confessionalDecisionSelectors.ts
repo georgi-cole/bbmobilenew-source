@@ -53,6 +53,17 @@ export function getConfessionalDecisionKey(
     : base
 }
 
+export function isSafetySaveTargetPending(
+  game: Pick<GameState, 'awaitingPovSaveTarget' | 'missionPowers' | 'specialVeto'>
+): boolean {
+  // The reducer still needs its awaiting flag to replay the sealed choice in the Hub.
+  return (
+    game.specialVeto?.awaitingVipSecondSaveTarget === true ||
+    (game.awaitingPovSaveTarget === true &&
+      game.missionPowers?.safetyIntent?.action?.type !== 'game/submitPovSaveTarget')
+  )
+}
+
 /**
  * Phases that belong to the Final 4 / Final 3 endgame flows.
  * These are NEVER routed through the generic confessional decision system.
@@ -108,7 +119,7 @@ function getActiveConfessionalDecisionFromGame(
   if (game.specialVeto?.awaitingVipSecondUseDecision) {
     return { type: 'vip_second_use', week, phase }
   }
-  if (game.awaitingPovSaveTarget || game.specialVeto?.awaitingVipSecondSaveTarget) {
+  if (isSafetySaveTargetPending(game)) {
     return { type: 'pos_save_target', week, phase }
   }
   if (
