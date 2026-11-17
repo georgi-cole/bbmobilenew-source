@@ -55,3 +55,13 @@ export function resolvePresentationAvatarCandidates(source: string | null | unde
 export function resolvePresentationAvatar(source: string | null | undefined): string {
   return resolvePresentationAvatarCandidates(source)[0] ?? ''
 }
+
+/** Fullscreen portraits are bundled separately so roster thumbnails stay cheap to decode.
+ * Legacy cast already has large grey artwork; uploaded photos retain their source.
+ */
+export function resolveCloseUpAvatarCandidates(source: string | null | undefined): string[] {
+  const fallback = resolvePresentationAvatarCandidates(source)
+  if (!source || !appearanceFromAssetUrl(source)) return fallback
+  const grey = fallback[0]
+  return [grey.replace(/grey\.webp(?:[?#].*)?$/i, 'grey-closeup.webp'), ...fallback]
+}

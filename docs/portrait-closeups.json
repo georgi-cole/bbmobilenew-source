@@ -1,0 +1,363 @@
+{
+  "encoding": {
+    "format": "WebP",
+    "quality": 70,
+    "method": 6,
+    "width": 960,
+    "height": 960,
+    "resampling": "Lanczos"
+  },
+  "totalBytes": 1649152,
+  "portraits": [
+    {
+      "lookId": "pc-001",
+      "asset": "assets/player_characters/character 1/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 38440,
+      "sha256": "55d8467b7fde2a877be445c8ec81296e4d9be9dd6414e4027b3d363ea57eaf46",
+      "masterSha256": "2f7840709fc308cda3eee804e0afd541461c6cd7c6d1088b22a3cce8d2f7ffa0",
+      "master": "docs/character-customization/roster-15/preset-002-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-002",
+      "asset": "assets/player_characters/character 2/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 41048,
+      "sha256": "6e318c3bf43eae5edb9909bb4942cb1dae5080b99d47ec2053e4f768d074d3cd",
+      "masterSha256": "d5036dc2656357bd46152474cbe256f5bcfc85c4ed10e9155798235c2d8e402f",
+      "master": "docs/character-customization/roster-15/preset-003-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-003",
+      "asset": "assets/player_characters/character 3/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 25550,
+      "sha256": "eb97f86a537257b87c71cf018fd30b3e650d8402ec393564753556303b5ff002",
+      "masterSha256": "27b4131677aa1a036b4d63cae19c4b1342e5886a7d44678654d2f7ae1da866c4",
+      "master": "docs/character-customization/roster-15/preset-004-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-004",
+      "asset": "assets/player_characters/character 4/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 49446,
+      "sha256": "05edbc6865155cfb0d0e324e5da85c4ce27a53ea6b232c81ce2693853d0e6239",
+      "masterSha256": "30e2a1187dff0f3ac0b80c967b5b6368b99ce855243df093ab48c488441e9246",
+      "master": "docs/character-customization/cs-00/masters/identity-01-grey-portrait-master.png"
+    },
+    {
+      "lookId": "pc-005",
+      "asset": "assets/player_characters/character 5/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 29438,
+      "sha256": "9dc4406cea3546ea0ab5e87e4678d5edd7809e69246649f68e8ed92938bd6bd9",
+      "masterSha256": "2bbb895820b37970e5753ad41de96a5ccec9f3a7e66170a5a8544b3f8bf87ba9",
+      "master": "docs/character-customization/roster-15/character-02-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-006",
+      "asset": "assets/player_characters/character 6/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 46226,
+      "sha256": "876a43964209d27b6ba0fa2a360e06c67872f3763d52c24cbd0797898543bb1b",
+      "masterSha256": "a87832b7d8da956eb7e1ca002c34f692996d98186d5e8db23b98fec05a27c5ec",
+      "master": "docs/character-customization/roster-15/character-03-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-007",
+      "asset": "assets/player_characters/character 7/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 73846,
+      "sha256": "f6a9c00cbd9ed248a7f4d66be362bcb822353f274928b88c6abd3508fb517b47",
+      "masterSha256": "b9000506f3e5a037f694ee76d6de3cae9a33e6acc52711cf839b8763315495ac",
+      "master": "docs/character-customization/roster-15/character-04-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-008",
+      "asset": "assets/player_characters/character 8/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 56620,
+      "sha256": "d2890926feb03bbe6e12d037c4df536b2ddbe80bd9a99cb3585e3a3f2f16360f",
+      "masterSha256": "3e6f8fae58025b49cebe7e2440a1311b96ca372f5198360849ccb0dd4c85dc40",
+      "master": "docs/character-customization/roster-15/character-05-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-009",
+      "asset": "assets/player_characters/character 9/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 46458,
+      "sha256": "b44ac673916c78e5ff7bb803a2259f1e496f4c2b0d2cc82bf66bfad76d5af5f4",
+      "masterSha256": "fad29fccd20e3ab4c6af1383dac56d571c8d12b33215d11118dafe4085574c00",
+      "master": "docs/character-customization/roster-15/character-06-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-010",
+      "asset": "assets/player_characters/character 10/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 36588,
+      "sha256": "4c34306c64acca8c0dd6723fbe872bf600e669d2d39f942b061c44441c88e11b",
+      "masterSha256": "6fab4866430b67ec4b411ba2e5ecd15603ea176834943ad275431bd91ddf404d",
+      "master": "docs/character-customization/roster-15/character-10-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-011",
+      "asset": "assets/player_characters/character 11/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 30436,
+      "sha256": "32a88532bfc37163e8f5608475adf7258053c3220c74cfa3bbcff74fc1ac0677",
+      "masterSha256": "6201e55a9386b37c72b3f9afc1fb53e9c572912639d2cf15194eafc70d35a211",
+      "master": "docs/character-customization/roster-15/character-11-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-012",
+      "asset": "assets/player_characters/character 12/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 46362,
+      "sha256": "44d74997a5c5ff2015ec6b558ad070bbe27d7a788df2b1e135e74613b8136eda",
+      "masterSha256": "5d30c8b93504e1a4cc2c3245ce6a3d5908b12bcd7528ac9b56232aed02b2338a",
+      "master": "docs/character-customization/roster-15/character-12-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-013",
+      "asset": "assets/player_characters/character 13/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 47934,
+      "sha256": "d156c2aba544a10dd8c9e62a099d19dd8a1ef5c959ac80faf604326ca473e73d",
+      "masterSha256": "5b3d62367a066eec638de2da2004b2853a86091f2e4fb4bcf44a1da3fd9245ba",
+      "master": "docs/character-customization/roster-15/character-13-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-014",
+      "asset": "assets/player_characters/character 14/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 42712,
+      "sha256": "43711ce47cc1231b29ab625c9523e09f916a6217dd155edb4684c0ad1bc5cc0b",
+      "masterSha256": "6b9ae0ba069a43a30298948579f7dff1764e9d7e99dea829336d1dbe850d733d",
+      "master": "docs/character-customization/roster-15/character-14-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-015",
+      "asset": "assets/player_characters/character 15/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 82324,
+      "sha256": "3c0657b3a14757ac41603084afa2d99952043e3c25462ad467de3c7652f323de",
+      "masterSha256": "f80fcac4412ad42171fa18a6e0d4a5f898e17f11a689741f04049b9147a25a13",
+      "master": "docs/character-customization/roster-15/character-15-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-016",
+      "asset": "assets/player_characters/character 16/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 47788,
+      "sha256": "7b0a3ff9029728b72c80da85937074e7416fa9a35daf2adfb2ddc812ff7a0870",
+      "masterSha256": "a0cfd31a3bb2219143ccfe75b7f1f7389fbafe2217bfe8da2130c3661dc67447",
+      "master": "docs/character-customization/roster-15/character-16-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-017",
+      "asset": "assets/player_characters/character 17/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 45248,
+      "sha256": "a3fdb56d72b0b900533b41cd0e537413f1d61408d749d7980d01d321d05684ef",
+      "masterSha256": "f6f7f5d49fe065e07a6cc523f7012197f4bf2b4508240a15d45831b1d8423687",
+      "master": "docs/character-customization/roster-15/character-17-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-018",
+      "asset": "assets/player_characters/character 18/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 40254,
+      "sha256": "0e512ff20379035826ac6ecdc998dc3e4b4498c6aa38a1651948c477189f875b",
+      "masterSha256": "ce6b59fa7889a88889b61311ef435e5dd3c2e682ca34f06687019e25352d44d8",
+      "master": "docs/character-customization/roster-15/character-18-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-019",
+      "asset": "assets/player_characters/character 19/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 49324,
+      "sha256": "075085c2977286279a504b97e8ca8c0d05bf2feae1aa074bc2a3eec46ee095b4",
+      "masterSha256": "456bc8180260dd516baf082d7e4f9e52b05e80cb66a36876f13ee7b2ba4321f0",
+      "master": "docs/character-customization/roster-15/character-19-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-020",
+      "asset": "assets/player_characters/character 20/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 34936,
+      "sha256": "db08d605f30d8f606a434a96ce6856354914c01ba06ef00c7f7337b815c8ad4f",
+      "masterSha256": "83d96b744000132f00d77b428db747371d18e86e23b0d5f555a7377ddd3feafe",
+      "master": "docs/character-customization/roster-15/character-20-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-021",
+      "asset": "assets/player_characters/character 21/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 40768,
+      "sha256": "c69ab7f2d6d41d8054b053eeddba7a5f2b5094063c657eb27588af6946782993",
+      "masterSha256": "38e32d539be9ef48420a4139b1abc4ef1f01dd047acbad3ef7239f78f0a36526",
+      "master": "docs/character-customization/roster-15/character-21-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-022",
+      "asset": "assets/player_characters/character 22/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 33052,
+      "sha256": "aa3c5d705e7c9259f97479a8b6aaade2c55bcc24ca4aa75fffd2418229566f95",
+      "masterSha256": "b07e860d13e798aee3d1f248fc46207082e609b3afe61f506c9ad711bdd0dabd",
+      "master": "docs/character-customization/roster-15/character-22-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-023",
+      "asset": "assets/player_characters/character 23/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 37808,
+      "sha256": "2e5f3ed0d9cd26ce9f296044737a4d549bb587381b604e80227a67ff07de9866",
+      "masterSha256": "f078b2f90513a23e0de9ccb0721e0fb687251295d75554e5358576703911a943",
+      "master": "docs/character-customization/roster-15/character-23-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-024",
+      "asset": "assets/player_characters/character 24/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 59326,
+      "sha256": "30ece3c064ea9f42641a57c018b03cc5a9c4c3617dcbd10f8ad26e93c2c8ba5d",
+      "masterSha256": "09d85e0ba621077d3e7fcb963f6a812a122717e43e24e923706809a83de8a1f9",
+      "master": "docs/character-customization/roster-15/character-24-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-025",
+      "asset": "assets/player_characters/character 25/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 37466,
+      "sha256": "57f227ce9af603f5bcb89e664814350247f42989e88e6ff9e7fd1b3a21df438a",
+      "masterSha256": "5ecc2ad123fee2b150982d2ed7ce030dde98ac16fdd468f8060a03e0748efb21",
+      "master": "docs/character-customization/roster-15/character-25-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-026",
+      "asset": "assets/player_characters/character 26/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 77578,
+      "sha256": "bb3cbe10caa2824998cc9e83bf16c0b8551862fa3fa8a00039cdc8598115f583",
+      "masterSha256": "5d03711667b0139eefdac22203e8b834fae11168636c229b70f5bdf2eecb239b",
+      "master": "docs/character-customization/roster-15/character-26-r1/grey-r1.png"
+    },
+    {
+      "lookId": "pc-027",
+      "asset": "assets/player_characters/character 27/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 24156,
+      "sha256": "c3734576fa1a95a18d61d690cea45bb9ecf6c8c2ee929e617782bea37f24171b",
+      "masterSha256": "544c6506432abccaf4db046a96039e1d334d0a74a523f8f58a0f2c30d417099b",
+      "master": "generated_images/01a17271-b86e-7451-bb81-1c187d205d02/exec-6b790021-d189-489e-8404-8a0cc266d6e1.png"
+    },
+    {
+      "lookId": "pc-028",
+      "asset": "assets/player_characters/character 28/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 40866,
+      "sha256": "7a5e81602d7e7a798ab5bdf47a6c4ba407f76889bd97f65185d9722802ce02fb",
+      "masterSha256": "2d059ad22decf3ef99487c478cbdaa9f91f354f01b58ed78ac824a3963fe861f",
+      "master": "generated_images/01a17271-b86e-7451-bb81-1c187d205d02/exec-a5da1709-92ef-49fb-94d6-ec21e38ba3c7.png"
+    },
+    {
+      "lookId": "pc-029",
+      "asset": "assets/player_characters/character 29/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 53898,
+      "sha256": "cc9b57dcbfbbf782bd20d7451f6ddae2f340f026fa51a5874ad9064428420518",
+      "masterSha256": "25acfdfc6d6673336b67a2da06dae531e36845ac2c346fa554ef2b60a99ba532",
+      "master": "generated_images/01a17271-b86e-7451-bb81-1c187d205d02/exec-e60223bf-e382-454a-9d4e-39184c6388ef.png"
+    },
+    {
+      "lookId": "pc-030",
+      "asset": "assets/player_characters/character 30/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 45640,
+      "sha256": "df216115c884c12525ac36599ea0eafb2a06b63533eaddbfb5f57f6670392a16",
+      "masterSha256": "b55f0f2779ec8cde280ec5e1c5d3dcd66b13fe22e86dfc7270757df89af88dd7",
+      "master": "generated_images/01a17271-b86e-7451-bb81-1c187d205d02/exec-aa561a50-c63b-46d8-a639-ac47f890d056.png"
+    },
+    {
+      "lookId": "pc-031",
+      "asset": "assets/player_characters/character 31/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 34770,
+      "sha256": "728531bec5750bb46de4981dd3336672a70f9badc33d5821d3c521977bfa164f",
+      "masterSha256": "507b005834eec06c12f1c11fd2c6df7cccffb2512c2b43d19609a2c4c1744ad6",
+      "master": "generated_images/01a17271-b86e-7451-bb81-1c187d205d02/exec-6fe7b24c-191e-4ba7-adb9-4a43702d92e5.png"
+    },
+    {
+      "lookId": "pc-032",
+      "asset": "assets/player_characters/character 32/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 58488,
+      "sha256": "82b5764f83ea147cd5c4a9a5f741ba935dca58a52fd5a1e1cc503a9540b369a2",
+      "masterSha256": "fc21df0aaa36b19b5d9b7dbe9287841c5de6dd9c31b454fa30d83e360e0f84e2",
+      "master": "generated_images/01a17271-b86e-7451-bb81-1c187d205d02/exec-550f77a9-c3ff-4a66-9190-99cecaaf13da.png"
+    },
+    {
+      "lookId": "pc-033",
+      "asset": "assets/player_characters/character 33/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 72138,
+      "sha256": "3f778a72e4e3d953138c7f62cd17ddaa701751e72542ebbfd4993a04d9067f23",
+      "masterSha256": "16e3bbbc90b1eb9848a21723b9fc22d9e46a7835c382159f276d3bc2d8491b48",
+      "master": "generated_images/01a17271-b86e-7451-bb81-1c187d205d02/exec-cc20123d-00ef-4f9e-8476-c3797257d27c.png"
+    },
+    {
+      "lookId": "pc-034",
+      "asset": "assets/player_characters/character 34/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 45886,
+      "sha256": "7e847308a328ae72b57dc9a6972a108fb1ebaadf2897068caa4227d619ed7137",
+      "masterSha256": "64e3db0995fb5f5779bccaa41299dfd3428dce8a0e67f6c66170d0fab259756e",
+      "master": "generated_images/01a17271-b86e-7451-bb81-1c187d205d02/exec-33da5b3f-6a24-4e8e-b056-702bac2114d7.png"
+    },
+    {
+      "lookId": "pc-035",
+      "asset": "assets/player_characters/character 35/grey-closeup.webp",
+      "width": 960,
+      "height": 960,
+      "bytes": 76334,
+      "sha256": "12580c63d588264c408f4905e771dacb18f51fdb36d389c9594655b52ed4bd66",
+      "masterSha256": "dbaf431dd74f907605bfa7d1407fb62c3130cab781863611edfefc3b16579b08",
+      "master": "generated_images/01a17271-b86e-7451-bb81-1c187d205d02/exec-198b36ce-dc83-46d4-9d20-274d9469729b.png"
+    }
+  ]
+}

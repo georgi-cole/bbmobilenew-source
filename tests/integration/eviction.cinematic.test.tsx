@@ -151,6 +151,22 @@ describe('SpotlightEvictionOverlay – cinematic timing', () => {
     vi.useRealTimers()
   })
 
+  it('loads the bundled player close-up and falls back to the grey thumbnail on error', async () => {
+    const evictee: Player = {
+      id: 'user',
+      name: 'Player',
+      avatar: '/assets/player_characters/character%201/grey.webp',
+      status: 'active',
+      isUser: true,
+      appearance: { kind: 'catalog', lookId: 'pc-001', revision: 1 },
+    }
+    const view = renderOverlay(<SpotlightEvictionOverlay evictee={evictee} onDone={vi.fn()} />)
+    const photo = view.container.querySelector<HTMLImageElement>('.seo__hero-photo, .seo__photo')!
+    expect(photo.src).toContain('/character%201/grey-closeup.webp')
+    await act(async () => photo.dispatchEvent(new Event('error')))
+    expect(photo.src).toContain('/character%201/grey.webp')
+  })
+
   it('renders the evictee name in the aria-label', () => {
     const onDone = vi.fn()
     const evictee: Player = {

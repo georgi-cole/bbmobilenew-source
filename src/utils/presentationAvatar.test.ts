@@ -2,10 +2,36 @@ import { describe, expect, it } from 'vitest'
 import {
   resolvePresentationAvatar,
   resolvePresentationAvatarCandidates,
+  resolveCloseUpAvatarCandidates,
 } from './presentationAvatar'
 import { getPresentationAvatarPreloadUrls } from './avatarPreloadCandidates'
 
 describe('presentation avatar assets', () => {
+  it('uses bundled close-ups for all player looks without changing thumbnails', () => {
+    for (let number = 1; number <= 35; number++) {
+      const source = `/game/assets/player_characters/character%20${number}/main.webp?v=old`
+      expect(resolveCloseUpAvatarCandidates(source)).toEqual([
+        `/game/assets/player_characters/character%20${number}/grey-closeup.webp`,
+        `/game/assets/player_characters/character%20${number}/grey.webp`,
+        source,
+      ])
+      expect(resolvePresentationAvatarCandidates(source)[0]).toContain('/grey.webp')
+    }
+  })
+
+  it('keeps legacy portraits and uploaded photos unchanged in close-ups', () => {
+    for (const source of [
+      '/assets/skins/Finn_avatar.webp',
+      'data:image/png;base64,photo',
+      'blob:https://localhost/photo',
+      '/assets/player_characters/character%201/grey-closeup.webp',
+    ]) {
+      expect(resolveCloseUpAvatarCandidates(source)).toEqual(
+        resolvePresentationAvatarCandidates(source)
+      )
+    }
+  })
+
   it('prefers the grey WebP and exposes the PNG fallback', () => {
     const source = '/assets/skins/Finn_avatar.webp'
     expect(resolvePresentationAvatar(source)).toBe('/assets/skins/backup-grey-lux/Finn_avatar.webp')
