@@ -41,6 +41,14 @@ describe('presentation avatar assets', () => {
     ])
   })
 
+  it('keeps both twins in the presentation portrait', () => {
+    const source = '/game/assets/skins/Ali_lia_avatar_512.webp'
+    expect(resolvePresentationAvatarCandidates(source)).toEqual([
+      '/game/assets/skins/Ali_lia_avatar_grey.webp',
+      source,
+    ])
+  })
+
   it('does not rewrite non-canonical or already-grey assets', () => {
     expect(resolvePresentationAvatar('/assets/skins/Finn_avatar.png')).toBe(
       '/assets/skins/Finn_avatar.png'

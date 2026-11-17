@@ -8,6 +8,7 @@ import {
   hasLeadershipRole,
 } from './mode-routing.mjs'
 import { isCinematicMediaAvailable } from '../media/cinematicPackAvailability.mjs'
+import { isCombinedTwinIdentity, TWIN_SHOCK_COMBINED_ART_ID } from '../../bb/twinShockIdentity.mjs'
 export { adaptCeremonyScene, baseScene } from './mode-routing.mjs'
 export { hasLeadershipRole } from './mode-routing.mjs'
 export function shouldPlayCinematic(state, vip) {
@@ -174,6 +175,9 @@ export function shockVariant(key) {
 }
 export function findArt(player, catalog) {
   if (!player) return null
+  if (isCombinedTwinIdentity(player)) {
+    return catalog.find((character) => character.id === TWIN_SHOCK_COMBINED_ART_ID) ?? null
+  }
   const source = player.avatar ?? ''
   const isUser = player.isUser === true || player.id === 'user'
   if (isUser && player.appearance?.kind === 'catalog') {

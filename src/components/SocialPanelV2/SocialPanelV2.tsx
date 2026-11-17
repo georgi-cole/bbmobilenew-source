@@ -643,11 +643,12 @@ export default function SocialPanelV2() {
   }
 
   const allianceQuickActions = useMemo<AllianceQuickAction[]>(() => {
-    if (!dramaMode || !humanPlayer) return []
+    if ((!dramaMode && moveFilter !== 'alliances') || !humanPlayer) return []
 
     const reality = socialState.reality
     const humanId = humanPlayer.id
     const targetId = primaryTargetId
+    const requests = Object.values(reality.allianceManagement?.requests ?? {})
     const playerName = (id: string) =>
       game.players.find((player) => player.id === id)?.name ?? 'Hubmate'
     const currentCommitments = Object.values(reality.alliances).filter(
@@ -657,7 +658,26 @@ export default function SocialPanelV2() {
     const counts = currentAllianceCounts(reality, humanId)
     const actions: AllianceQuickAction[] = []
 
-    if (!selectedAllianceId && counts.groups < ALLIANCE_LIMITS.groupsPerMember) {
+    const canPreviewFounding =
+      dramaMode ||
+      (game.players.filter(
+        (player) =>
+          player.id !== humanId &&
+          player.status !== 'evicted' &&
+          player.status !== 'jury' &&
+          currentAllianceCounts(reality, player.id).groups < ALLIANCE_LIMITS.groupsPerMember
+      ).length >= 2 &&
+        !requests.some(
+          (request) =>
+            request.kind === 'FOUND' &&
+            request.proposerId === humanId &&
+            isPendingAllianceRequest(request)
+        ))
+    if (
+      !selectedAllianceId &&
+      counts.groups < ALLIANCE_LIMITS.groupsPerMember &&
+      canPreviewFounding
+    ) {
       actions.push({
         action: allianceAction(
           'alliance:found',
@@ -684,7 +704,7 @@ export default function SocialPanelV2() {
       })
     }
 
-    for (const request of Object.values(reality.allianceManagement?.requests ?? {})) {
+    for (const request of requests) {
       if ((request.allianceId ?? null) !== selectedAllianceId) continue
       if (
         !isPendingAllianceRequest(request) ||
@@ -979,6 +999,7 @@ export default function SocialPanelV2() {
     dramaMode,
     game.players,
     humanPlayer,
+    moveFilter,
     primaryTargetId,
     socialState.reality,
   ])
@@ -1009,12 +1030,14 @@ export default function SocialPanelV2() {
   const swayPlan = getAllianceVoteSway(
     { game, settings, vip, social: socialState } as RootState,
     selectedAllianceId,
-    swaySubjectIds
+    swaySubjectIds,
+    { showLockedPreview: moveFilter === 'alliances' }
   )
 
-  const selectedAllianceAction = selectedActionId
-    ? (allianceQuickActions.find((entry) => entry.action.id === selectedActionId) ?? null)
-    : null
+  const selectedAllianceAction =
+    dramaMode && selectedActionId
+      ? (allianceQuickActions.find((entry) => entry.action.id === selectedActionId) ?? null)
+      : null
   const selectedAction = selectedActionId
     ? (SocialManeuvers.getActionById(selectedActionId) ??
       selectedAllianceAction?.action ??
@@ -1032,8 +1055,8 @@ export default function SocialPanelV2() {
   const isAllianceConsultation = selectedActionId === 'consult_alliance'
   const isAllianceInvitation = selectedActionId?.startsWith('alliance:invite:') === true
   const showAlliancePicker =
-    dramaMode &&
-    (moveFilter === 'alliances' || isAllianceInvitation || isAllianceConsultation || isAllianceSway)
+    (moveFilter === 'alliances' && (dramaMode || activeGroups.length > 0)) ||
+    (dramaMode && (isAllianceInvitation || isAllianceConsultation || isAllianceSway))
   const consultationTargetCandidates = [
     ...(primaryTargetId && (selectedTargets.size === 0 || selectedTargets.has(primaryTargetId))
       ? [primaryTargetId]
@@ -1426,6 +1449,7 @@ export default function SocialPanelV2() {
         SocialManeuvers.getActionById(actionId) ??
         allianceQuickActions.find((entry) => entry.action.id === actionId)?.action
       const nextAllianceAction = allianceQuickActions.find((entry) => entry.action.id === actionId)
+      if (!dramaMode && nextAllianceAction) return
       const nextMode = nextAction ? resolveActionTargetMode(nextAction, dramaMode) : 'primary'
       const nextBatchCompatible =
         nextMode === 'primary' &&
@@ -2331,7 +2355,7 @@ export default function SocialPanelV2() {
         <div
           id="sp2-body"
           ref={socialBodyRef}
-          className={`sp2-body${selectedAlliance ? ' sp2-body--alliance' : ''}${collapseRosterForFocusedPlayer ? ' sp2-body--focused-target' : ''}`}
+          className={`sp2-body${dramaMode && selectedAlliance ? ' sp2-body--alliance' : ''}${collapseRosterForFocusedPlayer ? ' sp2-body--focused-target' : ''}`}
         >
           <section
             className="sp2-hubmates"
@@ -2425,6 +2449,7 @@ export default function SocialPanelV2() {
             )}
 
             {showAlliancePicker &&
+              dramaMode &&
               !isAllianceInvitation &&
               !isAllianceConsultation &&
               formerGroups.length > 0 && (
@@ -2480,7 +2505,7 @@ export default function SocialPanelV2() {
             )}
           </section>
 
-          {selectedAlliance ? (
+          {dramaMode && selectedAlliance ? (
             <AllianceRead
               alliance={selectedAlliance}
               reality={socialState.reality}

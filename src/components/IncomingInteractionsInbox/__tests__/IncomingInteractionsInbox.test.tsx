@@ -839,6 +839,112 @@ describe('IncomingInteractionsInbox', () => {
     expect(screen.getByText(/now knows you prefer Safety used on Alex/i)).toBeInTheDocument()
   })
 
+  it.each([
+    ['Take the deal', 'accept', true],
+    ['Reject the deal', 'decline', false],
+    ['Walk away', 'dismiss', false],
+  ] as const)(
+    'keeps a clarified deal open through a save and lets the player choose %s',
+    (label, resolvedWith, makesPromise) => {
+      const game = createInitialGameState()
+      game.week = 4
+      game.phase = 'loh_results'
+      const human = game.players.find((player) => player.isUser)!
+      const sender = game.players.find((player) => !player.isUser)!
+      game.lohId = human.id
+      human.status = 'loh'
+      const store = makeInboxStoreForGame(game)
+      store.dispatch(
+        pushIncomingInteraction({
+          id: 'clarified-deal',
+          fromId: sender.id,
+          type: 'deal_offer',
+          text: 'I want to make a deal before nominations.',
+          payload: { scenarioKey: 'hoh_safety_request', modeAtCreation: 'normal' },
+          createdWeek: game.week,
+          createdAt: 1,
+          expiresAtWeek: game.week + 1,
+          read: false,
+          requiresResponse: true,
+          resolved: false,
+        })
+      )
+      store.dispatch(openIncomingInbox())
+      const view = renderInbox(store)
+      fireEvent.click(screen.getByRole('button', { name: 'Ask what they are offering' }))
+
+      expect(screen.getByText(/keep me off the block at nominations/i)).toBeInTheDocument()
+      expect(store.getState().social.incomingInteractions[0]).toMatchObject({
+        resolved: false,
+        dialogue: { question: 'ask_deal_terms' },
+      })
+      expect(store.getState().social.commitments).toHaveLength(0)
+
+      view.unmount()
+      const resumed = makeInboxStoreForGame(game)
+      resumed.dispatch(hydrateSocial(JSON.parse(JSON.stringify(store.getState().social))))
+      resumed.dispatch(openIncomingInbox())
+      renderInbox(resumed)
+
+      expect(screen.queryByRole('button', { name: 'Ask what they are offering' })).toBeNull()
+      expect(screen.getByText(/keep me off the block at nominations/i)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      expect(resumed.getState().social.incomingInteractions[0]).toMatchObject({
+        resolved: true,
+        resolvedWith,
+        dialogue: { question: 'ask_deal_terms' },
+      })
+      expect(resumed.getState().social.commitments).toHaveLength(makesPromise ? 1 : 0)
+    }
+  )
+
+  it('lets a LOH ask for a read and reply with a specific eligible hubmate', () => {
+    const game = createInitialGameState()
+    game.week = 4
+    game.phase = 'loh_results'
+    const human = game.players.find((player) => player.isUser)!
+    const [sender, candidate] = game.players.filter((player) => !player.isUser)
+    human.status = 'loh'
+    game.lohId = human.id
+    sender.name = 'Lia & Ali'
+    candidate.name = 'Finn'
+    const store = makeInboxStoreForGame(game)
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'nomination-check-in',
+        fromId: sender.id,
+        type: 'check_in',
+        text: 'Is there anyone you need me to keep clear?',
+        payload: { scenarioKey: 'allied_loh_plan_check_in', modeAtCreation: 'normal' },
+        createdWeek: game.week,
+        createdAt: 1,
+        expiresAtWeek: game.week + 1,
+        read: false,
+        requiresResponse: false,
+        resolved: false,
+      })
+    )
+    store.dispatch(openIncomingInbox())
+    renderInbox(store)
+    fireEvent.click(screen.getByRole('button', { name: /ask who they.re worried about/i }))
+
+    expect(store.getState().social.incomingInteractions[0]?.resolved).toBe(false)
+    const selector = screen.getByRole('combobox', { name: 'Hubmate to keep clear of' })
+    expect(within(selector).queryByRole('option', { name: sender.name })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Share name' })).toBeDisabled()
+    fireEvent.change(selector, { target: { value: `keep-clear:${candidate.id}` } })
+    fireEvent.click(screen.getByRole('button', { name: 'Share name' }))
+
+    expect(store.getState().social.incomingInteractions[0]).toMatchObject({
+      resolved: true,
+      resolvedChoiceId: `keep-clear:${candidate.id}`,
+      dialogue: { question: 'ask_nomination_read' },
+    })
+    expect(screen.getByText(/I hear you about Finn/i)).toBeInTheDocument()
+    expect(store.getState().game.nomineeIds).toEqual(game.nomineeIds)
+    expect(store.getState().social.commitments).toHaveLength(0)
+  })
+
   it('shows only the promise label and records it when chosen in Normal mode', () => {
     const game = createInitialGameState()
     game.phase = 'loh_results'

@@ -643,3 +643,12 @@ store listings or change configured prices.
   precedes the existing finale interstitial boundary; VIP and ad-free entitlements
   retain their current exemptions. No product, price, entitlement, reward,
   marketplace copy, wheel odds or competition difficulty changes.
+
+- 2026-11-18: Reviewed Standard alliance previews with the existing VIP Eye
+  and upgrade destination. Locked cards keep alliance actions gated. In-season
+  premium challenge offers occur before the attempt begins and preserve the
+  attempt through Marketplace purchase or return. Cinematic setup waits until
+  the challenge ends. VIP and Premium Challenges still unlock all registered
+  premium versions. Lia & Ali's artwork extends the shared cast and optional
+  cinematic pack. Product benefits, prices, rewards and entitlement rules are
+  unchanged.

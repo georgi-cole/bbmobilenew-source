@@ -142,6 +142,29 @@ export interface PendingChallenge {
   origin?: { gameId: string; week: number; phase: string }
   /** True only while hydrating an attempt that had already started. */
   restored?: boolean
+  /** Acknowledgement at the ready screen. Retained when leaving for Marketplace. */
+  premiumOffer?: { attempt: number; decision: 'declined' | 'marketplace' }
+}
+
+export interface ChallengeAttemptReference {
+  id: string
+  number: number
+}
+
+export function matchReadyChallengeAttempt(
+  pending: PendingChallenge | null,
+  attempt: ChallengeAttemptReference,
+  game: Pick<RootState['game'], 'gameId' | 'week' | 'phase'>
+): pending is PendingChallenge {
+  return (
+    pending?.id === attempt.id &&
+    (pending.attempt?.number ?? 0) === attempt.number &&
+    (!pending.attempt || pending.attempt.status === 'ready') &&
+    (!pending.origin ||
+      (pending.origin.gameId === game.gameId &&
+        pending.origin.week === game.week &&
+        pending.origin.phase === game.phase))
+  )
 }
 
 const initialState: ChallengeState = {
@@ -174,6 +197,36 @@ const challengeSlice = createSlice({
 
     setPendingMusicVariant(state, action: PayloadAction<MusicMinigameVariant>) {
       if (state.pending) state.pending.musicVariant = action.payload
+    },
+    answerChallengePremiumOffer(
+      state,
+      action: PayloadAction<ChallengeAttemptReference & { decision: 'declined' | 'marketplace' }>
+    ) {
+      const pending = state.pending
+      const { id, number, decision } = action.payload
+      if (
+        pending?.id !== id ||
+        (pending.attempt?.number ?? 0) !== number ||
+        (pending.attempt && pending.attempt.status !== 'ready')
+      )
+        return
+      pending.premiumOffer = { attempt: number, decision }
+    },
+    setPendingQuickTapPremiumScores(
+      state,
+      action: PayloadAction<ChallengeAttemptReference & { aiScores: Record<string, number> }>
+    ) {
+      const pending = state.pending
+      const { id, number, aiScores } = action.payload
+      if (
+        pending?.id !== id ||
+        (pending.attempt?.number ?? 0) !== number ||
+        (pending.attempt && pending.attempt.status !== 'ready')
+      )
+        return
+      pending.aiScores = aiScores
+      pending.aiTiebreakers = undefined
+      pending.forcedWinnerId = undefined
     },
 
     noteDemocraciaSkippedLoh(state, action: PayloadAction<{ day: number; playerCount: number }>) {
@@ -294,6 +347,8 @@ export const {
   setPendingChallenge,
   setPendingPhase,
   setPendingMusicVariant,
+  answerChallengePremiumOffer,
+  setPendingQuickTapPremiumScores,
   incrementNonce,
   noteDemocraciaSkippedLoh,
   recordRun,
@@ -314,6 +369,46 @@ export default challengeSlice.reducer
 export const selectPendingChallenge = (s: RootState) => s.challenge?.pending ?? null
 export const selectChallengeHistory = (s: RootState) => s.challenge?.history ?? []
 export const selectChallengeDebug = (s: RootState) => s.challenge?.debug ?? {}
+
+/** Recompute the ready Quick Tap field when Marketplace changed its rules. */
+export const preparePurchasedQuickTapChallenge =
+  (attempt: ChallengeAttemptReference) => (dispatch: AppDispatch, getState: () => RootState) => {
+    const state = getState()
+    const pending = state.challenge.pending
+    if (
+      !matchReadyChallengeAttempt(pending, attempt, state.game) ||
+      pending.premiumOffer?.decision !== 'marketplace' ||
+      pending.premiumOffer.attempt !== attempt.number ||
+      (pending.game.key !== 'quickTap' && pending.game.key !== 'quickTapSeasons') ||
+      !hasEffectiveStoreEntitlement(state.vip, 'premiumChallenges')
+    )
+      return
+
+    const humanId = state.game.players.find((player) => player.isUser)?.id
+    const aiScores = Object.fromEntries(
+      pending.participants
+        .filter((playerId) => playerId !== humanId)
+        .map((playerId) => {
+          const player = state.game.players.find((candidate) => candidate.id === playerId)
+          return [
+            playerId,
+            simulateQuickTapVipAiRace({
+              seed: pending.seed,
+              playerId,
+              profile:
+                runtimeCompetitionProfile(
+                  pending.aiRuntime,
+                  playerId,
+                  player?.competitionProfile,
+                  pending.game.key
+                ) ?? getDefaultCompetitionProfile(),
+              mode: pending.game.key === 'quickTapSeasons' ? 'seasons' : 'race',
+            }).score,
+          ]
+        })
+    )
+    dispatch(setPendingQuickTapPremiumScores({ ...attempt, aiScores }))
+  }
 
 // ─── Thunks ───────────────────────────────────────────────────────────────────
 

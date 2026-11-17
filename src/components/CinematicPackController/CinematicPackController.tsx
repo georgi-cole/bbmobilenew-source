@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { selectPendingChallenge } from '../../store/challengeSlice'
 import { selectIsVipActive } from '../../store/vipSlice'
 import { setGameUX } from '../../store/settingsSlice'
 import { VIP_CINEMATIC_PACK } from '../../cinematic/media/vipCinematicPack'
@@ -15,8 +16,11 @@ import '../ConfirmExitModal/ConfirmExitModal.css'
 export default function CinematicPackController({ hash }: { hash: string }) {
   const dispatch = useAppDispatch()
   const vip = useAppSelector(selectIsVipActive)
+  const pending = useAppSelector(selectPendingChallenge)
+  const competitionCheckout =
+    /^#\/(?:store|game)(?:[/?]|$)/.test(hash) && pending?.premiumOffer?.decision === 'marketplace'
   const state = useCinematicPackDownload()
-  const open = state.prompt > 0
+  const open = state.prompt > 0 && !competitionCheckout
   const supported = supportsCinematicDownloads()
   const busy = state.status === 'downloading' || state.status === 'verifying'
   const shouldOffer =
@@ -25,6 +29,7 @@ export default function CinematicPackController({ hash }: { hash: string }) {
     state.status === 'available' &&
     state.choice !== 'standard' &&
     !open &&
+    !competitionCheckout &&
     !/^#\/game(?:[/?]|$)/.test(hash)
 
   useEffect(() => {

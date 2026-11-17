@@ -6,6 +6,7 @@ import {
 } from '../../components/SeasonRecapCinematic/seasonRecapData'
 import { TABLOID_PHOTO_FILES } from '../../data/tabloidPhotoManifest'
 import { appearanceFromAssetUrl, getAppearanceAsset } from '../../appearance/catalog'
+import { isCombinedTwinIdentity, TWIN_SHOCK_COMBINED_ART_ID } from '../../bb/twinShockIdentity.mjs'
 import { joinPublicAssetPath } from '../../utils/avatar'
 import type { PublicOpinionState } from '../../publicOpinion/types'
 import type { SocialState } from '../../social/types'
@@ -562,10 +563,14 @@ function pickTabloidPhoto(
     )
     if (asset) return joinPublicAssetPath(asset)
   }
-  if (photos.length === 0) return null
+  if (isCombinedTwinIdentity(player)) return null
   const desiredTokens = getTabloidMatchTokens(player)
+  const combinedMatchToken = normalizeToken(TWIN_SHOCK_COMBINED_ART_ID)
   const matched = photos.find(
-    (photo) => !usedPhotoIds.has(photo.id) && desiredTokens.includes(photo.matchToken)
+    (photo) =>
+      photo.matchToken !== combinedMatchToken &&
+      !usedPhotoIds.has(photo.id) &&
+      desiredTokens.includes(photo.matchToken)
   )
   if (matched) {
     usedPhotoIds.add(matched.id)

@@ -1414,6 +1414,36 @@ describe('LOH target question integration', () => {
 })
 
 describe('SocialPanelV2 – integrated alliance actions', () => {
+  it('offers locked Standard alliance actions before a hubmate is selected', () => {
+    const store = makeStore({ phase: 'social_1' })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 10 }))
+    store.dispatch(setInfluenceBankEntry({ playerId: human.id, value: 20 }))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    const grid = within(screen.getByRole('group', { name: 'Action grid' }))
+    expect(grid.queryByRole('button', { name: /Found an alliance/i })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+
+    const founder = grid.getByRole('button', { name: /Found an alliance.*VIP Reality action/i })
+    expect(founder).toBeVisible()
+    expect(
+      grid.getByRole('button', { name: /Propose Personal Pact.*VIP Reality action/i })
+    ).toBeVisible()
+    expect(grid.queryByRole('button', { name: /Consult Alliance|Sway the vote/i })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Execute' })).toBeDisabled()
+
+    fireEvent.keyDown(founder, { key: 'Enter' })
+    expect(store.getState().social.panelOpen).toBe(false)
+    expect(store.getState().social.energyBank[human.id]).toBe(10)
+    expect(store.getState().social.influenceBank[human.id]).toBe(20)
+    expect(Object.values(store.getState().social.reality.allianceManagement.requests)).toHaveLength(
+      0
+    )
+  })
+
   it('charges two energy for a new pact from the integrated alliance action card', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
@@ -1713,8 +1743,8 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
 })
 
 describe('SocialPanelV2 – alliance context and history', () => {
-  function contextPanel() {
-    const store = makeStore({ phase: 'social_1', dramaMode: true })
+  function contextPanel(dramaMode = true) {
+    const store = makeStore({ phase: 'social_1', dramaMode })
     const human = store.getState().game.players.find((player) => player.isUser)!
     const [a, b, candidate] = store
       .getState()
@@ -1744,6 +1774,33 @@ describe('SocialPanelV2 – alliance context and history', () => {
     renderPanel(store)
     return { store, human, a, b, candidate }
   }
+
+  it('scopes locked Standard alliance controls to the chosen group and player role', () => {
+    contextPanel(false)
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+    const grid = within(screen.getByRole('group', { name: 'Action grid' }))
+    const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
+    expect(
+      grid.getByRole('button', { name: /Consult Alliance.*VIP Reality action/i })
+    ).toBeVisible()
+    expect(grid.queryByRole('button', { name: /Found an alliance|Dissolve|Rename/i })).toBeNull()
+
+    fireEvent.click(picker.getByRole('button', { name: 'The Shield' }))
+    expect(
+      grid.getByRole('button', { name: /Rename The Shield.*VIP Reality action/i })
+    ).toBeVisible()
+    expect(
+      grid.getByRole('button', { name: /Dissolve The Shield.*VIP Reality action/i })
+    ).toBeVisible()
+    expect(grid.queryByRole('button', { name: /The Circle/i })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Execute' })).toBeDisabled()
+
+    fireEvent.click(picker.getByRole('button', { name: 'The Circle' }))
+    expect(
+      grid.getByRole('button', { name: /Suggest a new name for The Circle.*VIP Reality action/i })
+    ).toBeVisible()
+    expect(grid.queryByRole('button', { name: /The Shield|Dissolve The Circle/i })).toBeNull()
+  })
 
   it('shows generic actions first and scopes group actions and member controls to one selected alliance', () => {
     const { a } = contextPanel()

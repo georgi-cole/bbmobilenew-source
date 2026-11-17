@@ -154,7 +154,11 @@ export default function ActionGrid({
     return energyOverride === undefined ? costs : { ...costs, energy: energyOverride }
   }
 
-  function getContextEligibility(action: SocialActionDefinition) {
+  function getContextEligibility(
+    action: SocialActionDefinition,
+    preview = false,
+    previewTargetId?: string
+  ) {
     const targetIds =
       action.id === 'consult_alliance'
         ? (consultationTargetIds ?? new Set<string>())
@@ -162,7 +166,7 @@ export default function ActionGrid({
     return evaluateSocialActionEligibility({
       action,
       actorId,
-      targetIds: targetIds ? Array.from(targetIds) : [],
+      targetIds: previewTargetId ? [previewTargetId] : Array.from(targetIds ?? []),
       phase: currentPhase,
       week: game.week,
       players: game.players.length > 0 ? game.players : players,
@@ -173,6 +177,7 @@ export default function ActionGrid({
       reality,
       pregnancyStory: game.pregnancyStory,
       dramaMode,
+      ignoreRealityModeGate: preview,
     })
   }
 
@@ -202,31 +207,33 @@ export default function ActionGrid({
   }
 
   function isRelevantRealityPreview(action: SocialActionDefinition): boolean {
-    return (
-      (!allianceContext || action.id === 'consult_alliance') &&
-      action.enabled !== false &&
-      !dramaMode &&
-      isActionAllowedForRealityPreset(action, realityModePreset) &&
-      isRealityExclusiveAction(action) &&
-      !action.aiOnly &&
-      !hiddenActionIds.has(action.id) &&
-      evaluateSocialActionEligibility({
-        action,
-        actorId,
-        targetIds: selectedTargetIds ? Array.from(selectedTargetIds) : [],
-        phase: currentPhase,
-        week: game.week,
-        players: game.players.length > 0 ? game.players : players,
-        nomineeIds: game.nomineeIds,
-        primaryTargetStatus,
-        relationships,
-        dramaNetwork,
-        reality,
-        pregnancyStory: game.pregnancyStory,
-        dramaMode: false,
-        ignoreRealityModeGate: true,
-      }).eligible
+    if (
+      (allianceContext && action.id !== 'consult_alliance') ||
+      action.enabled === false ||
+      dramaMode ||
+      !isActionAllowedForRealityPreset(action, realityModePreset) ||
+      !isRealityExclusiveAction(action) ||
+      action.aiOnly ||
+      hiddenActionIds.has(action.id)
     )
+      return false
+
+    if (
+      categoryFilter === 'alliances' &&
+      action.id === 'proposeAlliance' &&
+      selectedTargetIds?.size === 0
+    ) {
+      const roster = game.players.length > 0 ? game.players : (players ?? [])
+      return roster.some(
+        (player) =>
+          !player.isUser &&
+          player.id !== actorId &&
+          player.status !== 'evicted' &&
+          player.status !== 'jury' &&
+          getContextEligibility(action, true, player.id).eligible
+      )
+    }
+    return getContextEligibility(action, true).eligible
   }
 
   // The Social panel passes the non-human roster into ActionGrid, so looking up
@@ -340,7 +347,10 @@ export default function ActionGrid({
       )
       return (
         actionMode === 'none' ||
-        (action.id === 'consult_alliance' && (consultationTargetIds?.size ?? 0) > 0)
+        (action.id === 'consult_alliance' && (consultationTargetIds?.size ?? 0) > 0) ||
+        (categoryFilter === 'alliances' &&
+          action.id === 'proposeAlliance' &&
+          isRealityPreview(action))
       )
     })
     .filter((action) => action.id === suggestedActionId || matchesCategoryFilter(action))
@@ -358,8 +368,9 @@ export default function ActionGrid({
   // disappear when the player compares actions.
   const visibleActions = orderedVisibleActions
   const visibleSupplementalActions = supplementalActions.filter(
-    ({ action, allowWithoutTarget }) => {
+    ({ action, allowWithoutTarget, disabled }) => {
       if (!matchesCategoryFilter(action)) return false
+      if (!dramaMode && isRealityExclusiveAction(action) && disabled) return false
       if (!explicitlyNoTargetSelected) return true
       return allowWithoutTarget || resolveActionTargetMode(action, dramaMode) === 'none'
     }
@@ -377,13 +388,17 @@ export default function ActionGrid({
       return
     }
 
-    const actionAvailable = orderedVisibleActions.some((action) => action.id === suggestedActionId)
+    const actionAvailable = orderedVisibleActions.some(
+      (action) =>
+        action.id === suggestedActionId && (dramaMode || !isRealityExclusiveAction(action))
+    )
     if (!actionAvailable) return
 
     appliedInvitationRef.current = invitation.id
     if (selectedId !== suggestedActionId) onActionClick(suggestedActionId)
   }, [
     invitation,
+    dramaMode,
     onActionClick,
     orderedVisibleActions,
     selectedId,
@@ -456,6 +471,7 @@ export default function ActionGrid({
         {visibleSupplementalActions.map(
           ({ action, costs, disabled = false, availabilityReason }) => {
             const resolvedCosts = costs ?? getActionCosts(action)
+            const premiumLocked = !dramaMode && isRealityExclusiveAction(action)
             return (
               <ActionCard
                 key={action.id}
@@ -463,9 +479,11 @@ export default function ActionGrid({
                 costs={resolvedCosts}
                 selected={selectedId === action.id}
                 disabled={disabled}
+                premiumLocked={premiumLocked}
                 availabilityReason={availabilityReason || getAvailabilityReason(resolvedCosts)}
                 available={!disabled && isActionAffordable(resolvedCosts)}
                 onClick={onActionClick}
+                onPremiumLockedClick={handlePremiumLockedAction}
               />
             )
           }

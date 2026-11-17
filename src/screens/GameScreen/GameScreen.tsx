@@ -114,7 +114,7 @@ import FinalThreeCompetitionBroadcast from '../../components/FinalThreeCompetiti
 import VoxFinalThreeAppeal from '../../components/VoxFinalThreeAppeal/VoxFinalThreeAppeal'
 import VoxFinalThreeCeremony from '../../components/VoxFinalThreeCeremony/VoxFinalThreeCeremony'
 import { useVoxFinalThreeCeremony } from '../../components/VoxFinalThreeCeremony/useVoxFinalThreeCeremony'
-import { getProfilePhotoAvatarId, joinPublicAssetPath, resolveAvatar } from '../../utils/avatar'
+import { getProfilePhotoAvatarId, resolveAvatar } from '../../utils/avatar'
 import { statusBadgeImageSrc } from '../../utils/statusBadges'
 import type { Player } from '../../types'
 import { isSurvivorRunTerminal } from '../../modes/survivorRun'
@@ -846,11 +846,7 @@ export default function GameScreen() {
     return {
       id: p.id,
       name: p.name,
-      avatarUrl: getProfilePhotoAvatarId(p.avatar)
-        ? p.avatar
-        : p.id === 'lia' && /\blia\s*&\s*ali\b/i.test(p.name)
-          ? joinPublicAssetPath('assets/skins/Ali_lia_avatar_512.webp')
-          : resolveAvatar(p),
+      avatarUrl: getProfilePhotoAvatarId(p.avatar) ? p.avatar : resolveAvatar(p),
       statuses,
       finalRank: (p.finalRank ?? null) as 1 | 2 | 3 | null,
       isEvicted,
@@ -2222,6 +2218,9 @@ export default function GameScreen() {
             }}
             onPhaseChange={handleMinigameHostPhaseChange}
             onMusicVariantChange={handleMinigameMusicVariantChange}
+            onOpenPremiumMarketplace={(competitionReturn) =>
+              navigate('/store', { state: { competitionReturn, shelf: 'all-access' } })
+            }
             competitionRetry={{
               enabled: competitionRetryInResultsEnabled,
               pending: adPending,

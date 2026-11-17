@@ -1,5 +1,6 @@
 import type { GameState, Player } from '../../types'
 import { appearanceFromAssetUrl, getAppearanceAsset } from '../../appearance/catalog'
+import { isCombinedTwinAvatar, isCombinedTwinIdentity } from '../../bb/twinShockIdentity.mjs'
 import { joinPublicAssetPath } from '../../utils/avatar'
 
 export const DEPRESSION_SHOCK_ROLL_DAY = 7
@@ -680,6 +681,16 @@ export function buildDepressionShockAvatarCandidates(
   })
   const base = import.meta.env.BASE_URL ?? '/'
   const prefix = base.endsWith('/') ? base : `${base}/`
+  if (
+    catalogSad.length === 0 &&
+    isCombinedTwinIdentity({
+      id: playerId,
+      name: playerName,
+      avatar: resolvedAvatarCandidates.find(isCombinedTwinAvatar),
+    })
+  ) {
+    return [`${prefix}assets/skins/Ali_lia_sad_avatar.webp`]
+  }
   const sourceStems = resolvedAvatarCandidates.flatMap((candidate) => {
     const normalized = candidate.replace(/\\/g, '/')
     const match = normalized.match(
@@ -694,7 +705,6 @@ export function buildDepressionShockAvatarCandidates(
     ...catalogSad,
     ...stems.flatMap((stem) => [
       `${prefix}assets/skins/${stem}_sad_avatar.webp`,
-      ...(stem === 'Ali_lia' ? [`${prefix}assets/skins/Ali_lia_sad_avatar_fallback.webp`] : []),
       `${prefix}assets/skins/${stem}_depressed_avatar.webp`,
     ]),
   ]

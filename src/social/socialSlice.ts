@@ -1274,7 +1274,22 @@ const socialSlice = createSlice({
       entry.reactionText = reactionText
       entry.outcomeText = outcomeText
     },
-    /** Save a pact-offer conversation step while keeping the offer unresolved. */
+    recordIncomingDialogueTurn(
+      state,
+      action: PayloadAction<{
+        interactionId: string
+        turn: NonNullable<IncomingInteraction['dialogue']>
+      }>
+    ) {
+      const { interactionId, turn } = action.payload
+      const entry = state.incomingInteractions.find(
+        (interaction) => interaction.id === interactionId
+      )
+      if (!entry || entry.resolved || entry.dialogue) return
+      entry.read = true
+      entry.dialogue = turn
+    },
+    /** Save a pact or alliance follow-up while keeping its interaction unresolved. */
     recordIncomingInteractionFollowUp(
       state,
       action: PayloadAction<{
@@ -1720,6 +1735,7 @@ export const {
   markAllIncomingInteractionsRead,
   resolveIncomingInteraction,
   recordIncomingInteractionFollowUp,
+  recordIncomingDialogueTurn,
   dismissIncomingInteraction,
   invalidateIncomingInteractions,
   drainEvictedPlayerSocial,

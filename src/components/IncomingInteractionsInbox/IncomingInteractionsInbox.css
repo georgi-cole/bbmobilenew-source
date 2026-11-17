@@ -826,3 +826,36 @@
   font-size: 0.72rem;
   overflow-wrap: anywhere;
 }
+
+.inbox-item__question {
+  margin: 0;
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.inbox-item__nomination-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem;
+}
+
+.inbox-item__nomination-choice select {
+  min-width: 0;
+  min-height: 44px;
+  padding-inline: 0.6rem;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 0.65rem;
+  color: #eef2ff;
+  background: #201932;
+}
+
+.inbox-item__nomination-choice button {
+  min-height: 44px;
+  padding-inline: 0.65rem;
+  border-radius: 0.65rem;
+}
+
+.inbox-item__nomination-choice button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

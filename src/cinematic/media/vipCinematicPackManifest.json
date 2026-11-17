@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "packId": "vip-cinematics",
   "rendererVersion": 1,
-  "catalogSha256": "f308b62b02d0ddb9ed9d7d0193cdf138f311214ad412c02c82f60b874b6e1cce",
-  "totalBytes": 37035212,
+  "catalogSha256": "3278792372d33bad70c61b73fd5feffd21222dba601c5c4f7356581fb097e365",
+  "totalBytes": 37523356,
   "files": [
     {
       "path": "assets/ceremonies/characters/ali/ceremony-decision-back.webp",
@@ -1446,6 +1446,36 @@
       "sha256": "30bc571bba49926c48793b84bef749010bc26b18f79a4f0472c69d04705169bd"
     },
     {
+      "path": "assets/ceremonies/characters/lia-ali/ceremony-decision-back.webp",
+      "bytes": 39552,
+      "sha256": "1e7b0fff5ad9bcfd84aff62f22dd63c742604c97c8430553e11fbc67025293bf"
+    },
+    {
+      "path": "assets/ceremonies/characters/lia-ali/ceremony-exit-back.webp",
+      "bytes": 41288,
+      "sha256": "30ade56f487fd761aff523279ae5c9b8d699607a1b852590689b484e5fa57909"
+    },
+    {
+      "path": "assets/ceremonies/characters/lia-ali/ceremony-front.webp",
+      "bytes": 47730,
+      "sha256": "fdf9e2219d0ecb59536d14a3253a668a7f0fa15b59c0565018099d450f56e210"
+    },
+    {
+      "path": "assets/ceremonies/characters/lia-ali/ceremony-royal-seated.webp",
+      "bytes": 73140,
+      "sha256": "0b7d37166d44628cb295202a040ff8ef746dc36ca2554ea8e673706c0e8e6dfd"
+    },
+    {
+      "path": "assets/ceremonies/characters/lia-ali/ceremony-royal-standing.webp",
+      "bytes": 45592,
+      "sha256": "1cfdfd0062e58c38798b0daf3fea71b986e68ac27754f2597455dcf67ad9be7b"
+    },
+    {
+      "path": "assets/ceremonies/characters/lia-ali/ceremony-safety-knight.webp",
+      "bytes": 58312,
+      "sha256": "d19cabd229029c726858855107aad58b13763dfcc85859c2833dddf39c2222c0"
+    },
+    {
       "path": "assets/ceremonies/characters/lia/ceremony-decision-back.webp",
       "bytes": 26900,
       "sha256": "be165e4947e242b2b06cdb384078dfc4ce90e847055083b01768239d2b749e7d"
@@ -2266,6 +2296,11 @@
       "sha256": "b0dbeaa3b6fa16c6ea3768ef239528eaac16ffe2e4f594318ef93b5ec27379f2"
     },
     {
+      "path": "assets/ceremonies/walks/lia-ali.webp",
+      "bytes": 182530,
+      "sha256": "9b78287455305d1baa71e7b7f352cd1bc2b5664aa203faa8aab15765b9a944d5"
+    },
+    {
       "path": "assets/ceremonies/walks/lia.webp",
       "bytes": 232856,
       "sha256": "5241c280a79a1d2216b98092ae6a9692cb175b09f85eb724ea4d10e5ba317bef"
@@ -2341,5 +2376,5 @@
       "sha256": "8e06cef243f5c1bfe85f9e1f0f6bc6cf9b05c412a607bd52589eeb9e0f88ea77"
     }
   ],
-  "revision": "4696f7870bb43a457053675d29fa42c1f58e02722fadd4ecac34c173988c1a08"
+  "revision": "ec3da82dc4af6e90116adb1c3859c9dee5fb174f662f15e85f4b30f4eba15d86"
 }

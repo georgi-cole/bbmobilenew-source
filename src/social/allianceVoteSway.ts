@@ -24,15 +24,17 @@ export const SWAY_ALLIANCE_VOTE: SocialActionDefinition = {
 export function getAllianceVoteSway(
   state: RootState,
   allianceId: string | null,
-  subjectIds: readonly string[] = []
+  subjectIds: readonly string[] = [],
+  { showLockedPreview = false } = {}
 ) {
   const { game, social } = state
   const human = game.players.find((player) => player.isUser)
+  const dramaMode = getEffectiveSocialMode(state) === 'drama'
   const windowOpen = Boolean(
     human &&
     game.lohId === human.id &&
     !['evicted', 'jury'].includes(human.status) &&
-    getEffectiveSocialMode(state) === 'drama' &&
+    (dramaMode || showLockedPreview) &&
     game.voxPopuli?.status !== 'active' &&
     ['pos_ceremony_results', 'social_2'].includes(game.phase) &&
     !game.replacementNeeded &&
@@ -73,19 +75,21 @@ export function getAllianceVoteSway(
     influence: unit.influence * count,
     info: unit.info * count,
   }
-  let reason = !windowOpen
-    ? 'Wait until the final nominees are settled.'
-    : !alliance
-      ? 'Choose an alliance.'
-      : !voters.length
-        ? 'No alliance members can cast a vote.'
-        : !subjectIds.length
-          ? 'Choose an elimination target.'
-          : subjectIds.length > maxTargets || new Set(subjectIds).size !== subjectIds.length
-            ? `Choose up to ${maxTargets} nominees.`
-            : subjectIds.some((id) => !nominees.some((nominee) => nominee.id === id))
-              ? 'Choose a current nominee.'
-              : ''
+  let reason = !dramaMode
+    ? 'Reality Mode required.'
+    : !windowOpen
+      ? 'Wait until the final nominees are settled.'
+      : !alliance
+        ? 'Choose an alliance.'
+        : !voters.length
+          ? 'No alliance members can cast a vote.'
+          : !subjectIds.length
+            ? 'Choose an elimination target.'
+            : subjectIds.length > maxTargets || new Set(subjectIds).size !== subjectIds.length
+              ? `Choose up to ${maxTargets} nominees.`
+              : subjectIds.some((id) => !nominees.some((nominee) => nominee.id === id))
+                ? 'Choose a current nominee.'
+                : ''
   if (!reason && human && action) {
     for (const subjectId of subjectIds)
       for (const voter of voters) {
