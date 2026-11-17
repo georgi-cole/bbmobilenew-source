@@ -95,6 +95,12 @@ export function useCompetitionFlow({
     ariaLabel: string
   } | null>(null)
   const pendingWinnerCeremony = pendingWinnerState?.scope === scope ? pendingWinnerState : null
+  const [finalThreeTransition, setFinalThreeTransition] = useState<{
+    scope: string
+    runId: string
+  } | null>(null)
+  const pendingFinalThreeTransition =
+    finalThreeTransition?.scope === scope ? finalThreeTransition : null
   const previousScope = useRef(scope)
   const pendingWinnerDispatchRef = useRef<{ id: string; commit: () => void } | null>(null)
   const acceptedRecoveryRef = useRef<string | null>(null)
@@ -118,6 +124,12 @@ export function useCompetitionFlow({
     const id = pendingWinnerCeremony?.runId
     if (id && commitPendingWinner(id)) setPendingWinnerCeremony(null)
   }, [commitPendingWinner, pendingWinnerCeremony?.runId])
+
+  const handleFinalThreeTransitionDone = useCallback(() => {
+    if (pendingFinalThreeTransition && commitPendingWinner(pendingFinalThreeTransition.runId)) {
+      setFinalThreeTransition(null)
+    }
+  }, [commitPendingWinner, pendingFinalThreeTransition])
 
   // Continue has accepted this result. Leaving during its visual reveal must
   // keep that accepted outcome rather than schedule a fresh competition.
@@ -479,11 +491,28 @@ export function useCompetitionFlow({
         pendingChallenge.origin?.phase ?? ''
       )
       if (isF3MinigamePhase || originIsFinalThree) {
-        if (!originIsFinalThree || current.game.phase === pendingChallenge.origin?.phase) {
-          dispatch(applyF3MinigameWinner(scoreWinnerId ?? capturedParticipants[0]))
+        const acceptedScope = competitionScope(current)
+        const commitFinalThree = () => {
+          const latest = store.getState()
+          if (competitionScope(latest) !== acceptedScope) return
+          if (
+            latest.challenge.pending?.id !== pendingChallenge.id ||
+            (latest.challenge.pending.attempt?.number ?? 0) !==
+              (pendingChallenge.attempt?.number ?? 0)
+          )
+            return
+          if (!originIsFinalThree || latest.game.phase === pendingChallenge.origin?.phase) {
+            dispatch(applyF3MinigameWinner(scoreWinnerId ?? capturedParticipants[0]))
+          }
+          dispatch(clearChallengeIfCurrent(pendingChallenge.id))
+          void persistCompetitionCheckpoint()
         }
-        dispatch(clearChallengeIfCurrent(pendingChallenge.id))
-        void persistCompetitionCheckpoint()
+        if (recoveringAccepted) {
+          commitFinalThree()
+        } else {
+          pendingWinnerDispatchRef.current = { id: pendingChallenge.id, commit: commitFinalThree }
+          setFinalThreeTransition({ scope: acceptedScope, runId: pendingChallenge.id })
+        }
         return
       }
 
@@ -809,6 +838,8 @@ export function useCompetitionFlow({
     pendingChallenge,
     isF3MinigamePhase,
     pendingWinnerCeremony,
+    pendingFinalThreeTransition,
+    handleFinalThreeTransitionDone,
     handleWinnerCeremonyDone,
     handleChallengeDone,
     spectatorLegacyPayload,

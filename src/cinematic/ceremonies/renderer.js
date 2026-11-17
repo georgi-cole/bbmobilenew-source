@@ -1090,6 +1090,9 @@ export function createClip() {
           [4200, 1],
         ])
       durationMs = duration
+      if (decisionTiming?.closingBrand) {
+        later(() => options.onClosingBrand?.(), decisionTiming.zoomAt + leadIn + 140)
+      }
       const endAt =
         (decisionTiming ? decisionTiming.handoffAt + leadIn : null) ??
         (id === 'replacement' || coOutcome || root.classList.contains('nom-calibrated')

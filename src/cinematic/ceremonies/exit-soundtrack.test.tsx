@@ -14,12 +14,20 @@ import { createInitialVoxPopuliState } from '../../features/twists/voxPopuli'
 const film = vi.hoisted(() => ({
   prepare: vi.fn(async () => ({})),
   handoff: null as (() => void) | null,
+  closing: null as (() => void) | null,
   done: null as (() => void) | null,
 }))
 vi.mock('./renderer.js', () => ({
   createClip: () => ({
     prepare: film.prepare,
-    mount: (_parent: HTMLElement, handoff: () => void, done: () => void) => {
+    mount: (
+      _parent: HTMLElement,
+      handoff: () => void,
+      done: () => void,
+      _shock: string,
+      options: { onClosingBrand: () => void }
+    ) => {
+      film.closing = options.onClosingBrand
       film.handoff = handoff
       film.done = done
     },
@@ -40,6 +48,7 @@ vi.mock('../../components/Eviction/SpotlightEvictionOverlay', () => ({
 beforeEach(() => {
   vi.clearAllMocks()
   film.prepare.mockResolvedValue({})
+  film.closing = null
   film.handoff = null
   film.done = null
 })
@@ -218,4 +227,16 @@ describe('departure soundtrack continuation', () => {
       await act(async () => releaseDecision())
     }
   })
+})
+
+it('removes the departure Skip control when the Eye ident starts and through the native handoff', async () => {
+  const subject = openExit()
+  subject.releaseDecision()
+  await waitFor(() => expect(film.closing).toBeTypeOf('function'))
+  expect(screen.getByRole('button', { name: 'Skip cinematic' })).toBeInTheDocument()
+  act(() => film.closing?.())
+  expect(screen.queryByRole('button', { name: 'Skip cinematic' })).toBeNull()
+  act(() => film.handoff?.())
+  expect(screen.queryByRole('button', { name: 'Skip cinematic' })).toBeNull()
+  expect(screen.getByRole('button', { name: 'Confirm exit' })).toBeInTheDocument()
 })

@@ -22,7 +22,7 @@ import { usePresentationTimeline } from '../../services/presentation/usePresenta
 import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
 import './FinalLightsOutSequence.css'
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+import { FINAL_THREE_SET_ASSETS } from '../FinalThreeStage/finalThreeSetAssets'
 
 export interface FinalLightsOutSequenceProps {
   /** Retained for call-site compatibility; the final TV card intentionally contains only the farewell. */
@@ -218,7 +218,11 @@ export default function FinalLightsOutSequence({ onComplete }: FinalLightsOutSeq
       <div className="flo-bg-overlay" aria-hidden="true" />
 
       {/* ── Left light rail ── */}
-      <div className="flo-light-rail flo-light-rail--left" aria-hidden="true">
+      <div
+        className="flo-light-rail flo-light-rail--left"
+        style={tvZoneRect ? { top: tvZoneRect.top + tvZoneRect.height + 16 } : undefined}
+        aria-hidden="true"
+      >
         {Array.from({ length: LIGHT_ROWS }).map((_, i) => (
           <div key={i} className={`flo-light-row${i < darkRows ? ' flo-light-row--off' : ''}`}>
             <span className="flo-light flo-light--a" />
@@ -228,7 +232,11 @@ export default function FinalLightsOutSequence({ onComplete }: FinalLightsOutSeq
       </div>
 
       {/* ── Right light rail ── */}
-      <div className="flo-light-rail flo-light-rail--right" aria-hidden="true">
+      <div
+        className="flo-light-rail flo-light-rail--right"
+        style={tvZoneRect ? { top: tvZoneRect.top + tvZoneRect.height + 16 } : undefined}
+        aria-hidden="true"
+      >
         {Array.from({ length: LIGHT_ROWS }).map((_, i) => (
           <div key={i} className={`flo-light-row${i < darkRows ? ' flo-light-row--off' : ''}`}>
             <span className="flo-light flo-light--a" />
@@ -268,11 +276,7 @@ export default function FinalLightsOutSequence({ onComplete }: FinalLightsOutSeq
           <div className="flo-tv-scanlines" />
           <div className="flo-tv-content">
             <span className="flo-tv-logo" aria-hidden="true">
-              <img
-                className="flo-tv-logo-image"
-                src={`${BASE}/assets/avatar_badges/goodbye_eye_vector.svg`}
-                alt=""
-              />
+              <img className="flo-tv-logo-image" src={FINAL_THREE_SET_ASSETS.eye} alt="" />
             </span>
             <p className="flo-tv-message">
               <span>This is not a goodbye</span>

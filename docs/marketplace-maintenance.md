@@ -631,3 +631,10 @@ store listings or change configured prices.
   simulates ad rewards; release purchase/ad gates are unchanged.
   Premium Challenges and VIP still unlock all premium minigame versions. This
   maintenance changes no product, price, entitlement, reward, offer or Store copy.
+
+- 2026-11-17: Reviewed pre-release presentation and retry repairs: credits startup,
+  departure Skip lifecycle, shared finale Eye ident, spectator ballots, phone
+  viewport fit, Risk Wheel appearance and fresh Reverse Time seeds. The ident
+  precedes the existing finale interstitial boundary; VIP and ad-free entitlements
+  retain their current exemptions. No product, price, entitlement, reward,
+  marketplace copy, wheel odds or competition difficulty changes.

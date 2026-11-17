@@ -39,7 +39,7 @@ const EXIT_FADE_MS = 420
 // Bound video startup and stalls so Credits always has a timely live fallback.
 // Non-autoplay embeds keep the poster and never attach or decode the video.
 const VIDEO_READY_TIMEOUT_MS = 8_000
-const VIDEO_STALL_TIMEOUT_MS = 1_800
+const VIDEO_STALL_TIMEOUT_MS = 8_000
 const DURATION_SECONDS = CINEMATIC_CONFIG.durationInFrames / CINEMATIC_CONFIG.fps
 
 type CreditsProps = {
@@ -252,8 +252,8 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
   }, [])
 
   useEffect(() => {
-    if (autoPlay && isOwner && useVideo && videoReady) startVisualPlayback()
-  }, [autoPlay, isOwner, useVideo, videoReady, startVisualPlayback])
+    if (autoPlay && isOwner && useVideo && isForeground && !renderFailed) startVisualPlayback()
+  }, [autoPlay, isOwner, useVideo, isForeground, renderFailed, startVisualPlayback])
 
   // The background video is muted and may autoplay without a gesture, while
   // its separate soundtrack can be blocked by browser autoplay policy. Prime
@@ -365,12 +365,13 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
       videoStallTimeoutRef.current = null
     }
     videoHasPlayedRef.current = true
+    handleVideoReady()
     setIsPlaying(true)
     // Mobile video commonly emits `waiting` once immediately after starting.
     // That pauses the soundtrack to keep it aligned. Resume the soundtrack
     // when the video resumes instead of leaving the rest of Credits silent.
     syncCreditsSoundtrackToTime(videoRef.current?.currentTime ?? 0, true)
-  }, [isOwner, useVideo])
+  }, [handleVideoReady, isOwner, useVideo])
 
   const handleVideoWaiting = useCallback(() => {
     syncCreditsSoundtrackToTime(videoRef.current?.currentTime ?? 0, false)
@@ -402,13 +403,13 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
           data-cinematic-renderer="prerendered-video"
           data-video-ready={videoReady && useVideo ? 'true' : 'false'}
         >
-          <CreditsFallback posterUrl={CREDITS_POSTER_SOURCES[0]} />
+          {renderFailed && <CreditsFallback posterUrl={CREDITS_POSTER_SOURCES[0]} />}
           {!renderFailed && (
             <CinematicVideo
               ref={videoRef}
               asset={CINEMATIC_VIDEO_ASSETS['credits-background']}
               prepare={autoPlay && isOwner && !renderFailed && useVideo}
-              className={`credits-video${videoReady && useVideo ? ' is-ready' : ''}`}
+              className="credits-video is-ready"
               aria-hidden="true"
               data-testid="credits-background-video"
               autoPlay={autoPlay}
@@ -443,7 +444,9 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
             <CreditsTimeline
               videoRef={videoRef}
               elapsedRef={elapsedRef}
-              running={autoPlay && isOwner && isForeground && !isExiting}
+              running={
+                autoPlay && isOwner && isForeground && !isExiting && (renderFailed || isPlaying)
+              }
               playing={isPlaying}
               fallback={renderFailed || !useVideo}
               credits={creditCards}

@@ -154,6 +154,7 @@ export default function DepressionShockController() {
   useEffect(() => {
     if (presentation !== 'intro' && presentation !== 'day2') return
     const current = loadDepressionShockState(game.gameId)
+    if (getDepressionShockPresentation(current, game.week, game.phase) !== presentation) return
     setRuntime(markDepressionShockPresentationSeen(current, presentation, game.week))
     dispatch({
       type: 'game/addTvEvent',
@@ -170,7 +171,7 @@ export default function DepressionShockController() {
         },
       },
     })
-  }, [dispatch, game.gameId, game.week, presentation])
+  }, [dispatch, game.gameId, game.phase, game.week, presentation])
 
   useEffect(() => {
     const broadcast = PHASE_BROADCASTS.find(
@@ -257,14 +258,20 @@ export default function DepressionShockController() {
   }, [dispatch, game.gameId, game.tvFeed, game.week, game.presentationEventClaims])
 
   useEffect(() => {
-    const handleThunder = () => setCinematic('thunder')
+    const handleThunder = () => {
+      const key = chocolatePresentationKey(game.gameId, game.week)
+      const claim = { gameId: game.gameId, runId: key, eventId: `thunder:${key}` }
+      if (hasPresentationEventClaim(game.presentationEventClaims, claim)) return
+      dispatch(claimPresentationEvent(claim))
+      setCinematic('thunder')
+    }
     window.addEventListener('depression-shock:thunder-presented', handleThunder)
     window.addEventListener('depression-shock:chocolate-presented', handleChocolatePresented)
     return () => {
       window.removeEventListener('depression-shock:thunder-presented', handleThunder)
       window.removeEventListener('depression-shock:chocolate-presented', handleChocolatePresented)
     }
-  }, [handleChocolatePresented])
+  }, [dispatch, game.gameId, game.week, game.presentationEventClaims, handleChocolatePresented])
 
   const handleCinematicImpact = useCallback(() => {
     if (cinematic === 'thunder') setDepressionShockPortraitMode('sad')

@@ -869,7 +869,8 @@ export default function MinigameHost({
 
   const renderActiveGame = () => {
     const participantIds = (participants ?? []).map((p) => p.id)
-    const seed = typeof gameOptions?.seed === 'number' ? gameOptions.seed : 0
+    const baseSeed = typeof gameOptions?.seed === 'number' ? gameOptions.seed : 0
+    const seed = competitionAttemptSeed(baseSeed, attempt)
     const isActiveAttempt = () =>
       activeAttemptTokenRef.current === attemptToken && hostPhaseRef.current === 'playing'
     const handleAttemptReactComplete = (
@@ -894,7 +895,7 @@ export default function MinigameHost({
         <ClosestWithoutGoingOverComp
           participantIds={participantIds}
           prizeType={gameOptions?.prizeType as CwgoPrizeType}
-          seed={competitionAttemptSeed(seed, attempt)}
+          seed={seed}
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -1197,7 +1198,7 @@ export default function MinigameHost({
       const CapitalizationComp = reactComponents.Capitalization
       const capitalizationContext =
         gameOptions.capitalizationContext === 'battleBack' ? 'battleBack' : 'loh'
-      const capitalizationSeed = typeof gameOptions.seed === 'number' ? gameOptions.seed : undefined
+      const capitalizationSeed = typeof gameOptions.seed === 'number' ? seed : undefined
 
       return (
         <CapitalizationComp
@@ -1295,7 +1296,7 @@ export default function MinigameHost({
     return (
       <LegacyMinigameWrapper
         game={game}
-        options={gameOptions}
+        options={{ ...gameOptions, seed }}
         onComplete={handleAttemptComplete}
         onQuit={handleAttemptQuit}
       />

@@ -122,20 +122,6 @@ function classifyRewardSound(
   return null
 }
 
-/**
- * Pre-built O(1) lookup map: houseguest id → resolved avatar URL.
- * Built once at module level from the static HOUSEGUESTS array so repeated
- * per-render calls (mini-scoreboard, summary rows, winner screen) are cheap.
- */
-const HOUSEGUEST_AVATAR_MAP: Map<string, string> = new Map(
-  HOUSEGUESTS.map((hg) => [hg.id, resolveAvatar({ id: hg.id, name: hg.name, avatar: '' })])
-)
-
-/** Resolve a player avatar URL from the houseguest database, falling back to dicebear. */
-function avatarForId(id: string): string {
-  return HOUSEGUEST_AVATAR_MAP.get(id) ?? getDicebear(id)
-}
-
 /** Return the SVG font-size string for a wheel sector label. */
 function getSectorFontSize(labelLength: number): string {
   if (labelLength <= 2) return '10'
@@ -443,6 +429,18 @@ export default function RiskWheelComp({
   standalone = false,
   premiumPresentation = false,
 }: Props) {
+  const gamePlayers = useSelector((state: RootState) => state.game.players)
+  const avatarForParticipant = (id: string): string => {
+    const participant = participants?.find((entry) => entry.id === id)
+    const player = gamePlayers?.find((entry) => entry.id === id)
+    const houseguest = HOUSEGUESTS.find((entry) => entry.id === id)
+    return resolveAvatar({
+      id,
+      name: participant?.name ?? player?.name ?? houseguest?.name ?? id,
+      avatar: participant?.avatar ?? player?.avatar ?? '',
+      isUser: participant?.isHuman ?? player?.isUser ?? false,
+    })
+  }
   const aiCapability = useSeasonAiCapability()
   const dispatch = useDispatch<AppDispatch>()
   const premiumRootClass = premiumPresentation ? ' rw-root--vip' : ''
@@ -877,7 +875,7 @@ export default function RiskWheelComp({
         </div>
         {winnerId && (
           <img
-            src={avatarForId(winnerId)}
+            src={avatarForParticipant(winnerId)}
             alt={winnerName}
             className="rw-winner-avatar"
             onError={(e) => {
@@ -943,7 +941,7 @@ export default function RiskWheelComp({
               >
                 <span className="rw-summary-rank">#{rank + 1}</span>
                 <img
-                  src={avatarForId(id)}
+                  src={avatarForParticipant(id)}
                   alt=""
                   className="rw-summary-avatar"
                   onError={(e) => {
@@ -1232,7 +1230,7 @@ export default function RiskWheelComp({
                   className={`rw-mini-score-chip${isElim ? ' rw-mini-score-chip--out' : ''}`}
                 >
                   <img
-                    src={avatarForId(id)}
+                    src={avatarForParticipant(id)}
                     alt=""
                     className="rw-mini-score-avatar"
                     onError={(e) => {

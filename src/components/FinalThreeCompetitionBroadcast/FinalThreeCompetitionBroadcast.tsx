@@ -83,8 +83,7 @@ function sameGameScope(left: GameState, right: GameState): boolean {
 
 function viewerCopy(game: GameState, part: FinalThreeCompetitionPart): string {
   const human = game.players.find((player) => player.isUser)
-  if (!human || human.status === 'jury' || human.status === 'evicted')
-    return 'Your view from the gallery'
+  if (!human || human.status === 'jury' || human.status === 'evicted') return ''
   if (part === 2) {
     const qualified = game.finalThree?.part1?.winnerId ?? game.f3Part1WinnerId
     return qualified === human.id ? 'Your place in Part 3 is secure' : 'One place in Part 3 remains'
@@ -760,15 +759,19 @@ export default function FinalThreeCompetitionBroadcast(props: FinalThreeCompetit
             <span />
             THE BIG EYE<span>FINALE NIGHT</span>
           </div>
-          <div className="f3-broadcast__lower-third">
-            <p>
-              {revealed ? 'Finale night · Official result' : viewerCopy(initial.game, initial.part)}
-            </p>
-            <span>
-              {simulation?.title ??
-                (initial.part === 3 ? 'Down Memory Lane' : 'Final Three Circuit')}
-            </span>
-          </div>
+          {(!live || viewerCopy(initial.game, initial.part)) && (
+            <div className="f3-broadcast__lower-third">
+              <p>
+                {revealed
+                  ? 'Finale night · Official result'
+                  : viewerCopy(initial.game, initial.part)}
+              </p>
+              <span>
+                {simulation?.title ??
+                  (initial.part === 3 ? 'Down Memory Lane' : 'Final Three Circuit')}
+              </span>
+            </div>
+          )}
           <div className="f3-broadcast__handoff">
             <FinalThreeClosingBrand
               eyeSrc={artwork.eye}
@@ -804,10 +807,12 @@ export default function FinalThreeCompetitionBroadcast(props: FinalThreeCompetit
         </div>
       )}
       {premium ? (
-        <CinematicSkipButton
-          ariaLabel="Skip this competition broadcast; the result stays the same"
-          onClick={finish}
-        />
+        stage !== 'handoff' && (
+          <CinematicSkipButton
+            ariaLabel="Skip this competition broadcast; the result stays the same"
+            onClick={finish}
+          />
+        )
       ) : (
         <FinaleContinueButton
           ariaLabel="Continue after the competition result"

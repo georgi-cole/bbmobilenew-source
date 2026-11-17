@@ -1184,8 +1184,9 @@ export default function TvZone(props: TvZoneProps) {
       : (dailyTransitionTitle ?? displayedEventText)
   const fauxTvFrame = selectFauxTvFrame({
     foregroundOwnerVisible: Boolean(
-      broadcastPresentationCovered ||
-      shockIntroActive ||
+      // Keep the current-state message painted under external films and games.
+      // Their last frame can disappear before the pending challenge is cleared.
+      // Only a replacement rendered inside this viewport may hide the underlay.
       (showInlineAnnouncement && !cupidFollowUpVisible) ||
       winnerBroadcast != null ||
       weatherBulletinIsActive ||
@@ -1434,12 +1435,21 @@ export default function TvZone(props: TvZoneProps) {
       : undefined
     const claim =
       isShock && sourceEvent ? createPresentationEventClaim(gameState.gameId, sourceEvent) : null
+    const introClaim = {
+      gameId: gameState.gameId,
+      runId: `shock-intro:${gameState.week}`,
+      eventId: `shock:${key}`,
+    }
+    const claims = reduxStore.getState().game.presentationEventClaims
     const alreadyClaimed = Boolean(
-      claim && hasPresentationEventClaim(reduxStore.getState().game.presentationEventClaims, claim)
+      isShock &&
+      (hasPresentationEventClaim(claims, introClaim) ||
+        (claim && hasPresentationEventClaim(claims, claim)))
     )
 
-    if (claim && !alreadyClaimed) {
-      dispatch(claimPresentationEvent(claim))
+    if (isShock && !alreadyClaimed) {
+      dispatch(claimPresentationEvent(introClaim))
+      if (claim) dispatch(claimPresentationEvent(claim))
     }
 
     startTransition(() => {
@@ -1455,6 +1465,7 @@ export default function TvZone(props: TvZoneProps) {
     eventAnnouncementSource,
     eventAnnouncement,
     gameState.gameId,
+    gameState.week,
     gameState.tvFeed,
     queuedShockAnnouncement,
     reduxStore,
