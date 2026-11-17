@@ -35,6 +35,12 @@ function isConfessionalRoute(hash: string): boolean {
   return route === 'diary-room' || route.startsWith('diary-room/')
 }
 
+/** Shared room loop for the Confessional and the Tribunal highlights lounge. */
+export function resolveConfessionalRoomCue(config?: MusicConfigDocument): ResolvedMusicCue {
+  const cue = configuredCue(config, BUILT_IN_MUSIC_CUE_IDS.confessional)
+  return resolvedCue(cue, cue.id, 'route')
+}
+
 export function resolveSpecialMusicCue({
   baseCue,
   gamePhase,
@@ -49,10 +55,8 @@ export function resolveSpecialMusicCue({
   config?: MusicConfigDocument
 }): ResolvedMusicCue | null {
   if (isConfessionalRoute(hash)) {
-    const cue =
-      confessionalMusicMode === 'vote-committed'
-        ? configuredCue(config, BUILT_IN_MUSIC_CUE_IDS.confessionalVoteCommit)
-        : configuredCue(config, BUILT_IN_MUSIC_CUE_IDS.confessional)
+    if (confessionalMusicMode !== 'vote-committed') return resolveConfessionalRoomCue(config)
+    const cue = configuredCue(config, BUILT_IN_MUSIC_CUE_IDS.confessionalVoteCommit)
     return resolvedCue(cue, cue.id, 'route')
   }
 

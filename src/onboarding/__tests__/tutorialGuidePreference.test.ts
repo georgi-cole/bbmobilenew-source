@@ -35,6 +35,7 @@ describe('tutorial guide preference', () => {
     markTutorialGuideHandled('profile-a', false, 'loh-rules')
     expect(isTutorialGuidePending('profile-a', false, 'pos-rules')).toBe(true)
     markTutorialGuideHandled('profile-a', false, 'pos-rules')
+    markTutorialGuideHandled('profile-a', false, 'tribunal')
 
     expect(isTutorialReplayEnabled('profile-a', false)).toBe(false)
   })
@@ -44,6 +45,7 @@ describe('tutorial guide preference', () => {
     markSocialTutorialHandled('profile-a', false, 'reality')
     markTutorialGuideHandled('profile-a', false, 'loh-rules')
     markTutorialGuideHandled('profile-a', false, 'pos-rules')
+    markTutorialGuideHandled('profile-a', false, 'tribunal')
     expect(isTutorialReplayEnabled('profile-a', false)).toBe(false)
 
     setTutorialReplayEnabled('profile-a', false, true)
@@ -52,6 +54,7 @@ describe('tutorial guide preference', () => {
     expect(isTutorialGuidePending('profile-a', false, 'social')).toBe(true)
     expect(isTutorialGuidePending('profile-a', false, 'loh-rules')).toBe(true)
     expect(isTutorialGuidePending('profile-a', false, 'pos-rules')).toBe(true)
+    expect(isTutorialGuidePending('profile-a', false, 'tribunal')).toBe(true)
   })
 
   it('migrates old progress and scopes competition rules to the current profile', () => {
@@ -96,6 +99,9 @@ describe('tutorial guide preference', () => {
   })
 
   it('keeps guest tutorial state session-scoped', () => {
+    markTutorialGuideHandled(null, true, 'tribunal')
+    expect(isTutorialGuidePending(null, true, 'tribunal')).toBe(false)
+    expect(isTutorialGuidePending(null, false, 'tribunal')).toBe(true)
     markTutorialGuideHandled(null, true, 'game')
     markSocialTutorialHandled(null, true, 'normal')
     markTutorialGuideHandled(null, true, 'loh-rules')
@@ -106,5 +112,17 @@ describe('tutorial guide preference', () => {
     expect(window.sessionStorage.getItem(socialGuideLevelStorageKey(null))).toBe('1')
     expect(window.localStorage.getItem(tutorialReplayStorageKey(null))).toBeNull()
     expect(window.localStorage.getItem(socialGuideLevelStorageKey(null))).toBeNull()
+  })
+
+  it('remembers sequester guidance per profile and respects the shared tutorial toggle', () => {
+    expect(isTutorialGuidePending('profile-a', false, 'tribunal')).toBe(true)
+    markTutorialGuideHandled('profile-a', false, 'tribunal')
+    expect(isTutorialGuidePending('profile-a', false, 'tribunal')).toBe(false)
+    expect(isTutorialGuidePending('profile-b', false, 'tribunal')).toBe(true)
+    expect(isTutorialGuidePending('profile-a', false, 'game')).toBe(true)
+    setTutorialReplayEnabled('profile-a', false, false)
+    expect(isTutorialGuidePending('profile-a', false, 'tribunal')).toBe(false)
+    setTutorialReplayEnabled('profile-a', false, true)
+    expect(isTutorialGuidePending('profile-a', false, 'tribunal')).toBe(true)
   })
 })

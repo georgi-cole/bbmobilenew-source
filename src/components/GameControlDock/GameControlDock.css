@@ -2,6 +2,44 @@
 .game-control-dock-navigation {
   display: contents;
 }
+.game-control-dock__presentation-action {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 31%;
+  min-height: 44px;
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  color: #d6c3a0;
+  background: transparent;
+  font: inherit;
+  font-size: clamp(8px, 2.5vw, 11px);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.game-control-dock__presentation-action--left {
+  left: 6%;
+}
+.game-control-dock__presentation-action--right {
+  right: 6%;
+}
+.game-control-dock__presentation-action:hover:not(:disabled) {
+  color: #f2dfb9;
+  background: #ffffff06;
+}
+.game-control-dock__presentation-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.game-control-dock__presentation-action:focus-visible {
+  outline: 2px solid #d2bcf0;
+  outline-offset: 1px;
+}
 
 .game-control-dock {
   --dock-play-art-width: 22%;

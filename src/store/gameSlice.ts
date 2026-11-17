@@ -1961,7 +1961,7 @@ function breakCupidArrowSpell(state: GameState) {
   )
 }
 
-function resolvePairAwarePublicSave(rootState: RootState) {
+export function resolvePairAwarePublicSave(rootState: RootState) {
   const { game } = rootState
   const profiles = rootState.publicOpinion?.profiles ?? {}
   if (!isCupidArrowActive(game)) {
@@ -8043,9 +8043,35 @@ const gameSlice = createSlice({
       state.tribunalInvitationTransition = action.payload === 'agree' ? 'sequester' : 'exit'
     },
 
+    setTribunalViewingMode(state, action: PayloadAction<'highlights' | 'full'>) {
+      const human = getHumanPlayer(state)
+      if (human?.status !== 'jury' || human.tribunalEligible === false) return
+      state.tribunalViewingMode = action.payload
+    },
+
+    markTribunalSequesterGuideSeen(state) {
+      if (getHumanPlayer(state)?.status === 'jury') state.tribunalSequesterGuideSeen = true
+    },
+
+    markTribunalHighlightsShortcutSeen(state) {
+      if (getHumanPlayer(state)?.status === 'jury' && state.tribunalViewingMode === 'full')
+        state.tribunalHighlightsShortcutSeen = true
+    },
+
+    recordTribunalHighlight(state, action: PayloadAction<import('../types').TribunalHighlight>) {
+      state.tribunalHighlights ??= []
+      const existing = state.tribunalHighlights.find((entry) => entry.id === action.payload.id)
+      if (existing) {
+        existing.evicteeIds = [...new Set([...existing.evicteeIds, ...action.payload.evicteeIds])]
+      } else state.tribunalHighlights.push(action.payload)
+      state.tribunalHighlights = state.tribunalHighlights.slice(-32)
+    },
+
     completeTribunalArrival(state) {
       if (state.tribunalInvitationTransition === 'sequester') {
         state.tribunalInvitationTransition = null
+        state.tribunalViewingMode = 'highlights'
+        state.tribunalSequesterGuideSeen = false
       }
     },
 
@@ -14226,6 +14252,10 @@ export const {
   clearEvictionOverlay,
   chooseTribunalInvitation,
   completeTribunalArrival,
+  setTribunalViewingMode,
+  markTribunalSequesterGuideSeen,
+  markTribunalHighlightsShortcutSeen,
+  recordTribunalHighlight,
   finalizePendingEviction,
   selfEvict,
   aiReplacementRendered,

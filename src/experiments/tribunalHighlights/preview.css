@@ -1,0 +1,141 @@
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: #080a12;
+}
+.tribunal-preview {
+  min-height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 66px;
+  padding: 24px;
+  box-sizing: border-box;
+  font-family: Inter, system-ui, sans-serif;
+}
+.tribunal-preview__notes {
+  width: 270px;
+  color: #c0b6ce;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.tribunal-preview__notes > p:first-child {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: #cbb07a;
+}
+.tribunal-preview__notes h1 {
+  font-size: 30px;
+  line-height: 1.1;
+  color: #eee7f8;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.tribunal-preview__notes button {
+  padding: 8px 12px;
+  border: 1px solid #554167;
+  border-radius: 8px;
+  background: #20172d;
+  color: #ddd0ee;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+.tribunal-preview__scenarios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 12px 0 22px;
+}
+.tribunal-preview__scenarios [aria-pressed='true'] {
+  border-color: #c1a873;
+  color: #e3c88d;
+}
+.tribunal-preview__notes label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+}
+.tribunal-preview__notes select {
+  border: 1px solid #554167;
+  border-radius: 6px;
+  background: #20172d;
+  color: #ddd0ee;
+  padding: 5px 7px;
+  font: inherit;
+  font-size: 11px;
+}
+.tribunal-preview__phone {
+  position: relative;
+  width: 390px;
+  height: min(844px, calc(100dvh - 48px));
+  border: 1px solid #554563;
+  border-radius: 28px;
+  overflow: hidden;
+  isolation: isolate;
+  background: #110d1c;
+  box-shadow: 0 30px 90px #0008;
+  transform: translateZ(0);
+}
+.tribunal-preview__phone .tribunal-highlights {
+  position: absolute;
+}
+.tribunal-preview__phone iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.tribunal-preview__phone .tribunal-highlights-return {
+  position: absolute;
+}
+@media (max-width: 780px) {
+  .tribunal-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0;
+    height: 100dvh;
+    min-height: 0;
+    padding: 0;
+  }
+  .tribunal-preview__notes {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 12px 16px;
+    box-sizing: border-box;
+  }
+  .tribunal-preview__notes > p,
+  .tribunal-preview__notes h1,
+  .tribunal-preview__notes label,
+  .tribunal-preview__notes > button {
+    display: none;
+  }
+  .tribunal-preview__scenarios {
+    padding: 0;
+    gap: 5px;
+  }
+  .tribunal-preview__notes .tribunal-preview__recap-style {
+    display: flex;
+    margin-top: 10px;
+  }
+  .tribunal-preview__scenarios button {
+    padding: 6px 8px;
+    font-size: 9px;
+  }
+  .tribunal-preview__phone {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    height: auto;
+    border: 0;
+    border-radius: 0;
+  }
+}
