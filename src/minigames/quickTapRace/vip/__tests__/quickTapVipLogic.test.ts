@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  QUICK_TAP_VIP_AI_PACE_BANDS,
   QUICK_TAP_VIP_DURATION_MS,
+  QUICK_TAP_VIP_RACE_AI_PACE_BANDS,
+  QUICK_TAP_VIP_ROUND_MS,
+  QUICK_TAP_VIP_SEASONS_AI_PACE_BANDS,
   VIP_SEASONS,
   advanceQuickTapVipState,
   applyQuickTapVipTap,
@@ -188,25 +190,46 @@ describe('VIP seasonal rules and mystery pools', () => {
 })
 
 describe('VIP AI parity', () => {
-  it('samples the configured pace probabilities across seeds', () => {
+  it.each([
+    { mode: 'race', bands: QUICK_TAP_VIP_RACE_AI_PACE_BANDS, maxRate: 20.5 },
+    { mode: 'seasons', bands: QUICK_TAP_VIP_SEASONS_AI_PACE_BANDS, maxRate: 16.5 },
+  ] as const)('samples the $mode pace probabilities across seeds', ({ mode, bands, maxRate }) => {
     const sampleCount = 10_000
     const counts = new Map<string, number>()
     for (let seed = 0; seed < sampleCount; seed++) {
       const race = simulateQuickTapVipAiRace({
         seed,
         playerId: 'pace-sample',
+        mode,
         offers: [],
         durationMs: 1_000,
       })
       counts.set(race.paceBand, (counts.get(race.paceBand) ?? 0) + 1)
       expect(race.targetTapsPerSecond).toBeGreaterThan(6)
-      expect(race.targetTapsPerSecond).toBeLessThanOrEqual(16.5)
+      expect(race.targetTapsPerSecond).toBeLessThanOrEqual(maxRate)
     }
-    expect(QUICK_TAP_VIP_AI_PACE_BANDS.reduce((sum, band) => sum + band.weight, 0)).toBe(100)
-    for (const band of QUICK_TAP_VIP_AI_PACE_BANDS)
+    expect(bands.reduce<number>((sum, band) => sum + band.weight, 0)).toBe(100)
+    for (const band of bands)
       expect(Math.abs((counts.get(band.id) ?? 0) / sampleCount - band.weight / 100)).toBeLessThan(
         0.015
       )
+  })
+
+  it('allows an elite Race rival to sustain a multi-finger pace on the scoring clock', () => {
+    const rounds = Array.from({ length: 256 }, (_, seed) =>
+      simulateQuickTapVipAiRace({
+        seed,
+        playerId: 'pace-sample',
+        offers: [],
+        durationMs: QUICK_TAP_VIP_ROUND_MS,
+      })
+    )
+    expect(
+      rounds.some(
+        ({ paceBand, rawTaps, score }) =>
+          paceBand === 'elite' && rawTaps >= 448 && score === rawTaps
+      )
+    ).toBe(true)
   })
 
   it('produces repeatable distinct full races and exact live final scores', () => {
@@ -286,7 +309,7 @@ describe('VIP AI parity', () => {
       }).sort((a, b) => a - b)
       const medianTopAiTaps = topAiTaps[Math.floor(topAiTaps.length / 2)]
       expect(medianTopAiTaps).toBeGreaterThan(850)
-      expect(medianTopAiTaps).toBeLessThan(1_150)
+      expect(medianTopAiTaps).toBeLessThan(mode === 'race' ? 1_250 : 1_150)
       expect(spreads.every((spread) => spread > 250)).toBe(true)
     }
   })

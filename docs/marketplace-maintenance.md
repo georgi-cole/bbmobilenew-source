@@ -44,6 +44,10 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-18: Reviewed VIP Quick Tap Race's wider spread of AI tapping speeds.
+  The existing Premium Challenges and VIP unlocks, prices, scoring rules and
+  rewards continue to apply.
+
 - 2026-11-17: Reviewed the Safety Confessional handoff. Standard ceremonies let
   players resume in the Hub after sealing their save target. The review confirmed
   that VIP ceremony playback, its existing access rules, and marketplace

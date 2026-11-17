@@ -467,7 +467,7 @@ export interface QuickTapVipAiRace {
 }
 // Per contestant, per match. Active cadence is reduced by fatigue, reaction
 // time, negative effects and pauses to claim mystery boxes.
-export const QUICK_TAP_VIP_AI_PACE_BANDS = [
+export const QUICK_TAP_VIP_SEASONS_AI_PACE_BANDS = [
   { id: 'steady', weight: 25, min: 7, max: 10 },
   { id: 'quick', weight: 25, min: 10, max: 12 },
   { id: 'rapid', weight: 25, min: 12, max: 13.5 },
@@ -475,6 +475,17 @@ export const QUICK_TAP_VIP_AI_PACE_BANDS = [
   { id: 'very-fast', weight: 8, min: 14.5, max: 15.5 },
   { id: 'elite', weight: 2, min: 15.5, max: 16.5 },
 ] as const
+
+// Race has a wider field, with room for moderate play and occasional
+// multi-finger rivals. The match seed picks each rival's band independently.
+export const QUICK_TAP_VIP_RACE_AI_PACE_BANDS = [
+  { id: 'steady', weight: 50, min: 6.8, max: 9.7 },
+  { id: 'quick', weight: 30, min: 9.7, max: 11.5 },
+  { id: 'rapid', weight: 11, min: 11.5, max: 13.7 },
+  { id: 'fast', weight: 6, min: 13.7, max: 17.9 },
+  { id: 'elite', weight: 3, min: 17.9, max: 20.4 },
+] as const
+
 /** Public conditions only. The policy cannot inspect the mystery result. */
 export function shouldQuickTapVipAiGrab(args: {
   roll: number
@@ -517,18 +528,20 @@ export function simulateQuickTapVipAiRace(args: {
     nerve = trait('nerve'),
     consistency = trait('consistency')
   const style = hashIdentity(playerId) % 4
+  const paceBands =
+    mode === 'race' ? QUICK_TAP_VIP_RACE_AI_PACE_BANDS : QUICK_TAP_VIP_SEASONS_AI_PACE_BANDS
+  const maxTargetRate = mode === 'race' ? 20.5 : 16.5
+  const minTapGapMs = mode === 'race' ? 45 : 55
   let paceTicket = rng() * 100
   const paceBand =
-    QUICK_TAP_VIP_AI_PACE_BANDS.find((band) => {
+    paceBands.find((band) => {
       paceTicket -= band.weight
       return paceTicket < 0
-    }) ?? QUICK_TAP_VIP_AI_PACE_BANDS[QUICK_TAP_VIP_AI_PACE_BANDS.length - 1]
+    }) ?? paceBands[paceBands.length - 1]
   const form = 0.97 + rng() * 0.06
   const motorTalent = (hashIdentity(`${playerId}:tap-pace`) % 1_000) / 999
-  // Phone play reaches 12–14 taps/s with alternating thumbs. Include competitors
-  // in that range, while skill, individual dexterity, form and fatigue vary the field.
   const baseRate = Math.min(
-    16.5,
+    maxTargetRate,
     (paceBand.min + (paceBand.max - paceBand.min) * motorTalent + (physical - 0.5) * 1.5) * form
   )
   const roundMs = quickTapVipRoundMs(mode)
@@ -641,7 +654,7 @@ export function simulateQuickTapVipAiRace(args: {
       const jitter = 0.82 + rng() * 0.36 + (1 - consistency) * (rng() - 0.5) * 0.28
       // Preserve the scheduled time instead of adding a rounded simulation tick
       // after every tap. At phone tapping speeds that accumulated a large slowdown.
-      nextTap += Math.max(55, (1000 / baseRate) * fatigue * jitter)
+      nextTap += Math.max(minTapGapMs, (1000 / baseRate) * fatigue * jitter)
     }
   }
   state = advanceQuickTapVipState(state, durationMs)
