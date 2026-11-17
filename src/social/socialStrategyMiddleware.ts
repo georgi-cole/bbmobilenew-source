@@ -1,3 +1,4 @@
+import { processSocialParticipationDay } from './socialParticipationEffects'
 import { socialAIDriver } from './socialAIDriver'
 import { runAiFacadeNegotiation } from './aiFacadeStrategy'
 import type { AppDispatch, RootState } from '../store/store'
@@ -23,6 +24,7 @@ export const socialStrategyMiddleware: Middleware = (api) => (next) => (action) 
   let dayEndPlan: DayEndPlan | null = null
 
   if (type === 'game/advance' && before.game.phase === 'eviction_results') {
+    processSocialParticipationDay(api, before as RootState)
     dayEndPlan = processSocialStrategyDayEnd(api, before)
   }
 

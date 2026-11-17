@@ -450,6 +450,38 @@ export function getIncomingInteractionResponseOptions(
   dramaMode = false,
   safetyContext?: SafetyNomineeContext
 ): IncomingInteractionResponseOption[] {
+  if (interaction?.payload?.scenarioKey === 'social_engagement_check_in') {
+    return [
+      {
+        id: 'engagement:talk',
+        label: 'Compare where we stand',
+        responseType: 'positive',
+        style: 'positive',
+        description: 'Have a real conversation without promising a vote.',
+      },
+      {
+        id: 'engagement:neutral',
+        label: 'Talk without making a deal',
+        responseType: 'neutral',
+        style: 'neutral',
+        description: 'Stay noncommittal while keeping communication open.',
+      },
+      {
+        id: 'engagement:quiet',
+        label: 'Explain my quiet strategy',
+        responseType: 'neutral',
+        style: 'neutral',
+        description: 'Be clear about your approach. Quiet play does not require a promise.',
+      },
+      {
+        id: 'engagement:later',
+        label: 'Leave it for now',
+        responseType: 'dismiss',
+        style: 'dismiss',
+        description: 'This invitation closes quietly if you leave it unanswered.',
+      },
+    ]
+  }
   if (interaction?.payload?.scenarioKey === 'facade_nomination_request') {
     return [
       {

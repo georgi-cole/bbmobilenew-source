@@ -20,25 +20,6 @@ const QUIET_STREAK_THRESHOLD = 2
 const STRATEGY_WARNING_COOLDOWN_DAYS = 2
 const MAX_OBSERVERS = 3
 
-function manualActionCountForDay(state: StrategyState, humanId: string, day: number): number {
-  const history = state.social.actionHistory ?? state.social.sessionLogs ?? []
-  return history.filter(
-    (entry) =>
-      entry.actorId === humanId &&
-      entry.source !== 'system' &&
-      (entry.week ?? state.game.week) === day
-  ).length
-}
-
-function getQuietStreak(state: StrategyState, humanId: string): number {
-  let streak = 0
-  for (let day = state.game.week; day >= 1 && streak < 5; day -= 1) {
-    if (manualActionCountForDay(state, humanId, day) > 0) break
-    streak += 1
-  }
-  return streak
-}
-
 function getPartialExitCount(state: StrategyState, humanId: string): number {
   return (state.challenge?.history ?? []).filter(
     (run) => run.partial === true && (run.participants ?? []).includes(humanId)
@@ -196,7 +177,8 @@ export function processSocialStrategyDayEnd(
 
   const pressure = deriveBehaviorPressure({
     partialExitCount: getPartialExitCount(state, human.id),
-    quietStreak: getQuietStreak(state, human.id),
+    // Quiet play is assessed by the bounded, actor-neutral participation ledger.
+    quietStreak: 0,
   })
   const observerIds = applyBehaviorPressure(api, state, human.id, pressure)
   maybeQueueBehaviorWarning(api, state, human.id, pressure)

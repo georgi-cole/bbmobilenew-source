@@ -1,3 +1,4 @@
+import { normalizeSocialParticipation, type SocialParticipationState } from './socialParticipation'
 import { isCurrentAlliance } from './reality/allianceIdentity'
 import {
   getRealityBetrayalStatus,
@@ -613,6 +614,9 @@ const socialSlice = createSlice({
   name: 'social',
   initialState: SOCIAL_INITIAL_STATE,
   reducers: {
+    recordSocialParticipation(state, action: PayloadAction<SocialParticipationState>) {
+      state.participation = normalizeSocialParticipation(action.payload)
+    },
     engineReady(state, action: PayloadAction<{ budgets: Record<string, number> }>) {
       state.energyBank = clampBank(action.payload.budgets, 'energy')
     },
@@ -1666,6 +1670,7 @@ const socialSlice = createSlice({
 })
 
 export const {
+  recordSocialParticipation,
   engineReady,
   engineComplete,
   setLastReport,
