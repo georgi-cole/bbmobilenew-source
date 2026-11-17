@@ -44,6 +44,14 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-17: Reviewed the action-calibration pilot for VIP Quick Tap Race and
+  Seasons, plus shared Pressure Plank physics. Opponents now use legal input
+  actions under the live rules, including alternating-finger tapping. Round
+  structure, game access, rewards, products, prices and bundle benefits retain
+  their existing contracts; current marketplace copy accurately describes the
+  offer. The pilot and its automatic replay evidence are documented in
+  `docs/ACTION_CALIBRATION.md`.
+
 - 2026-11-16: Reviewed VIP ceremony Skip and AI continuation recovery. Media-start
   claims and broadcast acknowledgements no longer interrupt a committed Safety
   or replacement sequence; an unexpectedly empty ceremony falls back to the

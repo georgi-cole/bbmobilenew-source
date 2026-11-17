@@ -3,7 +3,11 @@ import { configureStore } from '@reduxjs/toolkit'
 import { Provider } from 'react-redux'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import QuickTapRaceVip from '../QuickTapRaceVip'
-import { buildQuickTapVipSeasons } from '../quickTapVipLogic'
+import {
+  buildQuickTapVipSeasons,
+  replayQuickTapVipActions,
+  type QuickTapVipAction,
+} from '../quickTapVipLogic'
 
 vi.mock('../../../../services/sound/SoundManager', () => ({
   SoundManager: {
@@ -107,6 +111,30 @@ describe('VIP round lifecycle', () => {
       fireEvent.pointerUp(button, { pointerId: tapIndex, pointerType: 'touch' })
     }
     expect(button).toHaveAttribute('data-heat-level', '5')
+  })
+
+  it('matches a legal 448-tap alternating three-finger trace through real pointer handlers', async () => {
+    const seed = 42
+    mount('race', seed)
+    await advanceTo(32)
+    const button = screen.getByRole('button', { name: /Tap the Eye/ })
+    const actions: QuickTapVipAction[] = []
+    // The first RAF at 16 ms starts the live clock. Native times exclude that startup frame.
+    for (let i = 0; i < 448; i++) {
+      const atMs = 50 + Math.floor((i * 24_900) / 448)
+      await advanceTo(atMs + 16)
+      const pointerId = (i % 3) + 1
+      fireEvent.pointerDown(button, { pointerId, pointerType: 'touch' })
+      fireEvent.pointerUp(button, { pointerId, pointerType: 'touch' })
+      fireEvent.click(button, { detail: 1 })
+      actions.push({ type: 'tap', atMs })
+    }
+    await advanceTo(25_216)
+    const replay = replayQuickTapVipActions(seed, 'race', actions, 25_000)
+    expect(replay.rawTaps).toBe(448)
+    expect(screen.getByTestId('vip-score')).toHaveTextContent(String(replay.score))
+    expect(screen.getAllByText('448 taps').length).toBeGreaterThan(0)
+    expect(screen.getByText('Take a breath.')).toBeInTheDocument()
   })
 
   it('preserves particle origins without reading or moving layout during a tap', async () => {

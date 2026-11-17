@@ -15,8 +15,7 @@ import {
   VIP_SEASONS,
   QUICK_TAP_VIP_BREAK_MS,
   advanceQuickTapVipState,
-  applyQuickTapVipTap,
-  claimQuickTapVipBox,
+  applyQuickTapVipAction,
   createQuickTapVipOffers,
   createQuickTapVipScoreState,
   getQuickTapVipClock,
@@ -25,7 +24,6 @@ import {
   quickTapVipRoundMs,
   quickTapVipSeasonAt,
   quickTapVipTapValueAt,
-  rerollQuickTapVipSeason,
   resolveQuickTapVipBox,
   simulateQuickTapVipAiRace,
   type QuickTapVipBooster,
@@ -559,7 +557,10 @@ export default function QuickTapRaceVip({
     if (phase !== 'playing' || ended.current) return
     const clock = readClock()
     if (clock.intermission || clock.finished) return
-    runtime.current = applyQuickTapVipTap(runtime.current, clock.elapsedMs)
+    runtime.current = applyQuickTapVipAction(runtime.current, {
+      type: 'tap',
+      atMs: clock.elapsedMs,
+    })
     const now = performance.now()
     updateTapHeat(now, true)
     playTapFeedback()
@@ -583,7 +584,11 @@ export default function QuickTapRaceVip({
       offer.index,
       quickTapVipSeasonAt(previous, clock.elapsedMs)
     )
-    const next = claimQuickTapVipBox(previous, offer, clock.elapsedMs)
+    const next = applyQuickTapVipAction(previous, {
+      type: 'box',
+      offerIndex: offer.index,
+      atMs: clock.elapsedMs,
+    })
     if (next === previous) return
     runtime.current = next
     setReveal({ booster, key: offer.index, until: Date.now() + 1500 })
@@ -595,7 +600,7 @@ export default function QuickTapRaceVip({
     if (phase !== 'playing' || ended.current) return
     const clock = readClock()
     if (clock.intermission || clock.finished) return
-    const next = rerollQuickTapVipSeason(runtime.current, clock.elapsedMs)
+    const next = applyQuickTapVipAction(runtime.current, { type: 'reroll', atMs: clock.elapsedMs })
     if (next !== runtime.current) {
       runtime.current = next
       lastUi.current = 0

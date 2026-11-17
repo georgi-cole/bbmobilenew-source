@@ -1,0 +1,56 @@
+name: Action calibration
+
+on:
+  pull_request:
+    paths:
+      - 'src/components/PressurePlank/**'
+      - 'src/minigames/quickTapRace/**'
+      - 'src/ai/competition/**'
+      - 'src/experiments/actionCalibration/**'
+      - 'scripts/run-action-calibration.mjs'
+      - '.github/workflows/action-calibration.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: action-calibration-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  parity-and-fields:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify action engines and live pointer scoring
+        run: >-
+          npx vitest run
+          src/components/PressurePlank/pressurePlankEngine.test.ts
+          src/components/PressurePlank/PressurePlank.test.tsx
+          src/minigames/quickTapRace/vip/__tests__/quickTapVipLogic.test.ts
+          src/minigames/quickTapRace/vip/__tests__/QuickTapRaceVip.test.tsx
+          src/experiments/actionCalibration/actionCalibration.test.ts
+          tests/pressurePlank.competition.test.ts
+      - name: Compare 100 seeds and complete fields
+        run: node scripts/run-action-calibration.mjs --seeds=100
+      - name: Verify independent holdout worlds
+        run: node scripts/run-action-calibration.mjs --seeds=100 --first-seed=5000 --baseline-ref=none --out=test-results/action-calibration-holdout
+      - name: Publish diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: action-calibration
+          path: |
+            test-results/action-calibration/
+            test-results/action-calibration-holdout/
+          if-no-files-found: warn
+          retention-days: 14

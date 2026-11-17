@@ -7,6 +7,7 @@ import { DEFAULT_TAPRACE_OPTIONS } from '../../store/minigame'
 import { mulberry32 } from '../../store/rng'
 import { simulateSeasonsAiScore as simulateSeasonsAiScore_ } from '../../experiments/quickTapSeasons/quickTapSeasons'
 import { minigameAiRegistry } from './minigameAiRegistry'
+import { simulatePressurePlankRun } from '../../components/PressurePlank/pressurePlankAi'
 import { simulateQuickTapAiScore as simulateQuickTapAiScore_ } from './quickTapSimulation'
 import { simulateSnakeAiScore as simulateSnakeAiScore_ } from './snakeAiSimulator'
 import {
@@ -685,6 +686,21 @@ export function simulateAiPerformance({
   seasonState,
   options,
 }: SimulateAiPerformanceArgs): number {
+  if (minigameKey === 'pressurePlank') {
+    const resolved = profile ?? getDefaultCompetitionProfile()
+    const adjustment =
+      getCompetitionSeasonModifiers(seasonState ?? DEFAULT_SEASON_STATE).totalAdjustment * 100
+    return simulatePressurePlankRun({
+      seed,
+      playerId: playerId ?? `participant-${participantIndex ?? 0}`,
+      profile: Object.fromEntries(
+        Object.entries(resolved).map(([key, value]) => [
+          key,
+          typeof value === 'number' ? clamp(value + adjustment, 0, 100) : value,
+        ])
+      ),
+    }).score
+  }
   const model = minigameModel ?? getMinigameAiModel(minigameKey)
   const resolvedProfile = profile ?? getDefaultCompetitionProfile()
   const weights = model.weights ?? DEFAULT_WEIGHTS
@@ -815,6 +831,25 @@ export function simulateMinigameAiScore({
   aiGameIdentity,
   identityMode,
 }: SimulateMinigameAiScoreArgs): number {
+  if (gameKey === 'pressurePlank') {
+    const resolved = profile ?? getDefaultCompetitionProfile()
+    const multiplier =
+      aiGameIdentity && identityMode
+        ? competitionIdentityMultiplier(aiGameIdentity, identityMode, seed, playerId)
+        : 1
+    return simulateAiPerformance({
+      minigameKey: gameKey,
+      seed,
+      playerId,
+      participantIndex,
+      seasonState,
+      profile: {
+        ...resolved,
+        precision: clamp(resolved.precision * multiplier, 0, 100),
+        consistency: clamp(resolved.consistency * multiplier, 0, 100),
+      },
+    })
+  }
   if (
     gameKey === 'castleRescue' ||
     gameKey === 'castleRescue2' ||

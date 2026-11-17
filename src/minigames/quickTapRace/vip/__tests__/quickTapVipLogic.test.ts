@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  QUICK_TAP_VIP_AI_PACE_BANDS,
   QUICK_TAP_VIP_DURATION_MS,
   VIP_SEASONS,
   advanceQuickTapVipState,
@@ -14,6 +13,7 @@ import {
   quickTapVipDurationMs,
   quickTapVipSeasonAt,
   quickTapVipTapValueAt,
+  replayQuickTapVipActions,
   rerollQuickTapVipSeason,
   resolveQuickTapVipBox,
   scoreQuickTapVipAiOnly,
@@ -22,6 +22,7 @@ import {
   type QuickTapVipMode,
   type TapSeason,
 } from '../quickTapVipLogic'
+import { TAP_REFERENCE_MOTORS } from '../../tapMotor'
 
 function findSeed(id: QuickTapVipBoosterId, season: TapSeason | null = null, offerIndex = 0) {
   for (let seed = 0; seed < 10_000; seed++)
@@ -188,33 +189,46 @@ describe('VIP seasonal rules and mystery pools', () => {
 })
 
 describe('VIP AI parity', () => {
-  it('samples the configured pace probabilities across seeds', () => {
-    const sampleCount = 10_000
-    const counts = new Map<string, number>()
-    for (let seed = 0; seed < sampleCount; seed++) {
-      const race = simulateQuickTapVipAiRace({
-        seed,
-        playerId: 'pace-sample',
-        offers: [],
-        durationMs: 1_000,
-      })
-      counts.set(race.paceBand, (counts.get(race.paceBand) ?? 0) + 1)
-      expect(race.targetTapsPerSecond).toBeGreaterThan(6)
-      expect(race.targetTapsPerSecond).toBeLessThanOrEqual(16.5)
-    }
-    expect(QUICK_TAP_VIP_AI_PACE_BANDS.reduce((sum, band) => sum + band.weight, 0)).toBe(100)
-    for (const band of QUICK_TAP_VIP_AI_PACE_BANDS)
-      expect(Math.abs((counts.get(band.id) ?? 0) / sampleCount - band.weight / 100)).toBeLessThan(
-        0.015
-      )
+  it('supports the observed alternating-finger cadence through legal inputs', () => {
+    const counts = Object.values(TAP_REFERENCE_MOTORS).map(
+      (motor) =>
+        simulateQuickTapVipAiRace({
+          seed: 42,
+          playerId: 'reference',
+          motor,
+          offers: [],
+          durationMs: 25_000,
+        }).rawTaps
+    )
+    expect(counts[0]).toBeLessThan(counts[1])
+    expect(counts[1]).toBeLessThan(counts[2])
+    expect(counts[2]).toBeLessThan(counts[3])
+    // The supplied 448 / 25 s trace must lie inside the supported legal envelope.
+    expect(counts[0]).toBeLessThan(448)
+    expect(counts[3]).toBeGreaterThan(448)
   })
+
+  it.each(['race', 'seasons'] as const)(
+    'replays every AI action through the live scorer in %s',
+    (mode) => {
+      for (let seed = 0; seed < 24; seed++) {
+        for (const motor of Object.values(TAP_REFERENCE_MOTORS)) {
+          const race = simulateQuickTapVipAiRace({ seed, playerId: 'reference', mode, motor })
+          const replay = replayQuickTapVipActions(seed, mode, race.actions)
+          expect(replay.score).toBe(race.score)
+          expect(replay.rawTaps).toBe(race.rawTaps)
+          expect(replay.roundScores).toEqual(race.roundScores)
+          expect(replay.usedOfferIndexes).toEqual(race.claimedOfferIndexes)
+        }
+      }
+    }
+  )
 
   it('produces repeatable distinct full races and exact live final scores', () => {
     for (const mode of ['race', 'seasons'] as const) {
       const race = simulateQuickTapVipAiRace({ seed: 424242, playerId: 'steady-ai', mode })
       expect(race).toEqual(simulateQuickTapVipAiRace({ seed: 424242, playerId: 'steady-ai', mode }))
       expect(race.rawTaps).toBeGreaterThan(150)
-      expect(race.rawTaps).toBeLessThan(1_300)
       expect(
         race.progress.every((point, i) => i === 0 || point.atMs >= race.progress[i - 1].atMs)
       ).toBe(true)
@@ -266,7 +280,20 @@ describe('VIP AI parity', () => {
       expect(new Set(Object.values(scores)).size).toBeGreaterThan(20)
     }
   })
-  it('includes fast phone opponents and a varied field even with equal skill profiles', () => {
+  it('keeps each contestant independent of roster order and human participation', () => {
+    const ids = ['p0', 'p1', 'p2', 'p3']
+    for (const mode of ['race', 'seasons'] as const) {
+      const scores = scoreQuickTapVipAiOnly({ seed: 404, participantIds: ids, mode })
+      expect(
+        scoreQuickTapVipAiOnly({ seed: 404, participantIds: [...ids].reverse(), mode })
+      ).toEqual(scores)
+      expect(scoreQuickTapVipAiOnly({ seed: 404, participantIds: ids.slice(1), mode })).toEqual(
+        Object.fromEntries(ids.slice(1).map((id) => [id, scores[id]]))
+      )
+    }
+  })
+
+  it('includes multi-finger opponents with equal skill profiles', () => {
     for (const mode of ['race', 'seasons'] as const) {
       const spreads: number[] = []
       const topAiTaps = Array.from({ length: 24 }, (_, seedOffset) => {
@@ -284,9 +311,8 @@ describe('VIP AI parity', () => {
         spreads.push(Math.max(...taps) - Math.min(...taps))
         return Math.max(...taps)
       }).sort((a, b) => a - b)
-      const medianTopAiTaps = topAiTaps[Math.floor(topAiTaps.length / 2)]
-      expect(medianTopAiTaps).toBeGreaterThan(850)
-      expect(medianTopAiTaps).toBeLessThan(1_150)
+      // A legal practiced three-finger run is no longer outside every AI's envelope.
+      expect(topAiTaps.every((taps) => taps > 448 * 3 * 0.8)).toBe(true)
       expect(spreads.every((spread) => spread > 250)).toBe(true)
     }
   })
