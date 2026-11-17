@@ -451,7 +451,7 @@ describe('Deck of Light — four preliminaries and a finale', () => {
     expect(firstTurnMatches).toBeLessThan(25)
   })
 
-  it('does not turn a fully observed final board into near-perfect AI play', () => {
+  it('uses observed final-board matches reliably while remaining fallible', () => {
     const board = buildHouseOfCardsBoard(2026, 12)
     const rememberedIndexes = new Set(board.map((card) => card.index))
     let matches = 0
@@ -467,7 +467,7 @@ describe('Deck of Light — four preliminaries and a finale', () => {
       if (pair && board[pair[0]].symbol === board[pair[1]].symbol) matches += 1
     }
 
-    expect(matches / 500).toBeGreaterThan(0.25)
-    expect(matches / 500).toBeLessThan(0.6)
+    expect(matches / 500).toBeGreaterThan(0.65)
+    expect(matches / 500).toBeLessThan(0.9)
   })
 })
