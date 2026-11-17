@@ -5,7 +5,10 @@
  */
 import { createSelector } from '@reduxjs/toolkit'
 import type { RootState } from './store'
-import { selectActiveConfessionalDecision } from './confessionalDecisionSelectors'
+import {
+  isSafetySaveTargetPending,
+  selectActiveConfessionalDecision,
+} from './confessionalDecisionSelectors'
 import {
   getIncomingSocialModuleAvailability,
   getSocialModuleAvailability,
@@ -44,7 +47,7 @@ export const selectIsWaitingForInput = (state: RootState): boolean => {
     Boolean(game.replacementNeeded) ||
     Boolean(game.awaitingNominations) ||
     Boolean(game.awaitingPovDecision) ||
-    Boolean(game.awaitingPovSaveTarget) ||
+    isSafetySaveTargetPending(game) ||
     Boolean(game.awaitingMissionImmunityOffer) ||
     Boolean(game.awaitingHumanVote) ||
     Boolean(game.awaitingDoubleVoteOffer) ||
@@ -58,7 +61,6 @@ export const selectIsWaitingForInput = (state: RootState): boolean => {
     Boolean(sv?.awaitingCoupReplacement1) ||
     Boolean(sv?.awaitingCoupReplacement2) ||
     Boolean(sv?.awaitingVipSecondUseDecision) ||
-    Boolean(sv?.awaitingVipSecondSaveTarget) ||
     (Boolean(game.democracia?.awaitingHumanVote) && !democraciaResultsReadyForPlay) ||
     Boolean(game.democracia?.awaitingPublicBreaker) ||
     (Boolean(game.democracia?.resultDisplay) && !democraciaResultsReadyForPlay) ||

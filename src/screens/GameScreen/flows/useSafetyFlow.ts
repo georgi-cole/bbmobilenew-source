@@ -12,7 +12,10 @@ import {
   submitVipSecondSaveTarget,
 } from '../../../store/gameSlice'
 import type { AppDispatch, RootState } from '../../../store/store'
-import type { ActiveConfessionalDecision } from '../../../store/confessionalDecisionSelectors'
+import {
+  isSafetySaveTargetPending,
+  type ActiveConfessionalDecision,
+} from '../../../store/confessionalDecisionSelectors'
 import type { CeremonyTile } from '../../../components/CeremonyOverlay/CeremonyOverlay'
 import type { Player } from '../../../types'
 import { statusBadgeImageSrc } from '../../../utils/statusBadges'
@@ -345,11 +348,9 @@ export function useSafetyFlow({
   ])
 
   // Hide the save modal while the save ceremony is playing.
-  const isAwaitingAnySave =
-    Boolean(game.awaitingPovSaveTarget) || Boolean(game.specialVeto?.awaitingVipSecondSaveTarget)
   const showPovSaveModal =
     game.phase === 'pos_ceremony_results' &&
-    isAwaitingAnySave &&
+    isSafetySaveTargetPending(game) &&
     humanIsPosHolder &&
     !pendingSaveCeremony &&
     !activeConfessionalDecision
