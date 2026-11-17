@@ -25,6 +25,12 @@ export interface IncomingInteractionValidityRule {
  * live config later without changing the evaluator or message components.
  */
 export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteractionValidityRule> = {
+  facade_nomination_request: {
+    senderMustBeHoh: true,
+    humanMustBeOffBlock: true,
+    nominationWindow: 'setup',
+    allowedPhases: ['social_1', 'nominations'],
+  },
   nominee_veto_pitch: {
     senderMustBeNominee: true,
     humanMustHoldSafety: true,

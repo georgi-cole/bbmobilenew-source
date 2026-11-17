@@ -44,6 +44,15 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-17: Reviewed AI alliance formation, recruitment and officer consent,
+  individual campaigning, meaningful incoming-request delivery and voluntary
+  façade nominations. NPC proposals use the existing player resource prices;
+  human replies keep their explicit choices and existing mode/access rules.
+  This is social-simulation balancing within the current modes. No product,
+  price, entitlement, human-action unlock, reward, advertising rule or Store
+  benefit changes. Existing VIP/Reality and marketplace offer copy remains
+  accurate. The separate inactivity proposal is documented but not implemented.
+
 - 2026-11-16: Reviewed VIP ceremony Skip and AI continuation recovery. Media-start
   claims and broadcast acknowledgements no longer interrupt a committed Safety
   or replacement sequence; an unexpectedly empty ceremony falls back to the

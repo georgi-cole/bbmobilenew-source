@@ -1,3 +1,4 @@
+import { resolveAiFacadeReply } from './aiFacadeStrategy'
 import { finalizeAcceptedPersonalPact } from './reality/allianceManagement'
 import { getCurrentPact } from './reality/allianceIdentity'
 import {
@@ -1421,6 +1422,7 @@ export function respondToIncomingInteraction(submission: IncomingReplySubmission
     const responseAction = option?.action ?? submission.responseAction
     let responseType = option?.responseType ?? submission.responseType
     if (!responseType) return
+    if (resolveAiFacadeReply(dispatch, getState, interaction, responseType)) return
 
     // A question is a follow-up, not a neutral final response or an alliance vote.
     if (
@@ -1667,6 +1669,7 @@ export function autoResolveExpiredIncomingInteractionsForClock(
         detail: 'phase_deadline',
       })
 
+      if (resolveAiFacadeReply(dispatch, getState, interaction, 'ignore')) continue
       if (isRequired) {
         applyIncomingChoiceConsequences({
           dispatch,

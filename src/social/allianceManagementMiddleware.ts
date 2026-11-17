@@ -2,7 +2,11 @@ import { evaluateAllianceAutonomy } from './reality/allianceAutonomy'
 import { createDraft, finishDraft } from 'immer'
 import type { Middleware } from '@reduxjs/toolkit'
 import type { RootState } from '../store/store'
-import { allianceManagementContext } from './allianceManagementActions'
+import {
+  allianceManagementContext,
+  executeAllianceManagementCommand,
+} from './allianceManagementActions'
+import { planAiAllianceProposal } from './aiAlliancePlanning'
 import { advanceAllianceRequests } from './reality/allianceManagement'
 import { isCurrentAlliance } from './reality/allianceIdentity'
 import { commitRealityDomainUpdate, recordSocialAction } from './socialSlice'
@@ -60,6 +64,16 @@ export const allianceManagementMiddleware: Middleware = (api) => (next) => (acti
       )
     } else {
       finishDraft(domainDraft)
+    }
+  }
+  if (type === 'game/advance') {
+    // Re-read after each submission: consent, capacity and money can all change.
+    let proposals = 0
+    for (const actorId of allianceManagementContext(api.getState() as RootState).activeActorIds) {
+      const proposal = planAiAllianceProposal(api.getState() as RootState, actorId)
+      if (!proposal) continue
+      api.dispatch(executeAllianceManagementCommand(proposal) as never)
+      if (++proposals >= 2) break
     }
   }
   if (

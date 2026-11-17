@@ -1,9 +1,15 @@
 import { isMissionOpeningProtected, isMissionBackupProtected } from '../bb/missionPowers'
-import type { Reducer, UnknownAction } from '@reduxjs/toolkit'
+import { createAction, type Reducer, type UnknownAction } from '@reduxjs/toolkit'
 import type { GameState, Player, TvEvent } from '../types'
 import { getCompetitionPerceptionRead } from '../ai/competition'
 import { TWIN_SHOCK_ALI_ID, TWIN_SHOCK_LIA_ID } from '../bb/twinShock'
 import { getHoldTheWallDealDisposition } from '../features/holdTheWall/deal'
+
+export const adoptConsensualFacade = createAction<{
+  lohId: string
+  facadeId: string
+  intendedEvicteeId: string
+}>('game/adoptConsensualFacade')
 
 export type LohNominationStrategy = 'direct' | 'backdoor'
 export type LohNominationPlanStatus =
@@ -957,6 +963,42 @@ export function withLohNominationPlanning(
     }
 
     next = establishPlan(next, scoreFn, previous)
+    if (adoptConsensualFacade.match(action)) {
+      const { lohId, facadeId, intendedEvicteeId } = action.payload
+      const plan = next.lohNominationPlan
+      const candidate = alivePlayers(next).find((player) => player.id === facadeId)
+      const loh = next.players.find((player) => player.id === lohId)
+      if (
+        isCanonicalPlanningDay(next) &&
+        ['social_1', 'nominations'].includes(next.phase) &&
+        plan?.week === next.week &&
+        plan.lohId === lohId &&
+        next.lohId === lohId &&
+        !loh?.isUser &&
+        plan.status === 'planned' &&
+        plan.targetId === intendedEvicteeId &&
+        facadeId !== intendedEvicteeId &&
+        candidate &&
+        candidate.id !== next.posWinnerId &&
+        canPlanAgainst(next, lohId, candidate)
+      ) {
+        const opening = [...plan.initialNomineeIds]
+        const seat = opening.findIndex((id) => id !== plan.targetId)
+        if (seat >= 0) {
+          if (!opening.includes(facadeId)) opening[seat] = facadeId
+          next = {
+            ...next,
+            lohNominationPlan: {
+              ...plan,
+              revision: (plan.revision ?? 1) + 1,
+              initialNomineeIds: opening,
+              pawnIds: opening.filter((id) => id !== plan.targetId),
+              preferredSurvivorId: facadeId,
+            },
+          }
+        }
+      }
+    }
     next = reconcileInitialAiNominations(previous, next)
     next = recordSafetyField(previous, next)
     next = deliverBackdoorSafetyPitch(previous, next)
