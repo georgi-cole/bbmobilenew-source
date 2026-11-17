@@ -73,6 +73,25 @@ describe('adsService bridge guards', () => {
     clearRewardHandler('eviction_vote_breakdown')
   })
 
+  it.each([12, undefined])(
+    'keeps automatic breaks eligible with a contextual unit (age %s)',
+    (age) => {
+      installSafetyFixture(age)
+      const interstitial = vi.fn()
+      window.GameAds = {
+        supportsContextualInterstitials: true,
+        showInterstitial: interstitial,
+        showRewarded: vi.fn(),
+      }
+      expect(canShowAd('live_vote_auto', makeState())).toBe(true)
+      expect(showInterstitial('live_vote_auto', makeState(), vi.fn())).toBe(true)
+      expect(interstitial).toHaveBeenCalledWith('live_vote_auto')
+      expect(canShowAd('live_vote_auto', makeState({ hasNoAdsPack: true }))).toBe(false)
+      expect(canShowAd('live_vote_auto', makeState(undefined, { isActive: true }))).toBe(false)
+      expect(canShowAd('competition_retry', makeState())).toBe(false)
+    }
+  )
+
   it('explains missing age and bridge readiness without an advertising opt-in gate', () => {
     installSafetyFixture()
     expect(getAdAvailabilityMessage()).toContain('Enter your age')

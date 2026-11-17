@@ -100,6 +100,18 @@ if (adsMode === 'live') {
       issues.push(`${key} must be your real ${platform} AdMob ID, not a Google demo ID.`)
     }
   }
+  const contextualId = values.VITE_ADMOB_CONTEXTUAL_INTERSTITIAL_ID?.trim()
+  if (
+    contextualId &&
+    (!/^ca-app-pub-\d{16}\/\d{10}$/.test(contextualId) ||
+      contextualId.startsWith('ca-app-pub-3940256099942544/') ||
+      contextualId === values.VITE_ADMOB_INTERSTITIAL_ID?.trim() ||
+      contextualId === values.VITE_ADMOB_REWARDED_ID?.trim())
+  ) {
+    issues.push(
+      'VITE_ADMOB_CONTEXTUAL_INTERSTITIAL_ID must be a separate live interstitial ad unit.'
+    )
+  }
 }
 
 for (const key of ['VITE_BIG_EYE_VIP_API_URL', 'VITE_REMOTE_CONFIG_URL']) {

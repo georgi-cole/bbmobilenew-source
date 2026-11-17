@@ -643,3 +643,9 @@ store listings or change configured prices.
   precedes the existing finale interstitial boundary; VIP and ad-free entitlements
   retain their current exemptions. No product, price, entitlement, reward,
   marketplace copy, wheel odds or competition difficulty changes.
+
+- 2026-11-18: Reviewed contextual interstitials for Standard players under 18
+  and players of unknown age. Configured inventory uses the existing break
+  schedule, with child-directed treatment and general-audience creative.
+  VIP and No Ads continue to remove automatic ads, and adults can choose
+  rewarded ads. The existing product copy describes that access.

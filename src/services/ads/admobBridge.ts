@@ -7,40 +7,56 @@ import {
   RewardAdPluginEvents,
 } from '@capacitor-community/admob'
 import { IS_MOBILE_DEV_BUILD } from '../../config/buildTarget'
-import { canUseAdultServices, subscribePlayerSafety } from '../../safety/playerSafety'
+import { subscribePlayerSafety } from '../../safety/playerSafety'
+import { retainContextualAdTreatment, usesContextualAdTreatment } from './adAudience'
 import { resolveAdMobConfig, type AdMobConfig } from './admobConfig'
 import type { AdPlacement } from './adsService'
 import { getAdAvailabilityMessage, setAdRequestFailure } from './adAvailability'
 
 let busy = false
-let initialized = false
-let consentReady = false
+let initializedFor: boolean | undefined
+let consentReadyFor: boolean | undefined
 let privacyGeneration = 0
 
-async function authorize(config: AdMobConfig): Promise<boolean> {
-  if (!canUseAdultServices()) return false
+async function authorize(config: AdMobConfig, contextual = false): Promise<boolean> {
   const generation = privacyGeneration
+  const isCurrent = () =>
+    usesContextualAdTreatment() === contextual && generation === privacyGeneration
+  if (!isCurrent()) return false
   // Google's demo app IDs have no publisher UMP message. Live ads always use UMP.
-  if (config.mode === 'live' && !consentReady) {
-    let consent = await AdMob.requestConsentInfo()
-    if (!canUseAdultServices() || generation !== privacyGeneration) return false
-    if (consent.isConsentFormAvailable && consent.status === AdmobConsentStatus.REQUIRED) {
+  if (config.mode === 'live' && consentReadyFor !== contextual) {
+    let consent = contextual
+      ? await AdMob.requestConsentInfo({ tagForUnderAgeOfConsent: true })
+      : await AdMob.requestConsentInfo()
+    if (!isCurrent()) return false
+    if (
+      !contextual &&
+      consent.isConsentFormAvailable &&
+      consent.status === AdmobConsentStatus.REQUIRED
+    ) {
       consent = await AdMob.showConsentForm()
     }
-    consentReady = consent.canRequestAds
-    if (!consentReady) {
-      setAdRequestFailure(
-        'Advertising permission is not ready. Open Advertising privacy choices and try again.'
-      )
+    if (!isCurrent()) return false
+    if (!consent.canRequestAds) {
+      if (!contextual) {
+        setAdRequestFailure(
+          'Advertising permission is not ready. Open Advertising privacy choices and try again.'
+        )
+      }
       return false
     }
+    consentReadyFor = contextual
   }
-  if (!canUseAdultServices() || generation !== privacyGeneration) return false
-  if (!initialized) {
-    await AdMob.initialize({ maxAdContentRating: MaxAdContentRating.Teen })
-    initialized = true
+  if (initializedFor !== contextual) {
+    if (contextual) retainContextualAdTreatment()
+    await AdMob.initialize(
+      contextual
+        ? { tagForChildDirectedTreatment: true, maxAdContentRating: MaxAdContentRating.General }
+        : { maxAdContentRating: MaxAdContentRating.Teen }
+    )
+    initializedFor = contextual
   }
-  return canUseAdultServices() && generation === privacyGeneration
+  return isCurrent()
 }
 
 async function present(
@@ -49,7 +65,15 @@ async function present(
   placement: string,
   isAllowed: () => boolean
 ): Promise<boolean> {
-  if (busy || !canUseAdultServices() || !isAllowed()) return false
+  const contextual = usesContextualAdTreatment()
+  const adId = contextual
+    ? rewarded
+      ? null
+      : config.contextualInterstitialId
+    : rewarded
+      ? config.rewardedId
+      : config.interstitialId
+  if (busy || !adId || !isAllowed()) return false
   busy = true
   const generation = privacyGeneration
   const listeners: PluginListenerHandle[] = []
@@ -57,10 +81,10 @@ async function present(
   let stage = 'privacy'
   try {
     setAdRequestFailure(null)
-    if (!(await authorize(config)) || !isAllowed()) return false
+    if (!(await authorize(config, contextual)) || !isAllowed()) return false
     stage = 'loading'
     const options = {
-      adId: rewarded ? config.rewardedId : config.interstitialId,
+      adId,
       // Test mode already selects Google's platform-specific demo unit IDs.
       // The plugin's isTesting override substitutes an Android interstitial ID
       // on iOS in 8.2.1, so always preserve the explicit ID selected above.
@@ -69,7 +93,9 @@ async function present(
     }
     if (rewarded) await AdMob.prepareRewardVideoAd(options)
     else await AdMob.prepareInterstitial(options)
-    if (!canUseAdultServices() || generation !== privacyGeneration || !isAllowed()) return false
+    const canPresent = () =>
+      usesContextualAdTreatment() === contextual && generation === privacyGeneration && isAllowed()
+    if (!canPresent()) return false
 
     // showRewardVideoAd resolves when earned, while dismissal can also happen
     // without a reward. Keep the native slot occupied until the ad actually closes.
@@ -90,6 +116,7 @@ async function present(
       )
       listeners.push(await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => finish(earned)))
       listeners.push(await AdMob.addListener(RewardAdPluginEvents.FailedToShow, failedToShow))
+      if (!canPresent()) return false
       void AdMob.showRewardVideoAd({ adId: options.adId }).then(() => {
         earned = true
       }, failedToShow)
@@ -98,10 +125,13 @@ async function present(
         await AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => finish(true))
       )
       listeners.push(await AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, failedToShow))
+      if (!canPresent()) return false
       void AdMob.showInterstitial({ adId: options.adId }).catch(failedToShow)
     }
     const completed = await closed
-    return completed && canUseAdultServices() && generation === privacyGeneration
+    return (
+      completed && usesContextualAdTreatment() === contextual && generation === privacyGeneration
+    )
   } catch (error) {
     setAdRequestFailure(
       stage === 'privacy'
@@ -124,10 +154,11 @@ export function installAdMobBridge(isPlacementAllowed?: (placement: AdPlacement)
   subscribePlayerSafety(() => {
     privacyGeneration += 1
     setAdRequestFailure(null)
-    if (!canUseAdultServices()) consentReady = false
+    consentReadyFor = undefined
   })
   window.GameAds = {
     managesAdLifecycle: true,
+    supportsContextualInterstitials: Boolean(config.contextualInterstitialId),
     showInterstitial: (placement) =>
       present(
         config,
@@ -152,7 +183,7 @@ export function invalidateAdMobRequests(): void {
 
 /** The adult explicitly checks setup before returning to a reward prompt. */
 export async function checkAdMobAvailability(): Promise<string | null> {
-  if (!canUseAdultServices() || !window.GameAds) return getAdAvailabilityMessage()
+  if (usesContextualAdTreatment() || !window.GameAds) return getAdAvailabilityMessage()
   if (busy) return 'An ad request is already in progress. Please try again when it finishes.'
   const config = resolveAdMobConfig(Capacitor.getPlatform(), import.meta.env)
   if (!config) return getAdAvailabilityMessage()
@@ -182,7 +213,7 @@ export function hasAdMobPrivacyOptions(): boolean {
 
 /** UMP choices are reachable even after the local advertising switch is turned off. */
 export async function openAdMobPrivacyOptions(): Promise<void> {
-  if (!canUseAdultServices() || !hasAdMobPrivacyOptions() || busy)
+  if (usesContextualAdTreatment() || !hasAdMobPrivacyOptions() || busy)
     throw new Error(
       'Advertising privacy options are unavailable right now. Please try again later.'
     )
@@ -191,7 +222,7 @@ export async function openAdMobPrivacyOptions(): Promise<void> {
     await AdMob.requestConsentInfo()
     await AdMob.showPrivacyOptionsForm()
   } finally {
-    consentReady = false
+    consentReadyFor = undefined
     privacyGeneration += 1
     busy = false
   }
