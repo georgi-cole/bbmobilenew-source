@@ -450,6 +450,39 @@ export function getIncomingInteractionResponseOptions(
   dramaMode = false,
   safetyContext?: SafetyNomineeContext
 ): IncomingInteractionResponseOption[] {
+  if (interaction?.payload?.scenarioKey === 'facade_nomination_request') {
+    return [
+      {
+        id: 'facade:accept',
+        label: 'Agree to be a façade nominee',
+        responseType: 'accept',
+        style: 'positive',
+        description:
+          'Consent to this nomination only. Safety and the eviction vote remain uncertain.',
+      },
+      {
+        id: 'facade:neutral',
+        label: 'Make no agreement',
+        responseType: 'neutral',
+        style: 'neutral',
+        description: 'Keep your options open without consenting to a pawn role.',
+      },
+      {
+        id: 'facade:decline',
+        label: 'Refuse the façade role',
+        responseType: 'decline',
+        style: 'negative',
+        description: 'Decline clearly. The LOH can still choose to nominate you.',
+      },
+      {
+        id: 'facade:dismiss',
+        label: 'End the discussion',
+        responseType: 'dismiss',
+        style: 'dismiss',
+        description: 'Close the offer without giving consent.',
+      },
+    ]
+  }
   const options = getResponseBlueprints(type, interaction, tone, dramaMode, safetyContext)
   const commitmentKind = interaction ? getCommitmentKindForInteraction(interaction) : null
   const isHoldSafetyRequest =

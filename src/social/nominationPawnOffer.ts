@@ -20,7 +20,7 @@ export function getPawnNominationAuthority(
   const actor = game.players.find((player) => player.id === actorId)
   if (
     !open ||
-    game.mode !== 'classic' ||
+    game.mode === 'survival' ||
     isVoxPopuliActive(game) ||
     game.weekendInterlude?.active ||
     game.coLohNomineeByCoLohId?.[actorId] ||

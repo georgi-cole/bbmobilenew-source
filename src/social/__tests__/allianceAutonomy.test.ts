@@ -1,3 +1,5 @@
+import { planAiAllianceProposal } from '../aiAlliancePlanning'
+import type { RootState } from '../../store/store'
 import { describe, expect, it } from 'vitest'
 import { createInitialRealityDomainState, ensureRealityActors } from '../reality/state'
 import { evaluateAllianceAutonomy } from '../reality/allianceAutonomy'
@@ -113,7 +115,7 @@ describe('autonomous alliance strategy', () => {
   })
 
   it('recruits a useful partner through the existing group admission request', () => {
-    const { domain, context } = setup()
+    const { domain } = setup()
     group(domain, 'north', ['ai-1', 'ai-2', 'ai-3'])
     const reliableProspect = getRealityRelationship(domain, 'ai-1', 'ai-5')
     reliableProspect.trust = 50
@@ -122,8 +124,35 @@ describe('autonomous alliance strategy', () => {
     reliableProspect.strategicValue = 40
     getRealityRelationship(domain, 'ai-1', 'ai-4').perceivedThreat = 95
 
-    evaluateAllianceAutonomy(domain, context)
+    const proposal = Array.from({ length: 12 }, (_, seed) =>
+      planAiAllianceProposal(
+        {
+          game: {
+            week: 4,
+            phase: 'social_1',
+            mode: 'classic',
+            seed,
+            players: actorIds.map((id) => ({
+              id,
+              name: id,
+              status: 'active',
+              isUser: id === 'human',
+            })),
+            nomineeIds: [],
+          },
+          social: {
+            reality: domain,
+            relationships: {},
+            energyBank: { 'ai-1': 10 },
+            influenceBank: { 'ai-1': 20 },
+            infoBank: {},
+          },
+        } as unknown as RootState,
+        'ai-1'
+      )
+    ).find(Boolean)
 
+    expect(proposal).toMatchObject({ kind: 'ADMIT', allianceId: 'north', candidateId: 'ai-5' })
     expect(
       Object.values(domain.allianceManagement.requests).some(
         (request) =>
@@ -131,6 +160,6 @@ describe('autonomous alliance strategy', () => {
           request.allianceId === 'north' &&
           request.candidateId === 'ai-5'
       )
-    ).toBe(true)
+    ).toBe(false)
   })
 })

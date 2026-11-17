@@ -258,6 +258,8 @@ interface InteractionPlan {
 
 const CRITICAL_EVENT_SCENARIOS = new Set<InteractionScenarioKey>([
   'background_nominate_human',
+  'nominee_campaign',
+  'hoh_safety_request',
   'nominee_hoh_plea',
   'nominee_veto_pitch',
   'safety_holder_consults_loh',
@@ -1115,9 +1117,9 @@ function resolveIncomingInteractionPlan(
     !constraints.actorIsNominee &&
     ['loh_results', 'social_1', 'nominations'].includes(context.phase) &&
     (signals.isAlliance || signals.tags.has('alliance'))
-  let plan: InteractionPlan | null = establishedAllyAsLoh
-    ? { type: 'check_in', scenarioKey: 'allied_loh_plan_check_in' }
-    : resolveAllianceInteractionPlan(actorId, playerId, context)
+  let plan: InteractionPlan | null =
+    resolveAllianceInteractionPlan(actorId, playerId, context) ??
+    (establishedAllyAsLoh ? { type: 'check_in', scenarioKey: 'allied_loh_plan_check_in' } : null)
 
   if (!plan) {
     if (
@@ -1170,6 +1172,7 @@ function resolveIncomingInteractionPlan(
       }
     } else if (
       context.phase === 'social_2' &&
+      !constraints.actorIsNominee &&
       (context.playerSocialActionCount ?? 0) >= 3 &&
       (signals.isMildAlly || signals.isMildEnemy)
     ) {
@@ -1507,8 +1510,7 @@ export function evaluateIncomingInteractionEnqueueDecision(
     return { allowed: false, reason: 'blocked_by_context_rules' }
   }
   const planPriority = getIncomingInteractionPriority(plan.type, plan.scenarioKey)
-  const isMajorInteraction =
-    (context.dramaMode || context.voxPopuliActive) && planPriority === 'high'
+  const isMajorInteraction = planPriority === 'high'
   const isCriticalConsultation = [
     'loh_consults_safety_holder',
     'alliance_power_nomination_huddle',
@@ -1565,11 +1567,7 @@ export function evaluateIncomingInteractionEnqueueDecision(
   )
   if (
     recencyPenalty >= 0.5 &&
-    !(
-      (context.dramaMode || context.voxPopuliActive) &&
-      isCriticalEventScenario(plan) &&
-      !isAllianceGroupHuddle
-    ) &&
+    !(isCriticalEventScenario(plan) && !isAllianceGroupHuddle) &&
     plan.scenarioKey !== 'season_provocateur'
   ) {
     if (socialConfig.verbose) {
@@ -1597,7 +1595,7 @@ export function evaluateIncomingInteractionEnqueueDecision(
               0.17
         )
       : 0) +
-    ((context.dramaMode || context.voxPopuliActive) && isCriticalEventScenario(plan)
+    (isCriticalEventScenario(plan)
       ? context.voxPopuliActive
         ? 0.96
         : 0.9
@@ -2243,7 +2241,6 @@ function scheduleIncomingInteractionsForPhaseInternal(
   ).length
   const criticalDecisionCount = rankedDecisions.filter(
     (entry) =>
-      (context.dramaMode || context.voxPopuliActive) &&
       entry.decision.plan?.scenarioKey !== 'alliance_power_nomination_huddle' &&
       entry.decision.plan?.scenarioKey !== 'alliance_power_safety_huddle' &&
       entry.decision.allowed &&
@@ -2254,10 +2251,13 @@ function scheduleIncomingInteractionsForPhaseInternal(
     criticalDecisionCount > 0
       ? Math.max(interactionConfig.maxGeneratedPerCheckpoint, Math.min(3, criticalDecisionCount))
       : interactionConfig.maxGeneratedPerCheckpoint
-  const weeklyGenerationLimit =
-    context.dramaMode || context.voxPopuliActive
-      ? Math.max(interactionConfig.maxPerWeek, alreadyCreatedThisWeek + criticalDecisionCount)
-      : 4
+  const weeklyGenerationLimit = Math.min(
+    context.voxPopuliActive ? 10 : 8,
+    Math.max(
+      context.dramaMode || context.voxPopuliActive ? interactionConfig.maxPerWeek : 4,
+      alreadyCreatedThisWeek + criticalDecisionCount
+    )
+  )
   const generationBudget = Math.max(
     0,
     Math.min(checkpointBudget, weeklyGenerationLimit - alreadyCreatedThisWeek)
@@ -2389,6 +2389,18 @@ function scheduleIncomingInteractionsForPhaseInternal(
       mode: useVoxDrama ? 'drama' : 'normal',
       payload: {
         scenarioKey,
+        ...(isCriticalEventScenario(plan)
+          ? {
+              dedupeGroup: [
+                'decision',
+                scenarioKey,
+                week,
+                context.lohId ?? '',
+                context.posWinnerId ?? '',
+                [...(context.nomineeIds ?? [])].sort().join(','),
+              ].join(':'),
+            }
+          : {}),
         ...(plan.provocateurRole
           ? {
               source: 'season_provocateur',

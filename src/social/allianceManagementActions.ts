@@ -176,7 +176,7 @@ function allianceProposalOutcome(
   }
 }
 
-/** Charge only a newly submitted player proposal; decisions and exits remain free. */
+/** Player and AI proposals pay the same price; decisions and exits remain free. */
 export function executeAllianceManagementCommand(
   command: AllianceManagementCommand,
   costs?: { energy: number; influence?: number; info?: number }
@@ -189,7 +189,7 @@ export function executeAllianceManagementCommand(
     const actor = state.game.players.find((player) => player.id === command.actorId)
     const proposalPrice = allianceProposalPrice(command)
     const isPaidProposal =
-      actor?.isUser === true &&
+      Boolean(actor) &&
       proposalPrice !== null &&
       command.type === 'PROPOSE' &&
       result.status === 'APPLIED' &&
@@ -285,7 +285,7 @@ export function executeAllianceManagementCommand(
             timestamp: Date.now(),
             week: latest.game.week,
             phase: latest.game.phase,
-            source: 'manual',
+            source: actor?.isUser ? 'manual' : 'system',
             narrative: allianceProposalReceipt(domain, result.requestId, latest),
             receipt: {
               summary: allianceProposalReceipt(domain, result.requestId, latest),

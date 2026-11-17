@@ -1,3 +1,6 @@
+import { socialAIDriver } from './socialAIDriver'
+import { runAiFacadeNegotiation } from './aiFacadeStrategy'
+import type { AppDispatch, RootState } from '../store/store'
 import type { Middleware } from '@reduxjs/toolkit'
 import type { SocialActionLogEntry } from './types'
 import { processSocialStrategyAction } from './socialStrategyActions'
@@ -28,6 +31,11 @@ export const socialStrategyMiddleware: Middleware = (api) => (next) => (action) 
 
   if (type === 'game/advance' && before.game.phase === 'eviction_results') {
     queueSocialStrategyInvitation(api, after, dayEndPlan)
+  }
+
+  if (type === 'game/advance' && before.game.phase !== after.game.phase) {
+    socialAIDriver.runStrategicCheckpoint()
+    runAiFacadeNegotiation(api.dispatch as AppDispatch, api.getState as () => RootState)
   }
 
   if (type === 'social/recordSocialAction') {
