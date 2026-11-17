@@ -652,3 +652,10 @@ store listings or change configured prices.
   premium versions. Lia & Ali's artwork extends the shared cast and optional
   cinematic pack. Product benefits, prices, rewards and entitlement rules are
   unchanged.
+
+- 2026-11-18: Reviewed group alliance visibility after accepting an AI
+  invitation. Standard players see the group name and VIP Eye, which opens
+  Marketplace. Reality Mode members open the existing alliance details with
+  their actual role. Standard players can accept incoming invitations, and
+  opening alliance details still uses the existing Reality Mode entitlement.
+  The current Marketplace copy and pricing describe that access.

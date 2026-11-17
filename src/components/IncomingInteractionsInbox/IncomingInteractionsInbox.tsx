@@ -65,6 +65,7 @@ import {
   isIncomingInteractionUrgent,
 } from '../../social/incomingInteractionDeadline'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
+import HubmateChoiceChip from '../SocialPanelV2/HubmateChoiceChip'
 import ContextualGuidePrompt from '../../onboarding/ContextualGuidePrompt'
 import {
   hasSeenContextualGuide,
@@ -383,8 +384,8 @@ function InteractionItem({
   )
   const nominationChoices = responseOptions.flatMap((option) => {
     if (!option.nominationTargetId) return []
-    const name = playerById.get(option.nominationTargetId)?.name ?? option.label
-    return [{ ...option, name }]
+    const player = playerById.get(option.nominationTargetId)
+    return player ? [{ id: option.id, player }] : []
   })
   const selectedNominationChoice = nominationChoices.find(
     (option) => option.id === nominationChoiceId
@@ -492,23 +493,31 @@ function InteractionItem({
         <>
           {nominationChoices.length > 0 && (
             <div className="inbox-item__nomination-choice">
-              <select
+              <div
+                className="inbox-item__nomination-chips"
+                role="group"
                 aria-label="Hubmate to keep clear of"
-                value={selectedNominationChoice?.id ?? ''}
-                onChange={(event) => setNominationChoiceId(event.target.value)}
               >
-                <option value="">Choose a hubmate</option>
-                {nominationChoices.map((option, index) => (
-                  <option key={option.id} value={option.id}>
-                    {nominationChoices.filter(({ name }) => name === option.name).length > 1
-                      ? `${option.name} (hubmate ${index + 1})`
-                      : option.name}
-                  </option>
-                ))}
-              </select>
+                {nominationChoices.map(({ id, player }, index) => {
+                  const duplicateName = nominationChoices.some(
+                    (choice) => choice.id !== id && choice.player.name === player.name
+                  )
+                  return (
+                    <HubmateChoiceChip
+                      key={id}
+                      player={player}
+                      selected={selectedNominationChoice?.id === id}
+                      label={duplicateName ? `${player.name} (hubmate ${index + 1})` : undefined}
+                      onClick={() =>
+                        setNominationChoiceId((previous) => (previous === id ? '' : id))
+                      }
+                    />
+                  )
+                })}
+              </div>
               <button
                 type="button"
-                className="inbox-action"
+                className="inbox-action inbox-item__share-name"
                 disabled={!selectedNominationChoice}
                 onClick={() => {
                   if (selectedNominationChoice)

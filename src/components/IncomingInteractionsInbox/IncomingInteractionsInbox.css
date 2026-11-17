@@ -836,26 +836,29 @@
 .inbox-item__nomination-choice {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.35rem;
+  align-items: start;
+  gap: 0.45rem;
 }
 
-.inbox-item__nomination-choice select {
+.inbox-item__nomination-chips {
+  display: flex;
   min-width: 0;
-  min-height: 44px;
-  padding-inline: 0.6rem;
-  border: 1px solid rgba(148, 163, 184, 0.26);
-  border-radius: 0.65rem;
-  color: #eef2ff;
-  background: #201932;
+  gap: 0.4rem;
+  padding: 4px 4px 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(185, 157, 221, 0.48) transparent;
 }
 
-.inbox-item__nomination-choice button {
+.inbox-item__share-name {
   min-height: 44px;
+  margin-top: 3px;
   padding-inline: 0.65rem;
   border-radius: 0.65rem;
 }
 
-.inbox-item__nomination-choice button:disabled {
+.inbox-item__share-name:disabled {
   opacity: 0.55;
   cursor: default;
 }

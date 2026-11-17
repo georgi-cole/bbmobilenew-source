@@ -233,7 +233,8 @@
   fill: #f0dda4;
 }
 
-.ac-card--premium-locked:hover .ac-card__premium-badge {
+.ac-card--premium-locked:hover .ac-card__premium-badge,
+.sp2-consult-alliance-chip--locked:hover .ac-card__premium-badge {
   filter: drop-shadow(0 0 0.34rem rgba(185, 167, 255, 0.78));
   transform: rotate(0deg) scale(1.07);
 }

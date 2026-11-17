@@ -39,6 +39,8 @@ import HousePulse from '../HousePulse/HousePulse'
 import { resolveWeatherDay } from '../../weather/weatherEngine'
 import RealityLedger from '../RealityLedger/RealityLedger'
 import AllianceRead from './AllianceRead'
+import HubmateChoiceChip from './HubmateChoiceChip'
+import StoreProductIcon from '../StoreProductModal/StoreProductIcon'
 import {
   SWAY_ALLIANCE_VOTE,
   getAllianceVoteSway,
@@ -2414,7 +2416,7 @@ export default function SocialPanelV2() {
             </div>
             {showAlliancePicker && (
               <div
-                className={`sp2-consult-alliance-picker${allianceSelectionPulse ? ' is-attention' : ''}`}
+                className={`sp2-consult-alliance-picker${dramaMode ? '' : ' sp2-consult-alliance-picker--locked'}${allianceSelectionPulse ? ' is-attention' : ''}`}
                 role="group"
                 aria-label="Official alliances"
               >
@@ -2427,13 +2429,26 @@ export default function SocialPanelV2() {
                         <button
                           key={alliance.id}
                           type="button"
-                          title={allianceName}
-                          aria-label={allianceName}
-                          aria-pressed={isSelected}
-                          className={`sp2-consult-alliance-chip${isSelected ? ' is-active' : ''}`}
-                          onClick={() => selectAlliance(isSelected ? null : alliance.id)}
+                          title={
+                            dramaMode ? allianceName : `${allianceName} · View in VIP Reality Mode`
+                          }
+                          aria-label={
+                            dramaMode ? allianceName : `${allianceName}. VIP Reality Mode`
+                          }
+                          aria-pressed={dramaMode ? isSelected : undefined}
+                          className={`sp2-consult-alliance-chip${dramaMode ? (isSelected ? ' is-active' : '') : ' sp2-consult-alliance-chip--locked'}`}
+                          onClick={
+                            dramaMode
+                              ? () => selectAlliance(isSelected ? null : alliance.id)
+                              : handleRealityUpgrade
+                          }
                         >
                           <span className="sp2-consult-alliance-chip__name">{allianceName}</span>
+                          {!dramaMode && (
+                            <span className="ac-card__premium-badge" aria-hidden="true">
+                              <StoreProductIcon name="vip" />
+                            </span>
+                          )}
                         </button>
                       )
                     })}
@@ -2859,11 +2874,10 @@ export default function SocialPanelV2() {
               >
                 <div className="sp2-subject-picker__chips" role="group" aria-label="Nominees">
                   {swayPlan.nominees.map((candidate) => (
-                    <button
+                    <HubmateChoiceChip
                       key={candidate.id}
-                      type="button"
-                      className={`sp2-subject-chip${swaySubjectIds.includes(candidate.id) ? ' sp2-subject-chip--selected' : ''}`}
-                      aria-pressed={swaySubjectIds.includes(candidate.id)}
+                      player={candidate}
+                      selected={swaySubjectIds.includes(candidate.id)}
                       onClick={() => {
                         setSwaySubjectIds((previous) =>
                           previous.includes(candidate.id)
@@ -2876,10 +2890,7 @@ export default function SocialPanelV2() {
                         )
                         clearCurrentOutcome()
                       }}
-                    >
-                      <PlayerAvatar player={candidate} size="sm" showRelationshipOutline={false} />
-                      <span className="sp2-subject-chip__name">{candidate.name}</span>
-                    </button>
+                    />
                   ))}
                 </div>
               </div>
@@ -2899,27 +2910,17 @@ export default function SocialPanelV2() {
                     aria-label="Subject candidates"
                   >
                     {subjectCandidates.map((candidate) => (
-                      <button
+                      <HubmateChoiceChip
                         key={candidate.id}
-                        type="button"
-                        className={`sp2-subject-chip${
-                          selectedSubjectId === candidate.id ? ' sp2-subject-chip--selected' : ''
-                        }`}
-                        aria-pressed={selectedSubjectId === candidate.id}
+                        player={candidate}
+                        selected={selectedSubjectId === candidate.id}
                         onClick={() => {
                           setSelectedSubjectId((previous) =>
                             previous === candidate.id ? null : candidate.id
                           )
                           clearCurrentOutcome()
                         }}
-                      >
-                        <PlayerAvatar
-                          player={candidate}
-                          size="sm"
-                          showRelationshipOutline={false}
-                        />
-                        <span className="sp2-subject-chip__name">{candidate.name}</span>
-                      </button>
+                      />
                     ))}
                   </div>
                 )}

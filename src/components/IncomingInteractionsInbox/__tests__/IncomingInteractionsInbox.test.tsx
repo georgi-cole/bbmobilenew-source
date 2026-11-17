@@ -907,7 +907,7 @@ describe('IncomingInteractionsInbox', () => {
     human.status = 'loh'
     game.lohId = human.id
     sender.name = 'Lia & Ali'
-    candidate.name = 'Finn'
+    candidate.name = 'Marlowe'
     const store = makeInboxStoreForGame(game)
     store.dispatch(
       pushIncomingInteraction({
@@ -929,18 +929,27 @@ describe('IncomingInteractionsInbox', () => {
     fireEvent.click(screen.getByRole('button', { name: /ask who they.re worried about/i }))
 
     expect(store.getState().social.incomingInteractions[0]?.resolved).toBe(false)
-    const selector = screen.getByRole('combobox', { name: 'Hubmate to keep clear of' })
-    expect(within(selector).queryByRole('option', { name: sender.name })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Share name' })).toBeDisabled()
-    fireEvent.change(selector, { target: { value: `keep-clear:${candidate.id}` } })
-    fireEvent.click(screen.getByRole('button', { name: 'Share name' }))
+    const choices = within(screen.getByRole('group', { name: 'Hubmate to keep clear of' }))
+    expect(choices.queryByRole('button', { name: sender.name })).toBeNull()
+    const chip = choices.getByRole('button', { name: candidate.name })
+    const share = screen.getByRole('button', { name: 'Share name' })
+    expect(chip.querySelector('img')).toBeInTheDocument()
+    expect(share).toBeDisabled()
+    fireEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+    expect(share).toBeEnabled()
+    expect(store.getState().social.incomingInteractions[0]?.resolved).toBe(false)
+    fireEvent.click(chip)
+    expect(share).toBeDisabled()
+    fireEvent.click(chip)
+    fireEvent.click(share)
 
     expect(store.getState().social.incomingInteractions[0]).toMatchObject({
       resolved: true,
       resolvedChoiceId: `keep-clear:${candidate.id}`,
       dialogue: { question: 'ask_nomination_read' },
     })
-    expect(screen.getByText(/I hear you about Finn/i)).toBeInTheDocument()
+    expect(screen.getByText(/I hear you about Marlowe/i)).toBeInTheDocument()
     expect(store.getState().game.nomineeIds).toEqual(game.nomineeIds)
     expect(store.getState().social.commitments).toHaveLength(0)
   })
