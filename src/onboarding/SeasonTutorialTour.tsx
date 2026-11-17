@@ -16,7 +16,7 @@ const TOUR_FINISH_MS = 520
 
 type TutorialSpotlightShape = 'circle' | 'rounded' | 'panel'
 
-type TutorialStep = {
+export type TutorialStep = {
   id: string
   title: string
   body: string
@@ -118,18 +118,39 @@ export default function SeasonTutorialTour({
   showPublicStep,
   onComplete,
   onSkip,
+  steps,
+  completeLabel = 'Start playing',
+  trapFocus = false,
 }: {
   showPublicStep: boolean
   onComplete: () => void
   onSkip: () => void
+  steps?: readonly TutorialStep[]
+  completeLabel?: string
+  trapFocus?: boolean
 }) {
-  const tutorialSteps = showPublicStep ? TUTORIAL_STEPS : TUTORIAL_STEPS_WITHOUT_PUBLIC
+  const tutorialSteps = steps ?? (showPublicStep ? TUTORIAL_STEPS : TUTORIAL_STEPS_WITHOUT_PUBLIC)
   const [stepIndex, setStepIndex] = useState(0)
   const [finishing, setFinishing] = useState(false)
   const currentStep = tutorialSteps[stepIndex]
   const targetRect = useSpotlightTarget(currentStep.selector, currentStep.padding)
   const tooltipRef = useRef<HTMLElement | null>(null)
   const finishTimerRef = useRef<number | null>(null)
+  const [tooltipHeight, setTooltipHeight] = useState(TOOLTIP_ESTIMATED_HEIGHT_PX)
+
+  useLayoutEffect(() => {
+    const tooltip = tooltipRef.current
+    if (!steps || !tooltip) return
+    const measure = () => {
+      const height = tooltip.getBoundingClientRect().height
+      if (height > 0) setTooltipHeight(height)
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(tooltip)
+    return () => observer.disconnect()
+  }, [steps, stepIndex])
 
   const moveToStep = useCallback(
     (nextIndex: number) => {
@@ -188,7 +209,21 @@ export default function SeasonTutorialTour({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (finishing) return
-      if (event.key === 'Escape') {
+      if (trapFocus && event.key === 'Tab') {
+        const buttons = Array.from(
+          tooltipRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []
+        )
+        if (!buttons.length) return
+        event.preventDefault()
+        const current = buttons.indexOf(document.activeElement as HTMLButtonElement)
+        const next =
+          current < 0
+            ? event.shiftKey
+              ? buttons.length - 1
+              : 0
+            : (current + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length
+        buttons[next].focus()
+      } else if (event.key === 'Escape') {
         event.preventDefault()
         onSkip()
       } else if (event.key === 'ArrowRight') {
@@ -202,7 +237,15 @@ export default function SeasonTutorialTour({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [completeWithHandoff, finishing, moveToStep, onSkip, stepIndex, tutorialSteps.length])
+  }, [
+    completeWithHandoff,
+    finishing,
+    moveToStep,
+    onSkip,
+    stepIndex,
+    tutorialSteps.length,
+    trapFocus,
+  ])
 
   if (typeof document === 'undefined') return null
 
@@ -212,7 +255,8 @@ export default function SeasonTutorialTour({
   const targetCenterX = targetRect ? targetRect.left + targetRect.width / 2 : viewportWidth / 2
   const tooltipLeft = clamp(targetCenterX - tooltipWidth / 2, 12, viewportWidth - tooltipWidth - 12)
   const spaceBelow = targetRect ? viewportHeight - targetRect.bottom : 0
-  const placeBelow = targetRect ? spaceBelow >= TOOLTIP_ESTIMATED_HEIGHT_PX + TOOLTIP_GAP_PX : false
+  const neededHeight = steps ? tooltipHeight : TOOLTIP_ESTIMATED_HEIGHT_PX
+  const placeBelow = targetRect ? spaceBelow >= neededHeight + TOOLTIP_GAP_PX : false
 
   const spotlightStyle = targetRect
     ? ({
@@ -223,24 +267,39 @@ export default function SeasonTutorialTour({
       } as CSSProperties)
     : undefined
 
-  const tooltipStyle = targetRect
-    ? placeBelow
+  const tooltipStyle =
+    steps && targetRect
       ? ({
           left: tooltipLeft,
-          top: targetRect.bottom + TOOLTIP_GAP_PX,
+          top: clamp(
+            placeBelow
+              ? targetRect.bottom + TOOLTIP_GAP_PX
+              : targetRect.top - tooltipHeight - TOOLTIP_GAP_PX,
+            12,
+            Math.max(12, viewportHeight - tooltipHeight - 12)
+          ),
           width: tooltipWidth,
+          maxHeight: viewportHeight - 24,
+          overflowY: 'auto',
         } as CSSProperties)
-      : ({
-          left: tooltipLeft,
-          bottom: viewportHeight - targetRect.top + TOOLTIP_GAP_PX,
-          width: tooltipWidth,
-        } as CSSProperties)
-    : ({
-        left: Math.max(12, (viewportWidth - tooltipWidth) / 2),
-        top: '50%',
-        width: tooltipWidth,
-        transform: 'translateY(-50%)',
-      } as CSSProperties)
+      : targetRect
+        ? placeBelow
+          ? ({
+              left: tooltipLeft,
+              top: targetRect.bottom + TOOLTIP_GAP_PX,
+              width: tooltipWidth,
+            } as CSSProperties)
+          : ({
+              left: tooltipLeft,
+              bottom: viewportHeight - targetRect.top + TOOLTIP_GAP_PX,
+              width: tooltipWidth,
+            } as CSSProperties)
+        : ({
+            left: Math.max(12, (viewportWidth - tooltipWidth) / 2),
+            top: '50%',
+            width: tooltipWidth,
+            transform: 'translateY(-50%)',
+          } as CSSProperties)
 
   const isLastStep = stepIndex === tutorialSteps.length - 1
   const focusSettled = targetRect !== null
@@ -324,7 +383,7 @@ export default function SeasonTutorialTour({
               onClick={() => (isLastStep ? completeWithHandoff() : moveToStep(stepIndex + 1))}
               disabled={finishing}
             >
-              {isLastStep ? 'Start playing' : 'Next'}
+              {isLastStep ? completeLabel : 'Next'}
             </button>
           </div>
         </div>

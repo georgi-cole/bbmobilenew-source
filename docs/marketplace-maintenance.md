@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-17: Reviewed the Tribunal viewing options, recap and automatic
+  sequester guide. The changes add navigation and replay controls for eligible
+  jurors. Existing products, entitlements, prices, rewards and Store benefits
+  stay the same.
+
 - 2026-11-16: Reviewed VIP ceremony Skip and AI continuation recovery. Media-start
   claims and broadcast acknowledgements no longer interrupt a committed Safety
   or replacement sequence; an unexpectedly empty ceremony falls back to the

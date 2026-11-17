@@ -84,6 +84,7 @@ import PublicSaveReveal from '../PublicSaveReveal/PublicSaveReveal'
 import { isVisibleInMainLog, isVisibleOnTv } from '../../services/activityService'
 import type { TvEvent } from '../../types'
 import TopUtilityButton from '../TopUtilityButton/TopUtilityButton'
+import TribunalHighlightsChip from '../TribunalHighlights/TribunalHighlightsChip'
 import { getViewportMessageKey } from './tvZoneKeys'
 import {
   createPresentationEventClaim,
@@ -2052,6 +2053,7 @@ export default function TvZone(props: TvZoneProps) {
             </span>
           )}
           {/* Alive/total moved to the Housemates occupancy chip so this header can host direct audio toggles. */}
+          <TribunalHighlightsChip />
           <TopUtilityButton
             icon="music"
             ariaLabel="Music"

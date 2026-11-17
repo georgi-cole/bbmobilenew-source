@@ -1,4 +1,4 @@
-export type TutorialGuide = 'game' | 'social' | 'loh-rules' | 'pos-rules'
+export type TutorialGuide = 'game' | 'social' | 'loh-rules' | 'pos-rules' | 'tribunal'
 export type SocialTutorialVariant = 'normal' | 'reality' | 'reality-upgrade'
 export type SocialGuideLevel = 0 | 1 | 2
 
@@ -7,6 +7,7 @@ type TutorialReplayState = {
   socialPending: boolean
   lohRulesPending: boolean
   posRulesPending: boolean
+  tribunalPending: boolean
 }
 
 const GUIDE_KEYS = {
@@ -14,12 +15,14 @@ const GUIDE_KEYS = {
   social: 'socialPending',
   'loh-rules': 'lohRulesPending',
   'pos-rules': 'posRulesPending',
+  tribunal: 'tribunalPending',
 } as const
 const INITIAL_REPLAY_STATE: TutorialReplayState = {
   gamePending: true,
   socialPending: true,
   lohRulesPending: true,
   posRulesPending: true,
+  tribunalPending: true,
 }
 
 const REPLAY_VERSION = 'v1'
@@ -81,6 +84,7 @@ function migratedReplayState(
     socialPending: !legacyRealityHandled,
     lohRulesPending: legacySetting !== 'disabled',
     posRulesPending: legacySetting !== 'disabled',
+    tribunalPending: legacySetting !== 'disabled',
   }
 }
 
@@ -101,6 +105,7 @@ function readReplayState(profileId: string | null, isGuest: boolean): TutorialRe
       socialPending: parsed.socialPending,
       lohRulesPending: parsed.lohRulesPending !== false,
       posRulesPending: parsed.posRulesPending !== false,
+      tribunalPending: parsed.tribunalPending ?? Object.values(parsed).some(Boolean),
     }
   } catch {
     return migratedReplayState(storage, profileId, isGuest)
@@ -150,6 +155,7 @@ export function setTutorialReplayEnabled(
     socialPending: enabled,
     lohRulesPending: enabled,
     posRulesPending: enabled,
+    tribunalPending: enabled,
   })
 }
 

@@ -40,6 +40,7 @@ interface UIState {
   musicScene: MusicScene
   musicMix: MusicMix
   confessionalMusicMode: ConfessionalMusicMode
+  tribunalHighlightsOpen: boolean
   debugExpansionUnlocks: {
     cupidArrow: boolean
     voxPopuli: boolean
@@ -51,6 +52,7 @@ const initialState: UIState = {
   musicScene: 'none',
   musicMix: 'normal',
   confessionalMusicMode: 'normal',
+  tribunalHighlightsOpen: false,
   // Intentionally Redux-only: debug access disappears with the app session and
   // is never written into the permanent VIP entitlement cache.
   debugExpansionUnlocks: {
@@ -78,6 +80,9 @@ const uiSlice = createSlice({
     setConfessionalMusicMode(state, action: { payload: ConfessionalMusicMode }) {
       state.confessionalMusicMode = action.payload
     },
+    setTribunalHighlightsOpen(state, action: { payload: boolean }) {
+      state.tribunalHighlightsOpen = action.payload
+    },
     setDebugExpansionUnlock(
       state,
       action: { payload: { expansion: 'cupidArrow' | 'voxPopuli'; unlocked: boolean } }
@@ -97,6 +102,7 @@ export const {
   setMusicScene,
   setMusicMix,
   setConfessionalMusicMode,
+  setTribunalHighlightsOpen,
   setDebugExpansionUnlock,
   clearDebugExpansionUnlocks,
 } = uiSlice.actions

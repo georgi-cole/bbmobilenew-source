@@ -53,7 +53,17 @@ function makeTestStore(initialPhase = 'week_start') {
   }
 
   const store = configureStore({
-    reducer: { game: gameReducer, social: socialReducer },
+    reducer: {
+      game: gameReducer,
+      social: socialReducer,
+      ui: (
+        state = { tribunalHighlightsOpen: false },
+        action: { type: string; payload?: unknown }
+      ) =>
+        action.type === 'ui/setTribunalHighlightsOpen'
+          ? { tribunalHighlightsOpen: Boolean(action.payload) }
+          : state,
+    },
     middleware: (getDefault) => getDefault({ serializableCheck: false }).concat(soundMiddleware),
   })
 
@@ -81,6 +91,16 @@ afterEach(() => {
 })
 
 describe('soundMiddleware visual-owned phase policy', () => {
+  it('silences simulated result stingers in highlights and restores them in the live show', () => {
+    const { store } = makeTestStore()
+    store.dispatch({ type: 'ui/setTribunalHighlightsOpen', payload: true })
+    store.dispatch({ type: 'game/setPhase', payload: 'loh_results' })
+    store.dispatch({ type: 'game/completeMinigame' })
+    expect(playMock).not.toHaveBeenCalled()
+    store.dispatch({ type: 'ui/setTribunalHighlightsOpen', payload: false })
+    store.dispatch({ type: 'game/setPhase', payload: 'loh_results' })
+    expect(playMock).toHaveBeenCalledOnce()
+  })
   it('keeps loh_comp silent so MinigameHost owns the countdown cue', () => {
     const { store, setNextPhase } = makeTestStore()
     setNextPhase('loh_comp')

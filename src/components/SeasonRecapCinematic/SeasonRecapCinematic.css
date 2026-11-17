@@ -330,16 +330,15 @@
 .src-recap-hub__prologue small { overflow: hidden; color: rgba(255, 255, 255, 0.67); font-size: 0.58rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .src-recap-hub__prologue i { color: rgba(164, 245, 223, 0.74); font-size: 0.43rem; font-style: normal; font-weight: 900; letter-spacing: 0.09em; text-transform: uppercase; }
 
-.src-recap-hub__choices { display: grid; grid-template-rows: repeat(2, 224px); gap: 13px; width: min(100%, 550px); margin: 0 auto; }
+.src-recap-hub__choices { display: grid; grid-template-rows: repeat(2, minmax(224px, auto)); gap: 13px; width: min(100%, 550px); margin: 0 auto; }
 
 .src-recap-hub__awards,
 .src-recap-hub__journey {
   position: relative;
   display: grid;
   box-sizing: border-box;
-  height: 100%;
-  min-height: 0;
-  grid-template-rows: auto auto 86px auto auto;
+  min-height: 212px;
+  grid-template-rows: auto auto minmax(86px, auto) auto auto;
   gap: 5px;
   padding: 22px 44px 20px 20px;
   overflow: hidden;
@@ -395,14 +394,14 @@
 @media (max-height: 760px) {
   .src-recap-hub { align-content: start; gap: 16px; }
   .src-recap-hub__prologue { margin-top: 0; }
-  .src-recap-hub__choices { grid-template-rows: repeat(2, 210px); }
+  .src-recap-hub__choices { grid-template-rows: repeat(2, minmax(212px, auto)); }
 }
 
 @media (max-width: 410px) {
   .src-recap-hub__prologue i { display: none; }
-  .src-recap-hub__choices { grid-template-rows: repeat(2, 212px); }
+  .src-recap-hub__choices { grid-template-rows: repeat(2, minmax(212px, auto)); }
   .src-recap-hub__awards,
-  .src-recap-hub__journey { grid-template-rows: auto auto 78px auto auto; padding-right: 34px; }
+  .src-recap-hub__journey { grid-template-rows: auto auto minmax(78px, auto) auto auto; padding-right: 34px; }
 }
 
 .src-awards {

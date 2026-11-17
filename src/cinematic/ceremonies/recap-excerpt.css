@@ -1,0 +1,119 @@
+/* Only appended inside the recap clip's shadow root; full ceremonies keep their layout. */
+:host {
+  position: absolute;
+  inset: 0;
+  z-index: auto;
+  container-type: size;
+  pointer-events: none;
+  background: transparent;
+}
+.stage {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  background: transparent !important;
+}
+.loh-titles,
+.c-caption {
+  display: none;
+}
+.loh-figure {
+  bottom: 4%;
+  height: 92%;
+  width: auto;
+  left: 67%;
+  translate: -50% 0;
+}
+.recap-safety-actor {
+  position: absolute;
+  height: 100%;
+  width: 66.6667cqh;
+  top: 0;
+  left: 67%;
+  translate: -50% 0;
+}
+.safety-arch {
+  left: 45%;
+  width: 43%;
+}
+.loh-halo,
+.safety-halo {
+  left: 40%;
+  width: 55%;
+}
+.c-hero {
+  bottom: 10%;
+  height: 82%;
+  width: 82%;
+  left: 9%;
+}
+.safety-flying-shield {
+  top: 46.7%;
+  left: 55.9%;
+  width: 28.1%;
+  height: 28.1%;
+}
+.fitted-knight-shield {
+  top: 45.5%;
+  left: 53.5%;
+  width: 25.8%;
+  height: 29.3%;
+}
+.c-nominations.nom-calibrated .nom-person {
+  bottom: 24cqh;
+  width: min(100%, 44cqh);
+  left: 50%;
+  translate: -50% 0;
+}
+.c-nominations.nom-calibrated .nom-platform {
+  top: 69.28cqh;
+  width: min(100%, 42cqh);
+  left: 50%;
+  translate: -50% 0;
+}
+.nom-calibrated .nom-contact {
+  top: 75.8cqh;
+}
+.nom-calibrated .nom-label {
+  top: 86%;
+  font-size: clamp(10px, 4cqh, 14px);
+}
+.nom-warning {
+  display: none;
+}
+:host([data-recap-layout='paired']) .loh-backdrop,
+:host([data-recap-layout='paired']) .loh-room-pieces,
+:host([data-recap-layout='paired']) .ceremony-backdrop,
+:host([data-recap-layout='paired']) .ceremony-backdrop-shade,
+:host([data-recap-layout='paired']) .safety-arch {
+  display: none;
+}
+:host([data-recap-layout='paired']) .loh-figure {
+  left: 50%;
+  bottom: 14%;
+  height: 78%;
+}
+:host([data-recap-layout='paired']) .loh-scene,
+:host([data-recap-layout='paired']) .c-scene {
+  background: transparent;
+}
+:host([data-recap-layout='paired']) .loh-halo,
+:host([data-recap-layout='paired']) .safety-halo {
+  left: 10%;
+  width: 80%;
+}
+:host([data-recap-layout='paired']) .recap-safety-actor {
+  left: 50%;
+}
+:host([data-recap-layout='paired']) .c-hero {
+  bottom: 14%;
+  height: 78%;
+  width: 78%;
+  left: 11%;
+}
+:host([data-recap-layout='paired']) .fitted-knight-shield {
+  top: 43.6%;
+  left: 53.4%;
+  width: 24.5%;
+  height: 27.9%;
+}

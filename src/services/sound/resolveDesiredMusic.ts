@@ -14,7 +14,7 @@ import {
   type ResolvedMusicCue,
 } from './musicConfig'
 import type { MusicTrack } from './musicTracks'
-import { resolveSpecialMusicCue } from './specialMusicCues'
+import { resolveConfessionalRoomCue, resolveSpecialMusicCue } from './specialMusicCues'
 
 const HOUSE_MENU_DESTINATION_ROUTES = new Set([
   'settings',
@@ -60,6 +60,7 @@ export interface MusicResolverState {
     musicScene: MusicScene
     houseMenuOpen?: boolean
     confessionalMusicMode?: ConfessionalMusicMode
+    tribunalHighlightsOpen?: boolean
   }
 }
 
@@ -68,6 +69,15 @@ export function resolveDesiredMusicCue(
   hash: string,
   config: MusicConfigDocument = DEFAULT_MUSIC_CONFIG
 ): ResolvedMusicCue {
+  // The visible lounge owns one continuous room cue while hidden simulation
+  // changes phases. Unmounting it restores normal game/Battle Back selection.
+  const tribunalActive =
+    !state.game.seasonFinale &&
+    state.ui.musicScene !== 'public_voting' &&
+    (['jury_announcement', 'jury_cinematic', 'jury'].includes(state.game.phase) ||
+      ['tribunal_part1', 'jury_voting'].includes(state.ui.musicScene))
+  if ((state.ui.tribunalHighlightsOpen || tribunalActive) && /^#\/game(?:[/?#]|$)/.test(hash))
+    return resolveConfessionalRoomCue(config)
   const pendingChallenge = state.challenge.pending
   const baseCue = resolveMusicCue(
     {

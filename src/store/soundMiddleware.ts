@@ -38,6 +38,9 @@ function isBattleBackReturn(
 }
 
 function playConfiguredEvent(eventId: AudioEventId, state: RootState): void {
+  // Condensed simulation is not a live results ceremony. Keep the lounge's
+  // music uninterrupted; normal effects resume when the surface unmounts.
+  if (state.ui?.tribunalHighlightsOpen) return
   const cue = resolveAudioEventCue(eventId, selectEffectiveMusicConfig(state))
   if (!cue.soundKey) return
   const options = {

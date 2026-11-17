@@ -59,7 +59,9 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
     window.addEventListener(HOUSE_MENU_AUDIO_EVENT, onHouseMenuAudio)
     return () => window.removeEventListener(HOUSE_MENU_AUDIO_EVENT, onHouseMenuAudio)
   }, [])
-  const musicMix = useSelector((root: RootState) => resolveRuntimeMusicMix(root.game))
+  const musicMix = useSelector((root: RootState) =>
+    root.ui.tribunalHighlightsOpen ? 'normal' : resolveRuntimeMusicMix(root.game)
+  )
   const uiMusicMix = useSelector((root: RootState) => root.ui.musicMix)
   const musicState = useSelector(
     (root: RootState) => ({
@@ -87,6 +89,7 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
       incomingInboxOpen: root.social.incomingInboxOpen,
       musicScene: root.ui.musicScene,
       confessionalMusicMode: root.ui.confessionalMusicMode ?? 'normal',
+      tribunalHighlightsOpen: root.ui.tribunalHighlightsOpen,
       musicVolume: root.settings.audio.musicVolume,
       localMusicOverrides: root.settings.audio.musicConfigOverrides,
       localMusicTrackAssets: root.settings.audio.musicTrackAssets,
@@ -152,6 +155,7 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
         musicScene: musicState.musicScene,
         houseMenuOpen,
         confessionalMusicMode: musicState.confessionalMusicMode,
+        tribunalHighlightsOpen: musicState.tribunalHighlightsOpen,
       },
     }),
     [houseMenuOpen, musicState]
