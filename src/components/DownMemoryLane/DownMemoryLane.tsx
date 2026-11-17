@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppSelector } from '../../store/hooks'
 import { useResolvedAvatarSrc } from '../../hooks/useResolvedAvatarSrc'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
-import { resolvePresentationAvatarCandidates } from '../../utils/presentationAvatar'
+import { resolveCloseUpAvatarCandidates } from '../../utils/presentationAvatar'
 import {
   buildMemoryLanePreviewBank,
   buildMemoryLaneQuestionBank,
@@ -38,7 +38,7 @@ function MemoryLanePortrait({ id, name, avatar, isUser, alt }: MemoryLanePortrai
   const candidates = [
     ...new Set(
       baseCandidates.flatMap((candidate) => [
-        ...resolvePresentationAvatarCandidates(candidate),
+        ...resolveCloseUpAvatarCandidates(candidate),
         candidate,
       ])
     ),

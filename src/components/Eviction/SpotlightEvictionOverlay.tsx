@@ -9,7 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Player } from '../../types'
 import { getProfilePhotoAvatarId, isEmoji } from '../../utils/avatar'
-import { resolvePresentationAvatarCandidates } from '../../utils/presentationAvatar'
+import { resolveCloseUpAvatarCandidates } from '../../utils/presentationAvatar'
 import { useResolvedAvatarSrc } from '../../hooks/useResolvedAvatarSrc'
 import { useAppDispatch } from '../../store/hooks'
 import { setEvictionOverlay, clearEvictionOverlay } from '../../store/gameSlice'
@@ -158,7 +158,7 @@ export default function SpotlightEvictionOverlay({
   )
   const dispatch = useAppDispatch()
   const { candidates: resolvedAvatarCandidates } = useResolvedAvatarSrc(evictee)
-  const candidates = resolvedAvatarCandidates.flatMap(resolvePresentationAvatarCandidates)
+  const candidates = resolvedAvatarCandidates.flatMap(resolveCloseUpAvatarCandidates)
   const [candidateIdx, setCandidateIdx] = useState(0)
   const [showFallback, setShowFallback] = useState(false)
   const [sourcePhotoFailed, setSourcePhotoFailed] = useState(false)
