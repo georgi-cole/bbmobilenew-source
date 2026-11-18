@@ -126,6 +126,10 @@
   box-shadow: none;
 }
 
+.required-confessional .rcd-player--pair {
+  padding-right: 14px;
+}
+
 .required-confessional .rcd-player:hover:not(:disabled) {
   background: rgba(227, 207, 240, 0.075);
 }

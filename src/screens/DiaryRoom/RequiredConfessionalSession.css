@@ -127,12 +127,18 @@
 }
 
 .rcd-player--pair {
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'avatars badge'
+    'names check';
+  gap: 7px 8px;
+  padding-right: 11px;
 }
 
 .rcd-player__pair-avatars {
   display: flex;
-  min-width: 62px;
+  grid-area: avatars;
   align-items: center;
 }
 
@@ -151,12 +157,11 @@
 
 .rcd-player__pair-dot {
   display: grid;
+  grid-area: badge;
+  justify-self: center;
   width: 19px;
   height: 19px;
   place-items: center;
-  position: absolute;
-  top: 9px;
-  right: 9px;
   border: 1px solid color-mix(in srgb, var(--rcd-pair-color) 72%, white 28%);
   border-radius: 50%;
   background: var(--rcd-pair-color);
@@ -183,6 +188,10 @@
   white-space: normal;
 }
 
+.rcd-player--pair .rcd-player__copy {
+  grid-area: names;
+}
+
 .rcd-player__names {
   display: grid;
   gap: 1px;
@@ -190,6 +199,10 @@
 
 .rcd-player__names > span {
   display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rcd-player__avatar {
@@ -264,6 +277,13 @@
   color: #fff;
   background: rgba(16, 10, 22, 0.78);
   font-weight: 900;
+}
+
+.rcd-player--pair .rcd-player__check {
+  position: static;
+  grid-area: check;
+  justify-self: center;
+  transform: none;
 }
 
 .rcd-player--selected .rcd-player__check {

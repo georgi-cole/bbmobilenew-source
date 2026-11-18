@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { describe, expect, it, vi } from 'vitest'
 import gameReducer, {
@@ -14,6 +14,43 @@ import RequiredConfessionalDecision from '../RequiredConfessionalDecision'
 import { getRequiredConfessionalPresentation } from '../requiredConfessionalPresentation'
 
 describe('RequiredConfessionalDecision during Cupid', () => {
+  it('asks for two pairs and presents each name on the pair choice', () => {
+    const store = configureStore({
+      reducer: {
+        game: gameReducer,
+        settings: settingsReducer,
+        social: socialReducer,
+      },
+    })
+    store.dispatch(activateCupidArrowNow())
+    const game = store.getState().game
+    const pair = game.cupidArrow!.pairs.find(
+      (candidate) => !candidate.memberIds.includes(game.lohId!)
+    )!
+    const names = pair.memberIds.map((id) => game.players.find((player) => player.id === id)!.name)
+    const decision = { type: 'nominations' as const, week: game.week, phase: game.phase }
+    const presentation = getRequiredConfessionalPresentation(decision, game)
+
+    render(
+      <Provider store={store}>
+        <RequiredConfessionalDecision
+          decision={decision}
+          presentation={presentation}
+          onDecisionCommitted={vi.fn()}
+        />
+      </Provider>
+    )
+
+    expect(presentation.prompt).toMatch(/nominate 2 pairs/i)
+    const pairChoice = screen.getByRole('button', { name: new RegExp(names.join('.*')) })
+    for (const name of names) {
+      expect(within(pairChoice).getByText(name, { exact: true })).toHaveAttribute('title', name)
+    }
+    fireEvent.click(pairChoice)
+    expect(pairChoice).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('Choose 1 more')).toBeInTheDocument()
+  })
+
   it('renders two combined pair ballots instead of four individual nominees', () => {
     const store = configureStore({
       reducer: {
