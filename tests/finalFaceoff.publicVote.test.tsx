@@ -1,82 +1,65 @@
 import { act } from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import FinalFaceoff from '../src/components/FinalFaceoff/FinalFaceoff'
 import {
-  FIRST_CLUE_DELAY_MS,
-  clueReadingHoldMs,
-  PUBLIC_VOTE_RECAP_HOLD_MS,
+  BALLOT_BEAT_MS,
   VOTE_REVEAL_INITIAL_DELAY_MS,
   VOTE_REVEAL_STAGGER_MS,
+  winnerHandoffDelayMs,
 } from '../src/components/FinalFaceoff/finaleTiming'
-import {
-  PHRASE_TYPING_CHAR_INTERVAL_MS,
-  PHRASE_TYPING_START_DELAY_MS,
-} from '../src/components/TribunalMemberStage/tribunalMemberStageTiming'
 import gameReducer from '../src/store/gameSlice'
-import finaleReducer from '../src/store/finaleSlice'
-import { selectRevealedJurors } from '../src/store/finaleSlice'
-import type { RootState } from '../src/store/store'
+import finaleReducer, { PUBLIC_JUROR_ID } from '../src/store/finaleSlice'
 import settingsReducer from '../src/store/settingsSlice'
 import uiReducer from '../src/store/uiSlice'
 import publicOpinionReducer from '../src/publicOpinion/publicOpinionSlice'
-import { SoundManager } from '../src/services/sound/SoundManager'
-import type { PlayerPublicProfile } from '../src/publicOpinion/types'
+import type { Player } from '../src/types'
 import {
   acquirePresentationOwnership,
   createPresentationOwnerToken,
+  PRESENTATION_PRIORITY,
 } from '../src/services/presentation/presentationOwnership'
 
-const MIN_TYPED_CHARS_VISIBLE = 1
-
-const mockPlay = vi.fn()
-const mockRequestBgm = vi.fn()
-const mockReleaseBgm = vi.fn()
-
-vi.mock('../src/hooks/useSound', () => ({
-  default: () => ({
-    play: mockPlay,
-    requestBgm: mockRequestBgm,
-    releaseBgm: mockReleaseBgm,
-  }),
-}))
+const { play } = vi.hoisted(() => ({ play: vi.fn() }))
+vi.mock('../src/hooks/useSound', () => ({ default: () => ({ play }) }))
 
 vi.mock('../src/components/SeasonRecapCinematic/SeasonRecapCinematic', () => ({
   default: ({ onComplete }: { onComplete: () => void }) => (
-    <div data-testid="season-recap">
-      <span>Season recap</span>
-      <button type="button" onClick={onComplete}>
-        Finish recap
-      </button>
-    </div>
+    <button type="button" onClick={onComplete}>
+      Finish archive
+    </button>
   ),
 }))
 
-function makeProfile(
-  playerId: string,
-  approval: number,
-  overrides: Partial<PlayerPublicProfile> = {}
-): PlayerPublicProfile {
-  return {
-    playerId,
-    approval,
-    previousApproval: approval,
-    seasonApprovals: [approval],
-    completedDirectionCount: 0,
-    cumulativePositiveDelta: 0,
-    ...overrides,
+const jurors = ['Casey', 'Drew', 'Ellis', 'Finn', 'Gale']
+function openTribunal(
+  choices: string[],
+  options: { human?: boolean; publicVote?: string; presentation?: 'v1' | 'v2' } = {}
+) {
+  const game = gameReducer(undefined, { type: '@@INIT' })
+  const finale = finaleReducer(undefined, { type: '@@INIT' })
+  const players: Player[] = [
+    { id: 'f1', name: 'Avery', avatar: '', status: 'active' },
+    { id: 'f2', name: 'Blake', avatar: '', status: 'active' },
+    ...choices.map((_, index) => ({
+      id: `j${index}`,
+      name: jurors[index],
+      avatar: '',
+      status: 'jury' as const,
+      isUser: Boolean(options.human && index === 0),
+    })),
+  ]
+  const jurorIds = players.filter((player) => player.status === 'jury').map((player) => player.id)
+  const votes = Object.fromEntries(
+    jurorIds.flatMap((id, index) => (players[index + 2].isUser ? [] : [[id, choices[index]]]))
+  )
+  if (options.publicVote) {
+    jurorIds.push(PUBLIC_JUROR_ID)
+    votes[PUBLIC_JUROR_ID] = options.publicVote
   }
-}
-
-function makeStore() {
-  const baseGame = gameReducer(undefined, { type: '@@INIT' })
-  const baseFinale = finaleReducer(undefined, { type: '@@INIT' })
-  const baseSettings = settingsReducer(undefined, { type: '@@INIT' })
-  const basePublicOpinion = publicOpinionReducer(undefined, { type: '@@INIT' })
-
-  return configureStore({
+  const store = configureStore({
     reducer: {
       game: gameReducer,
       finale: finaleReducer,
@@ -85,390 +68,194 @@ function makeStore() {
       publicOpinion: publicOpinionReducer,
     },
     preloadedState: {
-      game: {
-        ...baseGame,
-        season: 3,
-        week: 12,
-        phase: 'jury',
-        seed: 42,
-        cfg: { ...baseGame.cfg, publicFinalVoteEnabled: true },
-        players: [
-          { id: 'f1', name: 'Avery', avatar: '😀', status: 'active' as const },
-          { id: 'f2', name: 'Blake', avatar: '😎', status: 'active' as const },
-          { id: 'j1', name: 'Casey', avatar: '🧠', status: 'jury' as const },
-        ],
+      game: { ...game, season: 3, week: 12, phase: 'jury', seed: 42, players },
+      finale: {
+        ...finale,
+        hasStarted: true,
+        isActive: true,
+        finalistIds: ['f1', 'f2'],
+        jurorIds,
+        revealOrder: jurorIds,
+        votes,
       },
-      finale: baseFinale,
-      settings: baseSettings,
+      settings: settingsReducer(undefined, { type: '@@INIT' }),
       ui: uiReducer(undefined, { type: '@@INIT' }),
-      publicOpinion: {
-        ...basePublicOpinion,
-        profiles: {
-          f1: makeProfile('f1', 62),
-          f2: makeProfile('f2', 78),
-        },
-      },
+      publicOpinion: publicOpinionReducer(undefined, { type: '@@INIT' }),
     },
   })
+  render(
+    <Provider store={store}>
+      <FinalFaceoff presentation={options.presentation ?? 'v1'} />
+    </Provider>
+  )
+  fireEvent.click(screen.getByRole('button', { name: /Begin Tribunal/ }))
+  return store
 }
 
-function beginTribunal() {
-  act(() => {
-    window.dispatchEvent(new Event('ui:playPressed'))
-  })
+function endArchive() {
+  fireEvent.click(screen.getByRole('button', { name: 'Finish archive' }))
 }
 
-function latestClueHold(store: ReturnType<typeof makeStore>) {
-  return clueReadingHoldMs(selectRevealedJurors(store.getState() as RootState).at(-1)?.phrase)
+function advance(ms: number) {
+  act(() => vi.advanceTimersByTime(ms))
 }
 
-async function advanceToRecapBoundary(store: ReturnType<typeof makeStore>) {
-  // The finale flow crosses two exact timeout boundaries:
-  // 1) the opening delay, then each phrase's reading hold
-  // 2) PUBLIC_VOTE_RECAP_HOLD_MS of extra hold time after the public vote appears
-  // Splitting each phase into (n - 1) ms + 1 ms keeps the assertions pinned to the edge so we can
-  // prove the recap does not render early.
-  await act(async () => {
-    vi.advanceTimersByTime(FIRST_CLUE_DELAY_MS - 1)
-  })
-
-  await act(async () => {
-    vi.advanceTimersByTime(1)
-  })
-
-  await act(async () => {
-    vi.advanceTimersByTime(latestClueHold(store))
-  })
-
-  await act(async () => {
-    vi.advanceTimersByTime(PUBLIC_VOTE_RECAP_HOLD_MS - 1)
-  })
-}
-
-async function advanceToRecap(store: ReturnType<typeof makeStore>) {
-  await advanceToRecapBoundary(store)
-
-  await act(async () => {
-    vi.advanceTimersByTime(1)
-  })
-}
-
-function getTypedPhraseText(element: Element | null): string {
-  return (element?.textContent ?? '').replace(/\|/g, '').trim()
-}
-
-describe('FinalFaceoff public vote pacing', () => {
+describe('FinalFaceoff ballot presentation', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.clearAllMocks()
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
-  it('uses a non-public full-body fallback when a juror lacks a formal cutout', async () => {
-    const store = makeStore()
-
-    const { container } = render(
-      <Provider store={store}>
-        <FinalFaceoff />
-      </Provider>
-    )
-    beginTribunal()
-
-    await act(async () => {
-      vi.advanceTimersByTime(FIRST_CLUE_DELAY_MS)
-    })
-
-    expect(screen.getByText('Casey')).toBeTruthy()
-    expect(screen.getByAltText('Casey').getAttribute('src')).toBe(
-      'assets/full_body_fallback_neutral.png'
-    )
-    expect(container.querySelector('.tms-public-placeholder')).toBeNull()
-  })
-
-  it('keeps the public vote message visible for its full reading hold before the recap', async () => {
-    const store = makeStore()
-    // One typed character is enough to prove the public line is visibly rendering
-    // before the recap hold window expires.
-    const phraseLeadInMs =
-      PHRASE_TYPING_START_DELAY_MS + MIN_TYPED_CHARS_VISIBLE * PHRASE_TYPING_CHAR_INTERVAL_MS
-    const remainingHoldMs = Math.max(0, PUBLIC_VOTE_RECAP_HOLD_MS - 1 - phraseLeadInMs)
-
-    render(
-      <Provider store={store}>
-        <FinalFaceoff />
-      </Provider>
-    )
-    beginTribunal()
-
-    await act(async () => {
-      vi.advanceTimersByTime(FIRST_CLUE_DELAY_MS - 1)
-    })
-
-    await act(async () => {
-      vi.advanceTimersByTime(1)
-    })
-
-    await act(async () => {
-      vi.advanceTimersByTime(latestClueHold(store))
-    })
-
-    await act(async () => {
-      vi.advanceTimersByTime(phraseLeadInMs)
-    })
-
-    expect(
-      screen.getByText((_, element) => {
-        if (!element?.matches('.tms-phrase')) return false
-        return getTypedPhraseText(element).length >= MIN_TYPED_CHARS_VISIBLE
-      })
-    ).toBeTruthy()
-    expect(screen.queryByTestId('season-recap')).toBeNull()
-
-    await act(async () => {
-      vi.advanceTimersByTime(remainingHoldMs)
-    })
-
-    expect(screen.queryByTestId('season-recap')).toBeNull()
-
-    await act(async () => {
-      vi.advanceTimersByTime(1)
-    })
-
-    expect(screen.getByTestId('season-recap')).toBeTruthy()
+  it('starts the archives immediately and reveals the actual vote on the juror stage afterward', () => {
+    const store = openTribunal(['f1'], { publicVote: 'f2' })
+    expect(screen.getByRole('button', { name: 'Finish archive' })).toBeTruthy()
     expect(store.getState().ui.musicScene).toBe('season_recap')
-  })
+    expect(screen.queryByText(/Votes for|Final word/i)).toBeNull()
 
-  it('switches the shared music scene to the season recap', async () => {
-    const fadeOutMusicSpy = vi.spyOn(SoundManager, 'fadeOutMusic').mockResolvedValue(undefined)
-    const store = makeStore()
-
-    render(
-      <Provider store={store}>
-        <FinalFaceoff />
-      </Provider>
-    )
-
-    beginTribunal()
-    await advanceToRecapBoundary(store)
-
-    expect(fadeOutMusicSpy).not.toHaveBeenCalled()
-
-    await act(async () => {
-      vi.advanceTimersByTime(1)
-    })
-
-    expect(fadeOutMusicSpy).not.toHaveBeenCalled()
-    expect(screen.getByTestId('season-recap')).toBeTruthy()
-    // With the mock returning a resolved Promise, the .then() dispatch fires as
-    // a microtask which act() flushes — musicScene must already be 'season_recap'.
-    expect(store.getState().ui.musicScene).toBe('season_recap')
-  })
-
-  it('reveals post-recap tribunal votes one-by-one before declaring the winner', async () => {
-    const store = makeStore()
-
-    render(
-      <Provider store={store}>
-        <FinalFaceoff />
-      </Provider>
-    )
-
-    beginTribunal()
-    await advanceToRecap(store)
-
-    expect(screen.getByTestId('season-recap')).toBeTruthy()
-
-    await act(async () => {
-      screen.getByRole('button', { name: 'Finish recap' }).click()
-    })
-
-    await act(async () => {
-      await Promise.resolve()
-    })
-
+    endArchive()
     expect(store.getState().ui.musicScene).toBe('jury_voting')
-    expect(screen.getByText('0 / 2 votes revealed')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Reveal the Champion' })).toBeNull()
-    expect(screen.queryByLabelText('Current Tribunal vote')).toBeNull()
-    expect(screen.getAllByText('0', { selector: '.fo-finalist__votes' })).toHaveLength(2)
+    expect(screen.getByLabelText('Avery: 0 votes')).toBeTruthy()
+    expect(screen.queryByText('Ballot 01')).toBeNull()
 
-    await act(async () => {
-      vi.advanceTimersByTime(VOTE_REVEAL_INITIAL_DELAY_MS - 1)
-    })
+    advance(VOTE_REVEAL_INITIAL_DELAY_MS)
+    expect(screen.getByRole('status').textContent).toBe('Casey voted for Avery.')
+    expect(screen.getByLabelText('Avery: 1 votes')).toBeTruthy()
 
-    expect(screen.getByText('0 / 2 votes revealed')).toBeTruthy()
-    expect(screen.queryByLabelText('Current Tribunal vote')).toBeNull()
-
-    await act(async () => {
-      vi.advanceTimersByTime(1)
-    })
-
-    expect(screen.getByText('1 / 2 votes revealed')).toBeTruthy()
-    expect(screen.getByLabelText('Current Tribunal vote')).toBeTruthy()
-    expect(store.getState().finale.isComplete).toBe(false)
-    expect(screen.queryByRole('button', { name: 'Reveal the Champion' })).toBeNull()
-
-    await act(async () => {
-      vi.advanceTimersByTime(VOTE_REVEAL_STAGGER_MS)
-    })
-
-    expect(store.getState().finale.isComplete).toBe(true)
-    expect(screen.getByRole('button', { name: 'Reveal the Champion' })).toBeTruthy()
-    expect(screen.getByText('The Tribunal verdict is sealed. One champion awaits.')).toBeTruthy()
-    expect(screen.queryByText(/wins The Big Eye!/)).toBeNull()
-    expect(document.querySelector('.fo-finalist--winner')).toBeNull()
+    advance(VOTE_REVEAL_STAGGER_MS)
+    expect(screen.queryByText('Ballot 02')).toBeNull()
+    const batch = screen.getByRole('region', { name: 'Remaining ballots' })
+    expect(within(batch).getByRole('list', { name: 'Remaining votes for Blake' }).textContent).toBe(
+      'The Public'
+    )
+    expect(store.getState().finale.tieBreakReason).toBe('tribunal_majority')
   })
 
-  it('hands the completed Tribunal directly to the winner cinematic when Reveal is pressed', async () => {
-    const store = makeStore()
-    render(
-      <Provider store={store}>
-        <FinalFaceoff />
-      </Provider>
-    )
+  it('collects a mandatory human ballot before showing the archive', () => {
+    const store = openTribunal(['f1', 'f2'], { human: true })
+    expect(screen.getByRole('heading', { name: 'Cast your Tribunal vote' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Finish archive' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Skip All/ })).toBeNull()
+    expect(store.getState().finale.votes.j0).toBeUndefined()
 
-    beginTribunal()
-    await advanceToRecap(store)
-    await act(async () => {
-      screen.getByRole('button', { name: 'Finish recap' }).click()
-    })
-
-    await act(async () => {
-      vi.advanceTimersByTime(VOTE_REVEAL_INITIAL_DELAY_MS + VOTE_REVEAL_STAGGER_MS)
-    })
-
-    expect(store.getState().finale.isComplete).toBe(true)
-    expect(store.getState().game.seasonFinale).toBeNull()
-    expect(document.querySelector('.fo-finalist--winner')).toBeNull()
-
-    await act(async () => {
-      screen.getByRole('button', { name: 'Reveal the Champion' }).click()
-    })
-
-    const state = store.getState()
-    expect(state.game.seasonFinale?.phase).toBe('winnerCinematic')
-    expect(state.game.seasonFinale?.winnerId).toBe(state.finale.winnerId)
-    expect(state.finale.isActive).toBe(false)
-    expect(state.game.players.filter((player) => player.isWinner)).toHaveLength(1)
-    expect(state.game.players.filter((player) => player.finalRank === 2)).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Cast Tribunal vote for Blake' }))
+    expect(store.getState().finale.votes.j0).toBe('f2')
+    expect(screen.getByRole('button', { name: 'Finish archive' })).toBeTruthy()
   })
 
-  it('resumes a completed Tribunal ballot without replaying the clues or recap', async () => {
-    const store = makeStore()
-    const firstMount = render(
-      <Provider store={store}>
-        <FinalFaceoff />
-      </Provider>
-    )
+  it('rolls the remaining votes into the final tally in one beat and hands off once', () => {
+    const store = openTribunal(['f1', 'f1', 'f1', 'f2', 'f2'])
+    endArchive()
+    advance(VOTE_REVEAL_INITIAL_DELAY_MS)
+    advance(VOTE_REVEAL_STAGGER_MS)
+    expect(screen.getByText('2 / 5 votes revealed')).toBeTruthy()
+    expect(screen.queryByText('Remaining ballots')).toBeNull()
 
-    beginTribunal()
-    await advanceToRecap(store)
-    act(() => screen.getByRole('button', { name: 'Finish recap' }).click())
-    act(() => vi.advanceTimersByTime(VOTE_REVEAL_INITIAL_DELAY_MS + VOTE_REVEAL_STAGGER_MS))
-    expect(store.getState().finale.isComplete).toBe(true)
-    firstMount.unmount()
+    advance(VOTE_REVEAL_STAGGER_MS)
+    expect(screen.getByRole('status').textContent).toBe('Ellis voted for Avery.')
+    expect(screen.getByLabelText('Avery: 3 votes')).toBeTruthy()
+    expect(screen.getByLabelText('Blake: 0 votes')).toBeTruthy()
+    expect(screen.queryByText('Remaining ballots')).toBeNull()
 
-    render(
-      <Provider store={store}>
-        <FinalFaceoff />
-      </Provider>
-    )
-    expect(screen.queryByTestId('season-recap')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Reveal the Champion' })).toBeTruthy()
+    advance(VOTE_REVEAL_STAGGER_MS)
+    expect(screen.queryByText('Ballot 04')).toBeNull()
+    expect(screen.queryByText('Ballot 03')).toBeNull()
+    const batch = screen.getByRole('region', { name: 'Remaining ballots' })
+    expect(
+      within(within(batch).getByRole('list', { name: 'Remaining votes for Blake' }))
+        .getAllByRole('listitem')
+        .map((row) => row.textContent)
+    ).toEqual(['Finn', 'Gale'])
+    expect(screen.getByLabelText('Blake: 2 votes')).toBeTruthy()
+    expect(screen.queryByText(/wins The Big Eye/)).toBeNull()
+    expect(play.mock.calls.filter(([cue]) => cue === 'ui:tribunal_vote_reveal')).toHaveLength(3)
 
-    await act(async () => {
-      screen.getByRole('button', { name: 'Reveal the Champion' }).click()
-    })
-    expect(store.getState().game.seasonFinale?.phase).toBe('winnerCinematic')
+    advance(winnerHandoffDelayMs(2))
+    expect(store.getState().game.seasonFinale?.winnerId).toBe('f1')
     expect(store.getState().finale.isActive).toBe(false)
   })
 
-  it('suspends clue advancement and phrase typing while gameplay owns the screen', async () => {
-    const store = makeStore()
-    const { container } = render(
-      <Provider store={store}>
-        <FinalFaceoff />
-      </Provider>
-    )
-    beginTribunal()
-    act(() => vi.advanceTimersByTime(700))
-    let release = () => {}
-    try {
-      act(() => {
-        release = acquirePresentationOwnership(createPresentationOwnerToken(), 'gameplay', 200)
-      })
-      expect(container.querySelector('.fo-overlay')).toHaveAttribute('inert')
-      act(() => vi.advanceTimersByTime(30_000))
-      expect(store.getState().finale.revealedCount).toBe(0)
-      await act(async () => {
-        release()
-        await Promise.resolve()
-      })
-      act(() => vi.advanceTimersByTime(FIRST_CLUE_DELAY_MS - 701))
-      expect(store.getState().finale.revealedCount).toBe(0)
-      act(() => vi.advanceTimersByTime(1))
-      expect(store.getState().finale.revealedCount).toBe(1)
-      act(() =>
-        vi.advanceTimersByTime(PHRASE_TYPING_START_DELAY_MS + 2 * PHRASE_TYPING_CHAR_INTERVAL_MS)
-      )
-      const phrase = container.querySelector('.tms-phrase')
-      const text = phrase?.textContent ?? ''
-      expect(text.length).toBeGreaterThan(0)
-      act(() => {
-        release = acquirePresentationOwnership(createPresentationOwnerToken(), 'gameplay', 200)
-      })
-      act(() => vi.advanceTimersByTime(30_000))
-      expect(phrase?.textContent).toBe(text)
-      await act(async () => {
-        release()
-        await Promise.resolve()
-      })
-      act(() => vi.advanceTimersByTime(PHRASE_TYPING_CHAR_INTERVAL_MS))
-      expect(phrase?.textContent?.length).toBeGreaterThan(text.length)
-    } finally {
-      release()
-    }
+  it('spotlights the last ballot when it can still change the winner', () => {
+    const store = openTribunal(['f1', 'f2', 'f1', 'f2', 'f2'])
+    endArchive()
+    advance(VOTE_REVEAL_INITIAL_DELAY_MS)
+    for (let i = 0; i < 4; i++) advance(VOTE_REVEAL_STAGGER_MS)
+
+    expect(screen.getByText('Ballot 05')).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toBe('Gale voted for Blake.')
+    expect(screen.queryByText('Remaining ballots')).toBeNull()
+    expect(screen.getByLabelText('Blake: 3 votes')).toBeTruthy()
+    advance(VOTE_REVEAL_STAGGER_MS)
+    expect(screen.getByText('Final tally')).toBeTruthy()
+    expect(screen.queryByText('Ballot 05')).toBeNull()
+    expect(store.getState().finale.winnerId).toBe('f2')
   })
 
-  it('resumes the remaining vote delay without repeating cues and cancels the winner handoff on unmount', async () => {
-    const store = makeStore()
-    const { unmount } = render(
-      <Provider store={store}>
-        <FinalFaceoff />
-      </Provider>
-    )
-    beginTribunal()
-    await advanceToRecap(store)
-    act(() => screen.getByRole('button', { name: 'Finish recap' }).click())
-    act(() => vi.advanceTimersByTime(VOTE_REVEAL_INITIAL_DELAY_MS))
-    expect(mockPlay.mock.calls.filter(([key]) => key === 'ui:tribunal_vote_reveal')).toHaveLength(1)
+  it('cancels the pending reveal when the viewer skips the votes', () => {
+    const store = openTribunal(['f1', 'f2', 'f1'])
+    endArchive()
+    fireEvent.click(screen.getByRole('button', { name: /Skip All/ }))
+    expect(screen.getByText('Final tally')).toBeTruthy()
+    expect(screen.getByLabelText('Avery: 2 votes')).toBeTruthy()
+    advance(winnerHandoffDelayMs(0))
+    expect(play.mock.calls.filter(([cue]) => cue === 'ui:tribunal_vote_reveal')).toHaveLength(0)
+    expect(store.getState().game.seasonFinale?.winnerId).toBe('f1')
+  })
+
+  it('introduces the majority and counts a Version 2 ballot only when its seal lands', () => {
+    openTribunal(['f1', 'f2', 'f1'], { presentation: 'v2' })
+    endArchive()
+    expect(screen.getByText('The first finalist to reach 2 votes wins')).toBeTruthy()
+    expect(
+      document.querySelectorAll('.fo-score--introducing .fo-score__portrait img')
+    ).toHaveLength(2)
+    expect(screen.queryByText('0 / 3 votes revealed')).toBeNull()
+
+    advance(BALLOT_BEAT_MS.rules)
+    expect(document.querySelector('.fo-score--introducing')).toBeNull()
+    expect(screen.getByText('0 / 3 votes revealed')).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toBe('Casey voted for…')
+    expect(screen.getAllByText('Avery')).toHaveLength(1)
+
+    advance(BALLOT_BEAT_MS.lead)
+    expect(screen.getByRole('status').textContent).toBe('Casey voted for Avery.')
+    expect(screen.getAllByText('Avery')).toHaveLength(2)
+    expect(screen.getByLabelText('Avery: 0 votes')).toBeTruthy()
+
+    advance(BALLOT_BEAT_MS.recipient)
+    expect(document.querySelector('.fo-ballot-flight')).toBeTruthy()
+    expect(document.querySelector('.fo-score__seals [data-pending]')).toBeTruthy()
+    expect(screen.getByLabelText('Avery: 0 votes')).toBeTruthy()
+
+    advance(BALLOT_BEAT_MS.flight)
+    expect(screen.getByLabelText('Avery: 1 votes')).toBeTruthy()
+    expect(screen.getByText('1 / 3 votes revealed')).toBeTruthy()
+    expect(document.querySelector('.fo-ballot-flight')).toBeNull()
+    expect(play.mock.calls.filter(([cue]) => cue === 'ui:tribunal_vote_reveal')).toHaveLength(1)
+  })
+
+  it('pauses the vote reveal while gameplay owns the presentation', async () => {
+    openTribunal(['f1', 'f2', 'f1'], { presentation: 'v2' })
+    endArchive()
+    advance(BALLOT_BEAT_MS.rules)
     let release = () => {}
+    act(() => {
+      release = acquirePresentationOwnership(
+        createPresentationOwnerToken(),
+        'gameplay',
+        PRESENTATION_PRIORITY.gameplay
+      )
+    })
     try {
-      act(() => {
-        release = acquirePresentationOwnership(createPresentationOwnerToken(), 'gameplay', 200)
-      })
-      act(() => vi.advanceTimersByTime(30_000))
-      expect(store.getState().finale.isComplete).toBe(false)
-      await act(async () => {
-        release()
-        await Promise.resolve()
-      })
-      act(() => vi.advanceTimersByTime(VOTE_REVEAL_STAGGER_MS - 1))
-      expect(mockPlay.mock.calls.filter(([key]) => key === 'ui:tribunal_vote_reveal')).toHaveLength(
-        1
-      )
-      act(() => vi.advanceTimersByTime(1))
-      expect(mockPlay.mock.calls.filter(([key]) => key === 'ui:tribunal_vote_reveal')).toHaveLength(
-        2
-      )
-      expect(store.getState().finale.isComplete).toBe(true)
-      unmount()
-      act(() => vi.advanceTimersByTime(30_000))
-      expect(store.getState().game.seasonFinale).toBeNull()
+      advance(10_000)
+      expect(play).not.toHaveBeenCalled()
+      await act(async () => release())
+      expect(screen.getByRole('status').textContent).toBe('Casey voted for…')
+      advance(BALLOT_BEAT_MS.lead)
+      expect(screen.getByRole('status').textContent).toBe('Casey voted for Avery.')
     } finally {
       release()
     }

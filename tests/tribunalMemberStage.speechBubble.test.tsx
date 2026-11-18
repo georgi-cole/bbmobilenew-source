@@ -1,54 +1,45 @@
-import { act } from 'react'
-import { render } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 import TribunalMemberStage from '../src/components/TribunalMemberStage/TribunalMemberStage'
-import {
-  PHRASE_TYPING_CHAR_INTERVAL_MS,
-  PHRASE_TYPING_START_DELAY_MS,
-} from '../src/components/TribunalMemberStage/tribunalMemberStageTiming'
 
-describe('TribunalMemberStage speech bubble', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('renders the revealed phrase in a separate comic speech bubble beside the cutout', async () => {
-    const phrase = 'I have seen enough to make my choice.'
+describe('TribunalMemberStage ballot', () => {
+  it('uses Bea’s casual portrait during the paired entrance', () => {
     const { container } = render(
       <TribunalMemberStage
-        revealedJurors={[
-          {
-            juror: { id: 'j1', name: 'Casey', avatar: '🧠', status: 'jury' },
-            reveal: { jurorId: 'j1', finalistId: 'f1', phrase },
-          },
-        ]}
-        awaitingHumanPlayer={null}
+        mode="opening"
+        paired
+        waitingForOpeningCue
+        tribunalMembers={[{ id: 'bea', name: 'Bea', avatar: '', status: 'jury' }]}
         finalists={[]}
         onCastVote={() => {}}
       />
     )
+    expect(container.querySelector('.tms-pair img')?.getAttribute('src')).toMatch(
+      /Bea_informal\.webp$/i
+    )
+  })
 
-    expect(container.querySelector('.tms-phrase-wrap')).toBeNull()
+  it('shows the juror footage beside the actual ballot recipient', () => {
+    const { container } = render(
+      <TribunalMemberStage
+        mode="reveal"
+        ballot={{
+          voter: { id: 'j1', name: 'Casey', avatar: '', status: 'jury' },
+          voterId: 'j1',
+          voterName: 'Casey',
+          finalistName: 'Avery',
+          number: 1,
+          tone: 'gold',
+        }}
+      />
+    )
 
-    const speechBubble = container.querySelector('.tms-speech-bubble')
-    const cutoutWrap = container.querySelector('.tms-cutout-wrap')
-
-    expect(speechBubble).toBeTruthy()
-    expect(cutoutWrap?.contains(speechBubble ?? null)).toBe(false)
-    expect(cutoutWrap?.parentElement).toBe(speechBubble?.parentElement)
-
-    await act(async () => {
-      vi.advanceTimersByTime(
-        PHRASE_TYPING_START_DELAY_MS + phrase.length * PHRASE_TYPING_CHAR_INTERVAL_MS
-      )
-    })
-
-    const typedPhrase = container.querySelector('.tms-phrase')
-    expect(typedPhrase?.textContent).toBe(phrase)
-    expect(container.querySelector('.tms-phrase__cursor')).toBeNull()
+    const cutout = container.querySelector('.tms-cutout-wrap')
+    const ballot = screen.getByText('Votes for').parentElement
+    expect(cutout?.querySelector('img')).toBeTruthy()
+    expect(cutout?.contains(ballot ?? null)).toBe(false)
+    expect(ballot?.textContent).toBe('Votes forAvery')
+    expect(screen.getByRole('status').textContent).toBe('Casey voted for Avery.')
+    expect(screen.queryByText('Final word')).toBeNull()
   })
 })

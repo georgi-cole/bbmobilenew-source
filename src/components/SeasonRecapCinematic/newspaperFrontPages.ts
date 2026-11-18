@@ -132,14 +132,14 @@ export function generatePlayfulHeadline(event: NewspaperSeasonEvent): HeadlineDr
     case 'veto':
       return {
         headline: `The Safety move that changed everything`,
-        subheadline: `${subject} flipped the week on its head. ${event.detail} By sunrise, every ally was re-checking the seating chart.`,
+        subheadline: `${subject} flipped the day on its head. ${event.detail} By sunrise, every ally was re-checking the seating chart.`,
         category: 'Competition Desk',
         stamp: 'POWER SHIFT',
       }
     case 'chaos':
       return {
         headline: `Tears, cheers, and total chaos`,
-        subheadline: `${event.detail} The season’s loudest week became pure tabloid fuel before the ink could even dry.`,
+        subheadline: `${event.detail} The season’s loudest day became pure tabloid fuel before the ink could even dry.`,
         category: 'Chaos Report',
         stamp: 'EXTRA! EXTRA!',
       }
@@ -209,7 +209,7 @@ export function createNewspaperFrontPage(
   return {
     id: options.issueNumber ? `${event.id}-${options.issueNumber}` : `${event.id}-${index}`,
     newspaperName,
-    issueDate: options.issueDate ?? `Week ${event.week} Edition`,
+    issueDate: options.issueDate ?? `Day ${event.week} Edition`,
     issueNumber: options.issueNumber ?? `Issue ${100 + event.week + index}`,
     edition: options.edition ?? (seed % 2 === 0 ? 'Morning Edition' : 'Night Desk'),
     headline: draft.headline,
@@ -246,7 +246,7 @@ export const SAMPLE_SEASON_EVENTS: NewspaperSeasonEvent[] = [
     week: 2,
     type: 'fan-favorite',
     subjectName: 'Nova',
-    detail: 'A diary-room zinger and a fearless speech made Nova the breakout name of the week.',
+    detail: 'A diary-room zinger and a fearless speech made Nova the breakout name of the day.',
   },
   {
     id: 'sample-backlash',
@@ -289,7 +289,7 @@ export const SAMPLE_SEASON_EVENTS: NewspaperSeasonEvent[] = [
     week: 8,
     type: 'underdog',
     subjectName: 'Ivy',
-    detail: 'Week after week, Ivy turned nominations into a comeback story.',
+    detail: 'Day after day, Ivy turned nominations into a comeback story.',
   },
   {
     id: 'sample-romance',

@@ -665,3 +665,8 @@ store listings or change configured prices.
   schedule, with child-directed treatment and general-audience creative.
   VIP and No Ads continue to remove automatic ads, and adults can choose
   rewarded ads. The existing product copy describes that access.
+
+- 2026-11-18: Reviewed the Tribunal's paired entrance, stepped vote reveal and
+  champion portrait selection. Standard and VIP use the shared ceremony and
+  champion coronation. The presentation update preserves existing marketplace
+  products, pricing, benefits and entitlement rules.

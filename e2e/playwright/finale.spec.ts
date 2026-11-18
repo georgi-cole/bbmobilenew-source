@@ -279,7 +279,7 @@ test.describe('Finale / Jury flow @release', () => {
 
     const tribunal = page.getByRole('dialog', { name: 'Tribunal Finale' })
     await expect(tribunal).toBeVisible({ timeout: 10_000 })
-    const beginTribunal = tribunal.getByRole('button', { name: 'Begin Tribunal ▶' })
+    const beginTribunal = tribunal.getByRole('button', { name: /Begin Tribunal/ })
     await expect(beginTribunal).toBeEnabled()
     await beginTribunal.click()
     await expect(beginTribunal).toBeHidden()
@@ -302,9 +302,6 @@ test.describe('Finale / Jury flow @release', () => {
         .every((id) => [...roster.jurors, ...roster.preJury].some((player) => player.id === id))
     ).toBe(true)
 
-    await tribunal
-      .getByRole('button', { name: /Skip All/ })
-      .evaluate((button) => (button as HTMLButtonElement).click())
     const recap = page.getByRole('dialog', { name: 'Season recap archive' })
     await expect(recap).toBeVisible({ timeout: 10_000 })
     await recap
@@ -319,13 +316,12 @@ test.describe('Finale / Jury flow @release', () => {
     await expect(recap).toBeHidden()
 
     await expect(tribunal).toBeVisible({ timeout: 10_000 })
+    await expect(tribunal.getByText(/The first finalist to reach \d+ votes wins/)).toBeVisible()
+    await expect(tribunal.getByText(/^1 \/ \d+ votes revealed$/)).toBeVisible({ timeout: 12_000 })
     await tribunal
       .getByRole('button', { name: /Skip All/ })
       .evaluate((button) => (button as HTMLButtonElement).click())
-    await expect(tribunal).toContainText('The Tribunal verdict is sealed. One champion awaits.', {
-      timeout: 10_000,
-    })
-    await expect(tribunal.locator('.fo-finalist--winner')).toHaveCount(0)
+    await expect(tribunal.getByText('Final tally')).toBeVisible()
 
     const resolvedFinale = await readAppState(page)
     const winnerId = resolvedFinale.finale.winnerId
@@ -335,12 +331,6 @@ test.describe('Finale / Jury flow @release', () => {
     expect(winnerId).not.toBe(runnerUpId)
     expect(roster.finalists.map((player) => player.id)).toContain(winnerId)
     expect(roster.finalists.map((player) => player.id)).toContain(runnerUpId)
-
-    await tribunal.getByRole('button', { name: 'Reveal the Champion' }).evaluate((element) => {
-      const button = element as HTMLButtonElement
-      button.click()
-      button.click()
-    })
 
     const winnerReveal = page.getByRole('dialog', { name: /Season \d+ champion coronation/ })
     await expect(winnerReveal).toBeVisible({ timeout: 10_000 })

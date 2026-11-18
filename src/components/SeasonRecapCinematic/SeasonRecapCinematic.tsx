@@ -65,7 +65,7 @@ const HIDDEN_MOMENTS = [
     title: 'Key, set, chaos',
     eyebrow: 'Challenge replay · Backyard',
     caption: 'The golden key was easy. Staying upright was not.',
-    stamp: 'Week 07',
+    stamp: 'Day 07',
     imageSrc: `${BASE}assets/season-recap-moments/backyard-key-slide.webp`,
   },
   {
@@ -253,7 +253,6 @@ function RecapHub({
       <header className="src-recap-hub__heading">
         <p className="src-explore-kicker">The final archive</p>
         <h1>Choose the next chapter.</h1>
-        <p>The recap music keeps playing while you explore.</p>
       </header>
       <div className="src-recap-hub__prologue" aria-label="Opening chapters completed">
         <span>

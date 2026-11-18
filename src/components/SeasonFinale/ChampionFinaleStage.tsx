@@ -1,6 +1,7 @@
 import type { Player } from '../../types'
 import { joinPublicAssetPath } from '../../utils/avatar'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
+import { finalePortraitAttire } from '../FinalFaceoff/finalePortraitAttire'
 import FinaleContinueButton from '../FinalThreeStage/FinaleContinueButton'
 import { FINAL_THREE_SET_ASSETS } from '../FinalThreeStage/finalThreeSetAssets'
 import ChampionFireworks from './ChampionFireworks'
@@ -60,7 +61,7 @@ export default function ChampionFinaleStage({
           <FullSizeCutoutImage
             className="season-finale__champion-cutout"
             player={winner}
-            attire="formal"
+            attire={finalePortraitAttire(winner)}
             grounded
             alt=""
             draggable={false}

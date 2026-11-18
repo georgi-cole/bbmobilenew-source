@@ -320,7 +320,7 @@ function buildMontageFragments(
     `${player.name.toUpperCase()} • ${nominations(player)} noms`,
   ])
   fragments.push(
-    `WEEK ${week}`,
+    `DAY ${week}`,
     finalVoteMode === 'audience' ? 'PUBLIC VOTE NEXT' : 'TRIBUNAL LOCKED',
     'FINAL TWO'
   )
@@ -486,7 +486,7 @@ function buildTabloidCards(
       id: 'saved_again',
       headline: 'SAVED AGAIN?',
       subhead: 'Some exits were postponed by pure chaos.',
-      articleText: `${firstName(subjects[1])} kept turning crisis weeks into survival stories, leaving the rest of the Hub to rework the plan overnight.`,
+      articleText: `${firstName(subjects[1])} kept turning crises into survival stories, leaving the rest of the Hub to rework the plan overnight.`,
       imageSources: resolveRecapTabloidSources(
         subjects[1],
         pickTabloidPhoto(subjects[1], tabloidPhotos, usedPhotoIds)
@@ -578,7 +578,7 @@ export function buildSeasonRecapData(
       : [
           {
             id: 'placeholder',
-            name: `Week ${week}`,
+            name: `Day ${week}`,
             avatar: '',
             status: 'evicted' as const,
             stats: {
