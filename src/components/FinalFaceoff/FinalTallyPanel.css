@@ -1,0 +1,306 @@
+/* Running totals and the closing finalist tableau. */
+.fo-score {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  text-align: center;
+}
+
+.fo-score--live {
+  flex: 0 0 auto;
+  padding: 0.55rem clamp(0.75rem, 4vw, 2.25rem) 0.12rem;
+  background:
+    radial-gradient(ellipse at 50% 0%, #a583c317, transparent 65%),
+    linear-gradient(0deg, #09070e 54%, transparent);
+}
+
+.fo-score--final {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  padding: 0 1.25rem 0.6rem;
+}
+
+.fo-score--introducing {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.fo-score--introducing .fo-score__tableau::after {
+  background: linear-gradient(0deg, #09070f 2%, #09070f80 14%, transparent 34%);
+}
+
+.fo-score__tableau {
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 2%;
+  display: flex;
+  width: min(100%, 78rem);
+  margin-inline: auto;
+  pointer-events: none;
+  overflow: hidden;
+  animation: fo-tableau-enter 1.15s cubic-bezier(0.15, 0.64, 0.3, 1) both;
+}
+
+.fo-score__tableau::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #09070f 2%, #09070fea 17%, #09070fb3 31%, transparent 58%);
+  content: '';
+}
+
+.fo-score__portrait {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  background:
+    radial-gradient(ellipse at 48% 12%, #edb76155, transparent 62%),
+    radial-gradient(ellipse at 58% 72%, #c38d4750, transparent 67%);
+}
+
+.fo-score__portrait:nth-child(2) {
+  background:
+    radial-gradient(ellipse at 54% 12%, #ba95ff4d, transparent 62%),
+    radial-gradient(ellipse at 45% 72%, #9062dd50, transparent 67%);
+}
+
+.fo-score__portrait img {
+  position: absolute;
+  inset: 0 -16%;
+  width: 132%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  object-position: center 30%;
+  filter: drop-shadow(0 15px 30px #000a);
+}
+
+.fo-score__lineup {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1.15rem, 6vw, 5.5rem);
+  width: min(100%, 40rem);
+  margin-inline: auto;
+}
+
+.fo-score__lineup::before {
+  position: absolute;
+  inset: 0.05rem 0 auto;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #f3cd9280 24%,
+    #fff9 50%,
+    #c9aeff80 76%,
+    transparent
+  );
+  content: '';
+}
+
+.fo-score__lineup::after {
+  position: absolute;
+  top: 0.05rem;
+  left: 50%;
+  width: 0.35rem;
+  height: 0.35rem;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: #fff2d6;
+  box-shadow: 0 0 14px #ffd48bb3;
+  content: '';
+}
+
+.fo-score__side {
+  --score-foil: #f0c87c;
+  --score-glow: #ecaa4966;
+  min-width: 0;
+  padding: 0.56rem 0 0;
+}
+
+.fo-score__side:nth-child(2) {
+  --score-foil: #d3bcff;
+  --score-glow: #b18afa66;
+}
+
+.fo-score__total {
+  display: flex;
+  gap: 0.2rem 0.5rem;
+  align-items: baseline;
+  justify-content: center;
+  min-width: 0;
+}
+
+.fo-score__name {
+  color: #faf3e7;
+  font:
+    500 clamp(0.89rem, 4.4vw, 1.6rem) / 1.02 Georgia,
+    'Times New Roman',
+    serif;
+  overflow-wrap: anywhere;
+}
+
+.fo-score__count {
+  position: relative;
+  color: var(--score-foil);
+  font:
+    500 clamp(1.6rem, 7vw, 2.6rem) / 0.86 Georgia,
+    'Times New Roman',
+    serif;
+  font-variant-numeric: lining-nums tabular-nums;
+  text-shadow: 0 0 20px var(--score-glow);
+}
+
+.fo-score__count[data-registering] {
+  animation: fo-foil-glint 760ms 220ms ease-out both;
+}
+
+.fo-score__seals {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.32rem;
+  min-height: 0.34rem;
+  margin-top: 0.5rem;
+}
+
+.fo-score__seals i {
+  width: 0.27rem;
+  height: 0.27rem;
+  transform: rotate(45deg);
+  background: var(--score-foil);
+  box-shadow: 0 0 9px var(--score-glow);
+}
+
+.fo-score__seals i[data-registering] {
+  animation: fo-seal-stamp 630ms 280ms cubic-bezier(0.16, 0.67, 0.37, 1) both;
+}
+
+.fo-score__seals i[data-pending] {
+  visibility: hidden;
+}
+
+.fo-overlay--sequential .fo-score__count[data-registering],
+.fo-overlay--sequential .fo-score__seals i[data-registering] {
+  animation-delay: 0ms;
+}
+
+.fo-score--final .fo-score__lineup {
+  width: min(100%, 35rem);
+  animation: fo-score-land 700ms 190ms ease-out both;
+}
+
+.fo-score--final .fo-score__total {
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.fo-score--final .fo-score__side {
+  padding-top: clamp(0.65rem, 2.4dvh, 1.45rem);
+}
+
+.fo-score--final .fo-score__count {
+  font-size: clamp(3.1rem, min(15vw, 13dvh), 7rem);
+}
+
+.fo-score--final .fo-score__name {
+  font-size: clamp(1.18rem, 6vw, 2.6rem);
+}
+
+.fo-score__voters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  gap: 0.25rem 0.75rem;
+  max-height: min(18dvh, 7.5rem);
+  overflow-y: auto;
+  list-style: none;
+}
+
+.fo-score__voters li {
+  color: #f1e9df;
+  font-size: clamp(0.66rem, 2.8vw, 0.92rem);
+  overflow-wrap: anywhere;
+}
+
+.fo-score__signature {
+  margin: 0.8rem 0 0;
+  color: #d2bead;
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  animation: fo-score-land 520ms 700ms ease-out both;
+}
+
+@keyframes fo-foil-glint {
+  0%,
+  100% {
+    color: var(--score-foil);
+  }
+  32% {
+    color: #fff8e9;
+    text-shadow: 0 0 22px var(--score-foil);
+  }
+}
+
+@keyframes fo-seal-stamp {
+  0% {
+    opacity: 0;
+    transform: rotate(45deg) scale(2.25);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(45deg) scale(1);
+  }
+}
+
+@keyframes fo-tableau-enter {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fo-score-land {
+  from {
+    transform: translateY(0.7rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-height: 600px) {
+  .fo-score--final .fo-score__name {
+    font-size: clamp(1.08rem, 5dvh, 2rem);
+  }
+
+  .fo-score__signature {
+    margin-top: 0.45rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fo-score__tableau,
+  .fo-score__count[data-registering],
+  .fo-score__seals i[data-registering],
+  .fo-score--final .fo-score__lineup,
+  .fo-score__signature {
+    animation: none;
+  }
+}

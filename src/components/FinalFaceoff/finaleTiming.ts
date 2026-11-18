@@ -1,13 +1,10 @@
-/** Short establishing beat before the first Tribunal member enters. */
-export const FIRST_CLUE_DELAY_MS = 1400
-/** Keep each statement up long enough to finish typing and then be read. */
-export const clueReadingHoldMs = (phrase = ''): number =>
-  Math.min(9000, Math.max(4600, phrase.length * 58 + 2100))
-/** Extra hold time after the public juror speaks before starting the season recap. */
-export const PUBLIC_VOTE_RECAP_HOLD_MS = 4200
-/** Initial suspense delay before the first vote chip appears in revealVotes. */
+/** Initial suspense delay before the first ballot is revealed. */
 export const VOTE_REVEAL_INITIAL_DELAY_MS = 800
-/** Additional stagger between each subsequent revealed vote chip. */
-export const VOTE_REVEAL_STAGGER_MS = 2000
-/** Delay before handing off from the final tally to the winner cinematic. */
-export const WINNER_CINEMATIC_DELAY_MS = 1500
+/** Hold the voter and their choice on stage before the next beat. */
+export const VOTE_REVEAL_STAGGER_MS = 2450
+
+export const BALLOT_BEAT_MS = { rules: 2400, lead: 850, recipient: 1000, flight: 610, counted: 440 }
+export type BallotBeat = keyof typeof BALLOT_BEAT_MS
+/** Let the viewer read the batch of remaining ballots before the champion slide. */
+export const winnerHandoffDelayMs = (remainingBallots: number): number =>
+  2500 + remainingBallots * 520

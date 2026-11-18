@@ -1,7 +1,7 @@
 import type { Player } from '../../types'
 import { joinPublicAssetPath } from '../../utils/avatar'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
-import FinaleContinueButton from '../FinalThreeStage/FinaleContinueButton'
+import CinematicSkipButton from '../CinematicSkipButton/CinematicSkipButton'
 import { FINAL_THREE_SET_ASSETS } from '../FinalThreeStage/finalThreeSetAssets'
 import ChampionFireworks from './ChampionFireworks'
 import './ChampionFinaleStage.css'
@@ -67,10 +67,15 @@ export default function ChampionFinaleStage({
           />
         </div>
         {revealed && animate && <ChampionFireworks />}
-        {revealed && (
-          <FinaleContinueButton ariaLabel="Continue to winner interview" onContinue={onContinue} />
-        )}
       </div>
+      {revealed && (
+        <CinematicSkipButton
+          label="Continue"
+          indicator="forward"
+          ariaLabel="Continue to winner interview"
+          onClick={onContinue}
+        />
+      )}
     </section>
   )
 }

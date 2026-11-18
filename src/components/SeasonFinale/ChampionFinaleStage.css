@@ -188,9 +188,6 @@
     left: 55%;
     width: 35%;
   }
-  .season-finale__champion-frame .finale-continue {
-    right: 50%;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .season-finale--champion *,

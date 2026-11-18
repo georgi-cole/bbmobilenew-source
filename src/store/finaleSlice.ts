@@ -458,33 +458,25 @@ export const revealNextJurorThunk =
     }
   }
 
-/**
- * Skip-all: reveal AI jurors until a human ballot is due, then pause for that
- * ballot. Presentation controls must never cast a vote for a human juror.
- */
-export const skipAllJurorsThunk =
-  (humanPlayerIds: string[], seed: number) =>
-  (dispatch: AppDispatch, getState: () => RootState) => {
-    const state = getState().finale
-
-    if (state.revealOrder.length === 0 && !state.isComplete) {
-      dispatch(finalizeFinale({ seed }))
-      return
-    }
-
-    // Reveal until the next human ballot. Once revealNextJuror encounters an
-    // uncast human juror it leaves revealedCount unchanged, so break instead
-    // of spinning through the rest of the loop.
-    let current = getState().finale
+/** Prepare the ordered ballots offstage, pausing only for a human voter. */
+export const collectTribunalBallots =
+  (humanPlayerIds: string[]) => (dispatch: AppDispatch, getState: () => RootState) => {
+    const current = getState().finale
+    if (current.awaitingHumanJurorId) return
     const remaining = current.revealOrder.length - current.revealedCount
     for (let i = 0; i < remaining; i++) {
       dispatch(revealNextJuror({ humanPlayerIds }))
-      current = getState().finale
-      if (current.awaitingHumanJurorId) return
+      if (getState().finale.awaitingHumanJurorId) return
     }
+  }
 
-    current = getState().finale
-    if (!current.isComplete) {
+/** Skip the presentation without casting any human ballot. */
+export const skipAllJurorsThunk =
+  (humanPlayerIds: string[], seed: number) =>
+  (dispatch: AppDispatch, getState: () => RootState) => {
+    dispatch(collectTribunalBallots(humanPlayerIds))
+    const finale = getState().finale
+    if (!finale.awaitingHumanJurorId && !finale.isComplete) {
       dispatch(finalizeFinale({ seed }))
     }
   }

@@ -1,282 +1,207 @@
-/**
- * TribunalMemberStage — cinematic full-body reveal for each tribunal juror.
- *
- * Replaces the plain JurorBubble list during the 'clues' (phase 1) act of
- * FinalFaceoff.  Each juror enters center-stage one at a time using their
- * formal-attire full-body cutout from `public/assets/formal_attires/`.
- *
- * Layout:
- *   - Dark, vignette backdrop with studio-light glow behind the cutout.
- *   - Juror name plate animates in above the cutout.
- *   - Cryptic phrase animates in inside a comic speech balloon coming from the
- *     cutout, simulating them "addressing the audience" before casting their
- *     hidden vote.
- *   - A row of small portrait chips at the bottom keeps a visual record of
- *     previously revealed jurors.
- *   - Human vote prompt slides in when it is the viewer's turn.
- */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState, type RefObject } from 'react'
 import type { Player } from '../../types'
-import type { JurorReveal } from '../../store/finaleSlice'
 import { PUBLIC_JUROR_ID } from '../../store/finaleSlice'
-import { resolveSilhouetteFallback } from '../../utils/avatar'
+import type { BallotBeat } from '../FinalFaceoff/finaleTiming'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
-import {
-  PHRASE_TYPING_CHAR_INTERVAL_MS,
-  PHRASE_TYPING_START_DELAY_MS,
-} from './tribunalMemberStageTiming'
 import './TribunalMemberStage.css'
 
-interface JurorEntry {
-  juror: Player
-  reveal: JurorReveal
-}
-
-interface Props {
-  active?: boolean
-  /** The complete Tribunal, shown once as a formal group portrait. */
+interface TribunalOpeningProps {
+  mode: 'opening'
   tribunalMembers: Player[]
-  /** All jurors that have been revealed so far (in reveal order). */
-  revealedJurors: JurorEntry[]
-  /** Finalists the human can vote for (null when it is not a human's turn). */
-  awaitingHumanPlayer: Player | null
+  awaitingHumanPlayer?: Player
   finalists: Player[]
   onCastVote: (finalistId: string) => void
-  /** The full Tribunal portrait remains until the viewer starts deliberation. */
-  waitingForOpeningCue?: boolean
+  waitingForOpeningCue: boolean
+  paired?: boolean
 }
 
-/** Constructs a URL for a Public Vote virtual juror. */
+interface TribunalVote {
+  mode: 'reveal'
+  beat?: BallotBeat
+  ballotOrigin?: RefObject<HTMLElement | null>
+  ballot?: {
+    voter?: Player
+    voterId: string
+    voterName: string
+    finalistName: string
+    number: number
+    tone: 'gold' | 'violet'
+  }
+}
+
 function PublicCutoutPlaceholder() {
   return (
     <div className="tms-public-placeholder" aria-hidden="true">
-      <span className="tms-public-globe">🌐</span>
+      <span className="tms-public-globe" />
     </div>
   )
 }
 
-function SilhouetteAvatar({ player }: { player: Player }) {
-  const [silhouetteFailed, setSilhouetteFailed] = useState(false)
-
-  if (silhouetteFailed) {
-    return (
-      <PlayerAvatar
-        player={player}
-        size="sm"
-        showRelationshipOutline={false}
-        showEvictedStyle={false}
-      />
-    )
-  }
-
-  return (
-    <img
-      className="tms-vote-prompt__avatar"
-      src={resolveSilhouetteFallback(player)}
-      alt={player.name}
-      draggable={false}
-      onError={() => setSilhouetteFailed(true)}
-    />
-  )
-}
-
-function PhraseTyper({ phrase, active }: { phrase: string; active: boolean }) {
-  const [visibleChars, setVisibleChars] = useState(0)
-  const typedRef = useRef(0)
-
-  useEffect(() => {
-    if (!active || !phrase || typedRef.current >= phrase.length) return undefined
-
-    let charIndex = typedRef.current
-    let typingTimeout: ReturnType<typeof setTimeout> | null = null
-    const startDelay = setTimeout(
-      () => {
-        const typeNext = () => {
-          charIndex += 1
-          typedRef.current = charIndex
-          setVisibleChars(charIndex)
-          if (charIndex < phrase.length) {
-            typingTimeout = setTimeout(typeNext, PHRASE_TYPING_CHAR_INTERVAL_MS)
-          }
-        }
-
-        typeNext()
-      },
-      charIndex === 0 ? PHRASE_TYPING_START_DELAY_MS : PHRASE_TYPING_CHAR_INTERVAL_MS
-    )
-
-    return () => {
-      clearTimeout(startDelay)
-      if (typingTimeout) clearTimeout(typingTimeout)
-    }
-  }, [active, phrase])
-
-  return <p className="tms-phrase">{phrase.slice(0, visibleChars)}</p>
-}
-
 function tribunalPortraitAttire(player: Player): 'formal' | 'informal' {
   const identity = `${player.id} ${player.name}`.trim().toLowerCase()
-  return /(^|\s)(bea|dex|sol)(\s|$)/.test(identity) ? 'informal' : 'formal'
+  return /(^|\s)(dex|sol)(\s|$)/.test(identity) ? 'informal' : 'formal'
 }
 
-export default function TribunalMemberStage({
-  active = true,
+function TribunalOpening({
   tribunalMembers,
-  revealedJurors,
   awaitingHumanPlayer,
   finalists,
   onCastVote,
-  waitingForOpeningCue = false,
-}: Props) {
-  const current = revealedJurors.at(-1) ?? null
+  waitingForOpeningCue,
+  paired,
+}: TribunalOpeningProps) {
   const [portraitIndex, setPortraitIndex] = useState(0)
+  const stride = paired ? 2 : 1
+  const portraitCount = Math.ceil(tribunalMembers.length / stride)
 
   useEffect(() => {
-    if (!active || !waitingForOpeningCue || tribunalMembers.length < 2) return
-    const id = window.setInterval(() => {
-      setPortraitIndex((index) => (index + 1) % tribunalMembers.length)
-    }, 2400)
-    return () => window.clearInterval(id)
-  }, [active, tribunalMembers.length, waitingForOpeningCue])
+    if (!waitingForOpeningCue || portraitCount < 2) return
+    const timer = window.setInterval(
+      () => {
+        setPortraitIndex((index) => (index + 1) % portraitCount)
+      },
+      paired ? 3600 : 2400
+    )
+    return () => window.clearInterval(timer)
+  }, [paired, portraitCount, waitingForOpeningCue])
 
-  const currentJurorId = current?.juror.id ?? null
-  const currentPhrase = current?.reveal.phrase ?? ''
-  const trimmedCurrentPhrase = currentPhrase.trim()
-  const currentAnimationKey = currentJurorId ?? 'pending'
-  const phraseAnimationKey = `${currentAnimationKey}-${currentPhrase}`
-
-  if (!current && !awaitingHumanPlayer) {
-    const featuredJuror = tribunalMembers[portraitIndex % Math.max(tribunalMembers.length, 1)]
+  if (awaitingHumanPlayer) {
     return (
-      <div className="tms-portrait" role="region" aria-label="The Tribunal">
+      <div className="tms-stage tms-stage--human">
         <div className="tms-bg-vignette" aria-hidden="true" />
-        <div className="tms-portrait__light" aria-hidden="true" />
-        <p className="tms-portrait__eyebrow">THE FINAL DECISION</p>
-        <h3>The Tribunal</h3>
-        <p className="tms-portrait__copy">The people who lived the season now decide its winner.</p>
-        {featuredJuror && (
-          <div className="tms-portrait__carousel" aria-live="polite">
-            <div className="tms-portrait__carousel-light" aria-hidden="true" />
-            <FullSizeCutoutImage
-              key={featuredJuror.id}
-              player={featuredJuror}
-              attire={tribunalPortraitAttire(featuredJuror)}
-              className="tms-portrait__carousel-cutout"
-              alt={featuredJuror.name}
-              draggable={false}
-            />
-            <div className="tms-portrait__carousel-caption">
-              <span>Tribunal member</span>
-              <strong>{featuredJuror.name}</strong>
-            </div>
-          </div>
-        )}
-        <div
-          className="tms-portrait__carousel-dots"
-          aria-label={`${tribunalMembers.length} Tribunal members`}
-        >
-          {tribunalMembers.map((juror, index) => (
-            <span key={juror.id} className={index === portraitIndex ? 'is-active' : undefined} />
-          ))}
+        <div className="tms-spotlight" aria-hidden="true" />
+        <div className="tms-cutout-wrap" aria-hidden="true">
+          <FullSizeCutoutImage
+            player={awaitingHumanPlayer}
+            attire={tribunalPortraitAttire(awaitingHumanPlayer)}
+            className="tms-cutout"
+            alt=""
+            draggable={false}
+          />
         </div>
-        {waitingForOpeningCue && (
-          <p className="tms-portrait__play-cue">
-            Press Play when you are ready to hear the Tribunal.
-          </p>
-        )}
+        <section className="tms-vote-prompt" aria-labelledby="tms-human-ballot-title">
+          <h3 className="tms-vote-prompt__text" id="tms-human-ballot-title">
+            Cast your Tribunal vote
+          </h3>
+          <div className="tms-vote-choices">
+            {finalists.map((finalist) => (
+              <button
+                key={finalist.id}
+                type="button"
+                className="tms-vote-choice"
+                aria-label={`Cast Tribunal vote for ${finalist.name}`}
+                onClick={() => onCastVote(finalist.id)}
+              >
+                <PlayerAvatar player={finalist} size="sm" showRelationshipOutline={false} />
+                <span className="tms-vote-choice__name">{finalist.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
     )
   }
 
-  const isPublic = current?.juror.id === PUBLIC_JUROR_ID
-  const isSol =
-    current &&
-    !isPublic &&
-    (current.juror.id.toLowerCase() === 'sol' || current.juror.name.toLowerCase() === 'sol')
-  // Sol_formal.webp is a black silhouette asset. Use Sol's visible full-body
-  // informal cutout for this cinematic instead of presenting an unreadable
-  // shadow on the Tribunal stage.
-  const currentAnnouncement = current
-    ? trimmedCurrentPhrase
-      ? `${isPublic ? 'The Public' : current.juror.name}. ${trimmedCurrentPhrase}`
-      : isPublic
-        ? 'The Public'
-        : current.juror.name
-    : awaitingHumanPlayer
-      ? `${awaitingHumanPlayer.name}, cast your Tribunal vote.`
-      : ''
-
+  const firstIndex = (portraitIndex % Math.max(portraitCount, 1)) * stride
+  const featuredJuror = tribunalMembers[firstIndex]
   return (
-    <div className="tms-stage">
-      {currentAnnouncement && (
-        <div className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
-          {currentAnnouncement}
-        </div>
-      )}
-      {/* ── Atmosphere ──────────────────────────────────────────────── */}
+    <div className="tms-portrait" role="region" aria-label="Tribunal members">
       <div className="tms-bg-vignette" aria-hidden="true" />
-      <div className="tms-spotlight" aria-hidden="true" />
-
-      {/* ── Name plate ──────────────────────────────────────────────── */}
-      {current && (
-        <div className="tms-nameplate" key={`name-${currentAnimationKey}`}>
-          <span className="tms-nameplate__sequence">
-            Testimony {String(revealedJurors.length).padStart(2, '0')}
-          </span>
-          <span className="tms-nameplate__eyebrow">Tribunal member</span>
-          <span className="tms-nameplate__name">
-            {isPublic ? 'The Public' : current.juror.name}
-            {isPublic && <span className="tms-nameplate__public-badge">🌐</span>}
-          </span>
+      <div className="tms-portrait__light" aria-hidden="true" />
+      {paired ? (
+        <div className="tms-pair" key={featuredJuror?.id}>
+          {tribunalMembers.slice(firstIndex, firstIndex + stride).map((member) => (
+            <figure className="tms-pair__member" key={member.id}>
+              <div className="tms-pair__picture" aria-hidden="true">
+                <FullSizeCutoutImage
+                  player={member}
+                  attire={tribunalPortraitAttire(member)}
+                  alt=""
+                  draggable={false}
+                />
+              </div>
+              <figcaption>{member.name}</figcaption>
+            </figure>
+          ))}
         </div>
-      )}
-
-      {/* ── Full-body cutout ─────────────────────────────────────────── */}
-      {current && (
-        <div className="tms-cutout-wrap" key={`cutout-${currentAnimationKey}`}>
-          {isPublic ? (
-            <PublicCutoutPlaceholder />
-          ) : (
+      ) : (
+        featuredJuror && (
+          <div className="tms-portrait__carousel" key={featuredJuror.id}>
             <FullSizeCutoutImage
-              player={current.juror}
-              attire={isSol ? 'informal' : tribunalPortraitAttire(current.juror)}
-              className="tms-cutout"
-              alt={current.juror.name}
+              player={featuredJuror}
+              attire={tribunalPortraitAttire(featuredJuror)}
+              className="tms-portrait__carousel-cutout"
+              alt=""
               draggable={false}
             />
-          )}
-          <div className="tms-cutout-glow" aria-hidden="true" />
-        </div>
+            <div className="tms-portrait__carousel-caption">
+              <strong>{featuredJuror.name}</strong>
+            </div>
+          </div>
+        )
       )}
+    </div>
+  )
+}
 
-      {current && trimmedCurrentPhrase && (
-        <div className="tms-speech-bubble" key={`phrase-${phraseAnimationKey}`}>
-          <PhraseTyper key={currentPhrase} phrase={currentPhrase} active={active} />
-        </div>
-      )}
+export default function TribunalMemberStage(props: TribunalOpeningProps | TribunalVote) {
+  if (props.mode === 'opening') return <TribunalOpening {...props} />
 
-      {/* ── Human vote prompt ────────────────────────────────────────── */}
-      {awaitingHumanPlayer && (
-        <div className="tms-vote-prompt">
-          <span className="tms-vote-prompt__text">
-            <SilhouetteAvatar player={awaitingHumanPlayer} />
-            {awaitingHumanPlayer.name}, cast your Tribunal vote:
-          </span>
-          <div className="tms-vote-choices">
-            {finalists.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                className="tms-vote-choice"
-                aria-label={`Cast Tribunal vote for ${f.name}`}
-                onClick={() => onCastVote(f.id)}
-              >
-                <PlayerAvatar player={f} size="sm" showRelationshipOutline={false} />
-                <span className="tms-vote-choice__role">Finalist</span>
-                <span className="tms-vote-choice__name">{f.name}</span>
-              </button>
-            ))}
+  const { ballot, beat, ballotOrigin } = props
+  const introducing = beat === 'lead'
+  return (
+    <div className="tms-stage tms-stage--ballot">
+      <div className="visually-hidden" role="status" aria-atomic="true">
+        {ballot &&
+          (introducing
+            ? `${ballot.voterName} voted for…`
+            : `${ballot.voterName} voted for ${ballot.finalistName}.`)}
+      </div>
+      {ballot && (
+        <div
+          className="tms-shot"
+          key={ballot.voterId}
+          data-tone={introducing ? undefined : ballot.tone}
+          data-beat={beat}
+        >
+          <div className="tms-shot__light" aria-hidden="true" />
+          <div className="tms-cutout-wrap" aria-hidden="true">
+            {ballot.voterId === PUBLIC_JUROR_ID ? (
+              <PublicCutoutPlaceholder />
+            ) : ballot.voter ? (
+              <FullSizeCutoutImage
+                player={ballot.voter}
+                attire={tribunalPortraitAttire(ballot.voter)}
+                className="tms-cutout"
+                alt=""
+                draggable={false}
+              />
+            ) : null}
+          </div>
+          <div className="tms-shot__shade" aria-hidden="true" />
+          <div className="tms-nameplate">
+            <span className="tms-nameplate__sequence">
+              Ballot {String(ballot.number).padStart(2, '0')}
+            </span>
+            {introducing ? (
+              <p className="tms-ballot-lead" key="lead">
+                <strong>{ballot.voterName}</strong>
+                <span>voted for…</span>
+              </p>
+            ) : beat ? (
+              <p className="tms-ballot-recipient" key="recipient">
+                <strong ref={ballotOrigin}>{ballot.finalistName}</strong>
+              </p>
+            ) : (
+              <>
+                <span className="tms-nameplate__name">{ballot.voterName}</span>
+                <p className="tms-ballot-call">
+                  <span>Votes for</span>
+                  <strong>{ballot.finalistName}</strong>
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}

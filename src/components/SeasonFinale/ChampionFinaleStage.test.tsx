@@ -83,6 +83,24 @@ describe('shared champion coronation', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('data-final-vote', 'audience')
   })
 
+  it('uses Bea’s formal full-body portrait for the champion coronation', () => {
+    const { container } = render(
+      <ChampionFinaleStage
+        winner={{ id: 'bea', name: 'Bea', status: 'active', avatar: '' }}
+        season={1}
+        decidedBy="tribunal"
+        revealed
+        active
+        onContinue={vi.fn()}
+      />
+    )
+
+    expect(container.querySelector('.season-finale__champion-cutout')).toHaveAttribute(
+      'src',
+      expect.stringMatching(/Bea_formal\.webp$/i)
+    )
+  })
+
   it('keeps suspended coronations inert so backgrounded overlays cannot be advanced', () => {
     render(
       <ChampionFinaleStage
