@@ -1,3 +1,4 @@
+import { resolveAiFacadeReply } from './aiFacadeStrategy'
 import { finalizeAcceptedPersonalPact } from './reality/allianceManagement'
 import { getCurrentPact } from './reality/allianceIdentity'
 import {
@@ -1430,6 +1431,7 @@ export function respondToIncomingInteraction(submission: IncomingReplySubmission
     const responseAction = option?.action ?? submission.responseAction
     let responseType = option?.responseType ?? submission.responseType
     if (!responseType) return
+    if (resolveAiFacadeReply(dispatch, getState, interaction, responseType)) return
 
     if (responseAction === 'ask_deal_terms' || responseAction === 'ask_nomination_read') {
       const scenario = interaction.payload?.scenarioKey
@@ -1714,6 +1716,7 @@ export function autoResolveExpiredIncomingInteractionsForClock(
         detail: 'phase_deadline',
       })
 
+      if (resolveAiFacadeReply(dispatch, getState, interaction, 'ignore')) continue
       if (isRequired) {
         applyIncomingChoiceConsequences({
           dispatch,

@@ -69,6 +69,11 @@ function GuestSaveSpotlightOverlay({ target }: { target: 'more' | 'profile' }) {
 }
 
 export interface GameControlDockProps {
+  /** Replace the side modules with two actions for a presentation surface. */
+  presentationActions?: {
+    left: { label: string; onClick: () => void; disabled?: boolean }
+    right: { label: string; onClick: () => void; disabled?: boolean }
+  }
   /** Ref to the dock shell for responsive placement within the game screen. */
   dockRef?: Ref<HTMLDivElement>
   onChatClick?: () => void
@@ -116,9 +121,12 @@ export interface GameControlDockProps {
   /** Disable dock navigation while a full-screen announcement owns the screen. */
   navigationDisabled?: boolean
   primaryLabel?: string
+  /** This presentation owns Play; hidden season vote state must not block its scenes. */
+  presentationPlayback?: boolean
 }
 
 export default function GameControlDock({
+  presentationActions,
   dockRef,
   onChatClick,
   onIncomingRequestsClick,
@@ -150,6 +158,7 @@ export default function GameControlDock({
   elevatedDuringOverlay = false,
   navigationDisabled = false,
   primaryLabel = 'Advance to next phase',
+  presentationPlayback = false,
 }: GameControlDockProps) {
   const dispatch = useAppDispatch()
   const [moreOpen, setMoreOpen] = useState(false)
@@ -174,7 +183,8 @@ export default function GameControlDock({
     voxAudienceVoteLocked ||
     navigationDisabled
   // The Vox lock deliberately does NOT disable the central Play control.
-  const effectivePrimaryDisabled = primaryDisabled || votePresentationLocked
+  const effectivePrimaryDisabled =
+    primaryDisabled || (votePresentationLocked && !presentationPlayback)
   const [socialLedActive, acknowledgeSocialLed] = useNotificationLed(chatBadgeCount, {
     notifyOnAnyChange: true,
   })
@@ -241,7 +251,7 @@ export default function GameControlDock({
   }, [moreOpen])
 
   const handlePrimaryAction = () => {
-    if (voxAudienceVoteLocked) {
+    if (voxAudienceVoteLocked && !presentationPlayback) {
       // Authorize exactly this Play press to resolve the pending audience vote.
       // The presentation middleware rejects the legacy 5-second auto-resolution
       // path, so only an explicit user Play can start the count/reveal.
@@ -265,243 +275,286 @@ export default function GameControlDock({
           aria-hidden="true"
           draggable={false}
         />
-        <img
-          className="game-control-dock__icon fab-icon home"
-          src={navAssetUrl('home_approved_final.svg')}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-        />
-        <img
-          className={`game-control-dock__play fab-play${primaryPulse ? ' game-control-dock__play--pulse' : ''}${effectivePrimaryDisabled ? ' game-control-dock__play--disabled' : ''}`}
-          src={playSrc}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-        />
-        <span className="game-control-dock__play-face" data-onboarding-target="play" />
-        <img
-          className={`game-control-dock__icon fab-icon social${chatFlash ? ' game-control-dock__icon--flash' : ''}${socialDisabled ? ' game-control-dock__icon--unavailable' : ''}`}
-          src={assetUrl('fab_icon_social_clean.svg')}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-        />
-        <img
-          className={`game-control-dock__icon fab-icon requests${incomingRequestsDisabled ? ' game-control-dock__icon--unavailable' : ''}`}
-          src={assetUrl('fab_icon_inbox_clean.svg')}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-        />
-        <img
-          className={`game-control-dock__icon fab-icon stats${publicMeterDisabled ? ' game-control-dock__icon--unavailable' : ''}`}
-          src={assetUrl('fab_icon_stats_clean.svg')}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-        />
-        <img
-          className={`game-control-dock__icon fab-icon confessional${confessionalDisabled ? ' game-control-dock__icon--disabled' : ''}${confessionalFlash ? ` game-control-dock__icon--confessional-flash game-control-dock__icon--confessional-flash-${confessionalFlashTick % 2}` : ''}${confessionalPersistentFlash ? ' game-control-dock__icon--confessional-persistent' : ''}${confessionalSpecialStream ? ' game-control-dock__icon--confessional-special' : ''}`}
-          src={assetUrl('fab_icon_confessional_clean.svg')}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          ref={confessionalIconRef}
-        />
-        <span className="fab-more-glyph" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
+        {presentationActions ? (
+          <>
+            <button
+              type="button"
+              className="game-control-dock__presentation-action game-control-dock__presentation-action--left"
+              disabled={presentationActions.left.disabled}
+              onClick={presentationActions.left.onClick}
+            >
+              {presentationActions.left.label}
+            </button>
+            <img
+              className={`game-control-dock__play fab-play${effectivePrimaryDisabled ? ' game-control-dock__play--disabled' : ''}`}
+              src={playSrc}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+            <span className="game-control-dock__play-face" data-onboarding-target="play" />
+            <button
+              type="button"
+              className="dock-hit-area hit-play dock-hit-area--play"
+              aria-label={primaryLabel}
+              disabled={effectivePrimaryDisabled}
+              onClick={effectivePrimaryDisabled ? undefined : handlePrimaryAction}
+            />
+            <button
+              type="button"
+              className="game-control-dock__presentation-action game-control-dock__presentation-action--right"
+              disabled={presentationActions.right.disabled}
+              onClick={presentationActions.right.onClick}
+            >
+              {presentationActions.right.label}
+            </button>
+          </>
+        ) : (
+          <>
+            <img
+              className="game-control-dock__icon fab-icon home"
+              src={navAssetUrl('home_approved_final.svg')}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+            <img
+              className={`game-control-dock__play fab-play${primaryPulse ? ' game-control-dock__play--pulse' : ''}${effectivePrimaryDisabled ? ' game-control-dock__play--disabled' : ''}`}
+              src={playSrc}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+            <span className="game-control-dock__play-face" data-onboarding-target="play" />
+            <img
+              className={`game-control-dock__icon fab-icon social${chatFlash ? ' game-control-dock__icon--flash' : ''}${socialDisabled ? ' game-control-dock__icon--unavailable' : ''}`}
+              src={assetUrl('fab_icon_social_clean.svg')}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+            <img
+              className={`game-control-dock__icon fab-icon requests${incomingRequestsDisabled ? ' game-control-dock__icon--unavailable' : ''}`}
+              src={assetUrl('fab_icon_inbox_clean.svg')}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+            <img
+              className={`game-control-dock__icon fab-icon stats${publicMeterDisabled ? ' game-control-dock__icon--unavailable' : ''}`}
+              src={assetUrl('fab_icon_stats_clean.svg')}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+            <img
+              className={`game-control-dock__icon fab-icon confessional${confessionalDisabled ? ' game-control-dock__icon--disabled' : ''}${confessionalFlash ? ` game-control-dock__icon--confessional-flash game-control-dock__icon--confessional-flash-${confessionalFlashTick % 2}` : ''}${confessionalPersistentFlash ? ' game-control-dock__icon--confessional-persistent' : ''}${confessionalSpecialStream ? ' game-control-dock__icon--confessional-special' : ''}`}
+              src={assetUrl('fab_icon_confessional_clean.svg')}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              ref={confessionalIconRef}
+            />
+            <span className="fab-more-glyph" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
 
-        <button
-          className="dock-hit-area hit-home dock-hit-area--home"
-          type="button"
-          aria-label="Home"
-          disabled={dockDisabled}
-          onClick={dockDisabled ? undefined : onHomeClick}
-        />
-        <button
-          className={`dock-hit-area hit-social dock-hit-area--social${chatFlash ? ' dock-hit-area--flash dock-node--flash' : ''}${socialUnavailableClass}`}
-          ref={socialIconRef}
-          type="button"
-          aria-label={`Social${
-            chatBadgeCount != null && (chatBadgeCount > 0 || showChatBadgeZero)
-              ? ` (${chatBadgeCount})`
-              : ''
-          }`}
-          aria-disabled={socialDisabled || dockDisabled}
-          disabled={dockDisabled}
-          onClick={
-            dockDisabled
-              ? undefined
-              : () => {
-                  if (!socialDisabled) acknowledgeSocialLed()
-                  onChatClick?.()
-                }
-          }
-        >
-          {socialLedActive && !socialDisabled && (
-            <span className="dock-hit-area__notification-led" aria-hidden="true" />
-          )}
-          {chatBadgeCount != null &&
-            (chatBadgeCount > 0 || showChatBadgeZero) &&
-            !socialDisabled && (
-              <span className="dock-hit-area__badge" aria-hidden="true">
-                {chatBadgeCount > 99 ? '99+' : chatBadgeCount}
-              </span>
-            )}
-        </button>
-        <button
-          className={`dock-hit-area hit-requests dock-hit-area--requests${requestsUnavailableClass}`}
-          type="button"
-          aria-label={`Incoming requests${incomingRequestsBadgeCount ? ` (${incomingRequestsBadgeCount})` : ''}`}
-          aria-disabled={incomingRequestsDisabled || dockDisabled}
-          disabled={dockDisabled}
-          onClick={
-            dockDisabled
-              ? undefined
-              : () => {
-                  if (!incomingRequestsDisabled) acknowledgeRequestsLed()
-                  onIncomingRequestsClick?.()
-                }
-          }
-        >
-          {requestsLedActive && !incomingRequestsDisabled && (
-            <span className="dock-hit-area__notification-led" aria-hidden="true" />
-          )}
-          {incomingRequestsBadgeCount != null &&
-            incomingRequestsBadgeCount > 0 &&
-            !incomingRequestsDisabled && (
-              <span className="dock-hit-area__badge" aria-hidden="true">
-                {incomingRequestsBadgeCount > 99 ? '99+' : incomingRequestsBadgeCount}
-              </span>
-            )}
-        </button>
-        <button
-          className={`dock-hit-area hit-play dock-hit-area--play${primaryPulse ? ' dock-hit-area--pulse dock-node--pulse' : ''}`}
-          type="button"
-          aria-label={primaryLabel}
-          disabled={effectivePrimaryDisabled}
-          onClick={effectivePrimaryDisabled ? undefined : handlePrimaryAction}
-        />
-        <button
-          className={`dock-hit-area hit-stats dock-hit-area--stats${publicUnavailableClass}`}
-          type="button"
-          aria-label={`Public meter${publicMeterBadgeCount ? ` (${publicMeterBadgeCount})` : ''}`}
-          aria-disabled={publicMeterDisabled || dockDisabled}
-          disabled={dockDisabled}
-          onClick={
-            dockDisabled
-              ? undefined
-              : () => {
-                  if (!publicMeterDisabled) acknowledgePublicLed()
-                  onPublicMeterClick?.()
-                }
-          }
-        >
-          {publicLedActive && !publicMeterDisabled && (
-            <span className="dock-hit-area__notification-led" aria-hidden="true" />
-          )}
-          {publicMeterBadgeCount != null && publicMeterBadgeCount > 0 && !publicMeterDisabled && (
-            <span className="dock-hit-area__badge" aria-hidden="true">
-              {publicMeterBadgeCount > 99 ? '99+' : publicMeterBadgeCount}
-            </span>
-          )}
-        </button>
-        <button
-          className={`dock-hit-area hit-confessional dock-hit-area--confessional${confessionalFlash ? ` dock-hit-area--confessional-flash dock-hit-area--confessional-flash-${confessionalFlashTick % 2}` : ''}${confessionalPersistentFlash ? ' dock-hit-area--confessional-persistent' : ''}${confessionalSpecialStream ? ' dock-hit-area--confessional-special' : ''}`}
-          type="button"
-          aria-label={
-            confessionalSpecialStream
-              ? 'Confessional — special Tribunal stream available'
-              : `Confessional${confessionalBadgeCount ? ` (${confessionalBadgeCount})` : ''}`
-          }
-          disabled={dockDisabled || confessionalDisabled}
-          aria-disabled={confessionalDisabled || dockDisabled}
-          onClick={
-            dockDisabled || confessionalDisabled
-              ? undefined
-              : () => {
-                  if (!confessionalDisabled) acknowledgeConfessionalLed()
-                  onToolClick?.()
-                }
-          }
-        >
-          {confessionalLedActive && !confessionalDisabled && (
-            <span className="dock-hit-area__notification-led" aria-hidden="true" />
-          )}
-          {confessionalSpecialStream && (
-            <span className="dock-hit-area__special-badge" aria-hidden="true">
-              !
-            </span>
-          )}
-          {confessionalBadgeCount != null && confessionalBadgeCount > 0 && (
-            <span className="dock-hit-area__badge dock-hit-area__badge--mission" aria-hidden="true">
-              {confessionalBadgeCount > 99 ? '99+' : confessionalBadgeCount}
-            </span>
-          )}
-        </button>
-        <button
-          ref={moreButtonRef}
-          data-guest-save-step={guestSaveInviteActive ? 'more' : undefined}
-          className={`dock-hit-area hit-more dock-hit-area--more${moreOpen ? ' dock-hit-area--active' : ''}${guestSaveInviteActive ? ' dock-hit-area--guest-save-invite' : ''}`}
-          type="button"
-          aria-label="More"
-          aria-expanded={moreOpen && !dockDisabled}
-          disabled={dockDisabled}
-          onClick={dockDisabled ? undefined : () => setMoreOpen((open) => !open)}
-        />
-        {moreOpen && !dockDisabled && (
-          <div
-            ref={moreMenuRef}
-            className="game-control-dock__more-menu"
-            role="menu"
-            aria-label="More destinations"
-          >
-            {(
-              [
-                ['settings', navAssetUrl('settings_approved_final.svg'), 'Settings'],
-                ['profile', navAssetUrl('profile_approved_final.svg'), 'Profile'],
-                ['rules', navAssetUrl('rules_approved_final.svg'), 'Rules'],
-                ['leaderboard', navAssetUrl('hall_of_fame_approved_final.svg'), 'Hall of Fame'],
-                ['store', `${BASE}/assets/icons/shop.svg`, 'Store'],
-                [
-                  'feedback',
-                  `${BASE}/assets/side_utilities_button/feedback_v2.svg`,
-                  'Report a bug',
-                ],
-              ] as const
-            ).map(([destination, icon, label]) => (
-              <button
-                key={destination}
-                type="button"
-                role="menuitem"
-                aria-label={label}
-                title={
-                  destination === 'profile' && guestSaveInviteActive
-                    ? 'Create a profile to keep your season'
-                    : label
-                }
-                data-guest-save-step={
-                  destination === 'profile' && guestSaveInviteActive ? 'profile' : undefined
-                }
-                className={
-                  destination === 'profile' && guestSaveInviteActive
-                    ? 'game-control-dock__more-profile--guest-save-invite'
-                    : undefined
-                }
-                onClick={() => {
-                  setHouseMenuAudioEffect(true)
-                  setMoreOpen(false)
-                  onMoreClick?.(destination)
-                }}
+            <button
+              className="dock-hit-area hit-home dock-hit-area--home"
+              type="button"
+              aria-label="Home"
+              disabled={dockDisabled}
+              onClick={dockDisabled ? undefined : onHomeClick}
+            />
+            <button
+              className={`dock-hit-area hit-social dock-hit-area--social${chatFlash ? ' dock-hit-area--flash dock-node--flash' : ''}${socialUnavailableClass}`}
+              ref={socialIconRef}
+              type="button"
+              aria-label={`Social${
+                chatBadgeCount != null && (chatBadgeCount > 0 || showChatBadgeZero)
+                  ? ` (${chatBadgeCount})`
+                  : ''
+              }`}
+              aria-disabled={socialDisabled || dockDisabled}
+              disabled={dockDisabled}
+              onClick={
+                dockDisabled
+                  ? undefined
+                  : () => {
+                      if (!socialDisabled) acknowledgeSocialLed()
+                      onChatClick?.()
+                    }
+              }
+            >
+              {socialLedActive && !socialDisabled && (
+                <span className="dock-hit-area__notification-led" aria-hidden="true" />
+              )}
+              {chatBadgeCount != null &&
+                (chatBadgeCount > 0 || showChatBadgeZero) &&
+                !socialDisabled && (
+                  <span className="dock-hit-area__badge" aria-hidden="true">
+                    {chatBadgeCount > 99 ? '99+' : chatBadgeCount}
+                  </span>
+                )}
+            </button>
+            <button
+              className={`dock-hit-area hit-requests dock-hit-area--requests${requestsUnavailableClass}`}
+              type="button"
+              aria-label={`Incoming requests${incomingRequestsBadgeCount ? ` (${incomingRequestsBadgeCount})` : ''}`}
+              aria-disabled={incomingRequestsDisabled || dockDisabled}
+              disabled={dockDisabled}
+              onClick={
+                dockDisabled
+                  ? undefined
+                  : () => {
+                      if (!incomingRequestsDisabled) acknowledgeRequestsLed()
+                      onIncomingRequestsClick?.()
+                    }
+              }
+            >
+              {requestsLedActive && !incomingRequestsDisabled && (
+                <span className="dock-hit-area__notification-led" aria-hidden="true" />
+              )}
+              {incomingRequestsBadgeCount != null &&
+                incomingRequestsBadgeCount > 0 &&
+                !incomingRequestsDisabled && (
+                  <span className="dock-hit-area__badge" aria-hidden="true">
+                    {incomingRequestsBadgeCount > 99 ? '99+' : incomingRequestsBadgeCount}
+                  </span>
+                )}
+            </button>
+            <button
+              className={`dock-hit-area hit-play dock-hit-area--play${primaryPulse ? ' dock-hit-area--pulse dock-node--pulse' : ''}`}
+              type="button"
+              aria-label={primaryLabel}
+              disabled={effectivePrimaryDisabled}
+              onClick={effectivePrimaryDisabled ? undefined : handlePrimaryAction}
+            />
+            <button
+              className={`dock-hit-area hit-stats dock-hit-area--stats${publicUnavailableClass}`}
+              type="button"
+              aria-label={`Public meter${publicMeterBadgeCount ? ` (${publicMeterBadgeCount})` : ''}`}
+              aria-disabled={publicMeterDisabled || dockDisabled}
+              disabled={dockDisabled}
+              onClick={
+                dockDisabled
+                  ? undefined
+                  : () => {
+                      if (!publicMeterDisabled) acknowledgePublicLed()
+                      onPublicMeterClick?.()
+                    }
+              }
+            >
+              {publicLedActive && !publicMeterDisabled && (
+                <span className="dock-hit-area__notification-led" aria-hidden="true" />
+              )}
+              {publicMeterBadgeCount != null &&
+                publicMeterBadgeCount > 0 &&
+                !publicMeterDisabled && (
+                  <span className="dock-hit-area__badge" aria-hidden="true">
+                    {publicMeterBadgeCount > 99 ? '99+' : publicMeterBadgeCount}
+                  </span>
+                )}
+            </button>
+            <button
+              className={`dock-hit-area hit-confessional dock-hit-area--confessional${confessionalFlash ? ` dock-hit-area--confessional-flash dock-hit-area--confessional-flash-${confessionalFlashTick % 2}` : ''}${confessionalPersistentFlash ? ' dock-hit-area--confessional-persistent' : ''}${confessionalSpecialStream ? ' dock-hit-area--confessional-special' : ''}`}
+              type="button"
+              aria-label={
+                confessionalSpecialStream
+                  ? 'Confessional — special Tribunal stream available'
+                  : `Confessional${confessionalBadgeCount ? ` (${confessionalBadgeCount})` : ''}`
+              }
+              disabled={dockDisabled || confessionalDisabled}
+              aria-disabled={confessionalDisabled || dockDisabled}
+              onClick={
+                dockDisabled || confessionalDisabled
+                  ? undefined
+                  : () => {
+                      if (!confessionalDisabled) acknowledgeConfessionalLed()
+                      onToolClick?.()
+                    }
+              }
+            >
+              {confessionalLedActive && !confessionalDisabled && (
+                <span className="dock-hit-area__notification-led" aria-hidden="true" />
+              )}
+              {confessionalSpecialStream && (
+                <span className="dock-hit-area__special-badge" aria-hidden="true">
+                  !
+                </span>
+              )}
+              {confessionalBadgeCount != null && confessionalBadgeCount > 0 && (
+                <span
+                  className="dock-hit-area__badge dock-hit-area__badge--mission"
+                  aria-hidden="true"
+                >
+                  {confessionalBadgeCount > 99 ? '99+' : confessionalBadgeCount}
+                </span>
+              )}
+            </button>
+            <button
+              ref={moreButtonRef}
+              data-guest-save-step={guestSaveInviteActive ? 'more' : undefined}
+              className={`dock-hit-area hit-more dock-hit-area--more${moreOpen ? ' dock-hit-area--active' : ''}${guestSaveInviteActive ? ' dock-hit-area--guest-save-invite' : ''}`}
+              type="button"
+              aria-label="More"
+              aria-expanded={moreOpen && !dockDisabled}
+              disabled={dockDisabled}
+              onClick={dockDisabled ? undefined : () => setMoreOpen((open) => !open)}
+            />
+            {moreOpen && !dockDisabled && (
+              <div
+                ref={moreMenuRef}
+                className="game-control-dock__more-menu"
+                role="menu"
+                aria-label="More destinations"
               >
-                <img src={icon} alt="" aria-hidden="true" draggable={false} />
-              </button>
-            ))}
-          </div>
+                {(
+                  [
+                    ['settings', navAssetUrl('settings_approved_final.svg'), 'Settings'],
+                    ['profile', navAssetUrl('profile_approved_final.svg'), 'Profile'],
+                    ['rules', navAssetUrl('rules_approved_final.svg'), 'Rules'],
+                    ['leaderboard', navAssetUrl('hall_of_fame_approved_final.svg'), 'Hall of Fame'],
+                    ['store', `${BASE}/assets/icons/shop.svg`, 'Store'],
+                    [
+                      'feedback',
+                      `${BASE}/assets/side_utilities_button/feedback_v2.svg`,
+                      'Report a bug',
+                    ],
+                  ] as const
+                ).map(([destination, icon, label]) => (
+                  <button
+                    key={destination}
+                    type="button"
+                    role="menuitem"
+                    aria-label={label}
+                    title={
+                      destination === 'profile' && guestSaveInviteActive
+                        ? 'Create a profile to keep your season'
+                        : label
+                    }
+                    data-guest-save-step={
+                      destination === 'profile' && guestSaveInviteActive ? 'profile' : undefined
+                    }
+                    className={
+                      destination === 'profile' && guestSaveInviteActive
+                        ? 'game-control-dock__more-profile--guest-save-invite'
+                        : undefined
+                    }
+                    onClick={() => {
+                      setHouseMenuAudioEffect(true)
+                      setMoreOpen(false)
+                      onMoreClick?.(destination)
+                    }}
+                  >
+                    <img src={icon} alt="" aria-hidden="true" draggable={false} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </nav>

@@ -1,0 +1,53 @@
+.tribunal-highlights-chip {
+  margin-right: 2px;
+  border-radius: 10px;
+  isolation: isolate;
+  overflow: hidden;
+}
+.tribunal-highlights-chip .top-utility-btn__glyph {
+  opacity: 1;
+}
+.tribunal-highlights-chip--discover {
+  animation: tribunalShortcutGlimmer 1450ms ease-in-out 1;
+}
+.tribunal-highlights-chip--discover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 25%, #fff0c88c 50%, transparent 75%);
+  animation: tribunalShortcutSheen 1450ms ease-in-out 1;
+}
+@keyframes tribunalShortcutGlimmer {
+  0%,
+  100% {
+    box-shadow: 0 0 0 transparent;
+  }
+  40% {
+    box-shadow:
+      0 0 0 1px #e6c57f99,
+      0 0 13px #e6c57f66;
+  }
+}
+@keyframes tribunalShortcutSheen {
+  0%,
+  12% {
+    transform: translateX(-110%);
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.8;
+  }
+  85%,
+  100% {
+    transform: translateX(110%);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tribunal-highlights-chip--discover,
+  .tribunal-highlights-chip--discover::after {
+    animation: none;
+  }
+}

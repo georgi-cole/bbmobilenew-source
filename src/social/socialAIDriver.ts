@@ -1,3 +1,4 @@
+import { planAiCampaignMove } from './aiCampaignPlanning'
 import { withStrategicPlanningContext } from './strategicPlanningContext'
 import type { GameState, PlayerStatus } from '../types' /**
  * socialAIDriver — budget-aware social decision loop for AI housemates.
@@ -622,7 +623,40 @@ export function runCurrentPhaseSynchronously(): number {
   }
 }
 
-export const socialAIDriver = { setStore, start, stop, getStatus, runCurrentPhaseSynchronously }
+/** Safety negotiations have a live decision window between the two social rounds. */
+export function runStrategicCheckpoint(): number {
+  if (!_store) return 0
+  const state = _store.getState() as DriverState
+  if (
+    state.game.mode === 'survival' ||
+    state.game.weekendInterlude?.active ||
+    state.game.phase !== 'pos_results'
+  )
+    return 0
+  let count = 0
+  for (const actor of getAIPlayers(state)) {
+    const fresh = _store.getState() as DriverState
+    const candidate = candidateForPlayer(fresh, actor, 0)
+    if (
+      candidate &&
+      ['ask_use_safety', 'ask_hold_safety', 'suggest_replacement', 'ask_safety_plan'].includes(
+        candidate.actionId
+      ) &&
+      executeCandidate(fresh, actor, candidate)
+    )
+      count++
+  }
+  return count
+}
+
+export const socialAIDriver = {
+  setStore,
+  start,
+  stop,
+  getStatus,
+  runCurrentPhaseSynchronously,
+  runStrategicCheckpoint,
+}
 
 function getAIPlayers(state: DriverState): DriverPlayer[] {
   return (state.game?.players ?? []).filter(
@@ -866,11 +900,25 @@ function routeHumanFacingAction(
     current.social.incomingInteractions ?? [],
     scheduled
   )
-  const directContactsThisWeek = pending.filter(
+  const strategicActions = new Set([
+    'pitch_target',
+    'suggest_replacement',
+    'rally_votes_against',
+    'ask_use_safety',
+    'ask_hold_safety',
+    'ask_safety_plan',
+    'proposeAlliance',
+    'protect',
+  ])
+  const strategic = strategicActions.has(actionId)
+  const contacts = pending.filter(
     (entry) => entry.createdWeek === week && entry.payload?.source === 'background_social'
-  ).length
+  )
+  const matchingContacts = contacts.filter(
+    (entry) => strategicActions.has(String(entry.payload?.originActionId)) === strategic
+  )
   if (
-    directContactsThisWeek >= 2 ||
+    matchingContacts.length >= (strategic ? 3 : 2) ||
     pending.filter((entry) => entry.createdWeek === week).length >=
       socialConfig.incomingInteractionConfig.maxPerWeek
   ) {
@@ -899,6 +947,9 @@ function routeHumanFacingAction(
     payload: {
       originActionId: actionId,
       scenarioKey: content.scenarioKey,
+      ...(strategic
+        ? { dedupeGroup: `decision:${content.scenarioKey}:${week}:${subjectId ?? ''}` }
+        : {}),
       variantFamilyId: content.variantFamilyId,
       variantId: content.variantId,
       source: 'background_social',
@@ -911,10 +962,7 @@ function routeHumanFacingAction(
       ...(subjectId ? { subjectId } : {}),
     },
   })
-  const priority = getIncomingInteractionPriority(
-    type,
-    directDecision ? content.scenarioKey : undefined
-  )
+  const priority = getIncomingInteractionPriority(type, content.scenarioKey)
   if (
     getInteractionDedupeReason({
       interaction,
@@ -1247,23 +1295,28 @@ function candidateForPlayer(
       ? 'pitch_target'
       : null
   if (contactBoundary && nemesis && !strategicNemesisAction) return null
-  const allianceCampaign = getAllianceCampaignMove({
-    reality: state.social.reality,
-    voxPopuliActive,
-    actorId: player.id,
-    activeActorIds: state.game.players
-      .filter((candidate) => candidate.status !== 'evicted' && candidate.status !== 'jury')
-      .map((candidate) => candidate.id),
-    eligibleVoterIds: state.game.players
-      .filter(
-        (candidate) => candidate.status === 'active' || candidate.id === state.game.posWinnerId
-      )
-      .map((candidate) => candidate.id),
-    phase: state.game.phase,
-    lohId: state.game.lohId,
-    posWinnerId: state.game.posWinnerId,
-    atRiskActorIds: state.game.nomineeIds ?? [],
-  })
+  const individualCampaign = attempt === 0 ? planAiCampaignMove(state, player.id) : null
+  const allianceCampaign =
+    attempt === 0
+      ? getAllianceCampaignMove({
+          reality: state.social.reality,
+          voxPopuliActive,
+          actorId: player.id,
+          activeActorIds: state.game.players
+            .filter((candidate) => candidate.status !== 'evicted' && candidate.status !== 'jury')
+            .map((candidate) => candidate.id),
+          eligibleVoterIds: state.game.players
+            .filter(
+              (candidate) =>
+                candidate.status === 'active' || candidate.id === state.game.posWinnerId
+            )
+            .map((candidate) => candidate.id),
+          phase: state.game.phase,
+          lohId: state.game.lohId,
+          posWinnerId: state.game.posWinnerId,
+          atRiskActorIds: state.game.nomineeIds ?? [],
+        })
+      : null
   const relationshipCandidate =
     dramaMode && attempt === 0 ? relationshipCandidateForPlayer(state, player) : null
   const pregnancyTestCandidate = dramaMode
@@ -1298,6 +1351,7 @@ function candidateForPlayer(
 
   const policyActionId =
     strategicNemesisAction ??
+    individualCampaign?.actionId ??
     allianceCampaign?.actionId ??
     pregnancyTestCandidate?.actionId ??
     pregnancyCandidate?.actionId ??
@@ -1342,6 +1396,7 @@ function candidateForPlayer(
     !pregnancyTestCandidate &&
     !dramaMove &&
     !allianceCampaign &&
+    !individualCampaign &&
     allianceBias >= 20 &&
     policyActionId !== 'proposeAlliance' &&
     (_tickCount + attempt + player.id.length) % 5 === 0
@@ -1362,6 +1417,9 @@ function candidateForPlayer(
   } else if (strategicNemesisAction && human) {
     targetIds = [state.game.lohId!]
     subjectId = human.id
+  } else if (individualCampaign) {
+    targetIds = individualCampaign.targetIds
+    subjectId = individualCampaign.subjectId
   } else if (allianceCampaign) {
     targetIds = allianceCampaign.targetIds
     subjectId = allianceCampaign.subjectId
@@ -1414,6 +1472,7 @@ function candidateForPlayer(
       pregnancyTestCandidate?.reason ??
       pregnancyCandidate?.reason ??
       relationshipCandidate?.reason ??
+      individualCampaign?.reason ??
       allianceCampaign?.reason ??
       dramaMove?.reason ??
       `contextual policy attempt ${attempt + 1}`,

@@ -3,7 +3,48 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import SeasonTutorialTour from '../SeasonTutorialTour'
 
 describe('season tutorial targeting', () => {
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps a custom tour inside short viewports when its highlighted stage fills the screen', () => {
+    vi.stubGlobal('innerHeight', 568)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      return DOMRect.fromRect(
+        this.dataset.testid === 'tall-stage'
+          ? { x: 12, y: 25, width: 296, height: 500 }
+          : { x: 12, y: 12, width: 296, height: 188 }
+      )
+    })
+    render(
+      <>
+        <div data-testid="tall-stage" />
+        <SeasonTutorialTour
+          showPublicStep={false}
+          steps={[
+            {
+              id: 'custom-stage',
+              title: 'The stage',
+              body: 'Follow the show here.',
+              selector: '[data-testid="tall-stage"]',
+              padding: 3,
+              shape: 'panel',
+            },
+          ]}
+          completeLabel="Continue watching"
+          trapFocus
+          onComplete={vi.fn()}
+          onSkip={vi.fn()}
+        />
+      </>
+    )
+    expect(screen.getByRole('dialog', { name: 'The stage' })).toHaveStyle({ top: '12px' })
+    expect(screen.getByRole('button', { name: 'Continue watching' })).toBeInTheDocument()
+    expect(document.querySelector('.season-tutorial__spotlight')).toHaveStyle({ height: '506px' })
+  })
 
   it('centers the final spotlight on the Play face instead of its larger tap target', () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (

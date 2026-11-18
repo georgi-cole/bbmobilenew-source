@@ -49,6 +49,7 @@ export default function NavBar() {
   const battleBack = useAppSelector((s) => s.game.battleBack)
   const favoritePlayer = useAppSelector((s) => s.game.favoritePlayer)
   const musicScene = useAppSelector(selectMusicScene)
+  const tribunalHighlightsOpen = useAppSelector((s) => s.ui?.tribunalHighlightsOpen === true)
   const activeProfileId = useAppSelector((s) => s.profiles.activeProfileId)
   const isGuest = useAppSelector((s) => s.profiles.isGuest)
   const canPersistActiveRun = !isGuest && Boolean(activeProfileId)
@@ -74,7 +75,7 @@ export default function NavBar() {
     Boolean(battleBack?.competitionActive) ||
     Boolean(favoritePlayer?.votingStarted)
 
-  if (isGameOverRoute) return null
+  if (isGameOverRoute || tribunalHighlightsOpen) return null
   if (!isMainGameRoute) return null
   if (!isGameActive && !isGameOverRoute) return null
   if (isFullScreenFlowActive) return null

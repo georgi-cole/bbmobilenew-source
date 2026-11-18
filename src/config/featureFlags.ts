@@ -34,6 +34,10 @@ export const FEATURE_SPECTATOR_REACT: boolean =
 export const FEATURE_LOCALIZATION_SETTINGS: boolean =
   (import.meta.env.VITE_FEATURE_LOCALIZATION_SETTINGS ?? 'false') === 'true'
 
+/** Offer condensed Tribunal viewing. The flag can disable it in a release build. */
+export const FEATURE_TRIBUNAL_HIGHLIGHTS: boolean =
+  import.meta.env.VITE_FEATURE_TRIBUNAL_HIGHLIGHTS !== 'false'
+
 /**
  * Pre-rendered Twin Shock background, enabled by default. Device evidence is
  * recorded separately; unavailable Xcode testing does not disable playback.

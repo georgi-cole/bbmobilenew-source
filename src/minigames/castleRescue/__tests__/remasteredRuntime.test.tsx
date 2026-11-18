@@ -66,6 +66,37 @@ describe('Find Your Twin production editions', () => {
   })
 
   it.each([
+    { width: 480, height: 680, canvasHeight: 270, buttonSize: 72, controls: 'Game controls' },
+    { width: 320, height: 700, canvasHeight: 180, buttonSize: 60, controls: 'Game controls' },
+    { width: 720, height: 400, canvasHeight: 400, buttonSize: 57, controls: 'Action controls' },
+  ])('fits the original game and controls inside a $width × $height host', (layout) => {
+    vi.stubGlobal('innerWidth', 1024)
+    vi.stubGlobal('innerHeight', 768)
+    vi.stubGlobal('visualViewport', undefined)
+    const width = vi
+      .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+      .mockReturnValue(layout.width)
+    const height = vi
+      .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+      .mockReturnValue(layout.height)
+    try {
+      render(<CastleRescueGame autoStart={false} />)
+      expect(screen.getByLabelText('Find Your Twin platformer game')).toHaveStyle({
+        width: `${layout.width}px`,
+        height: `${layout.canvasHeight}px`,
+      })
+      expect(screen.getByLabelText(layout.controls)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Jump' }).parentElement).toHaveStyle({
+        width: `${layout.buttonSize}px`,
+      })
+    } finally {
+      width.mockRestore()
+      height.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each([
     ['part 1', RemasteredCastleRescueGame],
     ['lost again', RemasteredBennyLennyCastleRescueGame],
   ] as const)('mounts the explicit remastered renderer for %s', (_label, Component) => {

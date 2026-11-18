@@ -93,7 +93,7 @@
 
 @keyframes tvAnnouncementPop {
   from {
-    opacity: 0;
+    opacity: 0.88;
     transform: scale(0.97) translateY(8px);
   }
   to {

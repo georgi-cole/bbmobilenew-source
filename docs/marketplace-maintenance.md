@@ -44,10 +44,43 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-17: Reviewed the Find Your Twin and Lost Again layout fix. The original
+  games now fit their container in portrait and landscape. The VIP remasters use
+  their dedicated renderer, and their marketplace descriptions remain accurate.
+- 2026-11-18: Reviewed the Ambush reveal handoff. Standard and VIP both receive
+  the ordered Safety result and Ambush broadcast. VIP keeps the existing film,
+  skip and live fallback with the existing access rules. The current marketplace
+  copy accurately describes the offer.
+- 2026-11-18: Reviewed the Deck of Light AI memory changes. Preliminary
+  opponents play through every pair, and finale opponents recall observed pairs
+  more reliably while still making mistakes. Rules, rewards, pricing and access
+  remain as described in the marketplace catalog.
+
 - 2026-11-17: Reviewed the Safety Confessional handoff. Standard ceremonies let
   players resume in the Hub after sealing their save target. The review confirmed
   that VIP ceremony playback, its existing access rules, and marketplace
   benefits continue as advertised.
+- 2026-11-17: Reviewed recoverable social-participation balance. Real incoming
+  replies, alliance decisions, actions and kept commitments count without
+  requiring resource spending. Sustained quiet play has bounded social-backing
+  and public-visibility consequences, with the same rules for humans and AIs;
+  trusted floaters, competition achievements and explicit consent remain valid.
+  Public visibility changes Charisma only. This tunes existing modes without
+  adding a product, entitlement, human-action unlock, price, reward or Store
+  benefit. Current marketplace descriptions remain accurate.
+
+- 2026-11-17: Reviewed AI alliance formation, recruitment and officer consent,
+  individual campaigning, meaningful incoming-request delivery and voluntary
+  façade nominations. NPC proposals use the existing player resource prices;
+  human replies keep their explicit choices and existing mode/access rules.
+  This is social-simulation balancing within the current modes. No product,
+  price, entitlement, human-action unlock, reward, advertising rule or Store
+  benefit changes. Existing VIP/Reality and marketplace offer copy remains
+  accurate. The separate inactivity proposal is documented but not implemented.
+- 2026-11-17: Reviewed the Tribunal viewing options, recap and automatic
+  sequester guide. The changes add navigation and replay controls for eligible
+  jurors. Existing products, entitlements, prices, rewards and Store benefits
+  stay the same.
 
 - 2026-11-16: Reviewed VIP ceremony Skip and AI continuation recovery. Media-start
   claims and broadcast acknowledgements no longer interrupt a committed Safety

@@ -24,7 +24,6 @@ import {
   advance,
   chooseTribunalInvitation,
   completeTribunalArrival,
-  applyMinigameWinner,
   finalizeFinal4Eviction,
   finalizeFinal3Eviction,
   selectAlivePlayers,
@@ -43,12 +42,7 @@ import {
   submitVoxFinalThreeAppeal,
   startVoxFinalVote,
 } from '../../store/gameSlice'
-import {
-  completeChallenge,
-  setPendingMusicVariant,
-  setPendingPhase,
-  type PendingChallenge,
-} from '../../store/challengeSlice'
+import { setPendingMusicVariant, setPendingPhase } from '../../store/challengeSlice'
 import { selectLastSocialReport } from '../../social/socialSlice'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice'
@@ -70,7 +64,7 @@ import TvMultiSelectModal from '../../components/TvDecisionModal/TvMultiSelectMo
 import TvBinaryDecisionModal from '../../components/TvBinaryDecisionModal/TvBinaryDecisionModal'
 import QuickTapRace from '../../components/QuickTapRace/QuickTapRace'
 import PressurePlank from '../../components/PressurePlank/PressurePlank'
-import { rankPressurePlankResults } from '../../components/PressurePlank/pressurePlankLogic'
+import { resolveAiOnlyChallenge } from '../../store/resolveAiOnlyChallenge'
 import BullseyeBlitz from '../../components/BullseyeBlitz/BullseyeBlitz'
 import TravelingDots from '../../components/TravelingDots/TravelingDots'
 import MinigameHost from '../../components/MinigameHost/MinigameHost'
@@ -80,7 +74,6 @@ import {
   PRESENTATION_PRIORITY,
   usePresentationOwner,
 } from '../../services/presentation/presentationOwnership'
-import { computeScores } from '../../minigames/scoring'
 import FloatingActionBar from '../../components/FloatingActionBar/FloatingActionBar'
 import { shouldRenderGameControlDock } from './gameScreenUiGuards'
 import WeekendPartyAtmosphere from '../../components/WeekendPartyAtmosphere/WeekendPartyAtmosphere'
@@ -101,6 +94,12 @@ import SocialPanelV2 from '../../components/SocialPanelV2/SocialPanelV2'
 import IncomingInteractionsInbox from '../../components/IncomingInteractionsInbox/IncomingInteractionsInbox'
 import SurvivorAchievementCelebration from '../../components/SurvivorAchievementCelebration'
 import { FEATURE_SOCIAL_V2, FEATURE_SPECTATOR_REACT } from '../../config/featureFlags'
+import {
+  isTribunalHighlightsEligible,
+  tribunalRequiresLiveShow,
+  tribunalHighlightsEnabled,
+} from '../../features/tribunal/tribunalHighlights'
+import TribunalHighlights from '../../components/TribunalHighlights/TribunalHighlights'
 import SocialSummaryPopup from '../../components/SocialSummary/SocialSummaryPopup'
 import SpectatorView from '../../components/ui/SpectatorView'
 import Capitalization from '../../components/Capitalization/Capitalization'
@@ -225,14 +224,6 @@ export function buildTieBreakPitch(relationship: number, playerId: string, week:
     : 'This decision is yours. I am asking you not to make me the easy answer.'
 }
 
-function buildAiOnlyChallengeRawResults(challenge: PendingChallenge) {
-  return challenge.participants.map((id) => ({
-    playerId: id,
-    rawValue: challenge.aiScores[id] ?? 0,
-    ...(challenge.aiTiebreakers?.[id] != null ? { tiebreaker: challenge.aiTiebreakers[id] } : {}),
-  }))
-}
-
 /**
  * GameScreen — main gameplay view.
  *
@@ -252,6 +243,17 @@ function buildAiOnlyChallengeRawResults(challenge: PendingChallenge) {
  * or add action buttons by dispatching events via useAppDispatch().
  */
 export default function GameScreen() {
+  const game = useAppSelector((state) => state.game)
+  const pilotEnabled = tribunalHighlightsEnabled()
+  const eligible = pilotEnabled && isTribunalHighlightsEligible(game)
+  const liveShowRequired = tribunalRequiresLiveShow(game)
+  if (eligible && game.tribunalViewingMode !== 'full' && !liveShowRequired) {
+    return <TribunalHighlights key={game.gameId} />
+  }
+  return <FullGameScreen />
+}
+
+function FullGameScreen() {
   const vipPresentationActive = useVipPresentation()
   const location = useLocation()
   const [searchParams] = useSearchParams()
@@ -1107,43 +1109,7 @@ export default function GameScreen() {
     }
 
     aiOnlyChallengeResolvedRef.current = pendingChallenge.id
-    const rawResults = buildAiOnlyChallengeRawResults(pendingChallenge)
-    const scoreWinnerId = dispatch(
-      completeChallenge(rawResults, { authoritativeWinnerId: pendingChallenge.forcedWinnerId })
-    ) as string | null
-    const finalWinnerId =
-      pendingChallenge.forcedWinnerId ?? scoreWinnerId ?? pendingChallenge.participants[0]
-    const ranked =
-      pendingChallenge.game.key === 'pressurePlank'
-        ? rankPressurePlankResults(
-            pendingChallenge.participants,
-            pendingChallenge.aiScores,
-            pendingChallenge.seed
-          )
-        : computeScores(
-            pendingChallenge.game.scoringAdapter,
-            rawResults,
-            pendingChallenge.game.scoringParams ?? {}
-          )
-    const lastNonWinner = [...ranked].reverse().find((result) => result.playerId !== finalWinnerId)
-
-    dispatch(
-      applyMinigameWinner({
-        winnerId: finalWinnerId,
-        lastPlaceId: lastNonWinner?.playerId ?? null,
-        skipSeasonUpdate: true,
-        participants: pendingChallenge.participants,
-        scores: Object.fromEntries(
-          ranked.map((result) => [
-            result.playerId,
-            'score' in result ? result.score : result.survivalSeconds,
-          ])
-        ),
-        placements: ranked.map((result) => result.playerId),
-        runId: pendingChallenge.id,
-        gameKey: pendingChallenge.game.key,
-      })
-    )
+    dispatch(resolveAiOnlyChallenge(pendingChallenge.id))
   }, [dispatch, game.mode, game.phase, humanIsChallengeParticipant, pendingChallenge])
   /** True whenever a native React LOH/POS minigame overlay should be displayed. */
   const showLohMinigame = !showMinigameHost && humanIsParticipant
@@ -1757,6 +1723,7 @@ export default function GameScreen() {
               voxFinalThreeCeremony.active
             }
             competitionStarting={competitionStarting}
+            ambushPresentationBlocked={showReplacementCeremony || safetySavePresentationActive}
             viewportMessageOverride={
               showBattleBackOverlay
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'

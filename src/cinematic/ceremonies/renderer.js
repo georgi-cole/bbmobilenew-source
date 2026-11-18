@@ -18,6 +18,7 @@ import sheet4 from './approved/cinema-refinement.css?raw'
 import sheet5 from './approved/cinema-finesse.css?raw'
 import decisionExitStyles from './approved/decision-exit.css?raw'
 import fittingStyles from './fitting.css?raw'
+import recapExcerptStyles from './recap-excerpt.css?raw'
 import { decorateShock, animateShockTheme } from './shock-themes.js'
 import { CEREMONIES, SHOCK_VARIANTS } from './approved/ceremony-player.js'
 import { makeScene, animateScene } from './approved/ceremony-storyboards.js'
@@ -837,10 +838,11 @@ export function createClip() {
       const leadIn = details.authorityIntro ? 2200 : 0
       host = document.createElement('div')
       host.className = 'game-sample-film'
+      if (options.excerpt?.layout) host.dataset.recapLayout = options.excerpt.layout
       parent.append(host)
       const shadow = host.attachShadow({ mode: 'open' }),
         style = document.createElement('style')
-      style.textContent = css
+      style.textContent = css + (options.excerpt ? '\n' + recapExcerptStyles : '')
       const stage = document.createElement('div')
       stage.className = 'stage is-playing'
       root = royalPower
@@ -938,6 +940,23 @@ export function createClip() {
       if (id === 'nominations') removeNominationOrdinalLabels(root)
       if (sceneId === 'nominations' && !coOutcome)
         stagePublicNomination(root, cast, details.publicNomination)
+      if (options.excerpt && id === 'nominations' && root.classList.contains('nom-solo')) {
+        const label = document.createElement('div')
+        label.className = 'nom-label'
+        label.textContent = cast.a.name
+        root.querySelector('.nom-pod').append(label)
+      }
+      if (options.excerpt && id === 'safety') {
+        // Keep the original shield/hand coordinates together while the room
+        // fills the recap's landscape frame.
+        const actor = document.createElement('div')
+        actor.className = 'recap-safety-actor'
+        for (const node of root.querySelectorAll(
+          '.safety-ordinary, .safety-knight, .safety-flying-shield, .fitted-knight-shield'
+        ))
+          actor.append(node)
+        root.append(actor)
+      }
       stage.append(root)
       shadow.append(style, stage)
       const duration =
@@ -1090,6 +1109,25 @@ export function createClip() {
           [4200, 1],
         ])
       durationMs = duration
+      // A read-only recap uses the original animation tracks, without ceremony
+      // audio, native handoffs or outcome callbacks. The caller owns progression.
+      if (options.excerpt) {
+        const from = Math.max(0, Math.min(options.excerpt.fromMs, duration - 1))
+        const to = Math.max(from + 1, Math.min(options.excerpt.toMs, duration))
+        const excerptDuration = Math.max(1, options.excerpt.durationMs)
+        for (const animation of animations) {
+          animation.currentTime = from
+          animation.playbackRate = (to - from) / excerptDuration
+        }
+        later(() => {
+          for (const animation of animations) {
+            animation.pause()
+            animation.currentTime = to
+          }
+          onComplete()
+        }, excerptDuration)
+        return
+      }
       if (decisionTiming?.closingBrand) {
         later(() => options.onClosingBrand?.(), decisionTiming.zoomAt + leadIn + 140)
       }

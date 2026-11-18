@@ -937,7 +937,25 @@ export interface PulseChronicle {
   complete: boolean
 }
 
+export interface TribunalHighlight {
+  id: string
+  week: number
+  lohId: string | null
+  posWinnerId: string | null
+  nomineeIds: string[]
+  savedId: string | null
+  evicteeIds: string[]
+  voteCounts: Record<string, number> | null
+  kind: 'eviction' | 'final_four' | 'final_three' | 'shock'
+}
+
 export interface GameState {
+  /** Optional experimental juror presentation; does not change season rules. */
+  tribunalViewingMode?: 'highlights' | 'full'
+  /** Onboarding belongs to this season, independently of earlier profile tours. */
+  tribunalSequesterGuideSeen?: boolean
+  tribunalHighlightsShortcutSeen?: boolean
+  tribunalHighlights?: TribunalHighlight[]
   /** Contestant selected at launch. Profile edits never rewrite this run identity. */
   seasonContestant?: SeasonContestant
   /** Stable unique identifier for this game instance. */

@@ -29,7 +29,12 @@ export interface ClipController {
     onHandoff: () => void,
     onComplete: () => void,
     shockType?: string,
-    options?: { matchHandoff?: boolean; origin?: DOMRect | null; retainLastFrame?: boolean }
+    options?: {
+      matchHandoff?: boolean
+      origin?: DOMRect | null
+      retainLastFrame?: boolean
+      excerpt?: { fromMs: number; toMs: number; durationMs: number; layout?: 'paired' }
+    }
   ): void
   nativeReady(rosterOnly?: boolean): void
   readonly root: HTMLElement | null

@@ -3,13 +3,26 @@ import { configureStore } from '@reduxjs/toolkit'
 import { Provider } from 'react-redux'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it } from 'vitest'
-import gameReducer, { addTvEvent, consumeBroadcastEvent, setPhase } from '../../../store/gameSlice'
+import gameReducer, {
+  activateDepressionShock,
+  addTvEvent,
+  consumeBroadcastEvent,
+  hydrateGame,
+  setPhase,
+  syncPhaseBroadcasts,
+} from '../../../store/gameSlice'
 import socialReducer from '../../../social/socialSlice'
 import profilesReducer from '../../../store/profilesSlice'
 import challengeReducer from '../../../store/challengeSlice'
 import finaleReducer from '../../../store/finaleSlice'
 import settingsReducer from '../../../store/settingsSlice'
-import { setDepressionShockVisualPhase } from '../../../features/twists/depressionShock'
+import {
+  clearDepressionShockRuntimeForTests,
+  setDepressionShockStageForDebug,
+  setDepressionShockVisualPhase,
+} from '../../../features/twists/depressionShock'
+import { depressionShockMiddleware } from '../../../features/twists/depressionShockMiddleware'
+import DepressionShockController from '../../DepressionShockController/DepressionShockController'
 import TvZone from '../TvZone'
 import { I18nContext, type I18nContextValue } from '../../../i18n/I18nContext'
 import { translate } from '../../../i18n/messages'
@@ -36,6 +49,7 @@ function makeStore() {
       finale: finaleReducer,
       settings: settingsReducer,
     },
+    middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(depressionShockMiddleware),
   })
 
   for (const id of store.getState().game.broadcastQueue ?? []) {
@@ -45,11 +59,12 @@ function makeStore() {
   return store
 }
 
-function renderTvZone(store: ReturnType<typeof makeStore>) {
+function renderTvZone(store: ReturnType<typeof makeStore>, withController = false) {
   return render(
     <I18nContext.Provider value={TEST_I18N}>
       <Provider store={store}>
         <MemoryRouter>
+          {withController && <DepressionShockController />}
           <TvZone />
         </MemoryRouter>
       </Provider>
@@ -62,6 +77,57 @@ afterEach(() => {
 })
 
 describe('TvZone Depression Shock recovery handoff', () => {
+  it('plays the legacy-started opening once after the morning lineup syncs', () => {
+    const store = makeStore()
+    store.dispatch(hydrateGame({ ...store.getState().game, week: 6 }))
+    const { gameId } = store.getState().game
+    try {
+      store.dispatch(activateDepressionShock({ source: 'random' }))
+      const view = renderTvZone(store, true)
+      act(() => store.dispatch(syncPhaseBroadcasts({ phase: 'week_start', cardMajor: null })))
+
+      const openings = store
+        .getState()
+        .game.tvFeed.filter((event) => event.meta?.major === 'depression_shock_start')
+      expect(openings).toHaveLength(1)
+      expect(openings[0].meta?.broadcastConsumed).not.toBe(true)
+      expect(screen.getByTestId('shock-intro-overlay')).toBeInTheDocument()
+      expect(document.querySelector('.tv-zone__twist-badge')).toHaveTextContent('SHOCK')
+
+      view.unmount()
+      renderTvZone(store, true)
+      expect(screen.queryByTestId('shock-intro-overlay')).not.toBeInTheDocument()
+      expect(
+        screen.getAllByRole('dialog', { name: /Announcement: Depression Shock/i })
+      ).toHaveLength(1)
+      act(() => window.dispatchEvent(new CustomEvent('tv:announcement-dismiss')))
+      expect(screen.queryByRole('dialog', { name: /Announcement: Depression Shock/i })).toBeNull()
+      expect(store.getState().game.broadcastQueue).not.toContain(openings[0].id)
+    } finally {
+      clearDepressionShockRuntimeForTests(gameId)
+    }
+  })
+
+  it('publishes the day-two card and keeps the badge when the generic flag has reset', () => {
+    const store = makeStore()
+    store.dispatch(hydrateGame({ ...store.getState().game, week: 7, twistActive: false }))
+    const { gameId, week } = store.getState().game
+    try {
+      setDepressionShockStageForDebug(gameId, week, 'day2')
+      renderTvZone(store, true)
+      act(() => store.dispatch(syncPhaseBroadcasts({ phase: 'week_start', cardMajor: null })))
+      expect(store.getState().game.twistActive).toBe(false)
+      expect(document.querySelector('.tv-zone__twist-badge')).toHaveTextContent('SHOCK')
+      const dayTwo = store
+        .getState()
+        .game.tvFeed.filter((event) => event.meta?.major === 'depression_shock_day_2')
+      expect(dayTwo).toHaveLength(1)
+      expect(dayTwo[0].meta?.broadcastConsumed).not.toBe(true)
+    } finally {
+      clearDepressionShockRuntimeForTests(gameId)
+    }
+  })
+
   it('replaces the acknowledged Day Start weather card with the recovery broadcast', () => {
     const store = makeStore()
     const week = store.getState().game.week

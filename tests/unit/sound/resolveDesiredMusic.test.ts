@@ -36,6 +36,28 @@ function makeState(overrides: Partial<RootState> = {}): RootState {
 }
 
 describe('resolveDesiredMusic', () => {
+  it('keeps the Confessional room loop through highlights and releases it for live viewing or navigation', () => {
+    const state = makeState()
+    const roomCue = resolveDesiredMusicCue(state, '#/diary-room')
+    state.ui.tribunalHighlightsOpen = true
+    for (const phase of [
+      'week_start',
+      'eviction_results',
+      'final3',
+      'jury_announcement',
+    ] as const) {
+      state.game.phase = phase
+      state.game.voteResults = { nova: 3 }
+      expect(resolveDesiredMusicCue(state, '#/game?phonePreview=true')).toEqual(roomCue)
+    }
+    expect(roomCue.track).toBe('move_into_me_confessional')
+    expect(roomCue.playbackCue).toMatchObject({ loopStartSec: 168, loopEndSec: 215 })
+    expect(resolveDesiredMusic(state, '#/')).toBe('introhub')
+    state.ui.tribunalHighlightsOpen = false
+    state.game.phase = 'week_start'
+    expect(resolveDesiredMusic(state, '#/game')).not.toBe('move_into_me_confessional')
+  })
+
   it('starts Player Reveal Hits when gameplay opens the season and releases it for Day 1', () => {
     const state = makeState({ game: { phase: 'season_start' } })
     const opening = resolveDesiredMusicCue(state, '#/game')
@@ -75,7 +97,7 @@ describe('resolveDesiredMusic', () => {
     }
     state.social.panelOpen = false
     state.game.phase = 'jury'
-    expect(resolveDesiredMusic(state, '#/game')).toBe('none')
+    expect(resolveDesiredMusic(state, '#/game')).toBe('move_into_me_confessional')
   })
 
   it('keeps Final 3 music through battles, detours, and the bronze exit, then releases it for voting', () => {
@@ -267,9 +289,9 @@ describe('resolveDesiredMusic', () => {
 
   // ── Finale phase scenes ──────────────────────────────────────────────────────
 
-  it('tribunal_part1 scene maps to the jury_voting music track', () => {
+  it('tribunal_part1 scene uses the Confessional room loop', () => {
     const state = makeState({ ui: { musicScene: 'tribunal_part1' } })
-    expect(resolveDesiredMusic(state, '#/game')).toBe('jury_voting')
+    expect(resolveDesiredMusic(state, '#/game')).toBe('move_into_me_confessional')
   })
 
   it('tribunal_part1 scene overrides game phase and social music', () => {
@@ -278,12 +300,33 @@ describe('resolveDesiredMusic', () => {
       game: { phase: 'nominations' },
       social: { panelOpen: true, incomingInboxOpen: false },
     })
-    expect(resolveDesiredMusic(state, '#/game')).toBe('jury_voting')
+    expect(resolveDesiredMusic(state, '#/game')).toBe('move_into_me_confessional')
   })
 
-  it('jury_voting scene maps to the jury_voting music track', () => {
+  it('jury_voting scene continues the Confessional room loop', () => {
     const state = makeState({ ui: { musicScene: 'jury_voting' } })
-    expect(resolveDesiredMusic(state, '#/game')).toBe('jury_voting')
+    expect(resolveDesiredMusic(state, '#/game')).toBe('move_into_me_confessional')
+  })
+
+  it('keeps the same playback identity through Tribunal entry, direct arrival, and voting', () => {
+    const state = makeState()
+    state.ui.tribunalHighlightsOpen = true
+    const lounge = resolveDesiredMusicCue(state, '#/game')
+    state.ui.tribunalHighlightsOpen = false
+    for (const phase of ['jury_announcement', 'jury_cinematic', 'jury'] as const) {
+      state.game.phase = phase
+      for (const scene of ['none', 'tribunal_part1', 'season_recap', 'jury_voting'] as const) {
+        state.ui.musicScene = scene
+        expect(resolveDesiredMusicCue(state, '#/game')).toEqual(lounge)
+      }
+    }
+    state.ui.musicScene = 'public_voting'
+    expect(resolveDesiredMusic(state, '#/game')).toBe('public_voting')
+    state.ui.musicScene = 'none'
+    state.game.seasonFinale = { phase: 'seasonComplete' } as NonNullable<
+      RootState['game']['seasonFinale']
+    >
+    expect(resolveDesiredMusic(state, '#/game')).toBe('final_modal')
   })
 
   it('public_voting scene maps to the public_voting music track', () => {

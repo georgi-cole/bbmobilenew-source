@@ -1,6 +1,7 @@
 import type { GameState, Player } from '../../types'
 export const exitTracker: { update(game: GameState): void }
 export function hasLeadershipRole(game: GameState, id: string | null | undefined): boolean
+export function registerAmbush(handler: (effect: () => void) => boolean): () => void
 export function requestAmbush(effect: () => void): boolean
 
 interface IntroState {
