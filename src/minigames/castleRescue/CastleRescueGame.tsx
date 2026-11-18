@@ -24,7 +24,7 @@
  *  Twin found:        +1000
  */
 
-import React, { useRef, useEffect, useState, useCallback } from 'react'
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react'
 import type { CSSProperties } from 'react'
 import { generateLevelConfig } from './castleRescueGenerator'
 import type { WrongPipeType } from './castleRescueGenerator'
@@ -2019,22 +2019,21 @@ const MAX_SCALE = 2
  * Must be ≥ touch button max height (90) + 2 × vertical padding (8px each side) + gap = 116 px.
  */
 const CTRL_H_PORTRAIT = 116
+const CTRL_GAP_PORTRAIT = 16
+const CTRL_PADDING_PORTRAIT = 16
+const CTRL_SPACE_PORTRAIT = 3 * CTRL_GAP_PORTRAIT + 2 * CTRL_PADDING_PORTRAIT
 interface LayoutState {
+  width: number
+  height: number
   scale: number
   landscape: boolean
 }
 
-function computeLayout(vw: number, vh: number): LayoutState {
-  const landscape = vw > vh
-  let scale: number
-  if (landscape) {
-    // Landscape controls overlay the stage, so they do not consume a side column.
-    scale = Math.min(vw / CW, vh / CH)
-  } else {
-    scale = Math.min(vw / CW, (vh - CTRL_H_PORTRAIT) / CH)
-  }
-  scale = Math.min(Math.max(scale, 0.2), MAX_SCALE)
-  return { scale, landscape }
+function computeLayout(width: number, height: number): LayoutState {
+  const landscape = width > height
+  const canvasHeight = landscape ? height : height - CTRL_H_PORTRAIT
+  const scale = Math.max(0, Math.min(width / CW, canvasHeight / CH, MAX_SCALE))
+  return { width, height, scale, landscape }
 }
 
 // ═══ Component ════════════════════════════════════════════════════════════════
@@ -2063,6 +2062,7 @@ export default function CastleRescueGame({
   remastered = false,
   experimental,
 }: CastleRescueGameProps) {
+  const stageRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const stateRef = useRef<GameState | null>(null)
   const keysRef = useRef(new Set<string>())
@@ -2094,28 +2094,38 @@ export default function CastleRescueGame({
   const [layout, setLayout] = useState<LayoutState>(() =>
     typeof window !== 'undefined'
       ? computeLayout(window.innerWidth, window.innerHeight)
-      : { scale: 1, landscape: false }
+      : computeLayout(CW, CW)
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const stage = stageRef.current
     let rafId = 0
     let stableFrames = 0
-    let lastViewport = ''
-    const readViewport = () => {
+    let lastSize = ''
+    const readSize = () => {
       const viewport = window.visualViewport
+      const viewportWidth = viewport?.width ?? window.innerWidth
+      const viewportHeight = viewport?.height ?? window.innerHeight
       return {
-        width: Math.round(viewport?.width ?? window.innerWidth),
-        height: Math.round(viewport?.height ?? window.innerHeight),
+        width: Math.floor(Math.min(stage?.clientWidth || viewportWidth, viewportWidth)),
+        height: Math.floor(Math.min(stage?.clientHeight || viewportHeight, viewportHeight)),
       }
     }
+    const applySize = ({ width, height }: ReturnType<typeof readSize>) => {
+      setLayout((previous) =>
+        width === previous.width && height === previous.height
+          ? previous
+          : computeLayout(width, height)
+      )
+    }
     const update = () => {
-      const { width, height } = readViewport()
-      const viewport = `${width}x${height}`
-      stableFrames = viewport === lastViewport ? stableFrames + 1 : 0
-      lastViewport = viewport
+      const size = readSize()
+      const key = `${size.width}x${size.height}`
+      stableFrames = key === lastSize ? stableFrames + 1 : 0
+      lastSize = key
       // iOS reports transitional viewport sizes while rotating. Commit after
       // two stable animation frames so the stage does not chase every value.
-      if (stableFrames >= 2) setLayout(computeLayout(width, height))
+      if (stableFrames >= 2) applySize(size)
       else rafId = requestAnimationFrame(update)
     }
     const onResize = () => {
@@ -2128,11 +2138,14 @@ export default function CastleRescueGame({
       onResize()
       window.scrollTo(0, 0)
     }
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null
+    if (stage) observer?.observe(stage)
+    applySize(readSize())
     window.addEventListener('resize', onResize)
     window.visualViewport?.addEventListener('resize', onResize)
     window.addEventListener('orientationchange', onOrientationChange)
-    onResize()
     return () => {
+      observer?.disconnect()
       window.removeEventListener('resize', onResize)
       window.visualViewport?.removeEventListener('resize', onResize)
       window.removeEventListener('orientationchange', onOrientationChange)
@@ -2387,19 +2400,20 @@ export default function CastleRescueGame({
     if (![...activeTouchPointersRef.current.values()].includes(code)) keysRef.current.delete(code)
   }, [])
 
-  const { scale, landscape } = layout
+  const { width, height, scale, landscape } = layout
 
   // Landscape controls are compact overlays; portrait keeps full touch targets.
+  const portraitButtonLimit = Math.max(1, Math.floor((width - CTRL_SPACE_PORTRAIT) / 4))
   const btnSize = landscape
     ? Math.min(64, Math.max(48, Math.round(64 * (scale || 1))))
-    : Math.min(90, Math.max(72, Math.round(72 * (scale || 1))))
+    : Math.min(portraitButtonLimit, 90, Math.max(72, Math.round(72 * (scale || 1))))
 
   // ── Controls: portrait = row below canvas, landscape = LEFT group on left
-  //   edge and RIGHT group on right edge (fixed to viewport corners)
+  //   edge and RIGHT group on right edge (anchored to the game container)
   const ctrlGroupStyle: CSSProperties = {
     display: 'flex',
     flexDirection: 'row',
-    gap: landscape ? Math.min(10, Math.max(5, Math.round(10 * scale))) : 16,
+    gap: landscape ? Math.min(10, Math.max(5, Math.round(10 * scale))) : CTRL_GAP_PORTRAIT,
     alignItems: 'center',
     userSelect: 'none',
     flexShrink: 0,
@@ -2410,11 +2424,12 @@ export default function CastleRescueGame({
   const portraitCtrlsStyle: CSSProperties = {
     display: 'flex',
     flexDirection: 'row',
-    gap: 16,
+    gap: CTRL_GAP_PORTRAIT,
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '8px 16px',
+    padding: `8px ${CTRL_PADDING_PORTRAIT}px`,
     width: '100%',
+    boxSizing: 'border-box',
     userSelect: 'none',
     flexShrink: 0,
   }
@@ -2425,15 +2440,12 @@ export default function CastleRescueGame({
   )
 
   // Displayed canvas dimensions (CSS pixels)
-  const canvasCssW = landscape
-    ? Math.round(window.visualViewport?.width ?? window.innerWidth)
-    : Math.round(CW * scale)
-  const canvasCssH = landscape
-    ? Math.round(window.visualViewport?.height ?? window.innerHeight)
-    : Math.round(CH * scale)
+  const canvasCssW = landscape ? width : Math.round(CW * scale)
+  const canvasCssH = landscape ? height : Math.round(CH * scale)
 
   return (
     <div
+      ref={stageRef}
       onContextMenu={(event) => event.preventDefault()}
       onDragStart={(event) => event.preventDefault()}
       style={
@@ -2461,7 +2473,7 @@ export default function CastleRescueGame({
       {landscape && phase !== 'complete' && (
         <div
           style={{
-            position: 'fixed',
+            position: 'absolute',
             bottom: 'max(10px, env(safe-area-inset-bottom))',
             left: 'max(10px, env(safe-area-inset-left))',
             ...ctrlGroupStyle,
@@ -2491,11 +2503,11 @@ export default function CastleRescueGame({
           )}
         </div>
       )}
-      {/* Landscape: JUMP/DOWN buttons anchored to bottom-right of viewport */}
+      {/* Landscape: JUMP/DOWN buttons anchored to the bottom-right of the stage */}
       {landscape && phase !== 'complete' && (
         <div
           style={{
-            position: 'fixed',
+            position: 'absolute',
             bottom: 'max(10px, env(safe-area-inset-bottom))',
             right: 'max(10px, env(safe-area-inset-right))',
             ...ctrlGroupStyle,
@@ -2535,6 +2547,7 @@ export default function CastleRescueGame({
           alignItems: 'center',
           justifyContent: 'center',
           gap: landscape ? 0 : 4,
+          width: landscape ? width : Math.max(canvasCssW, 4 * btnSize + CTRL_SPACE_PORTRAIT),
         }}
       >
         {/* Canvas wrapper — takes the scaled visual size so flex layout is correct */}
@@ -2725,11 +2738,15 @@ function TouchBtn({
 }
 
 const outerStyle: CSSProperties = {
+  position: 'relative',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  width: '100vw',
+  width: '100%',
   height: '100dvh',
+  maxHeight: '100%',
+  minWidth: 0,
+  minHeight: 0,
   overflow: 'hidden',
   background: 'radial-gradient(circle at 50% 0%, #231747 0%, #0b0816 62%)',
 }

@@ -44,6 +44,10 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-17: Reviewed the Find Your Twin and Lost Again layout fix. The original
+  games now fit their container in portrait and landscape. The VIP remasters use
+  their dedicated renderer, and their marketplace descriptions remain accurate.
+
 - 2026-11-17: Reviewed the Safety Confessional handoff. Standard ceremonies let
   players resume in the Hub after sealing their save target. The review confirmed
   that VIP ceremony playback, its existing access rules, and marketplace
