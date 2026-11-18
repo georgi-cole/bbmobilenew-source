@@ -191,6 +191,27 @@ and [AdMob close times](https://support.google.com/admob/answer/15525707).
 
 ## Checking a run
 
+### Optional cinematic downloads
+
+After source validation, a separate media job publishes the exact cinematic
+revision pinned by that source commit. It stages missing releases as drafts,
+uploads the pack and manifest without replacing existing assets, then verifies
+the anonymous download URL and every image hash. Both app builds depend on this
+job succeeding. Only this media job receives repository release-write access;
+the signing jobs retain read-only access.
+
+This prevents an app update from requesting a missing media release. Existing
+revisions remain available to older builds. Standard gameplay, music and credits
+stay bundled, and a successfully installed cinematic pack remains usable offline.
+
+The November 18 repair published revision
+`ec3da82dc4af6e90116adb1c3859c9dee5fb174f662f15e85f4b30f4eba15d86`
+for the already distributed builds: 474 images, including the combined Ali & Lia
+poses and walk. Its public download was verified byte-for-byte, and the affected
+tester confirmed the download succeeded without rebuilding or reinstalling.
+
+### Store availability
+
 The workflow summary records the exact source commit, iOS build number and Android
 version code. Missing credentials fail early with the missing secret's name.
 TestFlight readiness is verified after Apple processing. Android publishing reports

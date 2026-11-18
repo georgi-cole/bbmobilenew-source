@@ -97,7 +97,7 @@ jobs:
               src/cinematic/ceremonies/walk-cycles.test.ts
               src/cinematic/ceremonies/ceremony-audio.test.ts
               src/components/FinalThreeCompetitionBroadcast/__tests__/FinalThreeCompetitionBroadcast.test.tsx &&
-              node --test scripts/mobile-cinematic-assets.test.mjs scripts/vip-cinematic-pack.test.mjs
+              node --test scripts/mobile-cinematic-assets.test.mjs scripts/vip-cinematic-pack.test.mjs scripts/mobile-store-workflow.test.mjs scripts/cinematic-pack-publishing.test.mjs
             fetch_depth: 1
     steps:
       - uses: actions/checkout@v4
