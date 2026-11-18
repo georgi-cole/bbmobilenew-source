@@ -1,7 +1,6 @@
 import { useEffect, useState, type RefObject } from 'react'
 import type { Player } from '../../types'
 import { PUBLIC_JUROR_ID } from '../../store/finaleSlice'
-import { finalePortraitAttire } from '../FinalFaceoff/finalePortraitAttire'
 import type { BallotBeat } from '../FinalFaceoff/finaleTiming'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
@@ -39,6 +38,11 @@ function PublicCutoutPlaceholder() {
   )
 }
 
+function tribunalPortraitAttire(player: Player): 'formal' | 'informal' {
+  const identity = `${player.id} ${player.name}`.trim().toLowerCase()
+  return /(^|\s)(dex|sol)(\s|$)/.test(identity) ? 'informal' : 'formal'
+}
+
 function TribunalOpening({
   tribunalMembers,
   awaitingHumanPlayer,
@@ -70,7 +74,7 @@ function TribunalOpening({
         <div className="tms-cutout-wrap" aria-hidden="true">
           <FullSizeCutoutImage
             player={awaitingHumanPlayer}
-            attire={finalePortraitAttire(awaitingHumanPlayer, 'tribunal')}
+            attire={tribunalPortraitAttire(awaitingHumanPlayer)}
             className="tms-cutout"
             alt=""
             draggable={false}
@@ -112,7 +116,7 @@ function TribunalOpening({
               <div className="tms-pair__picture" aria-hidden="true">
                 <FullSizeCutoutImage
                   player={member}
-                  attire={finalePortraitAttire(member, 'tribunal')}
+                  attire={tribunalPortraitAttire(member)}
                   alt=""
                   draggable={false}
                 />
@@ -126,7 +130,7 @@ function TribunalOpening({
           <div className="tms-portrait__carousel" key={featuredJuror.id}>
             <FullSizeCutoutImage
               player={featuredJuror}
-              attire={finalePortraitAttire(featuredJuror, 'tribunal')}
+              attire={tribunalPortraitAttire(featuredJuror)}
               className="tms-portrait__carousel-cutout"
               alt=""
               draggable={false}
@@ -168,7 +172,7 @@ export default function TribunalMemberStage(props: TribunalOpeningProps | Tribun
             ) : ballot.voter ? (
               <FullSizeCutoutImage
                 player={ballot.voter}
-                attire={finalePortraitAttire(ballot.voter, 'tribunal')}
+                attire={tribunalPortraitAttire(ballot.voter)}
                 className="tms-cutout"
                 alt=""
                 draggable={false}

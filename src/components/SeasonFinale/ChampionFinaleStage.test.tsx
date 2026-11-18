@@ -83,7 +83,7 @@ describe('shared champion coronation', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('data-final-vote', 'audience')
   })
 
-  it('uses Bea’s casual full-body portrait for the champion coronation', () => {
+  it('uses Bea’s formal full-body portrait for the champion coronation', () => {
     const { container } = render(
       <ChampionFinaleStage
         winner={{ id: 'bea', name: 'Bea', status: 'active', avatar: '' }}
@@ -97,7 +97,7 @@ describe('shared champion coronation', () => {
 
     expect(container.querySelector('.season-finale__champion-cutout')).toHaveAttribute(
       'src',
-      expect.stringMatching(/Bea_informal\.webp$/i)
+      expect.stringMatching(/Bea_formal\.webp$/i)
     )
   })
 

@@ -1,7 +1,6 @@
 import type { Player } from '../../types'
 import type { RefObject } from 'react'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
-import { finalePortraitAttire } from './finalePortraitAttire'
 import './FinalTallyPanel.css'
 
 interface Props {
@@ -34,12 +33,7 @@ export default function FinalTallyPanel({
         <div className="fo-score__tableau" aria-hidden="true">
           {finalists.map((finalist) => (
             <div className="fo-score__portrait" key={finalist.id}>
-              <FullSizeCutoutImage
-                player={finalist}
-                attire={finalePortraitAttire(finalist)}
-                alt=""
-                draggable={false}
-              />
+              <FullSizeCutoutImage player={finalist} attire="formal" alt="" draggable={false} />
             </div>
           ))}
         </div>

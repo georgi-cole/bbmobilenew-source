@@ -3,19 +3,37 @@ import { describe, expect, it } from 'vitest'
 import TribunalMemberStage from '../src/components/TribunalMemberStage/TribunalMemberStage'
 
 describe('TribunalMemberStage ballot', () => {
-  it('uses Bea’s casual portrait during the paired entrance', () => {
-    const { container } = render(
+  it('uses Bea’s formal portrait during the paired entrance and ballot reveal', () => {
+    const bea = { id: 'bea', name: 'Bea', avatar: '', status: 'jury' as const }
+    const { container, rerender } = render(
       <TribunalMemberStage
         mode="opening"
         paired
         waitingForOpeningCue
-        tribunalMembers={[{ id: 'bea', name: 'Bea', avatar: '', status: 'jury' }]}
+        tribunalMembers={[bea]}
         finalists={[]}
         onCastVote={() => {}}
       />
     )
     expect(container.querySelector('.tms-pair img')?.getAttribute('src')).toMatch(
-      /Bea_informal\.webp$/i
+      /Bea_formal\.webp$/i
+    )
+    rerender(
+      <TribunalMemberStage
+        mode="reveal"
+        beat="recipient"
+        ballot={{
+          voter: bea,
+          voterId: bea.id,
+          voterName: bea.name,
+          finalistName: 'Avery',
+          number: 1,
+          tone: 'gold',
+        }}
+      />
+    )
+    expect(container.querySelector('.tms-cutout')?.getAttribute('src')).toMatch(
+      /Bea_formal\.webp$/i
     )
   })
 
