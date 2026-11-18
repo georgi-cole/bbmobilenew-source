@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-18: Reviewed Cupid's Arrow, Vox Populi, and VIP ceremony maintenance.
+  The game applies the stated Final 4 ballot rule and shared Cupid powers.
+  Competition labels, post-elimination TV, and the VIP backup ceremony reflect
+  the active rules. Existing product descriptions, access, prices, rewards,
+  and premium benefits remain accurate.
+
 - 2026-11-17: Reviewed the Safety Confessional handoff. Standard ceremonies let
   players resume in the Hub after sealing their save target. The review confirmed
   that VIP ceremony playback, its existing access rules, and marketplace

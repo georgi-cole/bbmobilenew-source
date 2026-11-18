@@ -1019,6 +1019,8 @@ export default function MinigameHost({
     const participantIds = (participants ?? []).map((p) => p.id)
     const baseSeed = typeof gameOptions?.seed === 'number' ? gameOptions.seed : 0
     const seed = competitionAttemptSeed(baseSeed, attempt)
+    const competitionTitle =
+      typeof gameOptions.competitionTitle === 'string' ? gameOptions.competitionTitle : undefined
     const isActiveAttempt = () =>
       activeAttemptTokenRef.current === attemptToken && hostPhaseRef.current === 'playing'
     const handleAttemptReactComplete = (
@@ -1041,6 +1043,7 @@ export default function MinigameHost({
     if (game.implementation === 'react' && game.reactComponentKey === 'ClosestWithoutGoingOver') {
       return (
         <ClosestWithoutGoingOverComp
+          competitionTitle={competitionTitle}
           participantIds={participantIds}
           prizeType={gameOptions?.prizeType as CwgoPrizeType}
           seed={seed}
@@ -1052,6 +1055,7 @@ export default function MinigameHost({
     if (game.implementation === 'react' && game.reactComponentKey === 'HoldTheWall') {
       return (
         <HoldTheWallComp
+          competitionTitle={competitionTitle}
           participantIds={participantIds}
           participants={participants}
           prizeType={gameOptions?.prizeType as HoldTheWallPrizeType}
@@ -1162,6 +1166,7 @@ export default function MinigameHost({
       }
       return (
         <CrystalPathShatteredGame
+          competitionTitle={competitionTitle}
           participantIds={participantIds}
           participants={participants}
           prizeType={gameOptions?.prizeType as 'LOH' | 'POS' | undefined}
@@ -1207,6 +1212,7 @@ export default function MinigameHost({
     if (game.implementation === 'react' && game.reactComponentKey === 'WildcardWestern') {
       return (
         <WildcardWesternComp
+          competitionTitle={competitionTitle}
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as 'LOH' | 'POS') ?? 'LOH'}
@@ -1298,6 +1304,7 @@ export default function MinigameHost({
     if (game.implementation === 'react' && game.reactComponentKey === 'TrapAuction') {
       return (
         <TrapAuctionComp
+          competitionTitle={competitionTitle}
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as 'LOH' | 'POS') ?? 'LOH'}

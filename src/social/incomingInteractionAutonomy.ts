@@ -637,23 +637,27 @@ function buildActorConstraints(
   const actorIsNominee =
     automaticId === actor.id ||
     (context.nomineeIds ? nomineeIds.includes(actor.id) : actor.status.includes('nominated'))
+  const sharesRole = (winnerId: string | null, id: string) =>
+    winnerId === id || getCupidPartnerId(context.gameState ?? {}, winnerId) === id
   const actorIsCurrentHoh =
     !context.voxPopuliActive &&
-    (context.lohId !== undefined ? context.lohId === actor.id : actor.status.includes('loh'))
+    (context.lohId !== undefined
+      ? sharesRole(context.lohId, actor.id)
+      : actor.status.includes('loh'))
   const actorHasSafetyPower =
     safetyIsLive &&
     (context.posWinnerId !== undefined
-      ? context.posWinnerId === actor.id
+      ? sharesRole(context.posWinnerId, actor.id)
       : actor.status.includes('pos'))
   const playerIsHoh =
     !context.voxPopuliActive &&
     (context.lohId !== undefined
-      ? context.lohId === playerId
+      ? sharesRole(context.lohId, playerId)
       : playerEntry?.status.includes('loh') === true)
   const playerHasSafetyPower =
     safetyIsLive &&
     (context.posWinnerId !== undefined
-      ? context.posWinnerId === playerId
+      ? sharesRole(context.posWinnerId, playerId)
       : playerEntry?.status.includes('pos') === true)
   const playerIsNominee = context.nomineeIds
     ? nomineeIds.includes(playerId)
@@ -866,7 +870,7 @@ function resolveAllianceInteractionPlan(
   const phase = context.phase
 
   if (
-    (!context.voxPopuliActive || game.doubleEviction?.weekActive === true) &&
+    !context.voxPopuliActive &&
     actorIsLoh &&
     ['loh_results', 'social_1', 'nominations'].includes(phase)
   ) {
@@ -915,7 +919,7 @@ function resolveAllianceInteractionPlan(
     }
   }
 
-  if (actorHasSafety && phase === 'pos_results') {
+  if (!context.voxPopuliActive && actorHasSafety && phase === 'pos_results') {
     const nominees = game.players.filter((candidate) => game.nomineeIds.includes(candidate.id))
     if (nominees.length === 0) return null
     const allianceMemberTargetPreferences = Object.fromEntries(
@@ -966,7 +970,7 @@ function resolveAllianceInteractionPlan(
   if (actorId !== spokespersonId) return null
 
   if (
-    (!context.voxPopuliActive || game.doubleEviction?.weekActive === true) &&
+    !context.voxPopuliActive &&
     playerIsLoh &&
     ['loh_results', 'social_1', 'nominations'].includes(phase)
   ) {
@@ -984,7 +988,7 @@ function resolveAllianceInteractionPlan(
     }
   }
 
-  if (playerHasSafety && phase === 'pos_results') {
+  if (!context.voxPopuliActive && playerHasSafety && phase === 'pos_results') {
     const subjectId = bestStrategicTarget(
       game,
       actorId,

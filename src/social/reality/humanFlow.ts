@@ -1021,7 +1021,7 @@ function getAllianceConsultationAgenda(
   const voxDecides = state.game.voxPopuli?.status === 'active'
 
   // A vacant seat takes precedence over any discussion of how to use Safety.
-  if (isLohReplacementPending(state.game)) {
+  if (!voxDecides && isLohReplacementPending(state.game)) {
     const ownerId = state.game.coLohReplacementOwnerId ?? lohId
     if (
       ownerId &&
@@ -1050,6 +1050,7 @@ function getAllianceConsultationAgenda(
   }
   if (safetyWindow && nomineesExist && !state.game.povSavedId && attendeeHasLoh && !voxDecides)
     return 'safety_contingency'
+  if (voxDecides && beforeNominations) return 'secret_ballot'
   if (beforeNominations && !nomineesExist && attendeeHasLoh) {
     return 'nominations'
   }
@@ -1229,16 +1230,18 @@ export function buildAllianceConsultationPlan(
     }
   }
 
-  if (agenda === 'audience_read') {
+  if (agenda === 'audience_read' || agenda === 'secret_ballot') {
     return {
       allianceId: alliance.id,
       attendeeIds,
       targetIds: [],
       fallbackTargetIds: [],
       planIds: [],
-      agenda: 'audience_read',
+      agenda,
       summary:
-        'The audience decides who leaves. The alliance can compare what it knows and plan how to make its case, but it cannot lock a private vote.',
+        agenda === 'secret_ballot'
+          ? 'The house sets the block by secret ballot. Compare who is vulnerable and each make your own decision in the Confessional.'
+          : 'The audience decides who leaves. Compare how the Hub has come across today and what each nominee can do to make their case.',
       excusedAbsentIds,
       memberPlanBeliefs: {},
     }
@@ -1379,9 +1382,14 @@ export function buildAllianceConsultationPlan(
   }
 
   if (agenda === 'safety' || agenda === 'safety_contingency') {
+    const vox = state.game.voxPopuli?.status === 'active'
+    const nominatedHolder = vox
+      ? nominees.find((player) => player.id === state.game.posWinnerId)
+      : undefined
+    const saveOptions = nominatedHolder ? [nominatedHolder] : nominees
     const preferences = advisors
       .map((advisorId) => {
-        const ranked = nominees
+        const ranked = saveOptions
           .map((nominee) => ({
             advisorId,
             targetId: nominee.id,
@@ -1396,6 +1404,30 @@ export function buildAllianceConsultationPlan(
         Boolean(entry)
       )
     const read = summarizeAlliancePreferences(state, preferences, 'Safety preference')
+    if (vox) {
+      const saveId = read.targetIds[0]
+      const minimum = state.game.doubleEviction?.weekActive ? 3 : 2
+      return {
+        allianceId: alliance.id,
+        attendeeIds,
+        targetIds: [],
+        fallbackTargetIds: [],
+        planIds: saveId ? [`save:${saveId}`] : [],
+        agenda,
+        summary: `${read.summary} ${
+          nominees.length - 1 >= minimum
+            ? 'If Safety is used, the remaining nominees face the audience.'
+            : 'If Safety opens a seat, the next eligible secret-ballot total supplies the backup.'
+        }`,
+        excusedAbsentIds,
+        memberPlanBeliefs: Object.fromEntries(
+          attendeeIds.map((id) => {
+            const preference = id === actorId ? saveId : read.preferenceByAdvisor[id]
+            return [id, preference ? [`save:${preference}`] : []]
+          })
+        ),
+      }
+    }
     const replacements = getEligibleReplacementNominees(state.game).filter(
       (candidate) => !isAllianceProtectedGameUnit(state, alliance, candidate.id)
     )

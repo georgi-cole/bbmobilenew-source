@@ -80,6 +80,7 @@ interface Props {
   participantIds: string[]
   participants?: ParticipantInput[]
   prizeType?: 'LOH' | 'POS'
+  competitionTitle?: string
   seed?: number
   onComplete?: (completion?: ReactMinigameCompletion) => void
   premium?: boolean
@@ -167,6 +168,7 @@ export default function CrystalPathShatteredGame({
   participantIds,
   participants,
   prizeType = 'LOH',
+  competitionTitle,
   seed,
   onComplete,
   premium = false,
@@ -838,7 +840,8 @@ export default function CrystalPathShatteredGame({
   const activeEffects = activePlayer ? pruneEffects(activePlayer.effects, Date.now()) : []
 
   // Prize label for complete screen.
-  const prizeLabel = prizeType === 'POS' ? 'Power of Safety' : 'Leader of the Hub'
+  const prizeLabel =
+    competitionTitle ?? (prizeType === 'POS' ? 'Power of Safety' : 'Leader of the Hub')
 
   // SP color band helper
   const spLevel = (sp: number): 'is-safe' | 'is-warn' | 'is-danger' => {

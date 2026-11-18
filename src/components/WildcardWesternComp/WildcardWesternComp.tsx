@@ -209,6 +209,7 @@ interface WildcardWesternCompProps {
   participantIds: string[]
   participants?: MinigameParticipant[]
   prizeType?: 'LOH' | 'POS'
+  competitionTitle?: string
   seed: number
   onComplete?: (completion?: ReactMinigameCompletion) => void
   standalone?: boolean
@@ -219,6 +220,7 @@ export default function WildcardWesternComp({
   participantIds,
   participants = [],
   prizeType = 'LOH',
+  competitionTitle,
   seed,
   onComplete,
   standalone = false,
@@ -1310,7 +1312,9 @@ export default function WildcardWesternComp({
             <div className="ww-winner-name">{getParticipantName(state.winnerId ?? '')}</div>
             <p style={{ fontSize: '1.2rem', opacity: 0.9 }}>
               The last outlaw standing claims the{' '}
-              {prizeType === 'LOH' ? 'Leader of the House' : 'Power of Safety'}!
+              {competitionTitle ??
+                (prizeType === 'LOH' ? 'Leader of the House' : 'Power of Safety')}
+              !
             </p>
             {standalone && !isSpectating && (
               <button

@@ -1270,6 +1270,7 @@ function managedBroadcastPriority(event: TvEvent): number {
   if (event.meta?.phase === 'season_start' && (major === 'vox_populi' || major === 'cupid_arrow')) {
     return -1
   }
+  if (event.meta?.phase === 'week_end' && major === 'cupid_partner_eviction') return -0.5
   if (event.meta?.broadcastPriority === 'critical') return 0
   // Delivery priority is deliberately separate from visual level. Runtime
   // foreground prompts can take the next Faux-TV slot without being promoted
@@ -1937,6 +1938,24 @@ function applyPendingPublicModeChange(state: GameState, phase: Phase) {
   )
 }
 
+function hasPendingCupidBreak(state: GameState): boolean {
+  if (
+    state.cupidArrow?.status !== 'broken' ||
+    state.broadcastOverrides?.['cupid.spell-broken']?.disabled
+  ) {
+    return false
+  }
+  return state.tvFeed.some(
+    (event) =>
+      event.meta?.broadcastTemplateId === 'cupid.spell-broken' &&
+      event.meta.phase === state.phase &&
+      event.meta.week === state.week &&
+      (event.meta.gameId == null || event.meta.gameId === state.gameId) &&
+      event.meta.broadcastConsumed !== true &&
+      isVisibleOnTv(event)
+  )
+}
+
 function breakCupidArrowSpell(state: GameState) {
   if (!isCupidArrowActive(state) || !state.cupidArrow) return
   state.cupidArrow.status = 'broken'
@@ -1947,7 +1966,7 @@ function breakCupidArrowSpell(state: GameState) {
   state.tvFeed = state.tvFeed.filter(
     (event) => event.meta?.major !== 'cupid_arrow_broken' && event.major !== 'cupid_arrow_broken'
   )
-  pushEvent(
+  const event = pushEvent(
     state,
     `💔 Four pairs have fallen. Cracks race through Cupid's hearts, the final arrow dissolves into light, and Cupid takes flight from The Big Eye hub. The rose glow fades: every survivor now plays alone. What the pairs felt—and what they did to each other—remains.`,
     'twist',
@@ -1959,6 +1978,7 @@ function breakCupidArrowSpell(state: GameState) {
       forceOnTv: true,
     }
   )
+  if (!event || !isVisibleOnTv(event)) state.cupidArrow.visualsRevealed = false
 }
 
 function resolvePairAwarePublicSave(rootState: RootState) {
@@ -2112,6 +2132,21 @@ function isEligibleReplacementNominee(
   const alivePlayers = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
   return getReplacementEligiblePlayers(state, alivePlayers, neededCount, options).some(
     (player) => player.id === playerId
+  )
+}
+
+function pushBackupNomination(state: GameState, leader: string, nominee: Player) {
+  const nominees = getCupidRoleIds(state, nominee.id)
+  const names = formatNameList(
+    nominees.map((id) => state.players.find((player) => player.id === id)?.name ?? id)
+  )
+  pushEvent(
+    state,
+    `${leader} named ${names} as the backup nominee${nominees.length > 1 ? 's' : ''}. 🎯`,
+    'game',
+    {
+      broadcastTemplateId: nominees.length > 1 ? 'cupid.backup-nomination' : 'safety.replacement',
+    }
   )
 }
 
@@ -3132,6 +3167,14 @@ function getVoxNominationImmunityId(state: GameState): string | null {
   return state.voxPopuli?.immunityWinnerId ?? state.lohId ?? null
 }
 
+function getVoxAutoNomineeId(state: GameState): string | null {
+  return state.voxPopuli?.autoNomineeId ?? state.lastHohCompFinisherId ?? null
+}
+
+function canCastVoxNominationBallot(state: GameState, playerId: string): boolean {
+  return !isVoxFinalFour(state) || playerId !== getVoxAutoNomineeId(state)
+}
+
 function getVoxBallotSize(state: GameState): number {
   return isVoxFinalFour(state) ? 1 : 2
 }
@@ -3247,10 +3290,7 @@ function castVoxAiNominationBallots(state: GameState, rng: () => number) {
   const immunityWinnerId = getVoxNominationImmunityId(state)
   const autoNomineeId = state.voxPopuli.autoNomineeId ?? state.lastHohCompFinisherId ?? null
   for (const voter of alive) {
-    if (voter.isUser) continue
-    // Vox nomination power belongs to every active housemate. Even the automatic
-    // Final 4 nominee still casts a secret nomination ballot; being on the block
-    // does not remove nomination power in Vox.
+    if (voter.isUser || !canCastVoxNominationBallot(state, voter.id)) continue
     const candidates = alive.filter(
       (candidate) =>
         candidate.id !== voter.id &&
@@ -3982,6 +4022,32 @@ function pushClassicFinalThreePart2Result(
   })
 }
 
+function carryPostEvictionBroadcastsToDayEnd(state: GameState) {
+  if (
+    !isVoxPopuliActive(state) &&
+    state.cupidArrow?.status !== 'active' &&
+    !hasPendingCupidBreak(state) &&
+    !state.cupidArrow?.visualsRevealed
+  )
+    return
+  for (const event of state.tvFeed) {
+    if (
+      event.meta?.phase !== 'eviction_results' ||
+      event.meta.week !== state.week ||
+      event.meta.broadcastConsumed
+    )
+      continue
+    if (
+      event.meta.broadcastTemplateId === 'cupid.spell-broken' ||
+      event.meta.broadcastTemplateId === 'cupid.partner-eviction' ||
+      event.meta.voxPostEvictionReaction === true
+    ) {
+      event.meta.phase = 'week_end'
+      event.meta.broadcastRuntimeDelivery = true
+    }
+  }
+}
+
 function pushVoxPostEvictionReaction(state: GameState, evictee: Player): void {
   if (!isVoxPopuliActive(state)) return
   const survivors = getAlivePlayers(state)
@@ -4031,7 +4097,8 @@ function pushVoxPostEvictionReaction(state: GameState, evictee: Player): void {
   const text = pool[Math.floor(rng() * pool.length)](subject.name)
   pushEvent(state, text, 'social', {
     voxPostEvictionReaction: true,
-    broadcastPriority: 'critical',
+    forceOnTv: true,
+    broadcastDelivery: 'next',
   })
 }
 
@@ -5022,7 +5089,7 @@ function announceVoxLastPlaceNominee(state: GameState): void {
     state.lastHohCompFinisherId
   pushEvent(
     state,
-    `${lastPlaceName} finished in last place in the immunity competition and is now on the block for today's audience vote.`,
+    `${lastPlaceName} finished in last place in ${isVoxFinalFour(state) ? 'the Final 4 competition' : 'the immunity competition'} and is now on the block for today's audience vote.`,
     'game',
     {
       broadcastTemplateId: 'loh.vox-last-place',
@@ -6192,6 +6259,12 @@ const gameSlice = createSlice({
       }
       state.broadcastQueue = (state.broadcastQueue ?? []).filter((id) => id !== action.payload)
       if (state.activeBroadcastEventId === action.payload) state.activeBroadcastEventId = null
+      if (
+        event?.meta?.broadcastTemplateId === 'cupid.spell-broken' &&
+        state.cupidArrow?.status === 'broken'
+      ) {
+        state.cupidArrow.visualsRevealed = false
+      }
     },
     /** Day-boundary cleanup preserves ordered consumption in one transaction. */
     consumeBroadcastEvents(state, action: PayloadAction<string[]>) {
@@ -6203,6 +6276,12 @@ const gameSlice = createSlice({
         if (!event) continue
         event.meta = { ...(event.meta ?? {}), broadcastConsumed: true }
         if (event.meta.broadcastLevel === 'minor') state.lastPlainBroadcastEventId = event.id
+        if (
+          event.meta.broadcastTemplateId === 'cupid.spell-broken' &&
+          state.cupidArrow?.status === 'broken'
+        ) {
+          state.cupidArrow.visualsRevealed = false
+        }
       }
       const consumed = new Set(action.payload)
       state.broadcastQueue = (state.broadcastQueue ?? []).filter((id) => !consumed.has(id))
@@ -7011,7 +7090,7 @@ const gameSlice = createSlice({
           state.specialVeto.vipUseStage = -1
         }
       }
-      pushEvent(state, `${lohPlayer.name} named ${player.name} as the backup nominee. 🎯`, 'game')
+      pushBackupNomination(state, lohPlayer.name, player)
     },
 
     resolveUnfillableReplacement(state) {
@@ -7107,7 +7186,7 @@ const gameSlice = createSlice({
         const human = state.players.find(
           (player) => player.isUser && player.status !== 'evicted' && player.status !== 'jury'
         )
-        if (!human) return
+        if (!human || !canCastVoxNominationBallot(state, human.id)) return
         const immunityWinnerId = getVoxNominationImmunityId(state)
         const autoNomineeId = state.voxPopuli.autoNomineeId ?? state.lastHohCompFinisherId ?? null
         const eligible = state.players.filter(
@@ -7556,6 +7635,23 @@ const gameSlice = createSlice({
       if (!state.awaitingTieBreak) return
       const tied = state.tiedNomineeIds ?? state.nomineeIds
       if (!tied.includes(nomineeId)) return
+
+      if (isCupidArrowActive(state)) {
+        const chooser = getCupidHumanCoholder(state, state.lohId)
+        if (!chooser || !canPlayerTargetPlayer(state, chooser.id, nomineeId)) return
+        const names = getCupidRoleIds(state, nomineeId).map(
+          (id) => state.players.find((player) => player.id === id)?.name ?? id
+        )
+        state.awaitingTieBreak = false
+        state.tiedNomineeIds = null
+        state.votes = {}
+        state.voteResults = null
+        state.pendingEviction = {
+          evicteeId: nomineeId,
+          evictionMessage: `${chooser.name} ${chooser.isUser ? 'break' : 'breaks'} the tie. ${formatNameList(names)}, Cupid's Arrow means you are eliminated together. 💔`,
+        }
+        return
+      }
 
       const evictee = state.players.find((p) => p.id === nomineeId)
       const lohPlayer = state.players.find((p) => p.id === state.lohId)
@@ -8121,7 +8217,7 @@ const gameSlice = createSlice({
       const cupidEvictionTemplateId = msg.includes(
         "Cupid's Arrow means you are eliminated together"
       )
-        ? msg.includes(' breaks the tie. ')
+        ? / breaks? the tie\. /.test(msg)
           ? 'cupid.pair-tiebreak-eviction'
           : 'cupid.pair-eviction'
         : wasCupidPartnerFollowup
@@ -10337,6 +10433,24 @@ const gameSlice = createSlice({
         }
       }
       hydrated.tvFeed.forEach((event) => refreshManagedBroadcastDefinition(hydrated, event))
+      if (hydrated.phase === 'week_end') carryPostEvictionBroadcastsToDayEnd(hydrated)
+      if (hydrated.cupidArrow?.status === 'broken' && hydrated.cupidArrow.visualsRevealed) {
+        hydrated.cupidArrow.visualsRevealed = hasPendingCupidBreak(hydrated)
+      }
+      if (
+        hydrated.phase === 'nomination_results' &&
+        hydrated.awaitingNominations &&
+        isVoxPopuliActive(hydrated)
+      ) {
+        const autoNomineeId = getVoxAutoNomineeId(hydrated)
+        if (isVoxFinalFour(hydrated) && autoNomineeId) {
+          if (hydrated.voxPopuli?.nominationBallots)
+            delete hydrated.voxPopuli.nominationBallots[autoNomineeId]
+          if (hydrated.players.some((player) => player.isUser && player.id === autoNomineeId)) {
+            finalizeVoxNominations(hydrated)
+          }
+        }
+      }
       rebuildManagedBroadcastQueue(hydrated, hydrated.phase)
       return removeObsoleteGameData(hydrated)
     },
@@ -10969,6 +11083,10 @@ const gameSlice = createSlice({
       // Timed, required narration has the same progression contract as a card.
       // This also covers callers outside the central Play button.
       if (state.tvFeed.some((event) => isPendingDetoxEvent(event, state))) return
+      if (state.phase !== 'eviction_results' && state.cupidArrow?.status === 'broken') {
+        if (hasPendingCupidBreak(state)) return
+        state.cupidArrow.visualsRevealed = false
+      }
       // Guard: if any human-decision flag is set, advance() must not proceed.
       // This protects against programmatic dispatches (debug tools, fastForward)
       // bypassing mandatory decision steps and leaving state inconsistent.
@@ -11598,11 +11716,7 @@ const gameSlice = createSlice({
             reason: 'resolved staged LOH replacement against canonical backup and ambush intent',
           })
           if (replacement) appendNominee(state, replacement.id)
-          pushEvent(
-            state,
-            `${lohPlayer?.name ?? 'The LOH'} named ${replacement?.name ?? 'a backup nominee'} as the backup nominee. 🎯`,
-            'game'
-          )
+          if (replacement) pushBackupNomination(state, lohPlayer?.name ?? 'The LOH', replacement)
         }
         // Keep povSavedId set so the UI can detect "veto was used" and show
         // the AI replacement animation. Cleared at week_start.
@@ -12201,10 +12315,11 @@ const gameSlice = createSlice({
                     canPlayerNominatePlayer(state, human.id, candidate.id)
                 )
               : []
-            // Vox differs from Classic: every active hubmate nominates,
-            // including the automatic Final 4 nominee.
-            const humanCanVote = Boolean(human)
-            if (human && humanCanVote && humanEligibleTargets.length > 0) {
+            if (
+              human &&
+              canCastVoxNominationBallot(state, human.id) &&
+              humanEligibleTargets.length > 0
+            ) {
               state.awaitingNominations = true
               state.pendingNominee1Id = null
               const requiredVotes = getVoxHumanBallotSize(state, humanEligibleTargets.length)
@@ -13482,10 +13597,12 @@ const gameSlice = createSlice({
           break
         }
         case 'week_end': {
+          carryPostEvictionBroadcastsToDayEnd(state)
           pushEvent(state, `Day ${state.week} has come to an end. A new day begins soon…`, 'game', {
             key: 'day_end',
             phase: 'week_end',
           })
+          rebuildManagedBroadcastQueue(state, 'week_end')
           break
         }
       }
