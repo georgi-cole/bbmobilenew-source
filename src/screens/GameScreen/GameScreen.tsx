@@ -1757,6 +1757,7 @@ export default function GameScreen() {
               voxFinalThreeCeremony.active
             }
             competitionStarting={competitionStarting}
+            ambushPresentationBlocked={showReplacementCeremony || safetySavePresentationActive}
             viewportMessageOverride={
               showBattleBackOverlay
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'

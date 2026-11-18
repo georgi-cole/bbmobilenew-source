@@ -86,6 +86,11 @@ import type { TvEvent } from '../../types'
 import TopUtilityButton from '../TopUtilityButton/TopUtilityButton'
 import { getViewportMessageKey } from './tvZoneKeys'
 import {
+  getPresentationOwner,
+  usePresentationForeground,
+  usePresentationOwnerSnapshot,
+} from '../../services/presentation/presentationOwnership'
+import {
   createPresentationEventClaim,
   hasPresentationEventClaim,
   getPhaseBroadcastCopy,
@@ -362,6 +367,7 @@ type TvZoneProps = {
   voteResultsReveal?: TvZoneVoteResultsReveal | null
   democraciaResultsReveal?: TvZoneDemocraciaResultsReveal | null
   mainLogMaxVisible?: number
+  ambushPresentationBlocked?: boolean
   /** Whether the separate House Feed is enabled; weather hides duplicate controls only when false. */
   houseFeedEnabled?: boolean
   rosterLogLauncher?: boolean
@@ -411,6 +417,8 @@ export default function TvZone(props: TvZoneProps) {
   const activeProfileId = useAppSelector((s: RootState) => s.profiles.activeProfileId)
   const hasPendingChallenge = useAppSelector((s: RootState) => s.challenge.pending != null)
   const reduxStore = useStore<RootState>()
+  const presentationOwner = usePresentationOwnerSnapshot()
+  const presentationForeground = usePresentationForeground()
   const audioSettings = useAppSelector((s) => s.settings?.audio ?? DEFAULT_SETTINGS.audio)
   const depressionShockPhase: DepressionShockVisualPhase = useSyncExternalStore(
     subscribeDepressionShockVisualPhase,
@@ -513,6 +521,7 @@ export default function TvZone(props: TvZoneProps) {
     ]
   )
   const queuedBroadcastEvent = currentQueuedBroadcastEvents[0] ?? null
+  const ambushQueuedFirst = queuedBroadcastEvent?.meta?.major === 'backdoor'
   const pinnedQueuedBroadcastEvent =
     gameState.activeBroadcastEventId === queuedBroadcastEvent?.id ? queuedBroadcastEvent : null
   // Season-start expansion activations must outrank the onboarding welcome in
@@ -724,6 +733,7 @@ export default function TvZone(props: TvZoneProps) {
       tvVisibleFeed.find(
         (event) =>
           isBroadcastRelevant(event) &&
+          (event.meta?.major ?? event.major) !== 'backdoor' &&
           event.meta?.broadcastConsumed !== true &&
           (!props.competitionStarting || getTvPresentationBroadcastLevel(event) !== 'minor') &&
           event.meta?.phase === gameState.phase &&
@@ -750,6 +760,7 @@ export default function TvZone(props: TvZoneProps) {
     () =>
       tvVisibleFeed.find(
         (event) =>
+          (event.meta?.major ?? event.major) !== 'backdoor' &&
           (event.meta?.broadcastConsumed !== true ||
             (getTvPresentationBroadcastLevel(event) !== 'minor' &&
               getTvPresentationBroadcastLevel(event) !== 'critical' &&
@@ -1114,14 +1125,22 @@ export default function TvZone(props: TvZoneProps) {
   const showInlineAnnouncement =
     !broadcastPresentationCovered &&
     activeAnnouncement != null &&
+    (activeAnnouncement.key !== 'backdoor' || !props.ambushPresentationBlocked) &&
     !(shockIntroActive && isShockAnnouncement) &&
     !(cupidFauxTvAnnouncement && !cupidIntroAcknowledged) &&
     !publicSaveRevealActive &&
     !voteResultsRevealActive &&
     !democraciaResultsRevealActive &&
     !audiencePreviewRevealActive
+  const inlineAnnouncementVisible =
+    showInlineAnnouncement &&
+    !cupidFollowUpVisible &&
+    presentationForeground &&
+    presentationOwner?.groupId === 'tv-announcement'
+  const ambushCardVisible = inlineAnnouncementVisible && activeAnnouncement?.key === 'backdoor'
   const queuedBroadcastPresentationId =
     queuedBroadcastEvent &&
+    (!ambushQueuedFirst || (ambushCardVisible && activeAnnouncement === eventAnnouncement)) &&
     (displayedEvent?.id === queuedBroadcastEvent.id ||
       eventAnnouncementSource?.id === queuedBroadcastEvent.id)
       ? queuedBroadcastEvent.id
@@ -1187,7 +1206,7 @@ export default function TvZone(props: TvZoneProps) {
       // Keep the current-state message painted under external films and games.
       // Their last frame can disappear before the pending challenge is cleared.
       // Only a replacement rendered inside this viewport may hide the underlay.
-      (showInlineAnnouncement && !cupidFollowUpVisible) ||
+      inlineAnnouncementVisible ||
       winnerBroadcast != null ||
       weatherBulletinIsActive ||
       publicSaveRevealActive ||
@@ -1258,6 +1277,11 @@ export default function TvZone(props: TvZoneProps) {
 
   const handleDismiss = useCallback(() => {
     const currentAnnouncement = activeAnnouncement
+    if (
+      currentAnnouncement?.key === 'backdoor' &&
+      (!ambushCardVisible || getPresentationOwner()?.groupId !== 'tv-announcement')
+    )
+      return
     // This is a season decision; only its Agree/Exit controls can resolve it.
     if (currentAnnouncement?.key === 'tribunal_invitation') return
     // Cupid's opening proclamation can only progress through its own OK
@@ -1324,6 +1348,7 @@ export default function TvZone(props: TvZoneProps) {
     }
   }, [
     activeAnnouncement,
+    ambushCardVisible,
     dispatch,
     queuedShockAnnouncement,
     managedEventAnnouncement,
@@ -1572,6 +1597,14 @@ export default function TvZone(props: TvZoneProps) {
     const handlePlay = (event: Event) => {
       // A full-screen sequence owns Play; don't also consume an older TV card.
       if (props.playOwnedExternally) return
+      if (
+        ambushQueuedFirst &&
+        activeAnnouncement?.key === 'backdoor' &&
+        (!ambushCardVisible || getPresentationOwner()?.groupId !== 'tv-announcement')
+      ) {
+        event.preventDefault()
+        return
+      }
       if (activeDetoxEventId && !activeAnnouncement) {
         event.preventDefault()
         return
@@ -1667,6 +1700,8 @@ export default function TvZone(props: TvZoneProps) {
   }, [
     activeDetoxEventId,
     activeAnnouncement,
+    ambushCardVisible,
+    ambushQueuedFirst,
     dispatch,
     handleDismiss,
     managedEventAnnouncement,

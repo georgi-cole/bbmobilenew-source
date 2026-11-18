@@ -4,6 +4,7 @@ import type { GameState, Player, TvEvent } from '../types'
 import { getCompetitionPerceptionRead } from '../ai/competition'
 import { TWIN_SHOCK_ALI_ID, TWIN_SHOCK_LIA_ID } from '../bb/twinShock'
 import { getHoldTheWallDealDisposition } from '../features/holdTheWall/deal'
+import { selectPendingAmbushBroadcast } from '../broadcasting/fauxTvPresentation'
 
 export type LohNominationStrategy = 'direct' | 'backdoor'
 export type LohNominationPlanStatus =
@@ -728,8 +729,11 @@ function buildBackdoorRevealEvent(state: GameState, plan: LohNominationPlan): Tv
     timestamp: Date.now(),
     meta: {
       major: 'backdoor',
+      gameId: state.gameId,
       week: state.week,
       phase: state.phase,
+      broadcastManaged: true,
+      broadcastLevel: 'major',
       broadcastPriority: 'major',
       forceOnTv: true,
       announcementTitle: 'AMBUSH',
@@ -747,13 +751,31 @@ function maybePublishBackdoorReveal(
 ): GameState {
   const plan = state.lohNominationPlan
   if (action.type !== 'game/advance' || !plan?.revealPending || plan.revealed) return state
-  if (previous.phase !== 'pos_ceremony_results') return state
+  if (previous.phase !== 'pos_ceremony_results' || state.phase !== previous.phase) return state
   const event = buildBackdoorRevealEvent(state, plan)
   if (!event) return state
   return {
     ...state,
     tvFeed: [event, ...state.tvFeed],
+    broadcastQueue: [...(state.broadcastQueue ?? []), event.id],
     lohNominationPlan: { ...plan, revealPending: false, revealed: true },
+  }
+}
+
+function restorePendingAmbushBroadcast(state: GameState): GameState {
+  const event = selectPendingAmbushBroadcast(state)
+  if (!event || state.broadcastQueue?.includes(event.id)) return state
+  return {
+    ...state,
+    tvFeed: state.tvFeed.map((candidate) =>
+      candidate !== event
+        ? candidate
+        : {
+            ...event,
+            meta: { ...event.meta, broadcastManaged: true, broadcastLevel: 'major' },
+          }
+    ),
+    broadcastQueue: [...(state.broadcastQueue ?? []), event.id],
   }
 }
 
@@ -946,8 +968,14 @@ export function withLohNominationPlanning(
 ): Reducer<GameState, UnknownAction> {
   return (state, action) => {
     const previous = state
+    if (previous?.phase === 'pos_ceremony_results' && action.type === 'game/advance') {
+      if (selectPendingAmbushBroadcast(previous)) return restorePendingAmbushBroadcast(previous)
+      const revealed = maybePublishBackdoorReveal(previous, previous, action)
+      if (revealed !== previous) return revealed
+    }
     let next = baseReducer(state, action)
     if (!previous) return next
+    if (action.type === 'game/hydrateGame') next = restorePendingAmbushBroadcast(next)
 
     if (
       action.type === 'game/resetGame' ||
