@@ -96,7 +96,7 @@ export function getRequiredConfessionalPresentation(
             : `Privately choose ${required} hubmates to nominate. You cannot choose yourself, today’s immunity winner, or the last-place nominee.`
           : survival
             ? `Select ${required} contestants for elimination consideration.`
-            : `As Leader, you must nominate ${required} hubmates. Your choices remain private until you return to the Hub.`,
+            : `As Leader, you must nominate ${required} ${isCupidArrowActive(game) ? 'pairs' : 'hubmates'}. Your choices remain private until you return to the Hub.`,
         consequence: isVoxPopuli
           ? isVoxFinalFour
             ? 'The highest total joins the last-place hubmate on the block. A tie expands the block.'

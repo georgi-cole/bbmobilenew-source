@@ -257,7 +257,7 @@ const STANDALONE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
       'A complete paired-season rule set',
       'Shared power, danger, votes, and exits',
       'Dedicated ceremonies, broadcasts, and season archive',
-      'Permanent access whenever the expansion is scheduled',
+      "Permanent access to Cupid's Arrow",
     ],
     icon: 'cupidArrow',
     visualTheme: 'cupid',
@@ -265,8 +265,7 @@ const STANDALONE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     category: 'expansion',
     shelf: 'game-modes',
     badge: 'Season expansion',
-    accessInstructions:
-      "Cupid's Arrow enters eligible new seasons automatically once the expansion is active.",
+    accessInstructions: "Choose Cupid's Arrow from Play on the Home screen to start a new season.",
     accessRoute: '/',
     accessLabel: 'Go to Home',
     legalNote: VIP_UPGRADE_CREDIT_NOTE,
@@ -293,8 +292,7 @@ const STANDALONE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     category: 'expansion',
     shelf: 'game-modes',
     badge: 'Season expansion',
-    accessInstructions:
-      'Vox Populi enters eligible new seasons automatically once the expansion is active.',
+    accessInstructions: 'Choose Vox Populi from Play on the Home screen to start a new season.',
     accessRoute: '/',
     accessLabel: 'Go to Home',
     legalNote: VIP_UPGRADE_CREDIT_NOTE,

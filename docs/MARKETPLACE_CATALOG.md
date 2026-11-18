@@ -153,7 +153,7 @@ Whispers travel. Loyalties shift. One conversation can save your game.
 - Availability: Released
 - Shelf: game-modes
 - Badge: Season expansion
-- Access: Cupid's Arrow enters eligible new seasons automatically once the expansion is active.
+- Access: Choose Cupid's Arrow from Play on the Home screen to start a new season.
 
 Permanently unlock the Cupid's Arrow seasonal expansion.
 
@@ -164,7 +164,7 @@ A full-season paired format where every victory, nomination, vote, and eliminati
 - A complete paired-season rule set
 - Shared power, danger, votes, and exits
 - Dedicated ceremonies, broadcasts, and season archive
-- Permanent access whenever the expansion is scheduled
+- Permanent access to Cupid's Arrow
 
 75% of this purchase counts toward a future VIP upgrade. The final upgrade price is rounded to the nearest supported store tier.
 
@@ -174,7 +174,7 @@ A full-season paired format where every victory, nomination, vote, and eliminati
 - Availability: Released
 - Shelf: game-modes
 - Badge: Season expansion
-- Access: Vox Populi enters eligible new seasons automatically once the expansion is active.
+- Access: Choose Vox Populi from Play on the Home screen to start a new season.
 
 Permanently unlock the Vox Populi seasonal expansion.
 
