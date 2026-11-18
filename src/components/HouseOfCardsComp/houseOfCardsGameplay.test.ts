@@ -24,6 +24,31 @@ const roster = [
 ]
 
 describe('Deck of Light gameplay edge cases', () => {
+  it('uses fallible remembered-pair recall without a second access penalty', () => {
+    const board: HouseOfCardsBoardCard[] = [
+      { index: 0, symbol: 'moon', isFlipped: false, isMatched: false, isMismatch: false },
+      { index: 1, symbol: 'moon', isFlipped: false, isMatched: false, isMismatch: false },
+      { index: 2, symbol: 'star', isFlipped: false, isMatched: false, isMismatch: false },
+      { index: 3, symbol: 'star', isFlipped: false, isMatched: false, isMismatch: false },
+    ]
+    const recallRate = (skill: number) =>
+      Array.from({ length: 500 }, (_, seed) =>
+        chooseHouseOfCardsAiPair({
+          board,
+          rememberedIndexes: new Set([0, 1]),
+          seed,
+          skill,
+        })
+      ).filter((pair) => pair !== null && pair.includes(0) && pair.includes(1)).length / 500
+
+    const lowSkillRecallRate = recallRate(0)
+    const highSkillRecallRate = recallRate(100)
+    expect(lowSkillRecallRate).toBeGreaterThan(0.25)
+    expect(lowSkillRecallRate).toBeLessThan(0.4)
+    expect(highSkillRecallRate).toBeGreaterThan(lowSkillRecallRate)
+    expect(highSkillRecallRate).toBeLessThan(0.75)
+  })
+
   it('builds exactly two cards for each portrait identity, even when variants are needed', () => {
     const board = buildPortraitPairBoard(9, 7, roster, ['rival-b', 'host'])
     const identities = new Map<string, HouseOfCardsBoardCard[]>()

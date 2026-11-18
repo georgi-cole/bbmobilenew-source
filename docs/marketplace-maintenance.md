@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-18: Reviewed the Deck of Light AI memory changes. Preliminary
+  opponents play through every pair, and finale opponents recall observed pairs
+  more reliably while still making mistakes. Rules, rewards, pricing and access
+  remain as described in the marketplace catalog.
+
 - 2026-11-17: Reviewed the Safety Confessional handoff. Standard ceremonies let
   players resume in the Hub after sealing their save target. The review confirmed
   that VIP ceremony playback, its existing access rules, and marketplace
