@@ -292,7 +292,7 @@ describe('critical nomination and eviction engine integrity', () => {
     expect(decided.pendingEviction?.evictionMessage).toContain('breaks the tie')
   })
 
-  it('gives every active Vox housemate a nomination ballot, including the Final 4 auto-nominee', () => {
+  it('counts one ballot from each of the three eligible voters at Vox Final 4', () => {
     const state = createInitialGameState({ seed: 401 })
     resetToCleanClassicCycle(state)
     const finalists = state.players.slice(0, 4)
@@ -316,12 +316,13 @@ describe('critical nomination and eviction engine integrity', () => {
     expect(result.phase).toBe('nomination_results')
     expect(result.awaitingNominations).toBe(true)
 
-    const activeIds = finalists.map((player) => player.id).sort()
-    const aiFinalistIds = finalists.filter((player) => !player.isUser).map((player) => player.id)
+    const voters = finalists.filter((player) => player.id !== state.lastHohCompFinisherId)
+    const voterIds = voters.map((player) => player.id).sort()
+    const aiFinalistIds = voters.filter((player) => !player.isUser).map((player) => player.id)
     expect(Object.keys(result.voxPopuli?.nominationBallots ?? {}).sort()).toEqual(
       aiFinalistIds.sort()
     )
-    expect(result.voxPopuli?.nominationBallots[finalists[1].id]).toHaveLength(1)
+    expect(result.voxPopuli?.nominationBallots[finalists[1].id]).toBeUndefined()
 
     const human = finalists.find((player) => player.isUser)
     if (!human) throw new Error('Expected the human in the Final 4')
@@ -333,8 +334,9 @@ describe('critical nomination and eviction engine integrity', () => {
     result = criticalGameReducer(result, commitNominees([humanChoice.id]))
 
     expect(result.awaitingNominations).toBe(false)
-    expect(Object.keys(result.voxPopuli?.nominationBallots ?? {}).sort()).toEqual(activeIds)
-    for (const voterId of activeIds) {
+    expect(Object.keys(result.voxPopuli?.nominationBallots ?? {}).sort()).toEqual(voterIds)
+    expect(result.nomineeIds).toContain(finalists[1].id)
+    for (const voterId of voterIds) {
       const ballot = result.voxPopuli?.nominationBallots[voterId]
       expect(ballot).toHaveLength(1)
       expect(ballot?.[0]).not.toBe(voterId)

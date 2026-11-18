@@ -752,6 +752,17 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     '{leader} named {nominee} as the backup nominee. 🎯'
   ),
   feed(
+    'cupid.backup-nomination',
+    'pos_ceremony_results',
+    '{leader} named {nominees} as the backup nominees. 🎯',
+    'game',
+    'minor',
+    undefined,
+    "Cupid's Arrow backup nomination",
+    true,
+    'cupid'
+  ),
+  feed(
     'safety.force-majeure',
     'pos_ceremony_results',
     '{holder} used Force Majeure and saved themselves! ✨'

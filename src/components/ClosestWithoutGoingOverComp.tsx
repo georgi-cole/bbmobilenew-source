@@ -49,6 +49,7 @@ import './ClosestWithoutGoingOverComp.css';
 interface Props {
   participantIds: string[];
   prizeType: CwgoPrizeType;
+  competitionTitle?: string;
   seed: number;
   onComplete?: (completion?: ReactMinigameCompletion) => void;
 }
@@ -85,6 +86,7 @@ function handleAvatarError(e: React.SyntheticEvent<HTMLImageElement>, name: stri
 export default function ClosestWithoutGoingOverComp({
   participantIds,
   prizeType,
+  competitionTitle,
   seed,
   onComplete,
 }: Props) {
@@ -357,7 +359,7 @@ export default function ClosestWithoutGoingOverComp({
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
-  const prizeLabel = prizeType === 'LOH' ? '🏆 Leader of the Hub' : '🔑 Power of Safety';
+  const prizeLabel = competitionTitle ?? (prizeType === 'LOH' ? '🏆 Leader of the Hub' : '🔑 Power of Safety');
 
   // Hide the question card during choose_duel — the question belongs to the
   // upcoming duel, not the leader-pick phase.

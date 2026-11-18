@@ -20,6 +20,7 @@ type SafetyConsultationGame = Partial<
   >
 > & {
   phase?: string
+  voxPopuli?: { status?: string } | null
   lohSocialPlan?: { week?: number; lohId?: string; currentTargetId?: string | null } | null
   players?: readonly { id: string; name?: string; status: string }[]
   nomineeIds?: readonly string[]
@@ -40,6 +41,10 @@ export function formatLohSafetyConsultation(
   if (!nominees.length) return null
   const name = (id: string) => game.players?.find((player) => player.id === id)?.name ?? id
   if (nominees.includes(actorId)) return 'Obviously save yourself. Your own safety comes first.'
+
+  if (game.voxPopuli?.status === 'active') {
+    return "Use Safety if there's someone on the block you want to protect. If a backup is needed, the original secret ballot supplies it. The audience decides who leaves."
+  }
 
   const plan = game.lohNominationPlan
   const canonical =

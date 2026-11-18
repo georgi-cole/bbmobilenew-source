@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { getCupidPartnerId } from '../../features/twists/cupidArrow'
+import { getVoxCompetitionTitle } from '../../features/twists/voxPopuli'
 import { useAppSelector } from '../../store/hooks'
 import { selectIsGuest } from '../../store/profilesSlice'
 import { publicOpinionConfig } from '../../publicOpinion/publicOpinionConfig'
@@ -228,6 +230,23 @@ export default function ProfileSeasonStatus() {
   const { season, week, phase, lohId, posWinnerId } = game
   const userPlayer = game.players?.find((player) => player.isUser) ?? null
   const nomineeIds = game.nomineeIds ?? EMPTY_NOMINEES
+  const voxCompetition = getVoxCompetitionTitle(game)
+  const phaseLabel =
+    voxCompetition && ['loh_comp_announcement', 'loh_comp', 'loh_results'].includes(phase)
+      ? voxCompetition === 'Immunity'
+        ? 'Immunity'
+        : 'Final 4'
+      : formatPhaseLabel(phase)
+  const userId = userPlayer?.id
+  const holdsLoh = Boolean(
+    userId && !voxCompetition && (lohId === userId || getCupidPartnerId(game, lohId) === userId)
+  )
+  const holdsSafety = Boolean(
+    userId && (posWinnerId === userId || getCupidPartnerId(game, posWinnerId) === userId)
+  )
+  const holdsImmunity = Boolean(
+    userId && voxCompetition && game.voxPopuli?.immunityWinnerId === userId
+  )
   const publicApproval = useAppSelector((s) => {
     const userId = (s.game.players ?? []).find((player) => player.isUser)?.id ?? 'user'
     const profile = s.publicOpinion?.profiles?.[userId]
@@ -283,9 +302,9 @@ export default function ProfileSeasonStatus() {
         id: 'phase',
         icon: '📡',
         variant: 'phase',
-        shortValue: formatPhaseLabel(phase),
+        shortValue: phaseLabel,
         detailLabel: 'Phase',
-        detailValue: formatPhaseLabel(phase),
+        detailValue: phaseLabel,
       },
       buildNominationChip(nomineeIds, userPlayer),
       {
@@ -311,7 +330,7 @@ export default function ProfileSeasonStatus() {
       })
     }
 
-    if (userPlayer && lohId === userPlayer.id) {
+    if (holdsLoh) {
       chips.push({
         id: 'loh',
         icon: '👑',
@@ -322,7 +341,17 @@ export default function ProfileSeasonStatus() {
       })
     }
 
-    if (userPlayer && posWinnerId === userPlayer.id) {
+    if (holdsImmunity) {
+      chips.push({
+        id: 'immunity',
+        icon: '🛡️',
+        variant: 'success',
+        shortValue: 'Immune',
+        detailLabel: 'Immunity',
+        detailValue: 'Protected from nomination',
+      })
+    }
+    if (holdsSafety) {
       chips.push({
         id: 'pos',
         icon: '🔑',
@@ -337,10 +366,11 @@ export default function ProfileSeasonStatus() {
   }, [
     gameInProgress,
     houseRating,
-    lohId,
+    holdsImmunity,
+    holdsLoh,
+    holdsSafety,
     nomineeIds,
-    phase,
-    posWinnerId,
+    phaseLabel,
     publicApproval,
     season,
     userPlayer,

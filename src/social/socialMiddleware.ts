@@ -2476,6 +2476,12 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
 
     const result = next(action)
     if (
+      prevState.game?.cupidArrow?.status === 'active' &&
+      (api.getState() as StateWithGame).game?.cupidArrow?.status === 'broken'
+    ) {
+      clearCupidPairSocialLinks(api as unknown as MiddlewareAPI)
+    }
+    if (
       isConfessionalAdministrativeRemoval &&
       !((api.getState() as StateWithGame).game?.players ?? []).find(
         (player) => player.id === evicteeId

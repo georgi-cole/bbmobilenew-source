@@ -10,6 +10,7 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react'
+import { getVoxCompetitionTitle } from '../../features/twists/voxPopuli'
 import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
 import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
@@ -2208,6 +2209,8 @@ export default function GameScreen() {
               // from game.phase). This is stable even if game.phase changes later.
               // Fall back to deriving from current game.phase for backward compatibility.
               prizeType: pendingChallenge.prizeType ?? (game.phase === 'pos_comp' ? 'POS' : 'LOH'),
+              competitionTitle:
+                game.phase === 'loh_comp' ? getVoxCompetitionTitle(game) : undefined,
               // Keep vote-changing Battery Low cells out of incompatible formats.
               voteEffectsEnabled:
                 (game.phase === 'loh_comp' || game.phase === 'pos_comp') &&

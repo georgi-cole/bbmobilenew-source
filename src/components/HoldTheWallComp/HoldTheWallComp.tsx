@@ -14,6 +14,7 @@ import { useSeasonAiCapability } from '../../ai/competition/SeasonAiContext'
 import { useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from 'react'
 import type { ReactMinigameCompletion } from '../../minigames/competitionResult'
 import { useCompetitionResultCheckpoint } from '../../minigames/competitionResultContext'
+import { getVoxCompetitionTitle } from '../../features/twists/voxPopuli'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import type { RootState } from '../../store/store'
 import {
@@ -63,6 +64,7 @@ interface Props {
    * the player is not found in the Redux store (e.g. GameDebug). */
   participants?: ParticipantProp[]
   prizeType: HoldTheWallPrizeType
+  competitionTitle?: string
   seed: number
   onComplete?: (completion?: HoldTheWallCompletion) => void
 }
@@ -161,6 +163,7 @@ export default function HoldTheWallComp({
   participantIds,
   participants: participantsProp,
   prizeType,
+  competitionTitle,
   seed,
   onComplete,
 }: Props) {
@@ -173,6 +176,8 @@ export default function HoldTheWallComp({
     (s: RootState) => (s as RootState & { game: { players: GamePlayer[] } }).game?.players ?? []
   )
   const gamePhase = useAppSelector((s: RootState) => s.game.phase)
+  const voxCompetition = useAppSelector((s: RootState) => getVoxCompetitionTitle(s.game))
+  const title = competitionTitle ?? (prizeType === 'LOH' ? voxCompetition : undefined)
   const socialRelationships = useAppSelector((s: RootState) => s.social.relationships)
 
   // Build a merged player map: Redux store data takes priority (has real avatars);
@@ -241,6 +246,7 @@ export default function HoldTheWallComp({
       : null
   const finalTwoDealEligible =
     prizeType === 'LOH' &&
+    !voxCompetition &&
     gamePhase === 'loh_comp' &&
     Boolean(finalTwoAiId && humanId) &&
     !htw.dealOpportunityResolved
@@ -973,7 +979,9 @@ export default function HoldTheWallComp({
             Last player standing after {formatElapsed(elapsedMs)}
           </p>
           <p className="htw-complete-prize">
-            {prizeType === 'LOH' ? '👑 Leader of the Hub' : '🔑 Power of Safety'} awarded!
+            {title
+              ? `${title} decided!`
+              : `${prizeType === 'LOH' ? '👑 Leader of the Hub' : '🔑 Power of Safety'} awarded!`}
           </p>
         </div>
       )}

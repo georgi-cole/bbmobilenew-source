@@ -70,6 +70,16 @@ export function shouldScheduleVoxPopuliSeason(options: {
   return scheduleRng() < VOX_POPULI_RETRY_CHANCE
 }
 
+export function getVoxCompetitionTitle(
+  game: Pick<GameState, 'voxPopuli' | 'players'>
+): string | undefined {
+  if (!isVoxPopuliActive(game)) return undefined
+  const active = game.players.filter(
+    (player) => player.status !== 'evicted' && player.status !== 'jury'
+  )
+  return active.length === 4 ? 'Final 4 competition' : 'Immunity'
+}
+
 export interface VoxNominationResolution {
   nomineeIds: string[]
   voteCounts: Record<string, number>

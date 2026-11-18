@@ -1443,6 +1443,7 @@ export default function TvZone(props: TvZoneProps) {
     const claims = reduxStore.getState().game.presentationEventClaims
     const alreadyClaimed = Boolean(
       isShock &&
+      key !== 'cupid_arrow_broken' &&
       (hasPresentationEventClaim(claims, introClaim) ||
         (claim && hasPresentationEventClaim(claims, claim)))
     )
@@ -1520,14 +1521,9 @@ export default function TvZone(props: TvZoneProps) {
         // Consume this broadcast now: unlike Cupid's opening, it has no second
         // faux-TV handoff and must not be rendered again as an inline card.
         setShockInfoSpotlightActive(false)
+        document.body.classList.add('body--cupid-returning')
         handleDismiss()
-        document.body.classList.remove('body--cupid-returning')
-        // Let the full-screen cinematic unmount before swapping the portrait
-        // source. Otherwise the entire return beat plays underneath it.
-        window.setTimeout(() => {
-          document.body.classList.add('body--cupid-returning')
-          dispatch(finishCupidArrowVisualReturn())
-        }, 240)
+        dispatch(finishCupidArrowVisualReturn())
         window.setTimeout(() => document.body.classList.remove('body--cupid-returning'), 1780)
       } else if (activeAnnouncement?.key === 'depression_shock_start') {
         // The roster transformation belongs to the Faux-TV handoff. Trigger it
@@ -1593,6 +1589,10 @@ export default function TvZone(props: TvZoneProps) {
       // A final appeal is a modal decision.  The global Play button must not
       // dismiss a TV card or advance the season underneath it.
       if (document.querySelector('[aria-label="Final appeal to the audience"]')) {
+        event.preventDefault()
+        return
+      }
+      if (activeAnnouncement?.key === 'cupid_arrow_broken' && shockIntroActive) {
         event.preventDefault()
         return
       }
@@ -1675,6 +1675,7 @@ export default function TvZone(props: TvZoneProps) {
     eventAnnouncementSource,
     currentQueuedBroadcastEvents.length,
     cupidFollowUpVisible,
+    shockIntroActive,
     props.playOwnedExternally,
     props.competitionStarting,
     hasPendingChallenge,

@@ -99,7 +99,11 @@ function buildSlots(outcome) {
           (id) => outcome.openingSlots?.[id] ?? outcome.openingNomineeIds.indexOf(id)
         )
       )
-      const slot = slots[Math.floor(rawIndex / 2)]
+      const preferred = slots[Math.floor(rawIndex / 2)]
+      const slot =
+        preferred?.openingIds.length === 0
+          ? preferred
+          : slots.find((entry) => !entry.openingIds.length)
       if (!slot) continue
       slot.pair = pair
       slot.openingIds = openingIds
@@ -255,10 +259,7 @@ function makeSlot(slotData, count, outcome, images, cast, pairIndexById) {
     ...(outcome.actionHistory ?? [])
       .filter(
         (action) =>
-          action.kind === 'replacement' &&
-          (isCupid(outcome)
-            ? Math.floor(action.slotIndex / 2) === slotData.index
-            : action.slotIndex === slotData.index)
+          action.kind === 'replacement' && !isCupid(outcome) && action.slotIndex === slotData.index
       )
       .map((action) => action.playerId),
     ...slotData.finalIds.filter((id) => outcome.replacementIds.includes(id)),
@@ -355,6 +356,16 @@ export function makeReplacementFilm(images, cast, outcome) {
 }
 
 export function animateReplacementFilm(root, animate, outcome, duration) {
+  const block = root.querySelector('.replacement-block')
+  const cupidSlots = new Map(
+    isCupid(outcome)
+      ? Array.from(block.querySelectorAll('.replacement-person'), (actor) => [
+          actor.dataset.actorId,
+          Number(actor.parentElement.dataset.slotIndex),
+        ])
+      : []
+  )
+  const slotForReveal = (action) => cupidSlots.get(action.playerId) ?? action.slotIndex
   const natural = replacementDuration(outcome),
     scale = duration / natural
   const at = (ms) => Math.min(duration, Math.max(0, Math.round(ms * scale)))
@@ -501,10 +512,7 @@ export function animateReplacementFilm(root, animate, outcome, duration) {
       ])
     })
     for (const reveal of beat.reveals) {
-      const slot =
-        outcome.variant === 'cupid'
-          ? Math.floor(reveal.action.slotIndex / 2)
-          : reveal.action.slotIndex
+      const slot = slotForReveal(reveal.action)
       const x = count > 3 ? Math.max(0, (slot - 1) * 34) : (slot - (count - 1) / 2) * 2.5
       cameraStops.push(
         [at(reveal.at - 260), 1, `translateX(${-x}%) scale(1.035)`, ease],
@@ -525,7 +533,6 @@ export function animateReplacementFilm(root, animate, outcome, duration) {
     [duration, 1, `translateX(0%) scale(${finalScale})`]
   )
   // All feet/platform/contact geometry moves as one world, including wide tied blocks.
-  const block = root.querySelector('.replacement-block')
   // Put camera motion on a wrapper so its visibility timeline remains independent.
   const world = block.parentElement
   animate(world, sortStops(cameraStops))
@@ -564,9 +571,7 @@ export function animateReplacementFilm(root, animate, outcome, duration) {
       .filter(
         (reveal) =>
           reveal.action.kind === 'replacement' &&
-          (outcome.variant === 'cupid'
-            ? Math.floor(reveal.action.slotIndex / 2)
-            : reveal.action.slotIndex) === Number(slot.dataset.slotIndex)
+          slotForReveal(reveal.action) === Number(slot.dataset.slotIndex)
       )
     const stops = [[0, 0, 'scale(.82)']]
     for (const reveal of arrivals)

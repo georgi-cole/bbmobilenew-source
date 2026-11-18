@@ -62,6 +62,16 @@ export interface ReplacementPresentation {
 }
 
 const unique = (ids: string[]) => [...new Set(ids)]
+
+function orderOpeningNominees(game: GameState): string[] {
+  if (game.cupidArrow?.status !== 'active') return unique(game.nomineeIds)
+  return unique(
+    game.nomineeIds.flatMap((id) => {
+      const pair = game.cupidArrow?.pairs.find((entry) => entry.memberIds.includes(id))
+      return pair?.memberIds.filter((memberId) => game.nomineeIds.includes(memberId)) ?? [id]
+    })
+  )
+}
 const scope = (game: GameState) => `${game.gameId ?? `season-${game.season}`}:${game.week}`
 const live = (game: GameState, id: string) =>
   game.players.some((p) => p.id === id && !['evicted', 'jury'].includes(p.status))
@@ -231,7 +241,7 @@ export function selectReplacementPresentation(
 
   const nominees = unique(game.nomineeIds)
   if ((!allowPending && !nominees.length) || nominees.some((id) => !live(game, id))) return null
-  const openingNomineeIds = unique(opening.nomineeIds)
+  const openingNomineeIds = orderOpeningNominees(opening)
   const replacementIds = nominees.filter((id) => !openingNomineeIds.includes(id))
   const savedIds = unique(openingNomineeIds.filter((id) => !nominees.includes(id)))
   if (!allowPending && (!replacementIds.length || !savedIds.length)) return null
@@ -403,7 +413,7 @@ export function createReplacementPresentationTracker() {
     opening = game
     previous = game
     actionHistory = []
-    occupants = unique(game.nomineeIds).map((id) => id)
+    occupants = orderOpeningNominees(game)
     collecting = startCollecting
     sequenceKey = `${scope(game)}:${Date.now()}:${++nextCollectionId}`
   }
@@ -422,7 +432,7 @@ export function createReplacementPresentationTracker() {
         // Use the pre-transition nominee list when it is from this same week.
         opening = before && scope(before) === scope(game) ? before : game
         actionHistory = []
-        occupants = unique(opening.nomineeIds).map((id) => id)
+        occupants = orderOpeningNominees(opening)
         collecting = true
         // AI Safety decisions can commit the first save (and a Halo backup) in
         // the transition into results. Capture that valid ceremony boundary;
