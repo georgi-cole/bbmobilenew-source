@@ -1,6 +1,8 @@
 import { normalizeAffinity } from './affinityUtils'
 import { getDramaResponseBlueprint } from './incomingResponseBank'
 import { getContextualIncomingChoices } from './incomingInteractionResolution'
+import { getIncomingDialogueChoices } from './incomingInteractionDialogue'
+import type { GameState } from '../types'
 import {
   getSafetyConsultationNominees,
   getSafetyConsultationScenario,
@@ -37,12 +39,13 @@ export type IncomingInteractionTone =
 export interface IncomingInteractionResponseOption {
   id: string
   safetyChoice?: IncomingSafetyChoice
+  nominationTargetId?: string
   label: string
   responseType: IncomingInteractionResponseType
   style: IncomingInteractionResponseStyle
   description: string
   createsCommitment?: boolean
-  /** A follow-up conversation action that leaves a formal offer pending. */
+  /** A question that leaves the conversation open. */
   action?: IncomingInteractionResponseAction
 }
 
@@ -113,6 +116,7 @@ const RESPONSE_OPTIONS_BY_TYPE: Record<
 type ResponseBlueprint = Array<{
   id?: string
   safetyChoice?: IncomingSafetyChoice
+  nominationTargetId?: string
   label: string
   responseType: IncomingInteractionResponseType
   style?: IncomingInteractionResponseStyle
@@ -322,18 +326,25 @@ function getSafetyPlanBlueprint(
 }
 
 type SafetyNomineeContext = Parameters<typeof getSafetyConsultationNominees>[1]
+type IncomingResponseContext = SafetyNomineeContext | GameState
 
 function getResponseBlueprints(
   type: IncomingInteractionType,
   interaction?: IncomingInteraction,
   tone?: IncomingInteractionTone,
   dramaMode = false,
-  safetyContext?: SafetyNomineeContext
+  context?: IncomingResponseContext
 ): ResponseBlueprint {
   if (!interaction) return RESPONSE_OPTIONS_BY_TYPE[type]
 
-  const safetyPlan = getSafetyPlanBlueprint(interaction, safetyContext)
+  const safetyPlan = getSafetyPlanBlueprint(interaction, context)
   if (safetyPlan) return safetyPlan
+
+  const dialogueChoices = getIncomingDialogueChoices(
+    interaction,
+    context && 'week' in context ? context : undefined
+  )
+  if (dialogueChoices) return dialogueChoices
 
   // The scenario bank is the primary source for player choices in both modes.
   // It keeps a Safety pitch, nomination fallout, or relationship repair from
@@ -448,9 +459,9 @@ export function getIncomingInteractionResponseOptions(
   interaction?: IncomingInteraction,
   tone?: IncomingInteractionTone,
   dramaMode = false,
-  safetyContext?: SafetyNomineeContext
+  context?: IncomingResponseContext
 ): IncomingInteractionResponseOption[] {
-  const options = getResponseBlueprints(type, interaction, tone, dramaMode, safetyContext)
+  const options = getResponseBlueprints(type, interaction, tone, dramaMode, context)
   const commitmentKind = interaction ? getCommitmentKindForInteraction(interaction) : null
   const isHoldSafetyRequest =
     interaction?.payload?.originActionId === 'ask_hold_safety' &&
@@ -473,7 +484,9 @@ export function getIncomingInteractionResponseOptions(
         : {
             description: option.safetyChoice
               ? 'Shares a preference without using Safety.'
-              : getDefaultResponseDescription(option.responseType),
+              : option.action
+                ? 'Asks a question before you decide.'
+                : getDefaultResponseDescription(option.responseType),
           }),
   }))
 }

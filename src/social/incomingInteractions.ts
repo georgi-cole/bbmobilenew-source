@@ -11,7 +11,15 @@ import {
 } from './incomingSafetyConsultationChoice'
 import { ROMANCE_ACTION_CHOICES } from './incomingSceneChoiceBank'
 import { getIncomingDialogueBeat } from './incomingDialogueOutcomeBank'
-import { getSameDayPactRefusal, isProtectionClarification } from './pactProtectionContinuity'
+import {
+  getIncomingDialogueFinalReply,
+  getIncomingDialogueReply,
+} from './incomingInteractionDialogue'
+import {
+  explainProtectionWithoutPact,
+  getSameDayPactRefusal,
+  isProtectionClarification,
+} from './pactProtectionContinuity'
 import { getIncomingActionContent } from './incomingActionContentBank'
 import {
   getIncomingResponseLogCopy,
@@ -30,6 +38,7 @@ import {
   dismissIncomingInteraction,
   replaceRealityDomain,
   recordIncomingInteractionFollowUp,
+  recordIncomingDialogueTurn,
   resolveIncomingInteractionsByDeadline,
   resolveIncomingInteraction,
   recordSeasonProvocateurResponse,
@@ -1422,6 +1431,38 @@ export function respondToIncomingInteraction(submission: IncomingReplySubmission
     let responseType = option?.responseType ?? submission.responseType
     if (!responseType) return
 
+    if (responseAction === 'ask_deal_terms' || responseAction === 'ask_nomination_read') {
+      const scenario = interaction.payload?.scenarioKey
+      const human = state.game.players.find(({ isUser }) => isUser)
+      const pactRefusal =
+        human && typeof scenario === 'string' && isProtectionClarification(scenario, responseLabel)
+          ? getSameDayPactRefusal(state.social.reality, human.id, interaction.fromId, currentWeek)
+          : null
+      const reply = getIncomingDialogueReply(
+        interaction,
+        responseAction,
+        state.game,
+        state.social.relationships[interaction.fromId]
+      )
+      if (reply && responseType === 'neutral') {
+        const contextualReply =
+          pactRefusal && typeof scenario === 'string'
+            ? explainProtectionWithoutPact(pactRefusal, scenario).slice(1, -1)
+            : reply
+        dispatch(
+          recordIncomingDialogueTurn({
+            interactionId,
+            turn: {
+              question: responseAction,
+              label: responseLabel ?? 'Ask a question',
+              reply: contextualReply,
+            },
+          })
+        )
+      }
+      return
+    }
+
     // A question is a follow-up, not a neutral final response or an alliance vote.
     if (
       isAllianceStrategyScenario(interaction.payload?.scenarioKey) &&
@@ -1590,13 +1631,19 @@ export function respondToIncomingInteraction(submission: IncomingReplySubmission
     )
     settleBackgroundSocialAction(dispatch, getState, interaction, resolvedAt)
 
+    const senderName = state.game.players.find(({ id }) => id === interaction.fromId)?.name
+    const namedTarget = state.game.players.find(({ id }) => id === option?.nominationTargetId)?.name
+    const dialogueReply = getIncomingDialogueFinalReply(interaction, choiceId, namedTarget)
     dispatch(
       resolveIncomingInteraction({
         interactionId,
         resolvedWith: responseType,
         resolvedLabel: responseLabel,
         resolvedChoiceId: choiceId,
-        reactionText: result.reactionText,
+        reactionText:
+          senderName && dialogueReply
+            ? `${senderName} replies: “${dialogueReply}”`
+            : result.reactionText,
         outcomeText: result.outcomeText,
         receipt: result.receipt,
         resolvedAt,

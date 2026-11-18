@@ -7,6 +7,11 @@ import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import SurvivalRunsProduct from './SurvivalRunsProduct'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
+  matchReadyChallengeAttempt,
+  selectPendingChallenge,
+  type ChallengeAttemptReference,
+} from '../../store/challengeSlice'
+import {
   purchaseEyeoleanStoreProduct,
   selectCurrentProfile,
   selectEyeoleanBalance,
@@ -80,9 +85,14 @@ export default function Store() {
   const storeState = useAppSelector(selectVip)
   const currentProfile = useAppSelector(selectCurrentProfile)
   const game = useAppSelector((state) => state.game)
+  const pendingChallenge = useAppSelector(selectPendingChallenge)
   const eyeoleanBalance = useAppSelector(selectEyeoleanBalance)
   const eyeoleanInventory = useAppSelector(selectEyeoleanInventory)
-  const locationState = location.state as { returnTo?: unknown; shelf?: unknown } | null
+  const locationState = location.state as {
+    returnTo?: unknown
+    shelf?: unknown
+    competitionReturn?: ChallengeAttemptReference
+  } | null
   const requestedShelf = locationState?.shelf
   const [notice, setNotice] = useState<string | null>(null)
   const [eyeoleanNotice, setEyeoleanNotice] = useState<string | null>(null)
@@ -93,6 +103,7 @@ export default function Store() {
     isStoreShelfId(requestedShelf) ? requestedShelf : 'all-access'
   )
   const purchaseLockRef = useRef(false)
+  const returnedToCompetitionRef = useRef(false)
   const busy =
     storeState.status === 'loading' ||
     storeState.status === 'purchasing' ||
@@ -114,8 +125,21 @@ export default function Store() {
         (storeState.billingAvailable ? 'Product unavailable' : 'Available on iOS and Android')
   const returnTo = locationState?.returnTo
   const hasReturnDestination = typeof returnTo === 'string' && returnTo.startsWith('/')
+  const competitionReturn = locationState?.competitionReturn
+  const canReturnToCompetition =
+    competitionReturn != null &&
+    matchReadyChallengeAttempt(pendingChallenge, competitionReturn, game) &&
+    pendingChallenge.premiumOffer?.attempt === competitionReturn.number &&
+    pendingChallenge.premiumOffer.decision === 'marketplace'
+  const ownsPremiumChallenge = hasEffectiveStoreEntitlement(storeState, 'premiumChallenges')
 
   function goBack() {
+    if (competitionReturn) {
+      if (returnedToCompetitionRef.current) return
+      returnedToCompetitionRef.current = true
+      navigate(-1)
+      return
+    }
     if (hasReturnDestination) {
       navigate(returnTo, { replace: true })
       return
@@ -126,6 +150,12 @@ export default function Store() {
   useEffect(() => {
     if (storeState.status === 'idle') void dispatch(initializeVip())
   }, [dispatch, storeState.status])
+
+  useEffect(() => {
+    if (!canReturnToCompetition || !ownsPremiumChallenge || returnedToCompetitionRef.current) return
+    returnedToCompetitionRef.current = true
+    navigate(-1)
+  }, [canReturnToCompetition, navigate, ownsPremiumChallenge])
 
   function ownsProduct(productKey: StoreProductKey): boolean {
     return productKey === 'vip'
@@ -278,7 +308,12 @@ export default function Store() {
         ) : (
           storeState.isActive && <span className="vip-store__active-badge">VIP Owned</span>
         )}
-        <GameBackButton className="vip-store__back" onClick={goBack} />
+        <GameBackButton
+          className="vip-store__back"
+          label={competitionReturn ? 'Back to competition' : 'Go back'}
+          title={competitionReturn ? 'Back to competition' : undefined}
+          onClick={goBack}
+        />
       </header>
 
       <nav className="vip-store__shelf-nav" aria-label="Store categories">

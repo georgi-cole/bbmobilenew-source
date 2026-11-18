@@ -3,6 +3,7 @@
 
 import type { Player } from '../types'
 import { appearanceFromAssetUrl, getAppearanceAsset } from '../appearance/catalog'
+import { isCombinedTwinIdentity } from '../bb/twinShockIdentity.mjs'
 import { getById, findByName } from '../data/houseguests'
 import type { RemotePlayerOverride } from '../remoteConfig/remoteConfigTypes'
 import { greyLuxAvatarAssetPath } from './presentationAvatar'
@@ -192,7 +193,8 @@ function capitalize(s: string): string {
  * For numeric ids with no houseguest match, candidates are: assets/skins/{id}_avatar.webp
  */
 export function resolveAvatarCandidates(
-  player: Pick<Player, 'id' | 'name' | 'avatar'> & Partial<Pick<Player, 'isUser' | 'appearance'>>
+  player: Pick<Player, 'id' | 'name' | 'avatar'> &
+    Partial<Pick<Player, 'isUser' | 'appearance' | 'twinMode'>>
 ): string[] {
   const candidates: string[] = []
   const isUserPlayer = player.isUser === true || player.id === 'user'
@@ -204,9 +206,12 @@ export function resolveAvatarCandidates(
 
   // Persisted games created before the combined portrait was wired may still
   // carry Lia's old single portrait. The revealed twin identity is canonical.
-  if (player.id === 'lia' && /\blia\s*&\s*ali\b/i.test(player.name)) {
-    candidates.push(joinPublicAssetPath('assets/skins/Ali_lia_avatar_512.webp'))
-    candidates.push(joinPublicAssetPath('assets/skins/Ali_lia_avatar.webp'))
+  if (isCombinedTwinIdentity(player)) {
+    return [
+      joinAvatarPath('Ali_lia_avatar_512.webp'),
+      joinAvatarPath('Ali_lia_avatar.webp'),
+      getLocalAvatarFallback('Lia Ali'),
+    ]
   }
 
   if (getProfilePhotoAvatarId(player.avatar)) {
@@ -227,10 +232,7 @@ export function resolveAvatarCandidates(
   // fail through to initials on mobile).
   const canonicalPlayer = isUserPlayer ? undefined : (getById(player.id) ?? findByName(player.name))
   const explicitAvatarPath = normalizeExplicitAvatarPath(player.avatar)
-  const isCombinedTwinPortrait = /Ali_lia_avatar\.(?:webp|svg)(?:$|[?#])/i.test(
-    explicitAvatarPath ?? ''
-  )
-  if ((!canonicalPlayer || isCombinedTwinPortrait) && explicitAvatarPath) {
+  if (!canonicalPlayer && explicitAvatarPath) {
     candidates.push(explicitAvatarPath)
   }
 
@@ -313,9 +315,7 @@ export const getAvatarCandidatesFor = resolveAvatarCandidates
  *  - First onError: swap src to getDicebear(player.name)
  *  - Second onError (Dicebear unreachable): show emoji / initials fallback
  */
-export function resolveAvatar(
-  player: Pick<Player, 'id' | 'name' | 'avatar'> & Partial<Pick<Player, 'isUser' | 'appearance'>>
-): string {
+export function resolveAvatar(player: Parameters<typeof resolveAvatarCandidates>[0]): string {
   const candidates = resolveAvatarCandidates(player)
   if (
     typeof window !== 'undefined' &&
@@ -421,13 +421,14 @@ function resolveFormalCutoutFromFolder(player: Pick<Player, 'id' | 'name'>): str
  * Returns the URL for a housemate's full-body formal cutout from
  * `public/assets/formal_attires/`, or `null` when no cutout exists for this player.
  */
-export function resolveFormalCutout(
-  player: Pick<Player, 'id' | 'name'> & Partial<Pick<Player, 'avatar' | 'appearance' | 'isUser'>>
-): string | null {
+export function resolveFormalCutout(player: CutoutPlayer): string | null {
   if (player.id === 'user' || player.isUser) {
     const selection = player.appearance ?? appearanceFromAssetUrl(player.avatar)
     const asset = getAppearanceAsset(selection, 'formal')
     return asset ? joinPublicAssetPath(asset) : null
+  }
+  if (isCombinedTwinIdentity(player)) {
+    return joinPublicAssetPath('assets/formal_attires/Lia_Ali_formal.webp')
   }
   const folderMatch = resolveFormalCutoutFromFolder(player)
   if (folderMatch) {
@@ -486,13 +487,14 @@ const MALE_AVATAR_EMOJI = '👨'
  * Usage in a component:
  *   const cutoutSrc = resolveInformalCutout(player) ?? resolveAvatar(player);
  */
-export function resolveInformalCutout(
-  player: Pick<Player, 'id' | 'name'> & Partial<Pick<Player, 'avatar' | 'appearance' | 'isUser'>>
-): string | null {
+export function resolveInformalCutout(player: CutoutPlayer): string | null {
   if (player.id === 'user' || player.isUser) {
     const selection = player.appearance ?? appearanceFromAssetUrl(player.avatar)
     const asset = getAppearanceAsset(selection, 'casual')
     return asset ? joinPublicAssetPath(asset) : null
+  }
+  if (isCombinedTwinIdentity(player)) {
+    return joinPublicAssetPath('assets/Informal_attires/Lia_Ali_informal.webp')
   }
   const targetTokens = collectTwinShockFullSizeLookupTokens(player)
   if (targetTokens.length === 0) return null
@@ -526,11 +528,13 @@ export function resolveSilhouetteFallback(
   return joinPublicAssetPath(`assets/${file}`)
 }
 
-type FullSizeCutoutFallbackPlayer = Pick<Player, 'id' | 'name'> &
-  Partial<Pick<Player, 'avatar' | 'appearance' | 'isUser'>> & {
-    gender?: string
-    sex?: string
-  }
+type CutoutPlayer = Pick<Player, 'id' | 'name'> &
+  Partial<Pick<Player, 'avatar' | 'appearance' | 'isUser' | 'twinMode'>>
+
+type FullSizeCutoutFallbackPlayer = CutoutPlayer & {
+  gender?: string
+  sex?: string
+}
 
 export function resolveFullSizeCutoutFallback(player: FullSizeCutoutFallbackPlayer): string {
   const hg =

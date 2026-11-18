@@ -1,0 +1,39 @@
+.hubmate-choice-chip {
+  flex: 0 0 auto;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.28rem 0.58rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hubmate-choice-chip--selected {
+  color: #fff;
+  background: rgba(99, 102, 241, 0.3);
+  border-color: var(--color-accent, #6366f1);
+}
+
+.hubmate-choice-chip:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.hubmate-choice-chip .pa--sm {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 1.35rem;
+}
+
+.hubmate-choice-chip__name {
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

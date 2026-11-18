@@ -109,6 +109,17 @@
   box-shadow: 0 0 14px rgba(125, 74, 207, 0.2);
 }
 
+.sp2-consult-alliance-picker--locked .sp2-consult-alliance-picker__chips {
+  gap: 0.62rem;
+  padding: 0.62rem 0.52rem 0.15rem 0.14rem;
+}
+
+.sp2-consult-alliance-chip--locked {
+  position: relative;
+  overflow: visible;
+  padding-inline-end: 0.95rem;
+}
+
 .sp2-consult-alliance-picker.is-attention .sp2-consult-alliance-chip {
   animation: sp2-alliance-chip-attention 760ms ease-in-out 2;
 }
@@ -513,8 +524,7 @@
 }
 
 .sp2-header__close:focus-visible,
-.sp2-execute:focus-visible,
-.sp2-subject-chip:focus-visible {
+.sp2-execute:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
@@ -747,13 +757,13 @@
   overflow: visible;
 }
 
-.sp2-subject-picker--vote .sp2-subject-chip {
+.sp2-subject-picker--vote .hubmate-choice-chip {
   flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
 }
 
-.sp2-subject-picker--vote .sp2-subject-chip__name {
+.sp2-subject-picker--vote .hubmate-choice-chip__name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -763,41 +773,6 @@
   color: rgba(255, 255, 255, 0.4);
   font-size: 0.72rem;
   font-style: italic;
-}
-
-.sp2-subject-chip {
-  flex: 0 0 auto;
-  min-height: 42px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.32rem;
-  padding: 0.28rem 0.58rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.82);
-  background: rgba(255, 255, 255, 0.06);
-  font-size: 0.76rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.sp2-subject-chip--selected {
-  color: #fff;
-  background: rgba(99, 102, 241, 0.3);
-  border-color: var(--color-accent, #6366f1);
-}
-
-.sp2-subject-chip .pa--sm {
-  width: 1.35rem;
-  height: 1.35rem;
-  flex: 0 0 1.35rem;
-}
-
-.sp2-subject-chip__name {
-  max-width: 8rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .sp2-recent {
@@ -1014,8 +989,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sp2-header__close,
-  .sp2-execute,
-  .sp2-subject-chip {
+  .sp2-execute {
     transition: none !important;
   }
 

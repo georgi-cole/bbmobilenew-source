@@ -65,6 +65,7 @@ import {
   isIncomingInteractionUrgent,
 } from '../../social/incomingInteractionDeadline'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
+import HubmateChoiceChip from '../SocialPanelV2/HubmateChoiceChip'
 import ContextualGuidePrompt from '../../onboarding/ContextualGuidePrompt'
 import {
   hasSeenContextualGuide,
@@ -281,7 +282,7 @@ interface InteractionItemProps {
     choiceId: string,
     action?: IncomingInteractionResponseAction
   ) => void
-  safetyContext: Pick<GameState, 'players' | 'nomineeIds'>
+  game: GameState
   relationships: RelationshipsMap
   socialMemory: SocialMemoryMap
   humanId: string
@@ -299,7 +300,7 @@ function InteractionItem({
   currentPhase,
   onRead,
   onRespond,
-  safetyContext,
+  game,
   relationships,
   socialMemory,
   humanId,
@@ -307,6 +308,7 @@ function InteractionItem({
   interactionDramaMode,
 }: InteractionItemProps) {
   const itemRef = useRef<HTMLDivElement>(null)
+  const [nominationChoiceId, setNominationChoiceId] = useState('')
   const fromPlayer = playerById.get(interaction.fromId)
   const fromName = fromPlayer?.name ?? interaction.fromId
   const safetyConsultation = getSafetyConsultationScenario(interaction)
@@ -374,12 +376,21 @@ function InteractionItem({
               interaction,
               tone,
               interactionDramaMode,
-              safetyContext
+              game
             )
           )
         : [],
-    [shouldShowActions, interaction, tone, interactionDramaMode, safetyContext]
+    [shouldShowActions, interaction, tone, interactionDramaMode, game]
   )
+  const nominationChoices = responseOptions.flatMap((option) => {
+    if (!option.nominationTargetId) return []
+    const player = playerById.get(option.nominationTargetId)
+    return player ? [{ id: option.id, player }] : []
+  })
+  const selectedNominationChoice = nominationChoices.find(
+    (option) => option.id === nominationChoiceId
+  )
+  const buttons = responseOptions.filter((option) => !option.nominationTargetId)
 
   const resolvedLabel = interaction.resolved
     ? formatResponseLabel(interaction)
@@ -449,6 +460,19 @@ function InteractionItem({
         <p className="inbox-item__choice-context">{safetyContextText}</p>
       )}
 
+      {interaction.dialogue && (
+        <div
+          className="inbox-item__feedback"
+          aria-label="Follow-up conversation"
+          aria-live="polite"
+        >
+          <p className="inbox-item__question">You · {interaction.dialogue.label}</p>
+          <p className="inbox-item__reaction">
+            {fromName} replies: “{interaction.dialogue.reply}”
+          </p>
+        </div>
+      )}
+
       {(reactionText || outcomeText) && (
         <div className="inbox-item__feedback" aria-label="Response">
           {reactionText && <p className="inbox-item__reaction">{reactionText}</p>}
@@ -466,28 +490,67 @@ function InteractionItem({
       )}
 
       {shouldShowActions && (
-        <div
-          className={
-            safetyConsultation ||
-            responseOptions.length > 4 ||
-            responseOptions.some((option) => option.createsCommitment || option.label.length > 26)
-              ? 'inbox-item__actions inbox-item__actions--stacked'
-              : 'inbox-item__actions'
-          }
-        >
-          {responseOptions.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              data-response-type={option.responseType}
-              data-response-action={option.action}
-              className={`inbox-action inbox-action--${option.style}`}
-              onClick={() => onRespond(interaction.id, option.id, option.action)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <>
+          {nominationChoices.length > 0 && (
+            <div className="inbox-item__nomination-choice">
+              <div
+                className="inbox-item__nomination-chips"
+                role="group"
+                aria-label="Hubmate to keep clear of"
+              >
+                {nominationChoices.map(({ id, player }, index) => {
+                  const duplicateName = nominationChoices.some(
+                    (choice) => choice.id !== id && choice.player.name === player.name
+                  )
+                  return (
+                    <HubmateChoiceChip
+                      key={id}
+                      player={player}
+                      selected={selectedNominationChoice?.id === id}
+                      label={duplicateName ? `${player.name} (hubmate ${index + 1})` : undefined}
+                      onClick={() =>
+                        setNominationChoiceId((previous) => (previous === id ? '' : id))
+                      }
+                    />
+                  )
+                })}
+              </div>
+              <button
+                type="button"
+                className="inbox-action inbox-item__share-name"
+                disabled={!selectedNominationChoice}
+                onClick={() => {
+                  if (selectedNominationChoice)
+                    onRespond(interaction.id, selectedNominationChoice.id)
+                }}
+              >
+                Share name
+              </button>
+            </div>
+          )}
+          <div
+            className={
+              safetyConsultation ||
+              buttons.length > 4 ||
+              buttons.some((option) => option.createsCommitment || option.label.length > 26)
+                ? 'inbox-item__actions inbox-item__actions--stacked'
+                : 'inbox-item__actions'
+            }
+          >
+            {buttons.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                data-response-type={option.responseType}
+                data-response-action={option.action}
+                className={`inbox-action inbox-action--${option.style}`}
+                onClick={() => onRespond(interaction.id, option.id, option.action)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )
@@ -676,7 +739,7 @@ export default function IncomingInteractionsInbox() {
         currentWeek={currentWeek}
         currentPhase={game.phase ?? 'week_start'}
         onRead={(interactionId) => dispatch(markIncomingInteractionRead(interactionId))}
-        safetyContext={game}
+        game={game}
         onRespond={(interactionId, choiceId, responseAction) => {
           if (!responseAction) {
             setRecentlyResolvedIds((current) => {

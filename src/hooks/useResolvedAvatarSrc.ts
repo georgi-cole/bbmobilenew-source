@@ -15,7 +15,8 @@ type PhotoState = {
 }
 
 export function useResolvedAvatarSrc(
-  player: Pick<Player, 'id' | 'name' | 'avatar'> & Partial<Pick<Player, 'isUser' | 'appearance'>>
+  player: Pick<Player, 'id' | 'name' | 'avatar'> &
+    Partial<Pick<Player, 'isUser' | 'appearance' | 'twinMode'>>
 ) {
   const depressionShockPortraitMode = useSyncExternalStore(
     subscribeDepressionShockPortraitMode,

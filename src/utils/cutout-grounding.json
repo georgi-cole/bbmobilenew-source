@@ -47,6 +47,10 @@
     "aspect": 0.666667,
     "feetY": 0.989583
   },
+  "assets/Informal_attires/Lia_Ali_informal.webp": {
+    "aspect": 0.666667,
+    "feetY": 0.947222
+  },
   "assets/Informal_attires/Lia_informal.webp": {
     "aspect": 0.666667,
     "feetY": 0.970052
@@ -299,6 +303,10 @@
     "aspect": 0.666667,
     "feetY": 0.947619
   },
+  "assets/ceremonies/characters/lia-ali/ceremony-front.webp": {
+    "aspect": 0.666667,
+    "feetY": 0.947619
+  },
   "assets/ceremonies/characters/lia/ceremony-front.webp": {
     "aspect": 0.666667,
     "feetY": 0.949206
@@ -406,6 +414,10 @@
   "assets/formal_attires/Kian_formal.webp": {
     "aspect": 0.666667,
     "feetY": 0.964844
+  },
+  "assets/formal_attires/Lia_Ali_formal.webp": {
+    "aspect": 0.666667,
+    "feetY": 0.946615
   },
   "assets/formal_attires/Lia_formal.webp": {
     "aspect": 0.666667,

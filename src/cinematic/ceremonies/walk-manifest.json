@@ -756,6 +756,18 @@
       "sha256": "4e1cc111e0c6b59a76a54f595ab3d511c3f9b440fbfb3ac75b7dc47115098ed6",
       "gait": "natural",
       "emptyHanded": true
+    },
+    "lia-ali": {
+      "src": "assets/ceremonies/walks/lia-ali.webp",
+      "width": 3072,
+      "height": 576,
+      "frameWidth": 384,
+      "frames": 8,
+      "frameMs": 120,
+      "bytes": 182530,
+      "sha256": "9b78287455305d1baa71e7b7f352cd1bc2b5664aa203faa8aab15765b9a944d5",
+      "gait": "natural",
+      "emptyHanded": true
     }
   }
 }

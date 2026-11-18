@@ -26,11 +26,18 @@ import {
 import { createPortal } from 'react-dom'
 import { MinigamePortalContext } from './minigamePortal'
 import { isPlacementRankingGame, type GameRegistryEntry } from '../../minigames/registry'
-import { resolvePremiumGameForAccess } from '../../minigames/premiumGameAccess'
 import {
+  getPremiumGameUpgrade,
+  resolvePremiumGameForAccess,
+} from '../../minigames/premiumGameAccess'
+import {
+  answerChallengePremiumOffer,
   beginChallengeAttempt,
   checkpointChallengeResult,
+  matchReadyChallengeAttempt,
   prepareChallengeRetry,
+  preparePurchasedQuickTapChallenge,
+  type ChallengeAttemptReference,
 } from '../../store/challengeSlice'
 import {
   createAbandonedChallengeResult,
@@ -164,6 +171,7 @@ interface Props {
   /** Publishes the host's actual visual lifecycle to the central music resolver. */
   onPhaseChange?: (phase: HostPhase) => void
   onMusicVariantChange?: (variant: MusicMinigameVariant) => void
+  onOpenPremiumMarketplace?: (attempt: ChallengeAttemptReference) => void
   /** When true the rules modal is skipped and countdown starts immediately. */
   /** Isolated state for development review fixtures. Defaults to the app store. */
   stateStore?: Pick<typeof appStore, 'getState' | 'dispatch' | 'subscribe'>
@@ -212,6 +220,7 @@ export default function MinigameHost({
   onDone,
   onPhaseChange,
   onMusicVariantChange,
+  onOpenPremiumMarketplace,
   stateStore,
   skipRules = false,
   skipCountdown = false,
@@ -242,14 +251,21 @@ export default function MinigameHost({
     store.getState().game.players.find((player) => player.isUser)?.id
   // Claim before rules/countdown so decorative media cannot prepare behind play.
   const { isOwner } = usePresentationOwner('timed-gameplay', PRESENTATION_PRIORITY.gameplay)
-  const hasPremiumChallengesAccess = useSyncExternalStore(
+  const currentPremiumAccess = useSyncExternalStore(
     store.subscribe,
     () => selectHasPremiumChallengesAccess(store.getState()),
     () => selectHasPremiumChallengesAccess(store.getState())
   )
+  const checkoutStatus = useSyncExternalStore(
+    store.subscribe,
+    () => store.getState().vip?.status,
+    () => store.getState().vip?.status
+  )
+  const [committedPremiumAccess, setCommittedPremiumAccess] = useState<boolean | null>(null)
+  const hasPremiumChallengesAccess = committedPremiumAccess ?? currentPremiumAccess
+  const premiumUpgrade = getPremiumGameUpgrade(game)
   const usePremiumPresentation =
-    premiumPresentationOverride ??
-    (hasPremiumChallengesAccess && game.premiumExperience === 'presentation')
+    premiumPresentationOverride ?? (hasPremiumChallengesAccess && premiumUpgrade === 'presentation')
   const quickTapVariantPreviewOverride =
     import.meta.env.DEV && typeof gameOptions.quickTapVariantPreview === 'boolean'
       ? gameOptions.quickTapVariantPreview
@@ -275,6 +291,21 @@ export default function MinigameHost({
         ? (recoverCommittedChallengeResult(savedChallenge, store.getState().game) ??
           createAbandonedChallengeResult(savedChallenge, competitionHumanId))
         : null
+  const rememberedPremiumOffer =
+    savedChallenge != null &&
+    savedChallenge.premiumOffer?.attempt === (savedChallenge.attempt?.number ?? 0) &&
+    (!savedChallenge.attempt || savedChallenge.attempt.status === 'ready')
+      ? savedChallenge.premiumOffer
+      : undefined
+  const checkoutPending =
+    rememberedPremiumOffer?.decision === 'marketplace' &&
+    (checkoutStatus === 'purchasing' || checkoutStatus === 'restoring')
+  const needsPremiumBriefing =
+    rememberedPremiumOffer?.decision === 'marketplace' &&
+    hasPremiumChallengesAccess &&
+    (premiumUpgrade === 'variant' || premiumUpgrade === 'replacement')
+  const readyPhase =
+    skipRules || (rememberedPremiumOffer && !needsPremiumBriefing) ? 'countdown' : 'rules'
   useEffect(() => {
     if (hasSavedResult) return
     if (launchedGame.implementation !== 'react' || !reactComponentKey) return
@@ -284,9 +315,11 @@ export default function MinigameHost({
     void preload().catch(() => undefined)
   }, [hasSavedResult, launchedGame.implementation, reactComponentKey])
 
-  const [phase, setPhase] = useState<HostPhase>(
-    initialResult ? 'results' : skipRules ? 'countdown' : 'rules'
-  )
+  const [phase, setPhase] = useState<HostPhase>(initialResult ? 'results' : readyPhase)
+  const [showPremiumOffer, setShowPremiumOffer] = useState(false)
+  const openingMarketplaceRef = useRef(false)
+  const hostMountedRef = useRef(false)
+  const [resumingCheckout, setResumingCheckout] = useState(checkoutPending)
   const hostPhaseRef = useRef(phase)
   hostPhaseRef.current = phase
   const [utilityView, setUtilityView] = useState<UtilityView>(null)
@@ -310,6 +343,13 @@ export default function MinigameHost({
   const startingAttemptRef = useRef(false)
   const checkpointWorkRef = useRef<{ token: string; promise: Promise<boolean> } | null>(null)
   const recoveredAttemptRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    hostMountedRef.current = true
+    return () => {
+      hostMountedRef.current = false
+    }
+  }, [])
 
   const checkpointResult = useCallback(
     (result: CompetitionResult): Promise<boolean> => {
@@ -394,6 +434,7 @@ export default function MinigameHost({
   const beginGameplay = useCallback(() => {
     const pending = store.getState().challenge.pending
     if (pending?.id !== sessionId) {
+      setCommittedPremiumAccess(selectHasPremiumChallengesAccess(store.getState()))
       setPhase('playing')
       return
     }
@@ -409,7 +450,10 @@ export default function MinigameHost({
       startingAttemptRef.current = true
       setSavingCheckpoint(true)
       setCheckpointError(false)
-      store.dispatch(beginChallengeAttempt({ id: sessionId, number: attempt }))
+      const reference = { id: sessionId, number: attempt }
+      setCommittedPremiumAccess(selectHasPremiumChallengesAccess(store.getState()))
+      store.dispatch(preparePurchasedQuickTapChallenge(reference))
+      store.dispatch(beginChallengeAttempt(reference))
       const saved = await persistCompetitionCheckpoint()
       startingAttemptRef.current = false
       if (activeAttemptTokenRef.current !== attemptToken) return
@@ -485,13 +529,16 @@ export default function MinigameHost({
     setFinalCompletion(null)
     setWasPartial(false)
     setDemoTried(false)
+    setShowPremiumOffer(false)
+    setCommittedPremiumAccess(null)
+    setResumingCheckout(checkoutPending)
     const savedAttempt = savedChallenge?.id === sessionId ? savedChallenge.attempt : undefined
     const restoredResult = initialResult
     setFinalValue(restoredResult?.rawValue ?? null)
     setFinalTiebreakerMs(restoredResult?.completion?.tiebreakerMs ?? null)
     setFinalCompletion(restoredResult?.completion ?? null)
     setWasPartial(restoredResult?.partial ?? false)
-    setPhase(restoredResult ? 'results' : skipRules ? 'countdown' : 'rules')
+    setPhase(restoredResult ? 'results' : readyPhase)
     setAttempt(savedAttempt?.number ?? 0)
     activeAttemptTokenRef.current = `${sessionId}:${savedAttempt?.number ?? 0}`
     checkpointWorkRef.current = null
@@ -499,6 +546,12 @@ export default function MinigameHost({
     // boundary when access metadata changes while a game is in progress.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, skipRules])
+
+  useEffect(() => {
+    if (!resumingCheckout || checkoutPending) return
+    setPhase(readyPhase)
+    setResumingCheckout(false)
+  }, [checkoutPending, readyPhase, resumingCheckout])
 
   useEffect(() => {
     activeAttemptTokenRef.current = attemptToken
@@ -553,17 +606,98 @@ export default function MinigameHost({
     }
   }, [phase, utilityView])
 
-  const handleRulesConfirm = useCallback(() => {
+  const enterCountdown = useCallback(() => {
+    setShowPremiumOffer(false)
     setUtilityView(null)
     setCountdown(3)
-    setPhase(TURN_DEMO_KEYS.has(rulesGame.key) ? 'demo' : 'countdown')
-  }, [rulesGame.key])
+    setPhase('countdown')
+  }, [])
+
+  const offerPremiumOrCountDown = useCallback(() => {
+    const state = store.getState()
+    if (
+      onOpenPremiumMarketplace &&
+      !skipRules &&
+      attempt === 0 &&
+      premiumPresentationOverride == null &&
+      quickTapVariantPreviewOverride == null &&
+      premiumUpgrade &&
+      !selectHasPremiumChallengesAccess(state) &&
+      matchReadyChallengeAttempt(
+        state.challenge.pending,
+        { id: sessionId, number: attempt },
+        state.game
+      ) &&
+      state.challenge.pending.premiumOffer?.attempt !== attempt
+    ) {
+      setUtilityView(null)
+      setShowPremiumOffer(true)
+      return
+    }
+    enterCountdown()
+  }, [
+    attempt,
+    enterCountdown,
+    onOpenPremiumMarketplace,
+    premiumPresentationOverride,
+    premiumUpgrade,
+    quickTapVariantPreviewOverride,
+    sessionId,
+    skipRules,
+    store,
+  ])
+
+  const handleRulesConfirm = useCallback(() => {
+    if (TURN_DEMO_KEYS.has(rulesGame.key)) {
+      setUtilityView(null)
+      setPhase('demo')
+      return
+    }
+    offerPremiumOrCountDown()
+  }, [offerPremiumOrCountDown, rulesGame.key])
+
+  const declinePremiumOffer = useCallback(() => {
+    if (openingMarketplaceRef.current) return
+    setCheckpointError(false)
+    retryCheckpointRef.current = null
+    store.dispatch(
+      answerChallengePremiumOffer({ id: sessionId, number: attempt, decision: 'declined' })
+    )
+    enterCountdown()
+  }, [attempt, enterCountdown, sessionId, store])
+
+  const openPremiumMarketplace = useCallback(() => {
+    if (!onOpenPremiumMarketplace || openingMarketplaceRef.current) return
+    const reference = { id: sessionId, number: attempt }
+    const saveAndVisit = async () => {
+      const state = store.getState()
+      if (
+        !hostMountedRef.current ||
+        !matchReadyChallengeAttempt(state.challenge.pending, reference, state.game)
+      )
+        return
+      openingMarketplaceRef.current = true
+      setSavingCheckpoint(true)
+      setCheckpointError(false)
+      store.dispatch(answerChallengePremiumOffer({ ...reference, decision: 'marketplace' }))
+      const saved = await persistCompetitionCheckpoint()
+      openingMarketplaceRef.current = false
+      if (!hostMountedRef.current || activeAttemptTokenRef.current !== attemptToken) return
+      setSavingCheckpoint(false)
+      setCheckpointError(!saved)
+      retryCheckpointRef.current = saved ? null : () => void saveAndVisit()
+      const current = store.getState()
+      if (saved && matchReadyChallengeAttempt(current.challenge.pending, reference, current.game)) {
+        onOpenPremiumMarketplace(reference)
+      }
+    }
+    void saveAndVisit()
+  }, [attempt, attemptToken, onOpenPremiumMarketplace, sessionId, store])
 
   const handleDemoConfirm = useCallback(() => {
     if (!demoTried) return
-    setCountdown(3)
-    setPhase('countdown')
-  }, [demoTried])
+    offerPremiumOrCountDown()
+  }, [demoTried, offerPremiumOrCountDown])
 
   const handleConfirmEarlyExit = useCallback(() => {
     setUtilityView(null)
@@ -583,7 +717,14 @@ export default function MinigameHost({
 
   // Pause the host-owned countdown while the menu, rules, or warning is open.
   useEffect(() => {
-    if (!isOwner || phase !== 'countdown' || utilityView !== null) return
+    if (
+      !isOwner ||
+      phase !== 'countdown' ||
+      utilityView !== null ||
+      checkoutPending ||
+      resumingCheckout
+    )
+      return
     if (skipCountdown) {
       const t = setTimeout(beginGameplay, 0)
       return () => clearTimeout(t)
@@ -600,17 +741,24 @@ export default function MinigameHost({
     }
     timer = setTimeout(update, 0)
     return () => clearTimeout(timer)
-  }, [beginGameplay, isOwner, phase, skipCountdown, utilityView])
+  }, [beginGameplay, checkoutPending, isOwner, phase, resumingCheckout, skipCountdown, utilityView])
 
   // Keep the countdown SFX synchronized with the reset/paused visual countdown.
   useEffect(() => {
-    if (!isOwner || phase !== 'countdown' || skipCountdown || utilityView !== null) {
+    if (
+      !isOwner ||
+      phase !== 'countdown' ||
+      skipCountdown ||
+      utilityView !== null ||
+      checkoutPending ||
+      resumingCheckout
+    ) {
       SoundManager.stop(COUNTDOWN_TIMER_KEY)
       return
     }
     void SoundManager.play(COUNTDOWN_TIMER_KEY)
     return () => SoundManager.stop(COUNTDOWN_TIMER_KEY)
-  }, [isOwner, phase, skipCountdown, utilityView])
+  }, [checkoutPending, isOwner, phase, resumingCheckout, skipCountdown, utilityView])
 
   const handleComplete = useCallback(
     (result: LegacyRawResult) => {
@@ -1359,6 +1507,8 @@ export default function MinigameHost({
 
         {phase !== 'results' &&
           phase !== 'demo' &&
+          !showPremiumOffer &&
+          !resumingCheckout &&
           utilityView !== 'rules' &&
           utilityView !== 'exit' && (
             <MinigameUtilityDock
@@ -1372,7 +1522,49 @@ export default function MinigameHost({
             />
           )}
 
-        {phase === 'rules' && (
+        {resumingCheckout && (
+          <p className="minigame-host-ready" role="status">
+            Finishing Marketplace checkout…
+          </p>
+        )}
+
+        {showPremiumOffer && (
+          <div
+            className="minigame-rules-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Premium minigame available"
+          >
+            <div className="minigame-rules-modal">
+              <h2 className="minigame-rules-title">Play the premium version</h2>
+              <p className="minigame-rules-description">
+                {game.title} has upgraded visuals
+                {premiumUpgrade !== 'presentation' && ' and gameplay'} with VIP.
+              </p>
+              <div className="minigame-rules-actions">
+                <button
+                  type="button"
+                  className="minigame-rules-btn-start"
+                  onClick={openPremiumMarketplace}
+                  disabled={savingCheckpoint}
+                >
+                  Go VIP
+                </button>
+                <button
+                  type="button"
+                  className="minigame-rules-btn-skip"
+                  onClick={declinePremiumOffer}
+                  disabled={savingCheckpoint}
+                  autoFocus
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {phase === 'rules' && !showPremiumOffer && !resumingCheckout && (
           <MinigameRules
             game={rulesGame}
             onConfirm={handleRulesConfirm}
@@ -1380,7 +1572,7 @@ export default function MinigameHost({
           />
         )}
 
-        {phase === 'demo' && (
+        {phase === 'demo' && !showPremiumOffer && !resumingCheckout && (
           <div
             className="minigame-host-demo"
             role="dialog"
@@ -1409,7 +1601,7 @@ export default function MinigameHost({
           </div>
         )}
 
-        {phase === 'countdown' && (
+        {phase === 'countdown' && !resumingCheckout && (
           <div className="minigame-host-ready">
             <span className="minigame-host-ready-label">Get Ready</span>
             <span className="minigame-host-ready-game">{launchedGame.title}</span>
