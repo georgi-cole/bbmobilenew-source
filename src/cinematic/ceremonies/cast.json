@@ -1332,6 +1332,101 @@
       }
     },
     {
+      "id": "lia-ali",
+      "name": "Lia & Ali",
+      "poses": {
+        "front": {
+          "src": "assets/ceremonies/characters/lia-ali/ceremony-front.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 47730,
+          "sha256": "fdf9e2219d0ecb59536d14a3253a668a7f0fa15b59c0565018099d450f56e210",
+          "crown": {
+            "x": 0.341171,
+            "baseY": 0.083953,
+            "width": 0.125177,
+            "angle": 0
+          },
+          "feetY": 0.947619
+        },
+        "royal-standing": {
+          "src": "assets/ceremonies/characters/lia-ali/ceremony-royal-standing.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 45592,
+          "sha256": "1cfdfd0062e58c38798b0daf3fea71b986e68ac27754f2597455dcf67ad9be7b",
+          "crown": {
+            "x": 0.27275,
+            "baseY": 0.381642,
+            "width": 0.077004,
+            "angle": 0
+          },
+          "feetY": 0.947222
+        },
+        "safety-knight": {
+          "src": "assets/ceremonies/characters/lia-ali/ceremony-safety-knight.webp",
+          "width": 480,
+          "height": 720,
+          "bytes": 58312,
+          "sha256": "d19cabd229029c726858855107aad58b13763dfcc85859c2833dddf39c2222c0",
+          "crown": {
+            "x": 0.269711,
+            "baseY": 0.306133,
+            "width": 0.088689,
+            "angle": 0
+          },
+          "feetY": 0.947222
+        },
+        "decision-back": {
+          "src": "assets/ceremonies/characters/lia-ali/ceremony-decision-back.webp",
+          "width": 420,
+          "height": 630,
+          "bytes": 39552,
+          "sha256": "1e7b0fff5ad9bcfd84aff62f22dd63c742604c97c8430553e11fbc67025293bf",
+          "crown": {
+            "x": 0.206151,
+            "baseY": 0.233633,
+            "width": 0.116368,
+            "angle": 0
+          },
+          "feetY": 0.947619
+        },
+        "exit-back": {
+          "src": "assets/ceremonies/characters/lia-ali/ceremony-exit-back.webp",
+          "width": 384,
+          "height": 576,
+          "bytes": 41288,
+          "sha256": "30ade56f487fd761aff523279ae5c9b8d699607a1b852590689b484e5fa57909",
+          "crown": {
+            "x": 0.243281,
+            "baseY": 0.202817,
+            "width": 0.099733,
+            "angle": 0
+          },
+          "feetY": 0.946181
+        },
+        "royal-seated": {
+          "src": "assets/ceremonies/characters/lia-ali/ceremony-royal-seated.webp",
+          "width": 600,
+          "height": 900,
+          "bytes": 73140,
+          "sha256": "0b7d37166d44628cb295202a040ff8ef746dc36ca2554ea8e673706c0e8e6dfd",
+          "crown": {
+            "x": 0.285,
+            "baseY": 0.428319,
+            "width": 0.084041,
+            "angle": 0
+          },
+          "feetY": 0.946667,
+          "throne": {
+            "x": 0,
+            "y": 1.5,
+            "scale": 1.18
+          }
+        }
+      }
+    },
+    {
       "id": "lux",
       "name": "Lux",
       "poses": {

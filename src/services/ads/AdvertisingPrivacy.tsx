@@ -2,6 +2,7 @@ import { useState, useSyncExternalStore, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { ageBandForAge, declarePlayerAge } from '../../safety/playerSafety'
 import { usePlayerSafety } from '../../safety/usePlayerSafety'
+import { usesContextualAdTreatment } from './adAudience'
 import {
   checkAdMobAvailability,
   hasAdMobPrivacyOptions,
@@ -55,7 +56,7 @@ export default function AdvertisingPrivacy() {
               Continue
             </button>
           </form>
-        ) : record.ageBand === 'adult' ? (
+        ) : !usesContextualAdTreatment() ? (
           <>
             <p>
               Standard play includes automatic ad breaks. No Ads and VIP remove those breaks.
@@ -105,7 +106,16 @@ export default function AdvertisingPrivacy() {
             )}
           </>
         ) : (
-          <p>Advertising and Survival run purchases are unavailable for players under 18.</p>
+          <p>Rewarded ads and Survival run purchases are available to adults only.</p>
+        )}
+        {usesContextualAdTreatment() && (
+          <p>
+            Standard play may include short contextual ad breaks. These ads are selected without
+            behavioral profiling. They apply to players under 18 and when no age is on file.
+          </p>
+        )}
+        {record?.ageBand === 'adult' && usesContextualAdTreatment() && (
+          <p>Restart the app to use adult ad choices and rewards.</p>
         )}
         {notice && <p role="status">{notice}</p>}
         <div className="player-safety__actions">
@@ -115,6 +125,9 @@ export default function AdvertisingPrivacy() {
             rel="noreferrer"
           >
             Privacy policy
+          </a>
+          <a href="mailto:kolequant@gmail.com?subject=The%20Big%20Eye%20ad%20report">
+            Report an ad
           </a>
           <button
             type="button"

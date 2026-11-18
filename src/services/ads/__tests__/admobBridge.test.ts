@@ -3,6 +3,8 @@ import { installSafetyFixture } from '../../../safety/__tests__/safetyFixture'
 import { declarePlayerAge, setOptionalPlayerFeature } from '../../../safety/playerSafety'
 import { resolveAdMobConfig } from '../admobConfig'
 
+const CONTEXTUAL_TEST_UNIT = 'ca-app-pub-1000000000000000/1000000001'
+
 const mock = vi.hoisted(() => ({
   native: true,
   handlers: new Map<string, (...args: unknown[]) => void>(),
@@ -40,7 +42,7 @@ vi.mock('@capacitor-community/admob', () => ({
       }
     }),
   },
-  MaxAdContentRating: { Teen: 'Teen' },
+  MaxAdContentRating: { Teen: 'Teen', General: 'General' },
   AdmobConsentStatus: { REQUIRED: 'REQUIRED' },
   RewardAdPluginEvents: { Rewarded: 'earned', Dismissed: 'closed', FailedToShow: 'failed' },
   InterstitialAdPluginEvents: { Dismissed: 'closed', FailedToShow: 'failed' },
@@ -92,12 +94,76 @@ describe('native AdMob integration', () => {
     expect(await result).toBe(true)
   })
 
-  it.each([undefined, 15])('blocks native ads without an adult declaration (%s)', async (age) => {
-    installSafetyFixture(age)
+  function enableLiveAdFixtures() {
+    vi.stubEnv('VITE_ADMOB_MODE', 'live')
+    vi.stubEnv('VITE_ADMOB_INTERSTITIAL_ID', 'ca-app-pub-1000000000000000/1000000002')
+    vi.stubEnv('VITE_ADMOB_REWARDED_ID', 'ca-app-pub-1000000000000000/1000000003')
+  }
+
+  it.each([undefined, 12, 15, 17])(
+    'uses only child-treated interstitials for age %s',
+    async (age) => {
+      installSafetyFixture(age)
+      enableLiveAdFixtures()
+      vi.stubEnv('VITE_ADMOB_CONTEXTUAL_INTERSTITIAL_ID', CONTEXTUAL_TEST_UNIT)
+      await install()
+      expect(window.GameAds!.supportsContextualInterstitials).toBe(true)
+      expect(await window.GameAds!.showRewarded('competition_retry')).toBe(false)
+      const result = window.GameAds!.showInterstitial('live_vote_auto')
+      await vi.waitFor(() => expect(mock.show).toHaveBeenCalledOnce())
+      expect(mock.consent).toHaveBeenCalledWith({ tagForUnderAgeOfConsent: true })
+      expect(mock.form).not.toHaveBeenCalled()
+      expect(mock.initialize).toHaveBeenCalledWith({
+        tagForChildDirectedTreatment: true,
+        maxAdContentRating: 'General',
+      })
+      expect(mock.prepare).toHaveBeenCalledWith(
+        expect.objectContaining({
+          adId: CONTEXTUAL_TEST_UNIT,
+          npa: true,
+        })
+      )
+      mock.handlers.get('closed')!()
+      expect(await result).toBe(true)
+    }
+  )
+
+  it('requires a separate configured live unit before attempting contextual ads', async () => {
+    installSafetyFixture()
+    enableLiveAdFixtures()
+    vi.stubEnv('VITE_ADMOB_CONTEXTUAL_INTERSTITIAL_ID', 'ca-app-pub-1000000000000000/1000000002')
     await install()
-    expect(await window.GameAds!.showRewarded('competition_retry')).toBe(false)
+    expect(window.GameAds!.supportsContextualInterstitials).toBe(false)
     expect(await window.GameAds!.showInterstitial('live_vote_auto')).toBe(false)
     expect(mock.initialize).not.toHaveBeenCalled()
+    expect(mock.consent).not.toHaveBeenCalled()
+  })
+
+  it('does not show a consent form or request an ad when the child-tagged consent check declines', async () => {
+    installSafetyFixture(12)
+    enableLiveAdFixtures()
+    vi.stubEnv('VITE_ADMOB_CONTEXTUAL_INTERSTITIAL_ID', CONTEXTUAL_TEST_UNIT)
+    mock.consent.mockResolvedValue({
+      canRequestAds: false,
+      isConsentFormAvailable: true,
+      status: 'REQUIRED',
+    })
+    await install()
+    expect(await window.GameAds!.showInterstitial('live_vote_auto')).toBe(false)
+    expect(mock.form).not.toHaveBeenCalled()
+    expect(mock.prepare).not.toHaveBeenCalled()
+  })
+
+  it('keeps the restricted SDK configuration until restart if an adult declares their age mid-session', async () => {
+    installSafetyFixture()
+    await install()
+    const result = window.GameAds!.showInterstitial('live_vote_auto')
+    await vi.waitFor(() => expect(mock.show).toHaveBeenCalledOnce())
+    mock.handlers.get('closed')!()
+    await result
+    declarePlayerAge(28)
+    expect(await window.GameAds!.showRewarded('competition_retry')).toBe(false)
+    expect(mock.initialize).toHaveBeenCalledTimes(1)
   })
 
   it('does not treat dismissal as a reward and releases the native slot', async () => {

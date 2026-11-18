@@ -109,6 +109,22 @@ function setup(double = false, simulationSeed = 0) {
 const stateOf = (store: ReturnType<typeof setup>) => store.getState() as unknown as RootState
 
 describe('alliance-wide vote sway', () => {
+  it('previews the group in Standard only during the vote window and never makes it executable', () => {
+    const state = structuredClone(stateOf(setup()))
+    state.settings.gameUX.dramaMode = false
+    state.settings.gameUX.dramaModeAdminOverride = false
+
+    expect(getAllianceVoteSway(state, 'team', ['nominee-a']).groups).toHaveLength(0)
+    const preview = getAllianceVoteSway(state, 'team', ['nominee-a'], { showLockedPreview: true })
+    expect(preview.groups.map(({ id }) => id)).toEqual(['team'])
+    expect(preview.eligible).toBe(false)
+
+    state.game.phase = 'social_1'
+    expect(
+      getAllianceVoteSway(state, 'team', ['nominee-a'], { showLockedPreview: true }).groups
+    ).toHaveLength(0)
+  })
+
   it('approaches all eligible allies and charges the quoted aggregate pitch costs', () => {
     const store = setup()
     const before = stateOf(store)

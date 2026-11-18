@@ -162,6 +162,33 @@ the four `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`,
 `gradlew.bat bundleRelease` from `android` on Windows (or `./gradlew bundleRelease`
 on macOS/Linux). Keep the local properties file private.
 
+### Contextual interstitials
+
+Adult Standard players use the existing interstitial and rewarded units.
+Standard players under 18 and players of unknown age can use a separate
+contextual interstitial unit at the same existing gameplay breaks. The
+app requests child-directed treatment, a G content cap and non-personalized
+ads. Google consent checks still apply. VIP and No Ads skip automatic breaks.
+
+Create a separate standard interstitial unit for each platform that will serve
+contextual ads. Use Google demand on those units, with no third-party bidding
+or mediation, and switch High-engagement ads off in the relevant AdMob app
+settings. Google applies that switch across regular interstitial and rewarded
+units in the app. Verify the app's audience declarations, device ad content,
+and the five-second close option before setting
+`IOS_ADMOB_CONTEXTUAL_INTERSTITIAL_ID` or `ANDROID_ADMOB_CONTEXTUAL_INTERSTITIAL_ID`.
+Local native builds read `VITE_ADMOB_CONTEXTUAL_INTERSTITIAL_ID`. The cloud
+build omits contextual requests when its variable is empty.
+
+Keep contextual impressions measured separately by ad unit. Compare fill and
+revenue per active user with session retention after rollout. Confirm
+`app-ads.txt` and each app's AdMob readiness before drawing conclusions from
+low fill. The app keeps voluntary rewarded ads for adults because AdMob's
+rewarded close times can exceed the Families five-second limit.
+
+[Google Play Families policy](https://support.google.com/googleplay/android-developer/answer/9893335)
+and [AdMob close times](https://support.google.com/admob/answer/15525707).
+
 ## Checking a run
 
 The workflow summary records the exact source commit, iOS build number and Android

@@ -1,3 +1,5 @@
+export const TWIN_SHOCK_COMBINED_TABLOID = 'Lia_Ali_tabloid.webp'
+
 // Keep public photo filenames as data so the build ships one copy of each photo.
 export const TABLOID_PHOTO_FILES = [
   'Aria_tabloid.jxl',
@@ -16,6 +18,7 @@ export const TABLOID_PHOTO_FILES = [
   'Kai_tabloid2.jpg',
   'Kian_tabloid.jpg',
   'Lia_tabloid.jpg',
+  TWIN_SHOCK_COMBINED_TABLOID,
   'Lux_tabloid.jpg',
   'Mimi_tabloid.jpg',
   'Nico_tabloid.webp',

@@ -41,8 +41,9 @@ import socialReducer, {
   replaceRealityDomain,
 } from '../../../social/socialSlice'
 import { initManeuvers } from '../../../social/SocialManeuvers'
+import { executeAllianceManagementCommand } from '../../../social/allianceManagementActions'
 import SocialPanelV2 from '../SocialPanelV2'
-import type { RootState } from '../../../store/store'
+import type { AppDispatch, RootState } from '../../../store/store'
 import { I18nProvider } from '../../../i18n/I18nProvider'
 import { createInitialRealityDomainState } from '../../../social/reality/state'
 import {
@@ -1414,6 +1415,36 @@ describe('LOH target question integration', () => {
 })
 
 describe('SocialPanelV2 – integrated alliance actions', () => {
+  it('offers locked Standard alliance actions before a hubmate is selected', () => {
+    const store = makeStore({ phase: 'social_1' })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 10 }))
+    store.dispatch(setInfluenceBankEntry({ playerId: human.id, value: 20 }))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    const grid = within(screen.getByRole('group', { name: 'Action grid' }))
+    expect(grid.queryByRole('button', { name: /Found an alliance/i })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+
+    const founder = grid.getByRole('button', { name: /Found an alliance.*VIP Reality action/i })
+    expect(founder).toBeVisible()
+    expect(
+      grid.getByRole('button', { name: /Propose Personal Pact.*VIP Reality action/i })
+    ).toBeVisible()
+    expect(grid.queryByRole('button', { name: /Consult Alliance|Sway the vote/i })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Execute' })).toBeDisabled()
+
+    fireEvent.keyDown(founder, { key: 'Enter' })
+    expect(store.getState().social.panelOpen).toBe(false)
+    expect(store.getState().social.energyBank[human.id]).toBe(10)
+    expect(store.getState().social.influenceBank[human.id]).toBe(20)
+    expect(Object.values(store.getState().social.reality.allianceManagement.requests)).toHaveLength(
+      0
+    )
+  })
+
   it('charges two energy for a new pact from the integrated alliance action card', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
@@ -1713,8 +1744,8 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
 })
 
 describe('SocialPanelV2 – alliance context and history', () => {
-  function contextPanel() {
-    const store = makeStore({ phase: 'social_1', dramaMode: true })
+  function contextPanel(dramaMode = true) {
+    const store = makeStore({ phase: 'social_1', dramaMode })
     const human = store.getState().game.players.find((player) => player.isUser)!
     const [a, b, candidate] = store
       .getState()
@@ -1744,6 +1775,91 @@ describe('SocialPanelV2 – alliance context and history', () => {
     renderPanel(store)
     return { store, human, a, b, candidate }
   }
+
+  it.each([false, true])(
+    'shows an AI-founded alliance after accepting its invitation (Reality Mode: %s)',
+    (dramaMode) => {
+      const store = makeStore({ phase: 'social_1', dramaMode })
+      const game = store.getState().game
+      const human = game.players.find((player) => player.isUser)!
+      const founders = game.players.filter((player) => !player.isUser).slice(0, 3)
+      const reality = createInitialRealityDomainState()
+      const context = allianceContextForStore(store, human.id)
+      const group = createRealityAlliance(reality, {
+        id: 'ai-founded-group',
+        kind: 'GROUP',
+        name: 'Night Owls',
+        founderIds: founders.map((player) => player.id),
+        memberIds: [],
+        purpose: 'Mutual protection',
+        at: context.at,
+      })
+      group.status = 'ACTIVE'
+      const proposal = manageAlliance(
+        reality,
+        {
+          type: 'PROPOSE',
+          kind: 'ADMIT',
+          actorId: founders[0].id,
+          allianceId: group.id,
+          candidateId: human.id,
+        },
+        context
+      )
+      const request = reality.allianceManagement.requests[proposal.requestId!]
+      for (const actorId of allianceRequestDecisionActors(request)) {
+        manageAlliance(
+          reality,
+          { type: 'RESPOND', requestId: request.id, actorId, accept: true },
+          context
+        )
+      }
+      expect(request.status).toBe('CONSENT')
+
+      store.dispatch(replaceRealityDomain(reality))
+      store.dispatch(openSocialPanel())
+      initManeuvers(store)
+      renderPanel(store)
+      fireEvent.click(screen.getByRole('tab', { name: /^Alliances/ }))
+      expect(screen.queryByRole('button', { name: /^Night Owls/ })).toBeNull()
+
+      act(() => {
+        ;(store.dispatch as unknown as AppDispatch)(
+          executeAllianceManagementCommand({
+            type: 'RESPOND',
+            requestId: request.id,
+            actorId: human.id,
+            accept: true,
+          })
+        )
+      })
+      const membership = store.getState().social.reality.alliances[group.id]
+      expect(membership.memberIds).toContain(human.id)
+      expect(membership.founderIds).not.toContain(human.id)
+      expect(membership.leaderId).toBe(founders[0].id)
+
+      const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
+      const chip = picker.getByRole('button', {
+        name: dramaMode ? 'Night Owls' : 'Night Owls. VIP Reality Mode',
+      })
+      if (!dramaMode) {
+        expect(chip.querySelector('.store-product-icon')).toBeInTheDocument()
+        fireEvent.click(chip)
+        expect(store.getState().social.panelOpen).toBe(false)
+        expect(store.getState().social.reality.alliances[group.id]).toBe(membership)
+        return
+      }
+
+      fireEvent.click(chip)
+      const read = within(screen.getByRole('region', { name: 'Selected alliance' }))
+      expect(read.getByRole('heading', { name: 'Night Owls' })).toBeVisible()
+      expect(read.getByText('Member', { exact: true })).toBeVisible()
+      expect(
+        screen.getByRole('button', { name: /Suggest a new name for Night Owls/i })
+      ).toBeVisible()
+      expect(screen.queryByRole('button', { name: /Dissolve Night Owls/i })).toBeNull()
+    }
+  )
 
   it('shows generic actions first and scopes group actions and member controls to one selected alliance', () => {
     const { a } = contextPanel()

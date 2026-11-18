@@ -826,3 +826,39 @@
   font-size: 0.72rem;
   overflow-wrap: anywhere;
 }
+
+.inbox-item__question {
+  margin: 0;
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.inbox-item__nomination-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.45rem;
+}
+
+.inbox-item__nomination-chips {
+  display: flex;
+  min-width: 0;
+  gap: 0.4rem;
+  padding: 4px 4px 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(185, 157, 221, 0.48) transparent;
+}
+
+.inbox-item__share-name {
+  min-height: 44px;
+  margin-top: 3px;
+  padding-inline: 0.65rem;
+  border-radius: 0.65rem;
+}
+
+.inbox-item__share-name:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

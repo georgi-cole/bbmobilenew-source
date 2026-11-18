@@ -15,7 +15,8 @@ import { recordAdShown } from '../../store/adsSlice'
 import { hasEffectiveStoreEntitlement } from '../../vip/effectiveEntitlements'
 import { IS_MOBILE_DEV_BUILD } from '../../config/buildTarget'
 import { setEnergyBankEntry } from '../../social/socialSlice'
-import { canUseAdultServices, subscribePlayerSafety } from '../../safety/playerSafety'
+import { subscribePlayerSafety } from '../../safety/playerSafety'
+import { usesContextualAdTreatment } from './adAudience'
 export { getAdAvailabilityMessage } from './adAvailability'
 
 export const SOCIAL_ENERGY_RECHARGE_REWARD = 6
@@ -57,6 +58,7 @@ declare global {
   interface Window {
     GameAds?: {
       managesAdLifecycle?: boolean
+      supportsContextualInterstitials?: boolean
       showInterstitial(placement: string): void | Promise<boolean>
       showRewarded(placement: string): void | Promise<boolean>
     }
@@ -68,7 +70,7 @@ type RewardHandler = (payload?: Record<string, unknown>) => void
 const rewardHandlers = new Map<AdPlacement, RewardHandler>()
 const dismissalHandlers = new Map<AdPlacement, () => void>()
 subscribePlayerSafety(() => {
-  if (!canUseAdultServices()) clearPendingAdRewards()
+  if (usesContextualAdTreatment()) clearPendingAdRewards()
 })
 
 export function clearRewardHandler(placement: AdPlacement): void {
@@ -84,7 +86,7 @@ export function clearPendingAdRewards(): void {
 
 export function initAdBridge(): void {
   window.onAdRewardGranted = (placement: string, payload?: Record<string, unknown>) => {
-    if (!canUseAdultServices()) {
+    if (usesContextualAdTreatment()) {
       clearPendingAdRewards()
       return
     }
@@ -119,11 +121,16 @@ export function canShowAd(
   state: RootState,
   options?: { isFinal3Week?: boolean }
 ): boolean {
-  if (!canUseAdultServices()) return false
-  const hasNoAdsPack =
-    (state.ads?.hasNoAdsPack ?? false) || hasEffectiveStoreEntitlement(state.vip, 'noAds')
-
-  if (INTERSTITIAL_PLACEMENTS.has(placement) && hasNoAdsPack) {
+  const automatic = INTERSTITIAL_PLACEMENTS.has(placement)
+  if (
+    usesContextualAdTreatment() &&
+    (!automatic ||
+      typeof window === 'undefined' ||
+      !window.GameAds?.supportsContextualInterstitials)
+  ) {
+    return false
+  }
+  if (automatic && (state.ads?.hasNoAdsPack || hasEffectiveStoreEntitlement(state.vip, 'noAds'))) {
     if (import.meta.env.DEV) {
       console.log(`[ads] ${placement} blocked: No Ads Pack owned`)
     }
@@ -257,7 +264,7 @@ export function showRewarded(
         .then((earned) => {
           // A cleared handler belongs to an old screen/run or privacy decision.
           if (rewardHandlers.get(placement) !== rewardHandler) return
-          if (earned && canUseAdultServices()) {
+          if (earned && !usesContextualAdTreatment()) {
             window.onAdRewardGranted?.(placement, { source: 'admob' })
           } else dismiss()
         })

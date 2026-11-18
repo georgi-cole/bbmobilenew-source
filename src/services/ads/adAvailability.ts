@@ -1,5 +1,6 @@
 import { IS_MOBILE_DEV_BUILD } from '../../config/buildTarget'
 import { getPlayerSafety, subscribePlayerSafety } from '../../safety/playerSafety'
+import { usesContextualAdTreatment } from './adAudience'
 
 let requestFailure: string | null = null
 const listeners = new Set<() => void>()
@@ -24,6 +25,8 @@ export function getAdAvailabilityMessage(): string | null {
   const safety = getPlayerSafety()
   if (!safety) return 'Enter your age in Settings → Advertising privacy to set up ad rewards.'
   if (safety.ageBand !== 'adult') return 'Ad rewards are unavailable for players under 18.'
+  if (usesContextualAdTreatment())
+    return 'Restart the app to use ad rewards with your adult age group.'
   if (!IS_MOBILE_DEV_BUILD && !window.GameAds)
     return 'Ads are not available in this build. Update the app and try again.'
   return requestFailure

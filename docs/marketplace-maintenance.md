@@ -643,3 +643,25 @@ store listings or change configured prices.
   precedes the existing finale interstitial boundary; VIP and ad-free entitlements
   retain their current exemptions. No product, price, entitlement, reward,
   marketplace copy, wheel odds or competition difficulty changes.
+
+- 2026-11-18: Reviewed Standard alliance previews with the existing VIP Eye
+  and upgrade destination. Locked cards keep alliance actions gated. In-season
+  premium challenge offers occur before the attempt begins and preserve the
+  attempt through Marketplace purchase or return. Cinematic setup waits until
+  the challenge ends. VIP and Premium Challenges still unlock all registered
+  premium versions. Lia & Ali's artwork extends the shared cast and optional
+  cinematic pack. Product benefits, prices, rewards and entitlement rules are
+  unchanged.
+
+- 2026-11-18: Reviewed group alliance visibility after accepting an AI
+  invitation. Standard players see the group name and VIP Eye, which opens
+  Marketplace. Reality Mode members open the existing alliance details with
+  their actual role. Standard players can accept incoming invitations, and
+  opening alliance details still uses the existing Reality Mode entitlement.
+  The current Marketplace copy and pricing describe that access.
+
+- 2026-11-18: Reviewed contextual interstitials for Standard players under 18
+  and players of unknown age. Configured inventory uses the existing break
+  schedule, with child-directed treatment and general-audience creative.
+  VIP and No Ads continue to remove automatic ads, and adults can choose
+  rewarded ads. The existing product copy describes that access.

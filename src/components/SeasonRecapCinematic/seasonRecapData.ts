@@ -1,4 +1,5 @@
-import { TABLOID_PHOTO_FILES } from '../../data/tabloidPhotoManifest'
+import { TABLOID_PHOTO_FILES, TWIN_SHOCK_COMBINED_TABLOID } from '../../data/tabloidPhotoManifest'
+import { isCombinedTwinIdentity, TWIN_SHOCK_COMBINED_ART_ID } from '../../bb/twinShockIdentity.mjs'
 import type { Player } from '../../types'
 import { appearanceFromAssetUrl, getAppearanceAsset } from '../../appearance/catalog'
 import type { PublicOpinionState } from '../../publicOpinion/types'
@@ -273,8 +274,11 @@ export function resolveRecapTabloidSources(
   const primaryAvatar = resolveAvatarCandidates(player).find(
     (candidate) => !isDicebearCandidate(candidate)
   )
+  const tabloidPhoto = isCombinedTwinIdentity(player)
+    ? joinPublicAssetPath(`assets/tabloid_photos/${TWIN_SHOCK_COMBINED_TABLOID}`)
+    : preferredPhoto
   return uniqueSources([
-    preferredPhoto,
+    tabloidPhoto,
     resolveInformalCutout(player),
     primaryAvatar,
     resolveSilhouetteFallback(player),
@@ -286,10 +290,12 @@ function pickTabloidPhoto(
   tabloidPhotos: TabloidPhotoEntry[],
   usedPhotoIds: Set<string>
 ): string | null {
-  if (tabloidPhotos.length === 0) return null
+  if (isCombinedTwinIdentity(player)) return null
   const desiredTokens = getTabloidMatchTokens(player)
+  const combinedMatchToken = normalizePhotoToken(TWIN_SHOCK_COMBINED_ART_ID)
+  const availablePhotos = tabloidPhotos.filter((entry) => entry.matchToken !== combinedMatchToken)
 
-  const matchedPhoto = tabloidPhotos.find(
+  const matchedPhoto = availablePhotos.find(
     (entry) => !usedPhotoIds.has(entry.id) && desiredTokens.includes(entry.matchToken)
   )
   if (matchedPhoto) {
@@ -298,7 +304,8 @@ function pickTabloidPhoto(
   }
 
   const unusedFallback =
-    tabloidPhotos.find((entry) => !usedPhotoIds.has(entry.id)) ?? tabloidPhotos[0]
+    availablePhotos.find((entry) => !usedPhotoIds.has(entry.id)) ?? availablePhotos[0]
+  if (!unusedFallback) return null
   usedPhotoIds.add(unusedFallback.id)
   return unusedFallback.source
 }

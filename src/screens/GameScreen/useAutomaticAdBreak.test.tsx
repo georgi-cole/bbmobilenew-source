@@ -81,6 +81,16 @@ describe('automatic Survival ad boundary', () => {
     expect(Object.keys(harness.getState().ads.automaticBreaks)).toHaveLength(1)
   })
 
+  it('runs the normal break for a Standard minor when contextual inventory is configured', async () => {
+    installSafetyFixture(12)
+    window.GameAds!.supportsContextualInterstitials = true
+    const { result } = setup().render()
+    expect(result.current.announcement?.title).toBe('SHORT BREAK')
+    await act(async () => result.current.dismissAnnouncement())
+    expect(window.GameAds!.showInterstitial).toHaveBeenCalledWith('survival_elimination_auto')
+    await waitFor(() => expect(result.current.active).toBe(false))
+  })
+
   it('does not repeat the same completed-day break after remounting', async () => {
     const harness = setup()
     const first = harness.render()

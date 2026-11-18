@@ -31,6 +31,11 @@ export function resolvePresentationAvatarCandidates(source: string | null | unde
   if (markerIndex < 0) return [source]
 
   const assetName = source.slice(markerIndex + marker.length)
+  if (
+    /^(?:backup-grey-lux\/)?Ali_lia_avatar(?:_512)?\.(?:webp|png|svg)(?:$|[?#])/i.test(assetName)
+  ) {
+    return [`${source.slice(0, markerIndex)}${marker}Ali_lia_avatar_grey.webp`, source]
+  }
   const bella = /^(?:backup-grey-lux\/)?Bella_avatar\.webp([?#].*)?$/i.exec(assetName)
   if (bella) {
     return [

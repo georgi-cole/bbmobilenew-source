@@ -47,7 +47,7 @@ describe('advertising privacy controls', () => {
     expect(privacy.open).toHaveBeenCalledOnce()
   })
 
-  it('does not enable advertising or Google requests for a minor', () => {
+  it('describes contextual breaks and keeps adult ad controls out of the minor age view', () => {
     renderPrivacy()
     fireEvent.change(screen.getByLabelText('Your age'), { target: { value: '15' } })
     fireEvent.click(screen.getByText('Continue'))
@@ -56,6 +56,8 @@ describe('advertising privacy controls', () => {
     expect(canUseAdultServices()).toBe(false)
     expect(privacy.open).not.toHaveBeenCalled()
     expect(screen.queryByText('Check advertising setup')).toBeNull()
+    expect(screen.getByText(/short contextual ad breaks/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Report an ad' })).toBeInTheDocument()
   })
 
   it('lets an adult check Google setup without enabling a local ad switch or watching an ad', async () => {

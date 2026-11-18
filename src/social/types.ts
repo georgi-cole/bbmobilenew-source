@@ -307,7 +307,9 @@ export type IncomingInteractionResponseType =
   | 'dismiss'
   | 'ignore'
 
-export type IncomingInteractionResponseAction = 'ask_plan' | 'need_time'
+export type IncomingDialogueQuestion = 'ask_deal_terms' | 'ask_nomination_read'
+
+export type IncomingInteractionResponseAction = 'ask_plan' | 'need_time' | IncomingDialogueQuestion
 
 export type IncomingInteractionPriority = 'high' | 'medium' | 'low'
 
@@ -383,6 +385,8 @@ export interface IncomingInteraction {
   resolvedLabel?: string
   resolvedChoiceId?: string
   receipt?: IncomingInteractionReceipt
+  /** A question and answer before the player made their final choice. */
+  dialogue?: { question: IncomingDialogueQuestion; label: string; reply: string }
   /** Short authored character reaction shown beside the action consequence. */
   reactionText?: string
   outcomeText?: string

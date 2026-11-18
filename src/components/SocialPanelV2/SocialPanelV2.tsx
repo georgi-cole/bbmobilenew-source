@@ -39,6 +39,8 @@ import HousePulse from '../HousePulse/HousePulse'
 import { resolveWeatherDay } from '../../weather/weatherEngine'
 import RealityLedger from '../RealityLedger/RealityLedger'
 import AllianceRead from './AllianceRead'
+import HubmateChoiceChip from './HubmateChoiceChip'
+import StoreProductIcon from '../StoreProductModal/StoreProductIcon'
 import {
   SWAY_ALLIANCE_VOTE,
   getAllianceVoteSway,
@@ -643,11 +645,12 @@ export default function SocialPanelV2() {
   }
 
   const allianceQuickActions = useMemo<AllianceQuickAction[]>(() => {
-    if (!dramaMode || !humanPlayer) return []
+    if ((!dramaMode && moveFilter !== 'alliances') || !humanPlayer) return []
 
     const reality = socialState.reality
     const humanId = humanPlayer.id
     const targetId = primaryTargetId
+    const requests = Object.values(reality.allianceManagement?.requests ?? {})
     const playerName = (id: string) =>
       game.players.find((player) => player.id === id)?.name ?? 'Hubmate'
     const currentCommitments = Object.values(reality.alliances).filter(
@@ -657,7 +660,26 @@ export default function SocialPanelV2() {
     const counts = currentAllianceCounts(reality, humanId)
     const actions: AllianceQuickAction[] = []
 
-    if (!selectedAllianceId && counts.groups < ALLIANCE_LIMITS.groupsPerMember) {
+    const canPreviewFounding =
+      dramaMode ||
+      (game.players.filter(
+        (player) =>
+          player.id !== humanId &&
+          player.status !== 'evicted' &&
+          player.status !== 'jury' &&
+          currentAllianceCounts(reality, player.id).groups < ALLIANCE_LIMITS.groupsPerMember
+      ).length >= 2 &&
+        !requests.some(
+          (request) =>
+            request.kind === 'FOUND' &&
+            request.proposerId === humanId &&
+            isPendingAllianceRequest(request)
+        ))
+    if (
+      !selectedAllianceId &&
+      counts.groups < ALLIANCE_LIMITS.groupsPerMember &&
+      canPreviewFounding
+    ) {
       actions.push({
         action: allianceAction(
           'alliance:found',
@@ -684,7 +706,7 @@ export default function SocialPanelV2() {
       })
     }
 
-    for (const request of Object.values(reality.allianceManagement?.requests ?? {})) {
+    for (const request of requests) {
       if ((request.allianceId ?? null) !== selectedAllianceId) continue
       if (
         !isPendingAllianceRequest(request) ||
@@ -979,6 +1001,7 @@ export default function SocialPanelV2() {
     dramaMode,
     game.players,
     humanPlayer,
+    moveFilter,
     primaryTargetId,
     socialState.reality,
   ])
@@ -1009,12 +1032,14 @@ export default function SocialPanelV2() {
   const swayPlan = getAllianceVoteSway(
     { game, settings, vip, social: socialState } as RootState,
     selectedAllianceId,
-    swaySubjectIds
+    swaySubjectIds,
+    { showLockedPreview: moveFilter === 'alliances' }
   )
 
-  const selectedAllianceAction = selectedActionId
-    ? (allianceQuickActions.find((entry) => entry.action.id === selectedActionId) ?? null)
-    : null
+  const selectedAllianceAction =
+    dramaMode && selectedActionId
+      ? (allianceQuickActions.find((entry) => entry.action.id === selectedActionId) ?? null)
+      : null
   const selectedAction = selectedActionId
     ? (SocialManeuvers.getActionById(selectedActionId) ??
       selectedAllianceAction?.action ??
@@ -1032,8 +1057,8 @@ export default function SocialPanelV2() {
   const isAllianceConsultation = selectedActionId === 'consult_alliance'
   const isAllianceInvitation = selectedActionId?.startsWith('alliance:invite:') === true
   const showAlliancePicker =
-    dramaMode &&
-    (moveFilter === 'alliances' || isAllianceInvitation || isAllianceConsultation || isAllianceSway)
+    (moveFilter === 'alliances' && (dramaMode || activeGroups.length > 0)) ||
+    (dramaMode && (isAllianceInvitation || isAllianceConsultation || isAllianceSway))
   const consultationTargetCandidates = [
     ...(primaryTargetId && (selectedTargets.size === 0 || selectedTargets.has(primaryTargetId))
       ? [primaryTargetId]
@@ -1426,6 +1451,7 @@ export default function SocialPanelV2() {
         SocialManeuvers.getActionById(actionId) ??
         allianceQuickActions.find((entry) => entry.action.id === actionId)?.action
       const nextAllianceAction = allianceQuickActions.find((entry) => entry.action.id === actionId)
+      if (!dramaMode && nextAllianceAction) return
       const nextMode = nextAction ? resolveActionTargetMode(nextAction, dramaMode) : 'primary'
       const nextBatchCompatible =
         nextMode === 'primary' &&
@@ -2331,7 +2357,7 @@ export default function SocialPanelV2() {
         <div
           id="sp2-body"
           ref={socialBodyRef}
-          className={`sp2-body${selectedAlliance ? ' sp2-body--alliance' : ''}${collapseRosterForFocusedPlayer ? ' sp2-body--focused-target' : ''}`}
+          className={`sp2-body${dramaMode && selectedAlliance ? ' sp2-body--alliance' : ''}${collapseRosterForFocusedPlayer ? ' sp2-body--focused-target' : ''}`}
         >
           <section
             className="sp2-hubmates"
@@ -2390,7 +2416,7 @@ export default function SocialPanelV2() {
             </div>
             {showAlliancePicker && (
               <div
-                className={`sp2-consult-alliance-picker${allianceSelectionPulse ? ' is-attention' : ''}`}
+                className={`sp2-consult-alliance-picker${dramaMode ? '' : ' sp2-consult-alliance-picker--locked'}${allianceSelectionPulse ? ' is-attention' : ''}`}
                 role="group"
                 aria-label="Official alliances"
               >
@@ -2403,13 +2429,26 @@ export default function SocialPanelV2() {
                         <button
                           key={alliance.id}
                           type="button"
-                          title={allianceName}
-                          aria-label={allianceName}
-                          aria-pressed={isSelected}
-                          className={`sp2-consult-alliance-chip${isSelected ? ' is-active' : ''}`}
-                          onClick={() => selectAlliance(isSelected ? null : alliance.id)}
+                          title={
+                            dramaMode ? allianceName : `${allianceName} · View in VIP Reality Mode`
+                          }
+                          aria-label={
+                            dramaMode ? allianceName : `${allianceName}. VIP Reality Mode`
+                          }
+                          aria-pressed={dramaMode ? isSelected : undefined}
+                          className={`sp2-consult-alliance-chip${dramaMode ? (isSelected ? ' is-active' : '') : ' sp2-consult-alliance-chip--locked'}`}
+                          onClick={
+                            dramaMode
+                              ? () => selectAlliance(isSelected ? null : alliance.id)
+                              : handleRealityUpgrade
+                          }
                         >
                           <span className="sp2-consult-alliance-chip__name">{allianceName}</span>
+                          {!dramaMode && (
+                            <span className="ac-card__premium-badge" aria-hidden="true">
+                              <StoreProductIcon name="vip" />
+                            </span>
+                          )}
                         </button>
                       )
                     })}
@@ -2425,6 +2464,7 @@ export default function SocialPanelV2() {
             )}
 
             {showAlliancePicker &&
+              dramaMode &&
               !isAllianceInvitation &&
               !isAllianceConsultation &&
               formerGroups.length > 0 && (
@@ -2480,7 +2520,7 @@ export default function SocialPanelV2() {
             )}
           </section>
 
-          {selectedAlliance ? (
+          {dramaMode && selectedAlliance ? (
             <AllianceRead
               alliance={selectedAlliance}
               reality={socialState.reality}
@@ -2834,11 +2874,10 @@ export default function SocialPanelV2() {
               >
                 <div className="sp2-subject-picker__chips" role="group" aria-label="Nominees">
                   {swayPlan.nominees.map((candidate) => (
-                    <button
+                    <HubmateChoiceChip
                       key={candidate.id}
-                      type="button"
-                      className={`sp2-subject-chip${swaySubjectIds.includes(candidate.id) ? ' sp2-subject-chip--selected' : ''}`}
-                      aria-pressed={swaySubjectIds.includes(candidate.id)}
+                      player={candidate}
+                      selected={swaySubjectIds.includes(candidate.id)}
                       onClick={() => {
                         setSwaySubjectIds((previous) =>
                           previous.includes(candidate.id)
@@ -2851,10 +2890,7 @@ export default function SocialPanelV2() {
                         )
                         clearCurrentOutcome()
                       }}
-                    >
-                      <PlayerAvatar player={candidate} size="sm" showRelationshipOutline={false} />
-                      <span className="sp2-subject-chip__name">{candidate.name}</span>
-                    </button>
+                    />
                   ))}
                 </div>
               </div>
@@ -2874,27 +2910,17 @@ export default function SocialPanelV2() {
                     aria-label="Subject candidates"
                   >
                     {subjectCandidates.map((candidate) => (
-                      <button
+                      <HubmateChoiceChip
                         key={candidate.id}
-                        type="button"
-                        className={`sp2-subject-chip${
-                          selectedSubjectId === candidate.id ? ' sp2-subject-chip--selected' : ''
-                        }`}
-                        aria-pressed={selectedSubjectId === candidate.id}
+                        player={candidate}
+                        selected={selectedSubjectId === candidate.id}
                         onClick={() => {
                           setSelectedSubjectId((previous) =>
                             previous === candidate.id ? null : candidate.id
                           )
                           clearCurrentOutcome()
                         }}
-                      >
-                        <PlayerAvatar
-                          player={candidate}
-                          size="sm"
-                          showRelationshipOutline={false}
-                        />
-                        <span className="sp2-subject-chip__name">{candidate.name}</span>
-                      </button>
+                      />
                     ))}
                   </div>
                 )}

@@ -3,12 +3,29 @@ import {
   ceremonyCast,
   createBattleBackIntroGuard,
   createCeremonyQueue,
+  findArt,
   shouldPlayCinematic,
 } from './runtime.mjs'
 import catalog from './cast.json'
 import type { GameState } from '../../types'
 
 describe('cinematic ceremony routing', () => {
+  it('uses the joint twin pack ahead of the shared gameplay id', () => {
+    const liaArt = catalog.characters.find((character) => character.id === 'lia')!
+    const pairArt = { ...liaArt, id: 'lia-ali', name: 'Lia & Ali' }
+    const lia = {
+      id: 'lia',
+      name: 'Lia',
+      avatar: 'assets/skins/Lia_avatar.webp',
+      status: 'active' as const,
+    }
+
+    expect(findArt(lia, [liaArt, pairArt])).toBe(liaArt)
+    expect(findArt({ ...lia, twinMode: 'combined' }, [liaArt, pairArt])).toBe(pairArt)
+    expect(findArt({ ...lia, id: 'lia_ali' }, [liaArt, pairArt])).toBe(pairArt)
+    expect(findArt({ ...lia, name: 'Lia & Ali' }, [liaArt])).toBeNull()
+  })
+
   it('requires VIP, animations and motion; explicit Standard wins over the automatic VIP style', () => {
     const state = {
       settings: {

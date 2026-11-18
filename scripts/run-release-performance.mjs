@@ -504,6 +504,10 @@ try {
     await page.locator('.game-screen').waitFor()
     await start()
     await page.getByRole('button', { name: 'Start competition', exact: true }).click()
+    const offer = page.getByRole('dialog', { name: 'Premium minigame available' })
+    if (await offer.isVisible()) {
+      await offer.getByRole('button', { name: 'Cancel', exact: true }).click()
+    }
     await page.waitForTimeout(4000)
     const entry = await collect(`${key}-entry`)
     budget(entry.handlers.max, 250, `${key}: entry handler`)

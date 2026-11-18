@@ -6,7 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import vipReducer, { initializeVip } from '../../src/store/vipSlice'
 import settingsReducer, { setGameUX } from '../../src/store/settingsSlice'
 import gameReducer from '../../src/store/gameSlice'
+import challengeReducer, {
+  setPendingChallenge,
+  type PendingChallenge,
+} from '../../src/store/challengeSlice'
 import profilesReducer from '../../src/store/profilesSlice'
+import { getGame } from '../../src/minigames/registry'
 import { createEmptyStoreEntitlements } from '../../src/vip/vipStorage'
 import CinematicPackController from '../../src/components/CinematicPackController/CinematicPackController'
 import Settings from '../../src/screens/Settings/Settings'
@@ -24,16 +29,23 @@ const proofs = VIP_CINEMATIC_PACK.files.map((file) => ({
 }))
 let testBackend: downloads.CinematicPackBackend
 let manager: ReturnType<typeof downloads.createCinematicPackDownloads>
-function mount(settings = false, vip = true, mode?: 'standard' | 'cinematic') {
+function mount(
+  settings = false,
+  vip = true,
+  mode?: 'standard' | 'cinematic',
+  competition?: PendingChallenge
+) {
   const store = configureStore({
     reducer: {
       vip: vipReducer,
       settings: settingsReducer,
       game: gameReducer,
+      challenge: challengeReducer,
       profiles: profilesReducer,
     },
   })
   if (mode) store.dispatch(setGameUX({ animationMode: mode }))
+  if (competition) store.dispatch(setPendingChallenge(competition))
   if (vip)
     store.dispatch(
       initializeVip.fulfilled(
@@ -47,17 +59,18 @@ function mount(settings = false, vip = true, mode?: 'standard' | 'cinematic') {
         'offline-vip'
       )
     )
-  const result = render(
+  const view = (hash: string) => (
     <Provider store={store}>
       <I18nProvider>
         <MemoryRouter>
           {settings && <Settings />}
-          <CinematicPackController hash="#/settings" />
+          <CinematicPackController hash={hash} />
         </MemoryRouter>
       </I18nProvider>
     </Provider>
   )
-  return { store, ...result }
+  const result = render(view(competition ? '#/store' : '#/settings'))
+  return { store, ...result, changeRoute: (hash: string) => result.rerender(view(hash)) }
 }
 beforeEach(() => {
   localStorage.clear()
@@ -92,6 +105,36 @@ afterEach(() => {
 })
 
 describe('VIP cinematic download prompts', () => {
+  it('defers cinematic setup through Marketplace return and the resumed competition', async () => {
+    const competition: PendingChallenge = {
+      id: 'quick-tap-offer',
+      game: getGame('quickTap')!,
+      seed: 23,
+      participants: [],
+      aiScores: {},
+      phase: 'rules',
+      premiumOffer: { attempt: 0, decision: 'marketplace' },
+    }
+    const { store, changeRoute } = mount(false, true, undefined, competition)
+    await waitFor(() => expect(manager.getSnapshot().status).toBe('available'))
+    expect(manager.getSnapshot().prompt).toBe(0)
+    act(() => downloads.requestCinematicPack())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    changeRoute('#/game?phonePreview=true')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    act(() =>
+      store.dispatch(
+        setPendingChallenge({ ...competition, attempt: { number: 1, status: 'ready' } })
+      )
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    act(() => store.dispatch(setPendingChallenge(null)))
+    expect(await screen.findByRole('button', { name: 'Download & turn on' })).toBeVisible()
+  })
+
   it('lets VIP users decline, then download and activate through Animation style without a separate download row', async () => {
     const { store } = mount(true)
     await screen.findByRole('button', { name: 'Stay with Standard' })

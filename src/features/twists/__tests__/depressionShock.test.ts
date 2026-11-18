@@ -145,6 +145,15 @@ describe('Depression Shock presentation and strategic distortion', () => {
     expect(candidates).toContain('/assets/skins/lia_sad_avatar.webp')
   })
 
+  it('uses only the paired sad portrait for the combined twins', () => {
+    expect(
+      buildDepressionShockAvatarCandidates('lia', ['assets/skins/Ali_lia_avatar_512.webp'], 'Lia')
+    ).toEqual(['/assets/skins/Ali_lia_sad_avatar.webp'])
+    expect(
+      buildDepressionShockAvatarCandidates('lia', ['/assets/skins/Lia_avatar.webp'], 'Lia & Ali')
+    ).toEqual(['/assets/skins/Ali_lia_sad_avatar.webp'])
+  })
+
   it('uses day-one and day-two visuals only for the two active days', () => {
     const state = {
       ...createInitialDepressionShockState('game-depression-test'),
