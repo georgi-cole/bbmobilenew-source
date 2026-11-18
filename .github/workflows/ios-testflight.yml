@@ -31,14 +31,35 @@ jobs:
       - run: npm ci
       - run: npm run check:pr
       - run: node --test scripts/mobile-store-workflow.test.mjs
+      - run: node --test scripts/cinematic-pack-publishing.test.mjs
       - run: node --test scripts/google-play-internal.test.mjs
       - run: node --test scripts/testflight-readiness.test.mjs
       - run: node --test scripts/android-upload-certificate.test.mjs
       - run: node scripts/complete-testflight.mjs --check-policy
 
+  cinematic-media:
+    name: Publish and verify the matching cinematic download
+    needs: quality
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/testflight-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publish immutable media and verify the public download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish-vip-cinematic-pack.mjs
+
   upload:
     name: Build, sign, and upload iOS app
-    needs: quality
+    needs: [quality, cinematic-media]
     # Automatic main builds and explicitly selected TestFlight candidates share validation.
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/testflight-')
     runs-on: macos-26
@@ -258,7 +279,7 @@ jobs:
   android:
     name: Build and publish Google Play Internal Testing
     if: github.ref == 'refs/heads/main'
-    needs: quality
+    needs: [quality, cinematic-media]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:

@@ -24,9 +24,15 @@ test('every main update starts a build, while manual candidate builds remain ava
 test('signing jobs require successful source validation and use read-only repository access', () => {
   assert.equal(workflow.permissions.contents, 'read')
   assert.ok(workflow.jobs.quality.steps.some((step) => step.run === 'npm run check:pr'))
-  assert.equal(workflow.jobs.upload.needs, 'quality')
-  assert.equal(workflow.jobs.android.needs, 'quality')
+  assert.deepEqual(workflow.jobs.upload.needs, ['quality', 'cinematic-media'])
+  assert.deepEqual(workflow.jobs.android.needs, ['quality', 'cinematic-media'])
   assert.equal(workflow.jobs.quality.env, undefined)
+  assert.equal(workflow.jobs.upload.permissions, undefined)
+  assert.equal(workflow.jobs.android.permissions, undefined)
+  const media = workflow.jobs['cinematic-media']
+  assert.equal(media.needs, 'quality')
+  assert.equal(media.permissions.contents, 'write')
+  assert.ok(media.steps.some((step) => step.run === 'node scripts/publish-vip-cinematic-pack.mjs'))
 })
 
 test('back-to-back merges queue without replacing pending or active uploads', () => {
