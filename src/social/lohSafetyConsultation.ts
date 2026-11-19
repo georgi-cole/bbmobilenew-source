@@ -1,34 +1,13 @@
 import type { GameState } from '../types'
-import { getCupidPartnerId, expandCupidIds } from '../features/twists/cupidArrow'
+import { getCupidPartnerId } from '../features/twists/cupidArrow'
+import { getLohDialogueCandidateIds } from '../store/gameSlice'
 import { isLohAmbushPlan } from '../store/lohNominationPlanning'
 import { getLohEliminationPriorityIds } from './lohNominationPlanCopy'
 import { getCurrentLohEliminationPriorityIds } from './lohEliminationPriority'
 
-type SafetyConsultationGame = Partial<
-  Pick<
-    GameState,
-    | 'week'
-    | 'lohId'
-    | 'posWinnerId'
-    | 'povSavedId'
-    | 'povProtectedIds'
-    | 'cupidArrow'
-    | 'lohNominationPlan'
-    | 'storeNominationProtections'
-    | 'doubleEviction'
-    | 'specialVeto'
-  >
-> & {
-  phase?: string
-  voxPopuli?: { status?: string } | null
-  lohSocialPlan?: { week?: number; lohId?: string; currentTargetId?: string | null } | null
-  players?: readonly { id: string; name?: string; status: string }[]
-  nomineeIds?: readonly string[]
-}
-
 /** Ask for a replacement seat only for the real, saved Ambush target. */
 export function formatLohSafetyConsultation(
-  game: SafetyConsultationGame | undefined,
+  game: GameState | undefined,
   actorId: string
 ): string | null {
   if (
@@ -61,25 +40,8 @@ export function formatLohSafetyConsultation(
     canonical.status === 'initial_block_set' &&
     !game.specialVeto?.activeType
   ) {
-    const protectedIds = new Set([
-      game.lohId,
-      game.posWinnerId,
-      getCupidPartnerId(game, game.lohId),
-      getCupidPartnerId(game, game.posWinnerId),
-      game.povSavedId,
-      ...(game.povProtectedIds ?? []),
-      ...(game.storeNominationProtections ?? [])
-        .filter((protection) => protection.week === game.week)
-        .map((protection) => protection.targetId),
-    ])
-    const target = game.players?.find((player) => player.id === canonical.targetId)
-    const targetEligible =
-      target &&
-      !['evicted', 'jury'].includes(target.status) &&
-      expandCupidIds(game, [target.id]).every(
-        (id) => !nominees.includes(id) && !protectedIds.has(id)
-      )
-    if (targetEligible) {
+    const candidates = getLohDialogueCandidateIds(game, canonical.lohId, 'conditional_replacement')
+    if (candidates.includes(canonical.targetId)) {
       const saveId = canonical.pawnIds.find((id) => nominees.includes(id)) ?? nominees[0]
       // Describe the block that would exist after the proposed Safety save:
       // the saved pawn leaves and the real Ambush target takes that seat.
@@ -98,7 +60,8 @@ export function formatLohSafetyConsultation(
                 : ''
             }.`
           : ''
-      return `Use it on ${name(saveId)}. Let's open the seat and spring an ambush on ${name(target.id)}. ${name(target.id)} is my real elimination target.${doublePlanRead}`
+      const target = name(canonical.targetId)
+      return `Use it on ${name(saveId)}. Let's open the seat and spring an ambush on ${target}. ${target} is my real elimination target.${doublePlanRead}`
     }
   }
   const doublePriorities = canonical?.isDoubleElimination

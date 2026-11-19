@@ -58,12 +58,13 @@ import {
   getAiEvictionVoteTargets,
   getEligibleNominationTargets,
   getEligibleReplacementNominees,
+  getLohDialogueCandidateIds,
   getNominationTargetScore,
   getSafetyRelationshipScore,
 } from '../../store/gameSlice'
 import { shouldDepressionShockRefuseConversation } from '../../features/twists/depressionShock'
 import { createDeterministicSocialRandom, validateSocialExecution } from '../socialExecutionGuard'
-import { isLohReplacementPending } from '../lohReplacementWindow'
+import { getLohDecisionStage, isLohReplacementPending } from '../lohReplacementWindow'
 import { getPendingNominationPawnOffer } from '../nominationPawnOffer'
 import { upsertRealityFacadeAgreement } from './facadeAgreements'
 import {
@@ -1766,10 +1767,9 @@ export function buildLohConsultationSummary(
       (player) => player.id === id && player.status !== 'evicted' && player.status !== 'jury'
     )
   )
-  const replacementPending = isLohReplacementPending(state.game)
-  const finalBlockLocked =
-    !replacementPending &&
-    ['pos_ceremony_results', 'social_2', 'live_vote'].includes(state.game.phase)
+  const decisionStage = getLohDecisionStage(state.game)
+  const replacementPending = decisionStage === 'replacement'
+  const finalBlockLocked = decisionStage === 'locked'
 
   const disclosedTargetId =
     plan.disclosedTargetByPlayerId?.[input.actorId] ?? plan.backupTargetId ?? plan.currentTargetId
@@ -1851,6 +1851,13 @@ export function buildLohConsultationSummary(
 
   const disclosedName = facingName(disclosedTargetId)
   if (disclosureOutcome === 'false') {
+    if (
+      !getLohDialogueCandidateIds(state.game, input.targetId, decisionStage).includes(
+        disclosedTargetId
+      )
+    ) {
+      return formatVagueLohPlan(playerName(state, input.targetId), state.game.phase)
+    }
     if (disclosedTargetId === input.actorId) {
       return isBeforeInitialNominations(state.game.phase)
         ? 'I am willing to name you for my opening nominations.'

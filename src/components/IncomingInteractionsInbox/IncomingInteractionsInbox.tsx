@@ -9,6 +9,7 @@ import {
   selectSocialCommitments,
 } from '../../social/socialSlice'
 import { getIncomingInteractionPriority } from '../../social/incomingInteractionScheduler'
+import { getLohOpeningWarningFollowUp } from '../../social/lohNominationPlanCopy'
 import {
   getIncomingInteractionTypeLabel,
   respondToIncomingInteraction,
@@ -731,7 +732,18 @@ export default function IncomingInteractionsInbox() {
     return (
       <InteractionItem
         key={interaction.id}
-        interaction={interaction}
+        interaction={
+          !interaction.resolved &&
+          interaction.payload?.scenarioKey === 'background_nominate_human' &&
+          humanPlayer
+            ? {
+                ...interaction,
+                text:
+                  getLohOpeningWarningFollowUp(game, interaction.fromId, humanPlayer.id) ??
+                  interaction.text,
+              }
+            : interaction
+        }
         priority={priority}
         policy={policy}
         showActions={showActions}

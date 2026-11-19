@@ -43,7 +43,7 @@ function canonicalizeLohTargetLog(action: unknown, state: BackdoorPresentationSt
         targetId?: string
         subjectId?: string
         narrative?: string
-        context?: { lohPlanType?: 'current_target' | 'backup_plan' }
+        context?: { lohPlanType?: 'current_target' | 'backup_plan'; lohDisclosureOutcome?: string }
         [key: string]: unknown
       }
       [key: string]: unknown
@@ -55,6 +55,7 @@ function canonicalizeLohTargetLog(action: unknown, state: BackdoorPresentationSt
   if (
     !entry ||
     entry.actionId !== 'ask_loh_target' ||
+    entry.context?.lohDisclosureOutcome != null ||
     !entry.actorId ||
     !plan ||
     plan.week !== state.game.week ||

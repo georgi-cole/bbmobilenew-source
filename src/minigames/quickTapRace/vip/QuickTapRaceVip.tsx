@@ -1,6 +1,7 @@
 import { useSeasonAiRuntime } from '../../../ai/competition/SeasonAiContext'
 import { useMinigamePortalTarget } from '../../../components/MinigameHost/minigamePortal'
 import { runtimeCompetitionProfile } from '../../../ai/competition/seasonAiDifficulty'
+import { LEGACY_QUICK_TAP_AI_TUNING } from '../../../ai/competition/quickTapAiTuning'
 import { useCompetitionResultCheckpoint } from '../../competitionResultContext'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
@@ -246,6 +247,7 @@ export default function QuickTapRaceVip({
   autoStart = false,
   onFinish,
   mode = 'race',
+  quickTapAiTuning,
 }: Props) {
   const portalTarget = useMinigamePortalTarget()
   useCoveredGameScreen()
@@ -254,7 +256,11 @@ export default function QuickTapRaceVip({
   const seasonAi = session?.aiRuntime ?? hostedAi
   const storePlayers = useAppSelector((state) => state.game.players)
   const roster = players.length ? players : storePlayers
-  const [run] = useState(() => ({ seed: session?.seed ?? seed ?? 424242, mode }))
+  const [run] = useState(() => ({
+    seed: session?.seed ?? seed ?? 424242,
+    mode,
+    tuning: session ? (session.quickTapAiTuning ?? LEGACY_QUICK_TAP_AI_TUNING) : quickTapAiTuning,
+  }))
   const roundMs = quickTapVipRoundMs(run.mode),
     duration = quickTapVipDurationMs(run.mode)
   const contestants = useMemo(() => {
@@ -287,6 +293,7 @@ export default function QuickTapRaceVip({
               playerId: p.id,
               profile: p.profile,
               offers,
+              tuning: run.tuning,
             }),
           ])
       ),

@@ -54,6 +54,7 @@ export interface GenericMinigameProps {
   vipQuickTap?: boolean
   /** Development-only preview override; a real session variant otherwise stays frozen. */
   quickTapVariantOverride?: 'classic' | 'vip'
+  quickTapAiTuning?: import('../ai/competition/quickTapAiTuning').QuickTapAiTuningVersion
   /** Development-only phase preview for the portrait finale stages. */
   previewStage?: 'final' | 'round6' | 'final2'
   /** Capitalization only: selects standard LOH or Back 2 the Game rules. */

@@ -241,11 +241,12 @@ describe('double-elimination social planning', () => {
   it('includes both intended exits when the Safety holder asks the LOH for advice', () => {
     const summary = formatLohSafetyConsultation(
       {
+        ...gameReducer(undefined, { type: '@@test/init' }),
         week: 4,
         phase: 'pos_results',
         lohId: 'loh',
         posWinnerId: 'safety',
-        players: cast,
+        players: cast.map((player) => ({ ...player, avatar: '' })),
         nomineeIds: ['nominee-a', 'nominee-b', 'nominee-c'],
         doubleEviction: { usedCount: 1, weekActive: true, pendingSecondEviction: null },
         lohNominationPlan: doublePlan,

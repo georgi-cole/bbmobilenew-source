@@ -716,6 +716,10 @@ export interface RealitySocialEvent extends RealityClock {
   allianceConsultationSummary?: string
   /** The member's departure motive, retained when the roster or relationships change. */
   allianceDepartureReason?: string
+  allianceBetrayal?: {
+    kind: 'NOMINATION' | 'VOTE' | 'SAFETY_ABANDON' | 'SOCIAL_BETRAYAL'
+    sourceEventId: string
+  }
   allianceCommitmentSnapshot?: { kind: string; status: RealityPromiseStatus }
   allianceRequestSnapshot?: {
     kind: RealityAllianceRequestKind

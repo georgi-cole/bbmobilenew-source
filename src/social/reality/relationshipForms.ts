@@ -27,6 +27,7 @@ import type {
   RealityGrievance,
   RealityReentryAllianceSnapshot,
   RealityRomance,
+  RealitySocialEvent,
   RealityVoteIntent,
 } from './types'
 
@@ -763,11 +764,9 @@ export function reconcileRealityBattleBackReturn(
   return { restoredAllianceIds: [], probationaryAllianceIds: [], formerAllianceIds }
 }
 
-export type RealityAllianceBetrayalKind =
-  | 'NOMINATION'
-  | 'VOTE'
-  | 'SAFETY_ABANDON'
-  | 'SOCIAL_BETRAYAL'
+export type RealityAllianceBetrayalKind = NonNullable<
+  RealitySocialEvent['allianceBetrayal']
+>['kind']
 
 export function recordRealityAllianceBetrayal(
   state: RealityDomainState,
@@ -862,6 +861,7 @@ export function recordRealityAllianceBetrayal(
       ...input.at,
       type: 'ALLIANCE_BETRAYAL',
       allianceId: alliance.id,
+      allianceBetrayal: { kind: input.kind, sourceEventId: input.sourceEventId },
       actorId: input.actorId,
       targetIds: [input.targetId],
       participantIds: [...alliance.memberIds],

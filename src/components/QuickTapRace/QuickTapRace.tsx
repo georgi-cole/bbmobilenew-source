@@ -17,6 +17,7 @@ interface Props {
   autoStart?: boolean
   vipQuickTap?: boolean
   quickTapVariantOverride?: 'classic' | 'vip'
+  quickTapAiTuning?: GenericMinigameProps['quickTapAiTuning']
   participantIds?: string[]
   participants?: HostParticipant[]
   experimental?: {
@@ -39,6 +40,7 @@ export default function QuickTapRace({
   autoStart,
   vipQuickTap,
   quickTapVariantOverride,
+  quickTapAiTuning,
   participantIds,
   participants,
   experimental,
@@ -65,6 +67,7 @@ export default function QuickTapRace({
         seed={seed}
         autoStart={autoStart}
         quickTapVariantOverride={quickTapVariantOverride}
+        quickTapAiTuning={quickTapAiTuning}
         participantIds={participantIds}
         participants={participants}
       />

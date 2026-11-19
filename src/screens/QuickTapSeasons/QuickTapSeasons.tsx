@@ -22,6 +22,7 @@ export default function QuickTapSeasons({
   autoStart = false,
   participants,
   onFinish,
+  quickTapAiTuning,
 }: GenericMinigameProps = {}) {
   const [seed, setSeed] = useState(competitionSeed ?? 20260802)
   const [phase, setPhase] = useState<Phase>('ready')
@@ -41,7 +42,10 @@ export default function QuickTapSeasons({
   const leafId = useRef(0)
   const scoreRef = useRef(0)
   const schedule = useMemo(() => buildSeasonSchedule(seed), [seed])
-  const aiResults = useMemo(() => simulateSeasonsAiField(seed), [seed])
+  const aiResults = useMemo(
+    () => simulateSeasonsAiField(seed, quickTapAiTuning),
+    [seed, quickTapAiTuning]
+  )
   const details = SEASONS[season]
 
   const changeSeason = useCallback((next: TapSeason) => {
