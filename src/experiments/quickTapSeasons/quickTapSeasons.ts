@@ -1,5 +1,12 @@
 import { mulberry32 } from '../../store/rng'
 import type { CompetitionSkillProfile } from '../../ai/competition/types'
+import {
+  CURRENT_QUICK_TAP_AI_TUNING,
+  LEGACY_QUICK_TAP_AI_TUNING,
+  getQuickTapAiBandStrength,
+  selectQuickTapPaceBand,
+  type QuickTapAiTuningVersion,
+} from '../../ai/competition/quickTapAiTuning'
 
 export const SEASONS_DURATION = 40
 export const SEASON_LENGTH = 8
@@ -98,6 +105,15 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value))
 }
 
+const SEASONS_AI_PACE_BANDS = [
+  { weight: 25, min: 9.2, max: 10 },
+  { weight: 25, min: 10, max: 10.7 },
+  { weight: 25, min: 10.7, max: 11.6 },
+  { weight: 15, min: 11.6, max: 12.2 },
+  { weight: 8, min: 12.2, max: 12.9 },
+  { weight: 2, min: 12.9, max: 13.6 },
+] as const
+
 function scoreWithSeasonsModel(seed: number, opponent: SeasonsOpponentModel): SeasonsAiResult {
   const schedule = buildSeasonSchedule(seed)
   const rng = mulberry32((seed ^ hash(opponent.id) ^ 0xa15ea50a) >>> 0)
@@ -191,18 +207,30 @@ function createSeasonsAiOpponent(
   seed: number,
   id: string,
   profile: CompetitionSkillProfile,
-  name = id
+  name: string,
+  tuning: QuickTapAiTuningVersion
 ): SeasonsOpponentModel {
   const rng = mulberry32((seed ^ hash(id) ^ 0x5ea50a1) >>> 0)
   const physical = clamp01(profile.physical / 100)
   const consistency = clamp01(profile.consistency / 100)
+  const form = rng()
+  const paceBand = selectQuickTapPaceBand(
+    SEASONS_AI_PACE_BANDS,
+    mulberry32((seed ^ hash(id) ^ 0x29868e11) >>> 0)()
+  )
+  const tapsPerSecond =
+    tuning === LEGACY_QUICK_TAP_AI_TUNING
+      ? 8.9 + physical * 3.2 + consistency * 0.55 + form * 0.35
+      : (paceBand.min +
+          (paceBand.max - paceBand.min) * form +
+          (physical - 0.5) * 3.2 +
+          (consistency - 0.5) * 0.55) *
+        getQuickTapAiBandStrength(tuning)
 
   return {
     id,
     name,
-    // Active cadence spans 8.9–13 taps/s before fatigue and pauses, while
-    // fatigue, short pauses, and imperfect box reads keep average AI in range.
-    tapsPerSecond: 8.9 + physical * 3.2 + consistency * 0.55 + rng() * 0.35,
+    tapsPerSecond,
     fatigueLoss: 0.2 - consistency * 0.04 + rng() * 0.02,
     pauseRatePerSecond: 0.095 - consistency * 0.015,
     minPauseSeconds: 0.18,
@@ -226,15 +254,17 @@ export function simulateSeasonsAiResult({
   name,
   participantIndex = 0,
   profile = DEFAULT_PROFILE,
+  tuning = CURRENT_QUICK_TAP_AI_TUNING,
 }: {
   seed: number
   playerId?: string
   name?: string
   participantIndex?: number
   profile?: CompetitionSkillProfile
+  tuning?: QuickTapAiTuningVersion
 }): SeasonsAiResult {
   const id = playerId ?? `seasons-ai-${participantIndex}`
-  return scoreWithSeasonsModel(seed, createSeasonsAiOpponent(seed, id, profile, name ?? id))
+  return scoreWithSeasonsModel(seed, createSeasonsAiOpponent(seed, id, profile, name ?? id, tuning))
 }
 
 export function simulateSeasonsAiScore(args: {
@@ -242,6 +272,7 @@ export function simulateSeasonsAiScore(args: {
   playerId?: string
   participantIndex?: number
   profile?: CompetitionSkillProfile
+  tuning?: QuickTapAiTuningVersion
 }): number {
   return simulateSeasonsAiResult(args).score
 }
@@ -266,13 +297,17 @@ export function simulateSeasonsStrategicPlayer(seed: number): SeasonsAiResult {
 }
 
 /** The practice roster uses the exact profile-driven simulator used by hosted AI. */
-export function simulateSeasonsAiField(seed: number): SeasonsAiResult[] {
+export function simulateSeasonsAiField(
+  seed: number,
+  tuning?: QuickTapAiTuningVersion
+): SeasonsAiResult[] {
   return SEASONS_STANDALONE_AI_FIELD.map(({ id, name, profile }) =>
     simulateSeasonsAiResult({
       seed,
       playerId: id,
       name,
       profile,
+      tuning,
     })
   )
 }

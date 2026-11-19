@@ -11,6 +11,7 @@ import { mulberry32, seededPickN } from '../../store/rng';
 import type { CompetitionSkillProfile } from './types';
 import { minigameAiBalance } from './minigameAiBalance';
 import type { ScoreBand } from './minigameAiBalance';
+import { getQuickTapAiBandStrength, type QuickTapAiTuningVersion } from './quickTapAiTuning';
 
 // ── Booster pool ──────────────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ export interface SimulateQuickTapAiScoreArgs {
   profile?: CompetitionSkillProfile;
   /** Defaults to 30 seconds. */
   timeLimitSeconds?: number;
+  tuning?: QuickTapAiTuningVersion;
 }
 
 /**
@@ -102,7 +104,7 @@ export interface SimulateQuickTapAiScoreArgs {
  * Score bands and tuning parameters are read from `minigameAiBalance.quickTap`
  * — edit that file to rebalance AI scoring without touching logic here.
  *
- * Distribution (default 30 s game, from minigameAiBalance.ts):
+ * Legacy distribution (30 seconds, before the current band strength is applied):
  *  - 89–118   →  2%     (occasional weak outcome)
  *  - 119–157  → 16.91%  (below-competitive)
  *  - 158–187  → 19.89%  (competitive)
@@ -123,6 +125,7 @@ export function simulateQuickTapAiScore({
   participantIndex = 0,
   profile,
   timeLimitSeconds = 30,
+  tuning,
 }: SimulateQuickTapAiScoreArgs): number {
   const config = minigameAiBalance.quickTap;
   const bands: ScoreBand[] = config.scoreBands;
@@ -152,8 +155,10 @@ export function simulateQuickTapAiScore({
     (consistency - 0.5) * 0.12 +
     (luck - 0.5) * 0.08;
   const bandPosition = clamp01(triangularRoll + skillBias);
-  const bandSpan = band.max - band.min;
-  let baseScore = band.min + Math.round(bandSpan * bandPosition);
+  const strength = getQuickTapAiBandStrength(tuning);
+  const min = Math.round(band.min * strength);
+  const max = Math.round(band.max * strength);
+  let baseScore = min + Math.round((max - min) * bandPosition);
 
   // Apply optional jitter (±jitter, independent RNG stream).
   const jitter = config.jitter ?? 0;

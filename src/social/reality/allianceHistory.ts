@@ -291,8 +291,33 @@ export function allianceEventText(
       return `${actor} agreed a plan in ${name}${event.targetIds.length ? ` involving ${names(event.targetIds, listedPerson)}` : ''}.`
     case 'ALLIANCE_PLAN_DEFIED':
       return `${actor} went against ${name}'s plan.`
-    case 'ALLIANCE_BETRAYAL':
-      return `${actor} betrayed ${target === 'You' ? 'you' : target} in ${name}.`
+    case 'ALLIANCE_BETRAYAL': {
+      const recipient = event.targetIds[0] ? listedPerson(event.targetIds[0]) : 'a member'
+      const generic = `${actor} betrayed ${recipient} in ${name}.`
+      const legacyKind = event.reason.split(':', 1)[0].toUpperCase()
+      const betrayalKind = event.allianceBetrayal?.kind ?? legacyKind
+      const legacyPrefix = id ? `${legacyKind.toLowerCase()}:${id}:` : undefined
+      const sourceId =
+        event.allianceBetrayal?.sourceEventId ??
+        (legacyPrefix && event.reason.startsWith(legacyPrefix)
+          ? event.reason.slice(legacyPrefix.length)
+          : undefined)
+      const source = sourceId ? state.events.find((entry) => entry.id === sourceId) : undefined
+      if (source && !canReadAllianceEvent(source, humanId)) return generic
+      if (betrayalKind === 'NOMINATION')
+        return `${actor} put ${recipient} on the block, breaking an alliance commitment in ${name}.`
+      if (betrayalKind === 'SAFETY_ABANDON') {
+        const saved = source?.type === 'CEREMONY_SAFETY_USED' ? source.targetIds : []
+        return saved.length
+          ? `${actor} used Safety on ${names(saved, listedPerson)} and left ${recipient} on the block, straining ${name}.`
+          : `${actor} left ${recipient} on the block when they had a chance to use Safety, straining ${name}.`
+      }
+      if (betrayalKind === 'VOTE' && source)
+        return `${actor} voted against ${recipient}, breaking the alliance commitment in ${name}.`
+      if (betrayalKind === 'SOCIAL_BETRAYAL' && source?.actionId === 'break_alliance')
+        return `${actor} broke their alliance with ${recipient} in ${name}.`
+      return generic
+    }
     case 'ALLIANCE_BETRAYAL_REACTION': {
       const harmed = listedPerson(event.targetIds[0])
       const betrayer = listedPerson(event.targetIds[1])

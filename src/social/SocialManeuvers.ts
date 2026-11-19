@@ -49,13 +49,21 @@ import {
 } from './socialInquiry'
 import { getPawnNominationAuthority } from './nominationPawnOffer'
 import { getEffectiveSocialMode } from './socialMode'
-import { isLohReplacementPending } from './lohReplacementWindow'
+import {
+  getLohDecisionKey,
+  getLohDecisionStage,
+  isLohReplacementPending,
+} from './lohReplacementWindow'
 import { formatVagueLohPlan } from './lohConsultationCopy'
 import { isSafetyProtectionOffer } from './protectionOffer'
 import { getCupidPartnerId } from '../features/twists/cupidArrow'
 import { formatLohSafetyConsultation } from './lohSafetyConsultation'
 import { getSocialPersonality } from './socialPersonalityBank'
-import { getEligibleNominationTargets, getNominationTargetScore } from '../store/gameSlice'
+import {
+  getEligibleNominationTargets,
+  getLohDialogueCandidateIds,
+  getNominationTargetScore,
+} from '../store/gameSlice'
 import type { GameState } from '../types'
 import { getPersistentSocialHistory, type SocialStateWithHistory } from './socialHistory'
 import {
@@ -124,15 +132,7 @@ interface ManeuverGameState extends AutomaticNominationGame {
     weekendDay: 1 | 2
     wallet: { energy: number; influence: number; info: number }
   } | null
-  lohSocialPlan?: {
-    week: number
-    lohId: string
-    currentTargetId: string | null
-    backupTargetId: string | null
-    askCountsByPlayerId: Record<string, number>
-    disclosedTargetByPlayerId?: Record<string, string>
-    disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'partial' | 'vague' | 'false'>
-  } | null
+  lohSocialPlan?: GameState['lohSocialPlan']
   nominationDecisionReasons?: Record<
     string,
     {
@@ -219,6 +219,7 @@ export function resolveLohPlanDisclosure(input: {
   priorAsks: number
   ambushIntent: boolean
   routineCurrentTarget?: boolean
+  eligibleTargetIds?: readonly string[]
   random: () => number
 }): { outcome: LohPlanDisclosureOutcome; statedTargetId: string | null } {
   const {
@@ -230,9 +231,15 @@ export function resolveLohPlanDisclosure(input: {
     priorAsks,
     ambushIntent,
     routineCurrentTarget = false,
+    eligibleTargetIds,
     random,
   } = input
-  if (!actualTargetId || priorAsks >= 2) return { outcome: 'vague', statedTargetId: null }
+  if (
+    !actualTargetId ||
+    priorAsks >= 2 ||
+    (eligibleTargetIds && !eligibleTargetIds.includes(actualTargetId))
+  )
+    return { outcome: 'vague', statedTargetId: null }
 
   const relationship = relationships[lohId]?.[askerId]
   const tags = new Set(relationship?.tags ?? [])
@@ -242,7 +249,8 @@ export function resolveLohPlanDisclosure(input: {
     tags.has('ride_or_die') ||
     tags.has('protection')
   const trust = relationship?.affinity ?? 0
-  const replacementPending = game ? isLohReplacementPending(game) : false
+  const stage = game ? getLohDecisionStage(game) : 'opening'
+  const isReplacement = stage === 'replacement' || stage === 'conditional_replacement'
   const automaticId = getPendingAutomaticNomineeId(game)
   if (actualTargetId === automaticId) return { outcome: 'vague', statedTargetId: null }
   const decoys = (game?.players ?? [])
@@ -253,11 +261,13 @@ export function resolveLohPlanDisclosure(input: {
         player.id !== askerId &&
         player.id !== lohId &&
         player.id !== automaticId &&
-        (!replacementPending ||
-          (!game?.nomineeIds?.includes(player.id) &&
-            player.id !== game?.posWinnerId &&
-            player.id !== game?.povSavedId &&
-            !game?.povProtectedIds?.includes(player.id)))
+        (eligibleTargetIds
+          ? eligibleTargetIds.includes(player.id)
+          : !isReplacement ||
+            (!game?.nomineeIds?.includes(player.id) &&
+              player.id !== game?.posWinnerId &&
+              player.id !== game?.povSavedId &&
+              !game?.povProtectedIds?.includes(player.id)))
     )
     .sort(
       (left, right) =>
@@ -1332,15 +1342,7 @@ export function executeAction(
       nomineeIds?: string[]
       nominationContext?: { autoNomineeId: string | null } | null
       nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
-      lohSocialPlan?: {
-        week: number
-        lohId: string
-        currentTargetId: string | null
-        backupTargetId: string | null
-        askCountsByPlayerId: Record<string, number>
-        disclosedTargetByPlayerId?: Record<string, string>
-        disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'partial' | 'vague' | 'false'>
-      } | null
+      lohSocialPlan?: GameState['lohSocialPlan']
     }
   }
   const inferredLohTargetPlan =
@@ -1380,19 +1382,35 @@ export function executeAction(
           disclosureOutcomeByPlayerId: {},
         }
       : null)
-  const priorLohAsks = lohPlanState?.askCountsByPlayerId[actorId] ?? 0
-  const replacementPending = rootState.game ? isLohReplacementPending(rootState.game) : false
-  const finalBlockLocked =
-    !replacementPending &&
-    ['pos_ceremony_results', 'social_2', 'live_vote'].includes(rootState.game?.phase ?? '')
+  const lohStage = getLohDecisionStage(rootState.game ?? {})
+  const replacementPending = lohStage === 'replacement'
+  const finalBlockLocked = lohStage === 'locked'
   const safetyAdviceOpen = ['pos_results', 'pos_ceremony'].includes(rootState.game?.phase ?? '')
-  const actualLohDisclosureId = lohPlanState
-    ? finalBlockLocked
-      ? lohPlanState.currentTargetId
-      : priorLohAsks % 2 === 1 && lohPlanState.currentTargetId
-        ? lohPlanState.currentTargetId
-        : (lohPlanState.backupTargetId ?? lohPlanState.currentTargetId)
-    : null
+  const decisionGame =
+    actionId === 'ask_loh_target' && rootState.game?.players && rootState.game.nomineeIds
+      ? (rootState.game as GameState)
+      : undefined
+  const eligibleTargetIds = decisionGame
+    ? getLohDialogueCandidateIds(decisionGame, targetId, lohStage)
+    : undefined
+  const isReplacement = lohStage === 'replacement' || lohStage === 'conditional_replacement'
+  const actualLohDisclosureId =
+    (isReplacement ? lohPlanState?.backupTargetId : lohPlanState?.currentTargetId) ?? null
+  const decisionKey = decisionGame
+    ? getLohDecisionKey(decisionGame, actualLohDisclosureId, eligibleTargetIds ?? [])
+    : undefined
+  const priorDecisionKey = lohPlanState?.decisionKeyByPlayerId?.[actorId]
+  const sameDecision = decisionKey !== undefined && decisionKey === priorDecisionKey
+  const priorLohAsks =
+    priorDecisionKey === undefined || sameDecision
+      ? (lohPlanState?.askCountsByPlayerId[actorId] ?? 0)
+      : 0
+  const priorOutcome = lohPlanState?.disclosureOutcomeByPlayerId?.[actorId]
+  const priorDisclosedId = lohPlanState?.disclosedTargetByPlayerId?.[actorId]
+  const rememberedDisclosure =
+    sameDecision && priorOutcome && priorOutcome !== 'partial'
+      ? { outcome: priorOutcome, statedTargetId: priorDisclosedId ?? null }
+      : undefined
   const lohIdentity = rootState.game?.players?.find(
     (player) => player.id === targetId
   )?.aiGameIdentity
@@ -1403,7 +1421,8 @@ export function executeAction(
       recipientTrust < 0)
   const lohDisclosure =
     actionId === 'ask_loh_target'
-      ? resolveLohPlanDisclosure({
+      ? (rememberedDisclosure ??
+        resolveLohPlanDisclosure({
           game: rootState.game,
           relationships: state.social.relationships,
           lohId: targetId,
@@ -1411,10 +1430,11 @@ export function executeAction(
           actualTargetId: actualLohDisclosureId,
           priorAsks: priorLohAsks,
           ambushIntent,
+          eligibleTargetIds,
           routineCurrentTarget:
             actualLohDisclosureId === lohPlanState?.currentTargetId && !safetyAdviceOpen,
           random,
-        })
+        }))
       : { outcome: 'vague' as const, statedTargetId: null }
   const lohDisclosureId = lohDisclosure.statedTargetId
   const lohWillDisclose = lohDisclosure.outcome !== 'vague' && Boolean(lohDisclosureId)
@@ -1426,7 +1446,7 @@ export function executeAction(
       ? {
           targetId: lohDisclosureId,
           targetName: lohDisclosurePlayer?.name ?? lohDisclosureId,
-          isBackdoor: actualLohDisclosureId === lohPlanState?.backupTargetId,
+          isBackdoor: isReplacement,
         }
       : null
   const inquiryKind = getInquiryKind(actionId)
@@ -1631,6 +1651,14 @@ export function executeAction(
           ...lohPlanState.askCountsByPlayerId,
           [actorId]: priorLohAsks + 1,
         },
+        ...(decisionKey
+          ? {
+              decisionKeyByPlayerId: {
+                ...lohPlanState.decisionKeyByPlayerId,
+                [actorId]: decisionKey,
+              },
+            }
+          : {}),
         disclosedTargetByPlayerId: lohDisclosureId
           ? {
               ...(lohPlanState.disclosedTargetByPlayerId ?? {}),
@@ -1775,7 +1803,7 @@ export function executeAction(
   })
   const lohSafetySummary =
     actionId === 'ask_loh_target' && priorLohAsks < 2
-      ? formatLohSafetyConsultation(rootState.game, actorId)
+      ? formatLohSafetyConsultation(decisionGame, actorId)
       : null
 
   const inquiryNarrative = inquiryAnswer
@@ -1791,8 +1819,8 @@ export function executeAction(
           ? buildSnoopNarrative(state.social, actorId, state.game?.players ?? [])
           : lohSafetySummary
             ? lohSafetySummary
-            : actionId === 'ask_loh_target' && !safetyAdviceOpen
-              ? lohDisclosure.outcome === 'vague' && priorRepeats < 2
+            : actionId === 'ask_loh_target'
+              ? lohDisclosure.outcome === 'vague' && priorLohAsks < 2
                 ? formatVagueLohPlan(
                     state.game?.players.find((player) => player.id === targetId)?.name ?? 'The LOH',
                     state.game?.phase
@@ -1800,7 +1828,7 @@ export function executeAction(
                 : buildLohTargetNarrative(
                     state.game,
                     targetId,
-                    priorRepeats,
+                    priorLohAsks,
                     lohTargetPlan
                       ? {
                           targetName: lohTargetPlan.targetName,

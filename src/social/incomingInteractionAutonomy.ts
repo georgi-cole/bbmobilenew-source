@@ -74,7 +74,11 @@ import {
   getProvocateurMessage,
   getUpdatedProvocateurSeason,
 } from './seasonProvocateurs'
-import { formatLohNominationPlanCopy } from './lohNominationPlanCopy'
+import {
+  formatLohNominationPlanCopy,
+  getLohOpeningWarningFollowUp,
+  LOH_OPENING_WARNING,
+} from './lohNominationPlanCopy'
 import type {
   IncomingInteraction,
   IncomingInteractionDeliveryState,
@@ -421,7 +425,17 @@ function describeCanonicalLohNominationPlan(
   const nominationPlan = plan.lohNominationPlanContext
   if (!nominationPlan) return null
   if (plan.scenarioKey === 'background_nominate_human') {
-    return 'I am considering putting you on the opening block. That would put you at real risk. We have not agreed to a facade, and I will not treat silence or support for another target as your consent. Tell me why you think I should change the slate.'
+    return (
+      getLohOpeningWarningFollowUp(
+        context.gameState,
+        nominationPlan.lohId,
+        recipientId,
+        context.phase
+      ) ??
+      (nominationPlan.eliminationPriorityIds.includes(recipientId)
+        ? 'I am considering putting you on the opening block. That would put you at real risk. Tell me what would make keeping you the better move.'
+        : LOH_OPENING_WARNING)
+    )
   }
   const copy = formatLohNominationPlanCopy(
     nominationPlan,
@@ -885,13 +899,14 @@ function resolveAllianceInteractionPlan(
     const nominationPlan = getCurrentLohNominationPlanContext(game, actorId)
     if (
       nominationPlan?.initialNomineeIds.includes(playerId) &&
-      !getActiveFacadeAgreement(
-        context.reality,
-        actorId,
-        playerId,
-        context.week,
-        'INITIAL_NOMINATION'
-      )
+      (nominationPlan.eliminationPriorityIds.includes(playerId) ||
+        !getActiveFacadeAgreement(
+          context.reality,
+          actorId,
+          playerId,
+          context.week,
+          'INITIAL_NOMINATION'
+        ))
     ) {
       return {
         type: 'warning',

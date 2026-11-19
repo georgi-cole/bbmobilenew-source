@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-19: Reviewed Quick Tap Race and Quick Tap Race 2: Seasons in Standard
+  and premium play. The new AI band tuning applies to new attempts. Saved
+  attempts preserve their AI tuning, and Premium Challenges and VIP both
+  include the existing premium variants. Also reviewed the Vox Final 3 and
+  shock broadcast repairs. The catalog still describes the voting rules,
+  rewards, products, prices and entitlements.
+
 - 2026-11-18: Reviewed Cupid's Arrow, Vox Populi, and VIP ceremony maintenance.
   The game applies the stated Final 4 ballot rule and shared Cupid powers.
   Competition labels, post-elimination TV, and the VIP backup ceremony reflect

@@ -163,6 +163,7 @@ export interface MinigameParticipant {
 
 interface Props {
   aiRuntime?: SeasonAiRuntime
+  quickTapAiTuning?: import('../../ai/competition/quickTapAiTuning').QuickTapAiTuningVersion
   game: GameRegistryEntry
   /** Options forwarded to the legacy module (e.g. seed, timeLimit). */
   gameOptions?: Record<string, unknown>
@@ -215,6 +216,7 @@ function fmtOrdinal(value: number): string {
 
 export default function MinigameHost({
   aiRuntime,
+  quickTapAiTuning,
   game,
   gameOptions = {},
   onDone,
@@ -1408,6 +1410,7 @@ export default function MinigameHost({
           autoStart={key !== 'HangmanChallenge'}
           premiumPresentation={usePremiumPresentation}
           vipQuickTap={(key === 'QuickTapRace' || key === 'QuickTapSeasons') && quickTapVipEnabled}
+          quickTapAiTuning={quickTapAiTuning}
           quickTapVariantOverride={
             key === 'QuickTapRace' || key === 'QuickTapSeasons'
               ? quickTapVariantPreviewOverride

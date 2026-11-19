@@ -1433,24 +1433,29 @@ export default function TvZone(props: TvZoneProps) {
     const sourceEvent = sourceEventId
       ? gameState.tvFeed.find((event) => event.id === sourceEventId)
       : undefined
-    const claim =
-      isShock && sourceEvent ? createPresentationEventClaim(gameState.gameId, sourceEvent) : null
-    const introClaim = {
+    const legacyIntroClaim = {
       gameId: gameState.gameId,
       runId: `shock-intro:${gameState.week}`,
       eventId: `shock:${key}`,
     }
+    const shockIntroKey = `${gameState.week}:${key}`
+    const claim = sourceEvent
+      ? createPresentationEventClaim(gameState.gameId, sourceEvent)
+      : legacyIntroClaim
     const claims = reduxStore.getState().game.presentationEventClaims
     const alreadyClaimed = Boolean(
       isShock &&
       key !== 'cupid_arrow_broken' &&
-      (hasPresentationEventClaim(claims, introClaim) ||
-        (claim && hasPresentationEventClaim(claims, claim)))
+      (hasPresentationEventClaim(claims, claim) ||
+        hasPresentationEventClaim(claims, legacyIntroClaim) ||
+        claims?.some(
+          (receipt) =>
+            receipt.gameId === gameState.gameId && receipt.shockIntroKey === shockIntroKey
+        ))
     )
 
     if (isShock && !alreadyClaimed) {
-      dispatch(claimPresentationEvent(introClaim))
-      if (claim) dispatch(claimPresentationEvent(claim))
+      dispatch(claimPresentationEvent({ ...claim, shockIntroKey }))
     }
 
     startTransition(() => {

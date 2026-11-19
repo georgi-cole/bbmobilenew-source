@@ -185,11 +185,9 @@ describe('simulateQuickTapAiScore — realism and competitiveness', () => {
     const scores = seeds.map((seed) =>
       simulateQuickTapAiScore({ seed, playerId: `p${seed}`, profile: DEFAULT_PROFILE }),
     );
-    // Absolute minimum is the lowest band (89)
-    // minus max jitter (4) minus max slump (14) = 71. Absolute maximum is the
-    // rare peak band (380) plus max jitter (4) plus max hot-streak bonus (18) = 402.
-    expect(Math.min(...scores)).toBeGreaterThanOrEqual(60);
-    expect(Math.max(...scores)).toBeLessThanOrEqual(402);
+    // Current bounds after the band uplift, with the largest jitter and form modifiers.
+    expect(Math.min(...scores)).toBeGreaterThanOrEqual(80);
+    expect(Math.max(...scores)).toBeLessThanOrEqual(440);
   });
 
   it('competitive zone scores dominate — majority fall in the competitive range', () => {
@@ -200,21 +198,21 @@ describe('simulateQuickTapAiScore — realism and competitiveness', () => {
 
     // Bands from minigameAiBalance.ts. Grouped to the
     // configured (scaled) band edges so each range maps to its nominal chance:
-    //   band1: ≤118        →  2% nominal
-    //   band2: 119–157     → 16.91% nominal
-    //   band3: 158–187     → 19.89% nominal
-    //   band4: 188–225     → 29.84% nominal
-    //   band5: ≥226        → 31.36% nominal (including rare high-score tiers)
+    //   band1: ≤130        →  2% nominal
+    //   band2: 131–173     → 16.91% nominal
+    //   band3: 174–206     → 19.89% nominal
+    //   band4: 207–248     → 29.84% nominal
+    //   band5: ≥249        → 31.36% nominal (including rare high-score tiers)
     //
     // Jitter (±4) and hot-streak/slump (±6–18) can shift individual scores across
     // band edges, so tolerances are intentionally wider than the nominal percentage.
     // Counts sum to exactly 1000 because the ranges are mutually exclusive and exhaustive.
     const counts = {
-      band1: scores.filter((s) => s <= 118).length,
-      band2: scores.filter((s) => s >= 119 && s <= 157).length,
-      band3: scores.filter((s) => s >= 158 && s <= 187).length,
-      band4: scores.filter((s) => s >= 188 && s <= 225).length,
-      band5: scores.filter((s) => s >= 226).length,
+      band1: scores.filter((s) => s <= 130).length,
+      band2: scores.filter((s) => s >= 131 && s <= 173).length,
+      band3: scores.filter((s) => s >= 174 && s <= 206).length,
+      band4: scores.filter((s) => s >= 207 && s <= 248).length,
+      band5: scores.filter((s) => s >= 249).length,
     };
 
     // Sanity: all 1000 scores are captured (exhaustive + non-overlapping).

@@ -242,6 +242,7 @@ export const BROADCAST_PRESENTATION_REGISTRY: Readonly<Record<string, BroadcastP
       ),
     },
     vox_populi_final_three_vote: {
+      eventMajor: true,
       playThrough: true,
       announcement: liveCard(
         'The Final Three Verdict',

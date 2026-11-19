@@ -174,6 +174,7 @@ export interface MinigameSession {
   options: { timeLimit: number }
   /** Quick Tap / Seasons implementation selected when this session was created. */
   quickTapVariant?: 'classic' | 'vip'
+  quickTapAiTuning?: import('../ai/competition/quickTapAiTuning').QuickTapAiTuningVersion
   /**
    * Pre-simulated deterministic scores for every non-human participant.
    * Empty (`{}`) for sessions created by the hybrid resolver path
@@ -330,6 +331,8 @@ export interface PresentationEventClaim {
   gameId: string
   runId: string
   eventId: string
+  /** Shared by the shock's phase intro and its eventual managed broadcast. */
+  shockIntroKey?: string
 }
 
 export type BroadcastLevel = 'minor' | 'major' | 'critical'
@@ -1025,6 +1028,8 @@ export interface GameState {
     askCountsByPlayerId: Record<string, number>
     /** Last target name actually disclosed to each asker this week. */
     disclosedTargetByPlayerId?: Record<string, string>
+    /** Decision context associated with the last answer and ask count. */
+    decisionKeyByPlayerId?: Record<string, string>
     /** Whether an LOH answer was candid, partial, deliberately noncommittal, or a decoy. */
     disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'partial' | 'vague' | 'false'>
   } | null

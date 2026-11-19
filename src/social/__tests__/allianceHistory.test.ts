@@ -12,6 +12,7 @@ import {
   MAX_ALLIANCE_HISTORY_EVENTS,
   MAX_ALLIANCE_REQUEST_HISTORY_EVENTS,
   normalizeRealityDomainState,
+  recordRealityAllianceBetrayal,
   removeRealityAllianceMember,
   renameRealityAlliance,
   resolveRealityPromise,
@@ -45,6 +46,56 @@ function setup() {
 }
 
 describe('durable alliance history', () => {
+  it('describes the source of a betrayal without exposing a private ballot', () => {
+    const { state, group } = setup()
+    const ceremony = (type: string, targetIds: string[], isPublic: boolean) =>
+      appendRealityEvent(state, {
+        ...at,
+        type,
+        actorId: 'k',
+        targetIds,
+        participantIds: ['k'],
+        witnessIds: [],
+        visibility: isPublic ? 'CEREMONY_PUBLIC' : 'PRIVATE',
+        outcome: 'SUCCESS',
+        reason: 'Ceremony result',
+        tags: [],
+        relatedFactIds: [],
+        relatedPromiseIds: [],
+        relatedThreadIds: [],
+        publicEligible: isPublic,
+        juryEligible: true,
+      })
+    const nomination = ceremony('CEREMONY_NOMINATIONS_LOCKED', ['u'], true)
+    const safety = ceremony('CEREMONY_SAFETY_USED', ['j'], true)
+    const vote = ceremony('CEREMONY_VOTE_CAST', ['u'], false)
+    const cases = [
+      { kind: 'NOMINATION', source: nomination, line: 'Kian put you on the block' },
+      {
+        kind: 'SAFETY_ABANDON',
+        source: safety,
+        line: 'Kian used Safety on Jax and left you on the block',
+      },
+      { kind: 'VOTE', source: vote, line: 'Kian betrayed you in The Shield.' },
+    ] as const
+    for (const { kind, source, line } of cases) {
+      recordRealityAllianceBetrayal(state, {
+        actorId: 'k',
+        targetId: 'u',
+        kind,
+        at,
+        sourceEventId: source.id,
+        allianceId: group.id,
+      })
+      const event = state.events.find(
+        (entry) => entry.allianceBetrayal?.sourceEventId === source.id
+      )!
+      expect(allianceEventText(state, event, 'u', name)).toContain(line)
+      const legacy = { ...event, allianceBetrayal: undefined }
+      expect(allianceEventText(state, legacy, 'u', name)).toContain(line)
+    }
+  })
+
   it('bounds detailed alliance history while retaining the founding and recent events', () => {
     const { state, group } = setup()
     const formation = group.history?.find((event) => event.type === 'ALLIANCE_FORMED')

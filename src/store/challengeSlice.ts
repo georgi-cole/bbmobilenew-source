@@ -28,6 +28,11 @@ import { applyCompetitionSeasonUpdate, hydrateGame, selectAlivePlayers } from '.
 import { hasEffectiveStoreEntitlement } from '../vip/effectiveEntitlements'
 import { simulateQuickTapVipAiRace } from '../minigames/quickTapRace/vip/quickTapVipLogic'
 import {
+  CURRENT_QUICK_TAP_AI_TUNING,
+  LEGACY_QUICK_TAP_AI_TUNING,
+  type QuickTapAiTuningVersion,
+} from '../ai/competition/quickTapAiTuning'
+import {
   pickRandomGame,
   getGame,
   getPoolByFilter,
@@ -124,6 +129,7 @@ export interface PendingChallenge {
   /** Pre-simulated deterministic scores for every non-human participant. */
   aiScores: Record<string, number>
   aiRuntime?: SeasonAiRuntime
+  quickTapAiTuning?: QuickTapAiTuningVersion
   /**
    * Pre-simulated tiebreaker times (ms) for non-human participants.
    * Only populated for games whose AI model defines `tiebreakerMaxMs`.
@@ -403,6 +409,7 @@ export const preparePurchasedQuickTapChallenge =
                   pending.game.key
                 ) ?? getDefaultCompetitionProfile(),
               mode: pending.game.key === 'quickTapSeasons' ? 'seasons' : 'race',
+              tuning: pending.quickTapAiTuning ?? LEGACY_QUICK_TAP_AI_TUNING,
             }).score,
           ]
         })
@@ -924,6 +931,9 @@ export const startChallenge =
       musicVariant: 'normal',
       aiScores,
       aiRuntime,
+      ...(gameEntry.key === 'quickTap' || gameEntry.key === 'quickTapSeasons'
+        ? { quickTapAiTuning: CURRENT_QUICK_TAP_AI_TUNING }
+        : {}),
       aiTiebreakers,
       prizeType: opts.prizeType,
       forcedWinnerId,

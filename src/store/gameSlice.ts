@@ -94,6 +94,8 @@ import { getConfiguredCastSize, DEFAULT_ROSTER_SIZE } from './settingsHelpers'
 import { hasCachedStoreAccess } from '../vip/vipStorage'
 import { hasEffectiveStoreEntitlement } from '../vip/effectiveEntitlements'
 import { scoreQuickTapVipAiOnly } from '../minigames/quickTapRace/vip/quickTapVipLogic'
+import { CURRENT_QUICK_TAP_AI_TUNING } from '../ai/competition/quickTapAiTuning'
+import type { LohDecisionStage } from '../social/lohReplacementWindow'
 import { canAccessSpecialSettings } from '../utils/debugMode'
 import { pickPhrase, NOMINEE_PLEA_TEMPLATES } from '../utils/juryUtils'
 import {
@@ -1472,8 +1474,13 @@ function pushEvent(
   text: string,
   type: TvEvent['type'],
   meta?: TvEvent['meta'],
-  activity?: Pick<TvEvent, 'channels' | 'source'>
+  activity?: Pick<TvEvent, 'channels' | 'source'>,
+  receipt?: Pick<TvEvent, 'id' | 'timestamp'>
 ): TvEvent | undefined {
+  if (receipt) {
+    const existing = state.tvFeed.find((event) => event.id === receipt.id)
+    if (existing) return existing
+  }
   const legacyVoxIntro =
     (meta?.phase ?? _activeBroadcastPhase ?? state.phase) === 'season_start' &&
     (meta?.major === 'vox_populi' || meta?.announcementKey === 'vox_populi')
@@ -1601,9 +1608,9 @@ function pushEvent(
     return duplicate
   }
 
-  const ts = Date.now()
+  const ts = receipt?.timestamp ?? Date.now()
   const event: TvEvent = {
-    id: `${state.phase}-w${state.week}-${ts}-${++_pushEventCounter}`,
+    id: receipt?.id ?? `${state.phase}-w${state.week}-${ts}-${++_pushEventCounter}`,
     ...incoming,
     timestamp: ts,
   }
@@ -2121,6 +2128,35 @@ export function getEligibleReplacementNominees(
     actorId,
     allowLoh: options.allowLoh,
   })
+}
+
+/** Name the same nominations and replacements the corresponding ceremony could accept. */
+export function getLohDialogueCandidateIds(
+  state: GameState,
+  lohId: string,
+  stage: LohDecisionStage
+): string[] {
+  if (stage === 'locked') {
+    return state.players
+      .filter(
+        (player) =>
+          player.status !== 'evicted' &&
+          player.status !== 'jury' &&
+          state.nomineeIds.includes(player.id)
+      )
+      .map((player) => player.id)
+  }
+  if (stage === 'opening') {
+    return expandCupidIds(
+      state,
+      getEligibleNominationTargets(state, lohId).map((p) => p.id)
+    )
+  }
+  if (isVoxPopuliActive(state) && state.doubleEviction?.weekActive !== true) return []
+  return expandCupidIds(
+    state,
+    getEligibleReplacementNominees(state, lohId).map((p) => p.id)
+  )
 }
 
 function isEligibleReplacementNominee(
@@ -5852,7 +5888,12 @@ const gameSlice = createSlice({
     setLohSafetyAdvice(state, action: PayloadAction<NonNullable<GameState['lohSafetyAdvice']>>) {
       state.lohSafetyAdvice = action.payload
     },
-    addTvEvent(state, action: PayloadAction<Omit<TvEvent, 'id' | 'timestamp'>>) {
+    addTvEvent(
+      state,
+      action: PayloadAction<
+        Omit<TvEvent, 'id' | 'timestamp'> & Partial<Pick<TvEvent, 'id' | 'timestamp'>>
+      >
+    ) {
       pushEvent(
         state,
         action.payload.text,
@@ -5861,7 +5902,10 @@ const gameSlice = createSlice({
           ...(action.payload.meta ?? {}),
           ...(action.payload.major ? { major: action.payload.major } : {}),
         },
-        { channels: action.payload.channels, source: action.payload.source }
+        { channels: action.payload.channels, source: action.payload.source },
+        action.payload.id
+          ? { id: action.payload.id, timestamp: action.payload.timestamp ?? Date.now() }
+          : undefined
       )
     },
     setHumanPregnancyRole(state, action: PayloadAction<HumanPregnancyRoleChoice>) {
@@ -10432,7 +10476,27 @@ const gameSlice = createSlice({
           }
         }
       }
-      hydrated.tvFeed.forEach((event) => refreshManagedBroadcastDefinition(hydrated, event))
+      hydrated.tvFeed.forEach((event) => {
+        const meta = event.meta
+        if (
+          meta?.major === 'backdoor' &&
+          meta.forceOnTv === true &&
+          meta.broadcastManaged !== true &&
+          meta.broadcastConsumed !== true &&
+          meta.phase === hydrated.phase &&
+          meta.week === hydrated.week &&
+          event.id.startsWith(`backdoor:${hydrated.gameId}:${hydrated.week}:`)
+        ) {
+          event.meta = {
+            ...meta,
+            broadcastManaged: true,
+            broadcastLevel: 'major',
+            broadcastProducerForceOnTv: true,
+            broadcastDelivery: 'next',
+          }
+        }
+        refreshManagedBroadcastDefinition(hydrated, event)
+      })
       if (hydrated.phase === 'week_end') carryPostEvictionBroadcastsToDayEnd(hydrated)
       if (hydrated.cupidArrow?.status === 'broken' && hydrated.cupidArrow.visualsRevealed) {
         hydrated.cupidArrow.visualsRevealed = hasPendingCupidBreak(hydrated)
@@ -15515,7 +15579,7 @@ export const startMinigame =
 
     // Human present: launch UI and return undefined (UI resolves via completeMinigame).
     // For hybrid (scored) games, flag the session so completeMinigame resolves AI scores.
-    const session = {
+    const session: MinigameSession = {
       key: opts.key,
       participants: opts.participants,
       seed: invocationSeed,
@@ -15524,7 +15588,10 @@ export const startMinigame =
       aiRuntime,
       competitionIntents,
       ...(opts.key === 'quickTap' || opts.key === 'quickTapSeasons'
-        ? { quickTapVariant: isVipQuickTap ? ('vip' as const) : ('classic' as const) }
+        ? {
+            quickTapVariant: isVipQuickTap ? ('vip' as const) : ('classic' as const),
+            quickTapAiTuning: CURRENT_QUICK_TAP_AI_TUNING,
+          }
         : {}),
       ...(isHybrid ? { hybridResolveOnComplete: true } : {}),
     }

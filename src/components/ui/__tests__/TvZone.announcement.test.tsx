@@ -2319,13 +2319,18 @@ describe('TvZone current-frame fallback and handoff', () => {
     const store = makeStore()
     store.dispatch(setPhase('pos_results'))
     store.dispatch(activateSpecialVeto({ type: 'vip', week: store.getState().game.week }))
+    const shockId = store
+      .getState()
+      .game.tvFeed.find((event) => event.meta?.major === 'vip_veto')!.id
     const view = renderTvZone(store, { playOwnedExternally: true })
     expect(store.getState().game.presentationEventClaims).toEqual([])
     expect(store.getState().game.activeBroadcastEventId).toBeNull()
     view.unmount()
     renderTvZone(store)
     expect(screen.getByTestId('shock-intro-overlay')).toBeDefined()
-    expect(store.getState().game.presentationEventClaims).toHaveLength(1)
+    expect(store.getState().game.presentationEventClaims).toEqual([
+      expect.objectContaining({ eventId: shockId, shockIntroKey: '1:vip_veto' }),
+    ])
   })
 
   it('blocks Play during the rules handoff without acknowledging optional copy', () => {

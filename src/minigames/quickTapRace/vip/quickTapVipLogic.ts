@@ -1,5 +1,10 @@
 import { mulberry32 } from '../../../store/rng'
 import type { CompetitionSkillProfile } from '../../../ai/competition/types'
+import {
+  getQuickTapAiBandStrength,
+  selectQuickTapPaceBand,
+  type QuickTapAiTuningVersion,
+} from '../../../ai/competition/quickTapAiTuning'
 
 export type QuickTapVipMode = 'race' | 'seasons'
 export type TapSeason = 'spring' | 'summer' | 'autumn' | 'winter'
@@ -502,6 +507,7 @@ export function simulateQuickTapVipAiRace(args: {
   offers?: QuickTapVipOffer[]
   durationMs?: number
   mode?: QuickTapVipMode
+  tuning?: QuickTapAiTuningVersion
 }): QuickTapVipAiRace {
   const { seed, playerId, profile = {}, mode = 'race' } = args
   const durationMs = Math.min(
@@ -517,20 +523,17 @@ export function simulateQuickTapVipAiRace(args: {
     nerve = trait('nerve'),
     consistency = trait('consistency')
   const style = hashIdentity(playerId) % 4
-  let paceTicket = rng() * 100
-  const paceBand =
-    QUICK_TAP_VIP_AI_PACE_BANDS.find((band) => {
-      paceTicket -= band.weight
-      return paceTicket < 0
-    }) ?? QUICK_TAP_VIP_AI_PACE_BANDS[QUICK_TAP_VIP_AI_PACE_BANDS.length - 1]
+  const paceBand = selectQuickTapPaceBand(QUICK_TAP_VIP_AI_PACE_BANDS, rng())
   const form = 0.97 + rng() * 0.06
   const motorTalent = (hashIdentity(`${playerId}:tap-pace`) % 1_000) / 999
   // Phone play reaches 12–14 taps/s with alternating thumbs. Include competitors
   // in that range, while skill, individual dexterity, form and fatigue vary the field.
-  const baseRate = Math.min(
-    16.5,
-    (paceBand.min + (paceBand.max - paceBand.min) * motorTalent + (physical - 0.5) * 1.5) * form
-  )
+  const baseRate =
+    getQuickTapAiBandStrength(args.tuning) *
+    Math.min(
+      16.5,
+      (paceBand.min + (paceBand.max - paceBand.min) * motorTalent + (physical - 0.5) * 1.5) * form
+    )
   const roundMs = quickTapVipRoundMs(mode)
   let state = createQuickTapVipScoreState(seed, mode)
   let observedSeason: TapSeason | null = quickTapVipSeasonAt(state, 0),
@@ -665,6 +668,7 @@ export function scoreQuickTapVipAiOnly(args: {
   profiles?: Record<string, Partial<CompetitionSkillProfile> | undefined>
   durationMs?: number
   mode?: QuickTapVipMode
+  tuning?: QuickTapAiTuningVersion
 }): Record<string, number> {
   return Object.fromEntries(
     args.participantIds.map((id) => [
@@ -675,6 +679,7 @@ export function scoreQuickTapVipAiOnly(args: {
         profile: args.profiles?.[id],
         durationMs: args.durationMs,
         mode: args.mode,
+        tuning: args.tuning,
       }).score,
     ])
   )

@@ -1,5 +1,6 @@
 import { runtimeCompetitionProfile } from '../../ai/competition/seasonAiDifficulty'
 import { SeasonAiContext } from '../../ai/competition/SeasonAiContext'
+import { LEGACY_QUICK_TAP_AI_TUNING } from '../../ai/competition/quickTapAiTuning'
 import { useVipPresentation } from '../../cinematic/ceremonies/presentation'
 import {
   Suspense,
@@ -2275,6 +2276,7 @@ export default function GameScreen() {
               },
             }}
             aiRuntime={pendingChallenge.aiRuntime}
+            quickTapAiTuning={pendingChallenge.quickTapAiTuning ?? LEGACY_QUICK_TAP_AI_TUNING}
             participants={pendingChallenge.participants.map((id): MinigameParticipant => {
               const player = game.players.find((p) => p.id === id)
               const aiScore = pendingChallenge.aiScores[id] ?? 0

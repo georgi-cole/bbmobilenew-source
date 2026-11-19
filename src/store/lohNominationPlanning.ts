@@ -4,6 +4,8 @@ import type { GameState, Player, TvEvent } from '../types'
 import { getCompetitionPerceptionRead } from '../ai/competition'
 import { TWIN_SHOCK_ALI_ID, TWIN_SHOCK_LIA_ID } from '../bb/twinShock'
 import { getHoldTheWallDealDisposition } from '../features/holdTheWall/deal'
+import { addTvEvent } from './gameSlice'
+import { getLohDecisionStage } from '../social/lohReplacementWindow'
 
 export type LohNominationStrategy = 'direct' | 'backdoor'
 export type LohNominationPlanStatus =
@@ -448,6 +450,7 @@ function planMatchesCurrentLoh(state: GameState): boolean {
 
 function canonicalSocialPlan(state: GameState, plan: LohNominationPlan) {
   const disclosureOutcomeByPlayerId = state.lohSocialPlan?.disclosureOutcomeByPlayerId ?? {}
+  const decisionKeyByPlayerId = state.lohSocialPlan?.decisionKeyByPlayerId
   if (plan.strategy !== 'backdoor') {
     return {
       week: state.week,
@@ -458,6 +461,7 @@ function canonicalSocialPlan(state: GameState, plan: LohNominationPlan) {
       askCountsByPlayerId: state.lohSocialPlan?.askCountsByPlayerId ?? {},
       disclosedTargetByPlayerId: state.lohSocialPlan?.disclosedTargetByPlayerId ?? {},
       disclosureOutcomeByPlayerId,
+      decisionKeyByPlayerId,
     }
   }
 
@@ -470,6 +474,7 @@ function canonicalSocialPlan(state: GameState, plan: LohNominationPlan) {
       askCountsByPlayerId: state.lohSocialPlan?.askCountsByPlayerId ?? {},
       disclosedTargetByPlayerId: state.lohSocialPlan?.disclosedTargetByPlayerId ?? {},
       disclosureOutcomeByPlayerId,
+      decisionKeyByPlayerId,
     }
   }
 
@@ -493,6 +498,7 @@ function canonicalSocialPlan(state: GameState, plan: LohNominationPlan) {
       askCountsByPlayerId: state.lohSocialPlan?.askCountsByPlayerId ?? {},
       disclosedTargetByPlayerId: state.lohSocialPlan?.disclosedTargetByPlayerId ?? {},
       disclosureOutcomeByPlayerId,
+      decisionKeyByPlayerId,
     }
   }
 
@@ -504,6 +510,7 @@ function canonicalSocialPlan(state: GameState, plan: LohNominationPlan) {
     askCountsByPlayerId: state.lohSocialPlan?.askCountsByPlayerId ?? {},
     disclosedTargetByPlayerId: state.lohSocialPlan?.disclosedTargetByPlayerId ?? {},
     disclosureOutcomeByPlayerId,
+    decisionKeyByPlayerId,
   }
 }
 
@@ -720,7 +727,6 @@ function buildBackdoorRevealEvent(state: GameState, plan: LohNominationPlan): Tv
   const target = state.players.find((player) => player.id === plan.targetId)
   if (!target) return null
   const id = `backdoor:${state.gameId}:${state.week}:${plan.targetId}`
-  if (state.tvFeed.some((event) => event.id === id)) return null
   return {
     id,
     text: `${loh?.name ?? 'The LOH'} kept ${target.name} off the opening block. Safety is decided, and the ambush is sprung.`,
@@ -731,6 +737,7 @@ function buildBackdoorRevealEvent(state: GameState, plan: LohNominationPlan): Tv
       week: state.week,
       phase: state.phase,
       broadcastPriority: 'major',
+      broadcastDelivery: 'next',
       forceOnTv: true,
       announcementTitle: 'AMBUSH',
       announcementSubtitle: `${target.name} was the real target all along. The opening nominations were camouflage.`,
@@ -743,7 +750,8 @@ function buildBackdoorRevealEvent(state: GameState, plan: LohNominationPlan): Tv
 function maybePublishBackdoorReveal(
   previous: GameState,
   state: GameState,
-  action: UnknownAction
+  action: UnknownAction,
+  baseReducer: Reducer<GameState, UnknownAction>
 ): GameState {
   const plan = state.lohNominationPlan
   if (action.type !== 'game/advance' || !plan?.revealPending || plan.revealed) return state
@@ -751,8 +759,7 @@ function maybePublishBackdoorReveal(
   const event = buildBackdoorRevealEvent(state, plan)
   if (!event) return state
   return {
-    ...state,
-    tvFeed: [event, ...state.tvFeed],
+    ...baseReducer(state, addTvEvent(event)),
     lohNominationPlan: { ...plan, revealPending: false, revealed: true },
   }
 }
@@ -909,16 +916,20 @@ function reconcileCanonicalSocialDisclosure(previous: GameState, state: GameStat
   const outcomes = { ...(previousSocialPlan?.disclosureOutcomeByPlayerId ?? {}) }
   const submittedDisclosures = state.lohSocialPlan?.disclosedTargetByPlayerId ?? {}
   const submittedOutcomes = state.lohSocialPlan?.disclosureOutcomeByPlayerId ?? {}
-  const finalBlockLocked = ['pos_ceremony_results', 'social_2', 'live_vote'].includes(state.phase)
+  const stage = getLohDecisionStage(state)
+  const submittedKeys = state.lohSocialPlan?.decisionKeyByPlayerId
 
   for (const [actorId, nextCount] of Object.entries(nextCounts)) {
     const priorCount = previousCounts[actorId] ?? 0
-    if (nextCount <= priorCount) continue
-    const canonicalDisclosureId = finalBlockLocked
-      ? canonical.currentTargetId
-      : priorCount % 2 === 1 && canonical.currentTargetId
+    if (
+      nextCount <= priorCount &&
+      submittedKeys?.[actorId] === previousSocialPlan?.decisionKeyByPlayerId?.[actorId]
+    )
+      continue
+    const canonicalDisclosureId =
+      stage === 'opening' || stage === 'locked'
         ? canonical.currentTargetId
-        : (canonical.backupTargetId ?? canonical.currentTargetId)
+        : canonical.backupTargetId
     const outcome = submittedOutcomes[actorId] ?? 'truthful'
     outcomes[actorId] = outcome
     if (outcome === 'vague') {
@@ -961,7 +972,7 @@ export function withLohNominationPlanning(
     next = recordSafetyField(previous, next)
     next = deliverBackdoorSafetyPitch(previous, next)
     next = reconcileBackdoorReplacement(previous, next)
-    next = maybePublishBackdoorReveal(previous, next, action)
+    next = maybePublishBackdoorReveal(previous, next, action, baseReducer)
 
     if (action.type === 'game/setLohSocialPlan') {
       next = reconcileCanonicalSocialDisclosure(previous, next)

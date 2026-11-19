@@ -1,3 +1,6 @@
+import type { GameState } from '../types'
+import { isBeforeInitialNominations } from './lohConsultationCopy'
+
 export interface LohNominationPlanCopySource {
   targetId: string
   backupTargetId: string | null
@@ -8,6 +11,42 @@ export interface LohNominationPlanCopySource {
   replacementTargetOverrideId?: string | null
   strategy: 'direct' | 'backdoor'
   isDoubleElimination?: boolean
+}
+
+export const LOH_OPENING_WARNING =
+  'I am considering putting you on the opening block. That would put you at real risk. We have not agreed to a facade, and I will not treat silence or support for another target as your consent. Tell me why you think I should change the slate.'
+
+/** A pending inbox warning can outlive a direct consultation about the same slate. */
+export function getLohOpeningWarningFollowUp(
+  game: GameState | undefined,
+  lohId: string,
+  listenerId: string,
+  phase: string | undefined = game?.phase
+): string | undefined {
+  const plan = game?.lohNominationPlan
+  const conversation = game?.lohSocialPlan
+  if (
+    !game ||
+    !isBeforeInitialNominations(phase) ||
+    !plan ||
+    plan.status !== 'planned' ||
+    plan.week !== game.week ||
+    plan.lohId !== lohId ||
+    !plan.initialNomineeIds.includes(listenerId) ||
+    conversation?.week !== game.week ||
+    conversation.lohId !== lohId ||
+    !conversation.askCountsByPlayerId[listenerId]
+  )
+    return undefined
+
+  if (
+    plan.targetId === listenerId &&
+    conversation.disclosureOutcomeByPlayerId?.[listenerId] === 'truthful' &&
+    conversation.disclosedTargetByPlayerId?.[listenerId] === listenerId
+  ) {
+    return 'I already told you I want you out. You are on my opening slate. Before I lock it, tell me what would make keeping you the better move.'
+  }
+  return 'We talked about my nominations earlier. Here is where I stand now. You are on my opening slate, and that puts you at risk. Tell me why I should change it.'
 }
 
 /**
