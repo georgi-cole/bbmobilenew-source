@@ -6,6 +6,17 @@ This matrix covers the active release-test registry entries. Retired and legacy 
 
 Evidence codes: **L** logic/rules, **C** real component, **H** host/integration, **B** registry-driven Playwright. `B configured` records the baseline before the execution entry below; executed results are listed separately.
 
+## Competition map balance status
+
+This status applies only to the automatic campaign competition map used by Classic, Cupid, and Vox Populi. Surveyeval keeps its broad active-game rotation, including the finale-only calibration games when their roster limits permit; every game remains registered and available for QA or direct launch.
+
+| Status             | Minigames                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| In competition map | Quick Tap Race (all versions), Timing Bar, Hold the Wall, Color Match, Serpentine, Risk Wheel, Crystal Path: Infinity, Capitalization, Deck of Light                                                                                                                                                                                                                                                                                                  |
+| for-calibration    | Memory Colors, BOXPOCALYPSE, Estimation, Famous Figures, Silent Saboteur, Percentage Panic, Majority Rules, Pressure Plank, Vault Cracker, Verdict Board, Tilt Labyrinth, Number Trivia, Minesweeps, Don't go over, Blackjack Tournament, Wildcard Western, Find Your Twin (1 and 2, including remastered editions), The Crystal Path, Trap Auction, Chain of Greed, Battery Low, Deck of Darkness, Bigg Gates, Final Three Circuit, Down Memory Lane |
+
+Final 3 campaign competitions also draw from the in-map set; the finale-only Circuit and Down Memory Lane entries are held for calibration. The status is maintained in `src/ai/competition/bracketTemplate.ts`.
+
 ## Browser journey scenario policy
 
 The full-playthrough suite runs each in-scope active game through real Minigame Lab controls and checks the parent host receives one complete result. Standard games use the declared minimum and maximum roster sizes at separate deterministic seeds when those endpoints differ; games without a declared maximum use four players as the default upper scenario. The builder removes duplicate player-count scenarios. Those endpoints exercise roster boundaries, while focused rule tests own the exact tie, timeout, elimination, invalid-input, power, and duplicate-callback branches.

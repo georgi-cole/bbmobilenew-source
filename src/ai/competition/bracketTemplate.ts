@@ -34,81 +34,79 @@ export interface ClassicCampaignContext {
   playedGameKeys?: readonly string[]
 }
 
-/**
- * Explicitly approved normal-campaign games. Registry activation alone is not
- * enough: entries only belong here after gameplay QA and campaign approval.
- */
-export const CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS = [
-  'quickTap',
-  'quickTapSeasons',
-  'blackjackTournament',
-  'riskWheel',
-  'timingBar',
-  'estimationGame',
-  'holdWall',
-  'famousFigures',
-  'silentSaboteur',
-  'majorityRules',
-  'percentagePanic',
-  'pressurePlank',
-  'colorMatch',
-  'logicLocks',
-  'snake',
-  'cardClash',
-  'hangman',
-  'tiltLabyrinth',
-  'threeDigitsQuiz',
-  'gatesOfTheEye',
-  'boxedOut',
-  'minesweeps',
-  'dontGoOver',
-  'capitalization',
-  'castleRescue',
-  'castleRescue2',
-  'glass_bridge_brutal',
-  'crystal_path_shattered',
-  'wildcardWestern',
-  'trapAuction',
-  'chainOfGreed',
-  'batteryLow',
-  'houseOfDarkness',
-  'mysticChamber',
-  'finalThreeCircuit',
-  'downMemoryLane',
-] as const
+/** Status is limited to the season competition map; all entries remain in the registry. */
+export const MINIGAME_COMPETITION_MAP_STATUS = {
+  inCompetitionMap: [
+    'quickTap',
+    'quickTapSeasons',
+    'timingBar',
+    'holdWall',
+    'colorMatch',
+    'snake',
+    'riskWheel',
+    'crystal_path_shattered',
+    'capitalization',
+    'cardClash',
+  ],
+  forCalibration: [
+    'memoryMatch',
+    'boxedOut',
+    'estimationGame',
+    'famousFigures',
+    'silentSaboteur',
+    'percentagePanic',
+    'majorityRules',
+    'pressurePlank',
+    'logicLocks',
+    'hangman',
+    'tiltLabyrinth',
+    'threeDigitsQuiz',
+    'minesweeps',
+    'dontGoOver',
+    'blackjackTournament',
+    'wildcardWestern',
+    'castleRescue',
+    'castleRescueRemastered',
+    'castleRescue2',
+    'castleRescue2Remastered',
+    'glass_bridge_brutal',
+    'trapAuction',
+    'chainOfGreed',
+    'batteryLow',
+    'houseOfDarkness',
+    'mysticChamber',
+    'gatesOfTheEye',
+    'finalThreeCircuit',
+    'downMemoryLane',
+  ],
+} as const
+
+/** Explicitly approved games for the automatic season competition map. */
+export const CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS = MINIGAME_COMPETITION_MAP_STATUS.inCompetitionMap
+
+/** Active games held out of the automatic map while their AI balance is calibrated. */
+export const CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS = MINIGAME_COMPETITION_MAP_STATUS.forCalibration
 
 /** Per-game story prerequisites that apply in addition to the roster map. */
 export const CLASSIC_CAMPAIGN_GAME_MIN_DAY: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
 > = {
-  silentSaboteur: 4,
-  castleRescue2: 10,
-  glass_bridge_brutal: 7,
   crystal_path_shattered: 8,
-  castleRescue: 8,
-  wildcardWestern: 8,
 }
 
 /** Narrative prerequisites that cannot be represented by day alone. */
 export const CLASSIC_CAMPAIGN_GAME_REQUIRED_PREVIOUS: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], string>
-> = {
-  castleRescue2: 'castleRescue',
-  crystal_path_shattered: 'glass_bridge_brutal',
-}
+> = {}
 
 /** Registry limits for games whose campaign band spans a wider roster range. */
 export const CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
-> = {
-  boxedOut: 16,
-}
+> = {}
 
 export const CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
-> = {
-  boxedOut: 8,
-}
+> = {}
 
 export function getApprovedCompetitionGameKeys(
   template: BracketTemplate = DEFAULT_BRACKET_TEMPLATE
@@ -121,19 +119,8 @@ export function getApprovedCompetitionGameKeys(
  *
  * - Each regular season day has its own pool, targeting the expected house
  *   count with a one-player tolerance for twists and double evictions.
- * - Day 1 is a fixed premiere: LOH is a 50/50 draw between Majority Rules and
- *   Percentage Panic; POS uses Quick Tap Race.
- * - With many housemates, LOH uses fixed-round or simultaneous games and POS
- *   stays short. Sequential/turn-heavy formats remain in the large-cast days.
- * - LOH becomes longer and more technical as the season progresses.
- * - POS increasingly permits shorter, simpler, and chance-driven formats.
- * - Final 4 only uses games that make sense with four players.
- * - Elimination ladders, turn-order spectacles, and social-deduction formats
- *   stay in the large-cast portion of the season. They lose their tension when
- *   only a few housemates remain.
- * - Final 3 Parts 1 and 2 use the finale-only Final Three Circuit. Part 1 runs
- *   with all three finalists; Part 2 runs with the two Part 1 non-winners.
- * - Final 3 Part 3 is the two-player Down Memory Lane season-recall duel.
+ * - Only games marked inCompetitionMap participate in automatic draws.
+ * - Final 3 phases draw from the same approved set and support two or three players.
  */
 export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
   {
@@ -142,7 +129,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 16,
     minDay: 1,
     maxDay: 1,
-    loh: ['majorityRules', 'percentagePanic'],
+    loh: ['holdWall'],
     pos: ['quickTap', 'riskWheel'],
   },
   {
@@ -151,16 +138,8 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 16,
     minDay: 2,
     maxDay: 2,
-    loh: [
-      'holdWall',
-      'blackjackTournament',
-      'famousFigures',
-      'majorityRules',
-      'batteryLow',
-      'trapAuction',
-      'boxedOut',
-    ],
-    pos: ['quickTap', 'riskWheel', 'colorMatch', 'cardClash', 'dontGoOver', 'tiltLabyrinth'],
+    loh: ['holdWall'],
+    pos: ['quickTap', 'riskWheel', 'colorMatch', 'cardClash'],
   },
   {
     label: 'Day 3 · 14 hubmates (±1)',
@@ -168,25 +147,8 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 15,
     minDay: 3,
     maxDay: 3,
-    loh: [
-      'blackjackTournament',
-      'famousFigures',
-      'majorityRules',
-      'silentSaboteur',
-      'batteryLow',
-      'trapAuction',
-      'boxedOut',
-    ],
-    pos: [
-      'quickTap',
-      'colorMatch',
-      'cardClash',
-      'riskWheel',
-      'dontGoOver',
-      'tiltLabyrinth',
-      'threeDigitsQuiz',
-      'logicLocks',
-    ],
+    loh: ['holdWall'],
+    pos: ['quickTap', 'colorMatch', 'cardClash', 'riskWheel'],
   },
   {
     label: 'Day 4 · 13 hubmates (±1)',
@@ -194,26 +156,8 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 14,
     minDay: 4,
     maxDay: 4,
-    loh: [
-      'blackjackTournament',
-      'famousFigures',
-      'silentSaboteur',
-      'hangman',
-      'majorityRules',
-      'batteryLow',
-      'trapAuction',
-      'boxedOut',
-    ],
-    pos: [
-      'quickTap',
-      'colorMatch',
-      'cardClash',
-      'logicLocks',
-      'riskWheel',
-      'tiltLabyrinth',
-      'dontGoOver',
-      'threeDigitsQuiz',
-    ],
+    loh: ['holdWall'],
+    pos: ['quickTap', 'colorMatch', 'cardClash', 'riskWheel'],
   },
   {
     label: 'Day 5 · 12 hubmates (±1)',
@@ -221,26 +165,8 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 13,
     minDay: 5,
     maxDay: 5,
-    loh: [
-      'snake',
-      'blackjackTournament',
-      'famousFigures',
-      'silentSaboteur',
-      'chainOfGreed',
-      'batteryLow',
-      'trapAuction',
-      'boxedOut',
-    ],
-    pos: [
-      'quickTap',
-      'colorMatch',
-      'cardClash',
-      'logicLocks',
-      'riskWheel',
-      'threeDigitsQuiz',
-      'dontGoOver',
-      'tiltLabyrinth',
-    ],
+    loh: ['snake'],
+    pos: ['quickTap', 'colorMatch', 'cardClash', 'riskWheel'],
   },
   {
     label: 'Day 6 · 11 hubmates (±1)',
@@ -248,26 +174,8 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 12,
     minDay: 6,
     maxDay: 6,
-    loh: [
-      'snake',
-      'blackjackTournament',
-      'famousFigures',
-      'silentSaboteur',
-      'chainOfGreed',
-      'batteryLow',
-      'trapAuction',
-      'boxedOut',
-    ],
-    pos: [
-      'quickTap',
-      'colorMatch',
-      'cardClash',
-      'logicLocks',
-      'riskWheel',
-      'threeDigitsQuiz',
-      'dontGoOver',
-      'tiltLabyrinth',
-    ],
+    loh: ['snake'],
+    pos: ['quickTap', 'colorMatch', 'cardClash', 'riskWheel'],
   },
   {
     label: 'Day 7 · 9 hubmates (±1)',
@@ -275,29 +183,8 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 10,
     minDay: 7,
     maxDay: 7,
-    loh: [
-      'snake',
-      'blackjackTournament',
-      'famousFigures',
-      'silentSaboteur',
-      'batteryLow',
-      'chainOfGreed',
-      'trapAuction',
-      'glass_bridge_brutal',
-      'crystal_path_shattered',
-      'wildcardWestern',
-      'boxedOut',
-    ],
-    pos: [
-      'quickTapSeasons',
-      'logicLocks',
-      'riskWheel',
-      'tiltLabyrinth',
-      'minesweeps',
-      'dontGoOver',
-      'threeDigitsQuiz',
-      'gatesOfTheEye',
-    ],
+    loh: ['snake', 'crystal_path_shattered'],
+    pos: ['quickTapSeasons', 'riskWheel'],
   },
   {
     label: 'Day 8 · 8 hubmates (±1)',
@@ -305,30 +192,8 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 9,
     minDay: 8,
     maxDay: 8,
-    loh: [
-      'castleRescue',
-      'blackjackTournament',
-      'famousFigures',
-      'majorityRules',
-      'timingBar',
-      'estimationGame',
-      'holdWall',
-      'pressurePlank',
-      'capitalization',
-      'chainOfGreed',
-      'batteryLow',
-      'houseOfDarkness',
-      'boxedOut',
-    ],
-    pos: [
-      'quickTapSeasons',
-      'logicLocks',
-      'riskWheel',
-      'minesweeps',
-      'gatesOfTheEye',
-      'threeDigitsQuiz',
-      'dontGoOver',
-    ],
+    loh: ['timingBar', 'holdWall', 'capitalization', 'crystal_path_shattered'],
+    pos: ['quickTapSeasons', 'riskWheel'],
   },
   {
     label: 'Day 9 · 7 hubmates (±1)',
@@ -336,31 +201,8 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 8,
     minDay: 9,
     maxDay: 9,
-    loh: [
-      'castleRescue2',
-      'blackjackTournament',
-      'famousFigures',
-      'timingBar',
-      'holdWall',
-      'pressurePlank',
-      'capitalization',
-      'chainOfGreed',
-      'batteryLow',
-      'houseOfDarkness',
-      'boxedOut',
-    ],
-    pos: [
-      'quickTapSeasons',
-      'logicLocks',
-      'riskWheel',
-      'minesweeps',
-      'gatesOfTheEye',
-      'threeDigitsQuiz',
-      'dontGoOver',
-      'quickTap',
-      'colorMatch',
-      'tiltLabyrinth',
-    ],
+    loh: ['timingBar', 'holdWall', 'capitalization', 'crystal_path_shattered'],
+    pos: ['quickTapSeasons', 'riskWheel', 'quickTap', 'colorMatch'],
   },
   {
     label: 'Day 10 · 5 hubmates',
@@ -368,32 +210,8 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 5,
     minDay: 10,
     maxDay: 10,
-    loh: [
-      'castleRescue',
-      'castleRescue2',
-      'blackjackTournament',
-      'timingBar',
-      'estimationGame',
-      'holdWall',
-      'pressurePlank',
-      'capitalization',
-      'chainOfGreed',
-      'batteryLow',
-      'houseOfDarkness',
-    ],
-    pos: [
-      'quickTapSeasons',
-      'logicLocks',
-      'riskWheel',
-      'minesweeps',
-      'gatesOfTheEye',
-      'threeDigitsQuiz',
-      'dontGoOver',
-      'quickTap',
-      'colorMatch',
-      'tiltLabyrinth',
-      'mysticChamber',
-    ],
+    loh: ['timingBar', 'holdWall', 'capitalization', 'crystal_path_shattered'],
+    pos: ['quickTapSeasons', 'riskWheel', 'quickTap', 'colorMatch'],
   },
   {
     label: 'Day 11 · 5 hubmates',
@@ -401,33 +219,8 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 5,
     minDay: 11,
     maxDay: 11,
-    loh: [
-      'castleRescue2',
-      'blackjackTournament',
-      'famousFigures',
-      'timingBar',
-      'estimationGame',
-      'holdWall',
-      'pressurePlank',
-      'threeDigitsQuiz',
-      'capitalization',
-      'chainOfGreed',
-      'batteryLow',
-      'houseOfDarkness',
-    ],
-    pos: [
-      'quickTapSeasons',
-      'logicLocks',
-      'riskWheel',
-      'minesweeps',
-      'gatesOfTheEye',
-      'threeDigitsQuiz',
-      'dontGoOver',
-      'quickTap',
-      'colorMatch',
-      'tiltLabyrinth',
-      'mysticChamber',
-    ],
+    loh: ['timingBar', 'holdWall', 'capitalization', 'crystal_path_shattered'],
+    pos: ['quickTapSeasons', 'riskWheel', 'quickTap', 'colorMatch'],
   },
   {
     label: 'Day 12 · 4 hubmates (±1)',
@@ -435,56 +228,31 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 5,
     minDay: 12,
     maxDay: 12,
-    loh: [
-      'castleRescue2',
-      'blackjackTournament',
-      'famousFigures',
-      'timingBar',
-      'estimationGame',
-      'holdWall',
-      'pressurePlank',
-      'threeDigitsQuiz',
-      'capitalization',
-      'chainOfGreed',
-      'batteryLow',
-      'houseOfDarkness',
-    ],
-    pos: [
-      'quickTapSeasons',
-      'logicLocks',
-      'riskWheel',
-      'minesweeps',
-      'gatesOfTheEye',
-      'threeDigitsQuiz',
-      'dontGoOver',
-      'quickTap',
-      'colorMatch',
-      'tiltLabyrinth',
-      'mysticChamber',
-    ],
+    loh: ['timingBar', 'holdWall', 'capitalization', 'crystal_path_shattered'],
+    pos: ['quickTapSeasons', 'riskWheel', 'quickTap', 'colorMatch'],
   },
   {
-    label: 'Final 3 - Part 1 Circuit qualifier',
-    minPlayers: 3,
+    label: 'Final 3 - Part 1 competition map',
+    minPlayers: 2,
     maxPlayers: 3,
     phases: ['final3_comp1', 'final3_comp1_minigame'],
-    loh: ['finalThreeCircuit'],
+    loh: ['quickTap', 'timingBar', 'cardClash'],
     pos: [],
   },
   {
-    label: 'Final 3 - Part 2 Circuit qualifier',
-    minPlayers: 3,
+    label: 'Final 3 - Part 2 competition map',
+    minPlayers: 2,
     maxPlayers: 3,
     phases: ['final3_comp2', 'final3_comp2_minigame'],
-    loh: ['finalThreeCircuit'],
+    loh: ['timingBar', 'holdWall', 'cardClash'],
     pos: [],
   },
   {
-    label: 'Final 3 - Part 3 · Down Memory Lane',
-    minPlayers: 3,
+    label: 'Final 3 - Part 3 competition map',
+    minPlayers: 2,
     maxPlayers: 3,
     phases: ['final3_comp3', 'final3_comp3_minigame'],
-    loh: ['downMemoryLane'],
+    loh: ['quickTapSeasons', 'snake', 'capitalization'],
     pos: [],
   },
   {
@@ -492,7 +260,18 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     label: '3 players (Final Trilogy)',
     minPlayers: 3,
     maxPlayers: 3,
-    loh: ['finalThreeCircuit', 'downMemoryLane'],
+    loh: [
+      'quickTap',
+      'quickTapSeasons',
+      'timingBar',
+      'holdWall',
+      'colorMatch',
+      'snake',
+      'riskWheel',
+      'crystal_path_shattered',
+      'capitalization',
+      'cardClash',
+    ],
     pos: [],
   },
 ]
@@ -572,7 +351,7 @@ export function getClassicCampaignPoolForContext(
   context: ClassicCampaignContext,
   template: BracketTemplate = DEFAULT_BRACKET_TEMPLATE
 ): string[] {
-  if (context.playerCount < 3) return []
+  if (context.playerCount < 2) return []
 
   const matched = template
     .filter((band) => matchesCampaignContext(band, context))

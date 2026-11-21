@@ -136,6 +136,7 @@ export function simulateHouseOfCardsAiRound(params: {
   peekReveals?: number
   recentMistakes?: number
   isBehind?: boolean
+  memoryRules?: 'deck-of-darkness'
 }): HouseOfCardsRoundPerformance {
   const { playerId, round, pairCount, tournamentSeed, sessionAbility } = params
   const offered = getHouseOfCardsAttemptToolOffer(tournamentSeed, params.attemptNumber, round)
@@ -154,9 +155,15 @@ export function simulateHouseOfCardsAiRound(params: {
   const abilityForm = (outcomeRng() + outcomeRng() + outcomeRng() + outcomeRng()) / 4 - 0.5
   const ability = clamp(sessionAbility + abilityForm * 22, 20, 90)
   const ability01 = ability / 100
-  const memoryStoreChance = clamp(0.34 + ability01 * 0.48, 0.42, 0.82)
-  const recallChance = clamp(0.22 + ability01 * 0.46, 0.28, 0.72)
-  const memoryAccessChance = clamp(0.48 + ability01 * 0.34, 0.54, 0.84)
+  const isDarkness = params.memoryRules === 'deck-of-darkness'
+  const memoryStoreChance = isDarkness
+    ? clamp(0.34 + ability01 * 0.48, 0.42, 0.82)
+    : 0.76 + ability01 * 0.23
+  const recallChance = isDarkness
+    ? clamp(0.22 + ability01 * 0.46, 0.28, 0.72)
+    : 0.72 + ability01 * 0.25
+  const memoryAccessChance = isDarkness ? clamp(0.48 + ability01 * 0.34, 0.54, 0.84) : 1
+  const misrememberChance = isDarkness ? 0.075 : 0.055 - ability01 * 0.025
   const seen = new Set<number>()
   const keptOpen = new Set<number>()
   const remembered = new Map<number, string>()
@@ -175,7 +182,8 @@ export function simulateHouseOfCardsAiRound(params: {
   const peekReveals = tool === 'peek' ? (params.peekReveals ?? HOUSE_OF_CARDS_PEEK_REVEALS) : 0
   let peeksRemaining = peekReveals
 
-  const maxAttempts = Math.max(8, pairCount * 5)
+  // Deck of Light plays until every pair is found. Darkness retains its survival run budget.
+  const maxAttempts = isDarkness ? Math.max(8, pairCount * 5) : Infinity
   while (completedPairs < pairCount && attemptCount < maxAttempts) {
     attemptCount += 1
     const available = cards.filter((card) => !matched.has(card.index))
@@ -199,7 +207,7 @@ export function simulateHouseOfCardsAiRound(params: {
     for (const [index, symbol] of remembered) {
       if (!recalled.has(index) && !matched.has(index) && outcomeRng() < memoryAccessChance) {
         const recalledSymbol =
-          outcomeRng() < 0.075
+          outcomeRng() < misrememberChance
             ? (cards[Math.floor(outcomeRng() * cards.length)]?.symbol ?? symbol)
             : symbol
         recalled.set(index, recalledSymbol)
@@ -245,7 +253,7 @@ export function simulateHouseOfCardsAiRound(params: {
       )
       if (
         rememberedMate !== undefined &&
-        (keptOpen.has(rememberedMate) || outcomeRng() < recallChance * 0.74)
+        (!isDarkness || keptOpen.has(rememberedMate) || outcomeRng() < recallChance * 0.74)
       )
         secondIndex = rememberedMate
       else {

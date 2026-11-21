@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS,
   CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
   CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS,
   CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS,
@@ -32,44 +33,18 @@ describe('classic campaign map registry integrity', () => {
     expect(regular).not.toContain('targetPractice')
   })
 
-  it('maps Bigg Gates to every former Fit Me In campaign day and cast size', () => {
-    const formerFitMeInBands = [
-      { day: 7, minPlayers: 8, maxPlayers: 10 },
-      { day: 8, minPlayers: 7, maxPlayers: 9 },
-      { day: 9, minPlayers: 6, maxPlayers: 8 },
-      { day: 10, minPlayers: 5, maxPlayers: 5 },
-      { day: 11, minPlayers: 4, maxPlayers: 5 },
-      { day: 12, minPlayers: 3, maxPlayers: 5 },
-    ]
+  it('contains only the retained games in the map and labels all others for calibration', () => {
+    const scheduled = new Set(allKeys(DEFAULT_BRACKET_TEMPLATE))
+    const approved = new Set<string>(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)
+    const calibration = new Set<string>(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)
 
-    formerFitMeInBands.forEach(({ day, minPlayers, maxPlayers }) => {
-      for (let playerCount = minPlayers; playerCount <= maxPlayers; playerCount += 1) {
-        const pool = getClassicCampaignPoolForContext({ day, playerCount, compType: 'POS' })
-        expect(pool, `day ${day} / ${playerCount} players`).toContain('gatesOfTheEye')
-        expect(pool, `day ${day} / ${playerCount} players`).not.toContain('tetris')
-      }
-    })
-  })
-  it('maps Boxed Out into large-cast LOH pools only', () => {
-    for (const [day, counts] of [
-      [4, [12]],
-      [5, [11, 12]],
-      [6, [10, 11, 12]],
-      [7, [8, 9, 10]],
-      [8, [8, 9]],
-    ] as const) {
-      for (const playerCount of counts) {
-        expect(getClassicCampaignPoolForContext({ day, playerCount, compType: 'LOH' })).toContain(
-          'boxedOut'
-        )
-        expect(
-          getClassicCampaignPoolForContext({ day, playerCount, compType: 'POS' })
-        ).not.toContain('boxedOut')
-      }
-    }
-    expect(
-      getClassicCampaignPoolForContext({ day: 9, playerCount: 7, compType: 'LOH' })
-    ).not.toContain('boxedOut')
+    expect([...scheduled].sort()).toEqual([...approved].sort())
+    expect([...calibration].some((key) => scheduled.has(key))).toBe(false)
+    expect([...approved].some((key) => calibration.has(key))).toBe(false)
+    expect([...calibration].filter((key) => !getGame(key) || getGame(key)?.retired)).toEqual([])
+    expect([...calibration]).toContain('gatesOfTheEye')
+    expect([...calibration]).toContain('finalThreeCircuit')
+    expect([...calibration]).toContain('downMemoryLane')
   })
   it('only maps each game to field sizes its registry entry supports', () => {
     DEFAULT_BRACKET_TEMPLATE.forEach((band) => {
@@ -94,28 +69,23 @@ describe('classic campaign map registry integrity', () => {
     })
   })
 
-  it('filters games by supported cast size within wider roster bands', () => {
-    expect(
-      getClassicCampaignPoolForContext({ day: 2, playerCount: 16, compType: 'LOH' })
-    ).toContain('boxedOut')
-    expect(
-      getClassicCampaignPoolForContext({ day: 4, playerCount: 12, compType: 'LOH' })
-    ).toContain('boxedOut')
-    expect(
-      getClassicCampaignPoolForContext({ day: 4, playerCount: 13, compType: 'LOH' })
-    ).toContain('boxedOut')
-    expect(
-      getClassicCampaignPoolForContext({ day: 4, playerCount: 17, compType: 'LOH' })
-    ).not.toContain('boxedOut')
-    expect(getClassicCampaignPoolForContext({ day: 9, playerCount: 8, compType: 'LOH' })).toContain(
-      'boxedOut'
-    )
-    expect(
-      getClassicCampaignPoolForContext({ day: 9, playerCount: 7, compType: 'LOH' })
-    ).not.toContain('boxedOut')
+  it('keeps calibration-only games out of every regular campaign pool', () => {
+    const calibration = new Set<string>(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)
+    for (const [day, players] of [
+      [1, 16],
+      [4, 13],
+      [8, 9],
+      [12, 4],
+    ] as const) {
+      for (const compType of ['LOH', 'POS'] as const) {
+        const pool = getClassicCampaignPoolForContext({ day, playerCount: players, compType })
+        expect(pool).not.toContain('boxedOut')
+        expect(pool.every((key) => !calibration.has(key))).toBe(true)
+      }
+    }
   })
 
-  it('reserves Final Three Circuit for Parts 1 and 2 and Down Memory Lane for Part 3', () => {
+  it('uses only retained map games in each Final 3 phase', () => {
     const part1 = DEFAULT_BRACKET_TEMPLATE.find((band) =>
       band.phases?.includes('final3_comp1_minigame')
     )
@@ -125,16 +95,9 @@ describe('classic campaign map registry integrity', () => {
     const part3 = DEFAULT_BRACKET_TEMPLATE.find((band) =>
       band.phases?.includes('final3_comp3_minigame')
     )
-    const circuit = getGame('finalThreeCircuit')
-    const memoryLane = getGame('downMemoryLane')
-
-    expect(part1?.loh).toEqual(['finalThreeCircuit'])
-    expect(part2?.loh).toEqual(['finalThreeCircuit'])
-    expect(part3?.loh).toEqual(['downMemoryLane'])
-    expect(circuit?.minPlayers).toBe(2)
-    expect(circuit?.maxPlayers).toBe(3)
-    expect(memoryLane?.minPlayers).toBe(2)
-    expect(memoryLane?.maxPlayers).toBe(3)
+    expect(part1?.loh).toEqual(['quickTap', 'timingBar', 'cardClash'])
+    expect(part2?.loh).toEqual(['timingBar', 'holdWall', 'cardClash'])
+    expect(part3?.loh).toEqual(['quickTapSeasons', 'snake', 'capitalization'])
   })
 })
 
@@ -142,12 +105,11 @@ describe('getBracketPoolForContext compatibility resolver', () => {
   it.each([
     [16, 'LOH', 'holdWall'],
     [13, 'POS', 'quickTap'],
-    [10, 'LOH', 'blackjackTournament'],
-    [9, 'POS', 'gatesOfTheEye'],
+    [10, 'LOH', 'snake'],
+    [9, 'POS', 'riskWheel'],
     [5, 'POS', 'quickTap'],
-    [4, 'LOH', 'batteryLow'],
-    [3, 'LOH', 'finalThreeCircuit'],
-    [3, 'LOH', 'downMemoryLane'],
+    [4, 'LOH', 'holdWall'],
+    [3, 'LOH', 'quickTap'],
   ] as const)('maps %i players / %s to %s', (playerCount, compType, expectedKey) => {
     expect(getBracketPoolForContext(playerCount, compType)).toContain(expectedKey)
   })
@@ -159,7 +121,8 @@ describe('getBracketPoolForContext compatibility resolver', () => {
 })
 
 describe('getClassicCampaignPoolForContext', () => {
-  it('uses the fixed premiere pool on day 1 and a larger curated pool from day 2', () => {
+  it('uses only retained games in the premiere and regular campaign pools', () => {
+    const approved = new Set<string>(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)
     const day1 = getClassicCampaignPoolForContext({
       day: 1,
       playerCount: 16,
@@ -172,19 +135,19 @@ describe('getClassicCampaignPoolForContext', () => {
       compType: 'LOH',
       phase: 'loh_comp',
     })
-    expect(day1).toEqual(['majorityRules', 'percentagePanic'])
+    expect(day1).toEqual(['holdWall'])
     expect(day2).toContain('holdWall')
-    expect(day2.length).toBeGreaterThan(day1.length)
+    expect(day2.every((key) => approved.has(key))).toBe(true)
   })
 
-  it('keeps the finale phase-owned: Circuit for Parts 1-2 and Down Memory Lane for Part 3', () => {
+  it('keeps the finale phase-owned while using only retained games', () => {
     const resolve = (
       phase: 'final3_comp1_minigame' | 'final3_comp2_minigame' | 'final3_comp3_minigame'
     ) => getClassicCampaignPoolForContext({ day: 14, playerCount: 3, compType: 'LOH', phase })
 
-    expect(resolve('final3_comp1_minigame')).toEqual(['finalThreeCircuit'])
-    expect(resolve('final3_comp2_minigame')).toEqual(['finalThreeCircuit'])
-    expect(resolve('final3_comp3_minigame')).toEqual(['downMemoryLane'])
+    expect(resolve('final3_comp1_minigame')).toEqual(['quickTap', 'timingBar', 'cardClash'])
+    expect(resolve('final3_comp2_minigame')).toEqual(['timingBar', 'holdWall', 'cardClash'])
+    expect(resolve('final3_comp3_minigame')).toEqual(['quickTapSeasons', 'snake', 'capitalization'])
   })
 
   it('is mode-agnostic for Classic, Vox Populi and Cupid finale scheduling', () => {
@@ -197,7 +160,7 @@ describe('getClassicCampaignPoolForContext', () => {
         compType: 'LOH',
         phase: 'final3_comp1_minigame',
       })
-    ).toEqual(['finalThreeCircuit'])
+    ).toEqual(['quickTap', 'timingBar', 'cardClash'])
     expect(
       getClassicCampaignPoolForContext({
         day: 14,
@@ -205,7 +168,7 @@ describe('getClassicCampaignPoolForContext', () => {
         compType: 'LOH',
         phase: 'final3_comp2_minigame',
       })
-    ).toEqual(['finalThreeCircuit'])
+    ).toEqual(['timingBar', 'holdWall', 'cardClash'])
     expect(
       getClassicCampaignPoolForContext({
         day: 14,
@@ -213,6 +176,6 @@ describe('getClassicCampaignPoolForContext', () => {
         compType: 'LOH',
         phase: 'final3_comp3_minigame',
       })
-    ).toEqual(['downMemoryLane'])
+    ).toEqual(['quickTapSeasons', 'snake', 'capitalization'])
   })
 })

@@ -22,7 +22,10 @@ import {
   simulateMinigameAiScore,
 } from '../ai/competition'
 import { selectNextCompetitionGame } from '../ai/competition/scheduling'
-import { getClassicCampaignPoolForContext } from '../ai/competition/bracketTemplate'
+import {
+  CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
+  getClassicCampaignPoolForContext,
+} from '../ai/competition/bracketTemplate'
 import { pickCompetitionDirectorGame } from '../ai/competition/competitionDirector'
 import { applyCompetitionSeasonUpdate, hydrateGame, selectAlivePlayers } from './gameSlice'
 import { hasEffectiveStoreEntitlement } from '../vip/effectiveEntitlements'
@@ -476,7 +479,7 @@ export const startChallenge =
       competition: competitionType,
     })
     const eligibleForRoster = (game: GameRegistryEntry) =>
-      supportsPlayerCount(game, scheduledPlayerCount) && game.key !== 'capitalization'
+      supportsPlayerCount(game, scheduledPlayerCount)
     const lateSeasonBias =
       activeCompetitorCount > 0 && activeCompetitorCount <= LATE_SEASON_PLAYER_THRESHOLD
     const selectFromPool = (pool: GameRegistryEntry[]) =>
@@ -493,16 +496,36 @@ export const startChallenge =
       if (pool.length > 0) return selectFromPool(pool)
       return pickRandomGame(gameSeed, { category, excludeKeys })
     }
+    const pickFromCompetitionMap = (category?: GameCategory, excludeKeys?: string[]) => {
+      const excluded = new Set(excludeKeys ?? [])
+      const pool = CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS.map((key) => getGame(key)).filter(
+        (game): game is GameRegistryEntry =>
+          game !== undefined && !game.retired && !excluded.has(game.key) && eligibleForRoster(game)
+      )
+      if (pool.length === 0) {
+        throw new Error(
+          `[challengeSlice] No in-map minigame supports ${scheduledPlayerCount} competitors`
+        )
+      }
+      const categoryPool = category ? pool.filter((game) => game.category === category) : pool
+      return selectFromPool(categoryPool.length > 0 ? categoryPool : pool)
+    }
     const pickSurvivorGame = (category?: GameCategory, excludeKeys?: string[]) => {
       const modeSpecific =
         state.game.modeSpecific?.kind === 'survival' ? state.game.modeSpecific : null
       if (!modeSpecific) return pickFromRegistry(category, excludeKeys)
 
-      // Survivor has its own free-form rotation. The curated Classic campaign
-      // map must not constrain it; retired games explicitly marked for Survival
-      // remain available alongside the regular roster.
+      // Surveyeval keeps the broad active-game rotation. The Classic/Cupid/Vox
+      // campaign map must not constrain it; active finale-only calibration games
+      // and retired games explicitly marked for Surveyeval join when roster-safe.
       const availablePool = [
         ...getPoolByFilter({ retired: false, excludeKeys }),
+        ...(['finalThreeCircuit', 'downMemoryLane'] as const)
+          .map((key) => getGame(key))
+          .filter(
+            (game): game is GameRegistryEntry =>
+              game !== undefined && !game.retired && !excludeKeys?.includes(game.key)
+          ),
         ...getPoolByFilter({ retired: true, excludeKeys }).filter(
           (game) => game.survivalModeEligible
         ),
@@ -718,17 +741,16 @@ export const startChallenge =
             gameEntry = selectFromPool(unusedPool.length > 0 ? unusedPool : bracketPool)
             break
           }
-          gameEntry = pickFromRegistry(opts.category, opts.excludeKeys)
+          gameEntry = pickFromCompetitionMap(opts.category, opts.excludeKeys)
           break
         }
 
         case 'competition-map': {
-          // Finale minigames have phase-owned fixed rules, outside the regular
-          // cast-aware director. The Circuit intentionally appears twice.
+          // Final 3 uses phase-owned pools from the retained competition map.
           const isFinale = state.game.phase.startsWith('final3_')
           if (isFinale) {
             const finalePool = getBracketTemplatePool(opts.excludeKeys)
-            gameEntry = finalePool[0] ?? pickFromRegistry(opts.category, opts.excludeKeys)
+            gameEntry = finalePool[0] ?? pickFromCompetitionMap(opts.category, opts.excludeKeys)
             break
           }
           const picked = pickCompetitionDirectorGame(
@@ -742,7 +764,7 @@ export const startChallenge =
             selectionSeed,
             historyGameKeys
           )
-          gameEntry = picked ?? pickFromRegistry(opts.category, opts.excludeKeys)
+          gameEntry = picked ?? pickFromCompetitionMap(opts.category, opts.excludeKeys)
           break
         }
 
@@ -761,12 +783,6 @@ export const startChallenge =
     // and any future scheduler branch added above.
     if (state.game.mode === 'survival' && gameEntry.key === 'rescueTheKing') {
       gameEntry = pickSurvivorGame(opts.category, [...(opts.excludeKeys ?? []), 'rescueTheKing'])
-    }
-    // The Back 2 the Game returnee flow mounts Capitalization directly; the
-    // ordinary LOH/Safety scheduler must never select it, even from saved or
-    // forced competition settings.
-    if (gameEntry.key === 'capitalization') {
-      gameEntry = pickFromRegistry(opts.category, [...(opts.excludeKeys ?? []), 'capitalization'])
     }
     // Derive a per-challenge seed from the base seed + game key hash.
     const challengeSeed = deriveSeed(gameSeed, gameEntry.key)

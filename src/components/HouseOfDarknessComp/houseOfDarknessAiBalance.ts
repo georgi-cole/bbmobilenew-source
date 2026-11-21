@@ -28,6 +28,7 @@ export function simulateHouseOfDarknessAiMemory(params: {
   const { charm, ...simulation } = params
   return simulateHouseOfCardsAiRound({
     ...simulation,
+    memoryRules: 'deck-of-darkness',
     tool: charm === 'peek' ? 'peek' : 'shield',
   })
 }

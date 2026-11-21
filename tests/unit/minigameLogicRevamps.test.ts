@@ -12,7 +12,10 @@ import {
   getPressurePlankStabilityDamagePerSecond,
 } from '../../src/components/PressurePlank/pressurePlankLogic'
 import { getGame } from '../../src/minigames/registry'
-import { getClassicCampaignPoolForContext } from '../../src/ai/competition/bracketTemplate'
+import {
+  CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS,
+  getClassicCampaignPoolForContext,
+} from '../../src/ai/competition/bracketTemplate'
 
 function sourceText(path: string): string {
   return readFileSync(join(process.cwd(), path), 'utf8')
@@ -131,24 +134,11 @@ describe('minigame logic revamps', () => {
     expect(executionBlock).toContain('target.isEliminated = true')
   })
 
-  it('restricts Trap Auction to rosters of at least 8 and removes it from endgame', () => {
+  it('keeps Trap Auction active but held for calibration outside the campaign map', () => {
     expect(getGame('trapAuction')?.minPlayers).toBe(8)
-    expect(getClassicCampaignPoolForContext({ day: 7, playerCount: 8, compType: 'LOH' })).toContain(
-      'trapAuction'
-    )
+    expect(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS).toContain('trapAuction')
     expect(
-      getClassicCampaignPoolForContext({ day: 8, playerCount: 7, compType: 'LOH' })
-    ).not.toContain('trapAuction')
-    expect(
-      getClassicCampaignPoolForContext({ day: 12, playerCount: 4, compType: 'LOH' })
-    ).not.toContain('trapAuction')
-    expect(
-      getClassicCampaignPoolForContext({
-        day: 14,
-        playerCount: 3,
-        compType: 'LOH',
-        phase: 'final3_comp3',
-      })
+      getClassicCampaignPoolForContext({ day: 7, playerCount: 8, compType: 'LOH' })
     ).not.toContain('trapAuction')
   })
 

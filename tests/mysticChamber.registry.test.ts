@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS } from '../src/ai/competition/bracketTemplate'
+import {
+  CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS,
+  CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
+} from '../src/ai/competition/bracketTemplate'
 import { minigameAiRegistry } from '../src/ai/competition/minigameAiRegistry'
 import {
   CHAMBER_FORBIDDEN_OPENINGS,
@@ -13,7 +16,7 @@ import { getPoolByFilter } from '../src/minigames/registry'
 import type { RelationshipsMap } from '../src/social/types'
 
 describe('Mystic Chamber activation', () => {
-  it('registers Mystic Chamber in active game and campaign pools', () => {
+  it('keeps Mystic Chamber active but marks it for calibration', () => {
     const chamber = getPoolByFilter({ retired: false }).find((game) => game.key === 'mysticChamber')
 
     expect(chamber?.title).toBe('Mystic Chamber')
@@ -21,7 +24,8 @@ describe('Mystic Chamber activation', () => {
     expect(chamber?.reactComponentKey).toBe('MysticChamber')
     expect(reactComponents.MysticChamber).toBeDefined()
     expect(getPoolByFilter({ retired: false }).map((game) => game.key)).toContain('mysticChamber')
-    expect(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS).toContain('mysticChamber')
+    expect(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS).not.toContain('mysticChamber')
+    expect(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS).toContain('mysticChamber')
     expect(minigameAiRegistry.mysticChamber).toBeDefined()
   })
 

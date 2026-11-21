@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -34,7 +34,8 @@ function pairIndexes(seed: number, round: number, pairCount: number): number[][]
 }
 
 async function finishRound(seed: number, round: number, pairCount: number) {
-  fireEvent.click(screen.getByRole('button', { name: /^Peek/ }))
+  const tools = screen.getByRole('group', { name: 'Choose one tool for this round' })
+  fireEvent.click(within(tools).getAllByRole('button')[0])
   for (const [first, second] of pairIndexes(seed, round, pairCount)) {
     await act(async () => {
       fireEvent.click(screen.getAllByRole('gridcell')[first])
