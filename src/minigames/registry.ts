@@ -141,9 +141,10 @@ export function getPoolByFilter(filter: {
   category?: GameCategory
   excludeKeys?: string[]
 }): GameRegistryEntry[] {
-  // Finale games are deliberately excluded from ordinary random pools.
-  // They remain visible to Minigame Lab / Remote Manager through getAllGames(),
-  // addressable by key through getGame(), and scheduled only by the Final 3 map.
+  // Finale games are deliberately excluded from ordinary registry random pools.
+  // They remain visible to Minigame Lab / Remote Manager through getAllGames()
+  // and addressable by key; Surveyeval can explicitly add them to its broad
+  // rotation when their roster limits permit.
   return getBasePoolByFilter(filter).map((game) => applyRegistryOverrides(game)!)
 }
 

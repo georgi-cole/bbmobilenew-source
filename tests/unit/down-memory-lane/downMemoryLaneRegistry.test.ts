@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getClassicCampaignPoolForContext } from '../../../src/ai/competition/bracketTemplate'
+import {
+  CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS,
+  getClassicCampaignPoolForContext,
+} from '../../../src/ai/competition/bracketTemplate'
 import { getAllGames, getGame, getPoolByFilter } from '../../../src/minigames/registry'
 
 describe('Down Memory Lane finale registration', () => {
@@ -21,7 +24,7 @@ describe('Down Memory Lane finale registration', () => {
     ).toBe(false)
   })
 
-  it('owns Final 3 Part 3 and does not appear in Parts 1 or 2', () => {
+  it('remains registered but is held out of the Final 3 competition map', () => {
     const resolve = (
       phase: 'final3_comp1_minigame' | 'final3_comp2_minigame' | 'final3_comp3_minigame'
     ) =>
@@ -32,8 +35,10 @@ describe('Down Memory Lane finale registration', () => {
         phase,
       })
 
-    expect(resolve('final3_comp1_minigame')).toEqual(['finalThreeCircuit'])
-    expect(resolve('final3_comp2_minigame')).toEqual(['finalThreeCircuit'])
-    expect(resolve('final3_comp3_minigame')).toEqual(['downMemoryLane'])
+    expect(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS).toContain('downMemoryLane')
+    expect(resolve('final3_comp1_minigame')).toEqual(['quickTap', 'timingBar', 'cardClash'])
+    expect(resolve('final3_comp2_minigame')).toEqual(['timingBar', 'holdWall', 'cardClash'])
+    expect(resolve('final3_comp3_minigame')).toEqual(['quickTapSeasons', 'snake', 'capitalization'])
+    expect(resolve('final3_comp3_minigame')).not.toContain('downMemoryLane')
   })
 })

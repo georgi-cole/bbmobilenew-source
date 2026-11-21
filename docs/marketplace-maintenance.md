@@ -51,6 +51,11 @@ store listings or change configured prices.
   shock broadcast repairs. The catalog still describes the voting rules,
   rewards, products, prices and entitlements.
 
+- 2026-11-18: Reviewed the Deck of Light AI memory changes. Preliminary
+  opponents play through every pair, and finale opponents recall observed pairs
+  more reliably while still making mistakes. Rules, rewards, pricing and access
+  remain as described in the marketplace catalog.
+
 - 2026-11-18: Reviewed Cupid's Arrow, Vox Populi, and VIP ceremony maintenance.
   The game applies the stated Final 4 ballot rule and shared Cupid powers.
   Competition labels, post-elimination TV, and the VIP backup ceremony reflect

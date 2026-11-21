@@ -268,7 +268,7 @@ describe('challenge flow – startChallenge thunk', () => {
     expect(state.challenge.pending?.phase).toBe('rules')
   })
 
-  it('keeps Capitalization exclusive to the Back 2 the Game return flow', () => {
+  it('allows Capitalization in the retained competition map and direct launches', () => {
     const store = makeStoreWithCompSelection({
       mode: 'single-game',
       selectedGameId: 'capitalization',
@@ -277,7 +277,7 @@ describe('challenge flow – startChallenge thunk', () => {
 
     dispatchThunk(store, startChallenge(42, ['p1', 'p2'], { forceGameKey: 'capitalization' }))
 
-    expect(store.getState().challenge.pending?.game.key).not.toBe('capitalization')
+    expect(store.getState().challenge.pending?.game.key).toBe('capitalization')
   })
 
   it('forces Find your twin for an activated but unresolved Day 5 Twin Shock', () => {
@@ -559,17 +559,19 @@ describe('startChallenge – compSelection modes', () => {
     expect(typeof pending?.game.key).toBe('string')
   })
 
-  it('survivor mode rotates through all roster-safe non-retired games, independently of Classic', () => {
+  it('Surveyeval keeps the broad roster-safe rotation, independently of Classic', () => {
     const store = makeSurvivorStore()
     const playerCount = store
       .getState()
       .game.players.filter(
         (player) => player.status !== 'evicted' && player.status !== 'jury'
       ).length
-    const availableKeys = getPoolByFilter({ retired: false })
+    const availableKeys = [
+      ...getPoolByFilter({ retired: false }),
+      ...getPoolByFilter({ retired: true }).filter((game) => game.survivalModeEligible),
+    ]
       .filter((game) => supportsPlayerCount(game, playerCount))
       .filter((game) => game.key !== 'rescueTheKing')
-      .filter((game) => game.key !== 'capitalization')
       .map((game) => game.key)
     const classicKeys = new Set(getApprovedCompetitionGameKeys())
     const survivorOnlyKeys = availableKeys.filter((key) => !classicKeys.has(key))
@@ -585,7 +587,7 @@ describe('startChallenge – compSelection modes', () => {
         )
       )
       const pending = store.getState().challenge.pending
-      expect(pending?.game.retired).toBe(false)
+      expect(pending?.game.retired === false || pending?.game.survivalModeEligible).toBe(true)
       selectedKeys.add(pending?.game.key ?? '')
       store.dispatch(setPendingChallenge(null))
     })

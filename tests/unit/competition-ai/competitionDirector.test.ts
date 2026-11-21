@@ -35,80 +35,73 @@ describe('Competition Director V1', () => {
     }
   })
 
-  it('keeps the premiere fixed and retired/special-purpose games excluded', () => {
-    expect(keys(context(16, 'LOH', 1))).toEqual(['majorityRules', 'percentagePanic'])
-    expect(keys(context(16, 'POS', 1))).toEqual(['quickTap'])
-    expect(keys(context(16, 'LOH', 2))).not.toContain('percentagePanic')
+  it('keeps the premiere inside the retained competition map', () => {
+    expect(keys(context(16, 'LOH', 1))).toEqual(['holdWall'])
+    expect(keys(context(16, 'POS', 1))).toEqual(['quickTap', 'riskWheel'])
 
     for (const size of [4, 5, 6, 8, 10, 12, 16]) {
       for (const type of ['LOH', 'POS'] as const) {
         const available = keys(context(size, type))
         expect(available).not.toContain('bigSpender')
         expect(available).not.toContain('gridOfLuck')
-        expect(available).not.toContain('capitalization')
+        if (type === 'LOH') expect(available).toContain('capitalization')
+        else expect(available).not.toContain('capitalization')
         expect(available).not.toContain('finalThreeCircuit')
         expect(available).not.toContain('downMemoryLane')
+        expect(available).not.toContain('gatesOfTheEye')
+        expect(available).not.toContain('boxedOut')
       }
     }
   })
 
-  it('draws Day 1 LOH from Majority Rules and Percentage Panic at equal odds', () => {
-    const premiere = context(16, 'LOH', 1)
+  it('keeps the Day 1 POS draw between Quick Tap and Risk Wheel', () => {
+    const premiere = context(16, 'POS', 1)
     const candidates = getCompetitionDirectorCandidates(premiere)
-    expect(candidates.map(({ game }) => game.key)).toEqual(['majorityRules', 'percentagePanic'])
+    expect(candidates.map(({ game }) => game.key)).toEqual(['quickTap', 'riskWheel'])
 
-    const totals = { majorityRules: 0, percentagePanic: 0 }
+    const totals = { quickTap: 0, riskWheel: 0 }
     for (let seed = 1; seed <= 2000; seed += 1) {
       const selected = pickCompetitionDirectorGame(premiere, seed)
-      if (selected?.key === 'majorityRules') totals.majorityRules += 1
-      if (selected?.key === 'percentagePanic') totals.percentagePanic += 1
+      if (selected?.key === 'quickTap') totals.quickTap += 1
+      if (selected?.key === 'riskWheel') totals.riskWheel += 1
     }
 
-    expect(totals.majorityRules).toBeGreaterThan(900)
-    expect(totals.majorityRules).toBeLessThan(1100)
-    expect(totals.percentagePanic).toBeGreaterThan(900)
-    expect(totals.percentagePanic).toBeLessThan(1100)
+    expect(totals.quickTap).toBeGreaterThan(900)
+    expect(totals.quickTap).toBeLessThan(1100)
+    expect(totals.riskWheel).toBeGreaterThan(900)
+    expect(totals.riskWheel).toBeLessThan(1100)
   })
 
-  it('reuses Fit Me In’s director priority slots for Bigg Gates', () => {
-    for (const size of [5, 6, 8, 9, 10]) {
-      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.POS).toContain('gatesOfTheEye')
-      expect(keys(context(size, 'POS'))).toContain('gatesOfTheEye')
+  it('holds calibration games out of every competition director draw', () => {
+    const calibrationKeys = [
+      'boxedOut',
+      'gatesOfTheEye',
+      'majorityRules',
+      'percentagePanic',
+      'trapAuction',
+      'batteryLow',
+      'blackjackTournament',
+      'wildcardWestern',
+    ]
+    for (const size of [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) {
+      for (const type of ['LOH', 'POS'] as const) {
+        expect(keys(context(size, type)).filter((key) => calibrationKeys.includes(key))).toEqual([])
+      }
     }
   })
-  it('offers Boxpocalypse to LOH casts of 8–16 and never to smaller casts', () => {
-    for (const size of [8, 9, 10, 11, 12, 13, 14, 15, 16]) {
-      expect(keys(context(size, 'LOH'))).toContain('boxedOut')
-      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.LOH).toContain('boxedOut')
-    }
-    for (const size of [4, 5, 6, 7, 17]) {
-      expect(keys(context(size, 'LOH'))).not.toContain('boxedOut')
-    }
-  })
-  it('preserves first-season introduction order for both spinoffs', () => {
-    const withoutOriginal = keys(context(8, 'LOH', 10))
-    expect(withoutOriginal).not.toContain('crystal_path_shattered')
-    expect(withoutOriginal).not.toContain('castleRescue2')
-
-    const withOriginals = keys(context(8, 'LOH', 9, ['glass_bridge_brutal', 'castleRescue']))
-    expect(withOriginals).toContain('crystal_path_shattered')
-    expect(withOriginals).not.toContain('castleRescue2')
-
-    const day10 = keys(context(5, 'LOH', 10, ['castleRescue']))
-    expect(day10).toContain('castleRescue2')
-    const day7 = keys(context(9, 'LOH', 7, ['glass_bridge_brutal']))
+  it('keeps Crystal Path: Infinity independent of the calibration-only original', () => {
+    const day10 = keys(context(9, 'LOH', 10))
+    expect(day10).toContain('crystal_path_shattered')
+    const day7 = keys(context(9, 'LOH', 7))
     expect(day7).not.toContain('crystal_path_shattered')
   })
 
-  it('adapts to returnees and enforces technical and pacing limits', () => {
+  it('enforces the retained Crystal Path: Infinity cast-size limit', () => {
     const seven = keys(context(7, 'LOH'))
     const nine = keys(context(9, 'LOH'))
-    expect(seven).not.toContain('trapAuction')
-    expect(nine).toContain('trapAuction')
-    expect(nine).not.toContain('wildcardWestern')
-    expect(seven).toContain('wildcardWestern')
-    expect(keys(context(6, 'POS'))).not.toContain('mysticChamber')
-    expect(keys(context(5, 'POS'))).toContain('mysticChamber')
+    expect(seven).toContain('crystal_path_shattered')
+    expect(nine).toContain('crystal_path_shattered')
+    expect(keys(context(6, 'LOH'))).not.toContain('crystal_path_shattered')
   })
 
   it('never repeats while a compatible unused LOH or POS game exists', () => {
@@ -139,8 +132,8 @@ describe('Competition Director V1', () => {
     const findWeight = (items: typeof regular, key: string) =>
       items.find(({ game }) => game.key === key)?.weight
 
-    expect(findWeight(regular, 'glass_bridge_brutal')).toBe(2)
-    expect(findWeight(carried, 'glass_bridge_brutal')).toBe(3)
+    expect(findWeight(regular, 'crystal_path_shattered')).toBe(2)
+    expect(findWeight(carried, 'crystal_path_shattered')).toBe(3)
 
     const nextPos = getCompetitionDirectorCandidates({
       ...context(8, 'POS', 8),
