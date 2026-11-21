@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS,
   CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
+  CLASSIC_CAMPAIGN_FINALE_GAME_KEYS,
   CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS,
   CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS,
   DEFAULT_BRACKET_TEMPLATE,
@@ -18,7 +19,10 @@ function allKeys(template: BracketTemplate): string[] {
 describe('classic campaign map registry integrity', () => {
   it('only references active, explicitly approved registry games', () => {
     const scheduled = new Set(allKeys(DEFAULT_BRACKET_TEMPLATE))
-    const approved = new Set<string>(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)
+    const approved = new Set<string>([
+      ...CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
+      ...CLASSIC_CAMPAIGN_FINALE_GAME_KEYS,
+    ])
     expect([...scheduled].filter((key) => !getGame(key) || getGame(key)?.retired)).toEqual([])
     expect([...scheduled].filter((key) => !approved.has(key))).toEqual([])
     expect([...approved].filter((key) => !scheduled.has(key))).toEqual([])
@@ -34,16 +38,21 @@ describe('classic campaign map registry integrity', () => {
   })
 
   it('contains only the retained games in the map and labels all others for calibration', () => {
-    const scheduled = new Set(allKeys(DEFAULT_BRACKET_TEMPLATE))
+    const dailyScheduled = new Set(
+      allKeys(DEFAULT_BRACKET_TEMPLATE.filter((band) => band.minDay !== undefined))
+    )
     const approved = new Set<string>(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)
+    const finaleOnly = new Set<string>(CLASSIC_CAMPAIGN_FINALE_GAME_KEYS)
     const calibration = new Set<string>(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)
 
-    expect([...scheduled].sort()).toEqual([...approved].sort())
-    expect([...calibration].some((key) => scheduled.has(key))).toBe(false)
-    expect([...approved].some((key) => calibration.has(key))).toBe(false)
+    expect([...dailyScheduled].sort()).toEqual([...approved].sort())
+    expect(approved.size).toBe(21)
+    expect([...finaleOnly]).toEqual(['finalThreeCircuit'])
+    expect([...finaleOnly].some((key) => calibration.has(key))).toBe(false)
+    expect([...dailyScheduled].some((key) => calibration.has(key))).toBe(false)
     expect([...calibration].filter((key) => !getGame(key) || getGame(key)?.retired)).toEqual([])
-    expect([...calibration]).toContain('gatesOfTheEye')
-    expect([...calibration]).toContain('finalThreeCircuit')
+    expect([...calibration]).toContain('estimationGame')
+    expect([...calibration]).not.toContain('finalThreeCircuit')
     expect([...calibration]).toContain('downMemoryLane')
   })
   it('only maps each game to field sizes its registry entry supports', () => {
@@ -69,6 +78,17 @@ describe('classic campaign map registry integrity', () => {
     })
   })
 
+  it('filters accepted games to their registered roster limits', () => {
+    const pool = (day: number, playerCount: number) =>
+      getClassicCampaignPoolForContext({ day, playerCount, compType: 'LOH' })
+
+    expect(pool(12, 3)).not.toContain('boxedOut')
+    expect(pool(12, 4)).toContain('boxedOut')
+    expect(pool(8, 7)).not.toContain('trapAuction')
+    expect(pool(8, 8)).toContain('trapAuction')
+    expect(pool(10, 6)).not.toContain('mysticChamber')
+  })
+
   it('keeps calibration-only games out of every regular campaign pool', () => {
     const calibration = new Set<string>(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)
     for (const [day, players] of [
@@ -79,24 +99,20 @@ describe('classic campaign map registry integrity', () => {
     ] as const) {
       for (const compType of ['LOH', 'POS'] as const) {
         const pool = getClassicCampaignPoolForContext({ day, playerCount: players, compType })
-        expect(pool).not.toContain('boxedOut')
+        expect(pool).not.toContain('estimationGame')
         expect(pool.every((key) => !calibration.has(key))).toBe(true)
       }
     }
   })
 
-  it('uses only retained map games in each Final 3 phase', () => {
-    const part1 = DEFAULT_BRACKET_TEMPLATE.find((band) =>
-      band.phases?.includes('final3_comp1_minigame')
-    )
-    const part2 = DEFAULT_BRACKET_TEMPLATE.find((band) =>
-      band.phases?.includes('final3_comp2_minigame')
-    )
+  it('preserves the Circuit qualifiers and uses retained map games in Final 3 Part 3', () => {
+    const part1 = DEFAULT_BRACKET_TEMPLATE.find((band) => band.phases?.includes('final3_comp1'))
+    const part2 = DEFAULT_BRACKET_TEMPLATE.find((band) => band.phases?.includes('final3_comp2'))
     const part3 = DEFAULT_BRACKET_TEMPLATE.find((band) =>
       band.phases?.includes('final3_comp3_minigame')
     )
-    expect(part1?.loh).toEqual(['quickTap', 'timingBar', 'cardClash'])
-    expect(part2?.loh).toEqual(['timingBar', 'holdWall', 'cardClash'])
+    expect(part1?.loh).toEqual(['finalThreeCircuit'])
+    expect(part2?.loh).toEqual(['finalThreeCircuit'])
     expect(part3?.loh).toEqual(['quickTapSeasons', 'snake', 'capitalization'])
   })
 })

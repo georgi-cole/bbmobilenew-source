@@ -461,7 +461,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     implementation: 'react',
     reactComponentKey: 'PercentagePanic',
     legacy: false,
-    // Match Majority Rules in the active pool; the competition director keeps it Day 1-only.
+    // Pooled with Majority Rules for the campaign's crowd-prediction challenge option.
     weight: 1,
     category: 'trivia',
     retired: false,
