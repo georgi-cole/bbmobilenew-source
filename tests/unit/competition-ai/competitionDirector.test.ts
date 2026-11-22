@@ -89,6 +89,18 @@ describe('Competition Director V1', () => {
       }
     }
   })
+
+  it('offers each social game for either prize only at five through eight players', () => {
+    const socialKeys = ['rockPaperScissors', 'lastLight']
+    for (const count of [4, 5, 6, 7, 8, 9]) {
+      for (const type of ['LOH', 'POS'] as const) {
+        const available = keys(context(count, type))
+        for (const key of socialKeys) {
+          expect(available.includes(key)).toBe(count >= 5 && count <= 8)
+        }
+      }
+    }
+  })
   it('keeps Crystal Path: Infinity independent of the calibration-only original', () => {
     const day10 = keys(context(9, 'LOH', 10))
     expect(day10).toContain('crystal_path_shattered')

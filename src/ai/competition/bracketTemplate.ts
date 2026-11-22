@@ -34,6 +34,8 @@ export interface ClassicCampaignContext {
   playedGameKeys?: readonly string[]
 }
 
+const SOCIAL_COMPETITION_KEYS = ['rockPaperScissors', 'lastLight'] as const
+
 /** Status is limited to the season competition map; all entries remain in the registry. */
 export const MINIGAME_COMPETITION_MAP_STATUS = {
   inCompetitionMap: [
@@ -47,6 +49,7 @@ export const MINIGAME_COMPETITION_MAP_STATUS = {
     'crystal_path_shattered',
     'capitalization',
     'cardClash',
+    ...SOCIAL_COMPETITION_KEYS,
   ],
   forCalibration: [
     'memoryMatch',
@@ -92,6 +95,8 @@ export const CLASSIC_CAMPAIGN_GAME_MIN_DAY: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
 > = {
   crystal_path_shattered: 8,
+  rockPaperScissors: 2,
+  lastLight: 2,
 }
 
 /** Narrative prerequisites that cannot be represented by day alone. */
@@ -102,11 +107,11 @@ export const CLASSIC_CAMPAIGN_GAME_REQUIRED_PREVIOUS: Partial<
 /** Registry limits for games whose campaign band spans a wider roster range. */
 export const CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
-> = {}
+> = { rockPaperScissors: 8, lastLight: 8 }
 
 export const CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
-> = {}
+> = { rockPaperScissors: 5, lastLight: 5 }
 
 export function getApprovedCompetitionGameKeys(
   template: BracketTemplate = DEFAULT_BRACKET_TEMPLATE
@@ -122,7 +127,7 @@ export function getApprovedCompetitionGameKeys(
  * - Only games marked inCompetitionMap participate in automatic draws.
  * - Final 3 phases draw from the same approved set and support two or three players.
  */
-export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
+const BASE_BRACKET_TEMPLATE: BracketTemplate = [
   {
     label: 'Day 1 · premiere',
     minPlayers: 5,
@@ -275,6 +280,23 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     pos: [],
   },
 ]
+
+export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = BASE_BRACKET_TEMPLATE.map((band) => {
+  if (
+    band.phases ||
+    !band.minDay ||
+    band.minDay === 1 ||
+    band.minPlayers > 8 ||
+    band.maxPlayers < 5
+  ) {
+    return band
+  }
+  return {
+    ...band,
+    loh: [...band.loh, ...SOCIAL_COMPETITION_KEYS],
+    pos: [...band.pos, ...SOCIAL_COMPETITION_KEYS],
+  }
+})
 
 function matchesCampaignContext(band: BracketBand, context: ClassicCampaignContext): boolean {
   if (context.playerCount < band.minPlayers || context.playerCount > band.maxPlayers) return false

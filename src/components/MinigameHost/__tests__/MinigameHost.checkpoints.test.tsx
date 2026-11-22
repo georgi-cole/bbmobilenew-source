@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import MinigameHost from '../MinigameHost'
 import CompetitionResultCheckpoint from '../../../minigames/CompetitionResultCheckpoint'
 import type { GenericMinigameProps } from '../../../minigames/reactComponents'
-import type { GameRegistryEntry } from '../../../minigames/registry'
+import { getGame, type GameRegistryEntry } from '../../../minigames/registry'
 import { store } from '../../../store/store'
 import { createInitialGameState, hydrateGame } from '../../../store/gameSlice'
 import {
@@ -127,6 +127,32 @@ function mount(onDone = vi.fn(), onWatch = (reward: () => void) => reward()) {
 }
 
 describe('competition checkpoint boundaries', () => {
+  it('shows the current Rock, Paper, Scissors rules when resuming a saved pregame briefing', () => {
+    store.dispatch(
+      hydrateChallenge({
+        ...store.getState().challenge,
+        pending: {
+          ...pending,
+          game: {
+            ...getGame('rockPaperScissors')!,
+            description: 'Old qualification briefing',
+            instructions: ['Call the final pair'],
+          },
+        },
+      })
+    )
+    const savedGame = store.getState().challenge.pending?.game
+    expect(savedGame?.key).toBe('rockPaperScissors')
+    render(
+      <Provider store={store}>
+        <MinigameHost game={savedGame!} gameOptions={{ sessionId: pending.id }} onDone={vi.fn()} />
+      </Provider>
+    )
+    expect(screen.getByText(/everyone starts with 100 eyeros and three lives/i)).toBeVisible()
+    expect(screen.getByText(/no-stakes knockout showdown/i)).toBeVisible()
+    expect(screen.queryByText(/call the final pair/i)).toBeNull()
+  })
+
   it('waits for the start checkpoint to finish before mounting gameplay', async () => {
     let finishSave!: (ok: boolean) => void
     mocks.save.mockReturnValueOnce(

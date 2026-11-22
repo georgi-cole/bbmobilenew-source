@@ -18,8 +18,9 @@ const ACTIVE_GAMES = getAllGames()
   .sort((left, right) => left.title.localeCompare(right.title) || left.key.localeCompare(right.key))
 
 async function openLab(page: Page, game: GameRegistryEntry): Promise<void> {
+  const players = Math.max(game.minPlayers ?? 2, Math.min(4, game.maxPlayers ?? 4))
   await page.goto(
-    `./#/minigame-lab?game=${encodeURIComponent(game.key)}&seed=424242&players=4&skipRules=1&skipCountdown=1&freeze=1&showLab=1${game.vipOnly ? '&vipPreview=1' : ''}`
+    `./#/minigame-lab?game=${encodeURIComponent(game.key)}&seed=424242&players=${players}&skipRules=1&skipCountdown=1&freeze=1&showLab=1${game.vipOnly ? '&vipPreview=1' : ''}`
   )
   await closeDebugPanelIfOpen(page)
   await page.addStyleTag({

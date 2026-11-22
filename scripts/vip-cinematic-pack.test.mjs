@@ -33,10 +33,16 @@ test('exports future walking frames intact and leaves shared artwork, audio and 
   await write('public/assets/ceremonies/characters/aria/timing.js', 'must stay in the app')
   await write('public/assets/music/final_three_week.mp3', 'bundled music')
   await write('public/assets/credits/big-eye-cinematic-background.mp4', 'bundled credits')
+  const minigameArtwork = [
+    'assets/ceremonies/minigames/last-light-prop-flame.webp',
+    'assets/ceremonies/minigames/rps.webp',
+  ]
+  for (const asset of minigameArtwork) await write(`public/${asset}`, 'optional minigame art')
+  await write('public/assets/skins/Finn_avatar.webp', 'shared roster art')
   const manifest = await createVipCinematicPackManifest(root)
   assert.deepEqual(
     manifest.files.map((file) => file.path),
-    frames
+    [...frames, ...minigameArtwork]
   )
   await write('src/cinematic/ceremonies/cast.json', '{\n  "characters": []\n}\n')
   assert.deepEqual(await createVipCinematicPackManifest(root), manifest)
@@ -45,7 +51,7 @@ test('exports future walking frames intact and leaves shared artwork, audio and 
   const archive = await readFile(path.join(output, 'vip-cinematics.pack'))
   assert.equal(archive.length, manifest.totalBytes)
   let offset = 0
-  for (const frame of frames) {
+  for (const frame of [...frames, ...minigameArtwork]) {
     const original = await readFile(path.join(root, 'public', frame))
     assert.deepEqual(archive.subarray(offset, offset + original.length), original)
     offset += original.length
@@ -60,6 +66,7 @@ test('exports future walking frames intact and leaves shared artwork, audio and 
     'assets/ceremonies/shared/winner-stage.webp',
     'assets/ceremonies/characters/aria/timing.js',
     'assets/music/final_three_week.mp3',
+    'assets/skins/Finn_avatar.webp',
     'assets/credits/big-eye-cinematic-background.mp4',
   ]) {
     assert.equal(isOptionalVipCinematicAsset(asset), false)

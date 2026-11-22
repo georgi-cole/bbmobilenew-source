@@ -47,6 +47,8 @@ export const MINIGAME_DRIVER_PROFILES: Readonly<Record<string, MinigameDriverPro
   capitalization: { kind: 'keyboard', primaryInput: 'capitalized text entry' },
   minesweeps: { kind: 'board', primaryInput: 'reveal and flag tiles' },
   gatesOfTheEye: { kind: 'choice', primaryInput: 'risk-and-reward door choice' },
+  rockPaperScissors: { kind: 'choice', primaryInput: 'sealed hands and duel stakes' },
+  lastLight: { kind: 'choice', primaryInput: 'protection ballot and dice number selection' },
   dontGoOver: { kind: 'keyboard', primaryInput: 'numeric estimate' },
   blackjackTournament: { kind: 'choice', primaryInput: 'card actions' },
   riskWheel: { kind: 'choice', primaryInput: 'spin and wager choices' },
@@ -670,6 +672,54 @@ async function playGatesOfTheEyeTurn(host: Locator, random: SeededRandom): Promi
     .waitFor({ state: 'visible', timeout: 4_500 })
     .catch(() => undefined)
   return false
+}
+
+async function clickSampleChoice(choices: Locator, random: SeededRandom): Promise<boolean> {
+  const count = await choices.count()
+  return count > 0 && clickWithShortTimeout(choices.nth(random.int(0, count - 1)), 0, true)
+}
+
+async function playRockPaperScissorsTurn(host: Locator, random: SeededRandom): Promise<boolean> {
+  const arena = host.locator('.social-challenge--rps')
+  const proceed = await firstVisibleEnabled(
+    arena.getByRole('button', { name: /^(?:Enter the arena|Skip to results|Continue)$/ })
+  )
+  if (proceed) return clickWithShortTimeout(proceed, 0, true)
+
+  const seal = await firstVisibleEnabled(
+    arena.getByRole('button', { name: 'Seal hand', exact: true })
+  )
+  if (seal) return clickWithShortTimeout(seal, 0, true)
+
+  const choices = arena.getByRole('button', { name: /^(?:Rock|Paper|Scissors)$/ })
+  return clickSampleChoice(choices, random)
+}
+
+async function playLastLightTurn(host: Locator, random: SeededRandom): Promise<boolean> {
+  const chamber = host.locator('.social-challenge--last-light')
+  const skip = await firstVisibleEnabled(
+    chamber.getByRole('button', { name: 'Skip to results', exact: true })
+  )
+  if (skip) return clickWithShortTimeout(skip, 0, true)
+
+  const proceed = await firstVisibleEnabled(
+    chamber.getByRole('button', {
+      name: /^(?:Light the chamber|Begin ballot|Seal protection|Claim number|Continue)$/,
+    })
+  )
+  if (proceed) return clickWithShortTimeout(proceed, 0, true)
+
+  const choices = chamber
+    .locator('button.last-light__wall-entry[data-eligible="true"]')
+    .or(chamber.getByRole('button', { name: /^[1-8]$/ }))
+  return clickSampleChoice(choices, random)
+}
+
+const SOCIAL_CHALLENGE_DRIVERS: Readonly<
+  Partial<Record<string, (host: Locator, random: SeededRandom) => Promise<boolean>>>
+> = {
+  rockPaperScissors: playRockPaperScissorsTurn,
+  lastLight: playLastLightTurn,
 }
 
 async function playBoxpocalypseTurn(host: Locator, random: SeededRandom): Promise<boolean> {
@@ -2244,6 +2294,15 @@ export async function playVisibleMinigame(
     await closeResults.click({ force: true })
     await host.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => undefined)
     return { interacted: true, completed: true, primaryInput: profile.primaryInput }
+  }
+
+  const socialChallenge = SOCIAL_CHALLENGE_DRIVERS[gameKey]
+  if (socialChallenge) {
+    return {
+      interacted: await socialChallenge(host, random),
+      completed: false,
+      primaryInput: profile.primaryInput,
+    }
   }
 
   if (gameKey === 'mysticChamber') {

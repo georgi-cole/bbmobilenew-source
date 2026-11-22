@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import MinigameHost, { type MinigameParticipant } from '../../components/MinigameHost/MinigameHost'
 import { getAll as getAllHouseguests } from '../../data/houseguests'
 import { getAllGames, type GameRegistryEntry } from '../../minigames/registry'
+import { isSocialChallengeGameKey } from '../../minigames/socialChallenges/shared'
 import { setPhase } from '../../store/gameSlice'
 import { store } from '../../store/store'
 import { getRouteFlag, getRouteSearchParams } from '../../utils/routeQuery'
@@ -123,11 +124,17 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
     params.get('context') === 'battleBack' ? ('battleBack' as const) : undefined
   const selectedGame =
     activeGames.find((game) => game.key === selectedGameKey) ?? activeGames[0] ?? null
+  const socialChallenge = selectedGame && isSocialChallengeGameKey(selectedGame.key)
+  const minimumPlayers = (socialChallenge ? selectedGame.minPlayers : undefined) ?? MIN_PLAYERS
+  const maximumPlayers = (socialChallenge ? selectedGame.maxPlayers : undefined) ?? MAX_PLAYERS
+  const previewPlayerCount = clamp(playerCount, minimumPlayers, maximumPlayers)
   const usesPortraitRoster =
-    selectedGame?.key === 'cardClash' || selectedGame?.key === 'houseOfDarkness'
+    !!socialChallenge ||
+    selectedGame?.key === 'cardClash' ||
+    selectedGame?.key === 'houseOfDarkness'
   const participants = useMemo(
-    () => buildParticipants(playerCount, usesPortraitRoster),
-    [playerCount, usesPortraitRoster]
+    () => buildParticipants(previewPlayerCount, usesPortraitRoster),
+    [previewPlayerCount, usesPortraitRoster]
   )
   const validPreviewStage =
     selectedGame?.key === 'cardClash'
@@ -139,7 +146,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
           ? previewStage
           : ''
         : ''
-  const previewKey = `${selectedGame?.key ?? 'unknown'}:${seed}:${playerCount}:${skipRules ? 1 : 0}:${skipCountdown ? 1 : 0}:${premiumPreview ? 1 : 0}:${quickTapVipPreview ? 1 : 0}:${validPreviewStage}:${previewNonce}`
+  const previewKey = `${selectedGame?.key ?? 'unknown'}:${seed}:${previewPlayerCount}:${skipRules ? 1 : 0}:${skipCountdown ? 1 : 0}:${premiumPreview ? 1 : 0}:${quickTapVipPreview ? 1 : 0}:${validPreviewStage}:${previewNonce}`
 
   useEffect(() => {
     if (import.meta.env.DEV && testCompetitionContext === 'loh') {
@@ -168,7 +175,11 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
   const handlePlayerChange = (event: ChangeEvent<HTMLInputElement>) => {
     const nextPlayers = event.currentTarget.valueAsNumber
     setPlayerCount(
-      Number.isFinite(nextPlayers) ? clamp(nextPlayers, MIN_PLAYERS, MAX_PLAYERS) : DEFAULT_PLAYERS
+      clamp(
+        Number.isFinite(nextPlayers) ? nextPlayers : DEFAULT_PLAYERS,
+        minimumPlayers,
+        maximumPlayers
+      )
     )
     clearLastResult()
   }
@@ -290,7 +301,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
           <span className="minigame-lab__badge">
             {activeGames.length} {keyboardGamesOnly ? 'keyboard games' : 'active games'}
           </span>
-          <span className="minigame-lab__badge">{playerCount} players</span>
+          <span className="minigame-lab__badge">{previewPlayerCount} players</span>
           <span className="minigame-lab__badge">
             {premiumPreview ? 'VIP presentation' : 'Standard presentation'}
           </span>
@@ -357,9 +368,9 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
             <span>Players</span>
             <input
               type="number"
-              min={MIN_PLAYERS}
-              max={MAX_PLAYERS}
-              value={playerCount}
+              min={minimumPlayers}
+              max={maximumPlayers}
+              value={previewPlayerCount}
               onChange={handlePlayerChange}
               aria-label="Players"
             />

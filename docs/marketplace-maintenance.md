@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-22: Reviewed The Last Light and Rock, Paper, Scissors in the
+  Minigame Lab and season competition rotation. Both games are available
+  in Standard play. The VIP Cinematics pack supplies their optional
+  artwork, with shared rules and results across presentations.
+
 - 2026-11-19: Reviewed Quick Tap Race and Quick Tap Race 2: Seasons in Standard
   and premium play. The new AI band tuning applies to new attempts. Saved
   attempts preserve their AI tuning, and Premium Challenges and VIP both

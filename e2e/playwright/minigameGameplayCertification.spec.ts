@@ -166,13 +166,17 @@ test.describe('full minigame gameplay certification @full-playthrough', () => {
             game.key === 'trapAuction' ||
             game.key === 'silentSaboteur' ||
             game.key === 'wildcardWestern' ||
-            game.key === 'rescueTheKing'
+            game.key === 'rescueTheKing' ||
+            game.key === 'rockPaperScissors' ||
+            game.key === 'lastLight'
           const installClockBeforeMount =
             game.key === 'famousFigures' ||
             game.key === 'mysticChamber' ||
             game.key === 'finalThreeCircuit' ||
             game.key === 'silentSaboteur' ||
-            game.key === 'rescueTheKing'
+            game.key === 'rescueTheKing' ||
+            game.key === 'rockPaperScissors' ||
+            game.key === 'lastLight'
           if (game.key === 'mysticChamber') await page.emulateMedia({ reducedMotion: 'reduce' })
           if (fastClock && installClockBeforeMount) await installMinigameFastClock(page)
           if (isCastleRescueGame(game.key)) await page.clock.install()

@@ -55,6 +55,20 @@ const HOST_GAMEPLAY_CERTIFICATION = 'e2e/playwright/minigameGameplayCertificatio
  * test requires these keys to match the active registry exactly.
  */
 export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
+  rockPaperScissors: {
+    input: 'hand selection, stake and optional last-life purchase',
+    scoring: 'bracket',
+    tie: 'Survivors rank by Eyeros, lives, wins, then fewer losses. A tie for first triggers an unbet knockout showdown with replays on draws.',
+    logic: 'src/minigames/socialChallenges/rps/rules.test.ts',
+    component: 'src/minigames/socialChallenges/rps/RockPaperScissors.tsx',
+  },
+  lastLight: {
+    input: 'sealed protection vote and a unique dice face in a tied finale',
+    scoring: 'survival',
+    tie: 'Joint leaders at three contestants go to dice. At two contestants or after eight ballots, most flames wins, with dice for tied leaders.',
+    logic: 'src/minigames/socialChallenges/lastLight/lastLightLogic.test.ts',
+    component: 'src/minigames/socialChallenges/lastLight/LastLight.tsx',
+  },
   percentagePanic: {
     input: 'percentage slider, lock estimate, hints, and higher/lower final guesses',
     scoring: 'placement',

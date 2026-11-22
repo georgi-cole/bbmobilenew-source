@@ -1,4 +1,6 @@
 import { competitionAttemptSeed } from './competitionAttemptSeed'
+import { shouldPlayCinematic } from '../../cinematic/ceremonies/runtime.mjs'
+import { selectIsVipActive } from '../../store/vipSlice'
 import { SeasonAiContext } from '../../ai/competition/SeasonAiContext'
 import type { SeasonAiRuntime } from '../../ai/competition/seasonAiDifficulty'
 import type { CompetitionSkillProfile } from '../../ai/competition/types'
@@ -268,6 +270,10 @@ export default function MinigameHost({
   const premiumUpgrade = getPremiumGameUpgrade(game)
   const usePremiumPresentation =
     premiumPresentationOverride ?? (hasPremiumChallengesAccess && premiumUpgrade === 'presentation')
+  const useCinematicMinigamePresentation = useSyncExternalStore(store.subscribe, () => {
+    const state = store.getState()
+    return shouldPlayCinematic(state, selectIsVipActive(state))
+  })
   const quickTapVariantPreviewOverride =
     import.meta.env.DEV && typeof gameOptions.quickTapVariantPreview === 'boolean'
       ? gameOptions.quickTapVariantPreview
@@ -478,7 +484,9 @@ export default function MinigameHost({
         // for these games so an older saved
         // briefing cannot describe a different ruleset.
         const resolved =
-          launchedGame.key === 'silentSaboteur' || launchedGame.key === 'glass_bridge_brutal'
+          launchedGame.key === 'silentSaboteur' ||
+          launchedGame.key === 'glass_bridge_brutal' ||
+          launchedGame.key === 'rockPaperScissors'
             ? (getCanonicalGame(launchedGame.key) ?? launchedGame)
             : override
               ? { ...launchedGame, ...override }
@@ -1408,7 +1416,11 @@ export default function MinigameHost({
         <GenericComp
           seed={seed}
           autoStart={key !== 'HangmanChallenge'}
-          premiumPresentation={usePremiumPresentation}
+          premiumPresentation={
+            key === 'LastLight' || key === 'RockPaperScissors'
+              ? (premiumPresentationOverride ?? useCinematicMinigamePresentation)
+              : usePremiumPresentation
+          }
           vipQuickTap={(key === 'QuickTapRace' || key === 'QuickTapSeasons') && quickTapVipEnabled}
           quickTapAiTuning={quickTapAiTuning}
           quickTapVariantOverride={
@@ -1488,7 +1500,9 @@ export default function MinigameHost({
           launchedGame.reactComponentKey === 'BatteryLow' ||
           launchedGame.reactComponentKey === 'PercentagePanic' ||
           launchedGame.reactComponentKey === 'TrapAuction' ||
-          launchedGame.reactComponentKey === 'FinalThreeCircuit'
+          launchedGame.reactComponentKey === 'FinalThreeCircuit' ||
+          launchedGame.reactComponentKey === 'RockPaperScissors' ||
+          launchedGame.reactComponentKey === 'LastLight'
             ? 'minigame-host--scrollable-game'
             : '',
         ]
