@@ -155,7 +155,15 @@ export default function DepressionShockController() {
     if (presentation !== 'intro' && presentation !== 'day2') return
     const current = loadDepressionShockState(game.gameId)
     if (getDepressionShockPresentation(current, game.week, game.phase) !== presentation) return
+    const major = presentation === 'intro' ? 'depression_shock_start' : 'depression_shock_day_2'
     setRuntime(markDepressionShockPresentationSeen(current, presentation, game.week))
+    // Resumed seasons can already have a card from the legacy reducer.
+    if (
+      game.tvFeed.some(
+        (event) => event.meta?.week === game.week && (event.meta?.major ?? event.major) === major
+      )
+    )
+      return
     dispatch({
       type: 'game/addTvEvent',
       payload: {
@@ -164,14 +172,14 @@ export default function DepressionShockController() {
         source: 'system',
         channels: ['tv', 'mainLog'],
         meta: {
-          major: presentation === 'intro' ? 'depression_shock_start' : 'depression_shock_day_2',
+          major,
           broadcastPriority: 'critical',
           broadcastCampaign: 'depression_shock',
           week: game.week,
         },
       },
     })
-  }, [dispatch, game.gameId, game.phase, game.week, presentation])
+  }, [dispatch, game.gameId, game.phase, game.tvFeed, game.week, presentation])
 
   useEffect(() => {
     const broadcast = PHASE_BROADCASTS.find(

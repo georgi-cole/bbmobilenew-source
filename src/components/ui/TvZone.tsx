@@ -2213,12 +2213,13 @@ export default function TvZone(props: TvZoneProps) {
               />
             )}
 
-            {gameState.twistActive && !gameState.weekendInterlude?.active && (
-              <div className="tv-zone__twist-badge" aria-hidden="true">
-                <span>🌀</span>
-                SHOCK
-              </div>
-            )}
+            {(gameState.twistActive || depressionShockRainyTv) &&
+              !gameState.weekendInterlude?.active && (
+                <div className="tv-zone__twist-badge" aria-hidden="true">
+                  <span>🌀</span>
+                  SHOCK
+                </div>
+              )}
 
             {winnerBroadcast && (
               <TvAnnouncementOverlay

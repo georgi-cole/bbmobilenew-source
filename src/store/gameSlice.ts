@@ -6202,13 +6202,26 @@ const gameSlice = createSlice({
       // example, the ordinary LOH card becoming Democracia). Keep the old
       // card in history, but never leave it eligible in the live queue beside
       // the newly selected card.
+      const retainedDepressionCards = new Map<string, TvEvent>()
       for (const event of state.tvFeed) {
         if (event.meta?.phase !== action.payload.phase || event.meta?.week !== state.week) continue
         const templateId = event.meta?.broadcastTemplateId
         const template =
           typeof templateId === 'string' ? getBroadcastTemplate(templateId) : undefined
+        if (template?.kind !== 'phase_card' || event.meta?.broadcastConsumed === true) continue
+        // The shock lifecycle publishes these independently of the phase
+        // branch. Keep one unread copy if an older save contains both producers.
+        if (template.campaign === 'depression_shock') {
+          const retained = retainedDepressionCards.get(template.id)
+          if (!retained || event.id === state.activeBroadcastEventId) {
+            if (retained?.meta) retained.meta.broadcastConsumed = true
+            retainedDepressionCards.set(template.id, event)
+          } else {
+            event.meta.broadcastConsumed = true
+          }
+          continue
+        }
         if (
-          template?.kind === 'phase_card' &&
           event.meta?.broadcastRuntimeDelivery !== true &&
           template.id !== activeCardTemplate?.id
         ) {
@@ -8887,7 +8900,7 @@ const gameSlice = createSlice({
     },
 
     /** Start (or advance) the two-day Depression Shock at a clear day boundary. */
-    activateDepressionShock(state, action: PayloadAction<{ source: 'random' | 'debug' }>) {
+    activateDepressionShock(state, _action: PayloadAction<{ source: 'random' | 'debug' }>) {
       if (!isDepressionShockEligibleMode(state)) return
       const shock = state.depressionShock ?? createInitialDepressionShockState()
       const isSecondDay = shock.activatedWeek !== null && state.week > shock.activatedWeek
@@ -8901,13 +8914,9 @@ const gameSlice = createSlice({
       state.twistActivatedThisWeek = true
       state.twistActive = true
 
+      // DepressionShockController publishes the opening and color-drain cards
+      // from the persisted lifecycle, including when this reducer starts it.
       if (shock.activeDay === 1) {
-        pushEvent(
-          state,
-          'The weather has been bad for so long that the hubmates have slipped into depression. Watch out — they may not act like themselves. 🌧️',
-          'twist',
-          { major: 'depression_shock_start', source: action.payload.source }
-        )
         pushEvent(
           state,
           'A sudden argument breaks out over nothing at all. The storm has everyone on edge. ⚡',
@@ -8915,15 +8924,6 @@ const gameSlice = createSlice({
           { major: 'depression_shock_fight' }
         )
       } else {
-        pushEvent(
-          state,
-          'The Hub is still very depressed. Colour drains from the rooms as the storm refuses to lift. 🌫️',
-          'twist',
-          { major: 'depression_shock_day_2' }
-        )
-        // DepressionShockController owns the day-two chocolate broadcast.
-        // Keeping a second legacy event here caused the same live card to be
-        // queued twice on its way into social_1.
         pushEvent(
           state,
           'A harmless kitchen comment turns into another unexpected fight. Nobody seems to know why. ⚡',
