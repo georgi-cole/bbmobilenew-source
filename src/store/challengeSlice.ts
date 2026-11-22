@@ -30,6 +30,8 @@ import { pickCompetitionDirectorGame } from '../ai/competition/competitionDirect
 import { applyCompetitionSeasonUpdate, hydrateGame, selectAlivePlayers } from './gameSlice'
 import { hasEffectiveStoreEntitlement } from '../vip/effectiveEntitlements'
 import { simulateQuickTapVipAiRace } from '../minigames/quickTapRace/vip/quickTapVipLogic'
+import { isSocialChallengeGameKey } from '../minigames/socialChallenges/shared'
+import { simulateSocialChallengeScores } from '../minigames/socialChallenges/simulation'
 import {
   CURRENT_QUICK_TAP_AI_TUNING,
   LEGACY_QUICK_TAP_AI_TUNING,
@@ -468,8 +470,20 @@ export const startChallenge =
     const allHistoryGameKeys = (state.challenge?.history ?? []).map((run) => run.gameKey)
     const historyGameKeys = allHistoryGameKeys.slice(0, RECENT_HISTORY_LIMIT)
     // Late-season bias is based on active competitors (jury members no longer play comps).
-    const activeCompetitorCount = selectAlivePlayers(state).length
-    const scheduledPlayerCount = participants.length || activeCompetitorCount
+    const alivePlayers = selectAlivePlayers(state)
+    const activeCompetitorCount = alivePlayers.length
+    const survival = state.game.modeSpecific?.kind === 'survival' ? state.game.modeSpecific : null
+    const resolvedParticipants =
+      state.game.mode === 'survival'
+        ? alivePlayers.slice(0, survival?.startingCastSize ?? 8).map((player) => player.id)
+        : participants
+    const isLohChallenge =
+      opts.prizeType === 'LOH' || (opts.prizeType == null && state.game.phase === 'loh_comp')
+    const outgoing = isLohChallenge ? getMissionOutgoingIds(state.game) : []
+    const eligibleParticipants = resolvedParticipants.filter((id) => !outgoing.includes(id))
+    const finalParticipants =
+      eligibleParticipants.length > 0 ? eligibleParticipants : resolvedParticipants
+    const scheduledPlayerCount = finalParticipants.length || activeCompetitorCount
     const competitionType = opts.prizeType === 'POS' ? 'POS' : 'LOH'
     const managerConfig =
       state.remoteConfig?.config?.gameManager ?? state.settings?.gameUX?.gameManager
@@ -784,6 +798,16 @@ export const startChallenge =
     if (state.game.mode === 'survival' && gameEntry.key === 'rescueTheKing') {
       gameEntry = pickSurvivorGame(opts.category, [...(opts.excludeKeys ?? []), 'rescueTheKing'])
     }
+    if (
+      isSocialChallengeGameKey(gameEntry.key) &&
+      !supportsPlayerCount(gameEntry, finalParticipants.length)
+    ) {
+      const excluded = [...(opts.excludeKeys ?? []), gameEntry.key]
+      gameEntry =
+        state.game.mode === 'survival'
+          ? pickSurvivorGame(opts.category, excluded)
+          : pickFromCompetitionMap(opts.category, excluded)
+    }
     // Derive a per-challenge seed from the base seed + game key hash.
     const challengeSeed = deriveSeed(gameSeed, gameEntry.key)
 
@@ -798,25 +822,6 @@ export const startChallenge =
 
     const latestState = getState()
     const gameState = latestState.game
-    const resolvedParticipants =
-      gameState.mode === 'survival'
-        ? selectAlivePlayers(latestState)
-            .slice(
-              0,
-              gameState.modeSpecific?.kind === 'survival'
-                ? gameState.modeSpecific.startingCastSize
-                : 8
-            )
-            .map((player) => player.id)
-        : participants
-
-    const isLohChallenge =
-      opts.prizeType === 'LOH' || (opts.prizeType == null && gameState.phase === 'loh_comp')
-    const eligibleParticipants = isLohChallenge
-      ? resolvedParticipants.filter((id) => !getMissionOutgoingIds(gameState).includes(id))
-      : resolvedParticipants
-    const finalParticipants =
-      eligibleParticipants.length > 0 ? eligibleParticipants : resolvedParticipants
     const aiRuntime = captureSeasonAiRuntime(
       gameState,
       gameState.players.filter((p) => finalParticipants.includes(p.id))
@@ -842,6 +847,12 @@ export const startChallenge =
     const humanId = gameState?.players?.find((p) => p.isUser)?.id
     const aiScores: Record<string, number> = {}
     const minigameModel = getMinigameAiModelForGame(gameEntry)
+    const socialScores = simulateSocialChallengeScores(
+      gameEntry.key,
+      finalParticipants,
+      perChallengeSeed,
+      { relationships: latestState.social?.relationships, alliances: gameState.strategicAlliances }
+    )
     const timeLimitMs = gameEntry.timeLimitMs > 0 ? gameEntry.timeLimitMs : undefined
     const identityMode =
       gameState.mode === 'survival'
@@ -864,7 +875,9 @@ export const startChallenge =
           forcedWinner: !vipQuickTap && forcedWinnerId === pid,
         })
         competitionIntents[pid] = intent
-        if (vipQuickTap) {
+        if (socialScores?.[pid] !== undefined) {
+          aiScores[pid] = socialScores[pid]
+        } else if (vipQuickTap) {
           aiScores[pid] = simulateQuickTapVipAiRace({
             seed: perChallengeSeed,
             playerId: pid,

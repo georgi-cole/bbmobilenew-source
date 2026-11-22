@@ -58,6 +58,8 @@ export const MINIGAME_COMPETITION_MAP_STATUS = {
     'blackjackTournament',
     'glass_bridge_brutal',
     'wildcardWestern',
+    'rockPaperScissors',
+    'lastLight',
   ],
   finaleOnly: ['finalThreeCircuit'],
   forCalibration: [
@@ -95,6 +97,8 @@ export const CLASSIC_CAMPAIGN_GAME_MIN_DAY: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
 > = {
   crystal_path_shattered: 8,
+  rockPaperScissors: 2,
+  lastLight: 2,
 }
 
 /** Narrative prerequisites that cannot be represented by day alone. */
@@ -110,6 +114,8 @@ export const CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS: Partial<
   gatesOfTheEye: 16,
   percentagePanic: 16,
   mysticChamber: 5,
+  rockPaperScissors: 8,
+  lastLight: 8,
 }
 
 export const CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS: Partial<
@@ -120,6 +126,8 @@ export const CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS: Partial<
   percentagePanic: 2,
   trapAuction: 8,
   mysticChamber: 2,
+  rockPaperScissors: 5,
+  lastLight: 5,
 }
 
 export function getApprovedCompetitionGameKeys(
@@ -340,6 +348,8 @@ const ADDITIONAL_COMPETITION_MAP_ASSIGNMENTS: CompetitionMapAssignment[] = [
   { key: 'blackjackTournament', prize: 'both', minDay: 2, maxDay: 12 },
   { key: 'glass_bridge_brutal', prize: 'LOH', minDay: 8, maxDay: 12 },
   { key: 'wildcardWestern', prize: 'POS', minDay: 2, maxDay: 12 },
+  { key: 'rockPaperScissors', prize: 'both', minDay: 2, maxDay: 12 },
+  { key: 'lastLight', prize: 'both', minDay: 2, maxDay: 12 },
 ]
 
 function hasCompatibleRoster(band: BracketBand, key: string): boolean {

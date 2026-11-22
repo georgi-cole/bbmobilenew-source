@@ -457,6 +457,20 @@ export const CHALLENGE_GROUP_1_GAME_KEYS = [
 
 export const DEFAULT_MINIGAME_MUSIC_PROFILES: readonly MinigameMusicProfile[] = [
   {
+    id: 'minigame.rock-paper-scissors',
+    modes: ['any'],
+    gameKeys: ['rockPaperScissors'],
+    stages: { playing: musicTrack('competition') },
+    defaultSelection: SILENT_MUSIC,
+  },
+  {
+    id: 'minigame.last-light',
+    modes: ['any'],
+    gameKeys: ['lastLight'],
+    stages: { playing: musicTrack('nominations_horror') },
+    defaultSelection: SILENT_MUSIC,
+  },
+  {
     id: 'minigame.challenge-group-1',
     modes: ['any'],
     gameKeys: [...CHALLENGE_GROUP_1_GAME_KEYS],

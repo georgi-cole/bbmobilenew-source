@@ -1521,6 +1521,76 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     minPlayers: 2,
   },
 
+  rockPaperScissors: {
+    key: 'rockPaperScissors',
+    title: 'Rock, Paper, Scissors',
+    // i18n-ignore: English minigame rules fallback.
+    description: 'Survive the duels and finish with the most Eyeros to win the arena.',
+    instructions: [
+      // i18n-ignore: English minigame rules fallback.
+      'Everyone starts with 100 Eyeros and three lives. Each pair meets once while both contestants are still in.',
+      // i18n-ignore: English minigame rules fallback.
+      'Choose your hand and seal a stake of at least 5 Eyeros. If you have less than 5, stake what you have. With 0 Eyeros, you can still play.',
+      // i18n-ignore: English minigame rules fallback.
+      'Win to double your own stake. A draw returns both stakes. A loss costs your stake and one life.',
+      // i18n-ignore: English minigame rules fallback.
+      'On your last life, you can buy one life for 50 Eyeros before sealing. Lose your final life and the winner takes your remaining Eyeros.',
+      // i18n-ignore: English minigame rules fallback.
+      'The last survivor wins immediately. Otherwise, survivors rank by Eyeros, then lives, wins, and fewer losses.',
+      // i18n-ignore: English minigame rules fallback.
+      'Players still tied for first enter a no-stakes knockout showdown. Drawn showdown hands are replayed.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Eyeros',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'RockPaperScissors',
+    legacy: false,
+    weight: 1,
+    category: 'logic',
+    retired: false,
+    minPlayers: 5,
+    maxPlayers: 8,
+  },
+  lastLight: {
+    key: 'lastLight',
+    title: 'The Last Light',
+    // i18n-ignore: English minigame rules fallback.
+    description: 'Give your protection to another contestant and keep your own flames alive.',
+    instructions: [
+      // i18n-ignore: English minigame rules fallback.
+      'Start with three flames. Each ballot, secretly protect one other active contestant.',
+      // i18n-ignore: English minigame rules fallback.
+      'You cannot protect the same contestant two ballots in a row.',
+      // i18n-ignore: English minigame rules fallback.
+      'Before a ballot, you can give one of your flames to someone who has one left, provided you have at least two.',
+      // i18n-ignore: English minigame rules fallback.
+      'Each contestant can receive one flame per ballot. If several offers arrive, one is drawn and the other donors keep their flames.',
+      // i18n-ignore: English minigame rules fallback.
+      'Receiving at least one vote protects all your flames. Receiving none costs one flame. At zero, you are out.',
+      // i18n-ignore: English minigame rules fallback.
+      'With three left, tied leaders go to dice. With two left or after eight ballots, most flames wins, with dice for a tie.',
+      // i18n-ignore: English minigame rules fallback.
+      'In a dice finale, claim a unique face. The first roll to land on a claimed face names the winner.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'endurance',
+    metricLabel: 'Flames',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'LastLight',
+    legacy: false,
+    weight: 1,
+    category: 'logic',
+    retired: false,
+    minPlayers: 5,
+    maxPlayers: 8,
+  },
   gatesOfTheEye: {
     key: 'gatesOfTheEye',
     title: 'Bigg Gates',

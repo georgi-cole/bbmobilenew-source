@@ -147,6 +147,8 @@ const reactComponents: Record<string, LazyGenericMinigame> = {
   ),
   DownMemoryLane: lazyMinigame(() => import('../components/DownMemoryLane/DownMemoryLane')),
   GatesOfTheEye: lazyMinigame(() => import('../components/GatesOfTheEye/GatesOfTheEye')),
+  RockPaperScissors: lazyMinigame(() => import('./socialChallenges/rps/RockPaperScissors')),
+  LastLight: lazyMinigame(() => import('./socialChallenges/lastLight/LastLight')),
 }
 
 export default reactComponents

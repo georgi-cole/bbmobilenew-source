@@ -3,7 +3,7 @@
   "packId": "vip-cinematics",
   "rendererVersion": 1,
   "catalogSha256": "3278792372d33bad70c61b73fd5feffd21222dba601c5c4f7356581fb097e365",
-  "totalBytes": 37523356,
+  "totalBytes": 37721364,
   "files": [
     {
       "path": "assets/ceremonies/characters/ali/ceremony-decision-back.webp",
@@ -1926,6 +1926,46 @@
       "sha256": "2bd070a9f5d6fa978bda0fd010515b02811abb6f952ca52f9000e0a506a8608c"
     },
     {
+      "path": "assets/ceremonies/minigames/last-light-altar.webp",
+      "bytes": 36166,
+      "sha256": "3e639922a958d230f525bffb53725e3f407a40dccb52b719113116845bb594a0"
+    },
+    {
+      "path": "assets/ceremonies/minigames/last-light-candles.webp",
+      "bytes": 29208,
+      "sha256": "b6b9e5e965d5ac1e76c910b74308196a64b547801bd8d1717b3a4167e952ff07"
+    },
+    {
+      "path": "assets/ceremonies/minigames/last-light-prop-candle.webp",
+      "bytes": 10042,
+      "sha256": "5eab4c8aa27ba217984fb4762aabb496a5ecc510cc46a961e882241b5c5c24af"
+    },
+    {
+      "path": "assets/ceremonies/minigames/last-light-prop-flame.webp",
+      "bytes": 3606,
+      "sha256": "0c954735b952a6a770ce8233e856505cff2eac9fbe1aaa0c0cc4e75f36ca57bc"
+    },
+    {
+      "path": "assets/ceremonies/minigames/last-light-prop-protection.webp",
+      "bytes": 17248,
+      "sha256": "ee0ee15f1835f12de3c8e1425068b144a85ef72d9c9781e3910516a61590538a"
+    },
+    {
+      "path": "assets/ceremonies/minigames/last-light-reading.webp",
+      "bytes": 29496,
+      "sha256": "9367a973295fc12867481ddb3b917848be8402cbc68923994c6400d5239c593b"
+    },
+    {
+      "path": "assets/ceremonies/minigames/last-light.webp",
+      "bytes": 34462,
+      "sha256": "df790b8523e80ce05cb199687ca3416bb95570b16d80417fa705301f26d34340"
+    },
+    {
+      "path": "assets/ceremonies/minigames/rps.webp",
+      "bytes": 37780,
+      "sha256": "5c13e01b23c7243a24c455d4e3f2e2dbc68dbb62264dd18003b80b4546eecd9e"
+    },
+    {
       "path": "assets/ceremonies/shared/atmosphere.webp",
       "bytes": 25952,
       "sha256": "83debd9b9b0cc7de29f129d4cd3b8fd1e67cdf410ff0861c8d315cc89513dd09"
@@ -2376,5 +2416,5 @@
       "sha256": "8e06cef243f5c1bfe85f9e1f0f6bc6cf9b05c412a607bd52589eeb9e0f88ea77"
     }
   ],
-  "revision": "ec3da82dc4af6e90116adb1c3859c9dee5fb174f662f15e85f4b30f4eba15d86"
+  "revision": "1bc4b07176b707201262522e1b2e1aed67fdbff29e0611a1eedcde82e67c4ff2"
 }

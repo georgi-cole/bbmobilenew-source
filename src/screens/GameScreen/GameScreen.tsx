@@ -2284,7 +2284,12 @@ export default function GameScreen() {
                 id,
                 name: player?.name ?? id,
                 isHuman: !!player?.isUser,
-                avatar: player?.avatar,
+                avatar:
+                  pendingChallenge.game.key === 'lastLight' &&
+                  player &&
+                  !getProfilePhotoAvatarId(player.avatar)
+                    ? resolveAvatar(player)
+                    : player?.avatar,
                 competitionProfile: pendingChallenge.aiRuntime
                   ? runtimeCompetitionProfile(
                       pendingChallenge.aiRuntime,

@@ -16,6 +16,7 @@ import { MemoryRouter } from 'react-router'
 import { configureStore } from '@reduxjs/toolkit'
 import gameReducer, { resetGame, setPhase } from '../../src/store/gameSlice'
 import challengeReducer, {
+  hydrateChallenge,
   startChallenge,
   recordRun,
   setPendingChallenge,
@@ -32,6 +33,7 @@ import {
   getClassicCampaignPoolForContext,
 } from '../../src/ai/competition/bracketTemplate'
 import { getPoolByFilter, supportsPlayerCount } from '../../src/minigames/registry'
+import { getCompetitionDirectorCandidates } from '../../src/ai/competition/competitionDirector'
 import { createSurvivorRun } from '../../src/modes/survivorRun'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -559,6 +561,74 @@ describe('startChallenge – compSelection modes', () => {
     expect(typeof pending?.game.key).toBe('string')
   })
 
+  it.each(['classic', 'cupidArrow', 'voxPopuli'] as const)(
+    'schedules and resumes the social competitions in a %s finite season',
+    (expansion) => {
+      const initialGame = gameReducer(undefined, { type: '@@INIT' })
+      const players = initialGame.players.slice(0, 8)
+      expect(players).toHaveLength(8)
+      for (const [gameKey, prizeType, phase] of [
+        ['rockPaperScissors', 'LOH', 'loh_comp'],
+        ['lastLight', 'POS', 'pos_comp'],
+      ] as const) {
+        const store = makeStoreWithGame({
+          week: 8,
+          phase,
+          players,
+          expansionMode: expansion === 'classic' ? null : expansion,
+          ...(expansion === 'cupidArrow' && initialGame.cupidArrow
+            ? { cupidArrow: { ...initialGame.cupidArrow, status: 'active' as const } }
+            : {}),
+          ...(expansion === 'voxPopuli' && initialGame.voxPopuli
+            ? { voxPopuli: { ...initialGame.voxPopuli, status: 'active' as const } }
+            : {}),
+        })
+        const candidates = getCompetitionDirectorCandidates({
+          day: 8,
+          playerCount: players.length,
+          compType: prizeType,
+          playedGameKeys: [],
+        })
+        expect(candidates.map(({ game }) => game.key)).toContain(gameKey)
+        for (const { game } of candidates) {
+          if (game.key === gameKey) continue
+          store.dispatch(
+            recordRun({
+              id: `prior-${game.key}`,
+              gameKey: game.key,
+              seed: 1,
+              participants: [],
+              rawScores: {},
+              canonicalScores: {},
+              winnerId: players[0].id,
+              timestamp: 1,
+              authoritative: false,
+            })
+          )
+        }
+
+        const playerIds = players.map((player) => player.id)
+        dispatchThunk(store, startChallenge(42, playerIds, { prizeType }))
+        const save = store.getState().challenge
+        expect(save.pending).toMatchObject({
+          game: { key: gameKey, implementation: 'react', authoritative: true },
+          participants: playerIds,
+          prizeType,
+          phase: 'rules',
+          attempt: { number: 0, status: 'ready' },
+        })
+
+        store.dispatch(hydrateChallenge(save))
+        expect(store.getState().challenge.pending).toMatchObject({
+          id: save.pending?.id,
+          game: { key: gameKey, reactComponentKey: save.pending?.game.reactComponentKey },
+          participants: playerIds,
+          attempt: { number: 0, status: 'ready' },
+        })
+      }
+    }
+  )
+
   it('Surveyeval keeps the broad roster-safe rotation, independently of Classic', () => {
     const store = makeSurvivorStore()
     const playerCount = store
@@ -594,6 +664,8 @@ describe('startChallenge – compSelection modes', () => {
 
     expect([...selectedKeys].some((key) => survivorOnlyKeys.includes(key))).toBe(true)
     expect(selectedKeys.size).toBe(availableKeys.length)
+    expect(selectedKeys.has('rockPaperScissors')).toBe(true)
+    expect(selectedKeys.has('lastLight')).toBe(true)
     expect(selectedKeys.has('rescueTheKing')).toBe(false)
   })
 
