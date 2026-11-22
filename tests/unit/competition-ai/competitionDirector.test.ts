@@ -5,6 +5,10 @@ import {
   pickCompetitionDirectorGame,
   type DirectorContext,
 } from '../../../src/ai/competition/competitionDirector'
+import {
+  CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS,
+  CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
+} from '../../../src/ai/competition/bracketTemplate'
 import { supportsPlayerCount } from '../../../src/minigames/registry'
 
 function context(
@@ -48,8 +52,7 @@ describe('Competition Director V1', () => {
         else expect(available).not.toContain('capitalization')
         expect(available).not.toContain('finalThreeCircuit')
         expect(available).not.toContain('downMemoryLane')
-        expect(available).not.toContain('gatesOfTheEye')
-        expect(available).not.toContain('boxedOut')
+        expect(available).not.toContain('estimationGame')
       }
     }
   })
@@ -73,21 +76,28 @@ describe('Competition Director V1', () => {
   })
 
   it('holds calibration games out of every competition director draw', () => {
-    const calibrationKeys = [
-      'boxedOut',
-      'gatesOfTheEye',
-      'majorityRules',
-      'percentagePanic',
-      'trapAuction',
-      'batteryLow',
-      'blackjackTournament',
-      'wildcardWestern',
-    ]
     for (const size of [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) {
       for (const type of ['LOH', 'POS'] as const) {
-        expect(keys(context(size, type)).filter((key) => calibrationKeys.includes(key))).toEqual([])
+        expect(
+          keys(context(size, type)).filter((key) =>
+            CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS.includes(
+              key as (typeof CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)[number]
+            )
+          )
+        ).toEqual([])
       }
     }
+  })
+
+  it('offers every approved map game when its roster limits allow it', () => {
+    const candidates = new Set(
+      [16, 8, 5].flatMap((size) =>
+        (['LOH', 'POS'] as const).flatMap((type) => keys(context(size, type)))
+      )
+    )
+    expect(
+      [...CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS].filter((key) => !candidates.has(key)).sort()
+    ).toEqual([])
   })
   it('keeps Crystal Path: Infinity independent of the calibration-only original', () => {
     const day10 = keys(context(9, 'LOH', 10))
