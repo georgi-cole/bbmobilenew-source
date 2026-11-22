@@ -216,7 +216,12 @@ describe('competition checkpoint boundaries', () => {
     )
     expect(host.onDone).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /^Continue/ }))
-    await waitFor(() => expect(host.onDone).toHaveBeenCalledWith(222, false))
+    await waitFor(() =>
+      expect(host.onDone).toHaveBeenCalledWith(222, false, {
+        rawValue: 222,
+        rawResults: { user: 222, lia: 50 },
+      })
+    )
   })
 
   it('prevents leaving over a finished result before Continue', async () => {

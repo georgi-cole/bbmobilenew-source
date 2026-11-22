@@ -34,9 +34,7 @@ export interface ClassicCampaignContext {
   playedGameKeys?: readonly string[]
 }
 
-const SOCIAL_COMPETITION_KEYS = ['rockPaperScissors', 'lastLight'] as const
-
-/** Status is limited to the season competition map; all entries remain in the registry. */
+/** Daily map status and finale-only exceptions; all entries remain in the registry. */
 export const MINIGAME_COMPETITION_MAP_STATUS = {
   inCompetitionMap: [
     'quickTap',
@@ -49,16 +47,26 @@ export const MINIGAME_COMPETITION_MAP_STATUS = {
     'crystal_path_shattered',
     'capitalization',
     'cardClash',
-    ...SOCIAL_COMPETITION_KEYS,
+    'boxedOut',
+    'gatesOfTheEye',
+    'chainOfGreed',
+    'majorityRules',
+    'percentagePanic',
+    'trapAuction',
+    'mysticChamber',
+    'batteryLow',
+    'blackjackTournament',
+    'glass_bridge_brutal',
+    'wildcardWestern',
+    'rockPaperScissors',
+    'lastLight',
   ],
+  finaleOnly: ['finalThreeCircuit'],
   forCalibration: [
     'memoryMatch',
-    'boxedOut',
     'estimationGame',
     'famousFigures',
     'silentSaboteur',
-    'percentagePanic',
-    'majorityRules',
     'pressurePlank',
     'logicLocks',
     'hangman',
@@ -66,26 +74,20 @@ export const MINIGAME_COMPETITION_MAP_STATUS = {
     'threeDigitsQuiz',
     'minesweeps',
     'dontGoOver',
-    'blackjackTournament',
-    'wildcardWestern',
     'castleRescue',
     'castleRescueRemastered',
     'castleRescue2',
     'castleRescue2Remastered',
-    'glass_bridge_brutal',
-    'trapAuction',
-    'chainOfGreed',
-    'batteryLow',
     'houseOfDarkness',
-    'mysticChamber',
-    'gatesOfTheEye',
-    'finalThreeCircuit',
     'downMemoryLane',
   ],
 } as const
 
 /** Explicitly approved games for the automatic season competition map. */
 export const CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS = MINIGAME_COMPETITION_MAP_STATUS.inCompetitionMap
+
+/** Finale games with dedicated phase pools, kept out of ordinary daily draws. */
+export const CLASSIC_CAMPAIGN_FINALE_GAME_KEYS = MINIGAME_COMPETITION_MAP_STATUS.finaleOnly
 
 /** Active games held out of the automatic map while their AI balance is calibrated. */
 export const CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS = MINIGAME_COMPETITION_MAP_STATUS.forCalibration
@@ -107,11 +109,26 @@ export const CLASSIC_CAMPAIGN_GAME_REQUIRED_PREVIOUS: Partial<
 /** Registry limits for games whose campaign band spans a wider roster range. */
 export const CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
-> = { rockPaperScissors: 8, lastLight: 8 }
+> = {
+  boxedOut: 16,
+  gatesOfTheEye: 16,
+  percentagePanic: 16,
+  mysticChamber: 5,
+  rockPaperScissors: 8,
+  lastLight: 8,
+}
 
 export const CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
-> = { rockPaperScissors: 5, lastLight: 5 }
+> = {
+  boxedOut: 4,
+  gatesOfTheEye: 2,
+  percentagePanic: 2,
+  trapAuction: 8,
+  mysticChamber: 2,
+  rockPaperScissors: 5,
+  lastLight: 5,
+}
 
 export function getApprovedCompetitionGameKeys(
   template: BracketTemplate = DEFAULT_BRACKET_TEMPLATE
@@ -125,7 +142,7 @@ export function getApprovedCompetitionGameKeys(
  * - Each regular season day has its own pool, targeting the expected house
  *   count with a one-player tolerance for twists and double evictions.
  * - Only games marked inCompetitionMap participate in automatic draws.
- * - Final 3 phases draw from the same approved set and support two or three players.
+ * - Final 3 Part 1/2 use the dedicated Circuit qualifier; Part 3 uses the retained map set.
  */
 const BASE_BRACKET_TEMPLATE: BracketTemplate = [
   {
@@ -237,18 +254,34 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     pos: ['quickTapSeasons', 'riskWheel', 'quickTap', 'colorMatch'],
   },
   {
-    label: 'Final 3 - Part 1 competition map',
+    label: 'Final 3 - Part 1 Circuit qualifier',
     minPlayers: 2,
     maxPlayers: 3,
-    phases: ['final3_comp1', 'final3_comp1_minigame'],
+    phases: ['final3_comp1'],
+    loh: ['finalThreeCircuit'],
+    pos: [],
+  },
+  {
+    label: 'Final 3 - Part 2 Circuit qualifier',
+    minPlayers: 2,
+    maxPlayers: 3,
+    phases: ['final3_comp2'],
+    loh: ['finalThreeCircuit'],
+    pos: [],
+  },
+  {
+    label: 'Final 3 - Part 1 challenge minigame',
+    minPlayers: 2,
+    maxPlayers: 3,
+    phases: ['final3_comp1_minigame'],
     loh: ['quickTap', 'timingBar', 'cardClash'],
     pos: [],
   },
   {
-    label: 'Final 3 - Part 2 competition map',
+    label: 'Final 3 - Part 2 challenge minigame',
     minPlayers: 2,
     maxPlayers: 3,
-    phases: ['final3_comp2', 'final3_comp2_minigame'],
+    phases: ['final3_comp2_minigame'],
     loh: ['timingBar', 'holdWall', 'cardClash'],
     pos: [],
   },
@@ -276,25 +309,83 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
       'crystal_path_shattered',
       'capitalization',
       'cardClash',
+      'boxedOut',
+      'gatesOfTheEye',
+      'chainOfGreed',
+      'majorityRules',
+      'percentagePanic',
+      'trapAuction',
+      'mysticChamber',
+      'batteryLow',
+      'blackjackTournament',
+      'glass_bridge_brutal',
+      'wildcardWestern',
+      'finalThreeCircuit',
     ],
     pos: [],
   },
 ]
 
+type CompetitionMapPrize = 'LOH' | 'POS' | 'both'
+
+interface CompetitionMapAssignment {
+  key: (typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number]
+  prize: CompetitionMapPrize
+  minDay: number
+  maxDay: number
+}
+
+/** Additional approved games, assigned where their supported campaign roster exists. */
+const ADDITIONAL_COMPETITION_MAP_ASSIGNMENTS: CompetitionMapAssignment[] = [
+  { key: 'boxedOut', prize: 'both', minDay: 2, maxDay: 12 },
+  { key: 'gatesOfTheEye', prize: 'both', minDay: 2, maxDay: 12 },
+  { key: 'chainOfGreed', prize: 'LOH', minDay: 2, maxDay: 12 },
+  { key: 'majorityRules', prize: 'POS', minDay: 2, maxDay: 12 },
+  { key: 'percentagePanic', prize: 'POS', minDay: 2, maxDay: 12 },
+  { key: 'trapAuction', prize: 'LOH', minDay: 2, maxDay: 9 },
+  { key: 'mysticChamber', prize: 'LOH', minDay: 10, maxDay: 12 },
+  { key: 'batteryLow', prize: 'both', minDay: 2, maxDay: 12 },
+  { key: 'blackjackTournament', prize: 'both', minDay: 2, maxDay: 12 },
+  { key: 'glass_bridge_brutal', prize: 'LOH', minDay: 8, maxDay: 12 },
+  { key: 'wildcardWestern', prize: 'POS', minDay: 2, maxDay: 12 },
+  { key: 'rockPaperScissors', prize: 'both', minDay: 2, maxDay: 12 },
+  { key: 'lastLight', prize: 'both', minDay: 2, maxDay: 12 },
+]
+
+function hasCompatibleRoster(band: BracketBand, key: string): boolean {
+  const minPlayers =
+    CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS[
+      key as (typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number]
+    ] ?? 1
+  const maxPlayers =
+    CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS[
+      key as (typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number]
+    ] ?? Number.POSITIVE_INFINITY
+  return band.maxPlayers >= minPlayers && band.minPlayers <= maxPlayers
+}
+
 export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = BASE_BRACKET_TEMPLATE.map((band) => {
-  if (
-    band.phases ||
-    !band.minDay ||
-    band.minDay === 1 ||
-    band.minPlayers > 8 ||
-    band.maxPlayers < 5
-  ) {
-    return band
-  }
+  if (band.minDay === undefined || band.maxDay === undefined) return band
+
+  const assignments = ADDITIONAL_COMPETITION_MAP_ASSIGNMENTS.filter(
+    (assignment) =>
+      band.minDay! >= assignment.minDay &&
+      band.maxDay! <= assignment.maxDay &&
+      hasCompatibleRoster(band, assignment.key)
+  )
+  if (assignments.length === 0) return band
+
+  const loh = assignments
+    .filter((assignment) => assignment.prize === 'LOH' || assignment.prize === 'both')
+    .map((assignment) => assignment.key)
+  const pos = assignments
+    .filter((assignment) => assignment.prize === 'POS' || assignment.prize === 'both')
+    .map((assignment) => assignment.key)
+
   return {
     ...band,
-    loh: [...band.loh, ...SOCIAL_COMPETITION_KEYS],
-    pos: [...band.pos, ...SOCIAL_COMPETITION_KEYS],
+    loh: [...new Set([...band.loh, ...loh])],
+    pos: [...new Set([...band.pos, ...pos])],
   }
 })
 
