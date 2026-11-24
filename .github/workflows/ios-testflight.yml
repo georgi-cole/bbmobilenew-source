@@ -377,13 +377,22 @@ jobs:
             > "$RUNNER_TEMP/android-signature-verification.txt"
           cat "$RUNNER_TEMP/android-signature-verification.txt"
           grep -q 'jar verified.' "$RUNNER_TEMP/android-signature-verification.txt"
+          test -s android/app/build/outputs/mapping/release/mapping.txt
+          unzip -Z1 android/app/build/outputs/bundle/release/app-release.aab \
+            > "$RUNNER_TEMP/android-bundle-entries.txt"
+          grep -qx 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map' \
+            "$RUNNER_TEMP/android-bundle-entries.txt"
+          grep -q '^BUNDLE-METADATA/com.android.tools.build.debugsymbols/' \
+            "$RUNNER_TEMP/android-bundle-entries.txt"
 
-      - name: Save the Google Play upload bundle
+      - name: Save the Google Play bundle and diagnostics files
         id: android_bundle
         uses: actions/upload-artifact@v4
         with:
           name: google-play-signed-${{ github.run_id }}-${{ github.run_attempt }}
-          path: android/app/build/outputs/bundle/release/app-release.aab
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: error
           retention-days: 14
 
@@ -419,6 +428,7 @@ jobs:
             echo "## Signed Google Play bundle"
             echo "- Source commit: $GITHUB_SHA"
             echo "- Android version code: $ANDROID_VERSION_CODE"
+            echo "- R8 mapping and full native debug symbols are included."
             if [ "${{ steps.play_upload.outcome }}" = "success" ]; then
               echo "- The exact version was verified on Google Play Internal Testing."
             elif [ "${{ steps.play_connection.outputs.configured }}" != "true" ]; then

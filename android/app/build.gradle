@@ -61,7 +61,10 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
+            ndk {
+                debugSymbolLevel 'FULL'
+            }
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             if (releaseSigningConfigured) {
                 signingConfig signingConfigs.release
