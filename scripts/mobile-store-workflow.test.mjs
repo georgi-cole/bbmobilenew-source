@@ -129,6 +129,10 @@ test('Android artifacts contain the signed AAB and diagnostics without exporting
     artifacts[0].with.path,
     /android\/app\/build\/outputs\/mapping\/release\/mapping\.txt/
   )
+  assert.match(
+    artifacts[0].with.path,
+    /android\/app\/build\/outputs\/native-debug-symbols\/release\/native-debug-symbols\.zip/
+  )
   assert.equal(artifacts[0].with['if-no-files-found'], 'error')
   assert.match(gradle, /minifyEnabled true/)
   assert.match(gradle, /debugSymbolLevel 'FULL'/)
@@ -136,9 +140,10 @@ test('Android artifacts contain the signed AAB and diagnostics without exporting
     scripts(workflow.jobs.android),
     /BUNDLE-METADATA\/com\.android\.tools\.build\.obfuscation\/proguard\.map/
   )
+  assert.match(scripts(workflow.jobs.android), /native_symbols_embedded=true/)
   assert.match(
     scripts(workflow.jobs.android),
-    /BUNDLE-METADATA\/com\.android\.tools\.build\.debugsymbols/
+    /Native debug symbols are not embedded; check the build warning for pre-stripped native libraries\./
   )
   assert.ok(scripts(workflow.jobs.android).includes('ANDROID_VERSION_CODE=$(date +%s)'))
   assert.ok(gradle.includes("System.getenv('ANDROID_VERSION_CODE')"))

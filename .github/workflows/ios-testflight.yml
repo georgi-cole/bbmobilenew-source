@@ -372,6 +372,7 @@ jobs:
           ./gradlew bundleRelease --no-daemon
 
       - name: Verify the signed bundle
+        id: verify_bundle
         run: |
           jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab \
             > "$RUNNER_TEMP/android-signature-verification.txt"
@@ -382,8 +383,13 @@ jobs:
             > "$RUNNER_TEMP/android-bundle-entries.txt"
           grep -qx 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map' \
             "$RUNNER_TEMP/android-bundle-entries.txt"
-          grep -q '^BUNDLE-METADATA/com.android.tools.build.debugsymbols/' \
-            "$RUNNER_TEMP/android-bundle-entries.txt"
+          if grep -q '^BUNDLE-METADATA/com.android.tools.build.debugsymbols/' \
+            "$RUNNER_TEMP/android-bundle-entries.txt"; then
+            echo "native_symbols_embedded=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "native_symbols_embedded=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::The AAB has no embedded native debug symbols. Check whether a prebuilt native library was already stripped before Gradle received it."
+          fi
 
       - name: Save the Google Play bundle and diagnostics files
         id: android_bundle
@@ -393,6 +399,7 @@ jobs:
           path: |
             android/app/build/outputs/bundle/release/app-release.aab
             android/app/build/outputs/mapping/release/mapping.txt
+            android/app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -428,7 +435,12 @@ jobs:
             echo "## Signed Google Play bundle"
             echo "- Source commit: $GITHUB_SHA"
             echo "- Android version code: $ANDROID_VERSION_CODE"
-            echo "- R8 mapping and full native debug symbols are included."
+            echo "- R8 mapping is embedded in the signed Android App Bundle."
+            if [ "${{ steps.verify_bundle.outputs.native_symbols_embedded }}" = "true" ]; then
+              echo "- Native debug symbols are embedded in the signed Android App Bundle."
+            else
+              echo "- Native debug symbols are not embedded; check the build warning for pre-stripped native libraries."
+            fi
             if [ "${{ steps.play_upload.outcome }}" = "success" ]; then
               echo "- The exact version was verified on Google Play Internal Testing."
             elif [ "${{ steps.play_connection.outputs.configured }}" != "true" ]; then
