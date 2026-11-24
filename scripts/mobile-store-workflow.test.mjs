@@ -116,13 +116,30 @@ test('Android signing uses the existing upload key and keeps its passwords out o
   }
 })
 
-test('Android artifacts contain the signed AAB without exporting signing material', () => {
+test('Android artifacts contain the signed AAB and diagnostics without exporting signing material', () => {
   const artifacts = workflow.jobs.android.steps.filter((step) =>
     step.uses?.startsWith('actions/upload-artifact@')
   )
   assert.equal(artifacts.length, 1)
-  assert.equal(artifacts[0].with.path, 'android/app/build/outputs/bundle/release/app-release.aab')
+  assert.match(
+    artifacts[0].with.path,
+    /android\/app\/build\/outputs\/bundle\/release\/app-release\.aab/
+  )
+  assert.match(
+    artifacts[0].with.path,
+    /android\/app\/build\/outputs\/mapping\/release\/mapping\.txt/
+  )
   assert.equal(artifacts[0].with['if-no-files-found'], 'error')
+  assert.match(gradle, /minifyEnabled true/)
+  assert.match(gradle, /debugSymbolLevel 'FULL'/)
+  assert.match(
+    scripts(workflow.jobs.android),
+    /BUNDLE-METADATA\/com\.android\.tools\.build\.obfuscation\/proguard\.map/
+  )
+  assert.match(
+    scripts(workflow.jobs.android),
+    /BUNDLE-METADATA\/com\.android\.tools\.build\.debugsymbols/
+  )
   assert.ok(scripts(workflow.jobs.android).includes('ANDROID_VERSION_CODE=$(date +%s)'))
   assert.ok(gradle.includes("System.getenv('ANDROID_VERSION_CODE')"))
   assert.ok(gradle.includes('automaticVersionCode.toLong() > 2100000000L'))
