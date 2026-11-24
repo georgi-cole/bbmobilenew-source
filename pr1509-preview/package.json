@@ -82,7 +82,7 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@reduxjs/toolkit": "^2.11.2",
-    "@remotion/cli": "^4.0.490",
+    "@remotion/cli": "^4.0.546",
     "@remotion/player": "^4.0.490",
     "@remotion/three": "^4.0.490",
     "@types/howler": "^2.2.12",
