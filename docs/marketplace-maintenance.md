@@ -44,6 +44,10 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-25: Reviewed the mobile Vox Populi handbook, including the day
+  overview, practice vote and Final 4 ballot explanation. The existing rules,
+  expansion access, price and marketplace description remain accurate.
+
 - 2026-11-22: Reviewed The Last Light and Rock, Paper, Scissors in the
   Minigame Lab and season competition rotation. Both games are available
   in Standard play. The VIP Cinematics pack supplies their optional

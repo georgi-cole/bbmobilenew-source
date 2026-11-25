@@ -1,475 +1,278 @@
-import { useNavigate } from 'react-router'
-import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
-import './Rules.css'
+import RulesHandbook, { type RulesChapter, type RulesSegment } from './RulesHandbook'
 
-type Tile = {
-  kicker: string
-  title: string
-  copy: string
-}
+const CHAPTERS = {
+  daily: {
+    title: 'The Daily Loop',
+    intro:
+      'A standard day moves from the lead competition through nominations and safety to a live vote.',
+    cards: [
+      {
+        title: 'Compete for the lead',
+        copy: 'The challenge winner becomes the Leader of the Hub (LOH) and starts the day in charge.',
+      },
+      {
+        title: 'Set the block',
+        copy: 'The LOH names the nominees. Most days start with two people on the block. Public Mode can add a third before safety.',
+      },
+      {
+        title: 'Decide safety',
+        copy: 'The Power of Safety (POS) winner decides whether to save a nominee.',
+      },
+      {
+        title: 'Survive the live vote',
+        copy: 'Eligible Hubmates vote to eliminate a nominee. On special days, the broadcast explains any changes to the schedule or vote.',
+      },
+    ],
+  },
+  challenges: {
+    title: 'Challenges and Ranking',
+    intro:
+      'Read the minigame rules card before the countdown. It tells you what determines the winner.',
+    cards: [
+      { title: 'Score', copy: 'The highest score wins.' },
+      { title: 'Time', copy: 'The fastest time wins.' },
+      { title: 'Placement', copy: 'Finishing order decides the result.' },
+      {
+        title: 'Direct result',
+        copy: 'Some games decide the winner directly and announce the outcome on the results screen.',
+      },
+    ],
+  },
+  safety: {
+    title: 'Control and Safety',
+    intro:
+      'The daily leader picks the nominees. The Power of Safety winner can change who faces the vote.',
+    cards: [
+      {
+        title: 'Leader of the Hub',
+        copy: 'Win the lead competition to choose who starts the day on the block.',
+      },
+      {
+        title: 'Power of Safety',
+        copy: 'The holder can save one nominee or leave the block as it is. A nominated holder may save themself.',
+      },
+      {
+        title: 'Replacement nominee',
+        copy: 'If a save calls for a replacement, the LOH names one.',
+      },
+      {
+        title: 'The public save',
+        copy: 'In Classic with Public Mode enabled, the audience can save a nominee before the Power of Safety is used.',
+      },
+    ],
+  },
+  social: {
+    title: 'Social Game and Public Mode',
+    intro:
+      'Use social windows to build relationships and influence the next decision. Three resources pay for different kinds of moves.',
+    cards: [
+      {
+        title: 'Energy',
+        copy: 'Your action budget for social windows and one-off pushes.',
+      },
+      {
+        title: 'Influence',
+        copy: 'Spend it on stronger social moves and attempts to sway other Hubmates.',
+      },
+      {
+        title: 'Info',
+        copy: 'Spend it on more specific social moves and reads.',
+      },
+      {
+        title: 'Public approval',
+        copy: 'The meter shows how the audience sees you, from low or mixed approval to liked or beloved. Audience momentum and the current story also affect the public save.',
+      },
+    ],
+  },
+  confessional: {
+    title: 'Confessional',
+    intro:
+      'Open the Confessional when the game asks for a private decision. Read the messages for secret opportunities and mission offers.',
+    cards: [
+      {
+        title: 'Nomination picks',
+        copy: 'Name the nominees when it is your turn to lead.',
+      },
+      {
+        title: 'Safety decisions',
+        copy: 'Choose whether to use the Power of Safety and whom to protect.',
+      },
+      {
+        title: 'Replacement picks',
+        copy: 'Name the replacement if a save calls for one.',
+      },
+      {
+        title: 'Tie-breaks',
+        copy: 'Cast the deciding vote when the Hub is deadlocked and the choice falls to you.',
+      },
+      {
+        title: 'Secrets and missions',
+        copy: 'Look for private offers and instructions in your messages.',
+      },
+    ],
+  },
+  twists: {
+    title: 'Special Days',
+    intro: 'When the schedule changes, check the broadcast for the rules that apply that day.',
+    cards: [
+      {
+        title: 'Compressed day',
+        copy: 'The day can move faster, with some steps closer together.',
+      },
+      {
+        title: 'Return round',
+        copy: 'An eliminated player can get a chance to rejoin the season.',
+      },
+      {
+        title: 'Rule swap',
+        copy: 'A twist can change the order or rules of that day’s events.',
+      },
+      {
+        title: 'Special elimination',
+        copy: 'A one-off decision can take the place of the usual vote.',
+      },
+    ],
+  },
+  tribunal: {
+    title: 'The Tribunal',
+    intro: 'The Tribunal chooses the winner in Classic. Its size depends on the starting cast.',
+    note: 'Special or extraordinary removals do not fill Tribunal seats.',
+    cards: [
+      {
+        title: 'Who joins',
+        copy: 'In a standard 16-player Classic season, the first five exits are pre-Tribunal and the next nine eligible standard exits fill the Tribunal.',
+      },
+      {
+        title: 'What members remember',
+        copy: 'Tribunal members remember your strategy, relationships, promises, and betrayals when judging the finalists.',
+      },
+      {
+        title: 'The final vote',
+        copy: 'With two finalists left, each Tribunal member votes for the player they want to win.',
+      },
+      {
+        title: 'If you join the Tribunal',
+        copy: 'You still get to cast a vote for the champion.',
+      },
+    ],
+  },
+  finale: {
+    title: 'Finale',
+    intro:
+      'In Classic, Final 4 leads into a three-part contest for the last lead, followed by the Tribunal vote.',
+    cards: [
+      {
+        title: 'Final 4',
+        copy: 'The safety winner makes the last elimination choice before the final three are set.',
+      },
+      {
+        title: 'Part 1',
+        copy: 'All three finalists compete. The winner goes straight to Part 3.',
+      },
+      {
+        title: 'Part 2',
+        copy: 'The other two finalists compete for the second spot in Part 3.',
+      },
+      {
+        title: 'Part 3',
+        copy: 'The winner becomes the final leader and chooses who joins them in the Final 2.',
+      },
+      {
+        title: 'Final 2',
+        copy: 'The Tribunal casts the final votes and chooses the winner.',
+      },
+      {
+        title: 'Public favorite',
+        copy: 'If enabled, the season can reveal the audience favorite after crowning the winner.',
+      },
+    ],
+  },
+} satisfies Record<string, RulesChapter>
 
-const HERO_TILES: Tile[] = [
+const SEGMENTS: [RulesSegment, ...RulesSegment[]] = [
   {
-    kicker: '1',
-    title: 'Win control',
-    copy: 'Take the daily lead, shape the block, and keep the vote moving in your favor.',
+    label: 'The day',
+    title: 'One day in the Hub.',
+    summary:
+      'Win the lead challenge and you pick who’s at risk. Power of Safety can change the block before the Hub votes someone out.',
+    image: 'cinematic-backgrounds/rules-hub-morning.webp',
+    rundown: {
+      goal: 'Reach the Final 2 and win the Tribunal vote.',
+      beats: [
+        { label: 'Compete', copy: 'The challenge winner becomes Leader of the Hub for the day.' },
+        {
+          label: 'Nominate',
+          copy: 'The leader puts players on the block, where they are at risk of leaving.',
+        },
+        {
+          label: 'Save',
+          copy: 'The Power of Safety winner can take one nominee off the block, including themself.',
+        },
+        {
+          label: 'Vote',
+          copy: 'Eligible Hubmates vote to send one of the remaining nominees home.',
+        },
+      ],
+    },
+    chapters: [CHAPTERS.daily, CHAPTERS.challenges, CHAPTERS.safety],
   },
   {
-    kicker: '2',
-    title: 'Use public mode',
-    copy: 'When public mode is on, the public approval meter can reshape the block before safety locks in.',
+    label: 'Backstage',
+    title: 'The game between challenges.',
+    summary:
+      'Use social windows to build trust and line up votes. Watch your Energy, Influence, and Info, and check the Confessional for private decisions.',
+    image: 'diary-room/confessional-locked-door.webp',
+    chapters: [CHAPTERS.social, CHAPTERS.confessional],
   },
   {
-    kicker: '3',
-    title: 'Play the social layer',
-    copy: 'Energy, Influence, and Info power the social layer and change relationships over time.',
+    label: 'Live vote',
+    title: 'The Hub makes the call.',
+    summary:
+      'Once safety decisions are settled, eligible Hubmates vote to eliminate someone on the block. A twist can change how the night ends.',
+    image: 'cinematic-backgrounds/season-archive-gallery.webp',
+    prediction: {
+      question: 'You’re on the block and you win Power of Safety. Can you use it on yourself?',
+      choices: [
+        {
+          label: 'Yes, save myself',
+          feedback: 'Yes. A nominated holder can use the Power of Safety on themself.',
+        },
+        {
+          label: 'Only another player',
+          feedback:
+            'You can save yourself too. As the holder, you can also choose to keep the nominations as they are.',
+        },
+      ],
+    },
+    chapters: [CHAPTERS.twists],
   },
   {
-    kicker: '4',
-    title: 'Finish the season',
-    copy: 'Make it to the endgame, then earn enough Tribunal votes to win.',
+    label: 'Finale',
+    title: 'Two seats. One winner.',
+    summary:
+      'Make the Final 2 and the Tribunal votes for the winner. How you played and how you treated the people who left can shape that vote.',
+    image: 'cinematic-backgrounds/tribunal-chamber.webp',
+    rundown: {
+      goal: 'The final leader chooses who sits beside them for the last vote.',
+      beats: [
+        {
+          label: 'Final 4',
+          copy: 'The safety winner makes the elimination choice that sets the final three.',
+        },
+        {
+          label: 'Final 3',
+          copy: 'A three-part contest decides who gets to choose the other finalist.',
+        },
+        {
+          label: 'Tribunal vote',
+          copy: 'Tribunal members vote for the finalist they want to win.',
+        },
+      ],
+    },
+    chapters: [CHAPTERS.tribunal, CHAPTERS.finale],
   },
 ]
 
-const DAY_STEPS: Tile[] = [
-  {
-    kicker: 'LOH',
-    title: 'Compete for the lead',
-    copy: 'Everyone still in the game can compete for control. The winner becomes the Leader of the Hub and starts the day in charge.',
-  },
-  {
-    kicker: 'NOMS',
-    title: 'Set the block',
-    copy: 'The LOH names the nominees. Most days start with two people on the block, and public mode can add a third before safety.',
-  },
-  {
-    kicker: 'POS',
-    title: 'Decide safety',
-    copy: 'The Power of Safety winner can save one nominee. If they are on the block, self-save is allowed but never forced.',
-  },
-  {
-    kicker: 'VOTE',
-    title: 'Live vote',
-    copy: 'The remaining players vote to remove someone from the game. Some special days replace this with a different elimination step, and the broadcast says when that happens.',
-  },
-]
-
-const RESULT_MODES: Tile[] = [
-  {
-    kicker: 'SCORE',
-    title: 'Score',
-    copy: 'Highest number wins.',
-  },
-  {
-    kicker: 'TIME',
-    title: 'Time',
-    copy: 'Fastest time wins.',
-  },
-  {
-    kicker: 'RANK',
-    title: 'Placement',
-    copy: 'The leaderboard order is the result, not just the raw number.',
-  },
-  {
-    kicker: 'WIN',
-    title: 'Direct result',
-    copy: 'Some games decide the winner directly and show that outcome on the results screen.',
-  },
-]
-
-const SOCIAL_RESOURCES: Tile[] = [
-  {
-    kicker: 'ENERGY',
-    title: 'Energy',
-    copy: 'Your action budget for the social windows and one-off pushes.',
-  },
-  {
-    kicker: 'INFLUENCE',
-    title: 'Influence',
-    copy: 'Used by stronger social moves and sharper pushes when you want to swing a room.',
-  },
-  {
-    kicker: 'INFO',
-    title: 'Info',
-    copy: 'Used by more specific or better timed social moves and reads.',
-  },
-  {
-    kicker: 'APPROVAL',
-    title: 'Approval',
-    copy: 'The public approval meter matters in Public Mode, but the live save also reacts to momentum, audience mix and the current story.',
-  },
-]
-
-const APPROVAL_BANDS: Tile[] = [
-  {
-    kicker: 'LOW',
-    title: 'Low approval',
-    copy: 'You are vulnerable and easy to target.',
-  },
-  {
-    kicker: 'MID',
-    title: 'Mixed approval',
-    copy: 'You are visible, but not fully protected.',
-  },
-  {
-    kicker: 'HIGH',
-    title: 'Liked',
-    copy: 'You have momentum and better public standing.',
-  },
-  {
-    kicker: 'TOP',
-    title: 'Beloved',
-    copy: 'You are in a strong public position.',
-  },
-]
-
-const CONFESSIONAL_DECISIONS: Tile[] = [
-  {
-    kicker: '01',
-    title: 'Nomination picks',
-    copy: 'The game asks you to name the block when it is your turn to lead, and the choice is immediate.',
-  },
-  {
-    kicker: '02',
-    title: 'Safety decisions',
-    copy: 'The game asks whether to use the Power of Safety and who it should protect.',
-  },
-  {
-    kicker: '03',
-    title: 'Replacement picks',
-    copy: 'If a save changes the block, a replacement nominee has to be named right away.',
-  },
-  {
-    kicker: '04',
-    title: 'Tie-breaks',
-    copy: 'When the Hub is deadlocked, the deciding choice lands here.',
-  },
-  {
-    kicker: '05',
-    title: 'Secrets and missions',
-    copy: 'Secret opportunities and mission offers can be hidden here, so read every prompt carefully.',
-  },
-]
-
-const SPECIAL_DAY_NOTES: Tile[] = [
-  {
-    kicker: 'SHIFT',
-    title: 'Compressed day',
-    copy: 'The schedule can move faster than normal and some steps may land closer together.',
-  },
-  {
-    kicker: 'RETURN',
-    title: 'Return round',
-    copy: 'A recently eliminated player can get a path back into the season.',
-  },
-  {
-    kicker: 'SWAP',
-    title: 'Rule swap',
-    copy: 'The day can change shape, but the broadcast explains the new rule when it happens.',
-  },
-  {
-    kicker: 'EVIC',
-    title: 'Special elimination',
-    copy: 'Some days skip the usual vote and end with a one-off elimination decision instead.',
-  },
-]
-
-const TRIBUNAL_NOTES: Tile[] = [
-  {
-    kicker: 'MEMBERS',
-    title: 'Who joins',
-    copy: 'Tribunal size scales with the starting cast. In the standard 16-player Classic season, the first five exits are pre-Tribunal and the next nine eligible standard exits fill the Tribunal.',
-  },
-  {
-    kicker: 'GAME',
-    title: 'Every move matters',
-    copy: 'Tribunal members remember your strategy, relationships, promises, and betrayals when judging the finalists.',
-  },
-  {
-    kicker: 'VOTE',
-    title: 'The final decision',
-    copy: 'When only two finalists remain, each Tribunal member casts a vote for the player they want to win.',
-  },
-  {
-    kicker: 'POWER',
-    title: 'Your voice remains',
-    copy: 'If you become a Tribunal member, your game is over but your final vote can still decide the champion.',
-  },
-]
-
-const FINALE_STEPS: Tile[] = [
-  {
-    kicker: 'F4',
-    title: 'Final 4',
-    copy: 'The safety winner makes the last elimination choice before the final three are set.',
-  },
-  {
-    kicker: 'P1',
-    title: 'Part 1',
-    copy: 'All three finalists compete, and the winner moves straight to the last part.',
-  },
-  {
-    kicker: 'P2',
-    title: 'Part 2',
-    copy: 'The other two finalists battle for the second spot in the final round.',
-  },
-  {
-    kicker: 'P3',
-    title: 'Part 3',
-    copy: 'The last winner becomes the final leader and chooses the Final 2.',
-  },
-  {
-    kicker: 'F2',
-    title: 'Final 2',
-    copy: 'The Tribunal casts the final votes and chooses the winner.',
-  },
-  {
-    kicker: 'BONUS',
-    title: 'Public favorite',
-    copy: 'If enabled, the season can end with one more public result after the winner is revealed.',
-  },
-]
-
-function renderTile(tile: Tile, className = '') {
-  return (
-    <article
-      key={`${tile.kicker}-${tile.title}`}
-      className={['rules-tile', className].filter(Boolean).join(' ')}
-    >
-      <span className="rules-tile__kicker">{tile.kicker}</span>
-      <h3 className="rules-tile__title">{tile.title}</h3>
-      <p className="rules-tile__copy">{tile.copy}</p>
-    </article>
-  )
-}
-
-/**
- * Rules - player guide screen.
- */
 export default function Rules() {
-  const navigate = useNavigate()
-
-  return (
-    <div className="placeholder-screen rules-screen">
-      <header className="rules-screen__hero">
-        <div className="rules-screen__logo">BE</div>
-        <div className="rules-screen__title-row">
-          <h1 className="rules-screen__title">How to Play</h1>
-          <GameBackButton className="rules-screen__back" onClick={() => navigate(-1)} />
-        </div>
-        <p className="rules-screen__subtitle">The Big Eye - Player Guide</p>
-        <p className="rules-screen__lede">
-          Learn the loop, read the meters, and know what each screen is asking before the season
-          starts moving fast.
-        </p>
-        <div className="rules-screen__summary-grid">
-          {HERO_TILES.map((tile) => renderTile(tile, 'rules-tile--hero'))}
-        </div>
-      </header>
-
-      <main className="rules-screen__body">
-        <section className="rules-section">
-          <div className="rules-section__header">
-            <span className="rules-section__icon" aria-hidden="true">
-              01
-            </span>
-            <h2 className="rules-section__title">The Daily Loop</h2>
-          </div>
-          <p className="rules-section__intro">
-            The game is built around a repeatable rhythm. Once you know the order, every day makes
-            more sense: win the lead, set the block, use safety, then survive the vote.
-          </p>
-          <div className="rules-step-grid">
-            {DAY_STEPS.map((tile) => renderTile(tile, 'rules-step-card'))}
-          </div>
-          <p className="rules-section__note">
-            Public mode can add a third nominee before safety, and special days can change the
-            order. The broadcast explains the live rule when it appears.
-          </p>
-        </section>
-
-        <section className="rules-section">
-          <div className="rules-section__header">
-            <span className="rules-section__icon" aria-hidden="true">
-              02
-            </span>
-            <h2 className="rules-section__title">Challenges and Ranking</h2>
-          </div>
-          <div className="rules-split">
-            <div className="rules-split__main">
-              <p className="rules-section__intro">
-                Every minigame opens with its own rules card before the countdown starts. That card
-                tells you exactly what matters, whether the round is about score, speed, placement,
-                or a direct result.
-              </p>
-              <p className="rules-section__intro">
-                If a game shows a leaderboard, the order on that board matters. If it says
-                placement, rank is the result. If it says score or time, the metric on the card
-                tells you what wins.
-              </p>
-            </div>
-            <div className="rules-split__aside">
-              <div className="rules-mode-grid">
-                {RESULT_MODES.map((tile) => renderTile(tile, 'rules-mode-card'))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="rules-section">
-          <div className="rules-section__header">
-            <span className="rules-section__icon" aria-hidden="true">
-              03
-            </span>
-            <h2 className="rules-section__title">Control and Safety</h2>
-          </div>
-          <p className="rules-section__intro">
-            The daily leader controls the nominations. The Power of Safety winner controls whether
-            the block stays the same or gets reshaped, and if the holder is nominated, self-save is
-            allowed but never forced.
-          </p>
-          <div className="rules-step-grid">
-            {[
-              {
-                kicker: 'LOH',
-                title: 'Leader of the Hub',
-                copy: 'Wins the daily competition and names the nominees for the day.',
-              },
-              {
-                kicker: 'POS',
-                title: 'Power of Safety',
-                copy: 'Can save one nominee. If the holder is nominated, self-save is allowed but never required.',
-              },
-              {
-                kicker: 'BACKUP',
-                title: 'Replacement nominee',
-                copy: 'If a save changes the block, the LOH names a backup nominee right away.',
-              },
-              {
-                kicker: 'PUBLIC',
-                title: 'Public seasons',
-                copy: 'When public mode is on, the day can add a public save before safety and adjust the block again.',
-              },
-            ].map((tile) => renderTile(tile, 'rules-step-card'))}
-          </div>
-        </section>
-
-        <section className="rules-section rules-section--highlight">
-          <div className="rules-section__header">
-            <span className="rules-section__icon" aria-hidden="true">
-              04
-            </span>
-            <h2 className="rules-section__title">Social Game and Public Mode</h2>
-          </div>
-          <p className="rules-section__intro">
-            The social module is the quiet engine under the season. Use it during social windows to
-            spend resources, shape relationships, and set up the next vote before anyone sees it
-            coming.
-          </p>
-          <div className="rules-resource-grid">
-            {SOCIAL_RESOURCES.map((tile) => renderTile(tile, 'rules-resource-card'))}
-          </div>
-          <div className="rules-band-row">
-            {APPROVAL_BANDS.map((tile) => renderTile(tile, 'rules-band'))}
-          </div>
-          <p className="rules-section__note">
-            Public approval is not just flavor. It is a real meter that can help when the public
-            saves a nominee, decides a close call, or weighs the season at the end.
-          </p>
-        </section>
-
-        <section className="rules-section">
-          <div className="rules-section__header">
-            <span className="rules-section__icon" aria-hidden="true">
-              05
-            </span>
-            <h2 className="rules-section__title">Confessional</h2>
-          </div>
-          <p className="rules-section__intro">
-            This is the private decision room. When the game needs a direct answer, it sends you
-            here and waits for a choice.
-          </p>
-          <p className="rules-section__intro">
-            This is where nomination picks, safety decisions, replacement picks, tie-breaks, and
-            mission offers appear in a clean, no-distraction format.
-          </p>
-          <p className="rules-section__note">
-            Keep your eyes wide open. Secrets and special opportunities are sometimes hidden inside
-            the Confessional, so check it often and read every message carefully.
-          </p>
-          <div className="rules-confessional-grid">
-            {CONFESSIONAL_DECISIONS.map((tile) => renderTile(tile, 'rules-confessional-card'))}
-          </div>
-        </section>
-
-        <section className="rules-section">
-          <div className="rules-section__header">
-            <span className="rules-section__icon" aria-hidden="true">
-              06
-            </span>
-            <h2 className="rules-section__title">Special Days</h2>
-          </div>
-          <p className="rules-section__intro">
-            Not every day follows the standard script. Some days speed up, some days bring someone
-            back, and some days swap out part of the normal order.
-          </p>
-          <div className="rules-split">
-            <div className="rules-split__main">
-              <p className="rules-section__intro">
-                The important part is simple: you do not need to memorize every variation ahead of
-                time. When a special day happens, the broadcast explains the new rule on the spot.
-              </p>
-            </div>
-            <div className="rules-split__aside">
-              <div className="rules-special-grid">
-                {SPECIAL_DAY_NOTES.map((tile) => renderTile(tile, 'rules-special-card'))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="rules-section">
-          <div className="rules-section__header">
-            <span className="rules-section__icon" aria-hidden="true">
-              07
-            </span>
-            <h2 className="rules-section__title">The Tribunal</h2>
-          </div>
-          <p className="rules-section__intro">
-            The Tribunal forms at a fixed point based on the season's starting cast. A standard
-            16-player Classic season has nine Tribunal seats after five pre-Tribunal exits. Special
-            or extraordinary removals are not promoted into those seats.
-          </p>
-          <div className="rules-step-grid">
-            {TRIBUNAL_NOTES.map((tile) => renderTile(tile, 'rules-step-card'))}
-          </div>
-          <p className="rules-section__note">
-            How you treat people throughout the season can matter as much as your competition
-            record. Loyalty, betrayals, promises, protection, and the way a member leaves the game
-            can all shape that member's final judgment.
-          </p>
-        </section>
-
-        <section className="rules-section">
-          <div className="rules-section__header">
-            <span className="rules-section__icon" aria-hidden="true">
-              08
-            </span>
-            <h2 className="rules-section__title">Finale</h2>
-          </div>
-          <p className="rules-section__intro">
-            The endgame is a sequence, not a single vote. Each step narrows the field and changes
-            who still has control over the season.
-          </p>
-          <p className="rules-section__intro">
-            The final stretch moves from a special elimination at Final 4 into the three-part final
-            lead race, then into the Tribunal vote.
-          </p>
-          <div className="rules-finale-grid">
-            {FINALE_STEPS.map((tile) => renderTile(tile, 'rules-finale-card'))}
-          </div>
-        </section>
-      </main>
-    </div>
-  )
+  return <RulesHandbook title="How to Play" segments={SEGMENTS} />
 }

@@ -1,45 +1,89 @@
-import { useNavigate } from 'react-router'
-import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import { VOX_POPULI_RULES } from '../../rules/voxPopuliGuide'
-import './Rules.css'
+import RulesHandbook, { type RulesSegment } from './RulesHandbook'
+
+const [race, nominations, safety, vote, endgame] = VOX_POPULI_RULES
+
+const SEGMENTS: [RulesSegment, ...RulesSegment[]] = [
+  {
+    label: 'The day',
+    title: 'Play the house. Win the crowd.',
+    summary:
+      'Win the challenge for immunity. The house nominates in secret and the audience votes on who leaves.',
+    image: 'cinematic-backgrounds/rules-hub-morning.webp',
+    rundown: {
+      goal: 'Reach the Final 2 and win the audience vote.',
+      beats: [
+        {
+          label: 'Compete',
+          copy: 'On a standard day, first place is immune and last place goes on the block.',
+        },
+        {
+          label: 'Nominate',
+          copy: 'Eligible Hubmates each make two secret nomination picks on a standard day.',
+        },
+        {
+          label: 'Save',
+          copy: 'The Power of Safety holder can save one nominee. The ballot determines any replacement.',
+        },
+        {
+          label: 'Public vote',
+          copy: 'The audience votes to eliminate. The nominee with the most votes leaves.',
+        },
+      ],
+    },
+    chapters: [race],
+  },
+  {
+    label: 'The ballot',
+    title: 'Every ballot leaves a mark.',
+    summary:
+      'Last place is already on the block. Your secret ballot helps decide who joins them, and the Power of Safety can still change the lineup.',
+    image: 'diary-room/confessional-locked-door.webp',
+    chapters: [nominations, safety],
+  },
+  {
+    label: 'Live vote',
+    title: 'The audience has the floor.',
+    summary: 'The audience votes to eliminate. The nominee with the highest share goes home.',
+    image: 'cinematic-backgrounds/season-archive-gallery.webp',
+    prediction: {
+      question:
+        'You’re on the block with Aria. You have 40% of the audience vote and Aria has 60%. Who leaves?',
+      choices: [
+        { label: 'You', feedback: 'You stay. The audience cast more votes to eliminate Aria.' },
+        {
+          label: 'Aria',
+          feedback:
+            'Aria leaves. In Vox Populi, a higher share of the elimination vote puts you in more danger.',
+        },
+      ],
+    },
+    chapters: [vote],
+  },
+  {
+    label: 'Finale',
+    title: 'One last audience vote.',
+    summary:
+      'Win immunity at Final 3 or survive the audience vote. Once two players remain, the audience votes for its winner.',
+    image: 'cinematic-backgrounds/public-favorite-studio.webp',
+    rundown: {
+      goal: 'The audience decides who takes the title.',
+      beats: [
+        { label: 'Final 3 challenge', copy: 'The challenge winner earns immunity.' },
+        {
+          label: 'Last elimination',
+          copy: 'The audience eliminates one of the two players without immunity.',
+        },
+        {
+          label: 'Winner vote',
+          copy: 'The audience votes between the final two to crown the winner.',
+        },
+      ],
+    },
+    chapters: [endgame],
+  },
+]
 
 export default function VoxPopuliRules() {
-  const navigate = useNavigate()
-  return (
-    <div className="placeholder-screen rules-screen">
-      <header className="rules-screen__hero">
-        <div className="rules-screen__logo">VP</div>
-        <div className="rules-screen__title-row">
-          <h1 className="rules-screen__title">Vox Populi</h1>
-          <GameBackButton className="rules-screen__back" onClick={() => navigate(-1)} />
-        </div>
-        <p className="rules-screen__subtitle">The house nominates · the audience decides</p>
-        <p className="rules-screen__lede">
-          Build trust in private, win safety in public, and never forget who has the final say.
-        </p>
-      </header>
-      <main className="rules-screen__body">
-        {VOX_POPULI_RULES.map((section) => (
-          <section className="rules-section" key={section.title}>
-            <div className="rules-section__header">
-              <span className="rules-section__icon" aria-hidden="true">
-                VP
-              </span>
-              <h2 className="rules-section__title">{section.title}</h2>
-            </div>
-            <p className="rules-section__intro">{section.intro}</p>
-            <div className="rules-step-grid">
-              {section.cards.map((card) => (
-                <article className="rules-tile rules-step-card" key={card.title}>
-                  <span className="rules-tile__kicker">{card.kicker}</span>
-                  <h3 className="rules-tile__title">{card.title}</h3>
-                  <p className="rules-tile__copy">{card.copy}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
-      </main>
-    </div>
-  )
+  return <RulesHandbook title="Vox Populi" segments={SEGMENTS} />
 }
