@@ -522,7 +522,10 @@ export const startChallenge =
         )
       }
       const categoryPool = category ? pool.filter((game) => game.category === category) : pool
-      return selectFromPool(categoryPool.length > 0 ? categoryPool : pool)
+      const eligiblePool = categoryPool.length > 0 ? categoryPool : pool
+      const played = new Set(allHistoryGameKeys)
+      const unusedPool = eligiblePool.filter((game) => !played.has(game.key))
+      return selectFromPool(unusedPool.length > 0 ? unusedPool : eligiblePool)
     }
     const pickSurvivorGame = (category?: GameCategory, excludeKeys?: string[]) => {
       const modeSpecific =

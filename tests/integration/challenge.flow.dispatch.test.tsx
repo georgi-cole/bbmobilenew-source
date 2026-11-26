@@ -583,19 +583,23 @@ describe('startChallenge – compSelection modes', () => {
             ? { voxPopuli: { ...initialGame.voxPopuli, status: 'active' as const } }
             : {}),
         })
+        const playedGameKeys = ['glass_bridge_brutal']
         const candidates = getCompetitionDirectorCandidates({
           day: 8,
           playerCount: players.length,
           compType: prizeType,
-          playedGameKeys: [],
+          playedGameKeys,
         })
         expect(candidates.map(({ game }) => game.key)).toContain(gameKey)
-        for (const { game } of candidates) {
-          if (game.key === gameKey) continue
+        for (const priorKey of new Set([
+          ...playedGameKeys,
+          ...candidates.map(({ game }) => game.key),
+        ])) {
+          if (priorKey === gameKey) continue
           store.dispatch(
             recordRun({
-              id: `prior-${game.key}`,
-              gameKey: game.key,
+              id: `prior-${priorKey}`,
+              gameKey: priorKey,
               seed: 1,
               participants: [],
               rawScores: {},

@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-27: Reviewed the restored campaign rotation in Classic, Cupid, and
+  Vox Populi. The premiere uses Majority Rules or Percentage Panic for LOH,
+  with Quick Tap Race for POS. Later competitions use the original cast-size
+  priorities, eligibility, and season history. The marketplace catalog continues
+  to reflect the released products and entitlements.
+
 - 2026-11-27: Reviewed save recovery in the shared competition host for Standard,
   Premium Challenges, and VIP. Retry save reopens local writes and repeats the
   original checkpoint for the same attempt. The marketplace catalog still

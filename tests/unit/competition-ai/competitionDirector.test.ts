@@ -5,10 +5,6 @@ import {
   pickCompetitionDirectorGame,
   type DirectorContext,
 } from '../../../src/ai/competition/competitionDirector'
-import {
-  CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS,
-  CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
-} from '../../../src/ai/competition/bracketTemplate'
 import { supportsPlayerCount } from '../../../src/minigames/registry'
 
 function context(
@@ -39,91 +35,121 @@ describe('Competition Director V1', () => {
     }
   })
 
-  it('keeps the premiere inside the retained competition map', () => {
-    expect(keys(context(16, 'LOH', 1))).toEqual(['holdWall'])
-    expect(keys(context(16, 'POS', 1))).toEqual(['quickTap', 'riskWheel'])
+  it('keeps the premiere fixed and retired/special-purpose games excluded', () => {
+    expect(keys(context(16, 'LOH', 1))).toEqual(['majorityRules', 'percentagePanic'])
+    expect(keys(context(16, 'POS', 1))).toEqual(['quickTap'])
+    expect(keys(context(16, 'LOH', 2))).not.toContain('percentagePanic')
 
     for (const size of [4, 5, 6, 8, 10, 12, 16]) {
       for (const type of ['LOH', 'POS'] as const) {
         const available = keys(context(size, type))
         expect(available).not.toContain('bigSpender')
         expect(available).not.toContain('gridOfLuck')
-        if (type === 'LOH') expect(available).toContain('capitalization')
-        else expect(available).not.toContain('capitalization')
+        expect(available).not.toContain('capitalization')
         expect(available).not.toContain('finalThreeCircuit')
         expect(available).not.toContain('downMemoryLane')
-        expect(available).not.toContain('estimationGame')
       }
     }
   })
 
-  it('keeps the Day 1 POS draw between Quick Tap and Risk Wheel', () => {
-    const premiere = context(16, 'POS', 1)
+  it('draws Day 1 LOH from Majority Rules and Percentage Panic at equal odds', () => {
+    const premiere = context(16, 'LOH', 1)
     const candidates = getCompetitionDirectorCandidates(premiere)
-    expect(candidates.map(({ game }) => game.key)).toEqual(['quickTap', 'riskWheel'])
+    expect(candidates.map(({ game }) => game.key)).toEqual(['majorityRules', 'percentagePanic'])
 
-    const totals = { quickTap: 0, riskWheel: 0 }
+    const totals = { majorityRules: 0, percentagePanic: 0 }
     for (let seed = 1; seed <= 2000; seed += 1) {
       const selected = pickCompetitionDirectorGame(premiere, seed)
-      if (selected?.key === 'quickTap') totals.quickTap += 1
-      if (selected?.key === 'riskWheel') totals.riskWheel += 1
+      if (selected?.key === 'majorityRules') totals.majorityRules += 1
+      if (selected?.key === 'percentagePanic') totals.percentagePanic += 1
     }
 
-    expect(totals.quickTap).toBeGreaterThan(900)
-    expect(totals.quickTap).toBeLessThan(1100)
-    expect(totals.riskWheel).toBeGreaterThan(900)
-    expect(totals.riskWheel).toBeLessThan(1100)
+    expect(totals.majorityRules).toBeGreaterThan(900)
+    expect(totals.majorityRules).toBeLessThan(1100)
+    expect(totals.percentagePanic).toBeGreaterThan(900)
+    expect(totals.percentagePanic).toBeLessThan(1100)
   })
 
-  it('holds calibration games out of every competition director draw', () => {
-    for (const size of [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) {
-      for (const type of ['LOH', 'POS'] as const) {
-        expect(
-          keys(context(size, type)).filter((key) =>
-            CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS.includes(
-              key as (typeof CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)[number]
-            )
-          )
-        ).toEqual([])
-      }
+  it('reuses Fit Me In’s director priority slots for Bigg Gates', () => {
+    for (const size of [5, 6, 8, 9, 10]) {
+      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.POS).toContain('gatesOfTheEye')
+      expect(keys(context(size, 'POS'))).toContain('gatesOfTheEye')
     }
   })
 
-  it('offers every approved map game when its roster limits allow it', () => {
-    const candidates = new Set(
-      [16, 8, 5].flatMap((size) =>
-        (['LOH', 'POS'] as const).flatMap((type) => keys(context(size, type)))
-      )
-    )
-    expect(
-      [...CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS].filter((key) => !candidates.has(key)).sort()
-    ).toEqual([])
-  })
-  it('offers each social game for either prize only at five through eight players', () => {
-    const socialKeys = ['rockPaperScissors', 'lastLight']
-    for (const count of [4, 5, 6, 7, 8, 9]) {
-      for (const type of ['LOH', 'POS'] as const) {
-        const available = keys(context(count, type))
-        for (const key of socialKeys) {
-          expect(available.includes(key)).toBe(count >= 5 && count <= 8)
-        }
-      }
-    }
+  it('keeps Bigg Gates out of the large-cast Day 2 draw and Battery Low in LOH', () => {
+    const loh = keys(context(14, 'LOH', 2))
+    const pos = keys(context(15, 'POS', 2))
+    expect(loh).toContain('batteryLow')
+    expect(loh).not.toContain('gatesOfTheEye')
+    expect(pos).not.toContain('gatesOfTheEye')
+    expect(pos).not.toContain('batteryLow')
   })
 
-  it('keeps Crystal Path: Infinity independent of the calibration-only original', () => {
-    const day10 = keys(context(9, 'LOH', 10))
-    expect(day10).toContain('crystal_path_shattered')
-    const day7 = keys(context(9, 'LOH', 7))
+  it('offers Boxpocalypse to LOH casts of 8–16 and never to smaller casts', () => {
+    for (const size of [8, 9, 10, 11, 12, 13, 14, 15, 16]) {
+      expect(keys(context(size, 'LOH'))).toContain('boxedOut')
+      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.LOH).toContain('boxedOut')
+    }
+    for (const size of [4, 5, 6, 7, 17]) {
+      expect(keys(context(size, 'LOH'))).not.toContain('boxedOut')
+    }
+  })
+  it('preserves first-season introduction order for both spinoffs', () => {
+    expect(keys(context(8, 'LOH', 6))).not.toContain('glass_bridge_brutal')
+    expect(keys(context(8, 'LOH', 7))).toContain('glass_bridge_brutal')
+    const withoutOriginal = keys(context(8, 'LOH', 10))
+    expect(withoutOriginal).not.toContain('crystal_path_shattered')
+    expect(withoutOriginal).not.toContain('castleRescue2')
+
+    const withOriginals = keys(context(8, 'LOH', 9, ['glass_bridge_brutal', 'castleRescue']))
+    expect(withOriginals).toContain('crystal_path_shattered')
+    expect(withOriginals).not.toContain('castleRescue2')
+
+    const day10 = keys(context(5, 'LOH', 10, ['castleRescue']))
+    expect(day10).toContain('castleRescue2')
+    const day7 = keys(context(9, 'LOH', 7, ['glass_bridge_brutal']))
     expect(day7).not.toContain('crystal_path_shattered')
   })
 
-  it('enforces the retained Crystal Path: Infinity cast-size limit', () => {
+  it('adapts to returnees and enforces technical and pacing limits', () => {
     const seven = keys(context(7, 'LOH'))
     const nine = keys(context(9, 'LOH'))
-    expect(seven).toContain('crystal_path_shattered')
-    expect(nine).toContain('crystal_path_shattered')
-    expect(keys(context(6, 'LOH'))).not.toContain('crystal_path_shattered')
+    expect(seven).not.toContain('trapAuction')
+    expect(nine).toContain('trapAuction')
+    expect(nine).not.toContain('wildcardWestern')
+    expect(seven).toContain('wildcardWestern')
+    expect(keys(context(6, 'POS'))).not.toContain('mysticChamber')
+    expect(keys(context(5, 'POS'))).toContain('mysticChamber')
+  })
+
+  it('keeps The Last Light and Rock, Paper, Scissors available for supported casts', () => {
+    for (const size of [4, 5, 8, 9]) {
+      for (const prize of ['LOH', 'POS'] as const) {
+        const available = keys(context(size, prize, 2))
+        expect(available.includes('lastLight')).toBe(size >= 5 && size <= 8)
+        expect(available.includes('rockPaperScissors')).toBe(size >= 5 && size <= 8)
+      }
+    }
+  })
+
+  it('uses the same no-repeat history for LOH and POS across a season', () => {
+    const aliveCounts = [16, 15, 14, 13, 12, 11, 9, 8, 7, 5, 5, 4]
+    for (let seed = 1; seed <= 32; seed += 1) {
+      const played: string[] = []
+      for (const [index, alive] of aliveCounts.entries()) {
+        const day = index + 1
+        for (const prize of ['LOH', 'POS'] as const) {
+          const participants = prize === 'LOH' && day > 1 ? alive - 1 : alive
+          const draw = context(participants, prize, day, played)
+          const available = keys(draw)
+          const unused = available.filter((key) => !played.includes(key))
+          const selected = pickCompetitionDirectorGame(draw, seed * 100 + day, played)
+          expect(unused.length > 0 ? unused : available).toContain(selected?.key)
+          played.unshift(selected!.key)
+        }
+      }
+    }
   })
 
   it('never repeats while a compatible unused LOH or POS game exists', () => {
@@ -154,8 +180,8 @@ describe('Competition Director V1', () => {
     const findWeight = (items: typeof regular, key: string) =>
       items.find(({ game }) => game.key === key)?.weight
 
-    expect(findWeight(regular, 'crystal_path_shattered')).toBe(2)
-    expect(findWeight(carried, 'crystal_path_shattered')).toBe(3)
+    expect(findWeight(regular, 'glass_bridge_brutal')).toBe(2)
+    expect(findWeight(carried, 'glass_bridge_brutal')).toBe(3)
 
     const nextPos = getCompetitionDirectorCandidates({
       ...context(8, 'POS', 8),

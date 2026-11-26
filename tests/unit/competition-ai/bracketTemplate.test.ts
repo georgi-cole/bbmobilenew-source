@@ -46,12 +46,12 @@ describe('classic campaign map registry integrity', () => {
     const calibration = new Set<string>(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)
 
     expect([...dailyScheduled].sort()).toEqual([...approved].sort())
-    expect(approved.size).toBe(23)
+    expect(approved.size).toBe(36)
     expect([...finaleOnly]).toEqual(['finalThreeCircuit'])
     expect([...finaleOnly].some((key) => calibration.has(key))).toBe(false)
     expect([...dailyScheduled].some((key) => calibration.has(key))).toBe(false)
     expect([...calibration].filter((key) => !getGame(key) || getGame(key)?.retired)).toEqual([])
-    expect([...calibration]).toContain('estimationGame')
+    expect([...calibration]).toContain('memoryMatch')
     expect([...calibration]).not.toContain('finalThreeCircuit')
     expect([...calibration]).toContain('downMemoryLane')
   })
@@ -82,10 +82,10 @@ describe('classic campaign map registry integrity', () => {
     const pool = (day: number, playerCount: number) =>
       getClassicCampaignPoolForContext({ day, playerCount, compType: 'LOH' })
 
-    expect(pool(12, 3)).not.toContain('boxedOut')
-    expect(pool(12, 4)).toContain('boxedOut')
+    expect(pool(7, 8)).toContain('boxedOut')
+    expect(pool(8, 7)).not.toContain('boxedOut')
+    expect(pool(7, 8)).toContain('trapAuction')
     expect(pool(8, 7)).not.toContain('trapAuction')
-    expect(pool(8, 8)).toContain('trapAuction')
     expect(pool(10, 6)).not.toContain('mysticChamber')
   })
 
@@ -99,7 +99,6 @@ describe('classic campaign map registry integrity', () => {
     ] as const) {
       for (const compType of ['LOH', 'POS'] as const) {
         const pool = getClassicCampaignPoolForContext({ day, playerCount: players, compType })
-        expect(pool).not.toContain('estimationGame')
         expect(pool.every((key) => !calibration.has(key))).toBe(true)
       }
     }
@@ -151,7 +150,10 @@ describe('getClassicCampaignPoolForContext', () => {
       compType: 'LOH',
       phase: 'loh_comp',
     })
-    expect(day1).toEqual(['holdWall'])
+    expect(day1).toEqual(['majorityRules', 'percentagePanic'])
+    expect(getClassicCampaignPoolForContext({ day: 1, playerCount: 16, compType: 'POS' })).toEqual([
+      'quickTap',
+    ])
     expect(day2).toContain('holdWall')
     expect(day2.every((key) => approved.has(key))).toBe(true)
   })
