@@ -26,23 +26,23 @@ export const COMPETITION_DIRECTOR_PREFERENCES: Record<number, PreferredGames> = 
     POS: ['riskWheel', 'cardClash'],
   },
   14: {
-    LOH: ['batteryLow', 'trapAuction', 'hangman', 'boxedOut'],
-    POS: ['colorMatch', 'logicLocks'],
+    LOH: ['batteryLow', 'trapAuction', 'boxedOut'],
+    POS: ['colorMatch'],
   },
   13: {
-    LOH: ['silentSaboteur', 'hangman', 'trapAuction', 'boxedOut'],
-    POS: ['cardClash', 'dontGoOver'],
+    LOH: ['trapAuction', 'boxedOut'],
+    POS: ['cardClash'],
   },
   12: {
-    LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow', 'boxedOut'],
-    POS: ['riskWheel', 'threeDigitsQuiz'],
+    LOH: ['chainOfGreed', 'batteryLow', 'boxedOut'],
+    POS: ['riskWheel'],
   },
   11: {
-    LOH: ['hangman', 'chainOfGreed', 'batteryLow', 'boxedOut'],
-    POS: ['logicLocks', 'quickTapSeasons'],
+    LOH: ['chainOfGreed', 'batteryLow', 'boxedOut'],
+    POS: ['quickTapSeasons'],
   },
   10: {
-    LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow', 'boxedOut'],
+    LOH: ['chainOfGreed', 'batteryLow', 'boxedOut'],
     POS: ['gatesOfTheEye', 'quickTapSeasons'],
   },
   9: {
@@ -53,54 +53,43 @@ export const COMPETITION_DIRECTOR_PREFERENCES: Record<number, PreferredGames> = 
       'trapAuction',
       'boxedOut',
     ],
-    POS: ['gatesOfTheEye', 'minesweeps'],
+    POS: ['gatesOfTheEye'],
   },
   8: {
     LOH: [
-      'castleRescue',
       'glass_bridge_brutal',
       'crystal_path_shattered',
       'wildcardWestern',
       'trapAuction',
       'boxedOut',
     ],
-    POS: ['minesweeps', 'gatesOfTheEye'],
+    POS: ['gatesOfTheEye'],
   },
   7: {
-    LOH: [
-      'wildcardWestern',
-      'glass_bridge_brutal',
-      'crystal_path_shattered',
-      'castleRescue',
-      'houseOfDarkness',
-    ],
-    POS: ['quickTapSeasons', 'tiltLabyrinth'],
+    LOH: ['wildcardWestern', 'glass_bridge_brutal', 'crystal_path_shattered'],
+    POS: ['quickTapSeasons'],
   },
   6: {
-    LOH: ['wildcardWestern', 'houseOfDarkness', 'castleRescue2'],
-    POS: ['gatesOfTheEye', 'minesweeps'],
+    LOH: ['wildcardWestern'],
+    POS: ['gatesOfTheEye'],
   },
   5: {
-    LOH: ['castleRescue2', 'houseOfDarkness', 'pressurePlank'],
+    LOH: [],
     POS: ['mysticChamber', 'gatesOfTheEye'],
   },
   4: {
-    LOH: ['houseOfDarkness', 'castleRescue2', 'holdWall'],
-    POS: ['mysticChamber', 'logicLocks'],
+    LOH: ['holdWall'],
+    POS: ['mysticChamber'],
   },
 }
 
 /** Pacing limits are narrower than the technical roster limits when necessary. */
 export const COMPETITION_PACING_LIMITS: Readonly<Record<string, { min: number; max: number }>> = {
   trapAuction: { min: 8, max: 16 },
-  silentSaboteur: { min: 8, max: 16 },
   chainOfGreed: { min: 7, max: 12 },
   glass_bridge_brutal: { min: 6, max: 9 },
   crystal_path_shattered: { min: 7, max: 11 },
   wildcardWestern: { min: 4, max: 8 },
-  castleRescue: { min: 5, max: 9 },
-  castleRescue2: { min: 4, max: 6 },
-  houseOfDarkness: { min: 4, max: 8 },
   mysticChamber: { min: 4, max: 5 },
   gatesOfTheEye: { min: 3, max: 10 },
   boxedOut: { min: 8, max: 16 },
@@ -109,18 +98,13 @@ export const COMPETITION_PACING_LIMITS: Readonly<Record<string, { min: number; m
 const SPECIAL_PURPOSE = new Set(['capitalization', 'finalThreeCircuit', 'downMemoryLane'])
 const SIGNATURE_GAMES = new Set([
   'trapAuction',
-  'silentSaboteur',
   'chainOfGreed',
   'boxedOut',
   'glass_bridge_brutal',
   'crystal_path_shattered',
   'wildcardWestern',
-  'castleRescue',
-  'castleRescue2',
-  'houseOfDarkness',
   'mysticChamber',
   'batteryLow',
-  'hangman',
 ])
 
 /** Approval and LOH/POS separation are inherited from the existing campaign map. */

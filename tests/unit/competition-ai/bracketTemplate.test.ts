@@ -46,12 +46,20 @@ describe('classic campaign map registry integrity', () => {
     const calibration = new Set<string>(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)
 
     expect([...dailyScheduled].sort()).toEqual([...approved].sort())
-    expect(approved.size).toBe(36)
+    expect(approved.size).toBe(23)
     expect([...finaleOnly]).toEqual(['finalThreeCircuit'])
     expect([...finaleOnly].some((key) => calibration.has(key))).toBe(false)
     expect([...dailyScheduled].some((key) => calibration.has(key))).toBe(false)
     expect([...calibration].filter((key) => !getGame(key) || getGame(key)?.retired)).toEqual([])
-    expect([...calibration]).toContain('memoryMatch')
+    expect([...calibration]).toEqual(
+      expect.arrayContaining([
+        'hangman',
+        'estimationGame',
+        'pressurePlank',
+        'minesweeps',
+        'tiltLabyrinth',
+      ])
+    )
     expect([...calibration]).not.toContain('finalThreeCircuit')
     expect([...calibration]).toContain('downMemoryLane')
   })

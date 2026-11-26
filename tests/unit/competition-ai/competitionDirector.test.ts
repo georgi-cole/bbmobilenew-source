@@ -6,6 +6,7 @@ import {
   type DirectorContext,
 } from '../../../src/ai/competition/competitionDirector'
 import { supportsPlayerCount } from '../../../src/minigames/registry'
+import { CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS } from '../../../src/ai/competition/bracketTemplate'
 
 function context(
   playerCount: number,
@@ -22,10 +23,12 @@ function keys(input: DirectorContext): string[] {
 
 describe('Competition Director V1', () => {
   it('has LOH and POS candidates for every field size from 16 down to 4', () => {
+    const calibration = new Set<string>(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)
     for (let size = 4; size <= 16; size++) {
-      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.LOH.length).toBeGreaterThan(0)
-      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.POS.length).toBeGreaterThan(0)
       for (const type of ['LOH', 'POS'] as const) {
+        expect(
+          COMPETITION_DIRECTOR_PREFERENCES[size][type].every((key) => !calibration.has(key))
+        ).toBe(true)
         const candidates = getCompetitionDirectorCandidates(context(size, type))
         expect(candidates.length, `${size} players / ${type}`).toBeGreaterThan(0)
         expect(
@@ -95,19 +98,13 @@ describe('Competition Director V1', () => {
       expect(keys(context(size, 'LOH'))).not.toContain('boxedOut')
     }
   })
-  it('preserves first-season introduction order for both spinoffs', () => {
+  it('introduces Infinity only after the original Crystal Path', () => {
     expect(keys(context(8, 'LOH', 6))).not.toContain('glass_bridge_brutal')
     expect(keys(context(8, 'LOH', 7))).toContain('glass_bridge_brutal')
     const withoutOriginal = keys(context(8, 'LOH', 10))
     expect(withoutOriginal).not.toContain('crystal_path_shattered')
-    expect(withoutOriginal).not.toContain('castleRescue2')
-
-    const withOriginals = keys(context(8, 'LOH', 9, ['glass_bridge_brutal', 'castleRescue']))
-    expect(withOriginals).toContain('crystal_path_shattered')
-    expect(withOriginals).not.toContain('castleRescue2')
-
-    const day10 = keys(context(5, 'LOH', 10, ['castleRescue']))
-    expect(day10).toContain('castleRescue2')
+    const withOriginal = keys(context(8, 'LOH', 9, ['glass_bridge_brutal']))
+    expect(withOriginal).toContain('crystal_path_shattered')
     const day7 = keys(context(9, 'LOH', 7, ['glass_bridge_brutal']))
     expect(day7).not.toContain('crystal_path_shattered')
   })
@@ -135,6 +132,7 @@ describe('Competition Director V1', () => {
 
   it('uses the same no-repeat history for LOH and POS across a season', () => {
     const aliveCounts = [16, 15, 14, 13, 12, 11, 9, 8, 7, 5, 5, 4]
+    const calibration = new Set<string>(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)
     for (let seed = 1; seed <= 32; seed += 1) {
       const played: string[] = []
       for (const [index, alive] of aliveCounts.entries()) {
@@ -145,6 +143,7 @@ describe('Competition Director V1', () => {
           const available = keys(draw)
           const unused = available.filter((key) => !played.includes(key))
           const selected = pickCompetitionDirectorGame(draw, seed * 100 + day, played)
+          expect(available.every((key) => !calibration.has(key))).toBe(true)
           expect(unused.length > 0 ? unused : available).toContain(selected?.key)
           played.unshift(selected!.key)
         }
