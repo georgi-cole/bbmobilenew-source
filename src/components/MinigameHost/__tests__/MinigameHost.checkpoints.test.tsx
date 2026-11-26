@@ -14,6 +14,12 @@ import {
   setPendingPhase,
   type PendingChallenge,
 } from '../../../store/challengeSlice'
+import { setDurableItem } from '../../../store/durablePersistence'
+import {
+  clearLastSavePersistenceIssue,
+  isSavePersistenceBlocked,
+  retrySavePersistenceWrites,
+} from '../../../store/saveStatePersistence'
 
 const mocks = vi.hoisted(() => ({ save: vi.fn(async () => true) }))
 vi.mock('../../../store/store', async () => ({
@@ -98,6 +104,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   store.dispatch(setPendingChallenge(null))
+  clearLastSavePersistenceIssue()
+  retrySavePersistenceWrites()
 })
 
 function mount(onDone = vi.fn(), onWatch = (reward: () => void) => reward()) {
@@ -169,12 +177,22 @@ describe('competition checkpoint boundaries', () => {
   })
 
   it('blocks gameplay on a failed write and retries the same attempt', async () => {
-    mocks.save.mockResolvedValueOnce(false)
+    const checkpointKey = 'test:competition-checkpoint'
+    mocks.save.mockImplementation(async () => {
+      return !isSavePersistenceBlocked() && setDurableItem(checkpointKey, 'saved')
+    })
+    const write = vi.spyOn(localStorage, 'setItem').mockImplementationOnce(() => {
+      throw new DOMException('Storage unavailable', 'SecurityError')
+    })
     mount()
     expect(await screen.findByRole('alert')).toBeVisible()
+    expect(isSavePersistenceBlocked()).toBe(true)
     expect(screen.queryByRole('button', { name: 'Finish run' })).toBeNull()
+    write.mockRestore()
     fireEvent.click(screen.getByRole('button', { name: 'Retry save' }))
     expect(await screen.findByRole('button', { name: 'Finish run' })).toBeVisible()
+    expect(localStorage.getItem(checkpointKey)).toBe('saved')
+    localStorage.removeItem(checkpointKey)
     expect(store.getState().challenge.pending?.attempt?.number).toBe(0)
   })
 

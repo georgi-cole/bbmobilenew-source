@@ -45,6 +45,7 @@ import {
   createAbandonedChallengeResult,
   recoverCommittedChallengeResult,
 } from '../../store/challengeResults'
+import { retrySavePersistenceWrites } from '../../store/saveStatePersistence'
 import { persistCompetitionCheckpoint, store as appStore } from '../../store/store'
 import { CompetitionResultContext } from '../../minigames/competitionResultContext'
 import type { CompetitionResult, ReactMinigameCompletion } from '../../minigames/competitionResult'
@@ -1522,7 +1523,13 @@ export default function MinigameHost({
               {checkpointError ? 'Could not save this competition yet.' : 'Saving competition…'}
             </span>
             {checkpointError && retryCheckpointRef.current && (
-              <button type="button" onClick={() => retryCheckpointRef.current?.()}>
+              <button
+                type="button"
+                onClick={() => {
+                  retrySavePersistenceWrites()
+                  retryCheckpointRef.current?.()
+                }}
+              >
                 Retry save
               </button>
             )}
@@ -1625,7 +1632,7 @@ export default function MinigameHost({
           </div>
         )}
 
-        {phase === 'countdown' && !resumingCheckout && (
+        {phase === 'countdown' && !resumingCheckout && !checkpointError && (
           <div className="minigame-host-ready">
             <span className="minigame-host-ready-label">Get Ready</span>
             <span className="minigame-host-ready-game">{launchedGame.title}</span>

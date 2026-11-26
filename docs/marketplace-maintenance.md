@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-27: Reviewed save recovery in the shared competition host for Standard,
+  Premium Challenges, and VIP. Retry save reopens local writes and repeats the
+  original checkpoint for the same attempt. The marketplace catalog still
+  describes the current products, access, and competition rules.
+
 - 2026-11-25: Reviewed the mobile Vox Populi handbook, including the day
   overview, practice vote and Final 4 ballot explanation. The existing rules,
   expansion access, price and marketplace description remain accurate.
