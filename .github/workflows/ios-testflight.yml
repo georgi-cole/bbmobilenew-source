@@ -63,7 +63,7 @@ jobs:
     # Automatic main builds and explicitly selected TestFlight candidates share validation.
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/testflight-')
     # Use the GitHub-hosted Xcode 27 image so archives use a supported iOS 27 SDK.
-    runs-on: xcode-27-arm64
+    runs-on: xcode-27
     timeout-minutes: 60
     env:
       IOS_BUILD_NUMBER: ${{ github.run_id }}.${{ github.run_attempt }}
