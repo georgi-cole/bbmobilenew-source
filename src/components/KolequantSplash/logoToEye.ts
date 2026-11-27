@@ -14,23 +14,23 @@ type Layout = { viewport: Box; logo: Box; eye: Eye }
 // The shipped portrait backgrounds share two compositions. These coordinates
 // are fractions of the original artwork, before HomeHub's cover crop.
 export function getEyeArtwork(url: string | null | undefined): EyeArtwork | null {
-  const file = url?.match(/(?:^|\/)assets\/skins\/([^?#]+)/)?.[1]
+  const theme = url?.match(/(?:^|\/)assets\/skins\/([^?#]+)\.(?:jpg|webp)(?=[?#]|$)/)?.[1]
   if (
-    !file ||
-    !/^(?:(?:daily|sunrise|sunset|rainy)-background|bg-night|themes\/(?:weather|holiday)-[\w-]+)\.jpg$/.test(
-      file
+    !theme ||
+    !/^(?:(?:daily|sunrise|sunset|rainy)-background|bg-night|themes\/(?:weather|holiday)-[\w-]+)$/.test(
+      theme
     )
   ) {
     return null
   }
 
-  const night = file.endsWith('-night.jpg')
+  const night = theme.endsWith('-night')
   return {
     centerY: night ? 0.254 : 0.224,
     halfWidth: night ? 0.169 : 0.21,
     halfHeight: night ? 0.048 : 0.061,
     iris: night ? 0.066 : 0.082,
-    glow: /sunrise|sunset|christmas|halloween/.test(file) ? '#ffc59e' : '#92daff',
+    glow: /sunrise|sunset|christmas|halloween/.test(theme) ? '#ffc59e' : '#92daff',
   }
 }
 
