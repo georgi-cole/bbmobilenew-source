@@ -1,0 +1,166 @@
+name: Submit verified The Big Eye build for App Review
+on:
+  push:
+    branches: [release/app-review-46007353810]
+    paths: ['.github/workflows/check-app-store-review.yml']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify and submit build 46007353810.1
+        env:
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createAppleClient } from './scripts/lib/testflight-readiness.mjs'
+
+          const appId = '6828006735'
+          const buildNumber = '46007353810.1'
+          const read = createAppleClient({
+            issuerId: process.env.ASC_API_ISSUER_ID,
+            keyId: process.env.ASC_API_KEY_ID,
+            privateKeyBase64: process.env.ASC_API_KEY_P8_BASE64,
+          })
+
+          const filter = new URLSearchParams({
+            'filter[app]': appId,
+            'filter[version]': buildNumber,
+            'filter[preReleaseVersion.platform]': 'IOS',
+            include: 'app,preReleaseVersion',
+            limit: '2',
+          })
+          const [app, builds, versions, submissions] = await Promise.all([
+            read('GET', `/v1/apps/${appId}?fields[apps]=name,bundleId,primaryLocale`),
+            read('GET', `/v1/builds?${filter}`),
+            read('GET', `/v1/apps/${appId}/appStoreVersions?filter[platform]=IOS&include=build&limit=20`),
+            read('GET', `/v1/apps/${appId}/reviewSubmissions?filter[platform]=IOS&include=appStoreVersionForReview&limit=20`),
+          ])
+          if (app.data.id !== appId || app.data.attributes.bundleId !== 'com.georgicole.thebigeye') {
+            throw new Error('App Store Connect returned the wrong app.')
+          }
+          if (builds.data.length !== 1) throw new Error('The requested build did not resolve uniquely.')
+          const [build] = builds.data
+          if (build.relationships.app.data.id !== appId || build.attributes.version !== buildNumber) {
+            throw new Error('App Store Connect returned a different build.')
+          }
+          const train = builds.included.find(({ id }) => id === build.relationships.preReleaseVersion.data.id)
+          const matchingVersions = versions.data.filter(
+            ({ attributes }) => attributes.versionString === train.attributes.version
+          )
+          const localizationSummaries = await Promise.all(matchingVersions.map(async ({ id }) => {
+            const { data } = await read('GET', `/v1/appStoreVersions/${id}/appStoreVersionLocalizations?limit=50`)
+            return [id, data.map(({ attributes }) => ({
+              locale: attributes.locale,
+              hasWhatsNew: Boolean(attributes.whatsNew?.trim()),
+              hasDescription: Boolean(attributes.description?.trim()),
+            }))]
+          }))
+          const buildNumbers = new Map((versions.included ?? []).filter(({ type }) => type === 'builds')
+            .map(({ id, attributes }) => [id, attributes.version]))
+          console.log('APP_REVIEW_SNAPSHOT ' + JSON.stringify({
+            app: { id: appId, ...app.data.attributes },
+            requestedBuild: {
+              id: build.id,
+              number: buildNumber,
+              marketingVersion: train.attributes.version,
+              platform: train.attributes.platform,
+              processingState: build.attributes.processingState,
+              expired: build.attributes.expired,
+              buildAudienceType: build.attributes.buildAudienceType,
+            },
+            storeVersions: versions.data.map(({ id, attributes, relationships }) => ({
+              id,
+              version: attributes.versionString,
+              appVersionState: attributes.appVersionState,
+              appStoreState: attributes.appStoreState,
+              releaseType: attributes.releaseType,
+              phasedRelease: relationships?.appStoreVersionPhasedRelease?.data?.id,
+              selectedBuild: buildNumbers.get(relationships?.build?.data?.id),
+            })),
+            reviewSubmissions: submissions.data.map(({ id, attributes, relationships }) => ({
+              id,
+              state: attributes.state,
+              versionId: relationships?.appStoreVersionForReview?.data?.id,
+            })),
+            localizations: Object.fromEntries(localizationSummaries),
+          }))
+
+                    const allowedStates = new Set(['WAITING_FOR_REVIEW', 'IN_REVIEW', 'COMPLETING'])
+                    if (train.attributes.platform !== 'IOS' || build.attributes.processingState !== 'VALID' ||
+                        build.attributes.expired || build.attributes.buildAudienceType === 'INTERNAL_ONLY') {
+                      throw new Error('This iOS build is not eligible for App Store submission.')
+                    }
+                    if (matchingVersions.length !== 1) throw new Error('There is no unique matching App Store version.')
+                    const [version] = matchingVersions
+                    const versionState = version.attributes.appVersionState ?? version.attributes.appStoreState
+                    const path = `/v1/appStoreVersions/${version.id}/relationships/build`
+                    const currentBuild = async () => (await read('GET', path)).data?.id
+                    if (allowedStates.has(versionState) && await currentBuild() === build.id) {
+                      console.log(`APP_REVIEW_VERIFIED ${JSON.stringify({ build: buildNumber, version: train.attributes.version, status: versionState, releaseType: version.attributes.releaseType })}`)
+                      process.exit(0)
+                    }
+                    if (!['PREPARE_FOR_SUBMISSION', 'READY_FOR_REVIEW', 'DEVELOPER_REJECTED'].includes(versionState)) {
+                      throw new Error(`The existing App Store version is ${versionState} and cannot be edited for this submission.`)
+                    }
+
+                    const active = submissions.data.filter(({ attributes }) => attributes.state !== 'COMPLETE')
+                    let draft
+                    for (const submission of active) {
+                      if (submission.attributes.state !== 'READY_FOR_REVIEW') {
+                        throw new Error(`An App Review submission is already ${submission.attributes.state}.`)
+                      }
+                      const { data: items, links } = await read('GET', `/v1/reviewSubmissions/${submission.id}/items?include=appStoreVersion&limit=50`)
+                      if (items.length === 0) continue
+                      if (draft || links?.next || items.length !== 1 ||
+                          items[0].relationships?.appStoreVersion?.data?.id !== version.id) {
+                        throw new Error('Another item is present in an existing draft review submission.')
+                      }
+                      draft = submission
+                    }
+
+                    if (await currentBuild() !== build.id) {
+                      await read('PATCH', path, { data: { type: 'builds', id: build.id } })
+                    }
+                    if (await currentBuild() !== build.id) throw new Error('Apple did not select the exact build.')
+                    if (!draft) {
+                      draft = (await read('POST', '/v1/reviewSubmissions', {
+                        data: {
+                          type: 'reviewSubmissions',
+                          attributes: { platform: 'IOS' },
+                          relationships: { app: { data: { type: 'apps', id: appId } } },
+                        },
+                      })).data
+                      await read('POST', '/v1/reviewSubmissionItems', {
+                        data: {
+                          type: 'reviewSubmissionItems',
+                          relationships: {
+                            reviewSubmission: { data: { type: 'reviewSubmissions', id: draft.id } },
+                            appStoreVersion: { data: { type: 'appStoreVersions', id: version.id } },
+                          },
+                        },
+                      })
+                    }
+                    const endpoint = `/v1/reviewSubmissions/${draft.id}`
+                    const { data: items, links } = await read('GET', `${endpoint}/items?include=appStoreVersion&limit=50`)
+                    if (links?.next || items.length !== 1 || items[0].relationships?.appStoreVersion?.data?.id !== version.id) {
+                      throw new Error('The draft review contains an unexpected item.')
+                    }
+                    await read('PATCH', endpoint, {
+                      data: { type: 'reviewSubmissions', id: draft.id, attributes: { submitted: true } },
+                    })
+                    for (let attempt = 0; attempt < 10; attempt++) {
+                      const { data: review } = await read('GET', endpoint)
+                      if (allowedStates.has(review.attributes.state) && await currentBuild() === build.id) {
+                        console.log(`APP_REVIEW_VERIFIED ${JSON.stringify({ build: buildNumber, version: train.attributes.version, status: review.attributes.state, releaseType: version.attributes.releaseType, submissionId: draft.id })}`)
+                        process.exit(0)
+                      }
+                      await new Promise((resolve) => setTimeout(resolve, 4000))
+                    }
+                    throw new Error('Apple did not confirm the review state and attached build within the verification window.')
+          NODE
