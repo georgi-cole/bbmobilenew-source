@@ -47,7 +47,7 @@ describe('classic campaign map registry integrity', () => {
 
     expect([...dailyScheduled].sort()).toEqual([...approved].sort())
     expect(approved.size).toBe(24)
-    expect([...finaleOnly]).toEqual(['finalThreeCircuit'])
+    expect([...finaleOnly]).toEqual(['finalThreeCircuit', 'downMemoryLane'])
     expect([...finaleOnly].some((key) => calibration.has(key))).toBe(false)
     expect([...dailyScheduled].some((key) => calibration.has(key))).toBe(false)
     expect([...calibration].filter((key) => !getGame(key) || getGame(key)?.retired)).toEqual([])
@@ -61,7 +61,6 @@ describe('classic campaign map registry integrity', () => {
       ])
     )
     expect([...calibration]).not.toContain('finalThreeCircuit')
-    expect([...calibration]).toContain('downMemoryLane')
   })
   it('only maps each game to field sizes its registry entry supports', () => {
     DEFAULT_BRACKET_TEMPLATE.forEach((band) => {
@@ -112,7 +111,7 @@ describe('classic campaign map registry integrity', () => {
     }
   })
 
-  it('preserves the Circuit qualifiers and uses retained map games in Final 3 Part 3', () => {
+  it('uses Circuit for the qualifiers and Down Memory Lane for the final duel', () => {
     const part1 = DEFAULT_BRACKET_TEMPLATE.find((band) => band.phases?.includes('final3_comp1'))
     const part2 = DEFAULT_BRACKET_TEMPLATE.find((band) => band.phases?.includes('final3_comp2'))
     const part3 = DEFAULT_BRACKET_TEMPLATE.find((band) =>
@@ -120,7 +119,7 @@ describe('classic campaign map registry integrity', () => {
     )
     expect(part1?.loh).toEqual(['finalThreeCircuit'])
     expect(part2?.loh).toEqual(['finalThreeCircuit'])
-    expect(part3?.loh).toEqual(['quickTapSeasons', 'snake', 'capitalization'])
+    expect(part3?.loh).toEqual(['downMemoryLane'])
   })
 })
 
@@ -177,7 +176,7 @@ describe('getClassicCampaignPoolForContext', () => {
 
     expect(resolve('final3_comp1_minigame')).toEqual(['finalThreeCircuit'])
     expect(resolve('final3_comp2_minigame')).toEqual(['finalThreeCircuit'])
-    expect(resolve('final3_comp3_minigame')).toEqual(['quickTapSeasons', 'snake', 'capitalization'])
+    expect(resolve('final3_comp3_minigame')).toEqual(['downMemoryLane'])
   })
 
   it('is mode-agnostic for Classic, Vox Populi and Cupid finale scheduling', () => {
@@ -206,6 +205,6 @@ describe('getClassicCampaignPoolForContext', () => {
         compType: 'LOH',
         phase: 'final3_comp3_minigame',
       })
-    ).toEqual(['quickTapSeasons', 'snake', 'capitalization'])
+    ).toEqual(['downMemoryLane'])
   })
 })

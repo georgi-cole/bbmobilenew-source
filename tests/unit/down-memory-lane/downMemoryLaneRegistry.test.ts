@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS,
+  CLASSIC_CAMPAIGN_FINALE_GAME_KEYS,
   getClassicCampaignPoolForContext,
 } from '../../../src/ai/competition/bracketTemplate'
 import { getAllGames, getGame, getPoolByFilter } from '../../../src/minigames/registry'
@@ -24,7 +24,7 @@ describe('Down Memory Lane finale registration', () => {
     ).toBe(false)
   })
 
-  it('remains registered but is held out of the Final 3 competition map', () => {
+  it('owns the playable Part 3 phase', () => {
     const partThreePool = getClassicCampaignPoolForContext({
       day: 14,
       playerCount: 3,
@@ -32,7 +32,7 @@ describe('Down Memory Lane finale registration', () => {
       phase: 'final3_comp3_minigame',
     })
 
-    expect(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS).toContain('downMemoryLane')
-    expect(partThreePool).not.toContain('downMemoryLane')
+    expect(CLASSIC_CAMPAIGN_FINALE_GAME_KEYS).toContain('downMemoryLane')
+    expect(partThreePool).toEqual(['downMemoryLane'])
   })
 })

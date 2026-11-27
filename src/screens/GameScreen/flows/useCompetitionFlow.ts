@@ -211,14 +211,32 @@ export function useCompetitionFlow({
     game.phase === 'final3_comp3_minigame'
 
   useEffect(() => {
-    const inF3Minigame =
-      game.phase === 'final3_comp1_minigame' ||
-      game.phase === 'final3_comp2_minigame' ||
-      game.phase === 'final3_comp3_minigame'
-    if (inF3Minigame && !pendingChallenge && game.minigameContext) {
-      dispatch(startChallenge(game.minigameContext.seed, game.minigameContext.participants))
+    if (!isF3MinigamePhase || !game.minigameContext) return
+    const { phaseKey, seed, participants } = game.minigameContext
+    // Replace only an untouched Part 3 challenge saved by a previous build.
+    const replaceUnstartedDuel =
+      phaseKey === 'final3_comp3' &&
+      pendingChallenge?.origin?.phase === game.phase &&
+      pendingChallenge.origin.gameId === game.gameId &&
+      pendingChallenge.origin.week === game.week &&
+      pendingChallenge.phase === 'rules' &&
+      pendingChallenge.attempt?.status === 'ready' &&
+      pendingChallenge.attempt.number === 0 &&
+      pendingChallenge.game.key !== 'downMemoryLane' &&
+      !store.getState().challenge.debug.forceGameKey
+    if (!pendingChallenge || replaceUnstartedDuel) {
+      dispatch(startChallenge(seed, participants))
     }
-  }, [game.phase, pendingChallenge, game.minigameContext, dispatch])
+  }, [
+    isF3MinigamePhase,
+    game.phase,
+    game.gameId,
+    game.week,
+    pendingChallenge,
+    game.minigameContext,
+    dispatch,
+    store,
+  ])
 
   // ── Legacy 'spectator:show' event listener ─────────────────────────────────
   // The legacySpectatorAdapter dispatches this event when window.Spectator.show()

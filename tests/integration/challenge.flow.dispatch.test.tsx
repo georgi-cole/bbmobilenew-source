@@ -172,7 +172,8 @@ describe('challenge flow – phase transition dispatch', () => {
     ['final3_comp1', 'competition-map', 3, 'finalThreeCircuit'],
     ['final3_comp2', 'competition-map', 2, 'finalThreeCircuit'],
     ['final3_comp2', 'single-game', 2, 'finalThreeCircuit'],
-    ['final3_comp3', 'competition-map', 2, 'quickTapSeasons'],
+    ['final3_comp3', 'competition-map', 2, 'downMemoryLane'],
+    ['final3_comp3', 'single-game', 2, 'downMemoryLane'],
   ] as const)('launches %s from GameScreen in %s mode', (phaseKey, mode, count, expectedGame) => {
     const players = [
       { id: 'p1', name: 'Ari', avatar: '', status: 'active' as const, isUser: true },
@@ -184,7 +185,8 @@ describe('challenge flow – phase transition dispatch', () => {
       week: 14,
       phase: `${phaseKey}_minigame`,
       players,
-      f3Part1WinnerId: count === 2 ? 'p3' : null,
+      f3Part1WinnerId: phaseKey === 'final3_comp3' ? 'p1' : count === 2 ? 'p3' : null,
+      f3Part2WinnerId: phaseKey === 'final3_comp3' ? 'p2' : null,
       minigameContext: { phaseKey, participants, seed: 144 },
     })
     store.dispatch(
@@ -201,6 +203,32 @@ describe('challenge flow – phase transition dispatch', () => {
 
     expect(store.getState().challenge.pending).toMatchObject({
       game: { key: expectedGame },
+      participants,
+    })
+  })
+
+  it('opens Down Memory Lane when resuming untouched Part 3 rules from an older save', () => {
+    const participants = ['p1', 'p2']
+    const store = makeStoreWithGame({
+      week: 14,
+      phase: 'final3_comp3_minigame',
+      players: [
+        { id: 'p1', name: 'Ari', avatar: '', status: 'active', isUser: true },
+        { id: 'p2', name: 'Bo', avatar: '', status: 'active' },
+        { id: 'p3', name: 'Cy', avatar: '', status: 'active' },
+      ],
+      f3Part1WinnerId: 'p1',
+      f3Part2WinnerId: 'p2',
+      minigameContext: { phaseKey: 'final3_comp3', participants, seed: 144 },
+    })
+    dispatchThunk(store, startChallenge(144, participants, { forceGameKey: 'quickTapSeasons' }))
+    expect(store.getState().challenge.pending?.game.key).toBe('quickTapSeasons')
+    store.dispatch(hydrateChallenge(store.getState().challenge))
+
+    renderWithStore(store)
+
+    expect(store.getState().challenge.pending).toMatchObject({
+      game: { key: 'downMemoryLane' },
       participants,
     })
   })
