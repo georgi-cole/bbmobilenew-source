@@ -62,10 +62,11 @@ android {
     buildTypes {
         release {
             minifyEnabled true
+            shrinkResources true
             ndk {
                 debugSymbolLevel 'FULL'
             }
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (releaseSigningConfigured) {
                 signingConfig signingConfigs.release
             } else if (releaseBuildRequested) {
