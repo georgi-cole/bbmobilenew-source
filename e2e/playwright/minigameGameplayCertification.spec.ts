@@ -21,7 +21,7 @@ const DRIVER_SKILL: SimulationSkill = 'competent'
 const MAX_STALLED_ACTIONS = 40
 
 interface PlaythroughScenario {
-  label: 'minimum' | 'maximum' | 'default'
+  label: 'minimum' | 'maximum' | 'default' | 'reported'
   players: number
   seed: number
 }
@@ -58,6 +58,7 @@ function scenariosFor(game: GameRegistryEntry): PlaythroughScenario[] {
     { label: 'minimum', players: minimum, seed: 424242 },
     { label: game.maxPlayers == null ? 'default' : 'maximum', players: maximum, seed: 0x5eedc0de },
   ]
+  if (game.key === 'riskWheelAbyss') candidates.push({ label: 'reported', players: 13, seed: 314 })
   return candidates.filter(
     (scenario, index) =>
       candidates.findIndex((candidate) => candidate.players === scenario.players) === index
@@ -186,6 +187,21 @@ test.describe('full minigame gameplay certification @full-playthrough', () => {
           await openGame(page, game, scenario)
           page.setDefaultTimeout(5_000)
           if (fastClock && !installClockBeforeMount) await installMinigameFastClock(page)
+
+          if (game.key === 'riskWheelAbyss') {
+            const backdrop = page.locator('.social-challenge--abyss .social-challenge__art')
+            await expect(backdrop).toBeVisible()
+            const imageUrl = await backdrop.evaluate(
+              (element) =>
+                /url\("([^"]*risk-wheel-abyss\.webp)"\)/.exec(
+                  getComputedStyle(element).backgroundImage
+                )?.[1]
+            )
+            expect(imageUrl).toBeDefined()
+            const image = await page.request.get(imageUrl!)
+            expect(image.ok()).toBe(true)
+            expect(image.headers()['content-type']).toContain('image/webp')
+          }
 
           const completionCount = page.getByTestId('minigame-lab-completion-count')
           const lastResult = page.getByTestId('minigame-lab-last-result')

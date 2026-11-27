@@ -3,10 +3,22 @@
   text-align: center;
 }
 
+.social-challenge--abyss .social-challenge__art {
+  background:
+    linear-gradient(180deg, rgb(5 9 16 / 12%) 12%, rgb(5 9 16 / 25%) 50%, #09080a 100%),
+    var(--challenge-art) center 28% / cover no-repeat;
+  pointer-events: none;
+}
+
 .social-challenge--abyss .social-challenge__body {
   display: grid;
-  gap: 0.75rem;
+  align-content: start;
+  gap: clamp(0.5rem, 1.6vh, 0.85rem);
   justify-items: center;
+}
+
+.social-challenge--abyss :is(p, h3) {
+  margin: 0;
 }
 
 .social-challenge--abyss button {
@@ -16,6 +28,14 @@
   color: #f6e4ca;
   min-height: 44px;
   padding: 0.55rem 0.85rem;
+}
+
+.social-challenge--abyss .abyss-primary {
+  border-color: #f7d4a1;
+  background: linear-gradient(155deg, #f3cb91, #b67745);
+  color: #21150d;
+  font-weight: 750;
+  box-shadow: 0 4px 20px rgb(228 160 90 / 30%);
 }
 
 .social-challenge--abyss button[aria-pressed='true'] {
@@ -28,6 +48,11 @@
 }
 
 .abyss-clock {
+  min-width: 3.4rem;
+  padding: 3px 8px;
+  border: 1px solid #7e6a59;
+  border-radius: 999px;
+  background: rgb(13 20 28 / 86%);
   color: #f3cd9f;
   font-variant-numeric: tabular-nums;
 }
@@ -39,7 +64,8 @@
 }
 .abyss-wheel-box {
   position: relative;
-  inline-size: min(68vw, 18rem);
+  inline-size: min(66vw, 37dvh, 18rem);
+  margin-block: 0.4rem;
 }
 
 .abyss-wheel-box::after {
@@ -47,6 +73,7 @@
   position: absolute;
   inset: 0 auto auto 50%;
   transform: translateX(-50%);
+  z-index: 2;
   border-inline: 0.55rem solid transparent;
   border-top: 1.15rem solid #f5d6a5;
   filter: drop-shadow(0 0 4px #0c0806);
@@ -55,12 +82,23 @@
 .abyss-wheel {
   position: relative;
   aspect-ratio: 1;
-  border: 0.35rem ridge #a58763;
+  border: 0.3rem ridge #e3b97c;
   border-radius: 50%;
   box-shadow:
-    0 0 2.5rem #100c0b,
-    inset 0 0 1.75rem #100c0b;
-  transition: transform 480ms cubic-bezier(0.18, 0.76, 0.24, 1);
+    0 0 0 0.22rem #2a221b,
+    0 0 1.9rem rgb(85 222 224 / 40%),
+    inset 0 0 1.25rem #100c0b;
+  transition: transform 800ms cubic-bezier(0.14, 0.72, 0.24, 1);
+}
+
+.abyss-wheel-hub {
+  position: absolute;
+  inset: 43%;
+  border: 1px solid #f3cc99;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #88c5bf 0%, #254b50 38%, #100f16 72%);
+  box-shadow: 0 0 0.7rem rgb(8 8 12 / 95%);
+  pointer-events: none;
 }
 
 .abyss-wheel span {
@@ -82,8 +120,23 @@
 
 .abyss-roster,
 .abyss-tally {
+  margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.abyss-roster {
+  padding: 0.5rem;
+  border: 1px solid rgb(205 173 137 / 30%);
+  border-radius: 0.8rem;
+  background: rgb(10 14 20 / 82%);
+}
+
+.abyss-balance {
+  color: #fff0da;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 5px #09080a;
 }
 
 .abyss-roster li {

@@ -3,6 +3,7 @@ import { SoundManager } from '../../services/sound/SoundManager'
 
 export type ChallengeGame = 'rps' | 'last-light' | 'abyss'
 type ChallengeCue = 'lock' | 'reveal' | 'success' | 'loss' | 'draw' | 'roll' | 'link'
+type ChallengePlayback = { signal?: AbortSignal; durationMs?: number }
 
 const CUES: Record<ChallengeGame, Record<ChallengeCue, string>> = {
   rps: {
@@ -34,10 +35,10 @@ const CUES: Record<ChallengeGame, Record<ChallengeCue, string>> = {
   },
 }
 
-export function useChallengeAudio(game: ChallengeGame): (cue: ChallengeCue) => void {
+export function useChallengeAudio(game: ChallengeGame) {
   return useCallback(
-    (cue: ChallengeCue) => {
-      SoundManager.play(CUES[game][cue], { volume: cue === 'lock' ? 0.34 : 0.46 })
+    (cue: ChallengeCue, playback?: ChallengePlayback) => {
+      SoundManager.play(CUES[game][cue], { volume: cue === 'lock' ? 0.34 : 0.46, ...playback })
     },
     [game]
   )
