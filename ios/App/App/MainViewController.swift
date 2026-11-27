@@ -69,7 +69,7 @@ class MainViewController: CAPBridgeViewController {
 public class AppDistributionPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "AppDistributionPlugin"
     public let jsName = "AppDistribution"
-    public let pluginMethods = [
+    public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "getDistribution", returnType: CAPPluginReturnPromise)
     ]
 
