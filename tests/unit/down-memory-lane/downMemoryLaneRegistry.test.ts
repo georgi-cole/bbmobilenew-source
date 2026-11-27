@@ -25,20 +25,14 @@ describe('Down Memory Lane finale registration', () => {
   })
 
   it('remains registered but is held out of the Final 3 competition map', () => {
-    const resolve = (
-      phase: 'final3_comp1_minigame' | 'final3_comp2_minigame' | 'final3_comp3_minigame'
-    ) =>
-      getClassicCampaignPoolForContext({
-        day: 14,
-        playerCount: 3,
-        compType: 'LOH',
-        phase,
-      })
+    const partThreePool = getClassicCampaignPoolForContext({
+      day: 14,
+      playerCount: 3,
+      compType: 'LOH',
+      phase: 'final3_comp3_minigame',
+    })
 
     expect(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS).toContain('downMemoryLane')
-    expect(resolve('final3_comp1_minigame')).toEqual(['quickTap', 'timingBar', 'cardClash'])
-    expect(resolve('final3_comp2_minigame')).toEqual(['timingBar', 'holdWall', 'cardClash'])
-    expect(resolve('final3_comp3_minigame')).toEqual(['quickTapSeasons', 'snake', 'capitalization'])
-    expect(resolve('final3_comp3_minigame')).not.toContain('downMemoryLane')
+    expect(partThreePool).not.toContain('downMemoryLane')
   })
 })

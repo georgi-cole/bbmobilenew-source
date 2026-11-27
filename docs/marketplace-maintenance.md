@@ -725,3 +725,8 @@ store listings or change configured prices.
   champion portrait selection. Standard and VIP use the shared ceremony and
   champion coronation. The presentation update preserves existing marketplace
   products, pricing, benefits and entitlement rules.
+
+- 2026-11-27: Reviewed the Final Three Circuit qualifier routing and separate
+  portraits for Lia and Ali during Tribunal voting. The twins retain their
+  shared ballot and vote tally. Marketplace benefits, prices and entitlements
+  are unchanged.

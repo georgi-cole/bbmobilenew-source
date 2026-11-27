@@ -175,8 +175,8 @@ describe('getClassicCampaignPoolForContext', () => {
       phase: 'final3_comp1_minigame' | 'final3_comp2_minigame' | 'final3_comp3_minigame'
     ) => getClassicCampaignPoolForContext({ day: 14, playerCount: 3, compType: 'LOH', phase })
 
-    expect(resolve('final3_comp1_minigame')).toEqual(['quickTap', 'timingBar', 'cardClash'])
-    expect(resolve('final3_comp2_minigame')).toEqual(['timingBar', 'holdWall', 'cardClash'])
+    expect(resolve('final3_comp1_minigame')).toEqual(['finalThreeCircuit'])
+    expect(resolve('final3_comp2_minigame')).toEqual(['finalThreeCircuit'])
     expect(resolve('final3_comp3_minigame')).toEqual(['quickTapSeasons', 'snake', 'capitalization'])
   })
 
@@ -190,7 +190,7 @@ describe('getClassicCampaignPoolForContext', () => {
         compType: 'LOH',
         phase: 'final3_comp1_minigame',
       })
-    ).toEqual(['quickTap', 'timingBar', 'cardClash'])
+    ).toEqual(['finalThreeCircuit'])
     expect(
       getClassicCampaignPoolForContext({
         day: 14,
@@ -198,7 +198,7 @@ describe('getClassicCampaignPoolForContext', () => {
         compType: 'LOH',
         phase: 'final3_comp2_minigame',
       })
-    ).toEqual(['timingBar', 'holdWall', 'cardClash'])
+    ).toEqual(['finalThreeCircuit'])
     expect(
       getClassicCampaignPoolForContext({
         day: 14,

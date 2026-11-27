@@ -169,8 +169,10 @@ jobs:
         run: npm run sync:ios
 
       - name: Smoke-test iOS 27 launch
-        timeout-minutes: 15
+        # A cold simulator and Release build can exceed 15 minutes on a hosted runner.
+        timeout-minutes: 25
         run: |
+          echo 'Discovering an available iOS 27 iPhone simulator.'
           SIMULATOR_ID="$(xcrun simctl list devices available -j | node --input-type=module -e '
             import fs from "node:fs";
             const { devices } = JSON.parse(fs.readFileSync(0, "utf8"));
@@ -183,7 +185,9 @@ jobs:
             console.log(device.udid);
           ')"
           trap 'xcrun simctl shutdown "$SIMULATOR_ID" >/dev/null 2>&1 || true' EXIT
+          echo "Booting simulator $SIMULATOR_ID."
           xcrun simctl boot "$SIMULATOR_ID" || xcrun simctl bootstatus "$SIMULATOR_ID"
+          echo 'Compiling the release app for the simulator.'
           LAUNCH_DERIVED_DATA="$RUNNER_TEMP/launch-smoke"
           xcodebuild -quiet build \
             -project ios/App/App.xcodeproj \
@@ -194,6 +198,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
           xcrun simctl bootstatus "$SIMULATOR_ID" -b
           xcrun simctl install "$SIMULATOR_ID" "$LAUNCH_DERIVED_DATA/Build/Products/Release-iphonesimulator/App.app"
+          echo 'Launching the release app and checking that it stays running.'
           LAUNCH="$(xcrun simctl launch "$SIMULATOR_ID" com.georgicole.thebigeye)"
           APP_PID="${LAUNCH##*: }"
           sleep 12
@@ -202,6 +207,7 @@ jobs:
             xcrun simctl spawn "$SIMULATOR_ID" log show --last 30s --predicate 'process == "App"' | tail -60
             exit 1
           fi
+          echo 'The Big Eye stayed running on the iOS 27 simulator.'
 
       - name: Install Apple signing certificate and profile
         env:

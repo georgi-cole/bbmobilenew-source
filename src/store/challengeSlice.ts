@@ -24,6 +24,7 @@ import {
 import { selectNextCompetitionGame } from '../ai/competition/scheduling'
 import {
   CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
+  FINAL_THREE_CIRCUIT_PHASES,
   getClassicCampaignPoolForContext,
 } from '../ai/competition/bracketTemplate'
 import { pickCompetitionDirectorGame } from '../ai/competition/competitionDirector'
@@ -453,7 +454,11 @@ export const startChallenge =
     const debugState = state.challenge?.debug ?? {}
 
     // Resolve which game to use.
-    const forceKey = opts.forceGameKey ?? debugState.forceGameKey
+    const isCircuitQualifier = FINAL_THREE_CIRCUIT_PHASES.includes(state.game.phase)
+    const forceKey =
+      opts.forceGameKey ??
+      debugState.forceGameKey ??
+      (isCircuitQualifier ? 'finalThreeCircuit' : undefined)
     const forceSeed = debugState.forceSeed
     const gameSeed = forceSeed !== undefined ? forceSeed : seed
     const nextNonce = state.challenge?.nextNonce ?? 1
@@ -588,10 +593,7 @@ export const startChallenge =
     }
     const getBracketTemplatePool = (excludeKeys?: string[]) => {
       const isFinal3Competition =
-        state.game.phase === 'final3_comp1' ||
-        state.game.phase === 'final3_comp1_minigame' ||
-        state.game.phase === 'final3_comp2' ||
-        state.game.phase === 'final3_comp2_minigame' ||
+        isCircuitQualifier ||
         state.game.phase === 'final3_comp3' ||
         state.game.phase === 'final3_comp3_minigame'
       const bracketCompType =

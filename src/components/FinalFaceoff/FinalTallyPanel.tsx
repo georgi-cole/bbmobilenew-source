@@ -1,5 +1,9 @@
 import type { Player } from '../../types'
 import type { RefObject } from 'react'
+import { isCombinedTwinIdentity } from '../../bb/twinShockIdentity.mjs'
+import TribunalTwinPortrait, {
+  TRIBUNAL_TWIN_NAMES,
+} from '../TribunalMemberStage/TribunalTwinPortrait'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import './FinalTallyPanel.css'
 
@@ -33,7 +37,15 @@ export default function FinalTallyPanel({
         <div className="fo-score__tableau" aria-hidden="true">
           {finalists.map((finalist) => (
             <div className="fo-score__portrait" key={finalist.id}>
-              <FullSizeCutoutImage player={finalist} attire="formal" alt="" draggable={false} />
+              {isCombinedTwinIdentity(finalist) ? (
+                <div className="tribunal-twin-portraits">
+                  {TRIBUNAL_TWIN_NAMES.map((name) => (
+                    <TribunalTwinPortrait key={name} name={name} />
+                  ))}
+                </div>
+              ) : (
+                <FullSizeCutoutImage player={finalist} attire="formal" alt="" draggable={false} />
+              )}
             </div>
           ))}
         </div>

@@ -23,7 +23,7 @@ import challengeReducer, {
 } from '../../src/store/challengeSlice'
 import profilesReducer, { type ProfilesState } from '../../src/store/profilesSlice'
 import socialReducer from '../../src/social/socialSlice'
-import settingsReducer, { DEFAULT_SETTINGS } from '../../src/store/settingsSlice'
+import settingsReducer, { DEFAULT_SETTINGS, setGameUX } from '../../src/store/settingsSlice'
 import publicOpinionReducer from '../../src/publicOpinion/publicOpinionSlice'
 import GameScreen from '../../src/screens/GameScreen/GameScreen'
 import { I18nProvider } from '../../src/i18n'
@@ -166,6 +166,43 @@ describe('challenge flow – phase transition dispatch', () => {
     const state = store.getState()
     expect(state.challenge.pending).not.toBeNull()
     expect(state.challenge.pending?.game.key).toBeTruthy()
+  })
+
+  it.each([
+    ['final3_comp1', 'competition-map', 3, 'finalThreeCircuit'],
+    ['final3_comp2', 'competition-map', 2, 'finalThreeCircuit'],
+    ['final3_comp2', 'single-game', 2, 'finalThreeCircuit'],
+    ['final3_comp3', 'competition-map', 2, 'quickTapSeasons'],
+  ] as const)('launches %s from GameScreen in %s mode', (phaseKey, mode, count, expectedGame) => {
+    const players = [
+      { id: 'p1', name: 'Ari', avatar: '', status: 'active' as const, isUser: true },
+      { id: 'p2', name: 'Bo', avatar: '', status: 'active' as const },
+      { id: 'p3', name: 'Cy', avatar: '', status: 'active' as const },
+    ]
+    const participants = players.slice(0, count).map((player) => player.id)
+    const store = makeStoreWithGame({
+      week: 14,
+      phase: `${phaseKey}_minigame`,
+      players,
+      f3Part1WinnerId: count === 2 ? 'p3' : null,
+      minigameContext: { phaseKey, participants, seed: 144 },
+    })
+    store.dispatch(
+      setGameUX({
+        compSelection: {
+          ...DEFAULT_SETTINGS.gameUX.compSelection,
+          mode,
+          selectedGameId: 'holdWall',
+        },
+      })
+    )
+
+    renderWithStore(store)
+
+    expect(store.getState().challenge.pending).toMatchObject({
+      game: { key: expectedGame },
+      participants,
+    })
   })
 
   it('does not dispatch a second challenge if one is already pending', async () => {
