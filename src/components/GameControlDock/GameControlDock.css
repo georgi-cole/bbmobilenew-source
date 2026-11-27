@@ -27,6 +27,38 @@
   user-select: none;
 }
 
+.game-control-dock__social-cue {
+  position: absolute;
+  z-index: 6;
+  bottom: 100%;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  min-height: 32px;
+  transform: translateX(-50%);
+  border: 1px solid rgb(177 154 227 / 48%);
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: #231a38;
+  color: #f1eafd;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+
+.game-control-dock__social-cue::after {
+  content: ' ›';
+  color: #d7bdf7;
+  white-space: nowrap;
+}
+
+.game-control-dock__social-cue:focus-visible {
+  outline: 2px solid #e1ccff;
+  outline-offset: 2px;
+}
+
 .game-control-dock--finale-overlay {
   /* The spectator scene is portalled to <body>, while the dock lives inside
      the clipped game cabinet. Take the existing dock out of that clipping
@@ -463,6 +495,7 @@ body.mode-surveyeval .fab-icon.confessional {
 }
 
 /* Warm gold mission badge on the Confessional FAB button. */
+.dock-hit-area--decision-required .dock-hit-area__badge,
 .dock-hit-area__badge--mission {
   min-width: 18px;
   height: 18px;

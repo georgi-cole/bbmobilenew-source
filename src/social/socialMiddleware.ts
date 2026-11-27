@@ -24,6 +24,9 @@ import { formatVotePercentage, getVotePercentagePrecision } from '../utils/voteP
  */
 
 import type { Middleware } from '@reduxjs/toolkit'
+import type { RootState } from '../store/store'
+import { selectRequiredIncomingDecision } from './incomingDecisions'
+import { collectCampaignVoteTargets } from './reality/campaignVotePromises'
 import type { StrategicAllianceSnapshot, GameState as FullGameState } from '../types'
 import { addTvEvent, settleSecretMissionDay } from '../store/gameSlice'
 import { getCanonicalRelationshipTags } from './relationshipSemantics'
@@ -1469,6 +1472,11 @@ function recordActualVotes(api: MiddlewareAPI): void {
         phase: afterCeremony.game.phase,
         eventId,
         eligibleTargetIds: [...afterCeremony.game.nomineeIds],
+        jointTargetIds:
+          afterCeremony.game.cupidArrow?.status === 'active'
+            ? afterCeremony.game.cupidArrow.pairs?.find((pair) => pair.memberIds.includes(targetId))
+                ?.memberIds
+            : undefined,
         revealed: false,
       })
     )
@@ -1620,6 +1628,18 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
   }
 
   const { type } = action as { type: string }
+
+  // The inbox is also checked here when a phase transition is requested by a
+  // post-ceremony callback, for example on return from the Confessional.
+  if (
+    (type === 'game/advance' ||
+      type === 'game/beginWeekendDayTransition' ||
+      type === 'game/beginWeekendTribunalGlimpse' ||
+      type === 'game/completeWeekendInterlude') &&
+    selectRequiredIncomingDecision(api.getState() as RootState)
+  ) {
+    return action
+  }
 
   if (type === 'social/pushIncomingInteraction' || type === 'social/scheduleIncomingInteraction') {
     const state = api.getState() as StateWithGame
@@ -2185,7 +2205,14 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     // Track POS-auto-save: nominee who wins POS saves themselves in pos_ceremony_results.
     const prevNominees = prevState.game?.nomineeIds ?? []
 
-    const result = next(action)
+    const result = next(
+      prevPhase === 'social_2'
+        ? {
+            ...action,
+            payload: collectCampaignVoteTargets(prevState.social?.reality, prevState.game.week),
+          }
+        : action
+    )
 
     const afterState = api.getState() as StateWithGame
     const newPhase = afterState.game?.phase

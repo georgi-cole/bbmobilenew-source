@@ -191,6 +191,8 @@ import {
   type TwinShockTurnResult,
 } from '../bb/twinShock'
 import { LIVE_VOTE_PITCHES_EVENT_KEY, LIVE_VOTE_PITCHES_TEXT } from '../constants/tvEvents'
+import { selectRequiredIncomingDecision } from '../social/incomingDecisions'
+import type { CampaignVoteTargets } from '../social/reality/campaignVotePromises'
 import {
   buildHubSaysQuestionIds,
   getHubSaysQuestion,
@@ -5307,7 +5309,8 @@ export function chooseAiEvictionVote(
   state: GameState,
   voterId: string,
   nomineeIds: string[],
-  gameSeed: number
+  gameSeed: number,
+  campaignTargets: readonly string[] = []
 ): string {
   if (nomineeIds.length <= 1) return nomineeIds[0]
 
@@ -5366,7 +5369,12 @@ export function chooseAiEvictionVote(
       : 0
     factors.realityAlliancePlanContribution = alliancePlanContribution
     factors.realityAllianceProtection = allianceRead.sharedProtection
+    // A private pledge can tip a close ballot while loyalty and other motives
+    // still matter to the voter.
+    const campaignPledge = campaignTargets.includes(nomineeId) ? 32 : 0
+    factors.campaignPledge = campaignPledge
     let score =
+      campaignPledge +
       threat * 8 -
       affinity +
       randomDraw * 4 +
@@ -5540,7 +5548,8 @@ function chooseCupidPairEvictionVote(
   state: GameState,
   voterIds: string[],
   nomineeIds: string[],
-  gameSeed: number
+  gameSeed: number,
+  campaignVoteTargets?: CampaignVoteTargets
 ): string {
   const candidatePlayers = collapseCupidCandidates(
     state,
@@ -5551,7 +5560,13 @@ function chooseCupidPairEvictionVote(
   const candidateIds = candidatePlayers.map((player) => player.id)
   const effectiveCandidateIds = candidateIds.length > 0 ? candidateIds : nomineeIds
   const preferences = voterIds.map((voterId) =>
-    chooseAiEvictionVote(state, voterId, effectiveCandidateIds, gameSeed)
+    chooseAiEvictionVote(
+      state,
+      voterId,
+      effectiveCandidateIds,
+      gameSeed,
+      campaignVoteTargets?.[voterId]?.flatMap((targetId) => getCupidRoleIds(state, targetId))
+    )
   )
   const preferredPairIds = preferences.map(
     (targetId) => getCupidPair(state, targetId)?.id ?? `solo:${targetId}`
@@ -11143,7 +11158,10 @@ const gameSlice = createSlice({
     },
 
     /** Advance to the next phase, computing outcomes deterministically via RNG. */
-    advance(state) {
+    advance(
+      state,
+      { payload: campaignVoteTargets }: PayloadAction<CampaignVoteTargets | undefined>
+    ) {
       // Timed, required narration has the same progression contract as a card.
       // This also covers callers outside the central Play button.
       if (state.tvFeed.some((event) => isPendingDetoxEvent(event, state))) return
@@ -13258,13 +13276,15 @@ const gameSlice = createSlice({
                   state,
                   jointVoterIds,
                   eligibleNomineeIds.length > 0 ? eligibleNomineeIds : state.nomineeIds,
-                  state.seed
+                  state.seed,
+                  campaignVoteTargets
                 )
               : chooseAiEvictionVote(
                   state,
                   voter.id,
                   eligibleNomineeIds.length > 0 ? eligibleNomineeIds : state.nomineeIds,
-                  state.seed
+                  state.seed,
+                  campaignVoteTargets?.[voter.id]
                 )
             jointVoterIds.forEach((voterId) => {
               voteMap[voterId] = targetId
@@ -14558,6 +14578,7 @@ export default withMissionPowers(gameSlice.reducer, getEligibleReplacementNomine
 export const resolvePendingVoxAudienceVote =
   () => (dispatch: AppDispatch, getState: () => RootState) => {
     const root = getState()
+    if (selectRequiredIncomingDecision(root)) return
     const game = root.game
     const context = game.voxPopuli?.publicVoteContext
     if (

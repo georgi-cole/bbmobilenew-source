@@ -425,6 +425,12 @@ export interface IncomingInteractionDeliveryState {
 }
 
 /** Redux-serialisable state subtree owned by the social module. */
+export interface SocialPanelFocus {
+  targetId: string
+  actionId: string
+  subjectId?: string
+}
+
 export interface SocialState {
   missionResourceReceipts?: string[]
   missionResourcePayouts?: Record<string, { energy: number; influence: number; info: number }>
@@ -483,6 +489,7 @@ export interface SocialState {
    * When true the panel is visible regardless of the current game phase.
    */
   panelOpen: boolean
+  panelFocus?: SocialPanelFocus
   /**
    * Snapshot of affinity values taken at the start of each week (when transitioning to
    * `week_start`). Used to compute the week-over-week relationship trend arrow shown in
@@ -491,6 +498,7 @@ export interface SocialState {
   weekStartRelSnapshot: Record<string, Record<string, number>>
   /** Whether the incoming interactions inbox panel is open. */
   incomingInboxOpen: boolean
+  incomingInboxFocusId?: string
 }
 
 // ── Policy ────────────────────────────────────────────────────────────────

@@ -260,6 +260,7 @@ export default function SocialPanelV2() {
   const influenceBank = useAppSelector(selectInfluenceBank, comparePanelState)
   const infoBank = useAppSelector(selectInfoBank, comparePanelState)
   const socialPanelOpen = useAppSelector(selectSocialPanelOpen)
+  const panelFocus = useAppSelector((state) => state.social.panelFocus)
   const sessionLogs = useAppSelector(selectSessionLogs, comparePanelState)
   const actionHistory = useAppSelector(selectPersistentSocialHistory, comparePanelState)
   const socialCommitments = useAppSelector(selectSocialCommitments, comparePanelState)
@@ -424,6 +425,21 @@ export default function SocialPanelV2() {
     ReadonlyMap<string, number>
   >(new Map())
   const [moveFilter, setMoveFilter] = useState<(typeof MOVE_FILTERS)[number]['id']>('all')
+  useEffect(() => {
+    if (!socialPanelOpen || !panelFocus) return
+    const frame = window.requestAnimationFrame(() => {
+      setSelectedAllianceId(null)
+      setSelectedAllianceHistoryEventId(null)
+      setSelectedPactHistoryEventId(null)
+      setMultiSelectActive(false)
+      setPrimaryTargetId(panelFocus.targetId)
+      setSelectedTargets(new Set([panelFocus.targetId]))
+      setSelectedActionId(panelFocus.actionId)
+      setSelectedSubjectId(panelFocus.subjectId ?? null)
+      setMoveFilter('all')
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [panelFocus, socialPanelOpen])
   const selectedAllianceRecord = selectedAllianceId
     ? socialState.reality.alliances[selectedAllianceId]
     : undefined

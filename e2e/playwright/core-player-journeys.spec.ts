@@ -13,7 +13,11 @@ import {
 } from './support/test'
 import { openProfileCreationForm } from './support/profile'
 import { mkdir } from 'node:fs/promises'
-import { incomingDockButton, replyToOptionalIncoming } from './support/incomingSocial'
+import {
+  incomingDockButton,
+  replyToOptionalIncoming,
+  replyToRequiredIncoming,
+} from './support/incomingSocial'
 
 const JOURNEY_TIMEOUT_MS = 90_000
 const SCREEN_TIMEOUT_MS = 30_000
@@ -294,6 +298,7 @@ async function advanceToFirstSocialPhase(page: Page): Promise<void> {
     await closePhaseInformationIfPresent(page)
     const phase = (await readAppState(page)).game.phase
     if (phase === 'social_1') return
+    if (await replyToRequiredIncoming(page)) continue
 
     if (phase === 'loh_comp') {
       await resolveCompetitionThroughPlayerControls(page, phase)
@@ -426,6 +431,7 @@ async function playOneCompleteWeek(page: Page): Promise<{
       continue
     }
 
+    if (await replyToRequiredIncoming(page)) continue
     if (hasCoreWeekDecision(game)) {
       await completeActiveConfessionalDecision(page)
       continue

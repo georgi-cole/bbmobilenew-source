@@ -84,6 +84,9 @@ export interface GameControlDockProps {
   primaryDisabled?: boolean
   socialDisabled?: boolean
   incomingRequestsDisabled?: boolean
+  incomingDecisionRequired?: boolean
+  incomingIconRef?: Ref<HTMLButtonElement>
+  socialCue?: { kind: 'social' | 'incoming'; label: string; onClick: () => void }
   publicMeterDisabled?: boolean
   chatBadgeCount?: number
   showChatBadgeZero?: boolean
@@ -131,6 +134,9 @@ export default function GameControlDock({
   primaryDisabled = false,
   socialDisabled = false,
   incomingRequestsDisabled = false,
+  incomingDecisionRequired = false,
+  incomingIconRef,
+  socialCue,
   publicMeterDisabled = false,
   chatBadgeCount,
   showChatBadgeZero = false,
@@ -157,7 +163,8 @@ export default function GameControlDock({
   const votePresentationLocked = useAppSelector(
     (state) =>
       !state.game.weekendInterlude?.active &&
-      (Boolean(state.game.voteResults) || Boolean(state.game.evictionOverlayPlayerId))
+      ((Boolean(state.game.voteResults) && !state.game.awaitingTieBreak) ||
+        Boolean(state.game.evictionOverlayPlayerId))
   )
   // During the ordinary Vox audience-vote window, Play is the one intentional
   // action: it starts the count/reveal. Lock navigation and side modules so the
@@ -168,11 +175,18 @@ export default function GameControlDock({
       state.game.voxPopuli?.awaitingPublicVote === true &&
       state.game.voxPopuli.publicVoteContext === 'eviction'
   )
-  const dockDisabled =
+  const presentationLocksDock =
+    (disabled && !weekendActive) || votePresentationLocked || navigationDisabled
+  const requestsDockDisabled =
     (disabled && !weekendActive) ||
     votePresentationLocked ||
-    voxAudienceVoteLocked ||
-    navigationDisabled
+    ((navigationDisabled || voxAudienceVoteLocked) && !incomingDecisionRequired)
+  const dockDisabled = presentationLocksDock || voxAudienceVoteLocked
+  const showSocialCue =
+    socialCue &&
+    (socialCue.kind === 'incoming'
+      ? !requestsDockDisabled && !incomingRequestsDisabled
+      : !dockDisabled && !socialDisabled)
   // The Vox lock deliberately does NOT disable the central Play control.
   const effectivePrimaryDisabled = primaryDisabled || votePresentationLocked
   const [socialLedActive, acknowledgeSocialLed] = useNotificationLed(chatBadgeCount, {
@@ -258,6 +272,15 @@ export default function GameControlDock({
         role="toolbar"
         aria-label="Game actions"
       >
+        {showSocialCue && (
+          <button
+            className="game-control-dock__social-cue"
+            type="button"
+            onClick={socialCue.onClick}
+          >
+            {socialCue.label}
+          </button>
+        )}
         <img
           className="game-control-dock__shell fab-shell"
           src={shellSrc}
@@ -354,13 +377,14 @@ export default function GameControlDock({
             )}
         </button>
         <button
-          className={`dock-hit-area hit-requests dock-hit-area--requests${requestsUnavailableClass}`}
+          className={`dock-hit-area hit-requests dock-hit-area--requests${incomingDecisionRequired ? ' dock-hit-area--decision-required' : ''}${requestsUnavailableClass}`}
+          ref={incomingIconRef}
           type="button"
           aria-label={`Incoming requests${incomingRequestsBadgeCount ? ` (${incomingRequestsBadgeCount})` : ''}`}
-          aria-disabled={incomingRequestsDisabled || dockDisabled}
-          disabled={dockDisabled}
+          aria-disabled={incomingRequestsDisabled || requestsDockDisabled}
+          disabled={requestsDockDisabled}
           onClick={
-            dockDisabled
+            requestsDockDisabled
               ? undefined
               : () => {
                   if (!incomingRequestsDisabled) acknowledgeRequestsLed()

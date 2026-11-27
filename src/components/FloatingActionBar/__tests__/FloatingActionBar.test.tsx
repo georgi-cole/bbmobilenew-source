@@ -34,7 +34,10 @@ import socialReducer, {
   setEnergyBankEntry,
   applyEnergyDelta,
   pushIncomingInteraction,
+  resolveIncomingInteraction,
+  closeIncomingInbox,
 } from '../../../social/socialSlice'
+import { createIncomingInteraction } from '../../../social/incomingInteractionFactory'
 import profilesReducer, { createProfile } from '../../../store/profilesSlice'
 import challengeReducer from '../../../store/challengeSlice'
 import publicOpinionReducer, { addDirection } from '../../../publicOpinion/publicOpinionSlice'
@@ -1338,4 +1341,69 @@ describe('pre-release spectator progression', () => {
       ).toBe(false)
     }
   )
+})
+
+describe('FloatingActionBar with important Incoming', () => {
+  it('spotlights Incoming and keeps Play blocked until a response', () => {
+    const store = makeStore(true, { phase: 'social_1', week: 4 })
+    const sender = store.getState().game.players.find((player) => !player.isUser)!
+    const interaction = createIncomingInteraction({
+      id: 'campaign-deal',
+      fromId: sender.id,
+      type: 'deal_offer',
+      text: 'Can I count on you?',
+      week: 4,
+      phase: 'social_1',
+      mode: 'normal',
+    })
+    store.dispatch(pushIncomingInteraction(interaction))
+    renderFAB(store)
+
+    expect(screen.getByRole('button', { name: `${sender.name} needs an answer.` })).toBeVisible()
+    const play = screen.getByRole('button', { name: 'Advance to next phase' })
+    fireEvent.click(play)
+    expect(store.getState().game.phase).toBe('social_1')
+    expect(screen.getByTestId('confessional-spotlight')).toBeVisible()
+    expect(screen.getByRole('status')).toHaveTextContent(`Answer ${sender.name} in Incoming`)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Incoming requests (1)' }))
+    expect(store.getState().social.incomingInboxOpen).toBe(true)
+    expect(store.getState().social.incomingInboxFocusId).toBe(interaction.id)
+    expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
+    act(() => store.dispatch(closeIncomingInbox()))
+    fireEvent.click(play)
+    expect(store.getState().game.phase).toBe('social_1')
+
+    act(() => {
+      store.dispatch(
+        resolveIncomingInteraction({
+          interactionId: interaction.id,
+          resolvedWith: 'decline',
+          resolvedAt: 10,
+          resolvedWeek: 4,
+        })
+      )
+    })
+    fireEvent.click(play)
+    expect(store.getState().game.phase).toBe('nominations')
+  })
+
+  it('opens Standard Social with a timely contact and move selected', () => {
+    const current = makeStore().getState().game
+    const holder = current.players.find((player) => !player.isUser)!
+    const human = current.players.find((player) => player.isUser)!
+    const store = makeStore(true, { phase: 'social_1', lohId: holder.id })
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 3 }))
+    renderFAB(store)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: `Talk to ${holder.name} before nominations.` })
+    )
+    expect(store.getState().social.panelFocus).toEqual({
+      targetId: holder.id,
+      actionId: 'whisper',
+    })
+    expect(store.getState().social.panelOpen).toBe(true)
+    expect(store.getState().game.phase).toBe('social_1')
+  })
 })
