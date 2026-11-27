@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { initializeCloudBackend } from './backendService'
 import { authenticatedBackend } from './supabaseTransport'
+import { declarePlayerAge, setOptionalPlayerFeature } from '../../safety/playerSafety'
 
 const hooks = vi.hoisted(() => ({
   event: undefined as undefined | ((event: unknown, profileId?: string | null) => void),
@@ -20,6 +21,7 @@ vi.mock('./supabaseTransport', () => ({
   },
 }))
 vi.mock('./profileBackup', () => ({ serializeProfileBackup: (value: unknown) => value }))
+vi.mock('./playerAccountProfiles', () => ({ initializePlayerAccountProfiles: () => () => {} }))
 vi.mock('./deviceContext', () => ({ readDeviceAnalyticsContext: async () => ({}) }))
 vi.mock('../liveOps/productTelemetry', () => ({
   trackProductEvent: vi.fn(),
@@ -37,6 +39,8 @@ describe('backend event buffering', () => {
     vi.mocked(authenticatedBackend).mockReset().mockRejectedValue(new Error('offline'))
     sessionStorage.clear()
     localStorage.clear()
+    declarePlayerAge(30)
+    setOptionalPlayerFeature('analytics', true)
   })
   afterEach(() => {
     vi.restoreAllMocks()
@@ -162,8 +166,42 @@ describe('backend event buffering', () => {
     expect(authenticatedBackend).toHaveBeenCalledWith('analytics')
     expect(authenticatedBackend).not.toHaveBeenCalledWith('profile_backup')
     expect(upsert.mock.calls[0][0]).toEqual([
-      expect.objectContaining({ owner_id: 'analytics-guest', profile_id: null }),
+      expect.objectContaining({
+        owner_id: 'analytics-guest',
+        profile_id: null,
+        distribution_channel: 'web',
+      }),
     ])
+    stop()
+  })
+
+  it('ignores events before opt-in and clears queued events on withdrawal', () => {
+    setOptionalPlayerFeature('analytics', false)
+    const stop = initializeCloudBackend({
+      getState: () => ({ profiles: { profiles: [], activeProfileId: null, isGuest: true } }),
+      subscribe: () => vi.fn(),
+    } as never)
+    const emit = () =>
+      hooks.event?.(
+        {
+          name: 'session_active',
+          occurredAt: new Date().toISOString(),
+          sessionId: 'guest-session',
+          properties: { active_seconds: 1 },
+        },
+        null
+      )
+    const stored = () =>
+      JSON.parse(sessionStorage.getItem('bbmobilenew:supabase-events:v1') ?? '[]')
+    emit()
+    window.dispatchEvent(new Event('pagehide'))
+    expect(stored()).toEqual([])
+    setOptionalPlayerFeature('analytics', true)
+    emit()
+    window.dispatchEvent(new Event('pagehide'))
+    expect(stored()).toHaveLength(1)
+    setOptionalPlayerFeature('analytics', false)
+    expect(stored()).toEqual([])
     stop()
   })
 

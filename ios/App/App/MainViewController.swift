@@ -1,4 +1,5 @@
 import Capacitor
+import StoreKit
 import UIKit
 
 class MainViewController: CAPBridgeViewController {
@@ -8,6 +9,7 @@ class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(GameDisplayPlugin())
         bridge?.registerPluginInstance(CinematicPackPlugin())
+        bridge?.registerPluginInstance(AppDistributionPlugin())
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
@@ -60,6 +62,45 @@ class MainViewController: CAPBridgeViewController {
                 window.dispatchEvent(new Event('resize'));
             })();
             """, completionHandler: nil)
+    }
+}
+
+@objc(AppDistributionPlugin)
+public class AppDistributionPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "AppDistributionPlugin"
+    public let jsName = "AppDistribution"
+    public let pluginMethods = [
+        CAPPluginMethod(name: "getDistribution", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func getDistribution(_ call: CAPPluginCall) {
+        Task {
+            let bundle = Bundle.main
+            var channel = "unknown"
+            var source = "storekit_unavailable"
+
+            if #available(iOS 16.0, *) {
+                do {
+                    if case .verified(let transaction) = try await AppTransaction.shared {
+                        switch transaction.environment {
+                        case .production: channel = "app_store"
+                        case .sandbox: channel = "testflight"
+                        case .xcode: channel = "development"
+                        default: break
+                        }
+                        source = "storekit_app_transaction"
+                    }
+                } catch {
+                    // No account prompt or forced refresh is needed for analytics.
+                }
+            }
+            call.resolve([
+                "channel": channel,
+                "source": source,
+                "version": bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown",
+                "build": bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+            ])
+        }
     }
 }
 

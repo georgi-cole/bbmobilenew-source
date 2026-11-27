@@ -1,4 +1,5 @@
 import type { store as appStore } from '../../store/store'
+import { canUseOptionalFeature, subscribePlayerSafety } from '../../safety/playerSafety'
 import {
   subscribeProductEvents,
   trackProductEvent,
@@ -6,6 +7,7 @@ import {
 } from '../liveOps/productTelemetry'
 import { getBackendConfig } from './config'
 import { resolveAppEnvironment } from './appEnvironment'
+import { readAppDistribution, readPlayInstallAttribution } from './appDistribution'
 import { sanitizeAnalyticsEvent } from './analyticsSchema'
 import { readDeviceAnalyticsContext } from './deviceContext'
 import { serializeProfileBackup } from './profileBackup'
@@ -14,6 +16,7 @@ import { initializePlayerAccountProfiles } from './playerAccountProfiles'
 
 const PREFERENCES_KEY = 'bbmobilenew:supabase-profiles:v1'
 const EVENTS_KEY = 'bbmobilenew:supabase-events:v1'
+const ATTRIBUTION_KEY = 'bbmobilenew:play-install-attributed:v1'
 const MAX_EVENTS = 2000
 const MAX_EVENT_AGE = 7 * 24 * 60 * 60 * 1000
 const APP_ENVIRONMENT = resolveAppEnvironment(
@@ -102,7 +105,14 @@ function loadEvents(): QueuedEvent[] {
 export function initializeCloudBackend(store: typeof appStore): () => void {
   if (!getBackendConfig()) return () => undefined
   const stopAccountProfileSync = initializePlayerAccountProfiles(store)
-  let events = loadEvents()
+  let events = canUseOptionalFeature('analytics') ? loadEvents() : []
+  if (!canUseOptionalFeature('analytics')) {
+    try {
+      sessionStorage.removeItem(EVENTS_KEY)
+    } catch {
+      // Analytics must remain optional even if storage is unavailable.
+    }
+  }
   const earliestExpiry = () =>
     events.reduce(
       (expiry, event) => Math.min(expiry, Date.parse(event.occurredAt) + MAX_EVENT_AGE),
@@ -148,6 +158,10 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
   let activeId = previousProfiles.activeProfileId
   let measuredSession = false
   let activeSince = Date.now()
+  let sessionGeneration = 0
+  let distribution: ReturnType<typeof readAppDistribution> | undefined
+  let attributionAttempted = false
+  const getDistribution = () => (distribution ??= readAppDistribution(APP_ENVIRONMENT))
   const uploaded = new Map<string, string>()
   let backupOwnerId: string | null | undefined
   let resyncAfterFlush = false
@@ -159,7 +173,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
       : state.profiles.find((profile) => profile.id === state.activeProfileId)
   }
   const currentSubjectId = () => currentProfile()?.id ?? null
-  const analyticsAllowed = () => !stopped
+  const analyticsAllowed = () => !stopped && canUseOptionalFeature('analytics')
   function setStatus(next: BackupStatus) {
     status = next
     notify()
@@ -238,6 +252,8 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
       if (analyticsAllowed()) {
         const batch = readEvents().slice(0, 50)
         if (batch.length) {
+          const { fields } = await getDistribution()
+          if (signal.aborted || !analyticsAllowed()) return
           const { client, ownerId } = await authenticatedBackend('analytics')
           if (signal.aborted || stopped || !analyticsAllowed()) return
           const { error } = await client
@@ -250,15 +266,26 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
                 name: event.name,
                 occurred_at: event.occurredAt,
                 session_id: event.sessionId,
+                ...fields,
                 properties: {
                   ...event.properties,
-                  app_environment: APP_ENVIRONMENT,
+                  app_environment:
+                    fields.traffic_class === 'test' && APP_ENVIRONMENT === 'production'
+                      ? 'qa'
+                      : APP_ENVIRONMENT,
                 },
               })),
               { onConflict: 'owner_id,event_id', ignoreDuplicates: true }
             )
             .abortSignal(signal)
           if (error) throw error
+          if (batch.some((event) => event.name === 'install_attribution')) {
+            try {
+              localStorage.setItem(ATTRIBUTION_KEY, '1')
+            } catch {
+              // A storage failure can cause the attribution to be sent on the next launch.
+            }
+          }
           const sent = new Set(batch.map((event) => event.id))
           writeEvents(readEvents().filter((event) => !sent.has(event.id)))
           persistEvents()
@@ -274,6 +301,39 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
         schedule()
       }
     }
+  }
+
+  async function recordSession(profileId: string | null, generation: number) {
+    const [deviceContext, channel] = await Promise.all([
+      readDeviceAnalyticsContext(),
+      getDistribution(),
+    ])
+    const isCurrent = () => analyticsAllowed() && generation === sessionGeneration
+    if (!isCurrent()) return
+    trackProductEvent(
+      'session_started',
+      {
+        ...deviceContext,
+        platform: channel.platform,
+        app_version: channel.appVersion,
+        app_build: channel.appBuild,
+      },
+      profileId
+    )
+    if (channel.fields.distribution_channel !== 'google_play' || attributionAttempted) return
+    try {
+      if (
+        localStorage.getItem(ATTRIBUTION_KEY) ||
+        readEvents().some((event) => event.name === 'install_attribution')
+      )
+        return
+    } catch {
+      // Reading attribution remains possible without persistent storage.
+    }
+    attributionAttempted = true
+    const attribution = await readPlayInstallAttribution()
+    if (attribution && isCurrent()) trackProductEvent('install_attribution', attribution, null)
+    else attributionAttempted = false
   }
 
   function contextChanged() {
@@ -302,6 +362,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
       )
     )
     if (profiles.activeProfileId !== activeId || profiles.isGuest !== previousProfiles.isGuest) {
+      sessionGeneration++
       activeId = profiles.activeProfileId
       controller.abort()
       controller = new AbortController()
@@ -310,22 +371,10 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     }
     previousProfiles = profiles
     const profile = currentProfile()
-    if (!measuredSession) {
+    if (analyticsAllowed() && !measuredSession) {
       measuredSession = true
       activeSince = Date.now()
-      const sessionProfileId = currentSubjectId()
-      void readDeviceAnalyticsContext().then((deviceContext) => {
-        if (stopped || !analyticsAllowed() || currentSubjectId() !== sessionProfileId) return
-        trackProductEvent(
-          'session_started',
-          {
-            platform: 'web',
-            app_version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
-            ...deviceContext,
-          },
-          sessionProfileId
-        )
-      })
+      void recordSession(currentSubjectId(), ++sessionGeneration)
     }
     if (!profile) setStatus('disabled')
     else if (
@@ -355,6 +404,23 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
   })
   const unsubscribeStore = store.subscribe(() => {
     if (store.getState().profiles !== previousProfiles) contextChanged()
+  })
+  let hadAnalyticsConsent = analyticsAllowed()
+  const unsubscribeSafety = subscribePlayerSafety(() => {
+    const allowed = analyticsAllowed()
+    if (allowed === hadAnalyticsConsent) return
+    hadAnalyticsConsent = allowed
+    if (!allowed) {
+      sessionGeneration++
+      measuredSession = false
+      attributionAttempted = false
+      controller.abort()
+      controller = new AbortController()
+      writeEvents([])
+      persistEvents()
+      if (busy) resyncAfterFlush = true
+    }
+    contextChanged()
   })
   const unsubscribeAccount = subscribeBackendAuth('profile_backup', (ownerId) => {
     if (backupOwnerId === ownerId) return
@@ -413,6 +479,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     clearInterval(interval)
     unsubscribeEvents()
     unsubscribeStore()
+    unsubscribeSafety()
     unsubscribeAccount()
     window.removeEventListener('online', schedule)
     window.removeEventListener('pagehide', persistEvents)

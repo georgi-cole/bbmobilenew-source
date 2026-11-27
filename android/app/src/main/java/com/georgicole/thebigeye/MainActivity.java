@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(StoryIconRotationPlugin.class);
         registerPlugin(GameDisplayPlugin.class);
         registerPlugin(CinematicPackPlugin.class);
+        registerPlugin(InstallAttributionPlugin.class);
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
     }
