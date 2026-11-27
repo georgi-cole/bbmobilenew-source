@@ -8,7 +8,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
       - uses: actions/checkout@v4
       - name: Verify and submit build 46007353810.1
@@ -98,18 +98,63 @@ jobs:
                     }
                     if (matchingVersions.length !== 1) throw new Error('There is no unique matching App Store version.')
                     const [version] = matchingVersions
-                    const versionState = version.attributes.appVersionState ?? version.attributes.appStoreState
+                    let versionState = version.attributes.appVersionState ?? version.attributes.appStoreState
                     const path = `/v1/appStoreVersions/${version.id}/relationships/build`
                     const currentBuild = async () => (await read('GET', path)).data?.id
                     if (allowedStates.has(versionState) && await currentBuild() === build.id) {
                       console.log(`APP_REVIEW_VERIFIED ${JSON.stringify({ build: buildNumber, version: train.attributes.version, status: versionState, releaseType: version.attributes.releaseType })}`)
                       process.exit(0)
                     }
+                    const submissionId = '2b432b34-a5a6-4a96-b288-54d9b83be4ff'
+                    const versionId = '667c734a-39a8-4ddd-839f-eb28f45fe10d'
+                    const previousBuildNumber = '44612600433.1'
+                    const reviewEndpoint = `/v1/reviewSubmissions/${submissionId}`
+                    const versionEndpoint = `/v1/appStoreVersions/${version.id}`
+                    if (version.id !== versionId || train.attributes.version !== '1.0.2') {
+                      throw new Error('Apple returned a different App Store version from the one approved for replacement.')
+                    }
+                    if (['WAITING_FOR_REVIEW', 'IN_REVIEW'].includes(versionState)) {
+                      const expectedReview = submissions.data.find(({ id }) => id === submissionId)
+                      if (!['WAITING_FOR_REVIEW', 'IN_REVIEW'].includes(expectedReview?.attributes.state) ||
+                          expectedReview.relationships?.appStoreVersionForReview?.data?.id !== versionId) {
+                        throw new Error('The authorized older submission is no longer the active review for this version.')
+                      }
+                      const { data: attachedBuild } = await read('GET', `${versionEndpoint}/build`)
+                      if (attachedBuild?.attributes.version !== previousBuildNumber) {
+                        throw new Error('The active submission is attached to a different build from the one approved for withdrawal.')
+                      }
+                      const { data: oldItems, links: oldLinks } = await read('GET', `${reviewEndpoint}/items?include=appStoreVersion&limit=50`)
+                      if (oldLinks?.next || oldItems.length !== 1 ||
+                          oldItems[0].relationships?.appStoreVersion?.data?.id !== versionId) {
+                        throw new Error('The existing review includes other items. Withdrawing it would affect those items too.')
+                      }
+                      await read('PATCH', reviewEndpoint, {
+                        data: { type: 'reviewSubmissions', id: submissionId, attributes: { canceled: true } },
+                      })
+                      console.log(`APP_REVIEW_WITHDRAWAL_REQUESTED ${previousBuildNumber}`)
+                    }
+                    const oldReview = submissions.data.find(({ id }) => id === submissionId)
+                    if (oldReview && ['WAITING_FOR_REVIEW', 'IN_REVIEW', 'CANCELING'].includes(oldReview.attributes.state)) {
+                      for (let attempt = 0; attempt < 25; attempt++) {
+                        const { data: latestVersion } = await read('GET', versionEndpoint)
+                        const { data: currentReview } = await read('GET', reviewEndpoint)
+                        versionState = latestVersion.attributes.appVersionState ?? latestVersion.attributes.appStoreState
+                        if (currentReview.attributes.state === 'COMPLETE' &&
+                            ['DEVELOPER_REJECTED', 'PREPARE_FOR_SUBMISSION'].includes(versionState)) {
+                          console.log(`APP_REVIEW_WITHDRAWN ${previousBuildNumber}`)
+                          break
+                        }
+                        if (attempt === 24) throw new Error(`Apple is still processing the withdrawal: ${currentReview.attributes.state} / ${versionState}.`)
+                        await new Promise((resolve) => setTimeout(resolve, 6000))
+                      }
+                    }
+
                     if (!['PREPARE_FOR_SUBMISSION', 'READY_FOR_REVIEW', 'DEVELOPER_REJECTED'].includes(versionState)) {
                       throw new Error(`The existing App Store version is ${versionState} and cannot be edited for this submission.`)
                     }
 
-                    const active = submissions.data.filter(({ attributes }) => attributes.state !== 'COMPLETE')
+                    const refreshed = await read('GET', `/v1/apps/${appId}/reviewSubmissions?filter[platform]=IOS&include=appStoreVersionForReview&limit=20`)
+                    const active = refreshed.data.filter(({ attributes }) => attributes.state !== 'COMPLETE')
                     let draft
                     for (const submission of active) {
                       if (submission.attributes.state !== 'READY_FOR_REVIEW') {
