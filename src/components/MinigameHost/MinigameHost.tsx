@@ -487,7 +487,8 @@ export default function MinigameHost({
         const resolved =
           launchedGame.key === 'silentSaboteur' ||
           launchedGame.key === 'glass_bridge_brutal' ||
-          launchedGame.key === 'rockPaperScissors'
+          launchedGame.key === 'rockPaperScissors' ||
+          launchedGame.key === 'riskWheelAbyss'
             ? (getCanonicalGame(launchedGame.key) ?? launchedGame)
             : override
               ? { ...launchedGame, ...override }
@@ -1492,6 +1493,7 @@ export default function MinigameHost({
           launchedGame.reactComponentKey === 'ChainOfGreed' ||
           launchedGame.reactComponentKey === 'GatesOfTheEye' ||
           launchedGame.reactComponentKey === 'RiskWheel' ||
+          launchedGame.reactComponentKey === 'RiskWheelAbyss' ||
           launchedGame.reactComponentKey === 'ColorMatch' ||
           launchedGame.reactComponentKey === 'ClosestWithoutGoingOver' ||
           launchedGame.reactComponentKey === 'TimingBar' ||

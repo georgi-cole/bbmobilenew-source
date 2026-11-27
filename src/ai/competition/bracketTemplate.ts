@@ -4,8 +4,8 @@ import type { Phase } from '../../types'
  * Classic campaign competition map.
  *
  * The most specific rule matching the current day, alive-housemate count, and
- * Final 3 phase owns the random-selection pool. Keeping LOH and POS lists separate prevents
- * a short luck game from accidentally becoming the week's main competition.
+ * Final 3 phase owns each bracket selection pool. The default director applies
+ * a broader POS pool after the premiere.
  */
 
 export interface BracketBand {
@@ -44,6 +44,7 @@ export const MINIGAME_COMPETITION_MAP_STATUS = {
     'colorMatch',
     'snake',
     'riskWheel',
+    'riskWheelAbyss',
     'crystal_path_shattered',
     'capitalization',
     'cardClash',
@@ -96,15 +97,21 @@ export const CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS = MINIGAME_COMPETITION_MAP_S
 export const CLASSIC_CAMPAIGN_GAME_MIN_DAY: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
 > = {
+  glass_bridge_brutal: 7,
   crystal_path_shattered: 8,
+  wildcardWestern: 8,
+  mysticChamber: 10,
   rockPaperScissors: 2,
   lastLight: 2,
+  riskWheelAbyss: 2,
 }
 
 /** Narrative prerequisites that cannot be represented by day alone. */
 export const CLASSIC_CAMPAIGN_GAME_REQUIRED_PREVIOUS: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], string>
-> = {}
+> = {
+  crystal_path_shattered: 'glass_bridge_brutal',
+}
 
 /** Registry limits for games whose campaign band spans a wider roster range. */
 export const CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS: Partial<
@@ -121,7 +128,7 @@ export const CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS: Partial<
 export const CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS: Partial<
   Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
 > = {
-  boxedOut: 4,
+  boxedOut: 8,
   gatesOfTheEye: 2,
   percentagePanic: 2,
   trapAuction: 8,
@@ -136,31 +143,41 @@ export function getApprovedCompetitionGameKeys(
   return [...new Set(template.flatMap((band) => [...band.loh, ...band.pos]))]
 }
 
+export const CAMPAIGN_PREMIERE: BracketBand = {
+  label: 'Day 1 · premiere',
+  minPlayers: 5,
+  maxPlayers: 16,
+  minDay: 1,
+  maxDay: 1,
+  loh: ['majorityRules', 'percentagePanic'],
+  pos: ['quickTap'],
+}
+
 /**
  * Design rules represented below:
  *
- * - Each regular season day has its own pool, targeting the expected house
- *   count with a one-player tolerance for twists and double evictions.
+ * - The bracket lists LOH and POS options by season day. The default director
+ *   uses the LOH pool and allows every approved daily game for POS after Day 1,
+ *   subject to the actual competition roster and story prerequisites.
  * - Only games marked inCompetitionMap participate in automatic draws.
  * - Final 3 Part 1/2 use the dedicated Circuit qualifier; Part 3 uses the retained map set.
  */
 const BASE_BRACKET_TEMPLATE: BracketTemplate = [
-  {
-    label: 'Day 1 · premiere',
-    minPlayers: 5,
-    maxPlayers: 16,
-    minDay: 1,
-    maxDay: 1,
-    loh: ['holdWall'],
-    pos: ['quickTap', 'riskWheel'],
-  },
+  CAMPAIGN_PREMIERE,
   {
     label: 'Day 2 · 15 hubmates (±1)',
     minPlayers: 14,
     maxPlayers: 16,
     minDay: 2,
     maxDay: 2,
-    loh: ['holdWall'],
+    loh: [
+      'holdWall',
+      'blackjackTournament',
+      'majorityRules',
+      'batteryLow',
+      'trapAuction',
+      'boxedOut',
+    ],
     pos: ['quickTap', 'riskWheel', 'colorMatch', 'cardClash'],
   },
   {
@@ -169,7 +186,7 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 15,
     minDay: 3,
     maxDay: 3,
-    loh: ['holdWall'],
+    loh: ['blackjackTournament', 'majorityRules', 'batteryLow', 'trapAuction', 'boxedOut'],
     pos: ['quickTap', 'colorMatch', 'cardClash', 'riskWheel'],
   },
   {
@@ -178,7 +195,7 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 14,
     minDay: 4,
     maxDay: 4,
-    loh: ['holdWall'],
+    loh: ['blackjackTournament', 'majorityRules', 'batteryLow', 'trapAuction', 'boxedOut'],
     pos: ['quickTap', 'colorMatch', 'cardClash', 'riskWheel'],
   },
   {
@@ -187,7 +204,7 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 13,
     minDay: 5,
     maxDay: 5,
-    loh: ['snake'],
+    loh: ['snake', 'blackjackTournament', 'chainOfGreed', 'batteryLow', 'trapAuction', 'boxedOut'],
     pos: ['quickTap', 'colorMatch', 'cardClash', 'riskWheel'],
   },
   {
@@ -196,7 +213,7 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 12,
     minDay: 6,
     maxDay: 6,
-    loh: ['snake'],
+    loh: ['snake', 'blackjackTournament', 'chainOfGreed', 'batteryLow', 'trapAuction', 'boxedOut'],
     pos: ['quickTap', 'colorMatch', 'cardClash', 'riskWheel'],
   },
   {
@@ -205,8 +222,18 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 10,
     minDay: 7,
     maxDay: 7,
-    loh: ['snake', 'crystal_path_shattered'],
-    pos: ['quickTapSeasons', 'riskWheel'],
+    loh: [
+      'snake',
+      'blackjackTournament',
+      'batteryLow',
+      'chainOfGreed',
+      'trapAuction',
+      'glass_bridge_brutal',
+      'crystal_path_shattered',
+      'wildcardWestern',
+      'boxedOut',
+    ],
+    pos: ['quickTapSeasons', 'riskWheel', 'gatesOfTheEye'],
   },
   {
     label: 'Day 8 · 8 hubmates (±1)',
@@ -214,8 +241,17 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 9,
     minDay: 8,
     maxDay: 8,
-    loh: ['timingBar', 'holdWall', 'capitalization', 'crystal_path_shattered'],
-    pos: ['quickTapSeasons', 'riskWheel'],
+    loh: [
+      'blackjackTournament',
+      'majorityRules',
+      'timingBar',
+      'holdWall',
+      'capitalization',
+      'chainOfGreed',
+      'batteryLow',
+      'boxedOut',
+    ],
+    pos: ['quickTapSeasons', 'riskWheel', 'gatesOfTheEye'],
   },
   {
     label: 'Day 9 · 7 hubmates (±1)',
@@ -223,8 +259,16 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 8,
     minDay: 9,
     maxDay: 9,
-    loh: ['timingBar', 'holdWall', 'capitalization', 'crystal_path_shattered'],
-    pos: ['quickTapSeasons', 'riskWheel', 'quickTap', 'colorMatch'],
+    loh: [
+      'blackjackTournament',
+      'timingBar',
+      'holdWall',
+      'capitalization',
+      'chainOfGreed',
+      'batteryLow',
+      'boxedOut',
+    ],
+    pos: ['quickTapSeasons', 'riskWheel', 'gatesOfTheEye', 'quickTap', 'colorMatch'],
   },
   {
     label: 'Day 10 · 5 hubmates',
@@ -232,8 +276,22 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 5,
     minDay: 10,
     maxDay: 10,
-    loh: ['timingBar', 'holdWall', 'capitalization', 'crystal_path_shattered'],
-    pos: ['quickTapSeasons', 'riskWheel', 'quickTap', 'colorMatch'],
+    loh: [
+      'blackjackTournament',
+      'timingBar',
+      'holdWall',
+      'capitalization',
+      'chainOfGreed',
+      'batteryLow',
+    ],
+    pos: [
+      'quickTapSeasons',
+      'riskWheel',
+      'gatesOfTheEye',
+      'quickTap',
+      'colorMatch',
+      'mysticChamber',
+    ],
   },
   {
     label: 'Day 11 · 5 hubmates',
@@ -241,8 +299,22 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 5,
     minDay: 11,
     maxDay: 11,
-    loh: ['timingBar', 'holdWall', 'capitalization', 'crystal_path_shattered'],
-    pos: ['quickTapSeasons', 'riskWheel', 'quickTap', 'colorMatch'],
+    loh: [
+      'blackjackTournament',
+      'timingBar',
+      'holdWall',
+      'capitalization',
+      'chainOfGreed',
+      'batteryLow',
+    ],
+    pos: [
+      'quickTapSeasons',
+      'riskWheel',
+      'gatesOfTheEye',
+      'quickTap',
+      'colorMatch',
+      'mysticChamber',
+    ],
   },
   {
     label: 'Day 12 · 4 hubmates (±1)',
@@ -250,8 +322,22 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 5,
     minDay: 12,
     maxDay: 12,
-    loh: ['timingBar', 'holdWall', 'capitalization', 'crystal_path_shattered'],
-    pos: ['quickTapSeasons', 'riskWheel', 'quickTap', 'colorMatch'],
+    loh: [
+      'blackjackTournament',
+      'timingBar',
+      'holdWall',
+      'capitalization',
+      'chainOfGreed',
+      'batteryLow',
+    ],
+    pos: [
+      'quickTapSeasons',
+      'riskWheel',
+      'gatesOfTheEye',
+      'quickTap',
+      'colorMatch',
+      'mysticChamber',
+    ],
   },
   {
     label: 'Final 3 - Part 1 Circuit qualifier',
@@ -337,19 +423,9 @@ interface CompetitionMapAssignment {
 
 /** Additional approved games, assigned where their supported campaign roster exists. */
 const ADDITIONAL_COMPETITION_MAP_ASSIGNMENTS: CompetitionMapAssignment[] = [
-  { key: 'boxedOut', prize: 'both', minDay: 2, maxDay: 12 },
-  { key: 'gatesOfTheEye', prize: 'both', minDay: 2, maxDay: 12 },
-  { key: 'chainOfGreed', prize: 'LOH', minDay: 2, maxDay: 12 },
-  { key: 'majorityRules', prize: 'POS', minDay: 2, maxDay: 12 },
-  { key: 'percentagePanic', prize: 'POS', minDay: 2, maxDay: 12 },
-  { key: 'trapAuction', prize: 'LOH', minDay: 2, maxDay: 9 },
-  { key: 'mysticChamber', prize: 'LOH', minDay: 10, maxDay: 12 },
-  { key: 'batteryLow', prize: 'both', minDay: 2, maxDay: 12 },
-  { key: 'blackjackTournament', prize: 'both', minDay: 2, maxDay: 12 },
-  { key: 'glass_bridge_brutal', prize: 'LOH', minDay: 8, maxDay: 12 },
-  { key: 'wildcardWestern', prize: 'POS', minDay: 2, maxDay: 12 },
   { key: 'rockPaperScissors', prize: 'both', minDay: 2, maxDay: 12 },
   { key: 'lastLight', prize: 'both', minDay: 2, maxDay: 12 },
+  { key: 'riskWheelAbyss', prize: 'both', minDay: 2, maxDay: 12 },
 ]
 
 function hasCompatibleRoster(band: BracketBand, key: string): boolean {

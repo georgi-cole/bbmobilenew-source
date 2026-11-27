@@ -149,6 +149,7 @@ const reactComponents: Record<string, LazyGenericMinigame> = {
   GatesOfTheEye: lazyMinigame(() => import('../components/GatesOfTheEye/GatesOfTheEye')),
   RockPaperScissors: lazyMinigame(() => import('./socialChallenges/rps/RockPaperScissors')),
   LastLight: lazyMinigame(() => import('./socialChallenges/lastLight/LastLight')),
+  RiskWheelAbyss: lazyMinigame(() => import('./socialChallenges/abyss/RiskWheelAbyss')),
 }
 
 export default reactComponents

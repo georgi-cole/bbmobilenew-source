@@ -1,52 +1,119 @@
 import type { GameRegistryEntry } from '../../minigames/registry'
 import { getGame, supportsPlayerCount } from '../../minigames/registry'
 import { selectNextCompetitionGame } from './scheduling'
-import { CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS, DEFAULT_BRACKET_TEMPLATE } from './bracketTemplate'
+import {
+  CAMPAIGN_PREMIERE,
+  CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
+  CLASSIC_CAMPAIGN_GAME_MIN_DAY,
+  CLASSIC_CAMPAIGN_GAME_REQUIRED_PREVIOUS,
+  DEFAULT_BRACKET_TEMPLATE,
+} from './bracketTemplate'
 
 type CompetitionType = 'LOH' | 'POS'
 type PreferredGames = Record<CompetitionType, readonly string[]>
 
-/** Priorities among the games retained on the competition map. */
+/**
+ * Cast-aware priorities. POS can also draw from the full approved daily pool.
+ *
+ * The actual number of COMPETITORS is used, not the day guide's projected
+ * remaining housemates (returns, reserves, and outgoing LOHs can change it).
+ */
 export const COMPETITION_DIRECTOR_PREFERENCES: Record<number, PreferredGames> = {
-  16: { LOH: ['holdWall'], POS: ['quickTap', 'riskWheel'] },
-  15: { LOH: ['holdWall'], POS: ['quickTap', 'cardClash'] },
-  14: { LOH: ['holdWall'], POS: ['colorMatch', 'riskWheel'] },
-  13: { LOH: ['holdWall'], POS: ['quickTap', 'cardClash'] },
-  12: { LOH: ['snake'], POS: ['colorMatch', 'riskWheel'] },
-  11: { LOH: ['snake'], POS: ['quickTapSeasons', 'cardClash'] },
-  10: { LOH: ['snake'], POS: ['quickTapSeasons', 'riskWheel'] },
-  9: { LOH: ['crystal_path_shattered'], POS: ['quickTapSeasons', 'riskWheel'] },
-  8: {
-    LOH: ['crystal_path_shattered', 'timingBar', 'capitalization'],
-    POS: ['quickTapSeasons', 'colorMatch'],
+  16: { LOH: ['majorityRules', 'boxedOut'], POS: ['quickTap'] },
+  15: {
+    LOH: ['trapAuction', 'batteryLow', 'holdWall', 'boxedOut'],
+    POS: ['riskWheel', 'cardClash'],
   },
-  7: { LOH: ['timingBar', 'holdWall'], POS: ['quickTapSeasons', 'riskWheel'] },
-  6: { LOH: ['timingBar', 'holdWall'], POS: ['quickTap', 'riskWheel'] },
-  5: { LOH: ['capitalization', 'holdWall'], POS: ['quickTapSeasons', 'colorMatch'] },
-  4: { LOH: ['timingBar', 'capitalization'], POS: ['quickTap', 'riskWheel'] },
+  14: {
+    LOH: ['batteryLow', 'trapAuction', 'boxedOut'],
+    POS: ['colorMatch'],
+  },
+  13: {
+    LOH: ['trapAuction', 'boxedOut'],
+    POS: ['cardClash'],
+  },
+  12: {
+    LOH: ['chainOfGreed', 'batteryLow', 'boxedOut'],
+    POS: ['riskWheel'],
+  },
+  11: {
+    LOH: ['chainOfGreed', 'batteryLow', 'boxedOut'],
+    POS: ['quickTapSeasons'],
+  },
+  10: {
+    LOH: ['chainOfGreed', 'batteryLow', 'boxedOut'],
+    POS: ['gatesOfTheEye', 'quickTapSeasons'],
+  },
+  9: {
+    LOH: [
+      'glass_bridge_brutal',
+      'crystal_path_shattered',
+      'chainOfGreed',
+      'trapAuction',
+      'boxedOut',
+    ],
+    POS: ['gatesOfTheEye'],
+  },
+  8: {
+    LOH: [
+      'glass_bridge_brutal',
+      'crystal_path_shattered',
+      'wildcardWestern',
+      'trapAuction',
+      'boxedOut',
+    ],
+    POS: ['gatesOfTheEye'],
+  },
+  7: {
+    LOH: ['wildcardWestern', 'glass_bridge_brutal', 'crystal_path_shattered'],
+    POS: ['quickTapSeasons'],
+  },
+  6: {
+    LOH: ['wildcardWestern'],
+    POS: ['gatesOfTheEye'],
+  },
+  5: {
+    LOH: [],
+    POS: ['mysticChamber', 'gatesOfTheEye'],
+  },
+  4: {
+    LOH: ['holdWall'],
+    POS: ['mysticChamber'],
+  },
 }
 
 /** Pacing limits are narrower than the technical roster limits when necessary. */
 export const COMPETITION_PACING_LIMITS: Readonly<Record<string, { min: number; max: number }>> = {
+  trapAuction: { min: 8, max: 16 },
+  chainOfGreed: { min: 7, max: 12 },
+  glass_bridge_brutal: { min: 6, max: 9 },
   crystal_path_shattered: { min: 7, max: 11 },
+  wildcardWestern: { min: 4, max: 8 },
+  mysticChamber: { min: 4, max: 5 },
+  gatesOfTheEye: { min: 3, max: 10 },
+  boxedOut: { min: 8, max: 16 },
 }
 
-const STORY_MIN_DAY: Readonly<Record<string, number>> = {
-  crystal_path_shattered: 8,
-}
+const SPECIAL_PURPOSE = new Set(['capitalization', 'finalThreeCircuit', 'downMemoryLane'])
+const SIGNATURE_GAMES = new Set([
+  'trapAuction',
+  'chainOfGreed',
+  'boxedOut',
+  'glass_bridge_brutal',
+  'crystal_path_shattered',
+  'wildcardWestern',
+  'mysticChamber',
+  'batteryLow',
+])
 
-const SIGNATURE_GAMES = new Set(['crystal_path_shattered'])
-
-/** Approval and LOH/POS separation are inherited from the existing campaign map. */
 const APPROVED = new Set<string>(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)
-const BY_PRIZE: Record<CompetitionType, Set<string>> = {
-  LOH: new Set(
-    DEFAULT_BRACKET_TEMPLATE.filter((band) => band.minDay !== undefined).flatMap((band) => band.loh)
+const REGULAR_LOH = [
+  ...new Set(
+    DEFAULT_BRACKET_TEMPLATE.filter((band) => band.minDay !== undefined && band.minDay > 1).flatMap(
+      (band) => band.loh
+    )
   ),
-  POS: new Set(
-    DEFAULT_BRACKET_TEMPLATE.filter((band) => band.minDay !== undefined).flatMap((band) => band.pos)
-  ),
-}
+]
 
 export interface DirectorContext {
   day: number
@@ -63,9 +130,12 @@ export interface DirectorCandidate {
   weight: number
 }
 
-function isEligible(key: string, context: DirectorContext): boolean {
-  if (!APPROVED.has(key) || !BY_PRIZE[context.compType].has(key)) return false
-  if (context.day < (STORY_MIN_DAY[key] ?? 1)) return false
+function isEligible(key: string, context: DirectorContext, played: ReadonlySet<string>): boolean {
+  if (!APPROVED.has(key) || SPECIAL_PURPOSE.has(key)) return false
+  const campaignKey = key as (typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number]
+  if (context.day < (CLASSIC_CAMPAIGN_GAME_MIN_DAY[campaignKey] ?? 1)) return false
+  const requiredPrevious = CLASSIC_CAMPAIGN_GAME_REQUIRED_PREVIOUS[campaignKey]
+  if (requiredPrevious && !played.has(requiredPrevious)) return false
 
   const game = getGame(key)
   if (!game || game.retired || !supportsPlayerCount(game, context.playerCount)) return false
@@ -75,14 +145,12 @@ function isEligible(key: string, context: DirectorContext): boolean {
 
 export function getCompetitionDirectorCandidates(context: DirectorContext): DirectorCandidate[] {
   if (context.playerCount < 3 || context.playerCount > 16) return []
+  const played = new Set(context.playedGameKeys)
   // Preserve the premiere. No reserve pool is used on Day 1.
   const preferred = COMPETITION_DIRECTOR_PREFERENCES[context.playerCount]?.[context.compType] ?? []
-  const keys =
-    context.day === 1
-      ? context.compType === 'LOH'
-        ? ['holdWall']
-        : ['quickTap', 'riskWheel']
-      : [...BY_PRIZE[context.compType]]
+  const regularPool = context.compType === 'LOH' ? REGULAR_LOH : CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS
+  const premierePool = context.compType === 'LOH' ? CAMPAIGN_PREMIERE.loh : CAMPAIGN_PREMIERE.pos
+  const keys = context.day === 1 ? premierePool : regularPool
 
   const carry =
     context.compType === 'LOH' && context.democraciaCarry?.day === context.day - 1
@@ -91,7 +159,7 @@ export function getCompetitionDirectorCandidates(context: DirectorContext): Dire
   const carriedKeys = new Set(carry)
 
   return keys
-    .filter((key) => isEligible(key, context))
+    .filter((key) => isEligible(key, context, played))
     .map((key) => {
       const game = getGame(key)!
       const pacing = COMPETITION_PACING_LIMITS[key]

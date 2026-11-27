@@ -52,12 +52,16 @@ describe('social challenge season integration', () => {
     })
   })
 
-  it.each(['rockPaperScissors', 'lastLight'])(
+  it.each([
+    ['rockPaperScissors', 5, 8],
+    ['lastLight', 5, 8],
+    ['riskWheelAbyss', 2, 16],
+  ] as const)(
     'creates a repeatable AI competition result for %s with one winner',
-    (key) => {
+    (key, minPlayers, maxPlayers) => {
       const ids = ['rae', 'ash', 'lan', 'echo', 'nia', 'vee', 'blue', 'zed']
       const score = simulateSocialChallengeScores(key, ids, 772, { alliances: [alliance] })
-      expect(getGame(key)).toMatchObject({ minPlayers: 5, maxPlayers: 8, authoritative: true })
+      expect(getGame(key)).toMatchObject({ minPlayers, maxPlayers, authoritative: true })
       expect(Object.keys(score ?? {}).sort()).toEqual([...ids].sort())
       const points = Object.values(score ?? {})
       expect(points.filter((p) => p === Math.max(...points))).toHaveLength(1)
