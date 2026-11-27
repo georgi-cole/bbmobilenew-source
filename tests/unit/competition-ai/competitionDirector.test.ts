@@ -6,7 +6,10 @@ import {
   type DirectorContext,
 } from '../../../src/ai/competition/competitionDirector'
 import { supportsPlayerCount } from '../../../src/minigames/registry'
-import { CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS } from '../../../src/ai/competition/bracketTemplate'
+import {
+  CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS,
+  CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
+} from '../../../src/ai/competition/bracketTemplate'
 
 function context(
   playerCount: number,
@@ -80,13 +83,42 @@ describe('Competition Director V1', () => {
     }
   })
 
-  it('keeps Bigg Gates out of the large-cast Day 2 draw and Battery Low in LOH', () => {
+  it('offers Battery Low for both prizes and enforces the Bigg Gates cast limit', () => {
     const loh = keys(context(14, 'LOH', 2))
     const pos = keys(context(15, 'POS', 2))
     expect(loh).toContain('batteryLow')
     expect(loh).not.toContain('gatesOfTheEye')
     expect(pos).not.toContain('gatesOfTheEye')
-    expect(pos).not.toContain('batteryLow')
+    expect(pos).toContain('batteryLow')
+  })
+
+  it('offers every approved daily game as POS across its eligible days and rosters', () => {
+    const offered = new Set<string>()
+    for (const day of [2, 7, 8, 10]) {
+      for (let size = 4; size <= 16; size++) {
+        for (const key of keys(context(size, 'POS', day, ['glass_bridge_brutal']))) offered.add(key)
+      }
+    }
+    expect(offered).toEqual(
+      new Set(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS.filter((key) => key !== 'capitalization'))
+    )
+  })
+
+  it('can still draw a new POS game after the old POS pool is exhausted on Day 6', () => {
+    const played = [
+      'quickTap',
+      'riskWheel',
+      'colorMatch',
+      'cardClash',
+      'quickTapSeasons',
+      'boxedOut',
+    ]
+    const draw = context(11, 'POS', 6, played)
+    expect(keys(draw)).toContain('timingBar')
+    expect(keys(draw)).not.toContain('gatesOfTheEye')
+    const selected = pickCompetitionDirectorGame(draw, 106, played)
+    expect(selected).toBeDefined()
+    expect(played).not.toContain(selected?.key)
   })
 
   it('offers Boxpocalypse to LOH casts of 8–16 and never to smaller casts', () => {
@@ -99,14 +131,17 @@ describe('Competition Director V1', () => {
     }
   })
   it('introduces Infinity only after the original Crystal Path', () => {
-    expect(keys(context(8, 'LOH', 6))).not.toContain('glass_bridge_brutal')
-    expect(keys(context(8, 'LOH', 7))).toContain('glass_bridge_brutal')
-    const withoutOriginal = keys(context(8, 'LOH', 10))
-    expect(withoutOriginal).not.toContain('crystal_path_shattered')
-    const withOriginal = keys(context(8, 'LOH', 9, ['glass_bridge_brutal']))
-    expect(withOriginal).toContain('crystal_path_shattered')
-    const day7 = keys(context(9, 'LOH', 7, ['glass_bridge_brutal']))
-    expect(day7).not.toContain('crystal_path_shattered')
+    for (const prize of ['LOH', 'POS'] as const) {
+      expect(keys(context(8, prize, 6))).not.toContain('glass_bridge_brutal')
+      expect(keys(context(8, prize, 7))).toContain('glass_bridge_brutal')
+      expect(keys(context(8, prize, 10))).not.toContain('crystal_path_shattered')
+      expect(keys(context(8, prize, 9, ['glass_bridge_brutal']))).toContain(
+        'crystal_path_shattered'
+      )
+      expect(keys(context(9, prize, 7, ['glass_bridge_brutal']))).not.toContain(
+        'crystal_path_shattered'
+      )
+    }
   })
 
   it('adapts to returnees and enforces technical and pacing limits', () => {
@@ -164,7 +199,7 @@ describe('Competition Director V1', () => {
   })
 
   it('repeats only if the entire eligible set is exhausted', () => {
-    const played = keys(context(8, 'POS'))
+    const played = keys(context(8, 'POS', 10, ['glass_bridge_brutal']))
     const picked = pickCompetitionDirectorGame(context(8, 'POS', 10, played), 101)
     expect(played).toContain(picked?.key)
   })

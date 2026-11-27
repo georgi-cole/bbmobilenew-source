@@ -18,7 +18,7 @@ This status applies only to the automatic campaign competition map used by Class
 
 Final 3 Parts 1 and 2 retain the dedicated Final Three Circuit qualifier. Part 3's final duel remains Down Memory Lane; these phase-owned finale uses are separate from the daily map filter. The status is maintained in `src/ai/competition/bracketTemplate.ts`.
 
-The default competition director opens with Majority Rules or Percentage Panic for LOH and Quick Tap Race for POS. Later draws use cast-size preferences, roster limits, and story prerequisites from the campaign map. LOH and POS share one season history, so a game repeats only when the eligible pool for the current draw has no unused entries. Capitalization has its dedicated campaign uses outside these regular draws.
+The default competition director opens with Majority Rules or Percentage Panic for LOH and Quick Tap Race for POS. From Day 2, POS can draw any approved daily competition game. Later LOH and POS draws use cast-size preferences, roster limits, and story prerequisites. LOH and POS share one season history, so a game repeats only when the eligible pool for the current draw has no unused entries. Capitalization has its dedicated campaign uses outside these regular draws.
 
 ## Browser journey scenario policy
 

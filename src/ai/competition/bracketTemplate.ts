@@ -4,8 +4,8 @@ import type { Phase } from '../../types'
  * Classic campaign competition map.
  *
  * The most specific rule matching the current day, alive-housemate count, and
- * Final 3 phase owns the random-selection pool. Keeping LOH and POS lists separate prevents
- * a short luck game from accidentally becoming the week's main competition.
+ * Final 3 phase owns each bracket selection pool. The default director applies
+ * a broader POS pool after the premiere.
  */
 
 export interface BracketBand {
@@ -155,7 +155,8 @@ export const CAMPAIGN_PREMIERE: BracketBand = {
  * Design rules represented below:
  *
  * - The bracket lists LOH and POS options by season day. The default director
- *   uses those prize pools, actual competition rosters, and story prerequisites.
+ *   uses the LOH pool and allows every approved daily game for POS after Day 1,
+ *   subject to the actual competition roster and story prerequisites.
  * - Only games marked inCompetitionMap participate in automatic draws.
  * - Final 3 Part 1/2 use the dedicated Circuit qualifier; Part 3 uses the retained map set.
  */

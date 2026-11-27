@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-27: Reviewed the wider POS pool in Classic, Cupid, and Vox Populi.
+  Approved daily games retain their roster requirements and story unlocks.
+  Standard uses the base versions, and Premium Challenges and VIP continue to
+  unlock all premium versions under the existing catalog and prices.
+
 - 2026-11-27: Reviewed the restored campaign rotation in Classic, Cupid, and
   Vox Populi. The premiere uses Majority Rules or Percentage Panic for LOH,
   with Quick Tap Race for POS. Later competitions use the original cast-size

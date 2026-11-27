@@ -13,8 +13,7 @@ type CompetitionType = 'LOH' | 'POS'
 type PreferredGames = Record<CompetitionType, readonly string[]>
 
 /**
- * Cast-aware priorities, not a rigid playlist. All other QA-approved games for
- * the correct prize type remain available as reserves.
+ * Cast-aware priorities. POS can also draw from the full approved daily pool.
  *
  * The actual number of COMPETITORS is used, not the day guide's projected
  * remaining housemates (returns, reserves, and outgoing LOHs can change it).
@@ -107,15 +106,14 @@ const SIGNATURE_GAMES = new Set([
   'batteryLow',
 ])
 
-/** Approval and LOH/POS separation are inherited from the existing campaign map. */
 const APPROVED = new Set<string>(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)
-const REGULAR_BANDS = DEFAULT_BRACKET_TEMPLATE.filter(
-  (band) => band.minDay !== undefined && band.minDay > 1
-)
-const BY_PRIZE: Record<CompetitionType, Set<string>> = {
-  LOH: new Set(REGULAR_BANDS.flatMap((band) => band.loh)),
-  POS: new Set(REGULAR_BANDS.flatMap((band) => band.pos)),
-}
+const REGULAR_LOH = [
+  ...new Set(
+    DEFAULT_BRACKET_TEMPLATE.filter((band) => band.minDay !== undefined && band.minDay > 1).flatMap(
+      (band) => band.loh
+    )
+  ),
+]
 
 export interface DirectorContext {
   day: number
@@ -150,12 +148,9 @@ export function getCompetitionDirectorCandidates(context: DirectorContext): Dire
   const played = new Set(context.playedGameKeys)
   // Preserve the premiere. No reserve pool is used on Day 1.
   const preferred = COMPETITION_DIRECTOR_PREFERENCES[context.playerCount]?.[context.compType] ?? []
-  const keys =
-    context.day === 1
-      ? context.compType === 'LOH'
-        ? CAMPAIGN_PREMIERE.loh
-        : CAMPAIGN_PREMIERE.pos
-      : [...BY_PRIZE[context.compType]]
+  const regularPool = context.compType === 'LOH' ? REGULAR_LOH : CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS
+  const premierePool = context.compType === 'LOH' ? CAMPAIGN_PREMIERE.loh : CAMPAIGN_PREMIERE.pos
+  const keys = context.day === 1 ? premierePool : regularPool
 
   const carry =
     context.compType === 'LOH' && context.democraciaCarry?.day === context.day - 1
