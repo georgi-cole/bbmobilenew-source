@@ -11,6 +11,7 @@ import { challengeRng, pickWeighted } from '../shared'
 type Preference = (actor: string, target: string) => number
 type Phase = 'spin' | 'handoff' | 'verdict' | 'playoff' | 'results'
 type Scores = Record<string, number>
+type Spin = { player: string; sector: number; score: number }
 
 export type Abyss = {
   phase: Phase
@@ -25,9 +26,10 @@ export type Abyss = {
   calls: number
   playoff: string[]
   playoffScores: Scores
+  playoffWaves: Spin[][]
   transfers: { from: string; to: string; amount: number }[]
   out?: string
-  landed?: { player: string; sector: number; score: number }
+  landed?: Spin
 }
 
 export const zeroScores = (ids: readonly string[]): Scores =>
@@ -47,6 +49,7 @@ export function startAbyss(ids: string[], seed: number, human?: string): Abyss {
     calls: 0,
     playoff: [],
     playoffScores: {},
+    playoffWaves: [],
     transfers: [],
   }
 }
@@ -61,7 +64,7 @@ export function abyssSpin(state: Abyss, player: string, balance: number) {
         ? balance + (resolve666Effect(state.seed, state.calls++) === 'add' ? 666 : -666)
         : balance + (outcome.value ?? 0)
   state.landed = { player, sector, score }
-  return { score, stop: outcome.type === 'bankrupt' || outcome.type === 'skip' }
+  return { sector, score, stop: outcome.type === 'bankrupt' || outcome.type === 'skip' }
 }
 
 function spinForAi(state: Abyss, id: string) {
@@ -142,12 +145,18 @@ export function settleHandoffs(state: Abyss, preference: Preference, target?: st
 export function spinPlayoff(state: Abyss): Abyss {
   if (state.phase !== 'playoff') return state
   const next = { ...state, playoffScores: zeroScores(state.playoff) }
-  for (const id of next.playoff) next.playoffScores[id] = abyssSpin(next, id, 0).score
+  const spins = next.playoff.map((player) => {
+    const { score, sector } = abyssSpin(next, player, 0)
+    next.playoffScores[player] = score
+    return { player, sector, score }
+  })
   const lowest = Math.min(...Object.values(next.playoffScores))
   const tied = next.playoff.filter((id) => next.playoffScores[id] === lowest)
   return {
     ...next,
     phase: 'verdict',
+    landed: spins.find(({ player }) => player === state.human),
+    playoffWaves: [...state.playoffWaves, spins],
     playoff: tied.length > 1 ? tied : [],
     out: tied.length === 1 ? tied[0] : undefined,
   }
@@ -166,6 +175,7 @@ export function advanceVerdict(state: Abyss): Abyss {
     roundScores: active.length > 1 ? zeroScores(active) : state.roundScores,
     spins: 0,
     playoffScores: {},
+    playoffWaves: [],
     transfers: [],
     out: undefined,
     landed: undefined,

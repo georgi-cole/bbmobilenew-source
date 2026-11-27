@@ -44,9 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
-- 2026-11-27: Standard, Premium Challenges and VIP use the same Abyss arena
-  artwork and spin lifecycle. A spin finishes before the balance handoff, and
-  its audio stops when the app goes to the background or closes the game.
+- 2026-11-27: Restored the approved Risk Wheel: Abyss Standard and VIP
+  Cinematic presentations. Register the cinematic version under Premium
+  Challenges and VIP, using the existing presentation upgrade flow. Both
+  versions use the same scoring, handoffs, playoffs, and contest eligibility.
+  Stop the wheel sound when a spin completes or the app enters the background.
 
 - 2026-11-27: Reviewed the addition of Risk Wheel: Abyss to the standard
   competition registry. Standard, Premium Challenges, and VIP use the shared

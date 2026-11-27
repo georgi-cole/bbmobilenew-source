@@ -1505,7 +1505,8 @@ export default function MinigameHost({
           launchedGame.reactComponentKey === 'TrapAuction' ||
           launchedGame.reactComponentKey === 'FinalThreeCircuit' ||
           launchedGame.reactComponentKey === 'RockPaperScissors' ||
-          launchedGame.reactComponentKey === 'LastLight'
+          launchedGame.reactComponentKey === 'LastLight' ||
+          launchedGame.reactComponentKey === 'RiskWheelAbyss'
             ? 'minigame-host--scrollable-game'
             : '',
         ]

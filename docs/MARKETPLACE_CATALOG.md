@@ -39,12 +39,12 @@ A permanent, non-consumable purchase. Existing eligible standalone purchases rec
 - Product ID: `com.georgicole.thebigeye.premiumchallenges`
 - Availability: Released
 - Shelf: extras
-- Badge: 10 premium minigame versions
+- Badge: 11 premium minigame versions
 - Access: Premium versions launch automatically in eligible competitions.
 
 Permanently unlock every premium minigame version.
 
-10 premium minigame versions. Every premium version, one permanent unlock.
+11 premium minigame versions. Every premium version, one permanent unlock.
 
 Unlock every premium minigame version, including remasters, enhanced presentations, and the Quick Tap variants. Premium versions launch automatically in eligible competitions.
 
@@ -52,6 +52,7 @@ Unlock every premium minigame version, including remasters, enhanced presentatio
 - Quick Tap Race 2: Seasons
 - Deck of Light
 - Risk Wheel
+- Risk Wheel: Abyss
 - The Crystal Path
 - Crystal Path: Infinity
 - Chain of Greed
@@ -262,6 +263,7 @@ Nominal VIP price: 19.99. Standalone credit: 75%. Minimum upgrade price: 4.99. T
 | Quick Tap Race 2: Seasons    | `quickTapSeasons`         | variant      | Premium Challenges or VIP |
 | Deck of Light                | `cardClash`               | presentation | Premium Challenges or VIP |
 | Risk Wheel                   | `riskWheel`               | presentation | Premium Challenges or VIP |
+| Risk Wheel: Abyss            | `riskWheelAbyss`          | presentation | Premium Challenges or VIP |
 | The Crystal Path             | `glass_bridge_brutal`     | presentation | Premium Challenges or VIP |
 | Crystal Path: Infinity       | `crystal_path_shattered`  | presentation | Premium Challenges or VIP |
 | Chain of Greed               | `chainOfGreed`            | presentation | Premium Challenges or VIP |

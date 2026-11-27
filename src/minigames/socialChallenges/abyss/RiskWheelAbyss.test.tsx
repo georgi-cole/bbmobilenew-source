@@ -20,8 +20,9 @@ const voidSeed = Array.from({ length: 100 }, (_, seed) => seed).find(
 )
 
 function spin() {
-  fireEvent.click(screen.getByRole('button', { name: 'Spin the wheel' }))
-  expect(screen.getByRole('button', { name: 'Spinning…' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Spin' }))
+  expect(screen.getByRole('button', { name: 'Spin' })).toBeDisabled()
+  expect(screen.getByText('The wheel turns')).toBeInTheDocument()
   const playback = vi
     .mocked(SoundManager.play)
     .mock.calls.find(([key]) => key === 'minigame:risk_wheel_spin')?.[1]
@@ -44,16 +45,23 @@ describe('Risk Wheel: Abyss spin lifecycle', () => {
 
   it('shows the last spin before the balance handoff and stops the looping sound', () => {
     expect(voidSeed).toBeDefined()
-    render(<RiskWheelAbyss participants={contestants} seed={voidSeed} />)
+    render(<RiskWheelAbyss participants={contestants} seed={voidSeed} premiumPresentation />)
     const playback = spin()
-    expect(screen.queryByRole('heading', { name: 'Pass your balance' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Choose who takes it' })).not.toBeInTheDocument()
     act(() => vi.advanceTimersByTime(playback.durationMs!))
     expect(playback.signal?.aborted).toBe(true)
-    expect(screen.getByRole('heading', { name: 'Pass your balance' })).toBeInTheDocument()
-    const roster = screen.getByRole('list', { name: 'Contestants' })
+    expect(screen.getByText('Balance erased')).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(500))
+    expect(screen.getByRole('heading', { name: 'Choose who takes it' })).toBeInTheDocument()
+    const roster = screen.getByRole('group', { name: 'Choose another player' })
     fireEvent.click(within(roster).getByRole('button', { name: /^Contestant 1\b/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Seal handoff' }))
-    expect(screen.queryByRole('heading', { name: 'Pass your balance' })).not.toBeInTheDocument()
+    expect(screen.getByText('Spun this round')).toBeInTheDocument()
+    expect(screen.getByText('Last handoff')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Pass to Contestant 1' }))
+    expect(screen.getByRole('list', { name: 'Balances passed' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Show verdict' }))
+    expect(screen.getByRole('heading', { name: 'Round verdict' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Choose who takes it' })).not.toBeInTheDocument()
     expect(
       vi.mocked(SoundManager.play).mock.calls.filter(([key]) => key === 'minigame:risk_wheel_spin')
     ).toHaveLength(1)
@@ -64,7 +72,7 @@ describe('Risk Wheel: Abyss spin lifecycle', () => {
     const playback = spin()
     fireEvent(document, new Event('pause'))
     expect(playback.signal?.aborted).toBe(true)
-    expect(screen.getByRole('heading', { name: 'Pass your balance' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Choose who takes it' })).toBeInTheDocument()
   })
 
   it('stops spin playback when leaving the competition', () => {
@@ -79,6 +87,6 @@ describe('Risk Wheel: Abyss spin lifecycle', () => {
     fireEvent(document, new Event('pause'))
     act(() => vi.advanceTimersByTime(20_000))
     expect(SoundManager.play).not.toHaveBeenCalled()
-    expect(screen.getByRole('heading', { name: 'Pass your balance' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Choose who takes it' })).toBeInTheDocument()
   })
 })

@@ -77,7 +77,8 @@ async function openGame(
   game: GameRegistryEntry,
   scenario: PlaythroughScenario
 ): Promise<void> {
-  const vipPreview = game.vipOnly ? '&vipPreview=1' : ''
+  const cinematicAbyss = game.key === 'riskWheelAbyss' && scenario.label === 'reported'
+  const vipPreview = game.vipOnly || cinematicAbyss ? '&vipPreview=1' : ''
   await page.goto(
     './#/minigame-lab?game=' +
       encodeURIComponent(game.key) +
@@ -189,18 +190,26 @@ test.describe('full minigame gameplay certification @full-playthrough', () => {
           if (fastClock && !installClockBeforeMount) await installMinigameFastClock(page)
 
           if (game.key === 'riskWheelAbyss') {
-            const backdrop = page.locator('.social-challenge--abyss .social-challenge__art')
-            await expect(backdrop).toBeVisible()
-            const imageUrl = await backdrop.evaluate(
-              (element) =>
-                /url\("([^"]*risk-wheel-abyss\.webp)"\)/.exec(
-                  getComputedStyle(element).backgroundImage
-                )?.[1]
+            const arena = page.getByRole('region', { name: 'Risk Wheel: Abyss' })
+            const cinematic = scenario.label === 'reported'
+            await expect(arena).toHaveAttribute(
+              'data-presentation',
+              cinematic ? 'cinematic' : 'standard'
             )
-            expect(imageUrl).toBeDefined()
-            const image = await page.request.get(imageUrl!)
-            expect(image.ok()).toBe(true)
-            expect(image.headers()['content-type']).toContain('image/webp')
+            await expect(arena.getByRole('button', { name: 'Spin', exact: true })).toBeVisible()
+            await expect(arena.getByRole('img', { name: '3 spins left' })).toBeVisible()
+            if (cinematic) {
+              const imageUrl = await arena.evaluate(
+                (element) =>
+                  /url\("([^"]*risk-wheel-abyss\.webp)"\)/.exec(
+                    getComputedStyle(element, '::before').backgroundImage
+                  )?.[1]
+              )
+              expect(imageUrl).toBeDefined()
+              const image = await page.request.get(imageUrl!)
+              expect(image.ok()).toBe(true)
+              expect(image.headers()['content-type']).toContain('image/webp')
+            }
           }
 
           const completionCount = page.getByTestId('minigame-lab-completion-count')
