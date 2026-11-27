@@ -1,5 +1,5 @@
 import type { RemoteConfig } from './remoteConfigTypes'
-import { repairRemoteConfigTextEncoding } from './remoteConfigService'
+import { repairRemoteConfigTextEncoding, sanitiseRemoteConfig } from './remoteConfigService'
 
 export interface GitHubPublishTarget {
   owner: string
@@ -15,6 +15,15 @@ export interface GitHubPublishResult {
 }
 
 const API_ROOT = 'https://api.github.com'
+
+export const GAME_CONFIG_PUBLISH_TARGET: GitHubPublishTarget = {
+  owner: 'georgi-cole',
+  repo: 'bbmobilenew-source',
+  branch: 'main',
+  path: 'public/config/live-config.json',
+}
+export const GAME_CONFIG_SOURCE_URL =
+  'https://raw.githubusercontent.com/georgi-cole/bbmobilenew-source/main/public/config/live-config.json'
 
 function encodePath(path: string): string {
   return path.split('/').filter(Boolean).map(encodeURIComponent).join('/')
@@ -71,13 +80,25 @@ async function readFileSha(
   return body.sha
 }
 
+export async function readConfigSource(token: string, target: GitHubPublishTarget) {
+  const { sha, content } = await githubRequest<{ sha: string; content: string }>(
+    token,
+    `/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}/contents/${encodePath(target.path)}?ref=${encodeURIComponent(target.branch)}`,
+    { cache: 'no-store' }
+  )
+  const bytes = Uint8Array.from(atob(content.replace(/\s/g, '')), (value) => value.charCodeAt(0))
+  const config = sanitiseRemoteConfig(JSON.parse(new TextDecoder().decode(bytes)))
+  if (!config) throw new Error('The source configuration is invalid.')
+  return { sha, config }
+}
+
 async function writeConfig(
   token: string,
   target: GitHubPublishTarget,
   branch: string,
-  config: RemoteConfig
+  config: RemoteConfig,
+  expectedSha: string
 ): Promise<{ html_url: string }> {
-  const sha = await readFileSha(token, target, branch)
   const safeConfig = repairRemoteConfigTextEncoding(config)
   const response = await githubRequest<{
     content?: { html_url?: string }
@@ -91,7 +112,7 @@ async function writeConfig(
         message: 'Update remote manager configuration',
         content: encodeUtf8Base64(`${JSON.stringify(safeConfig, null, 2)}\n`),
         branch,
-        ...(sha ? { sha } : {}),
+        sha: expectedSha,
       }),
     }
   )
@@ -109,28 +130,33 @@ function createBranchName(): string {
 export async function publishConfigDirectly(
   token: string,
   target: GitHubPublishTarget,
-  config: RemoteConfig
+  config: RemoteConfig,
+  expectedSha: string
 ): Promise<GitHubPublishResult> {
-  const commit = await writeConfig(token, target, target.branch, config)
+  const commit = await writeConfig(token, target, target.branch, config, expectedSha)
   return { url: commit.html_url, branch: target.branch }
 }
 
 export async function publishConfigAsPullRequest(
   token: string,
   target: GitHubPublishTarget,
-  config: RemoteConfig
+  config: RemoteConfig,
+  expectedSha: string
 ): Promise<GitHubPublishResult> {
   const repoPath = `/repos/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}`
   const base = await githubRequest<{ object: { sha: string } }>(
     token,
     `${repoPath}/git/ref/heads/${encodeURIComponent(target.branch)}`
   )
+  if ((await readFileSha(token, target, base.object.sha)) !== expectedSha) {
+    throw new Error('The source configuration changed. Reload it before publishing.')
+  }
   const branch = createBranchName()
   await githubRequest(token, `${repoPath}/git/refs`, {
     method: 'POST',
     body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: base.object.sha }),
   })
-  await writeConfig(token, target, branch, config)
+  await writeConfig(token, target, branch, config, expectedSha)
   const pullRequest = await githubRequest<{ html_url: string; number: number }>(
     token,
     `${repoPath}/pulls`,

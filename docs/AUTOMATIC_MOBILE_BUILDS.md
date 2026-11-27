@@ -1,14 +1,16 @@
-# Automatic TestFlight and Google Play test builds
+# TestFlight and Google Play test builds
 
-Every push to main, including a merged pull request, starts the **Build TestFlight
-and Google Play test apps** workflow. Each run checks out the triggering commit,
-passes `npm run check:pr`, then builds both platforms. Runs queue in order; a new
-merge does not cancel a signing/upload operation or replace an older pending run.
+Open **Build TestFlight and Google Play test apps** in GitHub Actions and select
+**Run workflow** when a binary is ready for testers. On `main`, select both
+platforms, iOS, or Android. Each run validates and builds the selected commit.
+Successive runs queue and keep active signing and upload jobs running.
 
-## iOS: automatic TestFlight uploads
+Content updates use [Publish game content](game-content-publishing.md).
+
+## iOS TestFlight uploads
 
 The existing Apple distribution certificate, provisioning profile and App Store
-Connect API key are used to sign and upload each validated main build. The build
+Connect API key are used to sign and upload each selected iOS build. The build
 number includes the GitHub run ID and attempt, so retrying a run uses a new number.
 
 Configure these repository secrets once under **Settings > Secrets and variables >
@@ -40,9 +42,8 @@ update the baseline build and reviewed input hashes in that policy. Keep the
 France exclusion for these test builds; production-country decisions remain
 separate. No encryption exemption is hardcoded in the app's Info.plist.
 
-Manual runs remain available on main and `release/testflight-*` candidate branches.
-Candidate branch runs upload iOS only. This workflow does not submit an App Store
-release or send builds for external beta review.
+Run the workflow on `main` or a `release/testflight-*` candidate branch. Candidate
+branches support iOS. The workflow distributes to the internal test groups.
 
 If Apple processing or a post-upload availability check fails after the upload
 succeeded, run **Complete an uploaded TestFlight build** on main with the exact
@@ -59,9 +60,9 @@ internal group and following its build-ID pages. This avoids the build-side
 write-only relationship and the filtered collection query rejected by Apple's
 server. Readiness still requires both confirmed membership and `IN_BETA_TESTING`.
 
-## Android: automatic Google Play Internal Testing
+## Google Play Internal Testing
 
-Each validated main build produces a signed `app-release.aab`. With the one-time
+Each selected Android build on `main` produces a signed `app-release.aab`. With the one-time
 Google Play connection below configured, the same run uploads that exact bundle
 to `com.georgicole.thebigeye` on the **internal** testing track and verifies its
 version in a fresh Google Play edit. The signed artifact remains downloadable as
@@ -75,8 +76,7 @@ lists and other tracks are not edited.
 
 Before Google credentials are configured, builds continue to produce the signed
 artifact. The workflow explicitly reports **built only, not uploaded**. Adding
-`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` activates automatic uploads on future main
-runs; there is no second feature flag or repeated manual upload step.
+`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` enables uploads for future Android runs.
 
 ### One-time Google connection
 
@@ -207,8 +207,8 @@ job succeeding. Only this media job receives repository release-write access;
 the signing jobs retain read-only access.
 
 This prevents an app update from requesting a missing media release. Existing
-revisions remain available to older builds. Standard gameplay, music and credits
-stay bundled, and a successfully installed cinematic pack remains usable offline.
+revisions remain available to older builds. Standard gameplay, music and the
+credits fallback stay bundled. An installed cinematic pack remains usable offline.
 
 The November 18 repair published revision
 `ec3da82dc4af6e90116adb1c3859c9dee5fb174f662f15e85f4b30f4eba15d86`

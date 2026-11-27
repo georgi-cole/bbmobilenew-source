@@ -17,8 +17,9 @@ changes VIP ownership or saved seasons. The online-only option is deferred.
 Mobile builds (capacitor, Android and iOS modes) now exclude every manifest-listed
 optional image from their generated output. Browser builds retain bundled cinematics.
 Source artwork remains in the repository for pack export and future walking frames.
-Music, sounds, credits and shared finale artwork stay bundled. The mobile build gate
-requires all optional images to be absent and every other public file byte-identical.
+Music, sounds, the offline credits scene and shared finale artwork stay bundled.
+The mobile build stages the required public files and excludes the optional pack
+and other hosted assets. See [Publish game content](game-content-publishing.md).
 
 Mobile cinematic eligibility requires a complete verified local installation, including
 final decisions, competition broadcasts, Vox and the shared ceremony/exit bridge.
@@ -29,7 +30,7 @@ The media resolver also refuses unavailable optional paths before requesting an 
 The pack includes 404 ceremony images plus 63 eight-pose walking atlases. The manifest
 records its current encoded size. Eight shared finale images remain bundled under
 `assets/ceremonies`; the policy lists them explicitly.
-Music, sound effects, credits video, credits posters, character selection, ordinary
+Music, sound effects, credits posters, character selection, ordinary
 portraits and gameplay code stay bundled. Removing a directory by its name would
 incorrectly remove shared finale artwork.
 

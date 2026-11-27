@@ -739,3 +739,9 @@ store listings or change configured prices.
   screen. It controls gameplay analytics. The game uses the existing rules for
   ad breaks, rewarded ads, and purchase access. Android internal builds run with
   ads off so verification activity stays out of live ad metrics.
+
+- 2026-11-27: Reviewed the mobile asset list and remotely published Don't Go Over
+  question bank. The asset list retains Standard and shared ceremony media and
+  uses the existing verified VIP pack for VIP-only artwork. The question update
+  applies to the Standard ruleset. Existing prices, access and Premium Challenges
+  and VIP catalog coverage continue to apply.

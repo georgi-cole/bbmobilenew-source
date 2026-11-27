@@ -3,6 +3,10 @@ name: Deploy production site
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'public/config/**'
+      - 'content/**'
+      - '.github/workflows/publish-content.yml'
   workflow_dispatch:
 
 permissions:
@@ -11,6 +15,7 @@ permissions:
 concurrency:
   group: public-pages-deploy
   cancel-in-progress: false
+  queue: max
 
 jobs:
   release-quality:
@@ -127,7 +132,7 @@ jobs:
           git clone --depth=1 "https://x-access-token:${PAGES_DEPLOY_TOKEN}@github.com/${{ github.repository_owner }}/bbmobilenew.git" deployment
 
       - name: Replace public files with this production build
-        run: rsync -a --delete --exclude .git dist/ deployment/
+        run: rsync -a --delete --exclude '/.git' --exclude '/config/' --exclude '/content/' dist/ deployment/
 
       - name: Publish production build
         working-directory: deployment

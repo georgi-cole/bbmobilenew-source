@@ -1,3 +1,4 @@
+import { loadPublishedJson, USE_PUBLISHED_CONTENT } from '../../content/publishedContent'
 import { BUNDLED_AFTER_THE_EYE_CONFIG } from './afterTheEyeOutcomeConfig'
 import {
   listTabloidPhotoEntries,
@@ -517,9 +518,18 @@ async function fetchRemoteConfig(): Promise<AfterTheEyeConfig | null> {
 export function loadAftermathConfig(): Promise<AfterTheEyeConfig> {
   if (!configPromise) {
     configPromise = (async () => {
+      if (USE_PUBLISHED_CONTENT && !import.meta.env.VITE_AFTER_THE_EYE_CONFIG_URL?.trim()) {
+        const published = await loadPublishedJson(
+          'after-the-eye',
+          (value) => validateAftermathConfig(value).config ?? null
+        )
+        return published?.value ?? readCachedConfig() ?? BUNDLED_CONFIG
+      }
       const remote = await fetchRemoteConfig()
       return remote ?? readCachedConfig() ?? BUNDLED_CONFIG
-    })()
+    })().finally(() => {
+      configPromise = null
+    })
   }
   return configPromise
 }

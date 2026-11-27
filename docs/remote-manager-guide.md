@@ -14,7 +14,7 @@ Released clients check at startup and refresh every five minutes. If the file is
 
 ## One-time GitHub setup
 
-Create a fine-grained personal access token in GitHub, restricted to the `georgi-cole/bbmobilenew` repository.
+Create a fine-grained personal access token in GitHub, restricted to the `georgi-cole/bbmobilenew-source` repository.
 
 - Repository permission **Contents: Read and write** is required to update the JSON file.
 - Repository permission **Pull requests: Read and write** is required for the recommended review-PR flow.
@@ -31,7 +31,7 @@ Paste the token into the Publish tab when needed. The panel keeps it only in the
 3. Enter a title and message; choose Critical only for urgent notices.
 4. Optionally schedule start and end times.
 5. Open **Publish** and choose **Create review PR**.
-6. Review and merge the PR on GitHub. GitHub Pages deploys the new file, and active clients pick it up within about five minutes.
+6. Review and merge the PR on GitHub. **Publish game content** deploys the new file, and active clients pick it up within about five minutes of publication.
 7. To remove the message, disable it and publish again.
 
 ### Replace a music track
@@ -88,9 +88,9 @@ Validate and apply JSON before publishing. Unknown or invalid fields are removed
 ## Publishing choices
 
 - **Create review PR** is recommended. It creates a branch and PR, and nothing goes live until that PR is merged.
-- **Publish directly to main** is for urgent changes. It commits immediately and starts the normal GitHub Pages deployment.
+- **Publish directly to main** is for urgent changes. It commits immediately and starts **Publish game content**.
 
-Publishing is not instant: wait for the Pages workflow to finish, then allow up to five minutes for an already-open game to refresh. A newly opened game fetches the current file immediately.
+After GitHub Pages publishes the change, allow up to five minutes for an already-open game to refresh. A newly opened game fetches the current file immediately. See [Publish game content](game-content-publishing.md).
 
 ## Advanced JSON
 

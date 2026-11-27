@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import { excludeMobileCinematicAssets } from './scripts/lib/mobile-cinematic-assets.mjs'
+import { stageMobilePublicAssets } from './scripts/lib/mobile-cinematic-assets.mjs'
 import cinematicPack from './src/cinematic/media/vipCinematicPackManifest.json'
 
 const { version: appVersion } = JSON.parse(
@@ -33,6 +33,7 @@ const ignoredDevelopmentRoots = [
 
 export default defineConfig(({ mode }) => ({
   base: mobileModes.has(mode) ? './' : process.env.VITE_BASE_PATH || '/bbmobilenew/',
+  build: { copyPublicDir: !mobileModes.has(mode) },
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
     'import.meta.env.VITE_CINEMATIC_PACK_EXTERNAL': JSON.stringify(
@@ -54,14 +55,7 @@ export default defineConfig(({ mode }) => ({
       },
       async writeBundle(options) {
         if (!mobileModes.has(mode)) return
-        const result = await excludeMobileCinematicAssets(
-          process.cwd(),
-          resolve(options.dir ?? 'dist'),
-          cinematicPack
-        )
-        console.log(
-          `Mobile media: excluded ${result.excludedFiles} cinematic images (${result.excludedBytes} bytes); verified ${result.retainedFiles} bundled public files.`
-        )
+        await stageMobilePublicAssets(process.cwd(), resolve(options.dir ?? 'dist'), cinematicPack)
       },
     },
   ],

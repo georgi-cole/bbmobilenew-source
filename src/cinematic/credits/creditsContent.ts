@@ -1,3 +1,4 @@
+import { loadPublishedJson, USE_PUBLISHED_CONTENT } from '../../content/publishedContent';
 import {
   CINEMATIC_CONFIG,
   CINEMATIC_CREDITS,
@@ -109,8 +110,8 @@ export function parseCreditsContent(value: unknown): readonly CreditCard[] | nul
   return cards;
 }
 
-export function resolveCreditsContentUrl(): string {
-  if (typeof document === 'undefined') return 'config/credits.json';
+function creditsSourceOverride(): string | undefined {
+  if (typeof document === 'undefined') return undefined;
 
   const runtimeUrl = (window as CreditsRuntimeWindow).__BIG_EYE_CREDITS_URL__?.trim();
   if (runtimeUrl) return runtimeUrl;
@@ -118,8 +119,12 @@ export function resolveCreditsContentUrl(): string {
   const metaUrl = document
     .querySelector<HTMLMetaElement>('meta[name="big-eye-credits-url"]')
     ?.content.trim();
-  if (metaUrl) return metaUrl;
+  return metaUrl || undefined;
+}
 
+export function resolveCreditsContentUrl(): string {
+  const override = creditsSourceOverride();
+  if (override) return override;
   const base = import.meta.env.BASE_URL.endsWith('/')
     ? import.meta.env.BASE_URL
     : `${import.meta.env.BASE_URL}/`;
@@ -129,8 +134,15 @@ export function resolveCreditsContentUrl(): string {
 export async function loadCreditsContent({
   signal,
   fetchImpl = globalThis.fetch,
-  url = resolveCreditsContentUrl(),
+  url = creditsSourceOverride(),
 }: LoadCreditsContentOptions = {}): Promise<CreditsContentLoadResult> {
+  if (USE_PUBLISHED_CONTENT && !url) {
+    const content = await loadPublishedJson('credits', parseCreditsContent);
+    return content
+      ? { cards: content.value, source: 'runtime', url: content.url }
+      : { cards: CINEMATIC_CREDITS, source: 'fallback', url: 'bundled' };
+  }
+  url ??= resolveCreditsContentUrl();
   if (typeof fetchImpl !== 'function') {
     return {
       cards: CINEMATIC_CREDITS,

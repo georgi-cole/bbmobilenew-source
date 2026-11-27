@@ -13,13 +13,17 @@ const recovery = yaml.load(
 )
 const scripts = (job) => job.steps.map((step) => step.run ?? '').join('\n')
 
-test('every main update starts a build, while manual candidate builds remain available', () => {
-  assert.deepEqual(workflow.on.push.branches, ['main'])
-  assert.equal(workflow.on.push.paths, undefined)
-  assert.equal(workflow.on.push['paths-ignore'], undefined)
-  assert.ok(Object.hasOwn(workflow.on, 'workflow_dispatch'))
-  assert.equal(workflow.on.pull_request, undefined)
-  assert.equal(workflow.on.pull_request_target, undefined)
+test('store uploads require an explicit run with a selectable platform', () => {
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch'])
+  const platform = workflow.on.workflow_dispatch.inputs.platform
+  assert.deepEqual(platform.options, ['both', 'ios', 'android'])
+  assert.equal(platform.default, 'both')
+  assert.match(workflow.jobs.quality.if, /refs\/heads\/release\/testflight-/)
+  assert.match(workflow.jobs.upload.if, /inputs\.platform != 'android'/)
+  assert.equal(
+    workflow.jobs.android.if,
+    "github.ref == 'refs/heads/main' && inputs.platform != 'ios'"
+  )
 })
 
 test('signing jobs require successful source validation and use read-only repository access', () => {
@@ -36,7 +40,7 @@ test('signing jobs require successful source validation and use read-only reposi
   assert.ok(media.steps.some((step) => step.run === 'node scripts/publish-vip-cinematic-pack.mjs'))
 })
 
-test('back-to-back merges queue without replacing pending or active uploads', () => {
+test('back-to-back dispatches queue without replacing pending or active uploads', () => {
   assert.equal(workflow.concurrency['cancel-in-progress'], false)
   assert.equal(workflow.concurrency.queue, 'max')
 })

@@ -13,11 +13,15 @@ type CinematicVideoProps = Omit<
 > & {
   asset: CinematicVideoAsset
   prepare: boolean
+  sourceUrl?: string
 }
 
 /** Native, muted playback with no source attached until a presentation owns it. */
 export const CinematicVideo = forwardRef<HTMLVideoElement, CinematicVideoProps>(
-  function CinematicVideo({ asset, prepare, autoPlay = false, ...videoProps }, forwardedRef) {
+  function CinematicVideo(
+    { asset, prepare, sourceUrl, autoPlay = false, ...videoProps },
+    forwardedRef
+  ) {
     const videoRef = useRef<HTMLVideoElement | null>(null)
     const setVideoRef = useCallback(
       (video: HTMLVideoElement | null) => {
@@ -56,7 +60,7 @@ export const CinematicVideo = forwardRef<HTMLVideoElement, CinematicVideoProps>(
       <video
         {...videoProps}
         ref={setVideoRef}
-        src={prepare ? resolveCinematicMediaUrl(asset.runtimePath) : undefined}
+        src={prepare ? (sourceUrl ?? resolveCinematicMediaUrl(asset.runtimePath)) : undefined}
         poster={prepare ? resolveCinematicMediaUrl(asset.posterPath) : undefined}
         preload={prepare ? 'auto' : 'none'}
         data-cinematic-preparing={prepare ? 'true' : undefined}

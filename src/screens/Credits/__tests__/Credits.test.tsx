@@ -9,6 +9,17 @@ import {
 } from '../../../services/presentation/presentationOwnership'
 
 const EXIT_FADE_MS = 420
+const hostedVideo = vi.hoisted(() => ({
+  enabled: false,
+  resolve: vi.fn<() => Promise<string | null>>(),
+}))
+
+vi.mock('../../../content/publishedContent', () => ({
+  get USE_PUBLISHED_CONTENT() {
+    return hostedVideo.enabled
+  },
+  getPublishedCreditsVideoUrl: hostedVideo.resolve,
+}))
 
 const soundtrackMock = vi.hoisted(() => ({
   fadeOut: vi.fn(),
@@ -63,6 +74,8 @@ function renderCredits(props: { autoPlay?: boolean; onComplete?: () => void } = 
 
 describe('Credits', () => {
   beforeEach(() => {
+    hostedVideo.enabled = false
+    hostedVideo.resolve.mockReset()
     soundtrackMock.fadeOut.mockClear()
     soundtrackMock.getTime.mockReset()
     soundtrackMock.getTime.mockReturnValue(0)
@@ -95,6 +108,29 @@ describe('Credits', () => {
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Skip credits' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Tap to start credits' })).toBeNull()
+  })
+
+  it('attaches the hosted clip when playback is requested', async () => {
+    hostedVideo.enabled = true
+    const url = 'https://example.test/content/credits-video/revision.mp4'
+    hostedVideo.resolve.mockResolvedValue(url)
+    const preview = renderCredits({ autoPlay: false })
+    expect(hostedVideo.resolve).not.toHaveBeenCalled()
+    preview.unmount()
+
+    renderCredits()
+    expect(screen.getByTestId('credits-background-video')).not.toHaveAttribute('src')
+    await waitFor(() =>
+      expect(screen.getByTestId('credits-background-video')).toHaveAttribute('src', url)
+    )
+  })
+
+  it('keeps offline credits available when the hosted clip cannot be resolved', async () => {
+    hostedVideo.enabled = true
+    hostedVideo.resolve.mockResolvedValue(null)
+    renderCredits()
+    await waitFor(() => expect(screen.queryByTestId('credits-background-video')).toBeNull())
+    expect(screen.getByRole('button', { name: 'Skip credits' })).toBeInTheDocument()
   })
 
   it('disables its video family without disabling live credits or the Skip handoff', async () => {

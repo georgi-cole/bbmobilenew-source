@@ -1,9 +1,13 @@
 name: Build TestFlight and Google Play test apps
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Test distribution to build and upload
+        type: choice
+        default: both
+        options: [both, ios, android]
 
 permissions:
   contents: read
@@ -16,7 +20,7 @@ concurrency:
 jobs:
   quality:
     name: Validate the selected store source
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/testflight-')
+    if: github.ref == 'refs/heads/main' || (inputs.platform != 'android' && startsWith(github.ref, 'refs/heads/release/testflight-'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -40,7 +44,6 @@ jobs:
   cinematic-media:
     name: Publish and verify the matching cinematic download
     needs: quality
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/testflight-')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -60,8 +63,7 @@ jobs:
   upload:
     name: Build, sign, and upload iOS app
     needs: [quality, cinematic-media]
-    # Automatic main builds and explicitly selected TestFlight candidates share validation.
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/testflight-')
+    if: inputs.platform != 'android'
     # Use the GitHub-hosted Xcode 27 image so archives use a supported iOS 27 SDK.
     runs-on: xcode-27
     timeout-minutes: 60
@@ -354,7 +356,7 @@ jobs:
 
   android:
     name: Build and publish Google Play Internal Testing
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && inputs.platform != 'ios'
     needs: [quality, cinematic-media]
     runs-on: ubuntu-latest
     timeout-minutes: 45

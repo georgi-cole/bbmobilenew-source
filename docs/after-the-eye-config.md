@@ -1,6 +1,10 @@
 # After the Eye remote content
 
-The post-finale tabloid requests `public/config/afterTheEyeOutcomes.json` by default. Web, Android, iOS, and local development builds generate that file automatically from the editable scenario databank in `src/screens/GameOver/afterTheEyeOutcomeScenarios1.ts` through `afterTheEyeOutcomeScenarios5.ts`, plus `afterTheEyeOutcomeLinkedScenarios.ts`.
+The post-finale tabloid gets its hosted bank from the content manifest. Edit
+`public/config/afterTheEyeOutcomes.json` in the source repo and
+[publish a content revision](game-content-publishing.md). The app includes a
+fallback built from `src/screens/GameOver/afterTheEyeOutcomeScenarios1.ts` through
+`afterTheEyeOutcomeScenarios5.ts`, plus `afterTheEyeOutcomeLinkedScenarios.ts`.
 
 A deployed server can replace the generated JSON without rebuilding the app. To host it at another address, set `VITE_AFTER_THE_EYE_CONFIG_URL` to the JSON endpoint.
 
@@ -55,16 +59,16 @@ A scenario using `{allyName}`, `{rivalName}`, or `{romanticName}` must declare t
 After editing the source databank, run:
 
 ```bash
-npm run generate:after-eye
+npm run generate:after-eye -- --regenerate
 npm run validate:after-eye
 ```
 
-The generator checks IDs, categories, relationships, placeholders, weights, required text collections, all five internal tone tiers, a minimum of 100 compiled individual scenarios, a minimum linked-story bank, and presence of the core high-drama categories. Normal development and production builds run generation automatically.
+The generator checks IDs, categories, relationships, placeholders, weights, required text collections, all five internal tone tiers, a minimum of 100 compiled individual scenarios, a minimum linked-story bank, and presence of the core high-drama categories. The first command deliberately regenerates the hosted document from the bundled scenario sources. Review the resulting diff to preserve any editorial changes. Normal builds and validation use the checked-in document.
 
-The first command writes `public/config/afterTheEyeOutcomes.json`; the second also checks whether an existing generated file is current.
+## Editing the hosted bank
 
-## Editing only the deployed server copy
-
-You may also edit the generated JSON directly on the server for fast copy changes. Keep `version` at `1`, retain valid scenario IDs, and do not introduce unsupported placeholders. The app validates the complete file before accepting it. When an edit is rejected, players receive the last known valid copy or the bundled fallback instead.
+Edit the checked-in JSON for copy changes. Keep `version` at `1` and retain valid
+scenario IDs and supported placeholders. The app validates the complete
+document. If validation fails, it uses the last known valid copy or the bundled fallback.
 
 Already published season issues are persisted independently, so changing the databank affects newly generated issues only and does not rewrite a completed season's established aftermath.

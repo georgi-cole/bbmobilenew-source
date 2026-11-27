@@ -1,23 +1,13 @@
 import { useState } from 'react'
 import {
-  GITHUB_PAGES_REMOTE_CONFIG_URL,
-  sanitiseRemoteConfig,
-} from '../../remoteConfig/remoteConfigService'
-import {
+  GAME_CONFIG_PUBLISH_TARGET,
   publishConfigAsPullRequest,
   publishConfigDirectly,
-  type GitHubPublishTarget,
+  readConfigSource,
 } from '../../remoteConfig/githubConfigPublisher'
 import type { RemoteConfig } from '../../remoteConfig/remoteConfigTypes'
 import { repairRemoteConfigTextEncoding } from '../../remoteConfig/remoteConfigService'
 import './ManagerPublishBar.css'
-
-const DEFAULT_TARGET: GitHubPublishTarget = {
-  owner: 'georgi-cole',
-  repo: 'bbmobilenew',
-  branch: 'main',
-  path: 'public/config/live-config.json',
-}
 
 type Props = {
   managerName: string
@@ -72,15 +62,16 @@ export default function ManagerPublishBar({ managerName, exportFileName, getPatc
       return
 
     setBusy(true)
-    setStatus('Loading the current published configuration…')
+    setStatus('Loading the current source configuration…')
     try {
-      const response = await fetch(GITHUB_PAGES_REMOTE_CONFIG_URL, { cache: 'no-store' })
-      const existing = response.ok ? (sanitiseRemoteConfig(await response.json()) ?? {}) : {}
-      const config = mergeRemoteConfig(existing, getPatch())
+      const target = GAME_CONFIG_PUBLISH_TARGET
+      const auth = token.trim()
+      const current = await readConfigSource(auth, target)
+      const config = mergeRemoteConfig(current.config, getPatch())
       const result =
         mode === 'pr'
-          ? await publishConfigAsPullRequest(token.trim(), DEFAULT_TARGET, config)
-          : await publishConfigDirectly(token.trim(), DEFAULT_TARGET, config)
+          ? await publishConfigAsPullRequest(auth, target, config, current.sha)
+          : await publishConfigDirectly(auth, target, config, current.sha)
       setStatus(
         mode === 'pr'
           ? `Pull request #${result.pullRequestNumber ?? ''} created: ${result.url}`
