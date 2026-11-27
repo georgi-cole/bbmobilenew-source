@@ -44,6 +44,7 @@ export const MINIGAME_COMPETITION_MAP_STATUS = {
     'colorMatch',
     'snake',
     'riskWheel',
+    'riskWheelAbyss',
     'crystal_path_shattered',
     'capitalization',
     'cardClash',
@@ -102,6 +103,7 @@ export const CLASSIC_CAMPAIGN_GAME_MIN_DAY: Partial<
   mysticChamber: 10,
   rockPaperScissors: 2,
   lastLight: 2,
+  riskWheelAbyss: 2,
 }
 
 /** Narrative prerequisites that cannot be represented by day alone. */
@@ -423,6 +425,7 @@ interface CompetitionMapAssignment {
 const ADDITIONAL_COMPETITION_MAP_ASSIGNMENTS: CompetitionMapAssignment[] = [
   { key: 'rockPaperScissors', prize: 'both', minDay: 2, maxDay: 12 },
   { key: 'lastLight', prize: 'both', minDay: 2, maxDay: 12 },
+  { key: 'riskWheelAbyss', prize: 'both', minDay: 2, maxDay: 12 },
 ]
 
 function hasCompatibleRoster(band: BracketBand, key: string): boolean {

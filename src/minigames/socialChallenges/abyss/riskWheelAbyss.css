@@ -1,0 +1,103 @@
+.social-challenge--abyss {
+  --challenge-accent: #e7bb84;
+  text-align: center;
+}
+
+.social-challenge--abyss .social-challenge__body {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+}
+
+.social-challenge--abyss button {
+  border: 1px solid #815e47;
+  border-radius: 0.65rem;
+  background: #2c2423;
+  color: #f6e4ca;
+  min-height: 44px;
+  padding: 0.55rem 0.85rem;
+}
+
+.social-challenge--abyss button[aria-pressed='true'] {
+  border-color: #e7bb84;
+  background: #533c2b;
+}
+
+.social-challenge--abyss button:disabled {
+  opacity: 0.5;
+}
+
+.abyss-clock {
+  color: #f3cd9f;
+  font-variant-numeric: tabular-nums;
+}
+
+.abyss-spin {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+}
+.abyss-wheel-box {
+  position: relative;
+  inline-size: min(68vw, 18rem);
+}
+
+.abyss-wheel-box::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 50%;
+  transform: translateX(-50%);
+  border-inline: 0.55rem solid transparent;
+  border-top: 1.15rem solid #f5d6a5;
+  filter: drop-shadow(0 0 4px #0c0806);
+}
+
+.abyss-wheel {
+  position: relative;
+  aspect-ratio: 1;
+  border: 0.35rem ridge #a58763;
+  border-radius: 50%;
+  box-shadow:
+    0 0 2.5rem #100c0b,
+    inset 0 0 1.75rem #100c0b;
+  transition: transform 480ms cubic-bezier(0.18, 0.76, 0.24, 1);
+}
+
+.abyss-wheel span {
+  position: absolute;
+  inset: 0.45rem 0.25rem;
+  color: #fff2de;
+  font-size: clamp(0.47rem, 2.2vw, 0.67rem);
+  font-weight: 750;
+  pointer-events: none;
+}
+
+.abyss-actions,
+.abyss-roster {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.abyss-roster,
+.abyss-tally {
+  padding: 0;
+  list-style: none;
+}
+
+.abyss-roster li {
+  max-inline-size: 7rem;
+}
+.abyss-roster button {
+  padding: 0.35rem;
+}
+.abyss-tally {
+  color: #ebd4ba;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .abyss-wheel {
+    transition: none;
+  }
+}

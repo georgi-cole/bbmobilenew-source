@@ -5,7 +5,7 @@ import type { GenericMinigameProps } from '../reactComponents'
 
 export type ChallengePlayer = NonNullable<GenericMinigameProps['participants']>[number]
 
-const SOCIAL_CHALLENGE_GAME_KEYS = ['rockPaperScissors', 'lastLight'] as const
+const SOCIAL_CHALLENGE_GAME_KEYS = ['rockPaperScissors', 'lastLight', 'riskWheelAbyss'] as const
 type SocialChallengeGameKey = (typeof SOCIAL_CHALLENGE_GAME_KEYS)[number]
 
 export function isSocialChallengeGameKey(key: string): key is SocialChallengeGameKey {

@@ -1,4 +1,5 @@
 import type { GenericMinigameProps } from '../reactComponents'
+import { abyssStandings, simulateAbyss, startAbyss } from './abyss/abyssRules'
 import { runLastLightSimulation } from './lastLight/lastLightLogic'
 import { simulateRpsTournament } from './rps/rules'
 import { isSocialChallengeGameKey, socialPreference } from './shared'
@@ -12,10 +13,18 @@ export function simulateSocialChallengeScores(
 ): Record<string, number> | undefined {
   if (!isSocialChallengeGameKey(key)) return undefined
   const preference = (from: string, to: string) => socialPreference(social, from, to)
-  const groups =
-    key === 'rockPaperScissors'
-      ? simulateRpsTournament(participants, seed, preference)
-      : runLastLightSimulation({ participants, seed, preference }).rankedGroups
+  const groups = (() => {
+    switch (key) {
+      case 'riskWheelAbyss':
+        return abyssStandings(simulateAbyss(startAbyss([...participants], seed), preference)).map(
+          (id) => [id]
+        )
+      case 'rockPaperScissors':
+        return simulateRpsTournament(participants, seed, preference)
+      case 'lastLight':
+        return runLastLightSimulation({ participants, seed, preference }).rankedGroups
+    }
+  })()
   return Object.fromEntries(
     groups.flatMap((group, index) => group.map((id) => [id, (groups.length - index) * 100]))
   )

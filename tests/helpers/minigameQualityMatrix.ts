@@ -69,6 +69,13 @@ export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
     logic: 'src/minigames/socialChallenges/lastLight/lastLightLogic.test.ts',
     component: 'src/minigames/socialChallenges/lastLight/LastLight.tsx',
   },
+  riskWheelAbyss: {
+    input: 'spin, bank a balance, and seal a contestant handoff',
+    scoring: 'elimination',
+    tie: 'Only players tied for the lowest balance enter a one-spin playoff. A lowest-spin tie repeats among the players still tied.',
+    logic: 'src/minigames/socialChallenges/abyss/abyssRules.test.ts',
+    component: 'src/minigames/socialChallenges/abyss/RiskWheelAbyss.tsx',
+  },
   percentagePanic: {
     input: 'percentage slider, lock estimate, hints, and higher/lower final guesses',
     scoring: 'placement',

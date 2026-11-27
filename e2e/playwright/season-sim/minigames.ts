@@ -52,6 +52,7 @@ export const MINIGAME_DRIVER_PROFILES: Readonly<Record<string, MinigameDriverPro
   dontGoOver: { kind: 'keyboard', primaryInput: 'numeric estimate' },
   blackjackTournament: { kind: 'choice', primaryInput: 'card actions' },
   riskWheel: { kind: 'choice', primaryInput: 'spin and wager choices' },
+  riskWheelAbyss: { kind: 'choice', primaryInput: 'spin, bank and choose a balance recipient' },
   wildcardWestern: { kind: 'choice', primaryInput: 'duel choices' },
   castleRescue: { kind: 'keyboard', primaryInput: 'platform controls' },
   castleRescueRemastered: { kind: 'keyboard', primaryInput: 'platform controls' },
@@ -715,11 +716,30 @@ async function playLastLightTurn(host: Locator, random: SeededRandom): Promise<b
   return clickSampleChoice(choices, random)
 }
 
+async function playRiskWheelAbyssTurn(host: Locator, random: SeededRandom): Promise<boolean> {
+  const arena = host.getByRole('region', { name: 'Risk Wheel: Abyss' })
+  for (const name of [
+    'Skip to results',
+    'Continue',
+    'Start playoff',
+    'Spin playoff',
+    'Seal handoff',
+    'Reveal handoffs',
+    'Bank balance',
+    'Spin the wheel',
+  ]) {
+    const button = await firstVisibleEnabled(arena.getByRole('button', { name, exact: true }))
+    if (button) return clickWithShortTimeout(button, 0, true)
+  }
+  return clickSampleChoice(arena.getByRole('button', { pressed: false }), random)
+}
+
 const SOCIAL_CHALLENGE_DRIVERS: Readonly<
   Partial<Record<string, (host: Locator, random: SeededRandom) => Promise<boolean>>>
 > = {
   rockPaperScissors: playRockPaperScissorsTurn,
   lastLight: playLastLightTurn,
+  riskWheelAbyss: playRiskWheelAbyssTurn,
 }
 
 async function playBoxpocalypseTurn(host: Locator, random: SeededRandom): Promise<boolean> {

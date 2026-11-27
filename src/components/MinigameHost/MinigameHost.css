@@ -75,6 +75,14 @@
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.minigame-host :is(input, textarea, [contenteditable='true']) {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Let these games' bounded content panels accept vertical touch scrolling. */

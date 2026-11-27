@@ -46,7 +46,7 @@ describe('classic campaign map registry integrity', () => {
     const calibration = new Set<string>(CLASSIC_CAMPAIGN_CALIBRATION_GAME_KEYS)
 
     expect([...dailyScheduled].sort()).toEqual([...approved].sort())
-    expect(approved.size).toBe(23)
+    expect(approved.size).toBe(24)
     expect([...finaleOnly]).toEqual(['finalThreeCircuit'])
     expect([...finaleOnly].some((key) => calibration.has(key))).toBe(false)
     expect([...dailyScheduled].some((key) => calibration.has(key))).toBe(false)
@@ -163,6 +163,10 @@ describe('getClassicCampaignPoolForContext', () => {
       'quickTap',
     ])
     expect(day2).toContain('holdWall')
+    expect(day2).toContain('riskWheelAbyss')
+    expect(
+      getClassicCampaignPoolForContext({ day: 2, playerCount: 16, compType: 'POS' })
+    ).toContain('riskWheelAbyss')
     expect(day2.every((key) => approved.has(key))).toBe(true)
   })
 

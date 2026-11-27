@@ -1111,6 +1111,33 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     retired: false,
   },
 
+  riskWheelAbyss: {
+    key: 'riskWheelAbyss',
+    title: 'Risk Wheel: Abyss',
+    description: 'Spin for a balance, pass it to another contestant, and survive the Abyss.',
+    instructions: [
+      'Spin up to three times or bank your balance early. VOID erases your balance and ends the turn. STOP ends the turn without changing the balance.',
+      'After spinning, pass your entire balance to one other contestant. Gains and debts both transfer. All handoffs settle together.',
+      'The lowest balance is eliminated. If there is a tie at the bottom, only the tied contestants enter a one-spin playoff.',
+      'In a playoff, VOID scores zero and negative spins score lower. A tie for the lowest spin repeats with those still tied.',
+      'Each new round starts at zero. The last contestant standing wins.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Balance',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'RiskWheelAbyss',
+    legacy: false,
+    weight: 1,
+    category: 'logic',
+    retired: false,
+    minPlayers: 2,
+    maxPlayers: 16,
+  },
+
   wildcardWestern: {
     key: 'wildcardWestern',
     title: 'Wildcard Western',

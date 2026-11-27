@@ -95,7 +95,7 @@ async function openGame(
   await closeDebugPanelIfOpen(page)
   await page.addStyleTag({
     content:
-      '.minigame-lab__panel { visibility: hidden !important; pointer-events: none !important; }',
+      '.minigame-lab__panel, .dbg-fab { visibility: hidden !important; pointer-events: none !important; }',
   })
   await expect(page.getByTestId('minigame-lab-completion-count')).toHaveText('0')
   await expect(
@@ -163,6 +163,7 @@ test.describe('full minigame gameplay certification @full-playthrough', () => {
             game.key === 'mysticChamber' ||
             game.key === 'finalThreeCircuit' ||
             game.key === 'riskWheel' ||
+            game.key === 'riskWheelAbyss' ||
             game.key === 'trapAuction' ||
             game.key === 'silentSaboteur' ||
             game.key === 'wildcardWestern' ||
@@ -175,6 +176,7 @@ test.describe('full minigame gameplay certification @full-playthrough', () => {
             game.key === 'finalThreeCircuit' ||
             game.key === 'silentSaboteur' ||
             game.key === 'rescueTheKing' ||
+            game.key === 'riskWheelAbyss' ||
             game.key === 'rockPaperScissors' ||
             game.key === 'lastLight'
           if (game.key === 'mysticChamber') await page.emulateMedia({ reducedMotion: 'reduce' })

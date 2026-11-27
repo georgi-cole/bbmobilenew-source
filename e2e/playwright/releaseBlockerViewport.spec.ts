@@ -1,5 +1,21 @@
 import { closeDebugPanelIfOpen, expect, test } from './support/test'
 
+test('competition countdown suppresses text selection @core-journey @smoke', async ({ page }) => {
+  await page.goto('./#/minigame-lab?game=holdWall&seed=42&players=4&skipRules=0&skipCountdown=0', {
+    waitUntil: 'commit',
+  })
+  const start = page.getByRole('button', { name: 'Start competition', exact: true })
+  await expect(start).toBeVisible({ timeout: 20_000 })
+  await closeDebugPanelIfOpen(page)
+  await start.click()
+  const title = page.locator('.minigame-host-ready-game')
+  await expect(title).toBeVisible()
+  await expect(title).toHaveText('Hold the Wall')
+  await expect(title).toHaveCSS('user-select', 'none')
+  await title.dblclick()
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('')
+})
+
 for (const width of [320, 390]) {
   test(`Color Match results offer a reachable Continue at ${width}px @core-journey @smoke`, async ({
     page,

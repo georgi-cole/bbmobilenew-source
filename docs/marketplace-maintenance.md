@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-27: Reviewed the addition of Risk Wheel: Abyss to the standard
+  competition registry. Standard, Premium Challenges, and VIP use the shared
+  Abyss rules and artwork. The existing premium Risk Wheel presentation and
+  the entitlements listed in the Marketplace catalog continue to apply.
+
 - 2026-11-27: Reviewed the wider POS pool in Classic, Cupid, and Vox Populi.
   Approved daily games retain their roster requirements and story unlocks.
   Standard uses the base versions, and Premium Challenges and VIP continue to
