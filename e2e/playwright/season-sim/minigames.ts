@@ -718,20 +718,14 @@ async function playLastLightTurn(host: Locator, random: SeededRandom): Promise<b
 
 async function playRiskWheelAbyssTurn(host: Locator, random: SeededRandom): Promise<boolean> {
   const arena = host.getByRole('region', { name: 'Risk Wheel: Abyss' })
-  for (const name of [
-    'Skip to results',
-    'Continue',
-    'Start playoff',
-    'Spin playoff',
-    'Seal handoff',
-    'Reveal handoffs',
-    'Bank balance',
-    'Spin the wheel',
-  ]) {
-    const button = await firstVisibleEnabled(arena.getByRole('button', { name, exact: true }))
-    if (button) return clickWithShortTimeout(button, 0, true)
-  }
-  return clickSampleChoice(arena.getByRole('button', { pressed: false }), random)
+  const proceed = await firstVisibleEnabled(
+    arena.getByRole('button', {
+      name: /^(?:Skip to results|Continue|Reveal winner|Start playoff|Spin playoff|Pass to .+|Reveal handoffs|Seal balance|Spin|Show verdict)$/,
+    })
+  )
+  if (proceed) return clickWithShortTimeout(proceed, 0, true)
+  const choices = arena.getByRole('group', { name: 'Choose another player' })
+  return clickSampleChoice(choices.getByRole('button', { pressed: false }), random)
 }
 
 const SOCIAL_CHALLENGE_DRIVERS: Readonly<

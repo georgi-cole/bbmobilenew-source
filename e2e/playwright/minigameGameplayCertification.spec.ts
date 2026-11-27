@@ -21,7 +21,7 @@ const DRIVER_SKILL: SimulationSkill = 'competent'
 const MAX_STALLED_ACTIONS = 40
 
 interface PlaythroughScenario {
-  label: 'minimum' | 'maximum' | 'default'
+  label: 'minimum' | 'maximum' | 'default' | 'reported'
   players: number
   seed: number
 }
@@ -58,6 +58,7 @@ function scenariosFor(game: GameRegistryEntry): PlaythroughScenario[] {
     { label: 'minimum', players: minimum, seed: 424242 },
     { label: game.maxPlayers == null ? 'default' : 'maximum', players: maximum, seed: 0x5eedc0de },
   ]
+  if (game.key === 'riskWheelAbyss') candidates.push({ label: 'reported', players: 13, seed: 314 })
   return candidates.filter(
     (scenario, index) =>
       candidates.findIndex((candidate) => candidate.players === scenario.players) === index
@@ -76,7 +77,8 @@ async function openGame(
   game: GameRegistryEntry,
   scenario: PlaythroughScenario
 ): Promise<void> {
-  const vipPreview = game.vipOnly ? '&vipPreview=1' : ''
+  const cinematicAbyss = game.key === 'riskWheelAbyss' && scenario.label === 'reported'
+  const vipPreview = game.vipOnly || cinematicAbyss ? '&vipPreview=1' : ''
   await page.goto(
     './#/minigame-lab?game=' +
       encodeURIComponent(game.key) +
@@ -186,6 +188,29 @@ test.describe('full minigame gameplay certification @full-playthrough', () => {
           await openGame(page, game, scenario)
           page.setDefaultTimeout(5_000)
           if (fastClock && !installClockBeforeMount) await installMinigameFastClock(page)
+
+          if (game.key === 'riskWheelAbyss') {
+            const arena = page.getByRole('region', { name: 'Risk Wheel: Abyss' })
+            const cinematic = scenario.label === 'reported'
+            await expect(arena).toHaveAttribute(
+              'data-presentation',
+              cinematic ? 'cinematic' : 'standard'
+            )
+            await expect(arena.getByRole('button', { name: 'Spin', exact: true })).toBeVisible()
+            await expect(arena.getByRole('img', { name: '3 spins left' })).toBeVisible()
+            if (cinematic) {
+              const imageUrl = await arena.evaluate(
+                (element) =>
+                  /url\("([^"]*risk-wheel-abyss\.webp)"\)/.exec(
+                    getComputedStyle(element, '::before').backgroundImage
+                  )?.[1]
+              )
+              expect(imageUrl).toBeDefined()
+              const image = await page.request.get(imageUrl!)
+              expect(image.ok()).toBe(true)
+              expect(image.headers()['content-type']).toContain('image/webp')
+            }
+          }
 
           const completionCount = page.getByTestId('minigame-lab-completion-count')
           const lastResult = page.getByTestId('minigame-lab-last-result')

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import yaml from 'js-yaml'
+import plist from 'plist'
 
 const workflow = yaml.load(
   readFileSync(new URL('../.github/workflows/ios-testflight.yml', import.meta.url), 'utf8')
@@ -55,6 +56,26 @@ test('iOS retries receive a distinct build number used by the native archive', (
   assert.equal(job.env.IOS_BUILD_NUMBER, '${{ github.run_id }}.${{ github.run_attempt }}')
   assert.ok(scripts(job).includes('CURRENT_PROJECT_VERSION="$IOS_BUILD_NUMBER"'))
   assert.ok(scripts(job).includes('altool --upload-app'))
+})
+
+test('iOS 27 launches the scene-based app on a simulator before archiving and uploading', () => {
+  const info = plist.parse(
+    readFileSync(new URL('../ios/App/App/Info.plist', import.meta.url), 'utf8')
+  )
+  const scenes = info.UIApplicationSceneManifest
+  assert.equal(scenes.UIApplicationSupportsMultipleScenes, false)
+  assert.deepEqual(scenes.UISceneConfigurations.UIWindowSceneSessionRoleApplication, [
+    {
+      UISceneConfigurationName: 'Main',
+      UISceneDelegateClassName: '$(PRODUCT_MODULE_NAME).SceneDelegate',
+      UISceneStoryboardFile: 'Main',
+    },
+  ])
+  const steps = workflow.jobs.upload.steps.map(({ name }) => name)
+  const smoke = steps.indexOf('Smoke-test iOS 27 launch')
+  const web = steps.indexOf('Build the production iOS web bundle')
+  const archive = steps.indexOf('Archive and export the signed app')
+  assert.ok(web >= 0 && smoke > web && archive > smoke)
 })
 
 test('iOS upload completion includes compliance and verified internal availability', () => {

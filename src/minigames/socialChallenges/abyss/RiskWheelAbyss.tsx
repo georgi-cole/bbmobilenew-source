@@ -1,10 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import { MAX_SPINS_PER_TURN, WHEEL_SECTORS } from '../../../features/riskWheel/riskWheelSlice'
+import { SoundManager } from '../../../services/sound/SoundManager'
 import { useCompetitionResultCheckpoint } from '../../competitionResultContext'
 import type { GenericMinigameProps } from '../../reactComponents'
-import { ChallengePortrait, ChallengeStage } from '../ChallengeStage'
 import { buildChallengeCompletion, getChallengePlayers, socialPreference } from '../shared'
 import { useChallengeAudio } from '../useChallengeAudio'
+import { AbyssChoice, AbyssFinal, AbyssHandoffs, AbyssVerdict } from './AbyssRoundPanels'
+import { SECTOR_ANGLE, formatBalance } from './abyssPresentation'
+import { AbyssWheel } from './AbyssWheel'
 import {
   abyssStandings,
   advanceVerdict,
@@ -14,38 +25,39 @@ import {
   spinAbyss,
   spinPlayoff,
   startAbyss,
+  type Abyss,
 } from './abyssRules'
 import './riskWheelAbyss.css'
 
 const CHOICE_MS = 20_000
-const WHEEL_ARTWORK = `${import.meta.env.BASE_URL}assets/minigames/risk-wheel-abyss.webp`
-const format = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 2,
-  signDisplay: 'exceptZero',
-})
-const sectorLabel = ({ type, value, label }: (typeof WHEEL_SECTORS)[number]) =>
-  type === 'bankrupt'
-    ? 'VOID'
-    : type === 'skip'
-      ? 'STOP'
-      : value === undefined
-        ? label
-        : format.format(value)
-const sectorColors = ['#4b5662', '#554132', '#394a4b', '#645044', '#343846', '#713f37']
-const wheelPaint =
-  'conic-gradient(' +
-  WHEEL_SECTORS.map((_, i) => {
-    const width = 360 / WHEEL_SECTORS.length
-    return (
-      sectorColors[i % sectorColors.length] + ' ' + i * width + 'deg ' + (i + 1) * width + 'deg'
-    )
-  }).join(', ') +
-  ')'
+const TERMINAL_LANDING_MS = 420
+const ARTWORK = import.meta.env.BASE_URL + 'assets/minigames/risk-wheel-abyss.webp'
+
+interface PendingSpin {
+  next: Abyss
+  audio: AbortController
+  timer: number
+}
+
+function describeSpin(spin: NonNullable<Abyss['landed']>, previous: number, playoff: boolean) {
+  const sector = WHEEL_SECTORS[spin.sector]
+  switch (sector.type) {
+    case 'bankrupt':
+      return playoff ? 'VOID · Scores 0' : 'Balance erased'
+    case 'skip':
+      return 'STOP · Turn ends'
+    case 'zero':
+      return 'No change'
+    default:
+      return formatBalance(spin.score - previous)
+  }
+}
 
 export default function RiskWheelAbyss(props: GenericMinigameProps) {
   const [players] = useState(() => getChallengePlayers(props))
   const [social] = useState(() => props)
   const human = players.find(({ isHuman }) => isHuman)?.id
+  const cinematic = Boolean(props.premiumPresentation)
   const [game, setGame] = useState(() =>
     startAbyss(
       players.map(({ id }) => id),
@@ -54,48 +66,171 @@ export default function RiskWheelAbyss(props: GenericMinigameProps) {
     )
   )
   const [selected, setSelected] = useState<string>()
-  const [clock, setClock] = useState<{ game: typeof game; seconds: number }>()
+  const [clock, setClock] = useState<{ game: Abyss; seconds: number }>()
   const [rotation, setRotation] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [spinning, setSpinning] = useState(false)
+  const [terminalSpin, setTerminalSpin] = useState<Abyss['landed']>()
+  const [spinOutcome, setSpinOutcome] = useState<string>()
+  const [revealing, setRevealing] = useState(false)
+  const [lastTransfers, setLastTransfers] = useState<Abyss['transfers']>([])
+  const pendingSpin = useRef<PendingSpin>(null)
+  const appPaused = useRef(false)
+  const arena = useRef<HTMLElement>(null)
+  const finishReported = useRef(false)
   const sound = useChallengeAudio('abyss')
   const preference = useMemo(
     () => (from: string, to: string) => socialPreference(social, from, to),
     [social]
   )
   const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
-  const name = (id: string) => playerById.get(id)?.name ?? id
-  const playing = Boolean(human && game.active.includes(human))
-  const humanPlayoff = Boolean(human && game.playoff.includes(human))
-  const timed =
-    playing &&
-    (game.phase === 'spin' ||
-      game.phase === 'handoff' ||
-      (game.phase === 'playoff' && humanPlayoff))
+  const playing = human !== undefined && game.active.includes(human)
+  const humanPlayoff = playing && game.playoff.includes(human)
+  const playableSpin = game.phase === 'spin' ? playing : game.phase === 'playoff' && humanPlayoff
+  const timed = playableSpin || (game.phase === 'handoff' && playing)
   const time = clock?.game === game ? clock.seconds : CHOICE_MS / 1000
+  const candidates =
+    game.phase === 'handoff' && playing ? game.active.filter((id) => id !== human) : []
+  const target = candidates.length === 1 ? candidates[0] : selected
+  const balance =
+    terminalSpin?.score ?? (playing && game.phase !== 'playoff' ? game.roundScores[human] : 0)
+
+  const settleSpin = useCallback(() => {
+    const pending = pendingSpin.current
+    if (!pending) return
+    pendingSpin.current = null
+    window.clearTimeout(pending.timer)
+    pending.audio.abort()
+    setGame(pending.next)
+    setSpinning(false)
+    setTerminalSpin(undefined)
+  }, [])
+
+  const spin = useCallback(
+    (current: Abyss) => {
+      const playoff = current.phase === 'playoff'
+      if (pendingSpin.current || (!playoff && current.phase !== 'spin')) return
+      const next = playoff ? spinPlayoff(current) : spinAbyss(current)
+      if (!human || !next.landed) {
+        setGame(next)
+        return
+      }
+      const previous = playoff ? 0 : current.roundScores[human]
+      const landed = next.landed
+      const outcome = describeSpin(landed, previous, playoff)
+      const sectorType = WHEEL_SECTORS[landed.sector].type
+      const playLandingCue = () => {
+        if (document.hidden || appPaused.current) return
+        if (sectorType === 'devil') void SoundManager.play('minigame:risk_wheel_666')
+        else if (sectorType === 'bankrupt' || sectorType === 'skip') {
+          void SoundManager.play('minigame:risk_wheel_bankrupt_or_skip')
+        } else if (landed.score < previous) void SoundManager.play('minigame:risk_wheel_bad')
+        else if (landed.score > previous) sound('success')
+      }
+      const angle = -(landed.sector + 0.5) * SECTOR_ANGLE
+      const hidden = document.hidden || appPaused.current
+      const reducedMotion =
+        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
+        document.body.classList.contains('no-animations')
+      const spinDuration = hidden || reducedMotion ? 0 : cinematic ? 2_450 : 1_510
+      setDuration(spinDuration)
+      setRotation((previousAngle) => angle + 360 * Math.ceil((previousAngle + 1440 - angle) / 360))
+      setSpinOutcome(outcome)
+      if (!spinDuration) {
+        setGame(next)
+        playLandingCue()
+        return
+      }
+
+      const audio = new AbortController()
+      const timer = window.setTimeout(() => {
+        const pending = pendingSpin.current
+        if (!pending) return
+        pending.audio.abort()
+        playLandingCue()
+        if (next.phase === current.phase) {
+          settleSpin()
+          return
+        }
+        setTerminalSpin(landed)
+        pending.timer = window.setTimeout(settleSpin, TERMINAL_LANDING_MS)
+      }, spinDuration)
+      pendingSpin.current = { next, audio, timer }
+      setSpinning(true)
+      sound('roll', { signal: audio.signal, durationMs: spinDuration })
+    },
+    [cinematic, human, settleSpin, sound]
+  )
 
   useEffect(() => {
-    const deadline = Date.now() + (timed ? CHOICE_MS : 900)
-    if (!timed && game.phase !== 'spin' && game.phase !== 'playoff') return
+    const settleWhileHidden = () => {
+      if (document.hidden) settleSpin()
+    }
+    const pause = () => {
+      appPaused.current = true
+      settleSpin()
+    }
+    const resume = () => {
+      appPaused.current = false
+    }
+    document.addEventListener('visibilitychange', settleWhileHidden)
+    document.addEventListener('pause', pause)
+    document.addEventListener('resume', resume)
+    window.addEventListener('pagehide', settleSpin)
+    return () => {
+      document.removeEventListener('visibilitychange', settleWhileHidden)
+      document.removeEventListener('pause', pause)
+      document.removeEventListener('resume', resume)
+      window.removeEventListener('pagehide', settleSpin)
+      const pending = pendingSpin.current
+      if (pending) {
+        pendingSpin.current = null
+        window.clearTimeout(pending.timer)
+        pending.audio.abort()
+      }
+    }
+  }, [settleSpin])
+
+  const revealHandoffs = useCallback(
+    (current: Abyss, recipient?: string) => {
+      setGame(settleHandoffs(current, preference, recipient))
+      setRevealing(true)
+      if (!document.hidden && !appPaused.current) sound('reveal')
+    },
+    [preference, sound]
+  )
+
+  const revealAfterTimeout = useEffectEvent((current: Abyss) => revealHandoffs(current, target))
+
+  useEffect(() => {
+    if (spinning || (!timed && game.phase !== 'spin' && game.phase !== 'playoff')) return
+    const delay = timed ? CHOICE_MS : 900
+    const deadline = Date.now() + delay
     const tick = timed
       ? window.setInterval(() => {
           setClock({ game, seconds: Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) })
         }, 250)
       : undefined
-    const timer = window.setTimeout(
-      () => {
+    const timer = window.setTimeout(() => {
+      if (game.phase === 'handoff') revealAfterTimeout(game)
+      else if (playableSpin) spin(game)
+      else
         setGame((current) => {
           if (current !== game) return current
-          if (current.phase === 'spin') return timed ? spinAbyss(current) : finishSpins(current)
-          if (current.phase === 'handoff') return settleHandoffs(current, preference)
-          return spinPlayoff(current)
+          return current.phase === 'spin' ? finishSpins(current) : spinPlayoff(current)
         })
-      },
-      timed ? CHOICE_MS : 900
-    )
+    }, delay)
     return () => {
       window.clearInterval(tick)
       window.clearTimeout(timer)
     }
-  }, [game, preference, timed])
+  }, [game, playableSpin, spin, spinning, timed])
+
+  useEffect(() => {
+    if (!revealing) return
+    const timer = window.setTimeout(() => setRevealing(false), cinematic ? 2_200 : 1_100)
+    return () => window.clearTimeout(timer)
+  }, [cinematic, revealing])
 
   const result = useMemo(() => {
     if (game.phase !== 'results') return null
@@ -109,175 +244,174 @@ export default function RiskWheelAbyss(props: GenericMinigameProps) {
   }, [game, human])
   useCompetitionResultCheckpoint(result)
 
-  const spin = () => {
-    const next = spinAbyss(game)
-    const segment = 360 / WHEEL_SECTORS.length
-    const angle = -((next.landed?.sector ?? 0) + 0.5) * segment
-    setRotation(angle + 360 * Math.ceil((rotation + 720 - angle) / 360))
-    setGame(next)
-    sound('roll')
+  const light = spinning && !terminalSpin
+  const wheelScene = game.phase === 'spin' || game.phase === 'playoff'
+  const playoff = game.phase === 'playoff'
+  // A previous spin's highlight is irrelevant once the next round or playoff starts.
+  const landedSector =
+    terminalSpin?.sector ?? (game.phase === 'spin' ? game.landed?.sector : undefined)
+  const wheelMessage = light
+    ? 'The wheel turns'
+    : (landedSector !== undefined && spinOutcome) ||
+      (playableSpin
+        ? playoff
+          ? 'Lowest spin goes out. VOID scores 0.'
+          : 'Tap the eye to spin'
+        : playoff
+          ? 'The tied players are spinning'
+          : 'Other players are spinning')
+  const scene = result
+    ? 'final'
+    : revealing
+      ? 'handoff'
+      : game.phase === 'handoff'
+        ? 'choose'
+        : wheelScene
+          ? 'wheel'
+          : 'verdict'
+  const artwork = cinematic ? new URL(ARTWORK, document.baseURI).href : undefined
+
+  useEffect(() => {
+    if (arena.current) arena.current.scrollTop = 0
+  }, [scene])
+
+  function continueVerdict() {
+    setLastTransfers(game.transfers)
+    setSelected(undefined)
+    setSpinOutcome(undefined)
+    setGame(advanceVerdict(game))
   }
-  const standings = game.phase === 'results' ? abyssStandings(game) : game.active
+
+  function finish() {
+    if (!result || finishReported.current) return
+    finishReported.current = true
+    props.onFinish?.(result.rawValue, undefined, result.completion)
+  }
+
   return (
-    <ChallengeStage
-      game="abyss"
-      title="Risk Wheel: Abyss"
-      subtitle={
-        game.phase === 'results'
-          ? undefined
-          : `Round ${game.round} · ${game.active.length} remaining`
-      }
-      background={WHEEL_ARTWORK}
+    <section
+      className="abyss"
+      ref={arena}
+      aria-label="Risk Wheel: Abyss"
+      data-presentation={cinematic ? 'cinematic' : 'standard'}
+      data-scene={scene}
+      style={artwork ? ({ '--abyss-plate': 'url("' + artwork + '")' } as CSSProperties) : undefined}
     >
-      {timed && (
-        <p className="abyss-clock" role="timer" aria-label="Seconds remaining">
-          {time}s
-        </p>
-      )}
-      {game.phase === 'spin' && (
-        <div className="abyss-spin">
-          <div className="abyss-wheel-box" aria-hidden="true">
-            <div
-              className="abyss-wheel"
-              style={{ background: wheelPaint, transform: `rotate(${rotation}deg)` }}
-            >
-              {WHEEL_SECTORS.map((sector, i) => (
-                <span
-                  key={i}
-                  style={{ transform: `rotate(${((i + 0.5) * 360) / WHEEL_SECTORS.length}deg)` }}
-                >
-                  {sectorLabel(sector)}
-                </span>
-              ))}
-            </div>
-          </div>
-          {playing && (
-            <>
-              <p>
-                {MAX_SPINS_PER_TURN - game.spins} spins left · Balance{' '}
-                {format.format(game.roundScores[human!])}
-              </p>
-              <div className="abyss-actions">
-                <button type="button" onClick={spin}>
-                  {game.spins ? 'Spin again' : 'Spin the wheel'}
-                </button>
-                {game.spins > 0 && (
-                  <button type="button" onClick={() => setGame(finishSpins(game))}>
-                    Bank balance
-                  </button>
-                )}
-              </div>
-            </>
+      <div className="abyss-air" aria-hidden="true" />
+      <header className="abyss-header">
+        <h2 aria-label="Risk Wheel: Abyss">
+          <span>Risk Wheel</span>Abyss
+        </h2>
+        <div className="abyss-round">
+          Round <strong>{game.round}</strong>
+          <span>{game.active.length} remain</span>
+          {timed && (
+            <span className="abyss-choice-time" role="timer" aria-label="Seconds remaining">
+              {time}s
+            </span>
           )}
         </div>
-      )}
-      {game.phase === 'handoff' && (
-        <>
-          <h3>Pass your balance</h3>
-          <p>You can pass a gain or a debt. All handoffs are revealed together.</p>
-          {playing && <p>Your balance {format.format(game.roundScores[human!])}</p>}
-        </>
-      )}
-      {game.phase === 'playoff' && (
-        <>
-          <h3>Playoff</h3>
-          <p>
-            {game.playoff.map(name).join(', ')} spin once each. Lowest spin goes out. VOID scores 0.
-            Negative spins score lower.
-          </p>
-          {humanPlayoff && (
-            <button type="button" onClick={() => setGame(spinPlayoff(game))}>
-              Spin playoff
-            </button>
-          )}
-        </>
-      )}
-      {game.phase === 'verdict' && (
-        <>
-          <h3>{game.out ? `${name(game.out)} is out` : 'The lowest score is tied'}</h3>
-          {Object.keys(game.playoffScores).length > 0 ? (
-            <ul className="abyss-tally" aria-label="Playoff scores">
-              {Object.entries(game.playoffScores).map(([id, score]) => (
-                <li key={id}>
-                  {name(id)} · {format.format(score)}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <ul className="abyss-tally" aria-label="Balance handoffs">
-              {game.transfers.map(({ from, to, amount }) => (
-                <li key={from}>
-                  {name(from)} sent {format.format(amount)} to {name(to)}
-                </li>
-              ))}
-            </ul>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setSelected(undefined)
-              setGame(advanceVerdict(game))
-            }}
-          >
-            {game.out ? 'Continue' : 'Start playoff'}
-          </button>
-        </>
-      )}
-      {result && <h3>{name(standings[0])} wins</h3>}
-      <ul className="abyss-roster" aria-label={result ? 'Final standings' : 'Contestants'}>
-        {standings.map((id, index) => {
-          const player = playerById.get(id)!
-          const tone = id === game.out || game.eliminated.includes(id) ? 'out' : 'neutral'
-          const portrait = (
-            <ChallengePortrait player={player} tone={tone}>
-              <span>
-                {result ? `${index + 1}. ` : ''}
-                {format.format((result ? game.finalScores : game.roundScores)[id] ?? 0)}
-              </span>
-            </ChallengePortrait>
-          )
-          return (
-            <li key={id}>
-              {game.phase === 'handoff' && playing && id !== human ? (
-                <button
-                  type="button"
-                  aria-pressed={selected === id}
-                  onClick={() => setSelected(id)}
-                >
-                  {portrait}
-                </button>
-              ) : (
-                portrait
-              )}
-            </li>
-          )
-        })}
-      </ul>
-      {game.phase === 'handoff' && (
+      </header>
+      {!result && !revealing && (!playing || game.out === human) && (
         <button
           type="button"
-          disabled={playing && !selected}
-          onClick={() => {
-            setGame(settleHandoffs(game, preference, selected))
-            sound('link')
-          }}
+          className="abyss-skip"
+          onClick={() => setGame(simulateAbyss(game, preference))}
         >
-          {playing ? 'Seal handoff' : 'Reveal handoffs'}
-        </button>
-      )}
-      {!result && (!playing || game.out === human) && (
-        <button type="button" onClick={() => setGame(simulateAbyss(game, preference))}>
           Skip to results
         </button>
       )}
-      {result && (
-        <button
-          type="button"
-          onClick={() => props.onFinish?.(result.rawValue, undefined, result.completion)}
-        >
-          Continue
-        </button>
+      {wheelScene && (
+        <div className="abyss-spinning-scene">
+          {playableSpin && (
+            <div className="abyss-hud">
+              <div className="abyss-hud-balance">
+                <span>{playoff ? 'Playoff score' : 'Your balance'}</span>
+                <strong data-debt={balance < 0}>{formatBalance(balance)}</strong>
+              </div>
+              <div className="abyss-hud-spins">
+                {playoff ? (
+                  <span>Playoff {game.playoffWaves.length + 1}</span>
+                ) : (
+                  <>
+                    <span>Spins left</span>
+                    <div role="img" aria-label={MAX_SPINS_PER_TURN - game.spins + ' spins left'}>
+                      {Array.from({ length: MAX_SPINS_PER_TURN }, (_, index) => (
+                        <i key={index} data-ready={index >= game.spins} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          <AbyssWheel
+            rotation={rotation}
+            duration={duration}
+            spinning={light}
+            landedSector={landedSector}
+            canSpin={playableSpin && !spinning}
+            spinLabel={playoff ? 'Spin playoff' : game.spins ? 'Spin again' : 'Spin'}
+            onSpin={() => spin(game)}
+          />
+          <div className="abyss-wheel-footer">
+            <p aria-live="polite" data-landed={!light && landedSector !== undefined}>
+              {wheelMessage}
+            </p>
+            {game.phase === 'spin' && playing && game.spins > 0 && (
+              <button
+                className="abyss-seal"
+                type="button"
+                disabled={spinning}
+                onClick={() => {
+                  sound('lock')
+                  setGame(finishSpins(game))
+                }}
+              >
+                Seal balance
+              </button>
+            )}
+          </div>
+        </div>
       )}
-    </ChallengeStage>
+      {game.phase === 'handoff' && (
+        <AbyssChoice
+          game={game}
+          players={playerById}
+          cinematic={cinematic}
+          human={playing ? human : undefined}
+          lastTransfers={lastTransfers}
+          social={social}
+          target={target}
+          spinOutcome={spinOutcome}
+          onSelect={setSelected}
+          onReveal={() => revealHandoffs(game, target)}
+        />
+      )}
+      {game.phase === 'verdict' &&
+        (revealing ? (
+          <AbyssHandoffs
+            players={playerById}
+            transfers={game.transfers}
+            onContinue={() => setRevealing(false)}
+          />
+        ) : (
+          <AbyssVerdict
+            players={playerById}
+            cinematic={cinematic}
+            game={game}
+            onContinue={continueVerdict}
+          />
+        ))}
+      {result && (
+        <AbyssFinal
+          players={playerById}
+          cinematic={cinematic}
+          game={game}
+          standings={abyssStandings(game)}
+          onContinue={finish}
+        />
+      )}
+    </section>
   )
 }

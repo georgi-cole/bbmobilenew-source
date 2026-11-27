@@ -1130,6 +1130,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'RiskWheelAbyss',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'logic',
