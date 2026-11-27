@@ -13,8 +13,9 @@ const recovery = yaml.load(
 )
 const scripts = (job) => job.steps.map((step) => step.run ?? '').join('\n')
 
-test('every main update starts a build, while manual candidate builds remain available', () => {
-  assert.deepEqual(workflow.on.push.branches, ['main'])
+test('main and the iOS recovery branch start builds, with manual candidates still available', () => {
+  assert.deepEqual(workflow.on.push.branches, ['main', 'release/testflight-20261127-ios-recovery'])
+  assert.equal(workflow.jobs.android.if, "github.ref == 'refs/heads/main'")
   assert.equal(workflow.on.push.paths, undefined)
   assert.equal(workflow.on.push['paths-ignore'], undefined)
   assert.ok(Object.hasOwn(workflow.on, 'workflow_dispatch'))
