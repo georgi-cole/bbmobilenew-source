@@ -168,6 +168,41 @@ jobs:
           VITE_PLAYER_SIGN_IN_ENABLED: ${{ vars.VITE_PLAYER_SIGN_IN_ENABLED }}
         run: npm run sync:ios
 
+      - name: Smoke-test iOS 27 launch
+        timeout-minutes: 15
+        run: |
+          SIMULATOR_ID="$(xcrun simctl list devices available -j | node --input-type=module -e '
+            import fs from "node:fs";
+            const { devices } = JSON.parse(fs.readFileSync(0, "utf8"));
+            const phones = Object.entries(devices)
+              .filter(([runtime]) => runtime.includes(".iOS-27-"))
+              .reverse()
+              .flatMap(([, entries]) => entries.filter(({ name }) => name.startsWith("iPhone")));
+            const device = phones.find(({ name }) => name === "iPhone 15") ?? phones[0];
+            if (!device) throw new Error("An iOS 27 iPhone simulator is required");
+            console.log(device.udid);
+          ')"
+          trap 'xcrun simctl shutdown "$SIMULATOR_ID" >/dev/null 2>&1 || true' EXIT
+          xcrun simctl boot "$SIMULATOR_ID" || xcrun simctl bootstatus "$SIMULATOR_ID"
+          LAUNCH_DERIVED_DATA="$RUNNER_TEMP/launch-smoke"
+          xcodebuild -quiet build \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -derivedDataPath "$LAUNCH_DERIVED_DATA" \
+            CODE_SIGNING_ALLOWED=NO
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          xcrun simctl install "$SIMULATOR_ID" "$LAUNCH_DERIVED_DATA/Build/Products/Release-iphonesimulator/App.app"
+          LAUNCH="$(xcrun simctl launch "$SIMULATOR_ID" com.georgicole.thebigeye)"
+          APP_PID="${LAUNCH##*: }"
+          sleep 12
+          if [[ ! "$APP_PID" =~ ^[1-9][0-9]*$ ]] || ! kill -0 "$APP_PID" 2>/dev/null; then
+            echo "::error::The Big Eye exited during the iOS 27 launch smoke test."
+            xcrun simctl spawn "$SIMULATOR_ID" log show --last 30s --predicate 'process == "App"' | tail -60
+            exit 1
+          fi
+
       - name: Install Apple signing certificate and profile
         env:
           IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
