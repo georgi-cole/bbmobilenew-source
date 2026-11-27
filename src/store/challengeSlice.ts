@@ -24,8 +24,8 @@ import {
 import { selectNextCompetitionGame } from '../ai/competition/scheduling'
 import {
   CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
-  FINAL_THREE_CIRCUIT_PHASES,
   getClassicCampaignPoolForContext,
+  getFinalThreeCompetitionGameKey,
 } from '../ai/competition/bracketTemplate'
 import { pickCompetitionDirectorGame } from '../ai/competition/competitionDirector'
 import { applyCompetitionSeasonUpdate, hydrateGame, selectAlivePlayers } from './gameSlice'
@@ -454,11 +454,8 @@ export const startChallenge =
     const debugState = state.challenge?.debug ?? {}
 
     // Resolve which game to use.
-    const isCircuitQualifier = FINAL_THREE_CIRCUIT_PHASES.includes(state.game.phase)
-    const forceKey =
-      opts.forceGameKey ??
-      debugState.forceGameKey ??
-      (isCircuitQualifier ? 'finalThreeCircuit' : undefined)
+    const finaleGameKey = getFinalThreeCompetitionGameKey(state.game.phase)
+    const forceKey = opts.forceGameKey ?? debugState.forceGameKey ?? finaleGameKey
     const forceSeed = debugState.forceSeed
     const gameSeed = forceSeed !== undefined ? forceSeed : seed
     const nextNonce = state.challenge?.nextNonce ?? 1
@@ -538,7 +535,7 @@ export const startChallenge =
       if (!modeSpecific) return pickFromRegistry(category, excludeKeys)
 
       // Surveyeval keeps the broad active-game rotation. The Classic/Cupid/Vox
-      // campaign map must not constrain it; active finale-only calibration games
+      // campaign map must not constrain it; active finale games
       // and retired games explicitly marked for Surveyeval join when roster-safe.
       const availablePool = [
         ...getPoolByFilter({ retired: false, excludeKeys }),
@@ -592,14 +589,10 @@ export const startChallenge =
       return selected
     }
     const getBracketTemplatePool = (excludeKeys?: string[]) => {
-      const isFinal3Competition =
-        isCircuitQualifier ||
-        state.game.phase === 'final3_comp3' ||
-        state.game.phase === 'final3_comp3_minigame'
       const bracketCompType =
         opts.prizeType === 'LOH' || opts.prizeType === 'POS'
           ? opts.prizeType
-          : isFinal3Competition
+          : finaleGameKey
             ? 'LOH'
             : undefined
       if (!bracketCompType) return []

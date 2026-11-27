@@ -25,12 +25,28 @@ export interface BracketBand {
 
 export type BracketTemplate = BracketBand[]
 
-export const FINAL_THREE_CIRCUIT_PHASES: Phase[] = [
-  'final3_comp1',
-  'final3_comp1_minigame',
-  'final3_comp2',
-  'final3_comp2_minigame',
+const FINAL_THREE_COMPETITION_BANDS: BracketTemplate = [
+  {
+    label: 'Final 3 - Circuit qualifiers',
+    minPlayers: 2,
+    maxPlayers: 3,
+    phases: ['final3_comp1', 'final3_comp1_minigame', 'final3_comp2', 'final3_comp2_minigame'],
+    loh: ['finalThreeCircuit'],
+    pos: [],
+  },
+  {
+    label: 'Final 3 - Down Memory Lane duel',
+    minPlayers: 2,
+    maxPlayers: 3,
+    phases: ['final3_comp3', 'final3_comp3_minigame'],
+    loh: ['downMemoryLane'],
+    pos: [],
+  },
 ]
+
+export function getFinalThreeCompetitionGameKey(phase: Phase): string | undefined {
+  return FINAL_THREE_COMPETITION_BANDS.find((band) => band.phases?.includes(phase))?.loh[0]
+}
 
 export interface ClassicCampaignContext {
   day: number
@@ -69,7 +85,7 @@ export const MINIGAME_COMPETITION_MAP_STATUS = {
     'rockPaperScissors',
     'lastLight',
   ],
-  finaleOnly: ['finalThreeCircuit'],
+  finaleOnly: ['finalThreeCircuit', 'downMemoryLane'],
   forCalibration: [
     'memoryMatch',
     'estimationGame',
@@ -87,7 +103,6 @@ export const MINIGAME_COMPETITION_MAP_STATUS = {
     'castleRescue2',
     'castleRescue2Remastered',
     'houseOfDarkness',
-    'downMemoryLane',
   ],
 } as const
 
@@ -167,7 +182,7 @@ export const CAMPAIGN_PREMIERE: BracketBand = {
  *   uses the LOH pool and allows every approved daily game for POS after Day 1,
  *   subject to the actual competition roster and story prerequisites.
  * - Only games marked inCompetitionMap participate in automatic draws.
- * - Final 3 Part 1/2 use the dedicated Circuit qualifier; Part 3 uses the retained map set.
+ * - Final 3 Parts 1 and 2 use the Circuit qualifier. Part 3 uses Down Memory Lane.
  */
 const BASE_BRACKET_TEMPLATE: BracketTemplate = [
   CAMPAIGN_PREMIERE,
@@ -346,22 +361,7 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
       'mysticChamber',
     ],
   },
-  {
-    label: 'Final 3 - Circuit qualifiers',
-    minPlayers: 2,
-    maxPlayers: 3,
-    phases: FINAL_THREE_CIRCUIT_PHASES,
-    loh: ['finalThreeCircuit'],
-    pos: [],
-  },
-  {
-    label: 'Final 3 - Part 3 competition map',
-    minPlayers: 2,
-    maxPlayers: 3,
-    phases: ['final3_comp3', 'final3_comp3_minigame'],
-    loh: ['quickTapSeasons', 'snake', 'capitalization'],
-    pos: [],
-  },
+  ...FINAL_THREE_COMPETITION_BANDS,
   {
     // Phase-less compatibility pool for tools that only know player count.
     label: '3 players (Final Trilogy)',

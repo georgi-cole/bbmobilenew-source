@@ -730,3 +730,7 @@ store listings or change configured prices.
   portraits for Lia and Ali during Tribunal voting. The twins retain their
   shared ballot and vote tally. Marketplace benefits, prices and entitlements
   are unchanged.
+
+- 2026-11-27: Reviewed the restoration of Down Memory Lane as the dedicated
+  third Final 3 competition in Classic, Cupid, and Vox Populi. Marketplace
+  products, benefits, and prices are unchanged.
