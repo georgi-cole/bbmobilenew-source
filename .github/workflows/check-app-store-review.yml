@@ -26,6 +26,31 @@ jobs:
             issuerId: process.env.ASC_API_ISSUER_ID,
             keyId: process.env.ASC_API_KEY_ID,
             privateKeyBase64: process.env.ASC_API_KEY_P8_BASE64,
+            fetchImpl: async (url, options) => {
+              const response = await fetch(url, options)
+              if (!response.ok && options.method !== 'GET') {
+                const payload = await response.clone().json().catch(() => ({}))
+                const sanitize = (value) => String(value ?? '')
+                  .replace(/https?:\/\/[^\s]+/g, '<url>')
+                  .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig, '<email>')
+                  .replace(/(?<![\w.-])\+?[0-9][() 0-9.-]{8,}[0-9](?![\w.-])/g, '<number>')
+                  .replace(/[\r\n\x00-\x1f\x7f]+/g, ' ')
+                  .slice(0, 500)
+                const describe = ({ code, source, title, detail }) => ({
+                  code: sanitize(code),
+                  field: sanitize(source?.pointer ?? source?.parameter),
+                  title: sanitize(title),
+                  detail: sanitize(detail),
+                })
+                console.log('APP_REVIEW_VALIDATION ' + JSON.stringify((payload.errors ?? []).map((error) => ({
+                  ...describe(error),
+                  related: Object.entries(error.meta?.associatedErrors ?? {}).flatMap(([path, entries]) =>
+                    Array.isArray(entries) ? entries.map((entry) => ({ resource: sanitize(path), ...describe(entry) })) : [],
+                  ),
+                }))))
+              }
+              return response
+            },
           })
 
           const filter = new URLSearchParams({
@@ -71,6 +96,7 @@ jobs:
               marketingVersion: train.attributes.version,
               platform: train.attributes.platform,
               processingState: build.attributes.processingState,
+              usesNonExemptEncryption: build.attributes.usesNonExemptEncryption,
               expired: build.attributes.expired,
               buildAudienceType: build.attributes.buildAudienceType,
             },
@@ -156,12 +182,16 @@ jobs:
                     const refreshed = await read('GET', `/v1/apps/${appId}/reviewSubmissions?filter[platform]=IOS&include=appStoreVersionForReview&limit=20`)
                     const active = refreshed.data.filter(({ attributes }) => attributes.state !== 'COMPLETE')
                     let draft
+                    let emptyDraft
                     for (const submission of active) {
                       if (submission.attributes.state !== 'READY_FOR_REVIEW') {
                         throw new Error(`An App Review submission is already ${submission.attributes.state}.`)
                       }
                       const { data: items, links } = await read('GET', `/v1/reviewSubmissions/${submission.id}/items?include=appStoreVersion&limit=50`)
-                      if (items.length === 0) continue
+                      if (items.length === 0) {
+                        emptyDraft ??= submission
+                        continue
+                      }
                       if (draft || links?.next || items.length !== 1 ||
                           items[0].relationships?.appStoreVersion?.data?.id !== version.id) {
                         throw new Error('Another item is present in an existing draft review submission.')
@@ -174,7 +204,7 @@ jobs:
                     }
                     if (await currentBuild() !== build.id) throw new Error('Apple did not select the exact build.')
                     if (!draft) {
-                      draft = (await read('POST', '/v1/reviewSubmissions', {
+                      draft = emptyDraft ?? (await read('POST', '/v1/reviewSubmissions', {
                         data: {
                           type: 'reviewSubmissions',
                           attributes: { platform: 'IOS' },
