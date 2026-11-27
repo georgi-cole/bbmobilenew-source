@@ -78,6 +78,25 @@ test('iOS 27 launches the scene-based app on a simulator before archiving and up
   assert.ok(web >= 0 && smoke > web && archive > smoke)
 })
 
+test('iOS keeps both app configurations and the signed store package iPhone-only', () => {
+  const project = readFileSync(
+    new URL('../ios/App/App.xcodeproj/project.pbxproj', import.meta.url),
+    'utf8'
+  )
+  const configuredFamilies = Array.from(
+    project.matchAll(/TARGETED_DEVICE_FAMILY = ([^;]+);/g),
+    (match) => match[1]
+  )
+  assert.deepEqual(configuredFamilies, ['1', '1'])
+  const steps = workflow.jobs.upload.steps
+  const archive = steps.findIndex(({ name }) => name === 'Archive and export the signed app')
+  const verify = steps.findIndex(({ name }) => name === 'Verify the signed IPA targets iPhone only')
+  const upload = steps.findIndex(({ name }) => name === 'Upload the build to App Store Connect')
+  assert.ok(archive >= 0 && verify > archive && upload > verify)
+  assert.match(steps[verify].run, /families != \[1\]/)
+  assert.match(steps[verify].run, /UIDeviceFamily/)
+})
+
 test('iOS upload completion includes compliance and verified internal availability', () => {
   const steps = workflow.jobs.upload.steps
   const upload = steps.findIndex((step) => step.name === 'Upload the build to App Store Connect')
