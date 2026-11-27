@@ -1,9 +1,11 @@
 import { useEffect, useState, type RefObject } from 'react'
 import type { Player } from '../../types'
+import { isCombinedTwinIdentity } from '../../bb/twinShockIdentity.mjs'
 import { PUBLIC_JUROR_ID } from '../../store/finaleSlice'
 import type { BallotBeat } from '../FinalFaceoff/finaleTiming'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
+import TribunalTwinPortrait, { TRIBUNAL_TWIN_NAMES } from './TribunalTwinPortrait'
 import './TribunalMemberStage.css'
 
 interface TribunalOpeningProps {
@@ -52,8 +54,21 @@ function TribunalOpening({
   paired,
 }: TribunalOpeningProps) {
   const [portraitIndex, setPortraitIndex] = useState(0)
-  const stride = paired ? 2 : 1
-  const portraitCount = Math.ceil(tribunalMembers.length / stride)
+  const portraitGroups = tribunalMembers.reduce<Player[][]>((groups, member) => {
+    const last = groups.at(-1)
+    if (
+      paired &&
+      last?.length === 1 &&
+      !isCombinedTwinIdentity(last[0]) &&
+      !isCombinedTwinIdentity(member)
+    ) {
+      last.push(member)
+    } else {
+      groups.push([member])
+    }
+    return groups
+  }, [])
+  const portraitCount = portraitGroups.length
 
   useEffect(() => {
     if (!waitingForOpeningCue || portraitCount < 2) return
@@ -103,15 +118,27 @@ function TribunalOpening({
     )
   }
 
-  const firstIndex = (portraitIndex % Math.max(portraitCount, 1)) * stride
-  const featuredJuror = tribunalMembers[firstIndex]
+  const featuredGroup = portraitGroups[portraitIndex % Math.max(portraitCount, 1)] ?? []
+  const featuredJuror = featuredGroup[0]
+  const showsTwins = isCombinedTwinIdentity(featuredJuror)
   return (
     <div className="tms-portrait" role="region" aria-label="Tribunal members">
       <div className="tms-bg-vignette" aria-hidden="true" />
       <div className="tms-portrait__light" aria-hidden="true" />
-      {paired ? (
+      {showsTwins ? (
         <div className="tms-pair" key={featuredJuror?.id}>
-          {tribunalMembers.slice(firstIndex, firstIndex + stride).map((member) => (
+          {TRIBUNAL_TWIN_NAMES.map((name) => (
+            <figure className="tms-pair__member" key={name}>
+              <div className="tms-pair__picture" aria-hidden="true">
+                <TribunalTwinPortrait name={name} />
+              </div>
+              <figcaption>{name}</figcaption>
+            </figure>
+          ))}
+        </div>
+      ) : paired ? (
+        <div className="tms-pair" key={featuredJuror?.id}>
+          {featuredGroup.map((member) => (
             <figure className="tms-pair__member" key={member.id}>
               <div className="tms-pair__picture" aria-hidden="true">
                 <FullSizeCutoutImage
@@ -150,6 +177,7 @@ export default function TribunalMemberStage(props: TribunalOpeningProps | Tribun
 
   const { ballot, beat, ballotOrigin } = props
   const introducing = beat === 'lead'
+  const showsTwins = isCombinedTwinIdentity(ballot?.voter)
   return (
     <div className="tms-stage tms-stage--ballot">
       <div className="visually-hidden" role="status" aria-atomic="true">
@@ -164,11 +192,18 @@ export default function TribunalMemberStage(props: TribunalOpeningProps | Tribun
           key={ballot.voterId}
           data-tone={introducing ? undefined : ballot.tone}
           data-beat={beat}
+          data-twins={showsTwins || undefined}
         >
           <div className="tms-shot__light" aria-hidden="true" />
           <div className="tms-cutout-wrap" aria-hidden="true">
             {ballot.voterId === PUBLIC_JUROR_ID ? (
               <PublicCutoutPlaceholder />
+            ) : showsTwins ? (
+              <div className="tribunal-twin-portraits">
+                {TRIBUNAL_TWIN_NAMES.map((name) => (
+                  <TribunalTwinPortrait key={name} name={name} />
+                ))}
+              </div>
             ) : ballot.voter ? (
               <FullSizeCutoutImage
                 player={ballot.voter}

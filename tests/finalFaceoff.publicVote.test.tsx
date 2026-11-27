@@ -4,6 +4,8 @@ import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import FinalFaceoff from '../src/components/FinalFaceoff/FinalFaceoff'
+import FinalTallyPanel from '../src/components/FinalFaceoff/FinalTallyPanel'
+import TribunalMemberStage from '../src/components/TribunalMemberStage/TribunalMemberStage'
 import {
   BALLOT_BEAT_MS,
   VOTE_REVEAL_INITIAL_DELAY_MS,
@@ -132,6 +134,67 @@ describe('FinalFaceoff ballot presentation', () => {
       'The Public'
     )
     expect(store.getState().finale.tieBreakReason).toBe('tribunal_majority')
+  })
+
+  it('gives the twins a dedicated introduction and shows their shared ballot', () => {
+    const twins: Player = {
+      id: 'lia',
+      name: 'Lia & Ali',
+      avatar: '',
+      status: 'jury',
+      twinMode: 'combined',
+    }
+    const lux: Player = { id: 'lux', name: 'Lux', avatar: '', status: 'jury' }
+    const { container, rerender } = render(
+      <TribunalMemberStage
+        mode="opening"
+        tribunalMembers={[twins, lux]}
+        finalists={[]}
+        onCastVote={vi.fn()}
+        waitingForOpeningCue
+        paired
+      />
+    )
+    const roster = screen.getByRole('region', { name: 'Tribunal members' })
+    expect(within(roster).getByText('Lia')).toBeTruthy()
+    expect(within(roster).getByText('Ali')).toBeTruthy()
+    expect(within(roster).queryByText('Lux')).toBeNull()
+    advance(3600)
+    expect(within(roster).getByText('Lux')).toBeTruthy()
+
+    rerender(
+      <TribunalMemberStage
+        mode="reveal"
+        ballot={{
+          voter: twins,
+          voterId: twins.id,
+          voterName: twins.name,
+          finalistName: 'Lux',
+          number: 1,
+          tone: 'gold',
+        }}
+      />
+    )
+    expect(container.querySelectorAll('[data-twin]')).toHaveLength(2)
+    expect(screen.getByRole('status').textContent).toBe('Lia & Ali voted for Lux.')
+  })
+
+  it('shows both twins with one finalist tally when they reach the end together', () => {
+    const twins: Player = {
+      id: 'lia',
+      name: 'Lia & Ali',
+      avatar: '',
+      status: 'active',
+      twinMode: 'combined',
+    }
+    const lux: Player = { id: 'lux', name: 'Lux', avatar: '', status: 'active' }
+    const { container } = render(
+      <FinalTallyPanel finalists={[twins, lux]} tally={{ lia: 5, lux: 4 }} remainingBallots={[]} />
+    )
+    expect(container.querySelectorAll('.fo-score__portrait')).toHaveLength(2)
+    expect(container.querySelectorAll('[data-twin]')).toHaveLength(2)
+    expect(screen.getAllByLabelText('Lia & Ali: 5 votes')).toHaveLength(1)
+    expect(screen.getByLabelText('Lux: 4 votes')).toBeTruthy()
   })
 
   it('collects a mandatory human ballot before showing the archive', () => {

@@ -494,6 +494,12 @@
   animation: tms-vote-push 2.9s cubic-bezier(0.18, 0.65, 0.3, 1) both;
 }
 
+.tms-shot[data-twins] .tms-cutout-wrap {
+  left: 2%;
+  width: 49%;
+  animation: none;
+}
+
 .tms-shot[data-beat='lead'] {
   --shot-color: #f0debb;
   --shot-halo: #d7bd8740;

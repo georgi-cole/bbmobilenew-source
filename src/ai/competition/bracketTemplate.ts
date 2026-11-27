@@ -25,6 +25,13 @@ export interface BracketBand {
 
 export type BracketTemplate = BracketBand[]
 
+export const FINAL_THREE_CIRCUIT_PHASES: Phase[] = [
+  'final3_comp1',
+  'final3_comp1_minigame',
+  'final3_comp2',
+  'final3_comp2_minigame',
+]
+
 export interface ClassicCampaignContext {
   day: number
   playerCount: number
@@ -340,35 +347,11 @@ const BASE_BRACKET_TEMPLATE: BracketTemplate = [
     ],
   },
   {
-    label: 'Final 3 - Part 1 Circuit qualifier',
+    label: 'Final 3 - Circuit qualifiers',
     minPlayers: 2,
     maxPlayers: 3,
-    phases: ['final3_comp1'],
+    phases: FINAL_THREE_CIRCUIT_PHASES,
     loh: ['finalThreeCircuit'],
-    pos: [],
-  },
-  {
-    label: 'Final 3 - Part 2 Circuit qualifier',
-    minPlayers: 2,
-    maxPlayers: 3,
-    phases: ['final3_comp2'],
-    loh: ['finalThreeCircuit'],
-    pos: [],
-  },
-  {
-    label: 'Final 3 - Part 1 challenge minigame',
-    minPlayers: 2,
-    maxPlayers: 3,
-    phases: ['final3_comp1_minigame'],
-    loh: ['quickTap', 'timingBar', 'cardClash'],
-    pos: [],
-  },
-  {
-    label: 'Final 3 - Part 2 challenge minigame',
-    minPlayers: 2,
-    maxPlayers: 3,
-    phases: ['final3_comp2_minigame'],
-    loh: ['timingBar', 'holdWall', 'cardClash'],
     pos: [],
   },
   {
