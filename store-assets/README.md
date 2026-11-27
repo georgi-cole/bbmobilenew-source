@@ -12,7 +12,7 @@ The final product-led sets use existing named housemates, real in-app interfaces
 - `apple/iphone-6.9-product/` — **recommended**, six 1320 × 2868 screenshots.
 - `apple/ipad-13-product/` — **recommended**, six 2048 × 2732 screenshots.
 
-Apple permits one to ten screenshots. The iPad set is included because the Xcode target declares device family `1,2`. Replace the supplied tablet marketing compositions with direct native iPad captures if the final iPad UI differs materially.
+Apple permits one to ten screenshots. The iOS app targets iPhone only. The iPad set is retained for a future tablet release.
 
 ### Google Play
 

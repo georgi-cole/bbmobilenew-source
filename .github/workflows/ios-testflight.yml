@@ -287,6 +287,24 @@ jobs:
           test -n "$IPA_PATH"
           echo "IOS_IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
 
+      - name: Verify the signed IPA targets iPhone only
+        run: |
+          python3 - "$IOS_IPA_PATH" <<'PY'
+          import plistlib
+          import re
+          import sys
+          import zipfile
+
+          with zipfile.ZipFile(sys.argv[1]) as ipa:
+              manifests = [name for name in ipa.namelist() if re.fullmatch(r"Payload/[^/]+\.app/Info\.plist", name)]
+              if len(manifests) != 1:
+                  sys.exit("The signed IPA must contain one top-level app Info.plist.")
+              families = plistlib.loads(ipa.read(manifests[0])).get("UIDeviceFamily")
+          if families != [1]:
+              sys.exit(f"Expected signed IPA to target iPhone only, received UIDeviceFamily={families!r}.")
+          print("Verified signed IPA device family: [1] (iPhone only).")
+          PY
+
       - name: Upload the build to App Store Connect
         env:
           ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
