@@ -188,6 +188,26 @@ jobs:
       - name: Lint and compile the Android app
         working-directory: android
         run: ./gradlew lintDebug assembleDebug
+      - name: Verify the optimized Android release bundle
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/android-ci.jks
+          ANDROID_KEYSTORE_PASSWORD: android-ci
+          ANDROID_KEY_ALIAS: android-ci
+          ANDROID_KEY_PASSWORD: android-ci
+        run: |
+          keytool -genkeypair -keystore "$ANDROID_KEYSTORE_PATH" -alias "$ANDROID_KEY_ALIAS" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEY_PASSWORD" \
+            -keyalg RSA -keysize 2048 -validity 2 -dname 'CN=Android CI'
+          ./gradlew :app:bundleRelease
+          test -s app/build/outputs/bundle/release/app-release.aab
+          test -s app/build/outputs/mapping/release/mapping.txt
+          test -s app/build/outputs/mapping/release/resources.txt
+          test -s app/build/outputs/mapping/release/configuration.txt
+          if grep -Eq '^[[:space:]]*-dontoptimize([[:space:]]|$)' app/build/outputs/mapping/release/configuration.txt; then
+            echo 'R8 optimization is disabled by the effective release configuration.'
+            exit 1
+          fi
 
   ios-native:
     name: iOS simulator build
