@@ -407,7 +407,7 @@ jobs:
 
       - name: Configure production Android services
         env:
-          ANDROID_ADMOB_MODE: ${{ vars.ANDROID_ADMOB_MODE || 'off' }}
+          ANDROID_ADMOB_MODE: 'off'
           ANDROID_ADMOB_APP_ID: ${{ vars.ANDROID_ADMOB_APP_ID }}
           ANDROID_ADMOB_INTERSTITIAL_ID: ${{ vars.ANDROID_ADMOB_INTERSTITIAL_ID }}
           ANDROID_ADMOB_REWARDED_ID: ${{ vars.ANDROID_ADMOB_REWARDED_ID }}
@@ -421,7 +421,7 @@ jobs:
           cp .env.android.example .env.android
           cat >> .env.android <<EOF
 
-          VITE_APP_ENVIRONMENT=production
+          VITE_APP_ENVIRONMENT=qa
           VITE_BUILD_TARGET=release
           VITE_BUILD_ID=$GITHUB_SHA
           VITE_VIP_DEV_ENTITLEMENT=false
@@ -438,7 +438,7 @@ jobs:
           EOF
           npm run verify:store-env:android
 
-      - name: Build and synchronize the production Android bundle
+      - name: Build and synchronize the Android internal testing bundle
         run: npm run sync:android
 
       - name: Sign the release bundle with the existing upload key

@@ -734,3 +734,8 @@ store listings or change configured prices.
 - 2026-11-27: Reviewed the restoration of Down Memory Lane as the dedicated
   third Final 3 competition in Classic, Cupid, and Vox Populi. Marketplace
   products, benefits, and prices are unchanged.
+
+- 2026-11-27: Reviewed the usage measurement switch on the Advertising privacy
+  screen. It controls gameplay analytics. The game uses the existing rules for
+  ad breaks, rewarded ads, and purchase access. Android internal builds run with
+  ads off so verification activity stays out of live ad metrics.

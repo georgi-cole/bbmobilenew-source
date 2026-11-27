@@ -1,5 +1,34 @@
 -- Run one query at a time in the Supabase SQL Editor.
 
+-- Activity by release channel. Keep unclassified activity separate when
+-- reporting production. Counts are installations and sessions, not people.
+select
+  coalesce(traffic_class, 'unclassified') as traffic,
+  coalesce(distribution_channel, 'unknown') as channel,
+  coalesce(build_channel, 'unknown') as build_channel,
+  count(distinct owner_id) as active_installations,
+  count(distinct (owner_id, session_id)) filter (where name = 'session_started') as sessions,
+  count(*) filter (where name = 'season_started') as seasons_started,
+  count(*) filter (where name in ('game_action', 'social_action', 'tribunal_action')) as actions,
+  count(*) filter (where name = 'minigame_started') as minigame_starts,
+  count(*) filter (where name = 'minigame_completed') as minigame_completions
+from public.player_events
+where received_at >= now() - interval '3 days'
+group by 1, 2, 3
+order by 1, 2, 3;
+
+-- Google Play acquisition among installations that enable usage measurement.
+select
+  coalesce(traffic_class, 'unclassified') as traffic,
+  coalesce(properties ->> 'install_source', 'unknown') as source,
+  properties ->> 'install_campaign' as campaign,
+  count(distinct owner_id) as installations
+from public.player_events
+where name = 'install_attribution'
+  and received_at >= now() - interval '30 days'
+group by 1, 2, 3
+order by installations desc;
+
 -- 1. Profiles and the currently selected character appearance.
 select
   snapshot #>> '{profile,name}' as profile_name,

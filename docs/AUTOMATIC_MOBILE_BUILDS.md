@@ -117,11 +117,17 @@ References: [Google API setup](https://developers.google.com/android-publisher/g
 
 ### Existing Android build configuration
 
-Android cloud bundles default to ads off for internal testing. To test live ads,
-set repository variable `ANDROID_ADMOB_MODE` to `live` and provide the existing real
-`ANDROID_ADMOB_APP_ID`, `ANDROID_ADMOB_INTERSTITIAL_ID` and
-`ANDROID_ADMOB_REWARDED_ID` variables. The store validator rejects test mode and
-demo IDs for a live-ads build. This is separate from the current iOS AdMob setup.
+The Google Play Internal Testing job embeds `VITE_APP_ENVIRONMENT=qa`. Its
+gameplay analytics are labeled as test activity regardless of the Play installer.
+Build a fresh production bundle for the production track instead of promoting
+this internal artifact. On iOS, the app reads Apple's verified StoreKit
+environment at runtime to distinguish TestFlight and App Store activity.
+For a device check, enable Optional usage measurement in Settings → Advertising
+privacy, start or resume a game, then check the release channel report in
+`supabase/analytics.sql`.
+
+The Android internal testing job builds with ads off. The store validator checks
+that a production build configured with live ads uses the game's own AdMob units.
 
 Configure these repository secrets once:
 

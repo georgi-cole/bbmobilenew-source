@@ -1,7 +1,12 @@
 import { useState, useSyncExternalStore, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import { ageBandForAge, declarePlayerAge } from '../../safety/playerSafety'
+import {
+  ageBandForAge,
+  declarePlayerAge,
+  setOptionalPlayerFeature,
+} from '../../safety/playerSafety'
 import { usePlayerSafety } from '../../safety/usePlayerSafety'
+import { getBackendConfig } from '../backend/config'
 import { usesContextualAdTreatment } from './adAudience'
 import {
   checkAdMobAvailability,
@@ -116,6 +121,23 @@ export default function AdvertisingPrivacy() {
         )}
         {record?.ageBand === 'adult' && usesContextualAdTreatment() && (
           <p>Restart the app to use adult ad choices and rewards.</p>
+        )}
+        {record?.ageBand === 'adult' && getBackendConfig() && (
+          <label className="player-safety__check">
+            <input
+              type="checkbox"
+              checked={record.optionalFeatures.analytics}
+              onChange={(event) => setOptionalPlayerFeature('analytics', event.target.checked)}
+              aria-describedby="usage-measurement-description"
+            />
+            <span>
+              <strong>Optional usage measurement</strong>
+              <span id="usage-measurement-description">
+                Share game activity and the app’s release channel so we can improve the game and
+                separate testing from live play. You can turn this off anytime.
+              </span>
+            </span>
+          </label>
         )}
         {notice && <p role="status">{notice}</p>}
         <div className="player-safety__actions">
