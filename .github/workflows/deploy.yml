@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/**'
       - 'public/**'
+      - '!public/config/**'
       - 'scripts/generate-after-the-eye-config.mjs'
       - 'scripts/generate-audio-manifest.mjs'
       - 'scripts/check-production-debug-globals.mjs'
@@ -27,6 +28,7 @@ concurrency:
   group: public-pages-deploy
   # QA migrations and production promotion must not overlap.
   cancel-in-progress: false
+  queue: max
 
 jobs:
   release-quality:

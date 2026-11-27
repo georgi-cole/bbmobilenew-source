@@ -29,8 +29,8 @@ import type { CwgoGuessEntry, CwgoResult } from './cwgoHelpers'
  * Uses Fisher-Yates with a seeded RNG so the same seed always yields the same
  * order, but different seeds yield different orders.
  */
-function generateQuestionOrder(seed: number): number[] {
-  const order = Array.from({ length: CWGO_QUESTIONS.length }, (_, i) => i)
+function generateQuestionOrder(seed: number, questionCount: number): number[] {
+  const order = Array.from({ length: questionCount }, (_, i) => i)
   const rng = mulberry32((seed ^ 0x6c62272e) >>> 0)
   for (let i = order.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1))
@@ -64,7 +64,9 @@ export interface CwgoState {
   playerScores: Record<string, number>
   /** IDs of players still competing. */
   aliveIds: string[]
-  /** Current question index into CWGO_QUESTIONS. */
+  /** The published bank selected at launch. Older competitions use the bundled bank. */
+  questionBank?: { revision: string; questions: CwgoQuestion[] }
+  /** Current question index in the competition's bank. */
   questionIdx: number
   /**
    * Shuffled permutation of all question indices for this competition.
@@ -99,6 +101,10 @@ export interface CwgoState {
    * Guards against double-dispatch (idempotency).
    */
   outcomeResolved: boolean
+}
+
+export function getCwgoQuestion(state: CwgoState): CwgoQuestion | undefined {
+  return (state.questionBank?.questions ?? CWGO_QUESTIONS)[state.questionIdx]
 }
 
 // ─── Initial State ────────────────────────────────────────────────────────────
@@ -185,6 +191,7 @@ const cwgoSlice = createSlice({
       state,
       action: PayloadAction<{
         aiCapability?: number
+        questionBank?: CwgoState['questionBank']
         participantIds: string[]
         prizeType: CwgoPrizeType
         seed: number
@@ -196,7 +203,11 @@ const cwgoSlice = createSlice({
       // avoid every challenge with an unset seed producing the same question.
       const safeSeed =
         seed && seed !== 0 ? seed : (mulberry32(Date.now() >>> 0)() * 0x100000000) >>> 0
-      const questionOrder = generateQuestionOrder(safeSeed)
+      state.questionBank = action.payload.questionBank
+      const questionOrder = generateQuestionOrder(
+        safeSeed,
+        state.questionBank?.questions.length ?? CWGO_QUESTIONS.length
+      )
       state.status = 'mass_input'
       state.stage = 'qualifier'
       state.prizeType = prizeType
@@ -258,7 +269,7 @@ const cwgoSlice = createSlice({
      */
     autoFillAIGuesses(state, action: PayloadAction<{ humanIds: string[] }>) {
       const { humanIds } = action.payload
-      const question = CWGO_QUESTIONS[state.questionIdx]
+      const question = getCwgoQuestion(state)
       if (!question) return
       const humanSet = new Set(humanIds)
       const filled = fillAIGuesses(
@@ -281,7 +292,7 @@ const cwgoSlice = createSlice({
      */
     revealMassResults(state) {
       if (state.status !== 'mass_input') return
-      const question = CWGO_QUESTIONS[state.questionIdx]
+      const question = getCwgoQuestion(state)
       if (!question) return
 
       const entries: CwgoGuessEntry[] = state.aliveIds.map((id) => ({
@@ -320,7 +331,7 @@ const cwgoSlice = createSlice({
      */
     confirmMassElimination(state) {
       if (state.status !== 'mass_reveal') return
-      const question = CWGO_QUESTIONS[state.questionIdx]
+      const question = getCwgoQuestion(state)
       if (!question) return
 
       const entries: CwgoGuessEntry[] = state.aliveIds.map((id) => ({
@@ -389,7 +400,7 @@ const cwgoSlice = createSlice({
     revealDuelResults(state) {
       if (state.status !== 'duel_input') return
       if (!state.duelPair) return
-      const question = CWGO_QUESTIONS[state.questionIdx]
+      const question = getCwgoQuestion(state)
       if (!question) return
 
       const entries: CwgoGuessEntry[] = state.duelPair.map((id) => ({

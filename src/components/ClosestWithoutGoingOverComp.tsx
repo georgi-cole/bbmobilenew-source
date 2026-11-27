@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { RootState } from '../store/store';
 import {
   startCwgoCompetition,
+  getCwgoQuestion,
   setGuesses,
   setResponseTimes,
   autoFillAIGuesses,
@@ -28,7 +29,8 @@ import {
   resetCwgo,
 } from '../features/cwgo/cwgoCompetitionSlice';
 import { resolveCompetitionOutcome } from '../features/cwgo/thunks';
-import { CWGO_QUESTIONS } from '../features/cwgo/cwgoQuestions';
+import { parseCwgoQuestions } from '../features/cwgo/cwgoQuestions';
+import { USE_PUBLISHED_CONTENT, loadPublishedJson } from '../content/publishedContent';
 import {
   cwgoInputPlaceholder,
   cwgoInputUnit,
@@ -155,14 +157,21 @@ export default function ClosestWithoutGoingOverComp({
 
   // Start competition on mount
   useEffect(() => {
-    dispatch(
-      startCwgoCompetition({ aiCapability,
-        participantIds,
-        prizeType,
-        seed,
-      }),
-    );
+    let active = true;
+    const start = (questionBank?: CwgoState['questionBank']) => {
+      if (active) {
+        dispatch(startCwgoCompetition({ aiCapability, participantIds, prizeType, seed, questionBank }));
+      }
+    };
+    if (USE_PUBLISHED_CONTENT) {
+      void loadPublishedJson('cwgo', parseCwgoQuestions).then((content) =>
+        start(content ? { revision: content.revision, questions: content.value } : undefined),
+      );
+    } else {
+      start();
+    }
     return () => {
+      active = false;
       dispatch(resetCwgo());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -308,7 +317,8 @@ export default function ClosestWithoutGoingOverComp({
     return <div className="cwgo-loading">Loading competition…</div>;
   }
 
-  const question = CWGO_QUESTIONS[cwgo.questionIdx];
+  const question = getCwgoQuestion(cwgo);
+  if (!question) return <div className="cwgo-loading">Loading competition.</div>;
   const questionInputUnit = cwgoInputUnit(question);
 
   // ── Mass Input ──────────────────────────────────────────────────────────────

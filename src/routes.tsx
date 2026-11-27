@@ -14,11 +14,11 @@ import RouteErrorBoundary from './components/RouteErrorBoundary/RouteErrorBounda
 import RouteLoadingScreen from './components/RouteLoadingScreen/RouteLoadingScreen'
 import HomeHub from './screens/HomeHub/HomeHub'
 import NotFound from './screens/NotFound/NotFound'
-import SettingsAdminRoute from './routes/SettingsAdminRoute'
 import { Suspense, type ReactNode } from 'react'
 import { lazyWithChunkRecovery } from './utils/lazyWithChunkRecovery'
 
 const lazy = lazyWithChunkRecovery
+const includeQaTools = import.meta.env.VITE_CINEMATIC_PACK_EXTERNAL !== 'true'
 
 const GameRoute = lazy(() => import('./routes/GameRoute'))
 const ConfessionalRoute = lazy(() => import('./screens/DiaryRoom/ConfessionalRoute'))
@@ -40,10 +40,15 @@ const VoxPopuliRules = lazy(() => import('./screens/Rules/VoxPopuliRules'))
 const PublicMeter = lazy(() => import('./screens/PublicMeter/PublicMeter'))
 const AdvertisingPrivacy = lazy(() => import('./services/ads/AdvertisingPrivacy'))
 const Settings = lazy(() => import('./screens/Settings/Settings'))
+const SettingsAdminRoute = includeQaTools ? lazy(() => import('./routes/SettingsAdminRoute')) : null
 const Store = lazy(() => import('./screens/Store/Store'))
 const Legal = lazy(() => import('./screens/Legal/Legal'))
-const CinematicPreview = lazy(() => import('./screens/CinematicPreview/CinematicPreview'))
-const PhonePreviewPage = lazy(() => import('./screens/PhonePreviewPage/PhonePreviewPage'))
+const CinematicPreview = includeQaTools
+  ? lazy(() => import('./screens/CinematicPreview/CinematicPreview'))
+  : null
+const PhonePreviewPage = includeQaTools
+  ? lazy(() => import('./screens/PhonePreviewPage/PhonePreviewPage'))
+  : null
 const SeasonRecapPreview = import.meta.env.DEV
   ? lazy(() => import('./screens/SeasonRecapPreview/SeasonRecapPreview'))
   : null
@@ -61,17 +66,23 @@ const load = (element: ReactNode) => (
   <Suspense fallback={<RouteLoadingScreen />}>{element}</Suspense>
 )
 
-// Keep the QA lab in release bundles. Access remains gated inside the route,
-// while production testers can audit every minigame through the central panel.
-const GameDebug = lazy(() => import('./screens/GameDebug/GameDebug'))
-const ConfessionalLab = lazy(() => import('./screens/ConfessionalLab/ConfessionalLab'))
-const BroadcastManager = lazy(() => import('./screens/BroadcastManager/BroadcastManager'))
-const GameManager = lazy(() => import('./screens/GameManager/GameManager'))
-const RemoteManager = lazy(() => import('./screens/RemoteManager/RemoteManager'))
+// These tools remain available in web QA and local development.
+const GameDebug = includeQaTools ? lazy(() => import('./screens/GameDebug/GameDebug')) : null
+const ConfessionalLab = includeQaTools
+  ? lazy(() => import('./screens/ConfessionalLab/ConfessionalLab'))
+  : null
+const BroadcastManager = includeQaTools
+  ? lazy(() => import('./screens/BroadcastManager/BroadcastManager'))
+  : null
+const GameManager = includeQaTools ? lazy(() => import('./screens/GameManager/GameManager')) : null
+const RemoteManager = includeQaTools
+  ? lazy(() => import('./screens/RemoteManager/RemoteManager'))
+  : null
 
 // Manual QA page. Normal release builds omit it; local production previews can
 // opt in with VITE_ENABLE_QA_ROUTES=true.
-const twistsQaEnabled = import.meta.env.DEV || import.meta.env.VITE_ENABLE_QA_ROUTES === 'true'
+const twistsQaEnabled =
+  includeQaTools && (import.meta.env.DEV || import.meta.env.VITE_ENABLE_QA_ROUTES === 'true')
 const TwistsTestPage = twistsQaEnabled
   ? lazy(() => import('./screens/TwistsTestPage/TwistsTestPage'))
   : null
@@ -147,24 +158,20 @@ const MinigameTurnDemos = import.meta.env.DEV
   : null
 
 export const router = createHashRouter([
-  {
-    path: '/cinematic',
-    element: (
-      <Suspense fallback={null}>
-        <CinematicPreview />
-      </Suspense>
-    ),
-    errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: '/phone-preview',
-    element: (
-      <Suspense fallback={null}>
-        <PhonePreviewPage />
-      </Suspense>
-    ),
-    errorElement: <RouteErrorBoundary />,
-  },
+  ...(CinematicPreview && PhonePreviewPage
+    ? [
+        {
+          path: '/cinematic',
+          element: load(<CinematicPreview />),
+          errorElement: <RouteErrorBoundary />,
+        },
+        {
+          path: '/phone-preview',
+          element: load(<PhonePreviewPage />),
+          errorElement: <RouteErrorBoundary />,
+        },
+      ]
+    : []),
   ...(SeasonRecapPreview != null
     ? [
         {
@@ -225,7 +232,9 @@ export const router = createHashRouter([
       },
       { path: 'store', element: load(<Store />) },
       { path: 'legal', element: load(<Legal />) },
-      { path: 'settingsatiste', element: <SettingsAdminRoute /> },
+      ...(SettingsAdminRoute
+        ? [{ path: 'settingsatiste', element: load(<SettingsAdminRoute />) }]
+        : []),
       ...(twistsQaEnabled && TwistsTestPage != null
         ? [
             {
@@ -412,46 +421,15 @@ export const router = createHashRouter([
       ...(import.meta.env.DEV && MinigameTurnDemos != null
         ? [{ path: 'minigame-turn-demos', element: load(<MinigameTurnDemos />) }]
         : []),
-      {
-        path: 'gamedebug',
-        element: (
-          <Suspense fallback={null}>
-            <GameDebug />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'confessional-lab',
-        element: (
-          <Suspense fallback={null}>
-            <ConfessionalLab />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'broadcast-manager',
-        element: (
-          <Suspense fallback={null}>
-            <BroadcastManager />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'game-manager',
-        element: (
-          <Suspense fallback={null}>
-            <GameManager />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'remote-manager',
-        element: (
-          <Suspense fallback={null}>
-            <RemoteManager />
-          </Suspense>
-        ),
-      },
+      ...(GameDebug && ConfessionalLab && BroadcastManager && GameManager && RemoteManager
+        ? [
+            { path: 'gamedebug', element: load(<GameDebug />) },
+            { path: 'confessional-lab', element: load(<ConfessionalLab />) },
+            { path: 'broadcast-manager', element: load(<BroadcastManager />) },
+            { path: 'game-manager', element: load(<GameManager />) },
+            { path: 'remote-manager', element: load(<RemoteManager />) },
+          ]
+        : []),
       { path: '*', element: <NotFound /> },
     ],
   },

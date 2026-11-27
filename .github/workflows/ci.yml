@@ -33,13 +33,14 @@ jobs:
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
           changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
           printf '%s\n' "$changed_files"
+          runtime_files="$(grep -v '^public/config/' <<< "$changed_files" || true)"
 
           runtime=false
           dependencies=false
           android=false
           ios=false
 
-          if grep -Eq '^(src/|public/|index\.html$|package(-lock)?\.json$|vite\.config\.[^/]+$|tsconfig[^/]*\.json$|capacitor\.config\.[^/]+$|scripts/(generate-(after-the-eye-config|audio-manifest|skins-manifest|native-brand-assets)\.(mjs|py)|check-production-debug-globals\.mjs|validate-after-the-eye-config\.mjs)$|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+          if grep -Eq '^(src/|public/|index\.html$|package(-lock)?\.json$|vite\.config\.[^/]+$|tsconfig[^/]*\.json$|capacitor\.config\.[^/]+$|scripts/(generate-(after-the-eye-config|audio-manifest|skins-manifest|native-brand-assets)\.(mjs|py)|lib/mobile-cinematic-assets\.(mjs|d\.mts)|check-production-debug-globals\.mjs|validate-after-the-eye-config\.mjs)$|\.github/workflows/ci\.yml$)' <<< "$runtime_files"; then
             runtime=true
           fi
 

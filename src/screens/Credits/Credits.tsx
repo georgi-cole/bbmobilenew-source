@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePresentationReducedMotion } from '../../services/presentation/usePresentationReducedMotion'
 import { useNavigate } from 'react-router'
 import { isCreditsVideoEnabled } from '../../config/featureFlags'
+import { getPublishedCreditsVideoUrl, USE_PUBLISHED_CONTENT } from '../../content/publishedContent'
 import {
   fadeOutCreditsSoundtrack,
   getCreditsSoundtrackTime,
@@ -74,6 +75,8 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
   const [isForeground, setIsForeground] = useState(() => !document.hidden)
   const [videoReady, setVideoReady] = useState(false)
   const [renderFailed, setRenderFailed] = useState(!useVideo)
+  const [hostedVideoUrl, setHostedVideoUrl] = useState<string>()
+  const videoSourceAvailable = !USE_PUBLISHED_CONTENT || Boolean(hostedVideoUrl)
   const [creditCards, setCreditCards] = useState<readonly CreditCard[]>(CINEMATIC_CREDITS)
   const [contentState, setContentState] = useState<CreditsContentLoadResult>(() => ({
     cards: CINEMATIC_CREDITS,
@@ -106,6 +109,20 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
     setIsPlaying(false)
     setRenderFailed(true)
   }, [clearVideoTimeouts, isExiting, isOwner])
+
+  useEffect(() => {
+    if (!USE_PUBLISHED_CONTENT || !autoPlay || !isOwner || !useVideo || renderFailed || isExiting)
+      return
+    let active = true
+    void getPublishedCreditsVideoUrl().then((url) => {
+      if (!active) return
+      if (url) setHostedVideoUrl(url)
+      else fallbackToStaticScene()
+    })
+    return () => {
+      active = false
+    }
+  }, [autoPlay, fallbackToStaticScene, isExiting, isOwner, renderFailed, useVideo])
 
   const onExit = useCallback(
     (instantBlackout = false) => {
@@ -154,6 +171,7 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
       exitStartedRef.current ||
       renderFailed ||
       !useVideo ||
+      !videoSourceAvailable ||
       !isOwner ||
       document.hidden
     )
@@ -195,7 +213,7 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
       fallbackToStaticScene()
       console.warn('[Credits] Background video playback was blocked.', error)
     })
-  }, [fallbackToStaticScene, isOwner, useVideo, renderFailed])
+  }, [fallbackToStaticScene, isOwner, useVideo, renderFailed, videoSourceAvailable])
 
   useEffect(() => {
     if (
@@ -408,7 +426,8 @@ export default function Credits({ autoPlay = true, onComplete }: CreditsProps) {
             <CinematicVideo
               ref={videoRef}
               asset={CINEMATIC_VIDEO_ASSETS['credits-background']}
-              prepare={autoPlay && isOwner && !renderFailed && useVideo}
+              prepare={autoPlay && isOwner && !renderFailed && useVideo && videoSourceAvailable}
+              sourceUrl={hostedVideoUrl}
               className="credits-video is-ready"
               aria-hidden="true"
               data-testid="credits-background-video"

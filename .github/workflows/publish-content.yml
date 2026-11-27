@@ -1,0 +1,88 @@
+name: Publish game content
+
+on:
+  pull_request:
+    paths:
+      - 'public/config/**'
+      - 'content/**'
+      - 'public/assets/credits/big-eye-cinematic-background.mp4'
+      - 'src/content/**'
+      - 'src/screens/Credits/__tests__/Credits.test.tsx'
+      - 'tests/unit/gameContent/**'
+      - 'scripts/content-publish-workflow.test.mjs'
+      - 'scripts/prepare-game-content.mjs'
+      - '.github/workflows/publish-content.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'public/config/**'
+      - 'content/**'
+      - 'public/assets/credits/big-eye-cinematic-background.mp4'
+      - 'src/content/**'
+      - 'src/screens/Credits/__tests__/Credits.test.tsx'
+      - 'tests/unit/gameContent/**'
+      - 'scripts/content-publish-workflow.test.mjs'
+      - 'scripts/prepare-game-content.mjs'
+      - '.github/workflows/publish-content.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate content revisions
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/prepare-game-content.mjs --check
+      - run: node --test scripts/content-publish-workflow.test.mjs
+      - run: npx --no-install vitest run tests/unit/gameContent src/screens/Credits/__tests__/Credits.test.tsx
+
+  publish:
+    name: Publish validated JSON and media to GitHub Pages
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    concurrency:
+      group: public-pages-deploy
+      cancel-in-progress: false
+      queue: max
+    steps:
+      # Read the latest main after acquiring the publishing lock. A delayed
+      # run must never roll back a revision published from a newer commit.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/prepare-game-content.mjs --check
+      - run: npx --no-install vitest run tests/unit/gameContent src/screens/Credits/__tests__/Credits.test.tsx
+      - name: Prepare the public content files
+        run: node scripts/prepare-game-content.mjs "$RUNNER_TEMP/big-eye-content"
+      - name: Commit just the content paths
+        env:
+          PAGES_DEPLOY_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$PAGES_DEPLOY_TOKEN"
+          git clone --depth=1 "https://x-access-token:${PAGES_DEPLOY_TOKEN}@github.com/${{ github.repository_owner }}/bbmobilenew.git" deployment
+          # Keep immutable revisions so clients and rollbacks can keep using them.
+          rsync -a "$RUNNER_TEMP/big-eye-content/" deployment/
+          git -C deployment add -- config/ content/
+          if git -C deployment diff --cached --quiet; then
+            echo "The validated content revision is already published."
+            exit 0
+          fi
+          git -C deployment -c user.name="GitHub Actions" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Publish game content from $(git rev-parse HEAD)"
+          git -C deployment push origin main

@@ -4,16 +4,12 @@ interface MobileCinematicManifest {
 }
 
 interface MobileMediaAudit {
-  excludedFiles: number
-  excludedBytes: number
   retainedFiles: number
+  skippedPublicBytes: number
+  totalBytes: number
 }
-export function excludeMobileCinematicAssets(
-  root: string,
-  outputDirectory: string,
-  manifest: MobileCinematicManifest
-): Promise<MobileMediaAudit>
-export function verifyMobileCinematicAssets(
+export const MOBILE_WEB_BUDGET_BYTES: number
+export function stageMobilePublicAssets(
   root: string,
   outputDirectory: string,
   manifest: MobileCinematicManifest

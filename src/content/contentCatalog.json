@@ -1,0 +1,22 @@
+{
+  "credits": {
+    "source": "public/config/credits.json",
+    "extension": "json",
+    "maxBytes": 65536
+  },
+  "after-the-eye": {
+    "source": "public/config/afterTheEyeOutcomes.json",
+    "extension": "json",
+    "maxBytes": 2097152
+  },
+  "cwgo": {
+    "source": "content/cwgo.json",
+    "extension": "json",
+    "maxBytes": 262144
+  },
+  "credits-video": {
+    "source": "public/assets/credits/big-eye-cinematic-background.mp4",
+    "extension": "mp4",
+    "maxBytes": 12582912
+  }
+}

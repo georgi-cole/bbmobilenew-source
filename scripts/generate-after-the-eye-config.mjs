@@ -266,29 +266,24 @@ const config = {
     expandScenario(spec, index + scenarioSpecs.length)
   ),
 }
-const errors = validate(config)
+// A content PR can revise the hosted bank independently of the bundled scenarios.
+const regenerate = process.argv.includes('--regenerate')
+const hasHostedCopy = fs.existsSync(OUTPUT_PATH)
+const active =
+  hasHostedCopy && !regenerate ? JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf8')) : config
+const errors = validate(active)
 if (errors.length > 0) {
   console.error(`After the Eye config validation failed with ${errors.length} error(s):`)
   errors.forEach((error) => console.error(`- ${error}`))
   process.exit(1)
 }
 
-const serialized = `${JSON.stringify(config, null, 2)}\n`
-const checkOnly = process.argv.includes('--check')
-if (checkOnly) {
-  if (fs.existsSync(OUTPUT_PATH)) {
-    const existing = fs.readFileSync(OUTPUT_PATH, 'utf8')
-    if (existing !== serialized) {
-      console.error('The generated server config is out of sync. Run npm run generate:after-eye.')
-      process.exit(1)
-    }
-  }
-} else {
+if (!process.argv.includes('--check') && (!hasHostedCopy || regenerate)) {
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true })
-  fs.writeFileSync(OUTPUT_PATH, serialized)
+  fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(active, null, 2)}\n`)
 }
 
 console.log(
-  `After the Eye config is valid: ${config.scenarios.length} individual scenarios, ` +
-    `${config.linkedScenarios.length} linked scenarios, ${Object.keys(config.categories).length} categories.`
+  `After the Eye config is valid: ${active.scenarios.length} individual scenarios, ` +
+    `${active.linkedScenarios.length} linked scenarios, ${Object.keys(active.categories).length} categories.`
 )

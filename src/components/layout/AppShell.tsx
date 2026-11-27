@@ -18,8 +18,11 @@ import './AppShell.css'
 const lazy = lazyWithChunkRecovery
 
 const THEME_PRESETS = ['midnight', 'neon', 'sunset', 'ocean', 'surveyeval']
-const DebugPanel = lazy(() => import('../DebugPanel/DebugPanel'))
-const QaManagerShortcuts = lazy(() => import('../DebugPanel/QaManagerShortcuts'))
+const includeQaTools = import.meta.env.VITE_CINEMATIC_PACK_EXTERNAL !== 'true'
+const DebugPanel = includeQaTools ? lazy(() => import('../DebugPanel/DebugPanel')) : null
+const QaManagerShortcuts = includeQaTools
+  ? lazy(() => import('../DebugPanel/QaManagerShortcuts'))
+  : null
 const FinalFaceoff = lazy(() => import('../FinalFaceoff/FinalFaceoff'))
 const SeasonFinaleOverlay = lazy(() => import('../SeasonFinale/SeasonFinaleOverlay'))
 const VoxPopuliFinaleOverlay = lazy(() => import('../VoxPopuliFinale/VoxPopuliFinaleOverlay'))
@@ -172,7 +175,7 @@ export default function AppShell() {
         <Outlet />
       </main>
       <NavBar />
-      {debugToolsVisible && (
+      {debugToolsVisible && DebugPanel && QaManagerShortcuts && (
         <Suspense fallback={null}>
           <DebugPanel />
           <QaManagerShortcuts />

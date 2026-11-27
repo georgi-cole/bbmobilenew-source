@@ -18,26 +18,21 @@ import type { BroadcastLevel, CustomBroadcastMessage, Phase, TvEvent } from '../
 import type { GameManagerRule } from '../../gameManager/gameManager'
 import {
   DEFAULT_REMOTE_CONFIG_URL,
-  GITHUB_PAGES_REMOTE_CONFIG_URL,
   sanitiseRemoteConfig,
 } from '../../remoteConfig/remoteConfigService'
 import type { RemoteConfig } from '../../remoteConfig/remoteConfigTypes'
 import {
   publishConfigAsPullRequest,
   publishConfigDirectly,
-  type GitHubPublishTarget,
+  GAME_CONFIG_PUBLISH_TARGET,
+  GAME_CONFIG_SOURCE_URL,
+  readConfigSource,
 } from '../../remoteConfig/githubConfigPublisher'
 import { isDebugAccessGranted } from '../../utils/debugMode'
 import './RemoteManager.css'
 
 type Section = 'broadcast' | 'music' | 'game' | 'social' | 'tutorial' | 'json' | 'publish'
 
-const DEFAULT_TARGET: GitHubPublishTarget = {
-  owner: 'georgi-cole',
-  repo: 'bbmobilenew',
-  branch: 'main',
-  path: 'public/config/live-config.json',
-}
 const CATEGORIES: GameCategory[] = ['arcade', 'logic', 'trivia', 'endurance']
 
 function initialConfig(): RemoteConfig {
@@ -86,8 +81,8 @@ export default function RemoteManager() {
   const [config, setConfig] = useState<RemoteConfig>(initialConfig)
   const [jsonDraft, setJsonDraft] = useState('')
   const [token, setToken] = useState('')
-  const [target, setTarget] = useState(DEFAULT_TARGET)
-  const [status, setStatus] = useState('Loading the currently published configuration…')
+  const [sourceConfig, setSourceConfig] = useState<RemoteConfig | null>(null)
+  const [status, setStatus] = useState('Loading the current source configuration…')
   const [busy, setBusy] = useState(false)
   const [broadcastPhase, setBroadcastPhase] = useState<Phase>('week_start')
   const [socialActionId, setSocialActionId] = useState('compliment')
@@ -99,21 +94,22 @@ export default function RemoteManager() {
   useEffect(() => {
     if (!hasAccess) return
     const controller = new AbortController()
-    fetch(GITHUB_PAGES_REMOTE_CONFIG_URL, { cache: 'no-store', signal: controller.signal })
+    fetch(GAME_CONFIG_SOURCE_URL, { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
         const loaded = sanitiseRemoteConfig(await response.json())
         if (!loaded) throw new Error('The published file is not a valid config object.')
+        setSourceConfig(loaded)
         setConfig(loaded)
         setJsonDraft(JSON.stringify(loaded, null, 2))
-        setStatus('Published configuration loaded. Your edits are local until you publish.')
+        setStatus('Source configuration loaded. Review changes before publishing.')
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
         const fallback = initialConfig()
         setConfig(fallback)
         setJsonDraft(JSON.stringify(fallback, null, 2))
-        setStatus(`No published config could be loaded; using a safe template. ${String(error)}`)
+        setStatus(`The source configuration could not be loaded. ${String(error)}`)
       })
     return () => controller.abort()
   }, [hasAccess])
@@ -260,10 +256,20 @@ export default function RemoteManager() {
     setBusy(true)
     setStatus(mode === 'pr' ? 'Creating a review branch and pull request…' : 'Publishing to main…')
     try {
+      const target = GAME_CONFIG_PUBLISH_TARGET
+      const auth = token.trim()
+      const current = await readConfigSource(auth, target)
+      if (!sourceConfig || JSON.stringify(sourceConfig) !== JSON.stringify(current.config)) {
+        throw new Error(
+          'The source configuration changed. Reload Remote Manager before publishing.'
+        )
+      }
       const result =
         mode === 'pr'
-          ? await publishConfigAsPullRequest(token.trim(), target, validated)
-          : await publishConfigDirectly(token.trim(), target, validated)
+          ? await publishConfigAsPullRequest(auth, target, validated, current.sha)
+          : await publishConfigDirectly(auth, target, validated, current.sha)
+      if (mode === 'direct') setSourceConfig(validated)
+      setToken('')
       setStatus(
         mode === 'pr'
           ? `Pull request #${result.pullRequestNumber} created: ${result.url}`
@@ -1174,38 +1180,11 @@ export default function RemoteManager() {
         <section className="remote-manager__card">
           <h2>Publish to GitHub Pages</h2>
           <p>
-            Use a fine-grained token limited to this repository. It needs Contents read/write;
-            creating a PR also needs Pull requests read/write. The token is kept only in this tab.
+            Use a fine-grained token for georgi-cole/bbmobilenew-source. It needs Contents
+            read/write; creating a PR also needs Pull requests read/write. The token is kept only in
+            this tab.
           </p>
           <div className="remote-manager__grid">
-            <label>
-              Repository owner
-              <input
-                value={target.owner}
-                onChange={(event) => setTarget({ ...target, owner: event.target.value })}
-              />
-            </label>
-            <label>
-              Repository
-              <input
-                value={target.repo}
-                onChange={(event) => setTarget({ ...target, repo: event.target.value })}
-              />
-            </label>
-            <label>
-              Base branch
-              <input
-                value={target.branch}
-                onChange={(event) => setTarget({ ...target, branch: event.target.value })}
-              />
-            </label>
-            <label>
-              Config path
-              <input
-                value={target.path}
-                onChange={(event) => setTarget({ ...target, path: event.target.value })}
-              />
-            </label>
             <label className="remote-manager__wide">
               Fine-grained GitHub token
               <input
