@@ -20,6 +20,7 @@ import settingsReducer, {
 } from './settingsSlice'
 import userProfileReducer, { loadUserProfile, saveUserProfile } from './userProfileSlice'
 import profilesReducer, {
+  enterGuestMode,
   loadProfilesState,
   saveProfilesState,
   archiveKeyForProfile,
@@ -331,8 +332,15 @@ export function flushPendingRunSnapshots(): void {
 export async function persistCompetitionCheckpoint(): Promise<boolean> {
   const current = store.getState()
   if (current.profiles.isGuest) return true
+  if (isRunAutosaveSuspended()) return false
+
   const profileId = current.profiles.activeProfileId
-  if (!profileId || isRunAutosaveSuspended() || isSavePersistenceBlocked()) return false
+  if (!profileId) {
+    // A profileless run from an earlier launch has no durable save slot.
+    store.dispatch(enterGuestMode())
+    return true
+  }
+  if (isSavePersistenceBlocked()) return false
 
   runSnapshotAutosave.discard(profileId, getSavedRunSlot(current.game))
   try {

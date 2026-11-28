@@ -16,7 +16,7 @@ vi.mock('../saveStatePersistence', async () => {
 describe('store background persistence', () => {
   beforeEach(() => {
     vi.resetModules()
-    persistenceMocks.saveRunSnapshot.mockClear()
+    persistenceMocks.saveRunSnapshot.mockReset().mockReturnValue(true)
     localStorage.clear()
     localStorage.setItem(
       'bbmobilenew:profiles:v1',
@@ -44,6 +44,40 @@ describe('store background persistence', () => {
       configurable: true,
       value: 'visible',
     })
+  })
+
+  it('continues a profileless competition as a guest and keeps the current run', async () => {
+    localStorage.removeItem('bbmobilenew:profiles:v1')
+    const [{ store, persistCompetitionCheckpoint }, { hydrateGame }] = await Promise.all([
+      import('../store'),
+      import('../gameSlice'),
+    ])
+    store.dispatch(
+      hydrateGame({
+        ...store.getState().game,
+        runId: 'run-without-profile',
+        phase: 'loh_comp',
+      })
+    )
+
+    expect(store.getState().profiles.isGuest).toBe(false)
+    await expect(persistCompetitionCheckpoint()).resolves.toBe(true)
+    expect(store.getState().profiles.isGuest).toBe(true)
+    expect(store.getState().game.runId).toBe('run-without-profile')
+    expect(store.getState().game.phase).toBe('loh_comp')
+    expect(persistenceMocks.saveRunSnapshot).not.toHaveBeenCalled()
+  })
+
+  it('keeps the active profile and reports failure if its competition save fails', async () => {
+    const { store, persistCompetitionCheckpoint } = await import('../store')
+    persistenceMocks.saveRunSnapshot.mockReturnValue(false)
+
+    await expect(persistCompetitionCheckpoint()).resolves.toBe(false)
+    expect(persistenceMocks.saveRunSnapshot).toHaveBeenCalledWith(
+      'profile-background-save',
+      expect.objectContaining({ profileId: 'profile-background-save' })
+    )
+    expect(store.getState().profiles.isGuest).toBe(false)
   })
 
   it('saves meaningful active-profile progress when the app becomes hidden', async () => {
