@@ -2,7 +2,11 @@ import { startTransition, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useLocation, useNavigate } from 'react-router'
 import { shallowEqual, useStore } from 'react-redux'
 import { selectRequiredIncomingDecision } from '../../social/incomingDecisions'
-import { selectSocialOpportunity } from '../../social/socialOpportunity'
+import {
+  getSocialTipClaim,
+  selectSocialOpportunity,
+  type SocialOpportunity,
+} from '../../social/socialOpportunity'
 import { hasPresentationEventClaim } from '../../broadcasting/fauxTvPresentation'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -177,7 +181,20 @@ export default function FloatingActionBar({
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
   const requiredIncoming = useAppSelector(selectRequiredIncomingDecision)
-  const socialOpportunity = useAppSelector(selectSocialOpportunity, shallowEqual)
+  const [shownSocialTip, setShownSocialTip] = useState<{
+    phaseKey: string
+    opportunity: SocialOpportunity
+  } | null>(null)
+  const socialTipPhaseKey = useAppSelector(
+    ({ game }) => `${game.gameId}:${game.week}:${game.phase}`
+  )
+  const shownOpportunity =
+    shownSocialTip?.phaseKey === socialTipPhaseKey ? shownSocialTip.opportunity : null
+  const socialTipStillAvailable = useAppSelector(
+    (state) =>
+      shownOpportunity !== null &&
+      shallowEqual(shownOpportunity, selectSocialOpportunity(state, shownOpportunity.kind))
+  )
   const incomingInboxOpen = useAppSelector(selectIncomingInboxOpen)
   const socialPanelOpen = useAppSelector(selectSocialPanelOpen)
   const pendingCount = useAppSelector(selectPendingIncomingInteractionCount)
@@ -374,6 +391,7 @@ export default function FloatingActionBar({
   const [incomingSpotlight, setIncomingSpotlight] = useState<{
     interactionId: string
     attempt: number
+    flashing: boolean
   } | null>(null)
   const incomingSpotlightActive =
     requiredIncoming !== null &&
@@ -388,6 +406,9 @@ export default function FloatingActionBar({
       : 'Answer the important message in Incoming before continuing.'
     : null
   const completeIncomingSpotlight = useCallback(() => setIncomingSpotlight(null), [])
+  const finishIncomingFlash = useCallback(() => {
+    setIncomingSpotlight((current) => current && { ...current, flashing: false })
+  }, [])
   const spotlightRequiredIncoming = useCallback(() => {
     const state = reduxStore.getState()
     const interaction = selectRequiredIncomingDecision(state)
@@ -395,6 +416,7 @@ export default function FloatingActionBar({
     setIncomingSpotlight((current) => ({
       interactionId: interaction.id,
       attempt: (current?.attempt ?? 0) + 1,
+      flashing: true,
     }))
     return true
   }, [reduxStore])
@@ -622,9 +644,8 @@ export default function FloatingActionBar({
     showSurvivorBlockedMessage,
   ])
 
-  const handleSocialOpportunityClick = () => {
-    const opportunity = selectSocialOpportunity(reduxStore.getState())
-    if (!opportunity) return
+  const handleSocialOpportunityClick = (opportunity: SocialOpportunity) => {
+    setShownSocialTip(null)
     if (opportunity.kind === 'incoming') {
       completeIncomingSpotlight()
       setBlockedAnnouncement(null)
@@ -799,6 +820,22 @@ export default function FloatingActionBar({
     // consume the press so its queued story beat is actually seen before the
     // reducer is allowed to generate the next phase behind it.
     if (!dispatchPlayPressedEvent()) return
+    if (shownOpportunity) {
+      setShownSocialTip(null)
+    } else if (
+      socialCueHost &&
+      !incomingInboxOpen &&
+      !socialPanelOpen &&
+      !selectRequiredIncomingDecision(reduxStore.getState())
+    ) {
+      const state = reduxStore.getState()
+      const opportunity = selectSocialOpportunity(state)
+      if (opportunity) {
+        dispatch(claimPresentationEvent(getSocialTipClaim(state.game, opportunity.kind)))
+        setShownSocialTip({ phaseKey: socialTipPhaseKey, opportunity })
+        return
+      }
+    }
     advancedProgressRef.current = advanceProgressKey
     dispatch(advance())
   }, [
@@ -815,9 +852,15 @@ export default function FloatingActionBar({
     finaleOverlayActive,
     hasPendingConfessionalDecision,
     hasSeenConfessionalSpotlight,
+    incomingInboxOpen,
     onDemocraciaResultsDone,
     onFinalePlay,
+    reduxStore,
     spotlightRequiredIncoming,
+    shownOpportunity,
+    socialCueHost,
+    socialPanelOpen,
+    socialTipPhaseKey,
     survivorReplacementPending,
     survivorTerminalActive,
     voxPopuliActive,
@@ -1137,6 +1180,13 @@ export default function FloatingActionBar({
     }
   }, [])
 
+  const socialOpportunity: SocialOpportunity | null =
+    incomingBlockedMessage && requiredIncoming
+      ? { kind: 'incoming', interactionId: requiredIncoming.id, label: incomingBlockedMessage }
+      : socialTipStillAvailable && !requiredIncoming
+        ? shownOpportunity
+        : null
+
   return (
     <>
       {blockedAnnouncement && (
@@ -1262,9 +1312,8 @@ export default function FloatingActionBar({
           !tribunalDecisionPending
             ? {
                 ...socialOpportunity,
-                label: incomingBlockedMessage ?? socialOpportunity.label,
-                immediate: incomingBlockedMessage !== null,
-                onClick: handleSocialOpportunityClick,
+                flash: incomingBlockedMessage === null,
+                onClick: () => handleSocialOpportunityClick(socialOpportunity),
               }
             : undefined
         }
@@ -1311,9 +1360,10 @@ export default function FloatingActionBar({
       />
       <ConfessionalSpotlightOverlay
         key={incomingSpotlight?.attempt ?? 0}
-        active={incomingSpotlightActive}
+        active={incomingSpotlightActive && incomingSpotlight?.flashing === true}
         targetRef={incomingIconRef}
-        onComplete={completeIncomingSpotlight}
+        onComplete={finishIncomingFlash}
+        durationMs={1100}
       />
       <ConfessionalSpotlightOverlay
         active={showWeekendSocialSpotlight && weekendSocialActive}

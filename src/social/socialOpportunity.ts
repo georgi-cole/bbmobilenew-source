@@ -1,7 +1,8 @@
 import type { RootState } from '../store/store'
 import { canCastClassicEvictionVote } from '../store/criticalGameRules'
 import type { Player } from '../types'
-import { isCurrentIncomingConversation, selectRequiredIncomingDecision } from './incomingDecisions'
+import { hasPresentationEventClaim } from '../broadcasting/fauxTvPresentation'
+import { isCurrentIncomingConversation } from './incomingDecisions'
 import { isIncomingIntelLead } from './incomingIntelLead'
 import { getRuntimeSocialActionById } from './socialActionManager'
 import { validateSocialExecution } from './socialExecutionGuard'
@@ -16,6 +17,18 @@ import type { IncomingInteraction, SocialPanelFocus } from './types'
 export type SocialOpportunity =
   | { kind: 'incoming'; interactionId: string; label: string }
   | ({ kind: 'social'; label: string } & SocialPanelFocus)
+
+export function getSocialTipClaim(game: RootState['game'], kind: SocialOpportunity['kind']) {
+  const topic =
+    kind === 'incoming'
+      ? 'incoming'
+      : game.phase === 'social_1'
+        ? 'nominations'
+        : game.phase === 'pos_results'
+          ? 'safety'
+          : 'vote'
+  return { gameId: game.gameId, runId: 'tutorial', eventId: `social-tip:${topic}` }
+}
 
 function conversationLead(interaction: IncomingInteraction, name: string): string | null {
   if (interaction.payload?.source === 'broken_promise')
@@ -104,7 +117,10 @@ function outgoingOpportunity(
 }
 
 /** Surface one live conversation or playable move, using roles the player has already seen. */
-export function selectSocialOpportunity(state: RootState): SocialOpportunity | null {
+export function selectSocialOpportunity(
+  state: RootState,
+  visibleTipKind?: SocialOpportunity['kind']
+): SocialOpportunity | null {
   const { game, social } = state
   if (
     game.seasonFinale ||
@@ -114,17 +130,6 @@ export function selectSocialOpportunity(state: RootState): SocialOpportunity | n
     return null
   }
   if (!getIncomingSocialModuleAvailability(game).canOpen) return null
-  const required = selectRequiredIncomingDecision(state)
-  if (required) {
-    const name = game.players.find((player) => player.id === required.fromId)?.name
-    return {
-      kind: 'incoming',
-      interactionId: required.id,
-      label: name
-        ? (conversationLead(required, name) ?? `${name} needs an answer.`)
-        : 'Answer Incoming',
-    }
-  }
   if (
     game.weekendInterlude?.active ||
     !['social_1', 'pos_results', 'social_2'].includes(game.phase)
@@ -137,12 +142,19 @@ export function selectSocialOpportunity(state: RootState): SocialOpportunity | n
   const active = game.players.filter(
     (player) => !player.isUser && player.status !== 'evicted' && player.status !== 'jury'
   )
-  for (const interaction of social.incomingInteractions) {
-    if (interaction.read || !isCurrentIncomingConversation(state, interaction)) continue
-    const sender = active.find((player) => player.id === interaction.fromId)
-    const label = sender ? conversationLead(interaction, sender.name) : null
-    if (label) return { kind: 'incoming', label, interactionId: interaction.id }
+  const canShowTip = (kind: SocialOpportunity['kind']) =>
+    visibleTipKind
+      ? visibleTipKind === kind
+      : !hasPresentationEventClaim(game.presentationEventClaims, getSocialTipClaim(game, kind))
+  if (canShowTip('incoming')) {
+    for (const interaction of social.incomingInteractions) {
+      if (interaction.read || !isCurrentIncomingConversation(state, interaction)) continue
+      const sender = active.find((player) => player.id === interaction.fromId)
+      const label = sender ? conversationLead(interaction, sender.name) : null
+      if (label) return { kind: 'incoming', label, interactionId: interaction.id }
+    }
   }
+  if (!canShowTip('social')) return null
 
   const drama = getEffectiveSocialMode(state) === 'drama'
   const vox = game.voxPopuli?.status === 'active'

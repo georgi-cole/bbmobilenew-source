@@ -439,6 +439,24 @@ body.mode-surveyeval .fab-icon.confessional {
     0 0 10px rgb(194 154 255 / 65%),
     0 0 22px rgb(129 92 237 / 42%);
   pointer-events: none;
+  animation: dock-social-spotlight 1100ms ease-out both;
+}
+
+@keyframes dock-social-spotlight {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  15%,
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-hit-area--social-spotlight::before {
+    animation-timing-function: steps(1, jump-start);
+  }
 }
 
 .dock-hit-area__badge {

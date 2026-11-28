@@ -7,7 +7,6 @@ import AllPowerFauxTvEffect from './AllPowerFauxTvEffect'
 import './GameControlDock.css'
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
-const SOCIAL_CUE_READING_MS = 2500
 
 function assetUrl(file: string): string {
   return `${BASE}/assets/clean_glassy_dock/${file}`
@@ -91,7 +90,7 @@ export interface GameControlDockProps {
   socialCue?: {
     kind: 'social' | 'incoming'
     label: string
-    immediate: boolean
+    flash: boolean
     onClick: () => void
   }
   publicMeterDisabled?: boolean
@@ -167,15 +166,6 @@ export default function GameControlDock({
 }: GameControlDockProps) {
   const dispatch = useAppDispatch()
   const [moreOpen, setMoreOpen] = useState(false)
-  const [readSocialCueHost, setReadSocialCueHost] = useState<HTMLDivElement | null>(null)
-  useEffect(() => {
-    if (!socialCueHost) return
-    const timer = window.setTimeout(
-      () => setReadSocialCueHost(socialCueHost),
-      SOCIAL_CUE_READING_MS
-    )
-    return () => window.clearTimeout(timer)
-  }, [socialCueHost])
   const weekendActive = useAppSelector((state) => state.game.weekendInterlude?.active === true)
   const votePresentationLocked = useAppSelector(
     (state) =>
@@ -202,7 +192,6 @@ export default function GameControlDock({
   const showSocialCue =
     socialCueHost &&
     socialCue &&
-    (socialCue.immediate || readSocialCueHost === socialCueHost) &&
     (socialCue.kind === 'incoming'
       ? !requestsDockDisabled && !incomingRequestsDisabled
       : !dockDisabled && !socialDisabled)
@@ -365,7 +354,7 @@ export default function GameControlDock({
           onClick={dockDisabled ? undefined : onHomeClick}
         />
         <button
-          className={`dock-hit-area hit-social dock-hit-area--social${chatFlash ? ' dock-hit-area--flash dock-node--flash' : ''}${spotlightSocial ? ' dock-hit-area--social-spotlight' : ''}${socialUnavailableClass}`}
+          className={`dock-hit-area hit-social dock-hit-area--social${chatFlash ? ' dock-hit-area--flash dock-node--flash' : ''}${spotlightSocial && socialCue.flash ? ' dock-hit-area--social-spotlight' : ''}${socialUnavailableClass}`}
           ref={socialIconRef}
           type="button"
           aria-label={`Social${
@@ -397,7 +386,7 @@ export default function GameControlDock({
             )}
         </button>
         <button
-          className={`dock-hit-area hit-requests dock-hit-area--requests${incomingDecisionRequired ? ' dock-hit-area--decision-required' : ''}${spotlightIncoming ? ' dock-hit-area--social-spotlight' : ''}${requestsUnavailableClass}`}
+          className={`dock-hit-area hit-requests dock-hit-area--requests${incomingDecisionRequired ? ' dock-hit-area--decision-required' : ''}${spotlightIncoming && socialCue.flash ? ' dock-hit-area--social-spotlight' : ''}${requestsUnavailableClass}`}
           ref={incomingIconRef}
           type="button"
           aria-label={`Incoming requests${incomingRequestsBadgeCount ? ` (${incomingRequestsBadgeCount})` : ''}`}

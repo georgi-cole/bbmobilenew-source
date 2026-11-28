@@ -1383,6 +1383,12 @@ describe('FloatingActionBar with important Incoming', () => {
       })
     ).toBeVisible()
 
+    act(() => vi.advanceTimersByTime(1100))
+    expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
+    expect(within(tv).getByRole('button', { name: /in Incoming before continuing/ })).toBeVisible()
+    fireEvent.click(play)
+    expect(screen.getByTestId('confessional-spotlight')).toBeVisible()
+
     fireEvent.click(screen.getByRole('button', { name: 'Incoming requests (1)' }))
     expect(store.getState().social.incomingInboxOpen).toBe(true)
     expect(store.getState().social.incomingInboxFocusId).toBe(interaction.id)
@@ -1419,6 +1425,8 @@ describe('FloatingActionBar with important Incoming', () => {
     expect(within(tv).queryByRole('button', prompt)).toBeNull()
     expect(social).not.toHaveClass('dock-hit-area--social-spotlight')
     act(() => vi.advanceTimersByTime(2500))
+    expect(within(tv).queryByRole('button', prompt)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Advance to next phase' }))
     expect(within(tv).getByRole('button', prompt)).toBeVisible()
     expect(social).toHaveClass('dock-hit-area--social-spotlight')
     fireEvent.click(social)
@@ -1428,6 +1436,34 @@ describe('FloatingActionBar with important Incoming', () => {
     })
     expect(store.getState().social.panelOpen).toBe(true)
     expect(store.getState().game.phase).toBe('social_1')
+  })
+
+  it('shows the nomination tip once per season, including after loading the game', () => {
+    const current = makeStore().getState().game
+    const holder = current.players.find((player) => !player.isUser)!
+    const human = current.players.find((player) => player.isUser)!
+    const store = makeStore(true, { phase: 'social_1', lohId: holder.id })
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 3 }))
+    const view = renderFAB(store)
+    const play = () =>
+      fireEvent.click(screen.getByRole('button', { name: 'Advance to next phase' }))
+    play()
+    expect(store.getState().game.phase).toBe('social_1')
+    const afterTip = store.getState().game
+    play()
+    expect(store.getState().game.phase).toBe('nominations')
+    view.unmount()
+
+    store.dispatch(hydrateGame({ ...afterTip, week: 2 }))
+    renderFAB(store)
+    play()
+    expect(store.getState().game.phase).toBe('nominations')
+    act(() => store.dispatch(hydrateGame({ ...afterTip, gameId: 'new-season' })))
+    play()
+    expect(store.getState().game.phase).toBe('social_1')
+    expect(
+      screen.getByRole('button', { name: `Talk to ${holder.name} before nominations.` })
+    ).toBeVisible()
   })
 
   it('retires the Safety prompt after asking the holder, even if the answer was vague', () => {
@@ -1445,7 +1481,7 @@ describe('FloatingActionBar with important Incoming', () => {
     })
     store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 7 }))
     renderFAB(store)
-    act(() => vi.advanceTimersByTime(2500))
+    fireEvent.click(screen.getByRole('button', { name: 'Advance to next phase' }))
 
     const tv = screen.getByRole('region', { name: 'Live game events display' })
     expect(
