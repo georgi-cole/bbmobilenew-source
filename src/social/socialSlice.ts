@@ -141,6 +141,7 @@ type RealityActualVoteInput = {
   phase: string
   eventId: string
   eligibleTargetIds?: string[]
+  jointTargetIds?: readonly string[]
   revealed?: boolean
   relationshipTagsByTarget?: Record<string, string[]>
   acceptedPromiseTargetIds?: string[]
@@ -186,6 +187,7 @@ function applyRealityActualVote(state: SocialState, vote: RealityActualVoteInput
     vote.eligibleTargetIds,
     {
       revealed: vote.revealed,
+      jointTargetIds: vote.jointTargetIds,
       relationshipTagsByTarget: vote.relationshipTagsByTarget,
       acceptedPromiseTargetIds: vote.acceptedPromiseTargetIds,
     }
@@ -1634,20 +1636,24 @@ const socialSlice = createSlice({
       entry.resolutionReason = action.payload.resolutionReason
     },
     /** Manually open the social panel (e.g. via the FAB button). */
-    openSocialPanel(state) {
+    openSocialPanel(state, { payload }: PayloadAction<SocialState['panelFocus']>) {
       state.panelOpen = true
+      state.panelFocus = payload
     },
     /** Manually close the social panel. */
     closeSocialPanel(state) {
       state.panelOpen = false
+      delete state.panelFocus
     },
     /** Open the incoming interactions inbox panel. */
-    openIncomingInbox(state) {
+    openIncomingInbox(state, { payload }: PayloadAction<string | undefined>) {
       state.incomingInboxOpen = true
+      state.incomingInboxFocusId = payload
     },
     /** Close the incoming interactions inbox panel. */
     closeIncomingInbox(state) {
       state.incomingInboxOpen = false
+      delete state.incomingInboxFocusId
     },
     /** Clear only panel-session entries; persistent actionHistory is retained. */
     clearSessionLogs(state) {

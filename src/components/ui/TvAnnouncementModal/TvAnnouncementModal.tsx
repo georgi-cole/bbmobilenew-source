@@ -182,6 +182,14 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     shockDetail:
       'Eliminated players compete head-to-head in a specially designed challenge. Only one winner earns the right to return. Upon re-entry, the returning player is immediately eligible for all competitions, nominations, and votes — existing alliances must adapt at once.',
   },
+  bellas_will: {
+    icon: '📜',
+    label: "BELLA'S WILL",
+    category: 'Shock',
+    body: 'Bella kept her fortune hidden from the Hub. When she left, her will named one hubmate as heir and left a power that could change the game.',
+    shockDetail:
+      'The broadcast tells you who inherited the power and what it can do. Keep the heir in mind when you make plans for the next elimination.',
+  },
   battle_back_shock: {
     icon: '🔥',
     label: 'BACK 2 THE GAME',
@@ -312,6 +320,7 @@ const FALLBACK_COPY: PhaseCopy = {
 
 export interface TvAnnouncementModalProps {
   announcementKey: string
+  bellaWillGuidance?: string
   open: boolean
   onClose: () => void
 }
@@ -324,6 +333,7 @@ export interface TvAnnouncementModalProps {
  */
 export default function TvAnnouncementModal({
   announcementKey,
+  bellaWillGuidance,
   open,
   onClose,
 }: TvAnnouncementModalProps) {
@@ -339,10 +349,10 @@ export default function TvAnnouncementModal({
   // Fast-path: auto-close immediately when animations are disabled.
   useEffect(() => {
     if (!open) return
-    if (document.body.classList.contains('no-animations')) {
+    if (announcementKey !== 'bellas_will' && document.body.classList.contains('no-animations')) {
       onCloseRef.current()
     }
-  }, [open])
+  }, [announcementKey, open])
 
   // ESC to close
   useEffect(() => {
@@ -362,14 +372,13 @@ export default function TvAnnouncementModal({
   if (!open) return null
 
   const sourceCopy = PHASE_COPY[announcementKey] ?? FALLBACK_COPY
+  const shockDetail = bellaWillGuidance ?? sourceCopy.shockDetail
   const copy = {
     ...sourceCopy,
     label: normalizePlayerFacingCopy(sourceCopy.label),
     category: normalizePlayerFacingCopy(sourceCopy.category),
     body: normalizePlayerFacingCopy(sourceCopy.body),
-    shockDetail: sourceCopy.shockDetail
-      ? normalizePlayerFacingCopy(sourceCopy.shockDetail)
-      : undefined,
+    shockDetail: shockDetail ? normalizePlayerFacingCopy(shockDetail) : undefined,
   }
 
   return createPortal(

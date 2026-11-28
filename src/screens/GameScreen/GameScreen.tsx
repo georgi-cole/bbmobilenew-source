@@ -287,6 +287,7 @@ export default function GameScreen() {
   }, [publicFavoriteSetup])
   const presentedRosterPlayers = useMemo(() => getPresentedRosterPlayers(game), [game])
   const activeProfileId = useAppSelector(selectActiveProfileId)
+  const [socialCueHost, setSocialCueHost] = useState<HTMLDivElement | null>(null)
   const presentationRunKey = `${activeProfileId ?? 'guest'}:${game.gameId || `${game.seed}:${game.season}`}`
   const isGuest = useAppSelector(selectIsGuest)
   const settings = useAppSelector(selectSettings)
@@ -1750,6 +1751,7 @@ export default function GameScreen() {
         ) : (
           <TvZone
             key={game.gameId}
+            onSocialCueHostChange={setSocialCueHost}
             playOwnedExternally={
               finalPowerBattleIntroActive ||
               finalThreeBlockRevealActive ||
@@ -2973,6 +2975,7 @@ export default function GameScreen() {
         {/* ── Floating Action Bar ───────────────────────────────────────────── */}
         {gameControlDockVisible && (
           <FloatingActionBar
+            socialCueHost={socialCueHost}
             tribunalDecisionPending={showTribunalInvitation}
             onPublicMeterBlocked={handlePublicMeterBlocked}
             onSocialModuleBlocked={handleSocialModuleBlocked}

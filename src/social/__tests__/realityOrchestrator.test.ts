@@ -1359,3 +1359,49 @@ describe('Reality causal orchestration', () => {
     expect(Object.values(result.domain.romances)).toHaveLength(0)
   })
 })
+
+it('records an accepted one-to-one campaign pitch as a private pledge', () => {
+  const domain = createInitialRealityDomainState()
+  domain.relationships.ava = {
+    human: {
+      ...createDirectedRelationship('ava', 'human'),
+      trust: 90,
+      warmth: 90,
+      loyalty: 90,
+    },
+  }
+  const result = runRealityOpportunity({
+    domain,
+    simulation: createInitialRealitySimulationState(43),
+    opportunity: {
+      actorId: 'human',
+      direction: 'HUMAN_TO_AI',
+      context: {
+        ...context,
+        phase: 'social_2',
+        socialIntensity: 'REALITY',
+        rolesByActor: { ...context.rolesByActor, lia: ['nominated'] },
+        atRiskActorIds: ['lia'],
+      },
+      actors: { ...actors, lia: { ...actors.lia, roles: ['nominated'] } },
+      candidates: [
+        {
+          action: REALITY_ACTION_BY_ID.get('rally_votes_against')!,
+          targetIds: ['ava'],
+          subjectId: 'lia',
+        },
+      ],
+    },
+  })
+  expect(result.event?.outcome).toBe('SUCCESS')
+  expect(Object.values(result.domain.promises)).toContainEqual(
+    expect.objectContaining({
+      kind: 'campaign_vote',
+      promisorId: 'ava',
+      beneficiaryIds: ['human'],
+      scope: { actionId: 'rally_votes_against', targetId: 'lia' },
+      visibility: 'PAIR_ONLY',
+      status: 'ACTIVE',
+    })
+  )
+})

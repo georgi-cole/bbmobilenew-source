@@ -1,3 +1,4 @@
+import { CAMPAIGN_VOTE_PROMISE } from './campaignVotePromises'
 import { finalizeAcceptedPersonalPact } from './allianceManagement'
 import { createDraft, finishDraft } from 'immer'
 import {
@@ -509,7 +510,7 @@ function applyRealityLifecycle(input: {
   ) {
     const kind = action.id === 'suggest_replacement' ? 'FALLBACK' : 'CURRENT'
     for (const targetId of acceptedTargets) {
-      coordinateRealityAllianceTarget(domain, {
+      const coordinated = coordinateRealityAllianceTarget(domain, {
         actorId: interaction.actorId,
         partnerId: targetId,
         subjectId,
@@ -518,6 +519,28 @@ function applyRealityLifecycle(input: {
         sourceEventId: event.id,
         allianceId,
       })
+      if (
+        action.id === 'rally_votes_against' &&
+        interaction.direction === 'HUMAN_TO_AI' &&
+        !coordinated &&
+        responses.some((entry) => entry.targetId === targetId && entry.response.kind === 'ACCEPT')
+      ) {
+        const promiseId = `promise:${interaction.id}:campaign-vote:${targetId}`
+        upsertRealityPromise(domain, {
+          id: promiseId,
+          kind: CAMPAIGN_VOTE_PROMISE,
+          promisorId: targetId,
+          beneficiaryIds: [interaction.actorId],
+          witnessIds: [],
+          createdAt: at,
+          deadline: { day: at.day, phase: 'live_vote' },
+          stakes: 0.65,
+          scope: { targetId: subjectId, actionId: action.id },
+          visibility: 'PAIR_ONLY',
+          status: 'ACTIVE',
+        })
+        event.relatedPromiseIds.push(promiseId)
+      }
     }
   }
 

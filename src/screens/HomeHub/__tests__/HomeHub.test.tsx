@@ -194,6 +194,7 @@ describe('HomeHub', () => {
       seasonArchives: [],
     }
     mockState.remoteConfig.config = null
+    mockState.profiles.isGuest = true
     mockBackgroundUrl = '/assets/background.jpg'
     mockState.vip.isActive = false
     mockState.vip.entitlements.survivalMode = false
@@ -577,12 +578,17 @@ describe('HomeHub', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true })
   })
 
-  it('starts Classic directly from Play without a separate contestant setup page', async () => {
+  it('starts Classic directly from Play as a guest when no profile is selected', async () => {
+    mockState.profiles.isGuest = false
     renderHomeHub()
     fireEvent.click(screen.getByTestId('kolequant-splash'))
     await waitForMenuReady()
     fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     fireEvent.click(screen.getByRole('button', { name: 'Classic' }))
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'profiles/enterGuestMode',
+      payload: undefined,
+    })
     expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'game/resetGame' }))
     expect(screen.getByTestId('asset-preloader-overlay')).toBeInTheDocument()
     expect(mockNavigate).not.toHaveBeenCalledWith('/new-season?mode=classic')

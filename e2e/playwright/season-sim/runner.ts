@@ -6,7 +6,7 @@ import {
   readAppState,
 } from '../support/test'
 import { openProfileCreationForm } from '../support/profile'
-import { replyToOptionalIncoming } from '../support/incomingSocial'
+import { replyToOptionalIncoming, replyToRequiredIncoming } from '../support/incomingSocial'
 import { CoverageLedger, objectivesForMode } from './coverage'
 import { SeasonAuditor } from './auditor'
 import { getModeAdapter } from './modeAdapters'
@@ -747,6 +747,12 @@ export async function runSeasonSimulation(
         `minigame:${competition.gameKey}`,
         'Visible primary input was sent through the MinigameHost.'
       )
+      continue
+    }
+    if (await replyToRequiredIncoming(page)) {
+      exercisedIncoming = true
+      await auditor.record('answer an important message', 'incoming-social', undefined, state)
+      coverage.verify('incoming-social', 'Resolved an important Incoming conversation.')
       continue
     }
     const confessionalEntry = page.getByRole('button', { name: /^Confessional \(\d+\)$/ }).first()

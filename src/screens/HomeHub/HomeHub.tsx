@@ -18,6 +18,7 @@ import { hydratePublicOpinion } from '../../publicOpinion/publicOpinionSlice'
 import { hydrateChallenge } from '../../store/challengeSlice'
 import {
   archiveKeyForProfile,
+  enterGuestMode,
   selectActiveProfileId,
   selectCurrentProfile,
   selectIsGuest,
@@ -609,6 +610,7 @@ export default function HomeHub() {
     // intent also lets reset-time schedulers distinguish Classic from Vox/Cupid.
     withRunAutosaveSuspended(() => {
       withSeasonLaunchIntent(ruleset, () => {
+        if (!isGuest && !activeProfileId) dispatch(enterGuestMode())
         if (!isGuest && activeProfileId) {
           const archives = loadSeasonArchives(archiveKeyForProfile(activeProfileId)) ?? []
           dispatch(resetGame(archives))
