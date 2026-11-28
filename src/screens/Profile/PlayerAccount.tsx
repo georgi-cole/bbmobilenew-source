@@ -24,6 +24,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   MAX_PROFILES,
   selectAllProfiles,
+  selectCurrentProfile,
   selectIsGuest,
   unlinkProfileFromPlayerAccount,
 } from '../../store/profilesSlice'
@@ -43,7 +44,7 @@ export default function PlayerAccount() {
   const dispatch = useAppDispatch()
   const profiles = useAppSelector(selectAllProfiles)
   const isGuest = useAppSelector(selectIsGuest)
-  const hasSelectedProfile = useAppSelector(({ profiles }) => Boolean(profiles.activeProfileId))
+  const hasSelectedProfile = Boolean(useAppSelector(selectCurrentProfile))
   const entryReturnTo = routeState?.entryFrom ?? routeState?.profileFrom ?? '/'
   const returnDirectly = Boolean(routeState?.entryFrom || (!hasSelectedProfile && !isGuest))
   const gameInProgress = useAppSelector(
@@ -243,34 +244,43 @@ export default function PlayerAccount() {
                 <p>Choose your character to get started.</p>
               </>
             )}
-            {profiles.length < MAX_PROFILES && (
-              <button
-                type="button"
-                className="game-button game-button--primary"
-                disabled={busy || profileSyncStatus !== 'synced'}
-                onClick={createGameProfile}
-              >
-                {profiles.length === 0 ? 'Create Profile' : 'Create another profile'}
-              </button>
-            )}
             {profiles.length > 0 && (
               <button
                 type="button"
-                className="game-button game-button--secondary"
+                className={
+                  hasSelectedProfile
+                    ? 'game-button game-button--secondary'
+                    : 'game-button game-button--primary'
+                }
                 onClick={() =>
                   navigate('/profile-picker', {
                     state: { from: '/profile/account', manageOnly: true },
                   })
                 }
               >
-                Manage profiles
+                {hasSelectedProfile ? 'Manage profiles' : 'Choose Profile'}
+              </button>
+            )}
+            {profiles.length < MAX_PROFILES && (
+              <button
+                type="button"
+                className={
+                  profiles.length > 0 && !hasSelectedProfile
+                    ? 'game-button game-button--secondary'
+                    : 'game-button game-button--primary'
+                }
+                disabled={busy || profileSyncStatus !== 'synced'}
+                onClick={createGameProfile}
+              >
+                {profiles.length === 0 ? 'Create Profile' : 'Create another profile'}
               </button>
             )}
             {profileSyncStatus === 'syncing' && <p role="status">Syncing profiles…</p>}
             {profileSyncStatus === 'synced' && <p role="status">Profiles synced.</p>}
             {profileSyncStatus === 'limit' && (
               <p role="status">
-                You can sync up to {MAX_PROFILES} profiles. Open Manage profiles to make room.
+                You can sync up to {MAX_PROFILES} profiles. Delete a profile from the list to make
+                room.
               </p>
             )}
             {profileSyncStatus === 'error' && (

@@ -249,25 +249,30 @@ export default function ProfilePicker() {
     }
   }, [])
 
-  const commitSwitch = useCallback(
+  const commitWithoutResume = useCallback(
     (id: string) => {
-      // Inspect the target profile before changing activeProfileId. This closes a
-      // window where visibility autosave could otherwise write the old profile's
-      // in-memory game under the newly selected profile ID.
-      const snapshot = getPlayableLastRun(loadSavedRunProfile(id))
-      if (snapshot?.profileId === id) {
-        setPendingResumeId(id)
-        return
-      }
-
       const archives = loadSeasonArchives(archiveKeyForProfile(id)) ?? []
       withRunAutosaveSuspended(() => {
         dispatch(selectActiveProfile(id))
         dispatch(resetGame(archives))
       })
-      navigate('/profile', { replace: true, state: { from: returnTo } })
+      if (!manageOnly) navigate('/profile', { replace: true, state: { from: returnTo } })
     },
-    [dispatch, navigate, returnTo]
+    [dispatch, manageOnly, navigate, returnTo]
+  )
+
+  const commitSwitch = useCallback(
+    (id: string) => {
+      if (!manageOnly) {
+        const snapshot = getPlayableLastRun(loadSavedRunProfile(id))
+        if (snapshot?.profileId === id) {
+          setPendingResumeId(id)
+          return
+        }
+      }
+      commitWithoutResume(id)
+    },
+    [commitWithoutResume, manageOnly]
   )
 
   const handleSelectProfile = useCallback(
@@ -319,15 +324,6 @@ export default function ProfilePicker() {
       // recover it later instead of a transient UI failure deleting progress.
       commitWithoutResume(id)
     }
-  }
-
-  function commitWithoutResume(id: string) {
-    const archives = loadSeasonArchives(archiveKeyForProfile(id)) ?? []
-    withRunAutosaveSuspended(() => {
-      dispatch(selectActiveProfile(id))
-      dispatch(resetGame(archives))
-    })
-    navigate('/profile', { replace: true, state: { from: returnTo } })
   }
 
   function handleGuestMode() {
@@ -607,10 +603,11 @@ export default function ProfilePicker() {
                     </div>
                     {isActive && <span className="profile-picker__badge">Active</span>}
                     <div className="profile-picker__actions">
-                      {!manageOnly && !isActive && (
+                      {!isActive && (
                         <button
                           type="button"
                           className="profile-picker__btn profile-picker__btn--select"
+                          aria-label={manageOnly ? 'Select profile ' + p.name : undefined}
                           onClick={() => handleSelectProfile(p.id)}
                         >
                           Select

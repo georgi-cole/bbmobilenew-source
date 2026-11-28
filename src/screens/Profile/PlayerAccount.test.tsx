@@ -12,6 +12,8 @@ const initialProfiles = ['Deni', 'Sara', 'Kiki'].map((name) => ({
   playerAccountId: 'account',
 }))
 let profiles = initialProfiles
+let activeProfileId: string | null = null
+let isGuest = false
 
 vi.mock('react-router', () => ({
   useNavigate: () => mocks.navigate,
@@ -21,7 +23,7 @@ vi.mock('../../store/hooks', () => ({
   useAppDispatch: () => vi.fn(),
   useAppSelector: (selector: (state: unknown) => unknown) =>
     selector({
-      profiles: { profiles, isGuest: false },
+      profiles: { profiles, activeProfileId, isGuest },
       game: { status: 'idle', week: 1, phase: 'season_start' },
     }),
 }))
@@ -52,10 +54,13 @@ beforeEach(() => {
   syncStatus = 'synced'
   signedIn = true
   profiles = initialProfiles
+  activeProfileId = null
+  isGuest = false
   vi.clearAllMocks()
 })
 
 it('keeps names on the manager and offers one clear route back to account management', async () => {
+  activeProfileId = initialProfiles[0].id
   render(<PlayerAccount />)
   expect(await screen.findByRole('heading', { name: 'Your account' })).toBeDefined()
   expect(screen.queryByText('Deni')).toBeNull()
@@ -67,10 +72,29 @@ it('keeps names on the manager and offers one clear route back to account manage
   })
 })
 
+it.each([false, true])(
+  'offers restored profiles when there is no active profile (guest: %s)',
+  async (guest) => {
+    profiles = initialProfiles.slice(0, 2)
+    activeProfileId = null
+    isGuest = guest
+    render(<PlayerAccount />)
+    const choose = await screen.findByRole('button', { name: 'Choose Profile' })
+    expect(choose).toHaveClass('game-button--primary')
+    expect(screen.getByRole('button', { name: 'Create another profile' })).toHaveClass(
+      'game-button--secondary'
+    )
+    fireEvent.click(choose)
+    expect(mocks.navigate).toHaveBeenCalledWith('/profile-picker', {
+      state: { from: '/profile/account', manageOnly: true },
+    })
+  }
+)
+
 it('explains capacity without pretending there is a connection error', async () => {
   syncStatus = 'limit'
   render(<PlayerAccount />)
-  expect(await screen.findByText(/Open Manage profiles to make room/)).toBeDefined()
+  expect(await screen.findByText(/Delete a profile from the list to make room/)).toBeDefined()
   expect(screen.queryByRole('alert')).toBeNull()
   expect(screen.queryByText(/Checking this account/)).toBeNull()
 })

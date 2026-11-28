@@ -9,6 +9,8 @@ import type { RemoteConfig } from '../../../remoteConfig/remoteConfigTypes'
 const mockNavigate = vi.fn()
 const mockDispatch = vi.fn()
 const mockRequestWeatherLocation = vi.hoisted(() => vi.fn(() => Promise.resolve()))
+let mockAccountProfileSync: 'disabled' | 'syncing' = 'disabled'
+const restoredProfiles = [{ id: 'restored-first' }, { id: 'restored-second' }]
 let mockBackgroundUrl = '/assets/background.jpg'
 const mockState: {
   game: {
@@ -20,7 +22,7 @@ const mockState: {
     players: Array<{ id: string; isUser: boolean }>
     seasonArchives: Array<{ seasonId: string; bellaCast?: boolean }>
   }
-  profiles: { activeProfileId: null; isGuest: boolean; profiles: never[] }
+  profiles: { activeProfileId: string | null; isGuest: boolean; profiles: typeof restoredProfiles }
   remoteConfig: { config: RemoteConfig | null }
   vip: {
     isActive: boolean
@@ -59,6 +61,11 @@ vi.mock('react-router', async () => {
 vi.mock('../../../store/hooks', () => ({
   useAppDispatch: () => mockDispatch,
   useAppSelector: (selector: (state: unknown) => unknown) => selector(mockState),
+}))
+
+vi.mock('../../../services/backend/playerAccountProfiles', () => ({
+  getAccountProfileSyncStatus: () => mockAccountProfileSync,
+  subscribeAccountProfileSync: () => () => undefined,
 }))
 
 vi.mock('../../../hooks/useBackgroundTheme', () => ({
@@ -194,7 +201,8 @@ describe('HomeHub', () => {
       seasonArchives: [],
     }
     mockState.remoteConfig.config = null
-    mockState.profiles.isGuest = true
+    mockState.profiles = { activeProfileId: null, isGuest: true, profiles: [] }
+    mockAccountProfileSync = 'disabled'
     mockBackgroundUrl = '/assets/background.jpg'
     mockState.vip.isActive = false
     mockState.vip.entitlements.survivalMode = false
@@ -593,6 +601,57 @@ describe('HomeHub', () => {
     expect(screen.getByTestId('asset-preloader-overlay')).toBeInTheDocument()
     expect(mockNavigate).not.toHaveBeenCalledWith('/new-season?mode=classic')
     expect(screen.queryByRole('heading', { name: 'Choose your contestant' })).toBeNull()
+  })
+
+  it('opens restored profiles from Play instead of starting a guest season', async () => {
+    mockState.profiles = { activeProfileId: null, isGuest: false, profiles: restoredProfiles }
+    renderHomeHub()
+    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    await waitForMenuReady()
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    expect(mockNavigate).toHaveBeenCalledWith('/profile-picker', { state: { from: '/' } })
+    expect(screen.queryByRole('button', { name: 'Classic' })).toBeNull()
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('routes Play to the account while signed-in profiles are still restoring', async () => {
+    mockState.profiles.isGuest = false
+    mockAccountProfileSync = 'syncing'
+    renderHomeHub()
+    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    await waitForMenuReady()
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    expect(mockNavigate).toHaveBeenCalledWith('/profile/account', { state: { entryFrom: '/' } })
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('starts Classic under the active restored profile', async () => {
+    mockState.profiles = {
+      activeProfileId: restoredProfiles[1].id,
+      isGuest: false,
+      profiles: restoredProfiles,
+    }
+    renderHomeHub()
+    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    await waitForMenuReady()
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Classic' }))
+    expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'game/resetGame' }))
+    expect(mockDispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'profiles/enterGuestMode' })
+    )
+    expect(screen.getByTestId('asset-preloader-overlay')).toBeInTheDocument()
+  })
+
+  it('offers profile selection from the Play menu when returning as Guest', async () => {
+    mockState.profiles.profiles = restoredProfiles
+    renderHomeHub('/?menu=play')
+    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    const choose = await screen.findByRole('button', { name: 'Choose Profile' })
+    expect(screen.getByRole('button', { name: 'Classic' })).toBeInTheDocument()
+    fireEvent.click(choose)
+    expect(mockNavigate).toHaveBeenCalledWith('/profile-picker', { state: { from: '/' } })
+    expect(mockDispatch).not.toHaveBeenCalled()
   })
 
   it('keeps the debug launcher out of the player-facing Play menu', async () => {
