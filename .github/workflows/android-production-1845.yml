@@ -1,0 +1,152 @@
+name: Build signed Google Play production bundle
+
+on:
+  push:
+    branches: ['release/google-play-production-1845']
+    paths: ['.github/workflows/android-production-1845.yml']
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: '112855b994dd600d55326beab9696c308a597f2e'
+
+jobs:
+  android:
+    name: Build and sign Android production
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_UPLOAD_CERTIFICATE_SHA1: '65:B5:34:95:6A:38:CF:CA:4D:8C:A2:1C:B0:E9:C6:7C:DA:A8:91:12'
+    steps:
+      - name: Check out the selected Android source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Restore the upload signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/android-upload-key.jks"
+          echo "ANDROID_KEYSTORE_PATH=$ANDROID_KEYSTORE_PATH" >> "$GITHUB_ENV"
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret: $name. See docs/AUTOMATIC_MOBILE_BUILDS.md."
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          test -s "$ANDROID_KEYSTORE_PATH"
+          keytool -J-Duser.language=en -list -v -keystore "$ANDROID_KEYSTORE_PATH" \
+            -storepass:env ANDROID_KEYSTORE_PASSWORD -alias "$ANDROID_KEY_ALIAS" \
+            > "$RUNNER_TEMP/android-upload-certificate.txt"
+          node scripts/verify-android-upload-certificate.mjs "$RUNNER_TEMP/android-upload-certificate.txt"
+          # Jobs are serialized; a fresh UTC timestamp also advances on a rerun.
+          echo "ANDROID_VERSION_CODE=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: npm ci
+
+      - name: Configure production Android services
+        env:
+          ANDROID_ADMOB_MODE: 'live'
+          ANDROID_ADMOB_APP_ID: ${{ vars.ANDROID_ADMOB_APP_ID }}
+          ANDROID_ADMOB_INTERSTITIAL_ID: ${{ vars.ANDROID_ADMOB_INTERSTITIAL_ID }}
+          ANDROID_ADMOB_REWARDED_ID: ${{ vars.ANDROID_ADMOB_REWARDED_ID }}
+          ANDROID_ADMOB_CONTEXTUAL_INTERSTITIAL_ID: ${{ vars.ANDROID_ADMOB_CONTEXTUAL_INTERSTITIAL_ID }}
+          VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_PLAYER_ACCOUNTS_ENABLED: ${{ vars.VITE_PLAYER_ACCOUNTS_ENABLED }}
+          VITE_PLAYER_SIGN_IN_ENABLED: ${{ vars.VITE_PLAYER_SIGN_IN_ENABLED }}
+        run: |
+          cp .env.android.example .env.android
+          cat >> .env.android <<EOF
+
+          VITE_APP_ENVIRONMENT=production
+          VITE_BUILD_TARGET=release
+          VITE_BUILD_ID=$SOURCE_SHA
+          VITE_VIP_DEV_ENTITLEMENT=false
+          VITE_ADMOB_MODE=$ANDROID_ADMOB_MODE
+          VITE_ADMOB_APP_ID=$ANDROID_ADMOB_APP_ID
+          VITE_ADMOB_INTERSTITIAL_ID=$ANDROID_ADMOB_INTERSTITIAL_ID
+          VITE_ADMOB_REWARDED_ID=$ANDROID_ADMOB_REWARDED_ID
+          VITE_ADMOB_CONTEXTUAL_INTERSTITIAL_ID=$ANDROID_ADMOB_CONTEXTUAL_INTERSTITIAL_ID
+          VITE_SUPABASE_ENABLED=$VITE_SUPABASE_ENABLED
+          VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+          VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+          VITE_PLAYER_ACCOUNTS_ENABLED=$VITE_PLAYER_ACCOUNTS_ENABLED
+          VITE_PLAYER_SIGN_IN_ENABLED=$VITE_PLAYER_SIGN_IN_ENABLED
+          EOF
+          npm run verify:store-env:android
+
+      - name: Build and synchronize the Android production bundle
+        run: npm run sync:android
+
+      - name: Sign the release bundle with the existing upload key
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Verify the signed bundle
+        id: verify_bundle
+        run: |
+          jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab \
+            > "$RUNNER_TEMP/android-signature-verification.txt"
+          cat "$RUNNER_TEMP/android-signature-verification.txt"
+          grep -q 'jar verified.' "$RUNNER_TEMP/android-signature-verification.txt"
+          test -s android/app/build/outputs/mapping/release/mapping.txt
+          unzip -Z1 android/app/build/outputs/bundle/release/app-release.aab \
+            > "$RUNNER_TEMP/android-bundle-entries.txt"
+          grep -qx 'BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map' \
+            "$RUNNER_TEMP/android-bundle-entries.txt"
+          if grep -q '^BUNDLE-METADATA/com.android.tools.build.debugsymbols/' \
+            "$RUNNER_TEMP/android-bundle-entries.txt"; then
+            echo "native_symbols_embedded=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "native_symbols_embedded=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::The AAB has no embedded native debug symbols. Check whether a prebuilt native library was already stripped before Gradle received it."
+          fi
+
+      - name: Save the Google Play bundle and diagnostics files
+        id: android_bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-play-production-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/mapping/release/mapping.txt
+            android/app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Record signed production bundle details
+        run: |
+          {
+            echo "## Signed Google Play production bundle"
+            echo "- Source commit: $SOURCE_SHA"
+            echo "- Android version code: $ANDROID_VERSION_CODE"
+            echo "- Application environment: production"
+            echo "- Bundle and R8 mapping are attached to this run."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the temporary upload signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/android-upload-key.jks"
