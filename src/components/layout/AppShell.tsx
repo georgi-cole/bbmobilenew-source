@@ -6,7 +6,7 @@ import { selectFinale } from '../../store/finaleSlice'
 import { selectSettings } from '../../store/settingsSlice'
 import { selectRemoteBroadcast, selectRemoteConfig } from '../../remoteConfig/remoteConfigSlice'
 import useGameMode from '../../hooks/useGameMode'
-import { buildViewportMetaContent } from './viewportMeta'
+import { applyViewportMeta } from './viewportMeta'
 import PortraitOrientationGuard from './PortraitOrientationGuard'
 import SaveRecoveryNotice from '../SaveRecoveryNotice/SaveRecoveryNotice'
 import PhonePreviewSystemChrome from './PhonePreviewSystemChrome'
@@ -111,13 +111,9 @@ export default function AppShell() {
 
   // Keep viewport-fit=cover attached to every runtime viewport meta rewrite.
   useEffect(() => {
-    const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
-    if (!meta) return undefined
-    const applyViewportMeta = () => {
-      meta.content = buildViewportMetaContent(settings.visual?.enableZoom ?? false)
-    }
-    applyViewportMeta()
-    const id = window.setTimeout(applyViewportMeta, 0)
+    const syncViewport = () => applyViewportMeta(settings.visual?.enableZoom ?? false)
+    syncViewport()
+    const id = window.setTimeout(syncViewport, 0)
     return () => window.clearTimeout(id)
   }, [settings.visual?.enableZoom])
 

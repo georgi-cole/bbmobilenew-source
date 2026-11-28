@@ -12,7 +12,7 @@ import './styles/voxCupidFauxTvPolish.css'
 import './compat/legacySpectatorAdapter.js'
 import { applyDisplayModeClasses } from './utils/displayMode'
 import { applyVisualFreezeState } from './utils/visualFreeze'
-import { buildViewportMetaContent } from './components/layout/viewportMeta'
+import { applyViewportMeta } from './components/layout/viewportMeta'
 import { store } from './store/store'
 import { initializeDurablePersistence } from './store/durablePersistence'
 import { setAudio } from './store/settingsSlice'
@@ -81,13 +81,7 @@ applyVisualFreezeState()
 // React mounts any phase overlays.
 installAudioVisualSync()
 
-// Native pinch zoom remains available; the preference only expands its range.
-const viewportMeta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
-if (viewportMeta) {
-  viewportMeta.content = buildViewportMetaContent(
-    store.getState().settings.visual?.enableZoom ?? false
-  )
-}
+applyViewportMeta(store.getState().settings.visual?.enableZoom ?? false)
 // Initialize the Social Engine with the Redux store so it can dispatch actions
 // and read state throughout the session.
 SocialEngine.init(store)
