@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-28: Reviewed the Faux TV Social and Incoming prompts for Standard
+  and VIP/Reality. The prompts open existing moves and replies under their
+  current eligibility rules and retire a Safety or nomination prompt once
+  the player contacts the holder. Product access and benefits are unchanged.
+
 - 2026-11-27: Reviewed the Incoming response requirement and phase-specific Social
   opportunities for Standard, VIP/Reality, Classic, Cupid's Arrow, Vox Populi, and
   Surveyeval. A Hubmate's accepted private campaign promise can influence their

@@ -125,6 +125,7 @@ function isSameEndedSurvivalRun(current: RootState['game'], expected: RootState[
 }
 
 type FloatingActionBarProps = {
+  socialCueHost?: HTMLDivElement | null
   tribunalDecisionPending?: boolean
   /** Called when the player activates Public Meter while public mode is disabled. */
   onPublicMeterBlocked?: () => void
@@ -157,6 +158,7 @@ type FloatingActionBarProps = {
  * - Right side: Public Meter hook + Diary Room shortcut.
  */
 export default function FloatingActionBar({
+  socialCueHost,
   tribunalDecisionPending = false,
   onPublicMeterBlocked,
   onSocialModuleBlocked,
@@ -377,22 +379,23 @@ export default function FloatingActionBar({
     requiredIncoming !== null &&
     incomingSpotlight?.interactionId === requiredIncoming.id &&
     !incomingInboxOpen
+  const requiredIncomingSender = incomingSpotlightActive
+    ? game.players.find((player) => player.id === requiredIncoming?.fromId)
+    : undefined
+  const incomingBlockedMessage = incomingSpotlightActive
+    ? requiredIncomingSender
+      ? `Answer ${requiredIncomingSender.name} in Incoming before continuing.`
+      : 'Answer the important message in Incoming before continuing.'
+    : null
   const completeIncomingSpotlight = useCallback(() => setIncomingSpotlight(null), [])
   const spotlightRequiredIncoming = useCallback(() => {
     const state = reduxStore.getState()
     const interaction = selectRequiredIncomingDecision(state)
     if (!interaction) return false
-    const sender = state.game.players.find((player) => player.id === interaction.fromId)
     setIncomingSpotlight((current) => ({
       interactionId: interaction.id,
       attempt: (current?.attempt ?? 0) + 1,
     }))
-    setBlockedAnnouncement({
-      id: Date.now(),
-      message: sender
-        ? `Answer ${sender.name} in Incoming before continuing.`
-        : 'Answer the important message in Incoming before continuing.',
-    })
     return true
   }, [reduxStore])
   const [completedWeekendSocialSpotlightKey, setCompletedWeekendSocialSpotlightKey] = useState<
@@ -1141,6 +1144,11 @@ export default function FloatingActionBar({
           {blockedAnnouncement.message}
         </div>
       )}
+      {!socialCueHost && incomingBlockedMessage && (
+        <span className="visually-hidden" role="status">
+          {incomingBlockedMessage}
+        </span>
+      )}
       <ConfirmExitModal
         open={homeConfirmOpen && !survivorTerminalActive}
         title={canPersistActiveRun ? 'Save and return home?' : 'Leave this season?'}
@@ -1244,6 +1252,7 @@ export default function FloatingActionBar({
         incomingRequestsDisabled={incomingSocialModuleUnavailable}
         incomingDecisionRequired={requiredIncoming !== null}
         incomingIconRef={incomingIconRef}
+        socialCueHost={socialCueHost}
         socialCue={
           socialOpportunity &&
           !blockedAnnouncement &&
@@ -1251,7 +1260,11 @@ export default function FloatingActionBar({
           !socialPanelOpen &&
           !finaleInlinePlayActive &&
           !tribunalDecisionPending
-            ? { ...socialOpportunity, onClick: handleSocialOpportunityClick }
+            ? {
+                ...socialOpportunity,
+                label: incomingBlockedMessage ?? socialOpportunity.label,
+                onClick: handleSocialOpportunityClick,
+              }
             : undefined
         }
         publicMeterDisabled={game.publicModeEnabled !== true}

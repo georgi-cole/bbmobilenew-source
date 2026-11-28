@@ -86,6 +86,7 @@ export interface GameControlDockProps {
   incomingRequestsDisabled?: boolean
   incomingDecisionRequired?: boolean
   incomingIconRef?: Ref<HTMLButtonElement>
+  socialCueHost?: HTMLDivElement | null
   socialCue?: { kind: 'social' | 'incoming'; label: string; onClick: () => void }
   publicMeterDisabled?: boolean
   chatBadgeCount?: number
@@ -136,6 +137,7 @@ export default function GameControlDock({
   incomingRequestsDisabled = false,
   incomingDecisionRequired = false,
   incomingIconRef,
+  socialCueHost,
   socialCue,
   publicMeterDisabled = false,
   chatBadgeCount,
@@ -183,10 +185,13 @@ export default function GameControlDock({
     ((navigationDisabled || voxAudienceVoteLocked) && !incomingDecisionRequired)
   const dockDisabled = presentationLocksDock || voxAudienceVoteLocked
   const showSocialCue =
+    socialCueHost &&
     socialCue &&
     (socialCue.kind === 'incoming'
       ? !requestsDockDisabled && !incomingRequestsDisabled
       : !dockDisabled && !socialDisabled)
+  const spotlightSocial = showSocialCue && socialCue.kind === 'social'
+  const spotlightIncoming = showSocialCue && socialCue.kind === 'incoming'
   // The Vox lock deliberately does NOT disable the central Play control.
   const effectivePrimaryDisabled = primaryDisabled || votePresentationLocked
   const [socialLedActive, acknowledgeSocialLed] = useNotificationLed(chatBadgeCount, {
@@ -272,15 +277,13 @@ export default function GameControlDock({
         role="toolbar"
         aria-label="Game actions"
       >
-        {showSocialCue && (
-          <button
-            className="game-control-dock__social-cue"
-            type="button"
-            onClick={socialCue.onClick}
-          >
-            {socialCue.label}
-          </button>
-        )}
+        {showSocialCue &&
+          createPortal(
+            <button className="tv-zone__social-cue" type="button" onClick={socialCue.onClick}>
+              {socialCue.label} <span aria-hidden="true">›</span>
+            </button>,
+            socialCueHost
+          )}
         <img
           className="game-control-dock__shell fab-shell"
           src={shellSrc}
@@ -346,7 +349,7 @@ export default function GameControlDock({
           onClick={dockDisabled ? undefined : onHomeClick}
         />
         <button
-          className={`dock-hit-area hit-social dock-hit-area--social${chatFlash ? ' dock-hit-area--flash dock-node--flash' : ''}${socialUnavailableClass}`}
+          className={`dock-hit-area hit-social dock-hit-area--social${chatFlash ? ' dock-hit-area--flash dock-node--flash' : ''}${spotlightSocial ? ' dock-hit-area--social-spotlight' : ''}${socialUnavailableClass}`}
           ref={socialIconRef}
           type="button"
           aria-label={`Social${
@@ -361,7 +364,8 @@ export default function GameControlDock({
               ? undefined
               : () => {
                   if (!socialDisabled) acknowledgeSocialLed()
-                  onChatClick?.()
+                  if (spotlightSocial) socialCue.onClick()
+                  else onChatClick?.()
                 }
           }
         >
@@ -377,7 +381,7 @@ export default function GameControlDock({
             )}
         </button>
         <button
-          className={`dock-hit-area hit-requests dock-hit-area--requests${incomingDecisionRequired ? ' dock-hit-area--decision-required' : ''}${requestsUnavailableClass}`}
+          className={`dock-hit-area hit-requests dock-hit-area--requests${incomingDecisionRequired ? ' dock-hit-area--decision-required' : ''}${spotlightIncoming ? ' dock-hit-area--social-spotlight' : ''}${requestsUnavailableClass}`}
           ref={incomingIconRef}
           type="button"
           aria-label={`Incoming requests${incomingRequestsBadgeCount ? ` (${incomingRequestsBadgeCount})` : ''}`}
@@ -388,7 +392,8 @@ export default function GameControlDock({
               ? undefined
               : () => {
                   if (!incomingRequestsDisabled) acknowledgeRequestsLed()
-                  onIncomingRequestsClick?.()
+                  if (spotlightIncoming) socialCue.onClick()
+                  else onIncomingRequestsClick?.()
                 }
           }
         >

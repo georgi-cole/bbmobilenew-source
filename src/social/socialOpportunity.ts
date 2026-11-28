@@ -50,6 +50,25 @@ function conversationLead(interaction: IncomingInteraction, name: string): strin
   }
 }
 
+function hasUsedOpportunityAction(
+  state: RootState,
+  humanId: string,
+  targetId: string,
+  actionIds: readonly string[]
+): boolean {
+  const { game, social } = state
+  return Boolean(
+    social.actionHistory?.some(
+      (entry) =>
+        entry.actorId === humanId &&
+        entry.week === game.week &&
+        entry.phase === game.phase &&
+        actionIds.includes(entry.actionId) &&
+        (entry.targetId === targetId || entry.targetIds?.includes(targetId))
+    )
+  )
+}
+
 function outgoingOpportunity(
   state: RootState,
   human: Player,
@@ -58,7 +77,7 @@ function outgoingOpportunity(
 ): SocialOpportunity | null {
   const { targetId, actionId, subjectId } = focus
   const action = getRuntimeSocialActionById(actionId)
-  const { game, social } = state
+  const { social } = state
   const drama = getEffectiveSocialMode(state) === 'drama'
   if (
     !action ||
@@ -69,14 +88,7 @@ function outgoingOpportunity(
       subjectId,
       requireCompleteSelection: true,
     }).eligible ||
-    social.actionHistory?.some(
-      (entry) =>
-        entry.actorId === human.id &&
-        entry.week === game.week &&
-        entry.phase === game.phase &&
-        entry.actionId === actionId &&
-        (entry.targetId === targetId || entry.targetIds?.includes(targetId))
-    )
+    hasUsedOpportunityAction(state, human.id, targetId, [actionId])
   ) {
     return null
   }
@@ -141,12 +153,16 @@ export function selectSocialOpportunity(state: RootState): SocialOpportunity | n
       (player) => player.id === (beforeNominations ? game.lohId : game.posWinnerId)
     )
     if (!holder || (!beforeNominations && game.povSavedId)) return null
+    const questionId = beforeNominations ? 'ask_loh_target' : 'ask_safety_plan'
+    if (hasUsedOpportunityAction(state, human.id, holder.id, [questionId, 'whisper'])) return null
     if (drama) {
-      const actionId = beforeNominations ? 'ask_loh_target' : 'ask_safety_plan'
       const label = beforeNominations
         ? `Ask ${holder.name} about their nomination plan.`
-        : `Find out how ${holder.name} plans to use Safety.`
-      const lead = outgoingOpportunity(state, human, label, { targetId: holder.id, actionId })
+        : `Ask ${holder.name} about using Safety.`
+      const lead = outgoingOpportunity(state, human, label, {
+        targetId: holder.id,
+        actionId: questionId,
+      })
       if (lead) return lead
     }
     return outgoingOpportunity(

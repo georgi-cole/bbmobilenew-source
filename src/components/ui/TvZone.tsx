@@ -352,6 +352,7 @@ type TvZoneProps = {
   playOwnedExternally?: boolean
   /** Synchronously owns the Faux TV during the phase-to-rules challenge handoff. */
   competitionStarting?: boolean
+  onSocialCueHostChange?: (host: HTMLDivElement | null) => void
   /**
    * Temporarily owns the viewport copy while a full-screen flow is in progress.
    * This keeps an older feed item from showing through a dimmed game background.
@@ -401,7 +402,7 @@ type TvZoneProps = {
  *
  * To inject new content: dispatch addTvEvent() action via useAppDispatch().
  */
-export default function TvZone(props: TvZoneProps) {
+export default function TvZone({ onSocialCueHostChange, ...props }: TvZoneProps) {
   const dispatch = useAppDispatch()
   const { onPriorityAnnouncementDismiss, onExternalAnnouncementDismiss } = props
   const gameState = useAppSelector((s) => s.game, tvZoneGameEquality)
@@ -2201,6 +2202,9 @@ export default function TvZone(props: TvZoneProps) {
                 >
                   {viewportDisplayText}
                 </p>
+              )}
+              {onSocialCueHostChange && !hideViewportMessage && !viewportMessageOverride && (
+                <div className="tv-zone__social-cue-slot" ref={onSocialCueHostChange} />
               )}
             </div>
 

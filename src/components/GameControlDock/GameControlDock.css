@@ -27,38 +27,6 @@
   user-select: none;
 }
 
-.game-control-dock__social-cue {
-  position: absolute;
-  z-index: 6;
-  bottom: 100%;
-  left: 50%;
-  width: max-content;
-  max-width: calc(100% - 24px);
-  min-height: 32px;
-  transform: translateX(-50%);
-  border: 1px solid rgb(177 154 227 / 48%);
-  border-radius: 999px;
-  padding: 4px 12px;
-  background: #231a38;
-  color: #f1eafd;
-  font: inherit;
-  font-size: 0.75rem;
-  line-height: 1.2;
-  text-align: center;
-  cursor: pointer;
-}
-
-.game-control-dock__social-cue::after {
-  content: ' ›';
-  color: #d7bdf7;
-  white-space: nowrap;
-}
-
-.game-control-dock__social-cue:focus-visible {
-  outline: 2px solid #e1ccff;
-  outline-offset: 2px;
-}
-
 .game-control-dock--finale-overlay {
   /* The spectator scene is portalled to <body>, while the dock lives inside
      the clipped game cabinet. Take the existing dock out of that clipping
@@ -455,6 +423,22 @@ body.mode-surveyeval .fab-icon.confessional {
 .dock-hit-area:disabled,
 .dock-hit-area--unavailable {
   cursor: not-allowed;
+}
+
+.dock-hit-area--social-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: clamp(28px, 8vw, 44px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgb(240 225 255 / 66%);
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 40%, rgb(187 145 255 / 25%));
+  box-shadow:
+    0 0 10px rgb(194 154 255 / 65%),
+    0 0 22px rgb(129 92 237 / 42%);
+  pointer-events: none;
 }
 
 .dock-hit-area__badge {

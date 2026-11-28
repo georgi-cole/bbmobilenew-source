@@ -1961,17 +1961,35 @@ export default function SocialPanelV2() {
   const disabledPlayerIds = finaleReunionSocialOpen ? [] : juryPlayers.map((player) => player.id)
 
   const subjectPickerRef = useRef<HTMLDivElement>(null)
+  const movesRef = useRef<HTMLElement>(null)
+  const focusedPanelRequest = useRef<typeof panelFocus>(undefined)
   const reducedPresentationMotion = usePresentationReducedMotion()
   useEffect(() => {
-    if ((!needsSubject && !isAllianceSway) || !open) return
-    const frame = window.requestAnimationFrame(() =>
+    const requestedActionSelected =
+      panelFocus &&
+      panelFocus.actionId === selectedActionId &&
+      panelFocus.targetId === effectivePrimaryTargetId
+    if (!open || (!requestedActionSelected && !needsSubject && !isAllianceSway)) return
+    const frame = window.requestAnimationFrame(() => {
+      if (requestedActionSelected && focusedPanelRequest.current !== panelFocus) {
+        const card = movesRef.current?.querySelector<HTMLElement>(
+          '[data-action-id][aria-pressed="true"]'
+        )
+        if (card) {
+          focusedPanelRequest.current = panelFocus
+          card.scrollIntoView?.({ block: 'center', inline: 'nearest' })
+          card.focus({ preventScroll: true })
+          return
+        }
+      }
       subjectPickerRef.current?.scrollIntoView?.({
         block: 'nearest',
         behavior: reducedPresentationMotion ? 'auto' : 'smooth',
       })
-    )
+    })
     return () => window.cancelAnimationFrame(frame)
   }, [
+    panelFocus,
     selectedActionId,
     effectivePrimaryTargetId,
     needsSubject,
@@ -2696,6 +2714,7 @@ export default function SocialPanelV2() {
           )}
 
           <section
+            ref={movesRef}
             className="sp2-moves"
             aria-label="Social actions"
             id="sp2-alliance-actions"

@@ -34,6 +34,7 @@ import socialReducer, {
   setEnergyBankEntry,
   applyEnergyDelta,
   pushIncomingInteraction,
+  recordSocialAction,
   resolveIncomingInteraction,
   closeIncomingInbox,
 } from '../../../social/socialSlice'
@@ -156,10 +157,18 @@ function renderFAB(
   initialEntry = '/game',
   props: Partial<ComponentProps<typeof FloatingActionBar>> = {}
 ) {
+  const tvCueHost = document.createElement('div')
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Provider store={store}>
-        <FloatingActionBar {...props} />
+        <div
+          role="region"
+          aria-label="Live game events display"
+          ref={(element) => {
+            element?.append(tvCueHost)
+          }}
+        />
+        <FloatingActionBar socialCueHost={tvCueHost} {...props} />
         <LocationDisplay />
       </Provider>
     </MemoryRouter>
@@ -1364,7 +1373,12 @@ describe('FloatingActionBar with important Incoming', () => {
     fireEvent.click(play)
     expect(store.getState().game.phase).toBe('social_1')
     expect(screen.getByTestId('confessional-spotlight')).toBeVisible()
-    expect(screen.getByRole('status')).toHaveTextContent(`Answer ${sender.name} in Incoming`)
+    const tv = screen.getByRole('region', { name: 'Live game events display' })
+    expect(
+      within(tv).getByRole('button', {
+        name: `Answer ${sender.name} in Incoming before continuing.`,
+      })
+    ).toBeVisible()
 
     fireEvent.click(screen.getByRole('button', { name: 'Incoming requests (1)' }))
     expect(store.getState().social.incomingInboxOpen).toBe(true)
@@ -1396,14 +1410,62 @@ describe('FloatingActionBar with important Incoming', () => {
     store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 3 }))
     renderFAB(store)
 
-    fireEvent.click(
-      screen.getByRole('button', { name: `Talk to ${holder.name} before nominations.` })
-    )
+    const tv = screen.getByRole('region', { name: 'Live game events display' })
+    expect(
+      within(tv).getByRole('button', { name: `Talk to ${holder.name} before nominations.` })
+    ).toBeVisible()
+    const social = screen.getByRole('button', { name: 'Social (3)' })
+    expect(social).toHaveClass('dock-hit-area--social-spotlight')
+    fireEvent.click(social)
     expect(store.getState().social.panelFocus).toEqual({
       targetId: holder.id,
       actionId: 'whisper',
     })
     expect(store.getState().social.panelOpen).toBe(true)
     expect(store.getState().game.phase).toBe('social_1')
+  })
+
+  it('retires the Safety prompt after asking the holder, even if the answer was vague', () => {
+    const { players } = makeStore().getState().game
+    const holder = players.find((player) => !player.isUser)!
+    const human = players.find((player) => player.isUser)!
+    const store = makeStore(true, {
+      phase: 'pos_results',
+      week: 1,
+      posWinnerId: holder.id,
+      players: players.map((player) =>
+        player.id === holder.id ? { ...player, status: 'pos' } : player
+      ),
+      dramaSocialMode: true,
+    })
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 7 }))
+    renderFAB(store)
+
+    const tv = screen.getByRole('region', { name: 'Live game events display' })
+    expect(
+      within(tv).getByRole('button', { name: `Ask ${holder.name} about using Safety.` })
+    ).toBeVisible()
+    act(() =>
+      store.dispatch(
+        recordSocialAction({
+          entry: {
+            actorId: human.id,
+            targetId: holder.id,
+            actionId: 'ask_safety_plan',
+            week: 1,
+            phase: 'pos_results',
+            cost: 1,
+            delta: 0,
+            outcome: 'failure',
+            newEnergy: 6,
+            timestamp: 1,
+          },
+        })
+      )
+    )
+    expect(within(tv).queryByRole('button')).toBeNull()
+    expect(screen.getByRole('button', { name: /^Social/ })).not.toHaveClass(
+      'dock-hit-area--social-spotlight'
+    )
   })
 })
