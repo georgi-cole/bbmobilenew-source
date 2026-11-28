@@ -581,6 +581,25 @@
   filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 38%, transparent));
 }
 
+.tv-announcement__info-btn--pulse {
+  animation: tv-announcement-info-pulse 850ms ease-in-out 2;
+}
+
+@keyframes tv-announcement-info-pulse {
+  50% {
+    color: #fff;
+    box-shadow:
+      0 0 0 4px rgb(194 154 255 / 42%),
+      0 0 16px rgb(194 154 255 / 76%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-announcement__info-btn--pulse {
+    animation: none;
+  }
+}
+
 .tv-announcement__info-btn:hover {
   background: var(--announcement-info-bg-hover);
   border-color: var(--announcement-info-border);

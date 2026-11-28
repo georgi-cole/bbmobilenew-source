@@ -65,9 +65,9 @@ function expectFinalThreeWillReveal(result: ReturnType<typeof gameReducer>) {
     inherited: false,
     expiredAtEndgame: true,
   })
-  expect(
-    result.tvFeed.find((event) => event.text.includes("Bella's Will is revealed."))?.text
-  ).toContain('expired when the House reached the Final 4')
+  expect(result.tvFeed.find((event) => event.meta?.major === 'bellas_will')?.text).toContain(
+    'the power expired at the Final 4'
+  )
 }
 
 describe("Bella's Will eviction announcement", () => {
@@ -83,13 +83,11 @@ describe("Bella's Will eviction announcement", () => {
       expiredAtEndgame: true,
       extraVotePending: false,
     })
-    const willAnnouncement = result.tvFeed.find((event) =>
-      event.text.includes("Bella's Will is revealed.")
-    )
+    const willAnnouncement = result.tvFeed.find((event) => event.meta?.major === 'bellas_will')
     expect(willAnnouncement).toBeDefined()
-    expect(willAnnouncement?.text).toContain("Bella's Will is revealed.")
-    expect(willAnnouncement?.text).toContain('is named heir')
-    expect(willAnnouncement?.text).toContain('expired when the House reached the Final 4')
+    expect(willAnnouncement?.text).toContain('Bella kept a fortune secret.')
+    expect(willAnnouncement?.text).toContain('named her heir')
+    expect(willAnnouncement?.text).toContain('the power expired at the Final 4')
     expect(willAnnouncement?.meta?.forceOnTv).toBe(true)
   })
 
@@ -112,7 +110,20 @@ describe("Bella's Will eviction announcement", () => {
       dayEnd.week
     )
     expect(reveal.meta?.broadcastMustAir).toBe(true)
-    expect(reveal.text).toContain("Bella's Will is now in effect.")
+    expect(reveal.text).toContain('Bella kept a fortune secret.')
+    expect(reveal.text).toContain('an extra ballot at the next eligible elimination')
+  })
+
+  it('addresses the human heir directly when they inherit vote removal', () => {
+    const { state, bella } = prepareBellaEviction(5)
+    const human = state.players.find((player) => player.isUser)!
+    state.bellaWill!.heirId = human.id
+    state.bellaWill!.reward = 'remove_vote'
+    const result = gameReducer(state, finalizePendingEviction(bella.id))
+    const reveal = result.tvFeed.find((event) => event.meta?.major === 'bellas_will')
+    expect(reveal?.text).toContain(
+      'You inherit a one-vote deduction the next time you face elimination.'
+    )
   })
 
   it('reveals the expired Will when the human Final LOH evicts Bella directly', () => {

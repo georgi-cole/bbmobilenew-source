@@ -107,6 +107,7 @@ import {
   isRecognizedBroadcastMajorKey,
 } from '../../broadcasting/broadcastPresentationRegistry'
 import { getDailyAtmosphere, getDailyTransitionTitle } from '../../broadcasting/dailyMoodSystem'
+import { getBellaWillGuidance } from '../../features/twists/bellasWill'
 import {
   formatCycleAriaLabel,
   formatCycleLabel,
@@ -637,7 +638,10 @@ export default function TvZone({ onSocialCueHostChange, ...props }: TvZoneProps)
   const [modalOpen, setModalOpen] = useState(false)
   // Keep the modal key alive independently so the modal stays open even if
   // the overlay dismisses (e.g. via auto-dismiss) while the user is reading.
-  const [modalAnnouncementKey, setModalAnnouncementKey] = useState<string | null>(null)
+  const [modalAnnouncement, setModalAnnouncement] = useState<{
+    key: string
+    bellaWillGuidance?: string
+  } | null>(null)
   // Track which event the user has manually dismissed so the overlay doesn't
   // reappear for the same event after dismissal.
   const [dismissedEventId, setDismissedEventId] = useState<string | null>(null)
@@ -1584,10 +1588,17 @@ export default function TvZone({ onSocialCueHostChange, ...props }: TvZoneProps)
       startTransition(() => setShockInfoSpotlightActive(false))
     }
     if (activeAnnouncement) {
-      setModalAnnouncementKey(activeAnnouncement.key)
+      const { key } = activeAnnouncement
+      setModalAnnouncement({
+        key,
+        bellaWillGuidance:
+          key === 'bellas_will'
+            ? getBellaWillGuidance(reduxStore.getState().game.bellaWill)
+            : undefined,
+      })
       setModalOpen(true)
     }
-  }, [activeAnnouncement, shockInfoSpotlightActive])
+  }, [activeAnnouncement, reduxStore, shockInfoSpotlightActive])
 
   // Listen for central FAB 'tv:announcement-dismiss' events
   useEffect(() => {
@@ -2396,9 +2407,10 @@ export default function TvZone({ onSocialCueHostChange, ...props }: TvZoneProps)
       />
 
       {/* ── Phase-info modal ─────────────────────────────────────────────── */}
-      {modalAnnouncementKey && (
+      {modalAnnouncement && (
         <TvAnnouncementModal
-          announcementKey={modalAnnouncementKey}
+          announcementKey={modalAnnouncement.key}
+          bellaWillGuidance={modalAnnouncement.bellaWillGuidance}
           open={modalOpen}
           onClose={handleModalClose}
         />

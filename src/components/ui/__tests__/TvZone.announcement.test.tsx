@@ -50,6 +50,7 @@ import TvAnnouncementModal from '../TvAnnouncementModal/TvAnnouncementModal'
 import type { Player, TvEvent } from '../../../types'
 import { I18nContext, type I18nContextValue } from '../../../i18n/I18nContext'
 import { translate } from '../../../i18n/messages'
+import { createBellaWillState } from '../../../features/twists/bellasWill'
 
 const TEST_I18N: I18nContextValue = {
   preference: 'en-US',
@@ -148,12 +149,27 @@ describe('TvZone — announcement overlay', () => {
     const store = makeStore()
     const id = 'bella-will-reveal'
     act(() => {
+      const game = store.getState().game
+      store.dispatch(
+        hydrateGame({
+          ...game,
+          bellaWill: {
+            ...createBellaWillState({
+              active: true,
+              seed: game.seed,
+              season: game.season,
+              reward: 'extra_vote',
+            }),
+            inherited: true,
+          },
+        })
+      )
       store.dispatch(setPhase('eviction_results'))
       store.dispatch(
         addTvEvent(
           makeEvent({
             id,
-            text: 'Remy is named heir. Remove 1 vote next time Remy is nominated.',
+            text: 'Bella kept a fortune secret. Remy inherits an extra ballot.',
             meta: {
               phase: 'eviction_results',
               week: store.getState().game.week,
@@ -175,7 +191,14 @@ describe('TvZone — announcement overlay', () => {
     covered.unmount()
 
     renderTvZone(store)
-    expect(screen.getByRole('dialog', reveal)).toHaveTextContent('Remove 1 vote')
+    expect(screen.getByRole('dialog', reveal)).toHaveTextContent('Remy inherits an extra ballot')
+    const info = screen.getByRole('button', { name: /More info about Bella.s Will/i })
+    expect(info).toHaveClass('tv-announcement__info-btn--pulse')
+    fireEvent.click(info)
+    const guide = screen.getByRole('dialog', { name: /Phase info: Bella.s Will/i })
+    expect(guide).toHaveTextContent('Bella kept her fortune hidden')
+    expect(guide).toHaveTextContent('look for the extra choice in the Confessional')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     act(() => vi.advanceTimersByTime(6000))
     expect(screen.getByRole('dialog', reveal)).toBeVisible()
     const play = new Event('ui:playPressed', { cancelable: true })

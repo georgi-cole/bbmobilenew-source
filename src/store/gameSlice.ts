@@ -229,7 +229,7 @@ import { isVisibleOnTv } from '../services/activityService'
 import { loadDepressionShockState } from '../features/twists/depressionShock'
 import {
   BELLA_ID,
-  BELLA_WILL_REWARD_LABELS,
+  getBellaWillRevealCopy,
   activateBellaInheritance,
   buildBellaPoolEntry,
   chooseBellaHeir,
@@ -1656,16 +1656,10 @@ function publishBellaWillOnEviction(
   if (!selectedHeir || !will.reward) return
 
   activateBellaInheritance(state)
-  if (will.inherited) {
+  if (will.inherited || will.expiredAtEndgame) {
     publishBellaWillBroadcast(
       state,
-      `Bella's Will is now in effect. ${selectedHeir.name} is named heir: ${BELLA_WILL_REWARD_LABELS[will.reward]}.`,
-      'game'
-    )
-  } else if (will.expiredAtEndgame) {
-    publishBellaWillBroadcast(
-      state,
-      `Bella's Will is revealed. ${selectedHeir.name} is named heir, but the reward (${BELLA_WILL_REWARD_LABELS[will.reward]}) expired when the House reached the Final 4.`,
+      getBellaWillRevealCopy(selectedHeir, will.reward, will.expiredAtEndgame),
       'game'
     )
   }
