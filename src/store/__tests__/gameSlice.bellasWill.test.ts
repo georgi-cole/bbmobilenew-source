@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBellaWillState } from '../../features/twists/bellasWill'
+import { selectCurrentBroadcastEvents } from '../../broadcasting/fauxTvPresentation'
 import gameReducer, {
   advance,
   createInitialGameState,
@@ -102,9 +103,16 @@ describe("Bella's Will eviction announcement", () => {
       expiredAtEndgame: false,
       extraVotePending: true,
     })
-    expect(
-      result.tvFeed.find((event) => event.text.includes("Bella's Will is now in effect."))?.text
-    ).toContain("Bella's Will is now in effect.")
+    const dayEnd = gameReducer(result, advance())
+    expect(dayEnd.phase).toBe('week_end')
+    const [reveal] = selectCurrentBroadcastEvents(
+      dayEnd.broadcastQueue,
+      dayEnd.tvFeed,
+      dayEnd.phase,
+      dayEnd.week
+    )
+    expect(reveal.meta?.broadcastMustAir).toBe(true)
+    expect(reveal.text).toContain("Bella's Will is now in effect.")
   })
 
   it('reveals the expired Will when the human Final LOH evicts Bella directly', () => {

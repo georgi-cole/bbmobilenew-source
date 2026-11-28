@@ -64,6 +64,7 @@ import {
   addPresentationEventClaim,
   hasPresentationEventClaim,
   isPendingDetoxEvent,
+  isPendingRequiredTvEvent,
   pinBroadcastQueueHead,
 } from '../broadcasting/fauxTvPresentation'
 import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
@@ -1621,6 +1622,16 @@ function pushEvent(
   return event
 }
 
+function publishBellaWillBroadcast(state: GameState, text: string, type: 'game' | 'vote') {
+  pushEvent(state, text, type, {
+    major: 'bellas_will',
+    broadcastPriority: 'critical',
+    forceOnTv: true,
+    broadcastMustAir: true,
+    announcementTitle: "Bella's Will",
+  })
+}
+
 /** Publish Bella's inheritance disclosure from every eviction path. */
 function publishBellaWillOnEviction(
   state: GameState,
@@ -1646,18 +1657,16 @@ function publishBellaWillOnEviction(
 
   activateBellaInheritance(state)
   if (will.inherited) {
-    pushEvent(
+    publishBellaWillBroadcast(
       state,
       `Bella's Will is now in effect. ${selectedHeir.name} is named heir: ${BELLA_WILL_REWARD_LABELS[will.reward]}.`,
-      'game',
-      { major: 'bellas_will', broadcastPriority: 'critical', forceOnTv: true }
+      'game'
     )
   } else if (will.expiredAtEndgame) {
-    pushEvent(
+    publishBellaWillBroadcast(
       state,
       `Bella's Will is revealed. ${selectedHeir.name} is named heir, but the reward (${BELLA_WILL_REWARD_LABELS[will.reward]}) expired when the House reached the Final 4.`,
-      'game',
-      { major: 'bellas_will', broadcastPriority: 'critical', forceOnTv: true }
+      'game'
     )
   }
 }
@@ -6272,27 +6281,21 @@ const gameSlice = createSlice({
     /** Pin one current queued card once its on-screen presentation begins. */
     claimActiveBroadcastEvent(state, action: PayloadAction<string>) {
       const event = state.tvFeed.find((candidate) => candidate.id === action.payload)
-      const isPendingCurrentEvent = Boolean(
-        event &&
-        event.meta?.broadcastConsumed !== true &&
-        event.meta?.phase === state.phase &&
-        event.meta?.week === state.week &&
-        (state.broadcastQueue ?? []).includes(action.payload)
-      )
-      if (!isPendingCurrentEvent) return
+      const isPendingCurrentEvent = (candidate: TvEvent | undefined) =>
+        candidate &&
+        candidate.meta?.broadcastConsumed !== true &&
+        (candidate.meta?.gameId == null || candidate.meta.gameId === state.gameId) &&
+        (isPendingRequiredTvEvent(candidate, state.week) ||
+          (candidate.meta?.phase === state.phase &&
+            candidate.meta?.week === state.week &&
+            (state.broadcastQueue ?? []).includes(candidate.id)))
+      if (!event || !isPendingCurrentEvent(event)) return
 
       const existing = state.activeBroadcastEventId
         ? state.tvFeed.find((candidate) => candidate.id === state.activeBroadcastEventId)
         : undefined
-      const existingIsStillActive = Boolean(
-        existing &&
-        existing.meta?.broadcastConsumed !== true &&
-        existing.meta?.phase === state.phase &&
-        existing.meta?.week === state.week &&
-        (state.broadcastQueue ?? []).includes(existing.id)
-      )
-      if (existingIsStillActive && existing?.id !== event!.id) return
-      state.activeBroadcastEventId = event!.id
+      if (isPendingCurrentEvent(existing) && existing?.id !== event.id) return
+      state.activeBroadcastEventId = event.id
       state.broadcastQueue = pinBroadcastQueueHead(
         state.broadcastQueue ?? [],
         state.activeBroadcastEventId
@@ -13323,7 +13326,7 @@ const gameSlice = createSlice({
                 )
                 voteMap[`${heirId}__bellaWill`] = inheritedTarget
                 bellaExtraVote.extraVotePending = false
-                pushEvent(
+                publishBellaWillBroadcast(
                   state,
                   `Bella's Will grants ${heir.name} a separate extra ballot in tonight's elimination.`,
                   'vote'
@@ -13443,7 +13446,7 @@ const gameSlice = createSlice({
                 targetId: bellaWill.heirId,
                 amount: 1,
               }
-              pushEvent(
+              publishBellaWillBroadcast(
                 state,
                 `Bella's Will subtracts one vote from ${heir?.name ?? 'the heir'}'s elimination tally.`,
                 'vote'
@@ -14187,7 +14190,7 @@ const gameSlice = createSlice({
       if (usesBellaExtraVote && bellaWill) {
         bellaWill.extraVotePending = false
         bellaWill.extraVoteChoiceActive = false
-        pushEvent(
+        publishBellaWillBroadcast(
           state,
           `Bella's Will grants ${humanPlayer.name} a separate extra ballot in tonight's elimination.`,
           'vote'

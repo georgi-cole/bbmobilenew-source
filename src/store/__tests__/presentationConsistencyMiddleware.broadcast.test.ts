@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { TvEvent } from '../../types'
 import {
   isEvictionVoteBreakdownActive,
   loadEvictionVoteBreakdownUnlock,
@@ -33,12 +34,13 @@ function runGuestDayOneOpeningTransition(options: {
   beforeWeek?: number
   afterPhase?: string
   afterWeek?: number
+  beforeFeed?: TvEvent[]
 }) {
   let state = {
     game: {
       phase: options.beforePhase ?? 'week_start',
       week: options.beforeWeek ?? 1,
-      tvFeed: [],
+      tvFeed: options.beforeFeed ?? [],
       players: [],
       replacementNeeded: false,
     },
@@ -94,6 +96,38 @@ function createPendingVoxVoteHarness() {
 }
 
 describe('presentationConsistencyMiddleware important broadcasts', () => {
+  it('expires routine day-end news while keeping a required reveal pending', () => {
+    const feed: TvEvent[] = [
+      {
+        id: 'will',
+        text: 'Bella names an heir.',
+        type: 'game',
+        timestamp: 1,
+        meta: { phase: 'eviction_results', week: 2, forceOnTv: true, broadcastMustAir: true },
+      },
+      {
+        id: 'routine',
+        text: 'Day complete.',
+        type: 'game',
+        timestamp: 2,
+        meta: { phase: 'week_end', week: 2, forceOnTv: true },
+      },
+    ]
+    const dispatch = runGuestDayOneOpeningTransition({
+      isGuest: false,
+      activeProfileId: 'profile',
+      beforePhase: 'week_end',
+      beforeWeek: 2,
+      afterPhase: 'week_start',
+      afterWeek: 3,
+      beforeFeed: feed,
+    })
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'game/consumeBroadcastEvents',
+      payload: ['routine'],
+    })
+  })
+
   it('queues a guest save reminder before the Day 1 LOH competition announcement', () => {
     const dispatch = runGuestDayOneOpeningTransition({ isGuest: true, activeProfileId: null })
 

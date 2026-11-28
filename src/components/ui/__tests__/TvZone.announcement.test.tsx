@@ -143,6 +143,76 @@ describe('TvZone — announcement overlay', () => {
     vi.restoreAllMocks()
   })
 
+  it("holds Bella's Will through a covered eviction handoff until the player acknowledges it", () => {
+    vi.useFakeTimers()
+    const store = makeStore()
+    const id = 'bella-will-reveal'
+    act(() => {
+      store.dispatch(setPhase('eviction_results'))
+      store.dispatch(
+        addTvEvent(
+          makeEvent({
+            id,
+            text: 'Remy is named heir. Remove 1 vote next time Remy is nominated.',
+            meta: {
+              phase: 'eviction_results',
+              week: store.getState().game.week,
+              major: 'bellas_will',
+              broadcastPriority: 'critical',
+              forceOnTv: true,
+            },
+          })
+        )
+      )
+      store.dispatch(setPhase('week_end'))
+    })
+    const event = () => store.getState().game.tvFeed.find((candidate) => candidate.id === id)
+    const covered = renderTvZone(store, { viewportMessageOverride: 'Eviction in progress' })
+    const reveal = { name: /Announcement: Bella.s Will/i }
+    expect(screen.queryByRole('dialog', reveal)).toBeNull()
+    act(() => window.dispatchEvent(new Event('ui:playPressed', { cancelable: true })))
+    expect(event()?.meta?.broadcastConsumed).not.toBe(true)
+    covered.unmount()
+
+    renderTvZone(store)
+    expect(screen.getByRole('dialog', reveal)).toHaveTextContent('Remove 1 vote')
+    act(() => vi.advanceTimersByTime(6000))
+    expect(screen.getByRole('dialog', reveal)).toBeVisible()
+    const play = new Event('ui:playPressed', { cancelable: true })
+    act(() => window.dispatchEvent(play))
+    expect(play.defaultPrevented).toBe(true)
+    expect(event()?.meta?.broadcastConsumed).toBe(true)
+    expect(screen.queryByRole('dialog', reveal)).toBeNull()
+  })
+
+  it("keeps Bella's vote adjustment off the TV until the vote has been revealed", () => {
+    const store = makeStore()
+    const id = 'bella-vote-adjustment'
+    store.dispatch(setPhase('live_vote'))
+    store.dispatch(
+      addTvEvent(
+        makeEvent({
+          id,
+          type: 'vote',
+          text: "Bella's Will subtracts one vote from Remy's elimination tally.",
+          meta: {
+            week: store.getState().game.week,
+            phase: 'live_vote',
+            major: 'bellas_will',
+            broadcastMustAir: true,
+            broadcastPriority: 'critical',
+            forceOnTv: true,
+          },
+        })
+      )
+    )
+    renderTvZone(store)
+    const reveal = { name: /Announcement: Bella.s Will/i }
+    expect(screen.queryByRole('dialog', reveal)).toBeNull()
+    act(() => store.dispatch(setPhase('week_end')))
+    expect(screen.getByRole('dialog', reveal)).toHaveTextContent('subtracts one vote')
+  })
+
   it('uses the fireside screen artwork and ambient firelight during Weekend 1', () => {
     const store = makeStore()
     renderTvZone(store)

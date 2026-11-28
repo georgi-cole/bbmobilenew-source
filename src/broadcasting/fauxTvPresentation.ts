@@ -1,6 +1,18 @@
 import type { Phase, PresentationEventClaim, TvEvent } from '../types'
 import { isVisibleOnTv } from '../services/activityService'
 
+/** Public facts that must survive automatic handoffs until the player acknowledges them. */
+export function isPendingRequiredTvEvent(event: TvEvent, week = Infinity): boolean {
+  return (
+    event.meta?.broadcastConsumed !== true &&
+    event.meta?.forceOnTv === true &&
+    (event.meta.broadcastMustAir === true || event.meta.major === 'bellas_will') &&
+    typeof event.meta.week === 'number' &&
+    event.meta.week <= week &&
+    isVisibleOnTv(event)
+  )
+}
+
 /** Completion, rather than a media-start claim, owns durable stream progress. */
 export function isPendingDetoxEvent(
   event: TvEvent,
@@ -112,7 +124,7 @@ export function pinBroadcastQueueHead(queue: readonly string[], activeEventId?: 
   return [activeEventId, ...queue.filter((id) => id !== activeEventId)]
 }
 
-/** Resolve only pending events whose delivery window exactly matches this phase. */
+/** Required public reveals remain pending after their original delivery window closes. */
 export function selectCurrentBroadcastEvents(
   queue: readonly string[] | undefined,
   feed: readonly TvEvent[],
@@ -122,7 +134,13 @@ export function selectCurrentBroadcastEvents(
   isRenderable: (event: TvEvent) => boolean = () => true
 ): TvEvent[] {
   const byId = new Map(feed.map((event) => [event.id, event] as const))
-  const ids = pinBroadcastQueueHead(queue ?? [], activeEventId)
+  const requiredIds = new Set(
+    feed
+      .filter((event) => isPendingRequiredTvEvent(event, week))
+      .reverse()
+      .map((event) => event.id)
+  )
+  const ids = pinBroadcastQueueHead([...requiredIds, ...(queue ?? [])], activeEventId)
   const seen = new Set<string>()
   return ids.flatMap((id) => {
     if (seen.has(id)) return []
@@ -131,8 +149,7 @@ export function selectCurrentBroadcastEvents(
     if (
       !event ||
       event.meta?.broadcastConsumed === true ||
-      event.meta?.phase !== phase ||
-      event.meta?.week !== week ||
+      (!requiredIds.has(id) && (event.meta?.phase !== phase || event.meta?.week !== week)) ||
       !isRenderable(event)
     ) {
       return []
