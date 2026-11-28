@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react'
 import { useLocation, useNavigate, type NavigateFunction } from 'react-router'
 import { useAppSelector, useAppDispatch } from '../../store/hooks'
 import {
@@ -20,9 +28,14 @@ import {
   archiveKeyForProfile,
   enterGuestMode,
   selectActiveProfileId,
+  selectAllProfiles,
   selectCurrentProfile,
   selectIsGuest,
 } from '../../store/profilesSlice'
+import {
+  getAccountProfileSyncStatus,
+  subscribeAccountProfileSync,
+} from '../../services/backend/playerAccountProfiles'
 import {
   clearSavedRun,
   loadSavedRunProfile,
@@ -299,6 +312,13 @@ export default function HomeHub() {
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const currentProfile = useAppSelector(selectCurrentProfile)
   const isGuest = useAppSelector(selectIsGuest)
+  const hasProfiles = useAppSelector(selectAllProfiles).length > 0
+  const accountProfileSync = useSyncExternalStore(
+    subscribeAccountProfileSync,
+    getAccountProfileSyncStatus
+  )
+  const awaitingRestoredProfiles = !hasProfiles && accountProfileSync === 'syncing'
+  const needsProfileEntry = !isGuest && !currentProfile && (hasProfiles || awaitingRestoredProfiles)
   const { url: bgUrl, requestWeatherLocation } = useBackgroundTheme()
   const playButtonHolidayTheme = getHolidayTheme(new Date())
   const remoteBgUrl = useAppSelector(selectRemoteIntroHubBg)
@@ -736,7 +756,29 @@ export default function HomeHub() {
     }
   }
 
-  const playSelectionButtons: PlaySelectionButton[] = []
+  function openPlayProfileEntry() {
+    if (awaitingRestoredProfiles) {
+      navigate('/profile/account', { state: { entryFrom: '/' } })
+    } else {
+      navigate('/profile-picker', { state: { from: '/' } })
+    }
+  }
+
+  const playProfileButton: PlaySelectionButton = {
+    key: 'choose-profile',
+    label: awaitingRestoredProfiles ? 'Account' : 'Choose Profile',
+    icon: <HomeHubButtonIcon name="profile" />,
+    variant: 'secondary_wide',
+    onClick: openPlayProfileEntry,
+  }
+  const playBackButton: PlaySelectionButton = {
+    key: 'back',
+    label: 'Back',
+    icon: <HomeHubButtonIcon name="back" />,
+    variant: 'secondary_medium',
+    onClick: () => setPlaySelectionOpen(false),
+  }
+  const playSelectionButtons = hasProfiles && !currentProfile ? [playProfileButton] : []
   if (lastSnapshot) {
     playSelectionButtons.push({
       key: 'continue-last',
@@ -817,18 +859,13 @@ export default function HomeHub() {
         openSurvivorMode()
       },
     },
-    {
-      key: 'back',
-      label: 'Back',
-      icon: <HomeHubButtonIcon name="back" />,
-      variant: 'secondary_medium',
-      onClick: () => setPlaySelectionOpen(false),
-    }
+    playBackButton
   )
 
   const handlePlay = () => {
     SoundManager.unlockFromGesture()
-    setPlaySelectionOpen(true)
+    if (needsProfileEntry) openPlayProfileEntry()
+    else setPlaySelectionOpen(true)
   }
 
   const handleHubAssetStateChange = useCallback((nextState: HubAssetState) => {
@@ -985,7 +1022,9 @@ export default function HomeHub() {
             backgroundReady={backgroundLayers.ready}
             holidayTheme={playButtonHolidayTheme}
             playSelectionOpen={playSelectionOpen}
-            playSelectionButtons={playSelectionButtons}
+            playSelectionButtons={
+              needsProfileEntry ? [playProfileButton, playBackButton] : playSelectionButtons
+            }
             onPlay={handlePlay}
             onOpenHousemates={() => {
               SoundManager.unlockFromGesture()

@@ -101,9 +101,6 @@ vi.mock('../../utils/imageUtils', () => ({
   resizeAndCompressImage: vi.fn(),
 }))
 
-vi.mock('../../components/ConfirmExitModal/ConfirmExitModal', () => ({
-  default: () => null,
-}))
 vi.mock('../../services/backend/profileContact', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/backend/profileContact')>()),
   isProfileContactConfigured: vi.fn(),
@@ -190,20 +187,48 @@ describe('ProfilePicker', () => {
     expect(screen.getByText(/Delete one to make room/)).toBeDefined()
   })
 
-  it('manages profiles without offering gameplay or switching the active profile', () => {
+  it('switches to a restored profile from the manager even at the profile limit', () => {
     mockState.profiles.profiles = [
       { id: 'p1', name: 'Deni', avatar: 'D', createdAt: '2026-11-13T12:00:00Z' },
-      { id: 'p2', name: 'Sara', avatar: 'S', createdAt: '2026-11-13T12:00:00Z' },
+      {
+        id: 'p2',
+        name: 'Sara',
+        avatar: 'S',
+        createdAt: '2026-11-13T12:00:00Z',
+        playerAccountId: 'account',
+      },
+      {
+        id: 'p3',
+        name: 'Kiki',
+        avatar: 'K',
+        createdAt: '2026-11-13T12:00:00Z',
+        playerAccountId: 'account',
+      },
     ]
     mockState.profiles.activeProfileId = 'p1'
     mockLocationState = { from: '/profile/account', manageOnly: true }
-    render(<ProfilePicker />)
+    const view = render(<ProfilePicker />)
     expect(screen.getByRole('heading', { name: 'Manage profiles' })).toBeDefined()
-    expect(screen.queryByRole('button', { name: 'Select' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Select profile Deni' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Delete profile Sara' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /continue as guest/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Select profile Sara' }))
+    expect(mockDispatch).toHaveBeenNthCalledWith(1, {
+      type: 'profiles/selectActiveProfile',
+      payload: 'p2',
+    })
+    expect(mockDispatch).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ type: 'game/resetGame' })
+    )
+    expect(mockLoadSavedRunProfile).not.toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalled()
+    mockState.profiles.activeProfileId = 'p2'
+    view.rerender(<ProfilePicker />)
+    const saraCard = screen.getByText('Sara').closest('.profile-picker__card') as HTMLElement
+    expect(within(saraCard).getByText('Active')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /back to account/i }))
     expect(mockNavigate).toHaveBeenCalledWith('/profile/account', { replace: true })
-    expect(mockDispatch).not.toHaveBeenCalled()
   })
 
   it('returns home without a leave-game prompt before any season has started', () => {
@@ -627,6 +652,24 @@ describe('ProfilePicker', () => {
       posWinnerId: 'human',
     }
   }
+
+  it('asks before changing profiles from the manager during a season', () => {
+    setupActiveSeason()
+    mockLocationState = { from: '/profile/account', manageOnly: true }
+    render(<ProfilePicker />)
+    fireEvent.click(screen.getByRole('button', { name: 'Select profile Alex' }))
+    const dialog = screen.getByRole('dialog', { name: 'Switch Profile?' })
+    expect(mockDispatch).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Keep Playing' }))
+    expect(mockDispatch).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Select profile Alex' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Switch' }))
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'profiles/selectActiveProfile',
+      payload: 'profile-b',
+    })
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
 
   it('places the live season chips only inside the active profile card', () => {
     setupActiveSeason()
