@@ -56,6 +56,29 @@ describe('Faux TV presentation selection', () => {
     expect(hidden.meta?.broadcastConsumed).toBeUndefined()
   })
 
+  it('carries required reveals ahead of routine news until acknowledged', () => {
+    const legacyWill = event('will', 'eviction_results', 4)
+    legacyWill.meta = { ...legacyWill.meta, major: 'bellas_will' }
+    const required = event('other-reveal', 'eviction_results', 4)
+    required.meta = { ...required.meta, broadcastMustAir: true }
+    const future = event('future-reveal', 'eviction_results', 6)
+    future.meta = { ...future.meta, broadcastMustAir: true }
+    const ordinary = event('day-start', 'week_start', 5)
+    const feed = [future, ordinary, required, legacyWill]
+    const queue = [ordinary.id]
+
+    expect(selectCurrentBroadcastEvents(queue, feed, 'week_start', 5).map(({ id }) => id)).toEqual([
+      legacyWill.id,
+      required.id,
+      ordinary.id,
+    ])
+    legacyWill.meta.broadcastConsumed = true
+    expect(selectCurrentBroadcastEvents(queue, feed, 'week_start', 5).map(({ id }) => id)).toEqual([
+      required.id,
+      ordinary.id,
+    ])
+  })
+
   it('always returns current nonempty copy unless a foreground owner covers the viewport', () => {
     expect(
       selectFauxTvFrame({

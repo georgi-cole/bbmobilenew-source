@@ -62,6 +62,43 @@ export const BELLA_WILL_REWARD_LABELS: Record<BellaWillReward, string> = {
   remove_vote: 'Remove 1 vote next time the heir is nominated',
 }
 
+const BELLA_WILL_REVEAL_POWERS: Record<BellaWillReward, string> = {
+  immunity_2_days: 'immunity for the next two days',
+  extra_vote: 'an extra ballot at the next eligible elimination',
+  remove_vote: 'a one-vote deduction the next time they face elimination',
+}
+
+export function getBellaWillRevealCopy(heir: Player, reward: BellaWillReward, expired: boolean) {
+  const inheritance = heir.isUser ? 'You inherit' : `${heir.name} inherits`
+  const power =
+    heir.isUser && reward === 'remove_vote'
+      ? 'a one-vote deduction the next time you face elimination'
+      : BELLA_WILL_REVEAL_POWERS[reward]
+  const secret = 'Bella kept a fortune secret. Tonight, the Hub opens her will.'
+  if (expired) {
+    const named = heir.isUser ? 'You were named her heir' : `${heir.name} was named her heir`
+    return `${secret} ${named}, but the power expired at the Final 4.`
+  }
+  return `${secret} ${inheritance} ${power}.`
+}
+
+export function getBellaWillGuidance(will: BellaWillState | undefined): string | undefined {
+  if (will?.expiredAtEndgame) {
+    return 'The will was opened too late to turn the game. From the Final 4 onward, the inheritance can no longer be used.'
+  }
+  if (!will?.inherited) return undefined
+  switch (will.reward) {
+    case 'immunity_2_days':
+      return 'The heir gets a short reprieve from the block. If it’s yours, use the breathing room to talk to people before the protection runs out.'
+    case 'extra_vote':
+      return 'An extra ballot can swing a close vote. If it’s yours, look for the extra choice in the Confessional and decide where it will count most.'
+    case 'remove_vote':
+      return 'The will can take one vote off the heir’s tally when they’re on the block. Keep talking to the other voters. One vote can buy breathing room, and you may still need their support.'
+    default:
+      return undefined
+  }
+}
+
 export function buildBellaPoolEntry(): Pick<
   Player,
   'id' | 'name' | 'avatar' | 'status' | 'sex' | 'age'

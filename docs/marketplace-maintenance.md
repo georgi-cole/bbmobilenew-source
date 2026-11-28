@@ -44,6 +44,17 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-11-28: Reviewed the Faux TV Social and Incoming prompts for Standard
+  and VIP/Reality. The prompts open existing moves and replies under their
+  current eligibility rules and retire a Safety or nomination prompt once
+  the player contacts the holder. Product access and benefits are unchanged.
+
+- 2026-11-27: Reviewed the Incoming response requirement and phase-specific Social
+  opportunities for Standard, VIP/Reality, Classic, Cupid's Arrow, Vox Populi, and
+  Surveyeval. A Hubmate's accepted private campaign promise can influence their
+  house vote within the existing Reality action. The catalog's Social benefits,
+  access rules, and mode descriptions still match the game.
+
 - 2026-11-27: Restored the approved Risk Wheel: Abyss Standard and VIP
   Cinematic presentations. Register the cinematic version under Premium
   Challenges and VIP, using the existing presentation upgrade flow. Both

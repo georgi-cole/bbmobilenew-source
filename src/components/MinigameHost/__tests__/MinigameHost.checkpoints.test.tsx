@@ -269,18 +269,33 @@ describe('competition checkpoint boundaries', () => {
     expect(store.getState().challenge.pending?.attempt?.status).toBe('playing')
   })
 
-  it('treats an uncompleted remount as leaving rather than resetting its gameplay', async () => {
+  it('keeps an interrupted competition result on screen until its save succeeds', async () => {
     const first = mount()
     await screen.findByRole('button', { name: 'Finish run' })
     first.unmount()
     const saved = JSON.parse(JSON.stringify(store.getState().challenge))
     store.dispatch(hydrateChallenge(saved))
-    mount()
+    mocks.save.mockResolvedValueOnce(false)
+    const restored = mount()
+
     expect(screen.queryByRole('button', { name: 'Finish run' })).toBeNull()
-    expect(store.getState().challenge.pending?.attempt).toMatchObject({
+    expect(screen.getByRole('heading', { name: 'Exited early' })).toBeVisible()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not save this competition yet.'
+    )
+    expect(screen.getByRole('button', { name: 'Close results' })).toBeDisabled()
+    expect(restored.onDone).not.toHaveBeenCalled()
+    const recovered = store.getState().challenge.pending?.attempt
+    expect(recovered).toMatchObject({
+      number: 0,
       status: 'finished',
-      result: { partial: true },
+      result: { rawValue: 0, partial: true },
     })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry save' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    expect(screen.getByRole('button', { name: 'Close results' })).toBeEnabled()
+    expect(store.getState().challenge.pending?.attempt).toEqual(recovered)
   })
 
   it('checkpoints a granted retry before consuming its next gameplay attempt', async () => {

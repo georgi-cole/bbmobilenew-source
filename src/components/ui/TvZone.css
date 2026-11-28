@@ -612,6 +612,45 @@ body.experiment-game-chrome-refined .tv-zone__viewport.tv-zone__viewport--day-en
   display: contents;
 }
 
+.tv-zone__message-stage:has(> .tv-zone__social-cue-slot:not(:empty)) > .tv-zone__now {
+  display: none;
+}
+
+.tv-zone__social-cue-slot {
+  position: relative;
+  z-index: 3;
+  max-width: 100%;
+  text-align: center;
+}
+
+.tv-zone__social-cue-slot:empty {
+  display: none;
+}
+
+.tv-zone__social-cue {
+  min-height: 44px;
+  padding: 0.45rem 0.95rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #e3cfff;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.55;
+  text-shadow: 0 0 14px rgb(178 144 247 / 45%);
+  cursor: pointer;
+}
+
+.tv-zone__social-cue span {
+  margin-inline-start: 0.15em;
+}
+
+.tv-zone__social-cue:focus-visible {
+  outline: 2px solid #e3cfff;
+  outline-offset: 1px;
+}
+
 .tv-zone__viewport--daily-transition {
   flex: 1 1 auto;
   width: 100%;

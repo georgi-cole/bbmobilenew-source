@@ -168,6 +168,35 @@ function allianceContextForStore(
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('SocialPanelV2 – visibility', () => {
+  it('moves focus to the preselected Safety action when opened from a prompt', () => {
+    const holder = makeStore()
+      .getState()
+      .game.players.find((player) => !player.isUser)!
+    const store = makeStore({
+      phase: 'pos_results',
+      posWinnerId: holder.id,
+      playerStatusOverrides: { [holder.id]: 'pos' },
+      dramaMode: true,
+    })
+    const humanId = store.getState().game.players.find((player) => player.isUser)!.id
+    store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 7 }))
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] })
+    try {
+      renderPanel(store)
+      act(() =>
+        store.dispatch(openSocialPanel({ actionId: 'ask_safety_plan', targetId: holder.id }))
+      )
+      act(() => vi.advanceTimersToNextFrame())
+      act(() => vi.advanceTimersToNextFrame())
+
+      const action = screen.getByRole('button', { name: /Ask Safety Plan/i })
+      expect(action).toHaveFocus()
+      expect(action).toHaveAttribute('aria-pressed', 'true')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('does not render when phase is not social', () => {
     const store = makeStore({ phase: 'loh_comp' })
     renderPanel(store)

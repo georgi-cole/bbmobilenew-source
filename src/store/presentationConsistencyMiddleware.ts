@@ -1,4 +1,5 @@
 import { getMissionOutgoingIds } from '../bb/missionPowers'
+import { isPendingRequiredTvEvent } from '../broadcasting/fauxTvPresentation'
 import type { Middleware, MiddlewareAPI } from '@reduxjs/toolkit'
 import { clearEvictionVoteBreakdownUnlock } from '../features/evictionVoteBreakdownStorage'
 import { expandCupidIds } from '../features/twists/cupidArrow'
@@ -143,11 +144,13 @@ function consumePreviousDayBroadcasts(
 ): void {
   if (after.week <= before.week) return
 
-  // Anything that was still waiting at the instant the previous day ended is
-  // historical context now. Keep it in the log, but never allow it to surface
-  // as the new day's Faux TV "Now" item.
+  // Close the old day's airtime for ordinary events. Required public reveals
+  // keep their original day in the log and still need their turn on the TV.
   const ids = before.tvFeed
-    .filter((event) => event.meta?.broadcastConsumed !== true)
+    .filter(
+      (event) =>
+        event.meta?.broadcastConsumed !== true && !isPendingRequiredTvEvent(event, before.week)
+    )
     .map((event) => event.id)
   if (ids.length) api.dispatch(consumeBroadcastEvents(ids))
 }

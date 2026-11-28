@@ -47,10 +47,12 @@ const tvZoneGameEquality = createGameFieldEquality([
   'customBroadcasts',
   'democracia',
   'depressionShock',
+  'evictionOverlayPlayerId',
   'gameId',
   'isLive',
   'lastPlainBroadcastEventId',
   'mode',
+  'pendingEviction',
   'phase',
   'players',
   'presentationEventClaims',
@@ -91,6 +93,7 @@ import {
   getPhaseBroadcastCopy,
   isUnrevealedVoteOutcome,
   isPendingDetoxEvent,
+  isPendingRequiredTvEvent,
   selectCurrentBroadcastEvents,
   selectFauxTvFrame,
 } from '../../broadcasting/fauxTvPresentation'
@@ -104,6 +107,7 @@ import {
   isRecognizedBroadcastMajorKey,
 } from '../../broadcasting/broadcastPresentationRegistry'
 import { getDailyAtmosphere, getDailyTransitionTitle } from '../../broadcasting/dailyMoodSystem'
+import { getBellaWillGuidance } from '../../features/twists/bellasWill'
 import {
   formatCycleAriaLabel,
   formatCycleLabel,
@@ -158,8 +162,8 @@ function extractMajorKey(ev: TvEvent): string | null {
 
   // Legacy Battle Back events may still be tagged as a generic twist (or missing a major).
   if ((key === 'twist' || !key) && hasBattleBackCopy) return 'battle_back'
-  if (!key) return null
-  return isRecognizedBroadcastMajorKey(key) ? key : null
+  if (isRecognizedBroadcastMajorKey(key)) return key
+  return isPendingRequiredTvEvent(ev) ? 'custom_major' : null
 }
 
 function isFinalThreeResultAnnouncement(event: TvEvent): boolean {
@@ -204,6 +208,7 @@ function buildAnnouncement(
   return {
     key,
     ...meta,
+    ...(isPendingRequiredTvEvent(ev) ? { autoDismissMs: null } : {}),
     title:
       typeof eventTitle === 'string' && eventTitle.trim()
         ? eventTitle
@@ -215,7 +220,9 @@ function buildAnnouncement(
       migratedFinalFourSubtitle ??
       (typeof eventSubtitle === 'string' && eventSubtitle.trim()
         ? eventSubtitle
-        : (registryOverride?.text ?? registryTemplate?.text ?? meta.subtitle)),
+        : (registryOverride?.text ??
+          registryTemplate?.text ??
+          (isPendingRequiredTvEvent(ev) ? ev.text : meta.subtitle))),
   }
 }
 
@@ -352,6 +359,7 @@ type TvZoneProps = {
   playOwnedExternally?: boolean
   /** Synchronously owns the Faux TV during the phase-to-rules challenge handoff. */
   competitionStarting?: boolean
+  onSocialCueHostChange?: (host: HTMLDivElement | null) => void
   /**
    * Temporarily owns the viewport copy while a full-screen flow is in progress.
    * This keeps an older feed item from showing through a dimmed game background.
@@ -401,7 +409,7 @@ type TvZoneProps = {
  *
  * To inject new content: dispatch addTvEvent() action via useAppDispatch().
  */
-export default function TvZone(props: TvZoneProps) {
+export default function TvZone({ onSocialCueHostChange, ...props }: TvZoneProps) {
   const dispatch = useAppDispatch()
   const { onPriorityAnnouncementDismiss, onExternalAnnouncementDismiss } = props
   const gameState = useAppSelector((s) => s.game, tvZoneGameEquality)
@@ -457,6 +465,14 @@ export default function TvZone(props: TvZoneProps) {
       if (typeof event.meta?.gameId === 'string' && event.meta.gameId !== gameState.gameId) {
         return false
       }
+      if (
+        isPendingRequiredTvEvent(event) &&
+        (isUnrevealedVoteOutcome(event, gameState.week, voteOutcomePending) ||
+          (event.type === 'vote' &&
+            event.meta?.week === gameState.week &&
+            gameState.phase === 'live_vote'))
+      )
+        return false
       const templateId = event.meta?.broadcastTemplateId
       if (typeof templateId === 'string' && gameState.broadcastOverrides?.[templateId]?.disabled) {
         return false
@@ -485,6 +501,8 @@ export default function TvZone(props: TvZoneProps) {
       gameState.gameId,
       gameState.phase,
       gameState.voxPopuli?.publicVoteContext,
+      gameState.week,
+      voteOutcomePending,
     ]
   )
   const currentQueuedBroadcastEvents = useMemo(
@@ -513,6 +531,8 @@ export default function TvZone(props: TvZoneProps) {
     ]
   )
   const queuedBroadcastEvent = currentQueuedBroadcastEvents[0] ?? null
+  const requiredBroadcastQueued =
+    queuedBroadcastEvent !== null && isPendingRequiredTvEvent(queuedBroadcastEvent)
   const pinnedQueuedBroadcastEvent =
     gameState.activeBroadcastEventId === queuedBroadcastEvent?.id ? queuedBroadcastEvent : null
   // Season-start expansion activations must outrank the onboarding welcome in
@@ -618,7 +638,10 @@ export default function TvZone(props: TvZoneProps) {
   const [modalOpen, setModalOpen] = useState(false)
   // Keep the modal key alive independently so the modal stays open even if
   // the overlay dismisses (e.g. via auto-dismiss) while the user is reading.
-  const [modalAnnouncementKey, setModalAnnouncementKey] = useState<string | null>(null)
+  const [modalAnnouncement, setModalAnnouncement] = useState<{
+    key: string
+    bellaWillGuidance?: string
+  } | null>(null)
   // Track which event the user has manually dismissed so the overlay doesn't
   // reappear for the same event after dismissal.
   const [dismissedEventId, setDismissedEventId] = useState<string | null>(null)
@@ -1109,7 +1132,11 @@ export default function TvZone(props: TvZoneProps) {
     publicSaveRevealActive ||
     voteResultsRevealActive ||
     democraciaResultsRevealActive ||
-    audiencePreviewRevealActive
+    audiencePreviewRevealActive ||
+    (requiredBroadcastQueued &&
+      (gameState.pendingEviction ||
+        gameState.evictionOverlayPlayerId ||
+        props.viewportMessageOverride))
   )
   const showInlineAnnouncement =
     !broadcastPresentationCovered &&
@@ -1126,11 +1153,15 @@ export default function TvZone(props: TvZoneProps) {
       eventAnnouncementSource?.id === queuedBroadcastEvent.id)
       ? queuedBroadcastEvent.id
       : null
+  const requiredBroadcastCovered =
+    requiredBroadcastQueued &&
+    (broadcastPresentationCovered || (queuedBroadcastIsCard && !showInlineAnnouncement))
 
   useLayoutEffect(() => {
     if (
       queuedBroadcastPresentationId &&
       !broadcastPresentationCovered &&
+      !requiredBroadcastCovered &&
       gameState.activeBroadcastEventId !== queuedBroadcastPresentationId
     ) {
       dispatch(claimActiveBroadcastEvent(queuedBroadcastPresentationId))
@@ -1140,6 +1171,7 @@ export default function TvZone(props: TvZoneProps) {
     gameState.activeBroadcastEventId,
     broadcastPresentationCovered,
     queuedBroadcastPresentationId,
+    requiredBroadcastCovered,
   ])
   // Keep the Safety Ceremony bed present through the title card, then duck it
   // under voting and reveal audio until the next phase resumes normal volume.
@@ -1258,6 +1290,7 @@ export default function TvZone(props: TvZoneProps) {
 
   const handleDismiss = useCallback(() => {
     const currentAnnouncement = activeAnnouncement
+    if (requiredBroadcastCovered && currentAnnouncement === managedEventAnnouncement) return
     // This is a season decision; only its Agree/Exit controls can resolve it.
     if (currentAnnouncement?.key === 'tribunal_invitation') return
     // Cupid's opening proclamation can only progress through its own OK
@@ -1337,6 +1370,7 @@ export default function TvZone(props: TvZoneProps) {
     onExternalAnnouncementDismiss,
     priorityBroadcastEvent,
     cupidIntroAcknowledged,
+    requiredBroadcastCovered,
   ])
 
   useEffect(() => {
@@ -1554,10 +1588,17 @@ export default function TvZone(props: TvZoneProps) {
       startTransition(() => setShockInfoSpotlightActive(false))
     }
     if (activeAnnouncement) {
-      setModalAnnouncementKey(activeAnnouncement.key)
+      const { key } = activeAnnouncement
+      setModalAnnouncement({
+        key,
+        bellaWillGuidance:
+          key === 'bellas_will'
+            ? getBellaWillGuidance(reduxStore.getState().game.bellaWill)
+            : undefined,
+      })
       setModalOpen(true)
     }
-  }, [activeAnnouncement, shockInfoSpotlightActive])
+  }, [activeAnnouncement, reduxStore, shockInfoSpotlightActive])
 
   // Listen for central FAB 'tv:announcement-dismiss' events
   useEffect(() => {
@@ -1602,6 +1643,11 @@ export default function TvZone(props: TvZoneProps) {
         return
       }
       if (queuedBroadcastEvent && (!activeAnnouncement || managedEventAnnouncement)) {
+        if (
+          requiredBroadcastCovered &&
+          (!activeAnnouncement || activeAnnouncement === managedEventAnnouncement)
+        )
+          return
         if (managedEventAnnouncement) {
           // A season-expansion instruction is always the middle beat of the
           // opening sequence. Its Play may consume the instruction, but must
@@ -1609,6 +1655,7 @@ export default function TvZone(props: TvZoneProps) {
           // chance to occupy the faux TV (even if a persisted queue was
           // missing that welcome id).
           if (
+            requiredBroadcastQueued ||
             isSeasonStartExpansionActivation(eventAnnouncementSource) ||
             activeAnnouncement?.key === 'vox_populi_finale_ready' ||
             currentQueuedBroadcastEvents.length > 1
@@ -1623,7 +1670,8 @@ export default function TvZone(props: TvZoneProps) {
           // A plain message needs to block Play only when another eligible TV
           // item follows it. Acknowledging the final plain message and moving
           // into the next phase should happen on the same button press.
-          if (currentQueuedBroadcastEvents.length > 1) event.preventDefault()
+          if (requiredBroadcastQueued || currentQueuedBroadcastEvents.length > 1)
+            event.preventDefault()
           dispatch(consumeBroadcastEvent(queuedBroadcastEvent.id))
         }
         return
@@ -1679,6 +1727,8 @@ export default function TvZone(props: TvZoneProps) {
     queuedBroadcastEvent,
     eventAnnouncementSource,
     currentQueuedBroadcastEvents.length,
+    requiredBroadcastCovered,
+    requiredBroadcastQueued,
     cupidFollowUpVisible,
     shockIntroActive,
     props.playOwnedExternally,
@@ -2202,6 +2252,19 @@ export default function TvZone(props: TvZoneProps) {
                   {viewportDisplayText}
                 </p>
               )}
+              {onSocialCueHostChange &&
+                !hideViewportMessage &&
+                !viewportMessageOverride &&
+                !broadcastPresentationCovered &&
+                !guestSaveReminderQueued &&
+                !cupidFollowUpVisible &&
+                !detoxMessageActive && (
+                  <div
+                    key={`social-cue:${gameState.gameId}:${gameState.week}:${gameState.phase}:${viewportMessageKey}`}
+                    className="tv-zone__social-cue-slot"
+                    ref={onSocialCueHostChange}
+                  />
+                )}
             </div>
 
             {/* Twist badge — broadcast-style corner ribbon anchored to the viewport */}
@@ -2344,9 +2407,10 @@ export default function TvZone(props: TvZoneProps) {
       />
 
       {/* ── Phase-info modal ─────────────────────────────────────────────── */}
-      {modalAnnouncementKey && (
+      {modalAnnouncement && (
         <TvAnnouncementModal
-          announcementKey={modalAnnouncementKey}
+          announcementKey={modalAnnouncement.key}
+          bellaWillGuidance={modalAnnouncement.bellaWillGuidance}
           open={modalOpen}
           onClose={handleModalClose}
         />

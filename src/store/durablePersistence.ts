@@ -434,9 +434,10 @@ export function removeDurableItem(key: string): boolean {
 export async function flushDurablePersistence(): Promise<boolean> {
   if (!initialized || !backend) return true
   if (backend.kind === 'localstorage-fallback') return true
-  if (activeFlush) {
-    const firstResult = await activeFlush
-    if (!firstResult || pending.size === 0) return firstResult
+  // Another caller can start the next batch while we are waiting. Wait for
+  // that batch too before treating an empty queue as a successful write.
+  while (activeFlush) {
+    if (!(await activeFlush)) return false
   }
 
   if (flushTimer !== null) {

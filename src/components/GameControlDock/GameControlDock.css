@@ -425,6 +425,40 @@ body.mode-surveyeval .fab-icon.confessional {
   cursor: not-allowed;
 }
 
+.dock-hit-area--social-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: clamp(28px, 8vw, 44px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgb(240 225 255 / 66%);
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 40%, rgb(187 145 255 / 25%));
+  box-shadow:
+    0 0 10px rgb(194 154 255 / 65%),
+    0 0 22px rgb(129 92 237 / 42%);
+  pointer-events: none;
+  animation: dock-social-spotlight 1100ms ease-out both;
+}
+
+@keyframes dock-social-spotlight {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  15%,
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-hit-area--social-spotlight::before {
+    animation-timing-function: steps(1, jump-start);
+  }
+}
+
 .dock-hit-area__badge {
   position: absolute;
   top: var(--dock-badge-y, 9%);
@@ -463,6 +497,7 @@ body.mode-surveyeval .fab-icon.confessional {
 }
 
 /* Warm gold mission badge on the Confessional FAB button. */
+.dock-hit-area--decision-required .dock-hit-area__badge,
 .dock-hit-area__badge--mission {
   min-width: 18px;
   height: 18px;

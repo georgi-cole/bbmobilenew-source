@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildViewportMetaContent } from '../../../src/components/layout/viewportMeta'
+import {
+  applyViewportMeta,
+  buildViewportMetaContent,
+} from '../../../src/components/layout/viewportMeta'
 
 describe('buildViewportMetaContent', () => {
   it('keeps native pinch zoom available in the standard range', () => {
@@ -11,5 +14,22 @@ describe('buildViewportMetaContent', () => {
   })
   it('offers an expanded range when enhanced zoom is enabled', () => {
     expect(buildViewportMetaContent(true)).toContain('maximum-scale=10')
+  })
+
+  it('locks the native iOS viewport even when a saved zoom preference is enabled', () => {
+    const meta = document.createElement('meta')
+    meta.name = 'viewport'
+    document.head.append(meta)
+    document.documentElement.classList.add('is-capacitor-ios')
+    try {
+      applyViewportMeta(false)
+      expect(meta.content).toContain('maximum-scale=1, user-scalable=no')
+      expect(meta.content).toContain('viewport-fit=cover')
+      applyViewportMeta(true)
+      expect(meta.content).toContain('maximum-scale=1, user-scalable=no')
+    } finally {
+      document.documentElement.classList.remove('is-capacitor-ios')
+      meta.remove()
+    }
   })
 })

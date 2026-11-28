@@ -1,6 +1,12 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import { useStore } from 'react-redux'
+import { shallowEqual, useStore } from 'react-redux'
+import { selectRequiredIncomingDecision } from '../../social/incomingDecisions'
+import {
+  getSocialTipClaim,
+  selectSocialOpportunity,
+  type SocialOpportunity,
+} from '../../social/socialOpportunity'
 import { hasPresentationEventClaim } from '../../broadcasting/fauxTvPresentation'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -33,6 +39,8 @@ import {
   openIncomingInbox,
   openSocialPanel,
   selectEnergyBank,
+  selectIncomingInboxOpen,
+  selectSocialPanelOpen,
   selectPendingIncomingInteractionCount,
   selectUnreadIncomingNoticeCount,
 } from '../../social/socialSlice'
@@ -121,6 +129,7 @@ function isSameEndedSurvivalRun(current: RootState['game'], expected: RootState[
 }
 
 type FloatingActionBarProps = {
+  socialCueHost?: HTMLDivElement | null
   tribunalDecisionPending?: boolean
   /** Called when the player activates Public Meter while public mode is disabled. */
   onPublicMeterBlocked?: () => void
@@ -153,6 +162,7 @@ type FloatingActionBarProps = {
  * - Right side: Public Meter hook + Diary Room shortcut.
  */
 export default function FloatingActionBar({
+  socialCueHost,
   tribunalDecisionPending = false,
   onPublicMeterBlocked,
   onSocialModuleBlocked,
@@ -170,6 +180,23 @@ export default function FloatingActionBar({
   const reduxStore = useStore<RootState>()
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
+  const requiredIncoming = useAppSelector(selectRequiredIncomingDecision)
+  const [shownSocialTip, setShownSocialTip] = useState<{
+    phaseKey: string
+    opportunity: SocialOpportunity
+  } | null>(null)
+  const socialTipPhaseKey = useAppSelector(
+    ({ game }) => `${game.gameId}:${game.week}:${game.phase}`
+  )
+  const shownOpportunity =
+    shownSocialTip?.phaseKey === socialTipPhaseKey ? shownSocialTip.opportunity : null
+  const socialTipStillAvailable = useAppSelector(
+    (state) =>
+      shownOpportunity !== null &&
+      shallowEqual(shownOpportunity, selectSocialOpportunity(state, shownOpportunity.kind))
+  )
+  const incomingInboxOpen = useAppSelector(selectIncomingInboxOpen)
+  const socialPanelOpen = useAppSelector(selectSocialPanelOpen)
   const pendingCount = useAppSelector(selectPendingIncomingInteractionCount)
   const unreadNoticeCount = useAppSelector(selectUnreadIncomingNoticeCount)
   const pendingAllianceDecisionCount = useAppSelector((state) => {
@@ -360,6 +387,39 @@ export default function FloatingActionBar({
   } | null>(null)
   const confessionalIconRef = useRef<HTMLImageElement | null>(null)
   const socialIconRef = useRef<HTMLButtonElement | null>(null)
+  const incomingIconRef = useRef<HTMLButtonElement | null>(null)
+  const [incomingSpotlight, setIncomingSpotlight] = useState<{
+    interactionId: string
+    attempt: number
+    flashing: boolean
+  } | null>(null)
+  const incomingSpotlightActive =
+    requiredIncoming !== null &&
+    incomingSpotlight?.interactionId === requiredIncoming.id &&
+    !incomingInboxOpen
+  const requiredIncomingSender = incomingSpotlightActive
+    ? game.players.find((player) => player.id === requiredIncoming?.fromId)
+    : undefined
+  const incomingBlockedMessage = incomingSpotlightActive
+    ? requiredIncomingSender
+      ? `Answer ${requiredIncomingSender.name} in Incoming before continuing.`
+      : 'Answer the important message in Incoming before continuing.'
+    : null
+  const completeIncomingSpotlight = useCallback(() => setIncomingSpotlight(null), [])
+  const finishIncomingFlash = useCallback(() => {
+    setIncomingSpotlight((current) => current && { ...current, flashing: false })
+  }, [])
+  const spotlightRequiredIncoming = useCallback(() => {
+    const state = reduxStore.getState()
+    const interaction = selectRequiredIncomingDecision(state)
+    if (!interaction) return false
+    setIncomingSpotlight((current) => ({
+      interactionId: interaction.id,
+      attempt: (current?.attempt ?? 0) + 1,
+      flashing: true,
+    }))
+    return true
+  }, [reduxStore])
   const [completedWeekendSocialSpotlightKey, setCompletedWeekendSocialSpotlightKey] = useState<
     string | null
   >(null)
@@ -484,7 +544,7 @@ export default function FloatingActionBar({
           (survivorReplacementPending
             ? false
             : hasPendingConfessionalDecision
-              ? confessionalPromptActivated
+              ? !requiredIncoming && confessionalPromptActivated
               : isWaiting)
   const primaryPulse = finaleOverlayActive
     ? finalePlayAvailable
@@ -569,9 +629,13 @@ export default function FloatingActionBar({
       onSocialModuleBlocked?.(incomingSocialModuleAvailability)
       return
     }
-    dispatch(openIncomingInbox())
+    completeIncomingSpotlight()
+    setBlockedAnnouncement(null)
+    dispatch(openIncomingInbox(selectRequiredIncomingDecision(reduxStore.getState())?.id))
   }, [
     canUseIncomingSocialModule,
+    completeIncomingSpotlight,
+    reduxStore,
     dispatch,
     incomingSocialModuleAvailability,
     isSurvivorMode,
@@ -579,6 +643,18 @@ export default function FloatingActionBar({
     reunionDepartureInProgress,
     showSurvivorBlockedMessage,
   ])
+
+  const handleSocialOpportunityClick = (opportunity: SocialOpportunity) => {
+    setShownSocialTip(null)
+    if (opportunity.kind === 'incoming') {
+      completeIncomingSpotlight()
+      setBlockedAnnouncement(null)
+      dispatch(openIncomingInbox(opportunity.interactionId))
+      return
+    }
+    const { actionId, targetId, subjectId } = opportunity
+    dispatch(openSocialPanel({ actionId, targetId, subjectId }))
+  }
 
   const dispatchPlayPressedEvent = useCallback((): boolean => {
     try {
@@ -591,6 +667,7 @@ export default function FloatingActionBar({
 
   const handlePrimaryActionClick = useCallback(() => {
     setBlockedAnnouncement(null)
+    if (!finaleOverlayActive && !finaleInlinePlayActive && spotlightRequiredIncoming()) return
     // The finale opening and Part 3 setup use an explicit, guarded callback.
     // They must not depend on a globally broadcast Play event, which a pending
     // Confessional or old TV presentation can intercept before the finale.
@@ -743,6 +820,22 @@ export default function FloatingActionBar({
     // consume the press so its queued story beat is actually seen before the
     // reducer is allowed to generate the next phase behind it.
     if (!dispatchPlayPressedEvent()) return
+    if (shownOpportunity) {
+      setShownSocialTip(null)
+    } else if (
+      socialCueHost &&
+      !incomingInboxOpen &&
+      !socialPanelOpen &&
+      !selectRequiredIncomingDecision(reduxStore.getState())
+    ) {
+      const state = reduxStore.getState()
+      const opportunity = selectSocialOpportunity(state)
+      if (opportunity) {
+        dispatch(claimPresentationEvent(getSocialTipClaim(state.game, opportunity.kind)))
+        setShownSocialTip({ phaseKey: socialTipPhaseKey, opportunity })
+        return
+      }
+    }
     advancedProgressRef.current = advanceProgressKey
     dispatch(advance())
   }, [
@@ -759,8 +852,15 @@ export default function FloatingActionBar({
     finaleOverlayActive,
     hasPendingConfessionalDecision,
     hasSeenConfessionalSpotlight,
+    incomingInboxOpen,
     onDemocraciaResultsDone,
     onFinalePlay,
+    reduxStore,
+    spotlightRequiredIncoming,
+    shownOpportunity,
+    socialCueHost,
+    socialPanelOpen,
+    socialTipPhaseKey,
     survivorReplacementPending,
     survivorTerminalActive,
     voxPopuliActive,
@@ -778,6 +878,7 @@ export default function FloatingActionBar({
       )
       return
     }
+    if (hasPendingConfessionalDecision && spotlightRequiredIncoming()) return
     if (weekendTribunalStreamAvailable) {
       if (weekend?.reunionDepartureActive) return
       dispatch(openWeekendTribunalStream())
@@ -798,7 +899,9 @@ export default function FloatingActionBar({
     completeConfessionalSpotlight,
     showConfessionalSpotlight,
     dispatch,
+    hasPendingConfessionalDecision,
     isSurvivorMode,
+    spotlightRequiredIncoming,
     location.hash,
     location.pathname,
     location.search,
@@ -1077,12 +1180,24 @@ export default function FloatingActionBar({
     }
   }, [])
 
+  const socialOpportunity: SocialOpportunity | null =
+    incomingBlockedMessage && requiredIncoming
+      ? { kind: 'incoming', interactionId: requiredIncoming.id, label: incomingBlockedMessage }
+      : socialTipStillAvailable && !requiredIncoming
+        ? shownOpportunity
+        : null
+
   return (
     <>
       {blockedAnnouncement && (
         <div className="floating-action-bar__blocked-message" role="status" aria-live="polite">
           {blockedAnnouncement.message}
         </div>
+      )}
+      {!socialCueHost && incomingBlockedMessage && (
+        <span className="visually-hidden" role="status">
+          {incomingBlockedMessage}
+        </span>
       )}
       <ConfirmExitModal
         open={homeConfirmOpen && !survivorTerminalActive}
@@ -1185,6 +1300,23 @@ export default function FloatingActionBar({
         }
         socialDisabled={socialModulesUnavailable}
         incomingRequestsDisabled={incomingSocialModuleUnavailable}
+        incomingDecisionRequired={requiredIncoming !== null}
+        incomingIconRef={incomingIconRef}
+        socialCueHost={socialCueHost}
+        socialCue={
+          socialOpportunity &&
+          !blockedAnnouncement &&
+          !incomingInboxOpen &&
+          !socialPanelOpen &&
+          !finaleInlinePlayActive &&
+          !tribunalDecisionPending
+            ? {
+                ...socialOpportunity,
+                flash: incomingBlockedMessage === null,
+                onClick: () => handleSocialOpportunityClick(socialOpportunity),
+              }
+            : undefined
+        }
         publicMeterDisabled={game.publicModeEnabled !== true}
         confessionalDisabled={
           isSurvivorMode || reunionDepartureInProgress || weekend?.stage === 'finale_reunion_social'
@@ -1225,6 +1357,13 @@ export default function FloatingActionBar({
         confessionalSpecialStream={weekendTribunalStreamAvailable}
         confessionalIconRef={confessionalIconRef}
         socialIconRef={socialIconRef}
+      />
+      <ConfessionalSpotlightOverlay
+        key={incomingSpotlight?.attempt ?? 0}
+        active={incomingSpotlightActive && incomingSpotlight?.flashing === true}
+        targetRef={incomingIconRef}
+        onComplete={finishIncomingFlash}
+        durationMs={1100}
       />
       <ConfessionalSpotlightOverlay
         active={showWeekendSocialSpotlight && weekendSocialActive}

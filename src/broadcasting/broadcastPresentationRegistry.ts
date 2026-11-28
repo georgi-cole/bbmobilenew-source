@@ -52,6 +52,10 @@ export const BROADCAST_PRESENTATION_REGISTRY: Readonly<Record<string, BroadcastP
       shock: true,
       announcement: liveCard('SHOCK ANNOUNCEMENT', ''),
     },
+    bellas_will: {
+      eventMajor: true,
+      announcement: liveCard("Bella's Will", ''),
+    },
     secret_mission_complete: {
       eventMajor: true,
       announcement: liveCard(

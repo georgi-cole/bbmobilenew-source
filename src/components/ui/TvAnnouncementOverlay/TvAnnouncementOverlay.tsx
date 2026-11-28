@@ -410,7 +410,7 @@ export default function TvAnnouncementOverlay({
 
         {showInfoButton && (
           <button
-            className="tv-announcement__info-btn"
+            className={`tv-announcement__info-btn${announcement.key === 'bellas_will' && active && !reducedMotion ? ' tv-announcement__info-btn--pulse' : ''}`}
             onClick={onInfo}
             aria-label={`More info about ${title}`}
             ref={infoButtonRef}

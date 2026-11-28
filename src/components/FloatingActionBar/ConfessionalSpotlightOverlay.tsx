@@ -23,6 +23,7 @@ type ConfessionalSpotlightOverlayProps = {
   active: boolean;
   targetRef: RefObject<HTMLElement | null>;
   onComplete: () => void;
+  durationMs?: number;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -55,8 +56,12 @@ export default function ConfessionalSpotlightOverlay({
   active,
   targetRef,
   onComplete,
+  durationMs,
 }: ConfessionalSpotlightOverlayProps) {
   const prefersReducedMotion = useReducedMotion();
+  const spotlightDuration = durationMs ?? (
+    prefersReducedMotion ? SPOTLIGHT_REDUCED_DURATION_MS : SPOTLIGHT_TOTAL_DURATION_MS
+  );
   const [targetRect, setTargetRect] = useState<SpotlightRect | null>(null);
 
   useLayoutEffect(() => {
@@ -109,12 +114,9 @@ export default function ConfessionalSpotlightOverlay({
 
   useEffect(() => {
     if (!active) return;
-    const timer = window.setTimeout(
-      onComplete,
-      prefersReducedMotion ? SPOTLIGHT_REDUCED_DURATION_MS : SPOTLIGHT_TOTAL_DURATION_MS,
-    );
+    const timer = window.setTimeout(onComplete, spotlightDuration);
     return () => window.clearTimeout(timer);
-  }, [active, onComplete, prefersReducedMotion]);
+  }, [active, onComplete, spotlightDuration]);
 
   const overlayMetrics = useMemo(() => {
     if (!targetRect) return null;
@@ -167,9 +169,7 @@ export default function ConfessionalSpotlightOverlay({
     height: overlayMetrics.glowSize,
   } as CSSProperties;
 
-  const totalDurationSeconds = (
-    prefersReducedMotion ? SPOTLIGHT_REDUCED_DURATION_MS : SPOTLIGHT_TOTAL_DURATION_MS
-  ) / 1000;
+  const totalDurationSeconds = spotlightDuration / 1000;
 
   return createPortal(
     <div

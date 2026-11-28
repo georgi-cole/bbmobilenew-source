@@ -50,6 +50,10 @@ import {
   getIncomingInteractionResponsePolicy,
   type IncomingInteractionResponsePolicy,
 } from '../../social/socialRuntimeConfig'
+import {
+  isRequiredIncomingDecision,
+  selectRequiredIncomingDecision,
+} from '../../social/incomingDecisions'
 import type {
   DramaBelief,
   IncomingInteraction,
@@ -274,6 +278,8 @@ interface InteractionItemProps {
   priority: IncomingInteractionPriority
   policy: IncomingInteractionResponsePolicy
   showActions: boolean
+  needsAnswer: boolean
+  focused: boolean
   playerById: Map<string, Player>
   currentWeek: number
   currentPhase: string
@@ -296,6 +302,8 @@ function InteractionItem({
   priority,
   policy,
   showActions,
+  needsAnswer,
+  focused,
   playerById,
   currentWeek,
   currentPhase,
@@ -310,6 +318,14 @@ function InteractionItem({
 }: InteractionItemProps) {
   const itemRef = useRef<HTMLDivElement>(null)
   const [nominationChoiceId, setNominationChoiceId] = useState('')
+  useEffect(() => {
+    if (!focused) return
+    const frame = window.requestAnimationFrame(() => {
+      itemRef.current?.scrollIntoView?.({ block: 'nearest' })
+      itemRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [focused])
   const fromPlayer = playerById.get(interaction.fromId)
   const fromName = fromPlayer?.name ?? interaction.fromId
   const safetyConsultation = getSafetyConsultationScenario(interaction)
@@ -404,6 +420,9 @@ function InteractionItem({
   return (
     <div
       ref={itemRef}
+      tabIndex={focused ? -1 : undefined}
+      data-interaction-id={interaction.id}
+      data-reply-required={needsAnswer || undefined}
       className={`inbox-item inbox-item--priority-${priority} inbox-item--policy-${policy}${
         isUnread ? ' inbox-item--unread' : ''
       }${interaction.resolved ? ' inbox-item--resolved' : ''}`}
@@ -426,7 +445,7 @@ function InteractionItem({
         <div className="inbox-item__title">
           <div className="inbox-item__from-row">
             <span className="inbox-item__from">{fromName}</span>
-            {priority === 'high' && policy === 'required' && (
+            {needsAnswer && (
               <span className="inbox-item__priority inbox-item__priority--high">Important</span>
             )}
           </div>
@@ -560,6 +579,8 @@ function InteractionItem({
 export default function IncomingInteractionsInbox() {
   const dispatch = useAppDispatch()
   const open = useAppSelector(selectIncomingInboxOpen)
+  const focusId = useAppSelector((state) => state.social.incomingInboxFocusId)
+  const required = useAppSelector((state) => (open ? selectRequiredIncomingDecision(state) : null))
   const compareWhileOpen = useCallback(
     (previous: unknown, next: unknown) => !open || previous === next,
     [open]
@@ -618,14 +639,18 @@ export default function IncomingInteractionsInbox() {
             : undefined
         ),
         policy: getIncomingInteractionResponsePolicy(interaction),
+        needsAnswer:
+          required !== null &&
+          isRequiredIncomingDecision({ game, social: { reality } }, interaction),
       })),
-    [interactions]
+    [game, interactions, reality, required]
   )
 
   const sortedInteractions = useMemo(
     () =>
       [...interactionEntries].sort(
         (left, right) =>
+          Number(right.needsAnswer) - Number(left.needsAnswer) ||
           left.interaction.createdAt - right.interaction.createdAt ||
           left.interaction.id.localeCompare(right.interaction.id)
       ),
@@ -682,6 +707,7 @@ export default function IncomingInteractionsInbox() {
   const houseUpdateCount = openInteractions.length - openConversationCount
   const headerSummary =
     [
+      required ? 'Reply required' : null,
       actionableAllianceRequests.length > 0
         ? `${actionableAllianceRequests.length} alliance decision${actionableAllianceRequests.length === 1 ? '' : 's'}`
         : null,
@@ -747,6 +773,11 @@ export default function IncomingInteractionsInbox() {
         priority={priority}
         policy={policy}
         showActions={showActions}
+        needsAnswer={
+          required !== null &&
+          isRequiredIncomingDecision({ game, social: { reality } }, interaction)
+        }
+        focused={focusId === interaction.id}
         playerById={playerById}
         currentWeek={currentWeek}
         currentPhase={game.phase ?? 'week_start'}

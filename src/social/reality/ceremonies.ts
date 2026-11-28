@@ -1,3 +1,4 @@
+import { CAMPAIGN_VOTE_PROMISE } from './campaignVotePromises'
 import { addRealityFact, learnRealityFact } from './knowledge'
 import { compareRealityClock, resolveRealityPromise } from './commitments'
 import { appendRealityEvent } from './events'
@@ -784,6 +785,7 @@ export function finalizeRealityVote(
   eligibleTargetIds?: string[],
   options: {
     revealed?: boolean
+    jointTargetIds?: readonly string[]
     relationshipTagsByTarget?: Record<string, string[]>
     acceptedPromiseTargetIds?: string[]
   } = {}
@@ -888,6 +890,20 @@ export function finalizeRealityVote(
           ? promise.scope.voteTargetId
           : undefined
     if (!promisedTarget) continue
+    if (promise.kind === CAMPAIGN_VOTE_PROMISE) {
+      const relevant =
+        promise.deadline?.day === at.day &&
+        (!eligibleTargetIds || eligibleTargetIds.includes(promisedTarget))
+      const kept = promisedTarget === targetId || options.jointTargetIds?.includes(promisedTarget)
+      resolveRealityPromise(
+        state,
+        promise.id,
+        relevant ? (kept ? 'KEPT' : 'BROKEN') : 'VOID',
+        at,
+        eventId
+      )
+      continue
+    }
     resolveRealityPromise(
       state,
       promise.id,

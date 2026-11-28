@@ -8,6 +8,47 @@ export function incomingDockButton(page: Page) {
     .getByRole('button', { name: /^Incoming requests(?: \(\d+\))?$/ })
 }
 
+export async function replyToRequiredIncoming(page: Page) {
+  const button = incomingDockButton(page).and(page.locator('.dock-hit-area--decision-required'))
+  if (!(await button.isVisible()) || !(await button.isEnabled())) return false
+  const ready = await button.click({ trial: true, timeout: 1000 }).then(
+    () => true,
+    () => false
+  )
+  if (!ready) return false
+
+  await button.click()
+  const inbox = page.getByRole('dialog', { name: 'Incoming interactions' })
+  await expect(inbox).toBeVisible()
+  const guide = page.getByRole('dialog', { name: 'They came to you' })
+  if (await guide.isVisible()) await guide.getByRole('button', { name: 'Got it' }).click()
+
+  const card = inbox.locator('[data-reply-required="true"]').first()
+  const interactionId = await card.getAttribute('data-interaction-id')
+  const reply = card
+    .locator(
+      'button[data-response-type]:not([data-response-action]):not([data-response-type="ignore"])'
+    )
+    .first()
+  await expect(reply).toBeEnabled()
+  await reply.click()
+  await expect
+    .poll(
+      async () =>
+        (await readAppState(page)).social.incomingInteractions.find(
+          ({ id }) => id === interactionId
+        )?.resolved
+    )
+    .toBe(true)
+
+  const promiseGuide = page.getByRole('dialog', { name: 'You made a promise' })
+  if (await promiseGuide.isVisible()) {
+    await promiseGuide.getByRole('button', { name: 'Got it' }).click()
+  }
+  await inbox.getByRole('button', { name: 'Close inbox' }).click()
+  return true
+}
+
 export async function replyToOptionalIncoming(page: Page, before: RootState) {
   const candidate = before.social.incomingInteractions.find(
     (entry) => !entry.resolved && entry.payload?.responsePolicy === 'optional'

@@ -13,7 +13,11 @@ import {
 } from './support/test'
 import { openProfileCreationForm } from './support/profile'
 import { mkdir } from 'node:fs/promises'
-import { incomingDockButton, replyToOptionalIncoming } from './support/incomingSocial'
+import {
+  incomingDockButton,
+  replyToOptionalIncoming,
+  replyToRequiredIncoming,
+} from './support/incomingSocial'
 
 const JOURNEY_TIMEOUT_MS = 90_000
 const SCREEN_TIMEOUT_MS = 30_000
@@ -294,6 +298,7 @@ async function advanceToFirstSocialPhase(page: Page): Promise<void> {
     await closePhaseInformationIfPresent(page)
     const phase = (await readAppState(page)).game.phase
     if (phase === 'social_1') return
+    if (await replyToRequiredIncoming(page)) continue
 
     if (phase === 'loh_comp') {
       await resolveCompetitionThroughPlayerControls(page, phase)
@@ -426,6 +431,7 @@ async function playOneCompleteWeek(page: Page): Promise<{
       continue
     }
 
+    if (await replyToRequiredIncoming(page)) continue
     if (hasCoreWeekDecision(game)) {
       await completeActiveConfessionalDecision(page)
       continue
@@ -757,7 +763,11 @@ test.describe('Real player core journeys', () => {
     await advanceToFirstSocialPhase(page)
 
     const gameActions = page.getByRole('toolbar', { name: 'Game actions' })
-    await gameActions.getByRole('button', { name: /^Social(?: \(\d+\))?$/ }).click()
+    const socialButton = gameActions.getByRole('button', { name: /^Social(?: \(\d+\))?$/ })
+    const opensSuggestedMove = (await socialButton.getAttribute('class'))?.includes(
+      'dock-hit-area--social-spotlight'
+    )
+    await socialButton.click()
 
     const socialDialog = page.getByRole('dialog', { name: 'Social Phase' })
     await expect(socialDialog).toBeVisible()
@@ -773,7 +783,15 @@ test.describe('Real player core journeys', () => {
     const initialEnergy = Number(initialEnergyLabel?.match(/\d+/)?.[0])
     expect(initialEnergy).toBeGreaterThanOrEqual(1)
 
-    await socialDialog.locator('[aria-label="Player roster"]').getByRole('button').first().click()
+    if (opensSuggestedMove) {
+      await expect(socialDialog.locator('.sp2-focus--active')).toBeVisible()
+    } else {
+      await socialDialog
+        .getByRole('region', { name: 'Player roster' })
+        .getByRole('button')
+        .first()
+        .click()
+    }
     if ((page.viewportSize()?.width ?? 0) < 700) {
       const focus = socialDialog.locator('.sp2-focus--active')
       const heading = socialDialog.locator('.sp2-moves__top')
@@ -891,6 +909,9 @@ test.describe('Real player core journeys', () => {
       .click()
     const tutorial = page.getByTestId('reality-social-tutorial-prompt')
     if (await tutorial.isVisible()) await tutorial.getByRole('button', { name: 'Skip' }).click()
+    if ((await readAppState(page)).social.panelFocus) {
+      await social.getByRole('button', { name: /^Deselect .+ and show roster$/ }).click()
+    }
     const roster = social.getByLabel('Player roster')
     await roster.getByText(sender.name, { exact: true }).click()
     await expect(social.getByRole('heading', { name: sender.name, exact: true })).toBeVisible()

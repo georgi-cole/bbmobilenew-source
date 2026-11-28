@@ -78,4 +78,43 @@ describe('durablePersistence', () => {
     expect(diagnostics.migratedLegacyKeys).toBe(1)
     expect(diagnostics.lastFailureReason).toBe('quota_exceeded')
   })
+
+  it('waits for the competition result write when another caller starts flushing it', async () => {
+    vi.resetModules()
+    const persistence = await import('./durablePersistence')
+    const backend = new FakeBackend()
+    await persistence.initializeDurablePersistence(backend)
+
+    let finishInitialWrite!: () => void
+    const initialWrite = new Promise<void>((resolve) => {
+      finishInitialWrite = resolve
+    })
+    const apply = backend.apply.bind(backend)
+    vi.spyOn(backend, 'apply')
+      .mockImplementationOnce(async (mutations) => {
+        await initialWrite
+        await apply(mutations)
+      })
+      .mockRejectedValueOnce(new DOMException('Storage unavailable', 'InvalidStateError'))
+
+    const key = 'bbmobilenew:savedRunSlot:profile-1:classic'
+    persistence.setDurableItem(key, 'playing')
+    const initialSave = persistence.flushDurablePersistence()
+    persistence.setDurableItem(key, 'finished')
+    const lifecycleSave = persistence.flushDurablePersistence()
+    const competitionSave = persistence.flushDurablePersistence()
+
+    finishInitialWrite()
+    expect(await Promise.all([initialSave, lifecycleSave, competitionSave])).toEqual([
+      true,
+      false,
+      false,
+    ])
+    expect(backend.values.get(key)).toBe('playing')
+    expect(persistence.getDurableItem(key)).toBe('playing')
+
+    persistence.setDurableItem(key, 'finished')
+    expect(await persistence.flushDurablePersistence()).toBe(true)
+    expect(backend.values.get(key)).toBe('finished')
+  })
 })

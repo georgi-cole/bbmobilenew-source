@@ -260,6 +260,7 @@ export default function SocialPanelV2() {
   const influenceBank = useAppSelector(selectInfluenceBank, comparePanelState)
   const infoBank = useAppSelector(selectInfoBank, comparePanelState)
   const socialPanelOpen = useAppSelector(selectSocialPanelOpen)
+  const panelFocus = useAppSelector((state) => state.social.panelFocus)
   const sessionLogs = useAppSelector(selectSessionLogs, comparePanelState)
   const actionHistory = useAppSelector(selectPersistentSocialHistory, comparePanelState)
   const socialCommitments = useAppSelector(selectSocialCommitments, comparePanelState)
@@ -424,6 +425,21 @@ export default function SocialPanelV2() {
     ReadonlyMap<string, number>
   >(new Map())
   const [moveFilter, setMoveFilter] = useState<(typeof MOVE_FILTERS)[number]['id']>('all')
+  useEffect(() => {
+    if (!socialPanelOpen || !panelFocus) return
+    const frame = window.requestAnimationFrame(() => {
+      setSelectedAllianceId(null)
+      setSelectedAllianceHistoryEventId(null)
+      setSelectedPactHistoryEventId(null)
+      setMultiSelectActive(false)
+      setPrimaryTargetId(panelFocus.targetId)
+      setSelectedTargets(new Set([panelFocus.targetId]))
+      setSelectedActionId(panelFocus.actionId)
+      setSelectedSubjectId(panelFocus.subjectId ?? null)
+      setMoveFilter('all')
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [panelFocus, socialPanelOpen])
   const selectedAllianceRecord = selectedAllianceId
     ? socialState.reality.alliances[selectedAllianceId]
     : undefined
@@ -1945,17 +1961,35 @@ export default function SocialPanelV2() {
   const disabledPlayerIds = finaleReunionSocialOpen ? [] : juryPlayers.map((player) => player.id)
 
   const subjectPickerRef = useRef<HTMLDivElement>(null)
+  const movesRef = useRef<HTMLElement>(null)
+  const focusedPanelRequest = useRef<typeof panelFocus>(undefined)
   const reducedPresentationMotion = usePresentationReducedMotion()
   useEffect(() => {
-    if ((!needsSubject && !isAllianceSway) || !open) return
-    const frame = window.requestAnimationFrame(() =>
+    const requestedActionSelected =
+      panelFocus &&
+      panelFocus.actionId === selectedActionId &&
+      panelFocus.targetId === effectivePrimaryTargetId
+    if (!open || (!requestedActionSelected && !needsSubject && !isAllianceSway)) return
+    const frame = window.requestAnimationFrame(() => {
+      if (requestedActionSelected && focusedPanelRequest.current !== panelFocus) {
+        const card = movesRef.current?.querySelector<HTMLElement>(
+          '[data-action-id][aria-pressed="true"]'
+        )
+        if (card) {
+          focusedPanelRequest.current = panelFocus
+          card.scrollIntoView?.({ block: 'center', inline: 'nearest' })
+          card.focus({ preventScroll: true })
+          return
+        }
+      }
       subjectPickerRef.current?.scrollIntoView?.({
         block: 'nearest',
         behavior: reducedPresentationMotion ? 'auto' : 'smooth',
       })
-    )
+    })
     return () => window.cancelAnimationFrame(frame)
   }, [
+    panelFocus,
     selectedActionId,
     effectivePrimaryTargetId,
     needsSubject,
@@ -2680,6 +2714,7 @@ export default function SocialPanelV2() {
           )}
 
           <section
+            ref={movesRef}
             className="sp2-moves"
             aria-label="Social actions"
             id="sp2-alliance-actions"

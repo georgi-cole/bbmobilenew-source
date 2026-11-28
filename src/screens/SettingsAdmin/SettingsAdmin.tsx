@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { buildViewportMetaContent } from '../../components/layout/viewportMeta'
+import { applyViewportMeta, isNativeIosViewport } from '../../components/layout/viewportMeta'
 import { useNavigate } from 'react-router'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -161,10 +161,7 @@ export default function SettingsAdmin() {
   // Keep the viewport meta tag in sync with the enableZoom setting.
   const enableZoom = settings.visual?.enableZoom ?? false
   useEffect(() => {
-    const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]')
-    if (meta) {
-      meta.content = buildViewportMetaContent(enableZoom)
-    }
+    applyViewportMeta(enableZoom)
   }, [enableZoom])
 
   return (
@@ -285,16 +282,18 @@ export default function SettingsAdmin() {
               />
             </div>
 
-            <div className="settings-row">
-              <label className="settings-row__label">Extra zoom range</label>
-              <input
-                type="checkbox"
-                className="settings-toggle"
-                checked={settings.visual?.enableZoom ?? false}
-                onChange={(e) => dispatch(setVisual({ enableZoom: e.target.checked }))}
-                aria-label="Toggle extra zoom range"
-              />
-            </div>
+            {!isNativeIosViewport() && (
+              <div className="settings-row">
+                <label className="settings-row__label">Extra zoom range</label>
+                <input
+                  type="checkbox"
+                  className="settings-toggle"
+                  checked={enableZoom}
+                  onChange={(e) => dispatch(setVisual({ enableZoom: e.target.checked }))}
+                  aria-label="Toggle extra zoom range"
+                />
+              </div>
+            )}
           </section>
         )}
 

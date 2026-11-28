@@ -118,6 +118,12 @@ body {
   height: 100%;
 }
 
+/* Cover the iOS game surface and its portaled overlays, including scroll panes.
+   Minigames can still override this default with their own gesture rules. */
+:where(html.is-capacitor-ios, html.is-capacitor-ios *) {
+  touch-action: manipulation;
+}
+
 /* iOS zooms the entire page when a focused text control renders below 16px.
    In a persistent WebView that zoom/pan can survive route changes and make the
    fixed game cabinet appear scrollable. Keep every touch text-entry surface at
