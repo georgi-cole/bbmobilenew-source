@@ -2203,9 +2203,19 @@ export default function TvZone({ onSocialCueHostChange, ...props }: TvZoneProps)
                   {viewportDisplayText}
                 </p>
               )}
-              {onSocialCueHostChange && !hideViewportMessage && !viewportMessageOverride && (
-                <div className="tv-zone__social-cue-slot" ref={onSocialCueHostChange} />
-              )}
+              {onSocialCueHostChange &&
+                !hideViewportMessage &&
+                !viewportMessageOverride &&
+                !broadcastPresentationCovered &&
+                !guestSaveReminderQueued &&
+                !cupidFollowUpVisible &&
+                !detoxMessageActive && (
+                  <div
+                    key={`social-cue:${gameState.gameId}:${gameState.week}:${gameState.phase}:${viewportMessageKey}`}
+                    className="tv-zone__social-cue-slot"
+                    ref={onSocialCueHostChange}
+                  />
+                )}
             </div>
 
             {/* Twist badge — broadcast-style corner ribbon anchored to the viewport */}

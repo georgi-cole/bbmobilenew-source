@@ -1353,6 +1353,9 @@ describe('pre-release spectator progression', () => {
 })
 
 describe('FloatingActionBar with important Incoming', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
   it('spotlights Incoming and keeps Play blocked until a response', () => {
     const store = makeStore(true, { phase: 'social_1', week: 4 })
     const sender = store.getState().game.players.find((player) => !player.isUser)!
@@ -1368,7 +1371,7 @@ describe('FloatingActionBar with important Incoming', () => {
     store.dispatch(pushIncomingInteraction(interaction))
     renderFAB(store)
 
-    expect(screen.getByRole('button', { name: `${sender.name} needs an answer.` })).toBeVisible()
+    expect(screen.queryByRole('button', { name: `${sender.name} needs an answer.` })).toBeNull()
     const play = screen.getByRole('button', { name: 'Advance to next phase' })
     fireEvent.click(play)
     expect(store.getState().game.phase).toBe('social_1')
@@ -1411,10 +1414,12 @@ describe('FloatingActionBar with important Incoming', () => {
     renderFAB(store)
 
     const tv = screen.getByRole('region', { name: 'Live game events display' })
-    expect(
-      within(tv).getByRole('button', { name: `Talk to ${holder.name} before nominations.` })
-    ).toBeVisible()
+    const prompt = { name: `Talk to ${holder.name} before nominations.` }
     const social = screen.getByRole('button', { name: 'Social (3)' })
+    expect(within(tv).queryByRole('button', prompt)).toBeNull()
+    expect(social).not.toHaveClass('dock-hit-area--social-spotlight')
+    act(() => vi.advanceTimersByTime(2500))
+    expect(within(tv).getByRole('button', prompt)).toBeVisible()
     expect(social).toHaveClass('dock-hit-area--social-spotlight')
     fireEvent.click(social)
     expect(store.getState().social.panelFocus).toEqual({
@@ -1440,6 +1445,7 @@ describe('FloatingActionBar with important Incoming', () => {
     })
     store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 7 }))
     renderFAB(store)
+    act(() => vi.advanceTimersByTime(2500))
 
     const tv = screen.getByRole('region', { name: 'Live game events display' })
     expect(

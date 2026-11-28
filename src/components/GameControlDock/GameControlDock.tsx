@@ -7,6 +7,7 @@ import AllPowerFauxTvEffect from './AllPowerFauxTvEffect'
 import './GameControlDock.css'
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+const SOCIAL_CUE_READING_MS = 2500
 
 function assetUrl(file: string): string {
   return `${BASE}/assets/clean_glassy_dock/${file}`
@@ -87,7 +88,12 @@ export interface GameControlDockProps {
   incomingDecisionRequired?: boolean
   incomingIconRef?: Ref<HTMLButtonElement>
   socialCueHost?: HTMLDivElement | null
-  socialCue?: { kind: 'social' | 'incoming'; label: string; onClick: () => void }
+  socialCue?: {
+    kind: 'social' | 'incoming'
+    label: string
+    immediate: boolean
+    onClick: () => void
+  }
   publicMeterDisabled?: boolean
   chatBadgeCount?: number
   showChatBadgeZero?: boolean
@@ -161,6 +167,15 @@ export default function GameControlDock({
 }: GameControlDockProps) {
   const dispatch = useAppDispatch()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [readSocialCueHost, setReadSocialCueHost] = useState<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!socialCueHost) return
+    const timer = window.setTimeout(
+      () => setReadSocialCueHost(socialCueHost),
+      SOCIAL_CUE_READING_MS
+    )
+    return () => window.clearTimeout(timer)
+  }, [socialCueHost])
   const weekendActive = useAppSelector((state) => state.game.weekendInterlude?.active === true)
   const votePresentationLocked = useAppSelector(
     (state) =>
@@ -187,6 +202,7 @@ export default function GameControlDock({
   const showSocialCue =
     socialCueHost &&
     socialCue &&
+    (socialCue.immediate || readSocialCueHost === socialCueHost) &&
     (socialCue.kind === 'incoming'
       ? !requestsDockDisabled && !incomingRequestsDisabled
       : !dockDisabled && !socialDisabled)

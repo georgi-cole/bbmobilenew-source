@@ -1263,6 +1263,7 @@ export default function FloatingActionBar({
             ? {
                 ...socialOpportunity,
                 label: incomingBlockedMessage ?? socialOpportunity.label,
+                immediate: incomingBlockedMessage !== null,
                 onClick: handleSocialOpportunityClick,
               }
             : undefined
